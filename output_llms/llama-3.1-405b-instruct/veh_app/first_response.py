@@ -1,72 +1,71 @@
-# Import necessary modules
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import math
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+# Initialize the Chrono environment
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
-# Create a ChronoEngine physical system
-my_system = chrono.ChSystemNSC()
+# Create the simulation system
+sys = chrono.ChSystemNSC()
 
-# Create a vehicle
-my_gator = veh.Gator()
-my_gator.Initialize(my_system)
-my_gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-my_gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-my_gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-my_gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# Create the vehicle
+gator = veh.ChPart('gator')
+gator.SetMass(1000)
+gator.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+sys.Add(gator)
 
-# Create a terrain
-terrain = veh.RigidTerrain(my_system)
-terrain.Initialize()
+# Add vehicle parts with different visualization types
+chassis = veh.ChPart('chassis')
+chassis.SetVisualizationType(veh.VisualizationType_MESH)
+gator.Add(chassis)
 
-# Create a driver system
-driver = veh.ChDriver(my_gator)
-driver.Initialize()
+wheel = veh.ChPart('wheel')
+wheel.SetVisualizationType(veh.VisualizationType_SPHERE)
+gator.Add(wheel)
 
-# Create a sensor manager
-manager = sens.ChSensorManager(my_system)
+# Create the terrain
+terrain = veh.ChTerrain()
+sys.Add(terrain)
 
-# Create point lights
-plight1 = sens.ChPointLight()
-plight1.SetPosition(chrono.ChVector(0, 2, 0))
-plight1.SetPower(100)
-manager.AddSensor(plight1)
+# Create the driver system
+driver = veh.ChDriver()
+sys.Add(driver)
 
-plight2 = sens.ChPointLight()
-plight2.SetPosition(chrono.ChVector(0, -2, 0))
-plight2.SetPower(100)
-manager.AddSensor(plight2)
+# Create the sensor manager
+manager = sens.ChSensorManager()
+sys.Add(manager)
 
-# Create a camera
+# Add point lights to the sensor manager
+light1 = sens.ChPointLight()
+light1.SetLocation(chrono.ChVectorD(1, 1, 1))
+manager.AddSensor(light1)
+
+light2 = sens.ChPointLight()
+light2.SetLocation(chrono.ChVectorD(-1, -1, -1))
+manager.AddSensor(light2)
+
+# Add a camera to the sensor manager
 camera = sens.ChCameraSensor()
-camera.SetPosition(chrono.ChVector(0, 1, -5))
-camera.SetFocusPoint(chrono.ChVector(0, 1, 0))
-camera.SetCameraParameters(50, 1.4, 640, 480)
+camera.SetLocation(chrono.ChVectorD(0, 0, 1))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
 manager.AddSensor(camera)
 
-# Set up the camera to render images
-camera.SetSaveData(True)
-camera.SetSaveInterval(1)
-
-# Simulation loop
-while my_system.GetChTime() < 100:
-    # Update driver
+# Set up the simulation loop
+while sys.GetChTime() < 10:
+    # Update the driver
     driver.Update()
 
-    # Update terrain
+    # Update the terrain
     terrain.Update()
 
-    # Update vehicle
-    my_gator.Update()
+    # Update the vehicle
+    gator.Update()
 
-    # Update sensor manager
+    # Update the sensor manager
     manager.Update()
 
-    # Synchronize and advance simulation modules
-    my_system.DoStepDynamics(chrono.ChTimestepperEulerImplicitLinearized())
+    # Synchronize and advance the simulation modules
+    sys.DoStepDynamics(0.01)
 
-    # Render the camera image
+    # Render the camera images
     camera.Render()

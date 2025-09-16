@@ -36,7 +36,7 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
-pend_1.SetAngVel(chrono.ChVector3d(0, 0, 1))  
+pend_1.SetRotAngVel(chrono.ChVector3d(0, 0, 1))  
 
 
 
@@ -48,16 +48,12 @@ sys.AddLink(sph_1)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('Modified ChBodyAuxRef demo')  
+vis.SetWindowTitle('ChBodyAuxRef demo')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
 vis.AddCamera(chrono.ChVector3d(0, 3, 6))  
 vis.AddTypicalLights()  
-
-
-sph_1.SetVisualShape(chrono.ChVisualShapeSphere(2))  
-sph_1.SetColor(chrono.ChColor(0, 0, 1))  
 
 
 log_info = True  
@@ -74,6 +70,4 @@ while vis.Run():
         print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
-        ang_vel_1 = pend_1.GetAngVel()  
-        print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
         log_info = False

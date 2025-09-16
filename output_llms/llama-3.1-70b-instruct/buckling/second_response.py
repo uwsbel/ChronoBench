@@ -1,4 +1,3 @@
-"""
 import math as m  # Import the math library for trigonometric functions, constants, etc.
 import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
@@ -44,7 +43,7 @@ sys.AddBody(body_truss)  # Add the truss to the physical system
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.015, 0, 0), chrono.QUNIT))
+body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()

@@ -1,70 +1,63 @@
-import chrono as ch
+import chrono as chrono
+from chrono import IrrlichtVisualizer
 import numpy as np
 
 
-ch.InitChrono()
+chrono.Initialize()
 
 
-sim = ch.ChSystem()
+world = chrono.ChWorld()
 
 
-mat = ch.ChMaterialIsotropicKirchhoff()
-mat.SetDensity(1.0)
-mat.SetYoungModulus(1.0)
-mat.SetPoissonRatio(0.3)
-mat.SetFriction(0.5)
+solver = chrono.ChSolverPardisoMKL()
 
 
-body = ch.ChBody()
-body.SetBodyMaterial(mat)
-body.SetBodyInertia(1.0, 1.0, 1.0)
-body.SetBodyPosition(0.0, 0.0, 0.0)
-body.SetBodyRotation(0.0, 0.0, 0.0)
-sim.Add(body)
+material = chrono.ChMaterialTool.IsotropicElastoplastic(1e9, 0.4, 1e-6)
 
 
-n = 10
-x = np.linspace(-1, 1, n)
-y = np.linspace(-1, 1, n)
-X, Y = np.meshgrid(x, y)
-Z = np.zeros((n, n))
+tablecloth_length = 2.0
+tablecloth_width = 1.0
+num_nodes_x = 20
+num_nodes_y = 10
+node_spacing_x = tablecloth_length / (num_nodes_x - 1)
+node_spacing_y = tablecloth_width / (num_nodes_y - 1)
 
 
 nodes = []
 elements = []
-for i in range(n):
-    for j in range(n):
-        node = ch.ChNodeShell()
-        node.SetPosition(X[i, j], Y[i, j], Z[i, j])
+for i in range(num_nodes_x):
+    for j in range(num_nodes_y):
+        node_x = i * node_spacing_x
+        node_y = j * node_spacing_y
+        node = chrono.ChBodyEasyBox(node_x, node_y, 0.01, 0.01, 0.01)
+        node.SetMass(1.0)
+        node.SetInertia(0.01)
+        node.SetPos(chrono.ChVector(node_x, node_y, 0))
+        node.SetMaterialFlag(material)
+        node.SetBodyFixed(False)
+        world.Add(node)
         nodes.append(node)
-        body.AddNode(node)
 
-        if i < n - 1 and j < n - 1:
-            element = ch.ChShell()
-            element.SetNode1(nodes[i * n + j])
-            element.SetNode2(nodes[i * n + j + 1])
-            element.SetNode3(nodes[(i + 1) * n + j])
-            element.SetNode4(nodes[(i + 1) * n + j + 1])
+        
+        if i < num_nodes_x - 1 and j < num_nodes_y - 1:
+            element = chrono.ChShellEasyBox(node_x, node_y, 0.01, 0.01, 0.01)
+            element.SetMaterialFlag(material)
+            element.SetBody(node)
             elements.append(element)
-            body.AddElement(element)
 
 
-vis = ch.ChIrrApp(sim, "Tablecloth Folding Simulation")
-vis.AddLargeText("Tablecloth Folding Simulation")
-vis.AddCameraController()
+for element in elements:
+    world.Add(element)
 
 
-solver = ch.ChPardisoMKLSolver()
-solver.SetMaxIterations(1000)
-solver.SetTolerance(1e-6)
-sim.SetSolver(solver)
+visualizer = IrrlichtVisualizer(world)
 
 
-while vis.GetDevice().IsClosed() == False:
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
-    sim.DoStepDynamics(0.01)
+world.SetSolver(solver)
 
 
-ch.ChronoCleanup()
+t_end = 10.0
+dt = 0.01
+for t in np.arange(0, t_end, dt):
+    world.DoStepDynamics(dt)
+    visualizer.Render()

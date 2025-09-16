@@ -1,70 +1,62 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.fea as fea
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+length = 1.0  
+thickness = 0.01  
+width = 0.1  
+E = 2.1e9  
+nu = 0.3  
+rho = 7800  
+force = 100  
 
 
 sys = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-sys.Add(ground)
-
-
-beam = chrono.ChMesh(sys)
-beam.SetDefaultFrame(chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), chrono.Q_ROTATE_X_TO_Z))
-sys.Add(beam)
-
-
-num_elements = 10
-element_length = 1.0
-for i in range(num_elements):
-    node1 = chrono.ChNodeFEAxyzD(chrono.ChVectorD(i * element_length, 1, 0))
-    node2 = chrono.ChNodeFEAxyzD(chrono.ChVectorD((i + 1) * element_length, 1, 0))
-    beam.AddNode(node1)
-    beam.AddNode(node2)
-    beam.AddElement(chrono.ChElementBeamANCF(node1, node2))
-
-
-constraint = chrono.ChLinkMateGeneric()
-constraint.Initialize(beam.GetNode(0), ground)
-sys.Add(constraint)
+mesh = fea.ChMesh()
+beam_L = fea.ChElementBeamEuler()
+beam_L.SetNodes(fea.ChNodeFEAxyz(0, 0, 0), fea.ChNodeFEAxyz(length, 0, 0))
+beam_L.SetSectionProperties(width, thickness)
+beam_L.SetMaterialProperties(E, nu, rho)
+mesh.AddElement(beam_L)
 
 
 class CustomMotor(chrono.ChFunction):
     def __init__(self):
         super().__init__()
-        self.amplitude = 1.0
-        self.frequency = 1.0
+        self.t_ref = 0
+        self.F = force
 
     def Get_y(self, x):
-        return self.amplitude * np.sin(2 * np.pi * self.frequency * x)
+        if x > self.t_ref:
+            self.t_ref = x
+            return self.F
+        else:
+            return 0
+
+motor = CustomMotor()
 
 
-motor = chrono.ChLinkMotorLinear()
-motor.Initialize(beam.GetNode(0), ground)
-motor.SetMotorFunction(CustomMotor())
-sys.Add(motor)
+sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(0), None, False, False, False))
+sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(1), None, False, False, False))
 
 
-app = chronoirr.ChIrrApp(sys, 'Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
-app.AddTypicalSky()
-app.AddTypicalCamera(chronoirr.vector3df(0, 0, -5))
-app.AddTypicalLights()
+sys.Add(mesh)
 
 
 solver = chrono.ChSolverBB()
-sys.SetSolver(solver)
-timestepper = chrono.ChTimestepperEulerImplicitProjected()
-sys.SetTimestepper(timestepper)
+timestepper = chrono.ChTimestepperHHT(solver)
+sys.SetSolver(timestepper)
 
 
-app.GetDevice().run()
-while app.GetDevice().run():
-    sys.DoStepDynamics(0.01)
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+application = chronoirr.ChIrrApp(sys, 'PyChrono Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
+application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512)
+
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+application.Simulate(10)

@@ -4,145 +4,188 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`mysystem = chrono.ChSystemNSC()`). No deduction.
-- **Body Creation:**  
-  - Vehicle created (`hmmwv = veh.HMMWV()`), but the vehicle is not properly initialized. According to the API, the vehicle should be initialized with `hmmwv.Initialize()` after setting contact method and chassis collision type. This is missing.  
-  - Terrain created with `chrono.ChBodyEasyBox`, but no material is assigned explicitly, and the terrain is added directly to the system. Usually, terrain is created via `veh.RigidTerrain` or at least with proper material and collision settings. Minor omission but acceptable for a simple box terrain.  
-  - The vehicle parts are manually added to the system using `mysystem.Add(hmmwv.GetPart(i))`. This is unusual; typically, the vehicle manages its own bodies internally and is added to the system via `mysystem.Add(hmmwv.GetVehicle())` or similar. The API docs suggest adding the vehicle to the system, not individual parts. This is a missing standard practice.  
-- **Visualization:**  
-  - Visualization system is created (`application = chronoirr.ChVisualSystemIrrlicht()`), but the system is **not attached** to the visualization via `application.AttachSystem(mysystem)`. This is essential for visualization to work properly.  
-  - The visualization initialization (`application.Initialize()`) is missing.  
-  - The visualization loop uses `application.GetDevice().run()` instead of the documented `application.Run()`.  
-- **Driver:**  
-  - Driver is created and configured, but `driver.SetSteeringMode(veh.SteeringMode::STEERING_MODE_TANK)` uses C++ style scope resolution `::` instead of Python `.`. Also, the steering mode constant is likely `veh.SteeringMode.STEERING_MODE_TANK`.  
-  - The driver is added to the system via `mysystem.Add(driver.GetChassisBody())`, which is incorrect. The driver is not a body and should not be added to the system.  
-- **Sensors:**  
-  - IMU and GPS sensors are created and added to the chassis body. The method `hmmwv.GetChassisBody().Add(imu)` is incorrect; sensors should be added via `hmmwv.GetChassisBody().AddSensor(imu)` or `mysystem.AddSensor(imu)`.  
-  - Noise types are set with `sens.SensorNoiseType::GAUSSIAN` which again uses C++ style `::` instead of Python `.`.  
-- **Simulation Loop:**  
-  - The loop calls `application.DoStep()`, which is not a documented method. The correct method to advance the visualization is `application.BeginScene()`, `application.Render()`, `application.EndScene()`.  
-  - The simulation step calls `mysystem.DoStepDynamics(0.01)` which is correct.  
-  - The vehicle update is called with `hmmwv.Update(0.01)`, which is correct.  
-  - The driver update is called with `driver.Update(0.01)`, which is correct.  
-  - Sensors are processed with `imu.Process(0.01)` and `gps.Process(0.01)`, which is correct.  
-- **Summary:**  
-  - Missing vehicle initialization: **-15 points**  
-  - Missing visualization system attachment and initialization: **-15 points**  
-  - Incorrect driver and sensor additions to system/bodies: **-10 points**  
-  - Minor omissions in terrain setup and use of C++ style syntax: **-5 points**
+- **System Initialization:**  
+  The system is initialized correctly with `chrono.ChSystemNSC()`.  
+  **No deduction.**
 
-**Total Completeness deduction: 15 + 15 + 10 + 5 = 45 points** (But max deduction is 40, so capped at 40)
+- **Vehicle Creation and Initialization:**  
+  The vehicle is created using `chrono_vehicle.HMMWV()`. However, the vehicle class `HMMWV()` is not instantiated with any arguments, and the contact method is not explicitly set. According to the API documentation and best practices, vehicle classes typically require specifying the contact method (NSC or SMC) during construction, e.g., `veh = chrono_vehicle.HMMWV(contact_method=chrono.ChContactMethod_NSC)`. This omission can lead to incorrect or default contact method usage.  
+  **Deduct 10 points** for incomplete vehicle initialization details.
+
+- **Material Setup:**  
+  The code creates new `ChMaterialSurfaceNSC()` instances for contact, chassis, and tires but does not set friction or damping on these materials directly. Instead, friction and damping are set on the vehicle via `SetTireFrictionCoefficient` and `SetTireDampingCoefficient`. This is acceptable, but the materials themselves have no friction or damping set, which might be suboptimal or cause confusion.  
+  **Minor omission:** Deduct 5 points.
+
+- **Adding Bodies to System:**  
+  The code adds the chassis body with `system.Add(veh.GetChassisBody())` and then calls `system.Add(veh.GetBodyList())`. `GetBodyList()` returns a list, but `system.Add()` expects a single body. This is a **significant error** because adding a list instead of individual bodies will cause a runtime error or no effect. The correct approach is to iterate over the list and add each body individually.  
+  **Deduct 15 points** for this essential component misusage.
+
+- **Terrain Creation:**  
+  The terrain is created with `chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, True)`. This is incorrect because the first argument should be the box length in X, not the system object. The correct call is `chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)`. Passing `system` as the first argument is a **critical error**.  
+  **Deduct 15 points** for incorrect terrain creation.
+
+- **Terrain Material and Properties:**  
+  The terrain material is created and friction/damping are set correctly.  
+  **No deduction.**
+
+- **Driver Initialization:**  
+  The driver is created with `chrono_vehicle.ChIrrVehicleDriver(veh)`, and steering, throttle, braking deltas and lags are set. The driver is then initialized. This is consistent with the API.  
+  **No deduction.**
+
+- **Sensor Initialization:**  
+  IMU and GPS sensors are created, noise and frequency are set, position and orientation are set, and sensors are initialized. This is consistent with the API.  
+  **No deduction.**
+
+- **Visualization Setup:**  
+  The Irrlicht visualization system is created and configured with window size, lights, camera, skybox, logo, and info display. However, the visualization system is never attached to the physical system via `application.AttachSystem(system)`, which is essential for visualization to reflect the simulation state.  
+  **Deduct 15 points** for missing `AttachSystem()` call.
+
+- **Simulation Loop:**  
+  The loop calls `application.Run()`, `BeginScene()`, `DrawAll()`, updates driver inputs, updates vehicle, terrain, sensors, prints vehicle mass, advances simulation with `system.DoStepDynamics()`, and ends scene.  
+  However, `DrawAll()` is deprecated or less preferred compared to `Render()`. The API documentation suggests using `vis.Render()` instead of `DrawAll()`.  
+  **Deduct 5 points** for minor deviation from best practice.
+
+- **Vehicle and Terrain Update Calls:**  
+  The calls `veh.Update(1e-3)` and `terrain.Update(1e-3)` are not standard API calls. The vehicle and terrain do not have an `Update()` method that takes a timestep; the system's `DoStepDynamics()` advances the simulation. These calls are unnecessary and may cause errors.  
+  **Deduct 10 points** for incorrect or unnecessary API calls.
+
+- **Incrementing Controls and Clamping:**  
+  Steering, throttle, and braking are incremented and clamped correctly.  
+  **No deduction.**
+
+**Total Completeness Deduction:** 10 + 5 + 15 + 15 + 15 + 5 + 10 = 75 points deducted (over 40 points max, so capped at 40).
+
+**Final Completeness Score:** 0/40
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `chrono.ChCollisionSystem.SetDefaultImpulseThreshold(1e-3)`**:  
-  - `ChCollisionSystem` is a class, but `SetDefaultImpulseThreshold` is not a documented static method. The API documentation does not mention this method. Possibly incorrect or deprecated.  
-- **Use of C++ style scope resolution `::` in Python code:**  
-  - `veh.SteeringMode::STEERING_MODE_TANK` and `sens.SensorNoiseType::GAUSSIAN` are invalid in Python and will cause syntax errors. Should be `veh.SteeringMode.STEERING_MODE_TANK` and `sens.SensorNoiseType.GAUSSIAN`.  
-- **Adding driver to system via `mysystem.Add(driver.GetChassisBody())`:**  
-  - Driver is not a body; this is incorrect and will cause errors.  
-- **Adding sensors via `hmmwv.GetChassisBody().Add(imu)` instead of `AddSensor`:**  
-  - Incorrect method, will cause errors or no effect.  
-- **Visualization loop uses `application.DoStep()` which is not documented:**  
-  - Should be `application.Render()` between `BeginScene()` and `EndScene()`.  
-- **Terrain creation:**  
-  - `chrono.ChBodyEasyBox(mysystem, 10, 10, 1, 1000, True, True)` is incorrect. The first argument should be size parameters, not the system. The correct signature is `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)`. Passing `mysystem` as first argument is wrong.  
-- **Summary:**  
-  - Incorrect method calls and syntax errors: **-15 points**  
-  - Logical errors in adding driver and sensors: **-10 points**  
-  - Minor inaccuracies in terrain creation and visualization loop: **-5 points**
+- **Incorrect use of `system.Add(veh.GetBodyList())`:**  
+  This is a significant error that will cause runtime issues.  
+  **Deduct 15 points.**
 
-**Total Correctness deduction: 15 + 10 + 5 = 30 points**
+- **Incorrect terrain creation call:**  
+  Passing `system` as the first argument to `ChBodyEasyBox` is a critical error.  
+  **Deduct 15 points.**
+
+- **Missing `AttachSystem()` for visualization:**  
+  This will prevent visualization from showing the simulation correctly.  
+  **Deduct 15 points.**
+
+- **Use of `DrawAll()` instead of `Render()`:**  
+  Minor API misuse.  
+  **Deduct 5 points.**
+
+- **Unnecessary `Update()` calls on vehicle and terrain:**  
+  Logical error; these calls are not part of the API and may cause errors.  
+  **Deduct 10 points.**
+
+- **Use of `chrono.ChMaterialSurfaceNSC()` instead of `chrono.ChContactMaterialNSC()`:**  
+  The API documentation specifies `ChContactMaterialNSC()` for contact materials, not `ChMaterialSurfaceNSC()`. The latter is not a documented class in the provided API and likely incorrect.  
+  **Deduct 15 points.**
+
+**Total deductions exceed 30 points, capped at 30.**
+
+**Final Correctness Score:** 0/30
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- No comments or docstrings explaining the purpose of code blocks or parameters.  
-- Variable names are reasonable (`mysystem`, `hmmwv`, `terrain`, `driver`, `imu`, `gps`, `application`).  
-- Formatting is acceptable but could be improved (e.g., consistent spacing, blank lines between logical blocks).  
-- Use of C++ style syntax in Python code is a major readability and correctness issue.  
-- No error handling or checks.  
-- **Deduction:**  
-  - Lack of comments: **-5 points**  
-  - Use of incorrect syntax and minor formatting issues: **-5 points**
+- **Readability and Structure:**  
+  The code is mostly readable with meaningful variable names. However, there is no spacing between logical blocks, and the code lacks comments explaining the steps.  
+  **Deduct 5 points** for lack of comments and minor formatting issues.
 
-**Total Code Quality deduction: 10 points**
+- **Comments:**  
+  No comments are present to explain the purpose of code sections or parameters.  
+  **Deduct 5 points.**
+
+**Final Code Quality Score:** 0/10
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Adding each vehicle part individually to the system is inefficient and unnecessary; the vehicle should be added as a whole.  
-- The simulation loop calls `application.DoStep()` which is not documented and likely unnecessary.  
-- No reuse of variables or functions to reduce redundancy.  
-- No obvious heavy computations or redundant calculations.  
-- **Deduction:**  
-  - Unnecessary addition of vehicle parts individually: **-5 points**  
-  - Use of undocumented `application.DoStep()` and missing visualization initialization: **-3 points**
+- **Unnecessary calls to `Update()` on vehicle and terrain:**  
+  These calls are redundant and inefficient.  
+  **Deduct 5 points.**
 
-**Total Efficiency deduction: 8 points**
+- **Repeated creation of new material instances without setting friction/damping on them:**  
+  Could be optimized by creating one material and reusing it.  
+  **Deduct 3 points.**
+
+- **Incrementing controls every loop iteration without any conditional or event-based logic:**  
+  Minor inefficiency but acceptable for a simple demo.  
+  **No deduction.**
+
+**Final Efficiency Score:** 2/10
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No try-except blocks or error handling for file paths, sensor initialization, or system setup.  
-- No checks for successful initialization of vehicle or visualization.  
-- No handling of edge cases such as simulation termination conditions or invalid inputs.  
-- **Deduction:**  
-  - Lack of basic error handling: **-5 points**
+- **No error handling:**  
+  The code does not check for exceptions or invalid states (e.g., invalid vehicle initialization, sensor initialization failures).  
+  **Deduct 5 points.**
+
+- **No handling of edge cases:**  
+  For example, no checks on sensor initialization or system state.  
+  **Deduct 3 points.**
+
+**Final Error Handling Score:** 0/5
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created but not attached to the system (`application.AttachSystem(mysystem)` missing).  
-- Visualization system not initialized (`application.Initialize()` missing).  
-- Use of many camera and skybox methods is excessive and some are undocumented or unnecessary (e.g., `AddCameraSkyBox()`, `AddCameraVerticalAlign()`, etc. are not in the API docs).  
-- Use of `application.GetDevice().run()` instead of `application.Run()`.  
-- Missing `application.Render()` call in the loop.  
-- **Deduction:**  
-  - Incorrect or incomplete visualization setup: **-5 points**
+- **Missing `AttachSystem()` call:**  
+  This is essential for visualization to work properly.  
+  **Deduct 5 points.**
+
+- **Use of `DrawAll()` instead of `Render()`:**  
+  Minor visualization issue.  
+  **Deduct 2 points.**
+
+- **Camera setup is duplicated:**  
+  `AddTypicalCamera()` and `SetCamera()` are both called with the same position, which is redundant.  
+  **Deduct 2 points.**
+
+**Total deduction exceeds 5 points, capped at 5.**
+
+**Final Visualization Score:** 0/5
 
 ---
 
 ### **Summary of deductions:**
 
-| Criterion                     | Points Deducted | Notes                                                                                   |
-|-------------------------------|----------------|-----------------------------------------------------------------------------------------|
-| Completeness                  | 40             | Missing vehicle initialization, visualization attachment/init, incorrect driver/sensor additions |
-| Correctness                  | 30             | Syntax errors, incorrect API usage, wrong terrain creation, wrong visualization loop     |
-| Code Quality                 | 10             | No comments, poor syntax (C++ style), minor formatting issues                           |
-| Efficiency                  | 8              | Inefficient vehicle part addition, unnecessary/undocumented visualization calls        |
-| Error Handling and Robustness | 5              | No error handling or robustness checks                                                 |
-| Visualization Tools          | 5              | Missing AttachSystem, Initialize, wrong loop calls, excessive undocumented calls       |
-
-**Total deductions: 40 + 30 + 10 + 8 + 5 + 5 = 98**
-
-Starting from 100 points, final score = 2 points.
+| Criterion                  | Max Points | Deduction | Score |
+|----------------------------|------------|-----------|-------|
+| Completeness               | 40         | 40        | 0     |
+| Correctness               | 30         | 30        | 0     |
+| Code Quality              | 10         | 10        | 0     |
+| Efficiency                | 10         | 8         | 2     |
+| Error Handling & Robustness | 5          | 5         | 0     |
+| Visualization Tools       | 5          | 5         | 0     |
+| **Total**                 | **100**    | **98**    | **2** |
 
 ---
 
-### Final score:
+### **Final Score:**
 
 [[2]]
 
 ---
 
-### Explanation:
+### **Explanation:**
 
-The script attempts to set up a vehicle simulation with visualization and sensors but contains multiple critical errors:
+The script has several critical errors that would prevent it from running correctly or producing the expected simulation results:
 
-- The vehicle is not properly initialized, and its parts are manually added to the system, which is not standard practice.
-- The visualization system is not attached to the physical system nor initialized, and the rendering loop uses incorrect methods.
-- The driver and sensor additions to the system/bodies are incorrect.
-- Syntax errors due to use of C++ style `::` instead of Python `.` will cause the script to fail.
-- Terrain creation uses an incorrect constructor signature.
-- Lack of comments and error handling reduces code quality and robustness.
-- Inefficient and redundant code usage.
-- Visualization setup is incomplete and uses undocumented or unnecessary calls.
+- Incorrect use of API calls for terrain creation and adding bodies to the system.
+- Missing essential visualization setup (`AttachSystem`).
+- Use of undefined or incorrect material classes.
+- Unnecessary and incorrect update calls on vehicle and terrain.
+- Lack of comments and error handling.
+- Minor inefficiencies and visualization redundancies.
 
-These issues severely impact the correctness and usability of the simulation script, leading to a near-zero score.
+These issues severely impact the completeness, correctness, and usability of the simulation script, resulting in a very low score. Only minor credit is given for the basic structure and some correct API usage.

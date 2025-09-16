@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -73,15 +72,15 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a long box to test vehicle mobility
+# Create a long box
 box_mat = chrono.ChContactMaterialSMC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box = veh.RigidBox(vehicle.GetSystem())
-box.SetMaterial(box_mat)
-box.SetPosition(chrono.ChVector3d(50, 0, 0))
-box.SetSize(10, 10, 10)
-box.Initialize()
+box_mat.AddBox(box, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(10, 10, 10))
+box_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+box_mat.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+box_mat.Initialize()
 
 # Create the vehicle Irrlicht interface
 
@@ -105,6 +104,7 @@ braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+driver.SetThrottle(0.8)  # Hard-coded throttle value
 
 driver.Initialize()
 
@@ -145,8 +145,3 @@ while vis.Run() :
     vis.Advance(step_size)
     # Increment frame number
     step_number += 1
-
-    # Hard-coded throttle value
-    driver_inputs.throttle = 0.8
-    vehicle.Synchronize(time, driver_inputs)
-    vehicle.Advance(step_size)

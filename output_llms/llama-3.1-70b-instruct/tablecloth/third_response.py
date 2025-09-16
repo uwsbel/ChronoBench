@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono  # Import core Chrono functionality
 import pychrono.irrlicht as chronoirr  # Import Irrlicht visualization
 import pychrono.fea as fea  # Import Finite Element Analysis components
@@ -84,7 +83,7 @@ if (True):  # Block to execute the following setup
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  # Assign element to monitor
+                ementmonitor = melementA  # Assign element to monitor
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]

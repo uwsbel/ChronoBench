@@ -17,11 +17,14 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)  
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)  
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)  
+
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
     hmmwv.Initialize()  
 
     
@@ -49,19 +52,13 @@ def main():
     
     app = chronoirr.ChVisualSystemIrrlicht()
     app.SetWindowSize(1024, 768)
-    app.SetWindowTitle('HMMWV Simulation')
-    app.SetLogo('logo.png')
-    app.SetCamera(ch.ChVector3D(0, 0, 1.5), ch.ChVector3D(0, 0, 0))
+    app.SetWindowTitle("HMMWV Simulation")
     app.AddTypicalLights()
+    app.AddCamera(chronoirr.ChCamera())
     app.AddSkyBox()
-    app.AddCameraVerticalTrack()
-    app.AddCameraHorizontalTrack()
-    app.AddCameraZoom()
-    app.AddTypicalLights()
-    app.AddSkyBox()
-    app.AddCameraVerticalTrack()
-    app.AddCameraHorizontalTrack()
-    app.AddCameraZoom()
+    app.AddTypicalLogo()
+    app.SetTimestep(1e-3)
+    app.SetTryRealtime(True)
 
     
     time = 0
@@ -88,12 +85,9 @@ def main():
             break  
 
         
-        app.BeginScene()
+        app.BeginScene(True, True, ch.ChColor(0.5, 0.5, 0.5))
         app.Render()
         app.EndScene()
-
-        
-        app.GetDevice().run()
 
 if __name__ == "__main__":
     main()

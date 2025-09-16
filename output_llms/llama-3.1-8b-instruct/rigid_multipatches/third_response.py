@@ -36,7 +36,7 @@ def main():
     patch2_mat = chrono.ChContactMaterialNSC()
     patch2_mat.SetFriction(0.9)
     patch2_mat.SetRestitution(0.01)
-    patch2 = terrain.AddPatch(patch2_mat, chrono.ChCoordsysd(chrono.ChVector3d(20, -5, 0.2), chrono.QUNIT), 32, 30)
+    patch2 = terrain.AddPatch(patch2_mat, chrono.ChCoordsysd(chrono.ChVector3d(20, -5, 0.2), chrono.QUNIT), 32, 30);
     patch2.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
     patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
 
@@ -78,6 +78,7 @@ def main():
     hmmwv.GetVehicle().EnableRealtime(True)
 
     step_size = 2e-3
+
     while vis.Run() :
         time = hmmwv.GetSystem().GetChTime()
 

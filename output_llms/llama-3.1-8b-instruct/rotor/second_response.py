@@ -1,45 +1,38 @@
-"""
-This script demonstrates the use of IGA beams in PyChrono to simulate a Jeffcott rotor.
-"""
-
 import math as m
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Create the system
 sys = chrono.ChSystemSMC()
 
-# Create a mesh
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set automatic gravity
-mesh.SetAutomaticGravity(True, 2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Change gravitational acceleration
+mesh.SetAutomaticGravity(True,
+                         2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));  # changed gravity vector
 
-# Beam parameters
-beam_L = 10  # Change beam length
-beam_ro = 0.060  # Change outer radius
-beam_ri = 0.055  # Change inner radius
-CH_PI = 3.14159  # Use math.pi for pi
+beam_L = 10  # changed beam length
+beam_ro = 0.060  # changed outer radius
+beam_ri = 0.055  # changed inner radius
+CH_PI = 3.1416  # changed PI value
 
 # Create a section, i.e. thickness and material properties
 # for beams. This will be shared among some beams.
 
 minertia = fea.ChInertiaCosseratSimple()
-minertia.SetDensity(7800)
-minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
-minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetDensity(7800);
+minertia.SetArea(m.PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
 melasticity.SetShearModulusFromPoisson(0.3)
-melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIyy((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((m.PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((m.PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 
@@ -62,10 +55,10 @@ node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() 
 
 # Create the flywheel and attach it to the center of the beam
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Change flywheel radius
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # changed flywheel radius
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+                       chrono.QuatFromAngleAxis(m.PI / 2.0, chrono.VECT_Z))
     # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
@@ -94,13 +87,12 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                                     chrono.QuatFromAngleAxis(m.PI / 2.0, chrono.VECT_Y))
                      # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)  # Change motor function
-
+f_ramp = chrono.ChFunctionSine(60, 0.1)  # changed motor function
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.
@@ -126,7 +118,7 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8))  # Change camera position
+vis.AddCamera(chrono.ChVector3d(0, 2, 8))  # changed camera position
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()

@@ -52,7 +52,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
+# Fix: vehicle.Initialize() should be before setting visualization types
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -86,16 +86,13 @@ new_patch_mat.SetRestitution(0.01)
 new_patch = terrain.AddPatch(new_patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
-    True, 0.01, False)
-new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump_vis.obj"), True, True)
-new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-new_tri_mesh_shape.SetMesh(new_vis_mesh)
-new_tri_mesh_shape.SetMutable(False)
-new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
-
-# Set color and texture for the new patch
-new_patch.GetGroundBody().GetAssetsList().GetAsset(0).SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-new_patch.GetGroundBody().GetAssetsList().GetAsset(0).SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
+    True, 0.5, 0.5, 0.8, 6.0, 6.0, chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/bump_vis.obj"), True, True)
+tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+tri_mesh_shape.SetMesh(vis_mesh)
+tri_mesh_shape.SetMutable(False)
+new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+terrain.AddPatch(new_patch)
 
 # Create the vehicle Irrlicht interface
 

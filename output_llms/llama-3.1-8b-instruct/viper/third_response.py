@@ -1,6 +1,3 @@
-"""
-Import necessary modules
-"""
 import os
 import math
 import numpy as np
@@ -17,12 +14,12 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-terrain = chrono.ChScmTerrain()
-terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+terrain = veh.ChScmPlane()
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0))
 terrain.SetLength(20)
 terrain.SetWidth(20)
-terrain.SetMeshResolution(10, 10)
-terrain.SetSoilParameters(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+terrain.SetMeshResolution(10)
+terrain.SetSoilParameters(0.5, 0.5, 0.5, 0.1, 0.1, 0.1)
 system.Add(terrain)
 
 # Create Viper rover
@@ -58,10 +55,8 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
-    steering = 0.0  # Set steering to a constant value of 0.0
+    driver.SetSteering(0.0)  # Set steering to a constant value of 0.0
     
-    driver.SetSteering(steering)  # Set the steering for the rover
-
     rover.Update()  # Update the rover's state
 
     # Render the scene

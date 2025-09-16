@@ -1,8 +1,8 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 
 # chrono.SetChronoDataPath('path/to/data')
 
@@ -17,24 +17,24 @@ rod_length = 1.5
 # Create four rigid bodies: the truss, the crank, the rod, the piston.
 
 # Create the floor truss
-mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
+mfloor = chrono.ChBodyEasyBox(sys, 3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
 # Create the flywheel crank
-mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+mcrank = chrono.ChBodyEasyCylinder(sys, chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
 # Since ChBodyEasyCylinder creates a vertical (y up) cylinder, here rotate it:
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
 
 # Create a stylized rod
-mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
+mrod = chrono.ChBodyEasyBox(sys, rod_length, 0.1, 0.1, 1000)
 mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))
 sys.Add(mrod)
 
 # Create a stylized piston
-mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+mpiston = chrono.ChBodyEasyCylinder(sys, chrono.ChAxis_Y, 0.2, 0.3, 1000)
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
 mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
 sys.Add(mpiston)
@@ -63,7 +63,7 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 # Create piston-truss joint
-mjointC = chrono.ChLinkLockPlane()
+mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),

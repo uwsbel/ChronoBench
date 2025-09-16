@@ -1,6 +1,6 @@
 import pychrono.core as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')
@@ -9,42 +9,102 @@ chrono.SetChronoDataPath('/path/to/chrono/data/')
 sys = chrono.ChSystemNSC()
 
 
-app = irr.ChIrrApp(sys, 'ARTcar Vehicle Simulation', irr.dimension2du(800, 600))
+ground = chrono.ChBodyEasyBox(sys,  
+                              100, 100, 2,  
+                              1000,  
+                              True,  
+                              True,  
+                              chrono.ChMaterialSurfaceNSC())  
+ground.SetPos(chrono.ChVectorD(0, 0, -1))  
+sys.Add(ground)  
 
 
-app.SetTimestep(0.01)
+vehicle = chrono.ChBodyEasyBox(sys,  
+                               4, 2, 1,  
+                               500,  
+                               True,  
+                               True,  
+                               chrono.ChMaterialSurfaceNSC())  
+vehicle.SetPos(chrono.ChVectorD(0, 0, 1))  
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
+sys.Add(vehicle)  
 
 
-app.SetTryRealtime(True)
-app.GetDevice().setTimer(50)  
+terrain = chrono.ChRigidTerrain(sys,  
+                                100, 100,  
+                                2,  
+                                10, 10,  
+                                chrono.ChMaterialSurfaceNSC())  
+terrain.SetPos(chrono.ChVectorD(0, 0, -1))  
+sys.Add(terrain)  
 
 
-vehicle = veh.ChPart('ARTcar')
-vehicle.SetMass(1500)
-vehicle.SetInertiaXX(300)
-vehicle.SetInertiaYY(400)
-vehicle.SetInertiaZZ(500)
-vehicle.SetPos(chrono.ChVectorD(0, 1.5, 0))
-vehicle.SetRot(chrono.Q_from_AngX(0.2))
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetTextureFilename('/path/to/terrain/texture.png')
+terrain.AddAsset(terrain_texture)
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetSize(chrono.ChVectorD(100, 2, 100))
-terrain.SetPos(chrono.ChVectorD(0, -2, 0))
-terrain.SetTexture('/path/to/terrain/texture.png')
+wheel_front_left = chrono.ChBodyEasyCylinder(sys,  
+                                             1,  
+                                             1,  
+                                             500,  
+                                             True,  
+                                             True,  
+                                             chrono.ChMaterialSurfaceNSC())  
+wheel_front_left.SetPos(chrono.ChVectorD(-1.5, 1, 0.5))  
+sys.Add(wheel_front_left)  
+
+wheel_front_right = chrono.ChBodyEasyCylinder(sys,  
+                                              1,  
+                                              1,  
+                                              500,  
+                                              True,  
+                                              True,  
+                                              chrono.ChMaterialSurfaceNSC())  
+wheel_front_right.SetPos(chrono.ChVectorD(1.5, 1, 0.5))  
+sys.Add(wheel_front_right)  
+
+wheel_rear_left = chrono.ChBodyEasyCylinder(sys,  
+                                            1,  
+                                            1,  
+                                            500,  
+                                            True,  
+                                            True,  
+                                            chrono.ChMaterialSurfaceNSC())  
+wheel_rear_left.SetPos(chrono.ChVectorD(-1.5, -1, 0.5))  
+sys.Add(wheel_rear_left)  
+
+wheel_rear_right = chrono.ChBodyEasyCylinder(sys,  
+                                             1,  
+                                             1,  
+                                             500,  
+                                             True,  
+                                             True,  
+                                             chrono.ChMaterialSurfaceNSC())  
+wheel_rear_right.SetPos(chrono.ChVectorD(1.5, -1, 0.5))  
+sys.Add(wheel_rear_right)  
 
 
-sys.Add(vehicle)
+driver = chrono.ChIrrNode(sys,  
+                          vehicle,  
+                          chrono.ChVectorD(0, 0, 2))  
+sys.Add(driver)  
 
 
-sys.Add(terrain)
+app = chronoirr.ChIrrApp(sys,  
+                         'ARTcar Vehicle Simulation',  
+                         chronoirr.dimension2du(800, 600),  
+                         chronoirr.VerticalFlip,  
+                         False,  
+                         False)  
 
 
-driver = veh.ChIrrNodeDriver(app)
-driver.Initialize()
+app.AddCamera(chronoirr.vector3df(0, 0, 5),  
+              chronoirr.vector3df(0, 0, 0))  
 
 
-vehicle.SetDriver(driver)
+app.SetTimestep(0.02)  
+app.SetTryRealtime(True)  
 
 
 while app.GetDevice().run():
@@ -52,6 +112,6 @@ while app.GetDevice().run():
     sys.DoStepDynamics(app.GetTimestep())
 
     
-    app.BeginScene(True, True, irr.SColor(255, 140, 140, 140))
+    app.BeginScene(True, True, chronoirr.SColor(255, 140, 140, 140))
     app.DrawAll()
     app.EndScene()

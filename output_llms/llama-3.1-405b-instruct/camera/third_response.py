@@ -14,19 +14,12 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box object with dimensions specified by side
-    side = 2
+    # Create a box with dimensions specified by side
+    side = 2.0
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetBodyFixed(True)  # Fix the box in space
+    box_body.SetName("Box Object")
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBoxGeometry(chrono.ChVector3d(side, side, side))
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  # Set the shape to be immutable
-    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box
 
     # -----------------------
     # Create a sensor manager
@@ -49,6 +42,12 @@ def main():
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
+    update_rate = 30
+    image_width = 1280
+    image_height = 720
+    fov = 1.408  # Horizontal field of view in radians
+    lag = 0
+    exposure_time = 0
     cam = sens.ChCameraSensor(
         box_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
@@ -65,6 +64,7 @@ def main():
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
+    noise_model = "CONST_NORMAL"
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
     elif noise_model == "PIXEL_DEPENDENT":
@@ -74,6 +74,7 @@ def main():
         pass
 
     # Visualize the image before applying grayscale filter
+    vis = True
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
@@ -81,6 +82,8 @@ def main():
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
     # Save the current image to a PNG file at the specified path
+    save = False
+    out_dir = "SENSOR_OUTPUT/"
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
@@ -110,6 +113,8 @@ def main():
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
+    step_size = 1e-3
+    end_time = 20.0
 
     t1 = time.time()  # Record the start time of the simulation
 
@@ -136,48 +141,6 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-# -----------------
-# Camera parameters
-# -----------------
-
-# Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-
-# Update rate in Hz
-update_rate = 30
-
-# Image width and height
-image_width = 1280
-image_height = 720
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
-
-# Lag (in seconds) between sensing and when data becomes accessible
-lag = 0
-
-# Exposure (in seconds) of each image
-exposure_time = 0
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 20.0
-
-# Save camera images
-save = False
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
 
 # Main function entry point
 main()

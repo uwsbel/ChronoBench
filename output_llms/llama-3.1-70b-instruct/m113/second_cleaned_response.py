@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -37,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -69,15 +67,14 @@ patch = terrain.AddPatch(patch_mat,
     terrainLength, terrainWidth)
 
 
-terrain.SetSoilParameters(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+terrain.SetSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
 
 
-terrain.Initialize(chrono.GetChronoDataFile("terrain/heightmaps/flat_terrain.txt"))
+terrain.Initialize(chrono.GetChronoDataFile("terrain/heightmaps/flat01.bmp"))
 
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -89,7 +86,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -129,7 +125,8 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  
+    
+    driver_inputs.m_throttle = 0.8
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

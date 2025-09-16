@@ -42,35 +42,32 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 time_step = 2e-3
 
-
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  
-        robot.SetMotorSpeed(math.pi, 1)  
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(math.pi, 0)  
-        robot.SetMotorSpeed(-math.pi, 1)  
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(-math.pi, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, 0)  
-        robot.SetMotorSpeed(math.pi, 1)  
+        robot.SetMotorSpeed(-math.pi, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     else:
-        raise ValueError("Invalid mode. Please choose from 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode")
 
 
 time = 0
+mode = 'straight'
 while vis.Run():
-    
     if time < 5:
         move('straight')
-        print("Moving straight...")
-    
+        print("Moving straight")
     elif time < 10:
         move('left')
-        print("Turning left...")
-    
+        print("Turning left")
     else:
         move('right')
-        print("Turning right...")
+        print("Turning right")
 
     
     time += time_step

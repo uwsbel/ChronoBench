@@ -4,46 +4,6 @@ import pychrono.vehicle as veh
 import math
 
 
-class SCMTerrainParams:
-    def __init__(self, config):
-        self.config = config
-        self.params = {
-            "soft": {
-                "Kphi": 2e6,
-                "Kc": 0,
-                "n": 1.1,
-                "cohesion": 0,
-                "friction": 30,
-                "shear_coeff": 0.01,
-                "elastic_stiffness": 2e8,
-                "damping": 3e4
-            },
-            "mid": {
-                "Kphi": 5e6,
-                "Kc": 0,
-                "n": 1.2,
-                "cohesion": 0,
-                "friction": 35,
-                "shear_coeff": 0.02,
-                "elastic_stiffness": 5e8,
-                "damping": 5e4
-            },
-            "hard": {
-                "Kphi": 1e7,
-                "Kc": 0,
-                "n": 1.3,
-                "cohesion": 0,
-                "friction": 40,
-                "shear_coeff": 0.03,
-                "elastic_stiffness": 1e9,
-                "damping": 1e5
-            }
-        }
-
-    def get_params(self):
-        return self.params[self.config]
-
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -81,6 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -100,18 +61,36 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain_params = SCMTerrainParams("mid")  
+class SCM_Terrain_Parameters:
+    def __init__(self, config):
+        self.config = config
+        self.soil_parameters = self.get_soil_parameters()
+        self.terrain_properties = self.get_terrain_properties()
+
+    def get_soil_parameters(self):
+        if self.config == "soft":
+            return [2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4]
+        elif self.config == "mid":
+            return [3e6, 0, 1.2, 0, 35, 0.01, 3e8, 3e4]
+        elif self.config == "hard":
+            return [4e6, 0, 1.3, 0, 40, 0.01, 4e8, 3e4]
+        else:
+            raise ValueError("Invalid terrain configuration")
+
+    def get_terrain_properties(self):
+        return [20, 20, 0.02]
+
+
+terrain_config = "mid"
+terrain_params = SCM_Terrain_Parameters(terrain_config)
+
+
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(*terrain_params.get_params().values())
-
-
+terrain.SetSoilParameters(*terrain_params.soil_parameters)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
-
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+terrain.Initialize(*terrain_params.terrain_properties)
 
-
-terrain.Initialize(20, 20, 0.02)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -142,7 +121,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -152,11 +131,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

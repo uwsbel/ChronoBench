@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  
 
 
 system = chrono.ChSystemNSC()
@@ -28,7 +28,6 @@ box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
-
 rover = robot.Curiosity(system)
 
 
@@ -45,18 +44,19 @@ sensor_manager = sens.ChSensorManager(system)
 
 
 lidar = sens.ChLidarSensor()
-lidar.SetUpdateRate(100)  
+lidar.SetUpdateRate(1e-3)  
 lidar.SetHorizontalSamples(360)  
 lidar.SetVerticalSamples(1)  
 lidar.SetFieldOfView(360)  
-lidar.SetRange(100)  
-lidar.SetNoise(0.01)  
-lidar.SetFilterSize(10)  
-lidar.SetFilterType(sens.ChLidarFilterType.MEAN)  
+lidar.SetMaxRange(10)  
+lidar.SetMinRange(0.1)  
+lidar.SetNoiseStdDev(0.01)  
+lidar.SetFilterType(sens.ChLidarSensor.FilterType_Median)  
+lidar.SetFilterWindowSize(5)  
+lidar.SetSensorName("Lidar Sensor")  
 
 
-lidar.SetAttachPoint(chrono.ChVector3d(0, 0, 0))  
-rover.AddSensor(lidar)
+lidar.SetParent(rover.GetChassis())
 
 
 sensor_manager.AddSensor(lidar)

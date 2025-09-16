@@ -1,13 +1,10 @@
-"""
-Import necessary modules
-"""
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  # Import the sensor module
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -24,13 +21,12 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box for rover to cross
+# create a long box for rover to cross
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
 box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
-
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
@@ -43,25 +39,26 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create sensor manager
+# Create the sensor manager
 sensor_manager = sens.ChSensorManager(system)
 
-# Create lidar sensor
+# Create a lidar sensor
 lidar = sens.ChLidarSensor()
-lidar.SetUpdateRate(100)  # Update rate in Hz
-lidar.SetHorizontalSamples(360)  # Number of samples in the horizontal direction
-lidar.SetVerticalSamples(1)  # Number of samples in the vertical direction
-lidar.SetFieldOfView(360)  # Field of view in degrees
-lidar.SetRange(100)  # Maximum range in meters
-lidar.SetNoise(0.01)  # Noise level in meters
-lidar.SetFilterSize(10)  # Filter size for lidar data
-lidar.SetFilterType(sens.ChLidarFilterType.MEAN)  # Filter type for lidar data
+lidar.SetUpdateRate(1e-3)  # Update rate
+lidar.SetHorizontalSamples(360)  # Horizontal samples
+lidar.SetVerticalSamples(1)  # Vertical samples
+lidar.SetFieldOfView(360)  # Field of view
+lidar.SetMaxRange(10)  # Maximum range
+lidar.SetMinRange(0.1)  # Minimum range
+lidar.SetNoiseStdDev(0.01)  # Noise standard deviation
+lidar.SetFilterType(sens.ChLidarSensor.FilterType_Median)  # Filter type
+lidar.SetFilterWindowSize(5)  # Filter window size
+lidar.SetSensorName("Lidar Sensor")  # Sensor name
 
-# Attach lidar sensor to rover's chassis
-lidar.SetAttachPoint(chrono.ChVector3d(0, 0, 0))  # Attach point for lidar sensor
-rover.AddSensor(lidar)
+# Attach the lidar sensor to the rover's chassis
+lidar.SetParent(rover.GetChassis())
 
-# Add lidar sensor to sensor manager
+# Add the lidar sensor to the sensor manager
 sensor_manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
@@ -88,7 +85,7 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Ask rover to move forward
+    # ask rover to move forward
     driver.SetSteering(0.0)
 
     # Update rover dynamics

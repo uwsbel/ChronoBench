@@ -84,14 +84,17 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChDataDriver()
+
+
 driver_inputs = []
-
-
 driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
 driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))  
 driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))  
 
-driver.SetDriverInputs(driver_inputs)
+
+driver.SetInputs(driver_inputs)
+
+driver.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -115,7 +118,7 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetDriverInputs()
+    driver_inputs = driver.GetInputs()
 
     
     driver.Synchronize(time)

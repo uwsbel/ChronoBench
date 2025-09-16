@@ -45,13 +45,15 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -87,6 +89,7 @@ terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -100,31 +103,35 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create obstacles
 obstacles = []
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000)
     obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
-    vehicle.GetSystem().AddBody(obstacle)
     obstacles.append(obstacle)
+    vis.Add(obstacle)
 
 # Create the sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create a lidar sensor
 lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  # body lidar is attached to
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngX(chrono.CH_C_PI / 2)),  # offset and rotation of lidar
-    100,  # number of horizontal samples
-    -chrono.CH_C_PI / 4,  # horizontal start angle
-    chrono.CH_C_PI / 2,  # horizontal end angle
-    100,  # number of vertical channels
-    -chrono.CH_C_PI / 4,  # vertical start angle
-    chrono.CH_C_PI / 4,  # vertical end angle
-    100  # scanning rate in Hz
+    vehicle.GetChassisBody(),
+    100,  # scanning rate in Hz
+    chrono.ChVector3d(0, 0, 2),  # offset
+    chrono.ChQuaterniond(1, 0, 0, 0),  # rotation
+    100,  # number of horizontal rays
+    100,  # number of vertical rays
+    chrono.CH_C_PI / 2,  # horizontal FOV
+    chrono.CH_C_PI / 2,  # vertical FOV
+    100  # max distance
 )
 manager.AddSensor(lidar)
 
-# Create filter for lidar
-filter = sens.ChFilterVisualizeLidar(0.5, 1.0, "lidar")
-manager.AddFilter(filter)
+# Create filter for lidar visualization
+vis.AddSensorFilter(lidar, sens.ChLidarSensorFilterVisualize(
+    1,  # dots size
+    1,  # dots color
+    chrono.ChVector3d(0, 0, 0),  # offset
+    chrono.ChQuaterniond(1, 0, 0, 0)  # rotation
+))
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -172,6 +179,8 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Update sensor manager
     manager.Update()
 
     # Advance simulation for one timestep for all modules

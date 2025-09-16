@@ -26,6 +26,13 @@ terrainLength = 200.0
 terrainWidth = 100.0   
 
 
+path = veh.PathFollower()
+path.SetTargetSpeed(10.0)
+path.SetSteeringLookahead(5.0)
+path.SetSteeringGains(0.1, 0.1, 0.1)
+path.SetSpeedGains(0.1, 0.1)
+
+
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
@@ -49,20 +56,17 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 
-path = veh.Path()
-path.AddWaypoint(chrono.ChVector3d(-50, -10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(-50, 10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, 10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, -10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, 0, 0.5))
-path.AddWaypoint(chrono.ChVector3d(-50, 0, 0.5))
+vehicle.AddDriver(veh.PathFollowerDriver(vehicle, path))
 
+vehicle.Initialize()
 
-driver = veh.PathFollowerDriver()
-driver.SetTargetSpeed(10.0)
-driver.SetSteeringControllerGains(0.1, 0.01, 0.001, 5.0)
-driver.SetSpeedControllerGains(0.1, 0.01, 0.001)
-driver.SetPath(path)
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -89,6 +93,16 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
+driver = veh.ChInteractiveDriverIRR(vis)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 

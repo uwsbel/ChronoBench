@@ -52,7 +52,7 @@ vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.26)  
 vehicle.SetStallTorque(0.4)  
 vehicle.SetTireRollingResistance(0.03)  
-vehicle.SetMass(1500)  
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)

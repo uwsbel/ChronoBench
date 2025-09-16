@@ -17,20 +17,21 @@ class ChFunctionMyFun(chrono.ChFunction):
 
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1 * m.sin(self.w * x)
+            return self.A1
         elif x < self.T2:
-            return self.A1 * m.sin(self.w * self.T1) + (self.A2 - self.A1 * m.sin(self.w * self.T1)) * (x - self.T1) / (self.T2 - self.T1)
+            return self.A1 + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
         elif x < self.T3:
-            return self.A2 * m.sin(self.w * (x - self.T2))
+            return self.A2
         else:
-            return 0
+            return self.A2 * m.sin(self.w * x)
 
 sys = chrono.ChSystemSMC()
 
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-mesh.SetAutomaticGravity(True, 2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
+mesh.SetAutomaticGravity(True,
+                         2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0));
 
 beam_L = 6
@@ -113,7 +114,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
 sys.Add(rotmotor1)
 
 # Create an instance of the custom motor function
-f_ramp = ChFunctionMyFun(40, 20, 0, 2, 4, 0.2)
+f_ramp = ChFunctionMyFun(10, 20, 0, 1, 2, 0.5)
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.

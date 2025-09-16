@@ -1,58 +1,59 @@
-import pychrono as pyc
-import pychrono.ros as pycros
-import numpy as np
-import time
+import chrono as ch
+from chrono_ros import ROSHandler, ROSManager
 
 
-m_system = pyc.ChSystem()
+ch.InitChroNode()
 
 
-m_system.SetGravity(pyc.Vec3(0, 0, -9.81))
+sys = ch.ChSystem()
 
 
-m_system.SetMaterialProperties(pyc.MaterialProperties(1.0, 0.5, 0.2))
+ch.SetMaterial(1, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
+ch.SetMaterial(2, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
 
 
-m_floor = pyc.ChBody()
-m_floor.SetBodyFixed(True)
-m_floor.SetCollisionShape(pyc.ChBox(1, 1, 0.1))
-m_floor.SetPos(pyc.Vec3(0, 0, 0))
-m_floor.SetMaterialProperties(pyc.MaterialProperties(1.0, 0.5, 0.2))
-m_system.Add(m_floor)
+floor = ch.ChBody()
+floor.SetPos(ch.Vec3(0, 0, 0))
+floor.SetRot(ch.Vec3(0, 0, 0))
+floor.SetMass(0)
+floor.SetBodyFixed(True)
+floor.SetMaterial(1)
+sys.Add(floor)
 
 
-m_box = pyc.ChBody()
-m_box.SetMass(1.0)
-m_box.SetInertia(1.0, 1.0, 1.0)
-m_box.SetCollisionShape(pyc.ChBox(0.5, 0.5, 0.5))
-m_box.SetPos(pyc.Vec3(0, 0, 1))
-m_box.SetMaterialProperties(pyc.MaterialProperties(1.0, 0.5, 0.2))
-m_system.Add(m_box)
+box = ch.ChBody()
+box.SetPos(ch.Vec3(0, 1, 0))
+box.SetRot(ch.Vec3(0, 0, 0))
+box.SetMass(1)
+box.SetBodyFixed(False)
+box.SetMaterial(2)
+sys.Add(box)
 
 
-class CustomHandler(pycros.RosHandler):
-    def __init__(self, topic_name):
+class MyROSHandler(ROSHandler):
+    def __init__(self):
         super().__init__()
-        self.topic_name = topic_name
         self.count = 0
 
-    def OnTick(self, system, time_step):
+    def on_timer(self):
+        self.publish_message(self.count)
         self.count += 1
-        msg = pycros.IntMsg(self.count)
-        self.Publish(self.topic_name, msg)
 
 
-ros_manager = pycros.RosManager()
-ros_manager.SetClockHandler(pycros.ClockHandler())
-ros_manager.SetBodyHandler(pycros.BodyHandler())
-ros_manager.SetTransformHandler(pycros.TransformHandler())
-ros_manager.RegisterHandler(CustomHandler("my_topic"))
+ros_manager = ROSManager()
+ros_manager.set_clock_handler(ch.ChClockHandler())
+ros_manager.set_body_handler(ch.ChBodyHandler())
+ros_manager.set_transform_handler(ch.ChTransformHandler())
+ros_manager.register_handler(MyROSHandler())
 
 
-while True:
-    start_time = time.time()
-    m_system.DoStepDynamics(0.01)
-    ros_manager.Update()
-    end_time = time.time()
-    if end_time - start_time > 0.01:
-        time.sleep(0.01 - (end_time - start_time))
+t = 0
+dt = 0.001
+while t < 10:
+    sys.DoStep(dt)
+    ros_manager.update()
+    t += dt
+
+
+sys.Destroy()
+ros_manager.shutdown()

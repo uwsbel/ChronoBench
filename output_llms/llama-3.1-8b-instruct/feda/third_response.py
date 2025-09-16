@@ -48,7 +48,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Corrected the line below
+# Corrected: Initialize vehicle before setting visualization types
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -68,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Modified the line below to change the terrain texture to a grass texture
+# Modified: Change terrain texture to grass
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -82,32 +82,25 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a sensor manager
+# Create sensor manager
 sensor_manager = veh.ChSensorManagerIrrlicht(vis)
 
-# Add point lights to the scene
-light1 = irr.PyLight()
-light1.SetPosition(chrono.ChVector3d(10, 10, 10))
-light1.SetIntensity(10)
-light2 = irr.PyLight()
-light2.SetPosition(chrono.ChVector3d(-10, -10, -10))
-light2.SetIntensity(10)
-vis.AddLight(light1)
-vis.AddLight(light2)
+# Add point lights
+vis.AddLightPoint(chrono.ChVector3d(0, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(10, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(-10, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(0, 10, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(0, -10, 0), 10, chrono.ChColor(1, 1, 1))
 
-# Create a camera sensor
-camera = veh.ChCameraSensorIrrlicht()
+# Create camera sensor
+camera = veh.ChCameraSensor(vehicle.GetVehicle().GetChassisBody())
 camera.SetResolution(1024, 768)
 camera.SetFOV(math.radians(60))
-camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-camera.SetTarget(chrono.ChVector3d(0, 0, 0))
-camera.SetUp(chrono.ChVector3d(0, 1, 0))
-camera.SetFilter(irr.PyImageFilter())
+camera.SetFilter(veh.ChVisualizationFilter())
 sensor_manager.AddSensor(camera)
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
@@ -149,14 +142,13 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time, driver_inputs)
+    camera.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

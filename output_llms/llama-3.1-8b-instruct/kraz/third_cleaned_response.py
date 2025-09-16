@@ -30,6 +30,13 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
+highway_mesh = veh.HighwayMesh(vehicle.GetSystem())
+highway_mesh.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+highway_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.AddMesh(highway_mesh)
+
+
 trackPoint = chrono.ChVector3d(0,0, 2.1)
 
 
@@ -51,37 +58,18 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type, vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
-vehicle.SetWheelVisualizationType(vis_type, vis_type)
-vehicle.SetTireVisualizationType(vis_type, vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+sedan_vehicle = veh.Sedan()
+sedan_vehicle.SetContactMethod(contact_method)
+sedan_vehicle.SetChassisCollisionType(chassis_collision_type)
+sedan_vehicle.SetChassisFixed(False)
+sedan_vehicle.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
+sedan_vehicle.Initialize()
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetMeshFile(veh.GetDataFile("terrain/highway.mesh"))
-terrain.Initialize()
-
-
-sedan = veh.Sedan()
-sedan.SetContactMethod(contact_method)
-sedan.SetChassisCollisionType(chassis_collision_type)
-sedan.SetChassisFixed(False)
-sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
-sedan.Initialize()
-
-sedan.SetChassisVisualizationType(vis_type, vis_type)
-sedan.SetSteeringVisualizationType(vis_type)
-sedan.SetSuspensionVisualizationType(vis_type, vis_type)
-sedan.SetWheelVisualizationType(vis_type, vis_type)
-sedan.SetTireVisualizationType(vis_type, vis_type)
-
-sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -93,6 +81,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
+vis.AttachVehicle(sedan_vehicle.GetTractor())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -106,13 +95,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-sedan_driver = veh.ChInteractiveDriverIRR(vis)
-sedan_driver.SetSteeringDelta(render_step_size / steering_time)
-sedan_driver.SetThrottleDelta(0.1)  
-sedan_driver.SetBrakingDelta(render_step_size / braking_time)
-sedan_driver.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
@@ -142,12 +124,14 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    sedan_vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    sedan_vehicle.Advance(step_size)
     vis.Advance(step_size)
 
     
@@ -157,16 +141,6 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    tractor_state = vehicle.GetTractor().GetState()
-    trailer_state = vehicle.GetTrailer().GetState()
-
-    
-    sedan_driver.Synchronize(time)
-    sedan_driver.Advance(step_size)
-    sedan.GetSystem().GetChTime() += step_size
-    sedan.GetTractor().SetSteeringAngle(0.1)
-    sedan.GetTractor().SetThrottle(0.1)
-
-
-final_tractor_state = vehicle.GetTractor().GetState()
-final_trailer_state = vehicle.GetTrailer().GetState()
+    if step_number % 100 == 0:
+        vehicle_state = vehicle.GetTractor().GetState()
+        print("Truck State at step", step_number, ":", vehicle_state)

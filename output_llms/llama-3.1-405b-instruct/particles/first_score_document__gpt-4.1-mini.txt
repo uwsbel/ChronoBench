@@ -4,90 +4,82 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. (No deduction)
-- **Body Creation:** Bodies are created with `ChBodyEasySphere`, `ChBodyEasyBox`, and `ChBodyEasyCylinder`. However, the `ChBodyEasyBox` is called with only two parameters (0.2, 1), but according to the documentation, `ChBodyEasyBox` requires three size parameters (lengthX, lengthY, lengthZ), density, visualize, collision, and optionally material. The code passes only two size parameters (0.2, 1) which is incorrect. This is a significant omission.
-- **Visualization Setup:** Uses `chronoirr.ChIrrApp` which is a valid visualization helper. However, the code does not call `application.Initialize()`, `application.AddTypicalLights()`, `application.AddCamera()`, or `application.AddLogo()`, which are recommended for proper visualization setup according to the documentation. This is a minor omission.
-- **Force Application:** The gravitational force is implemented as a subclass of `chrono.ChForce`, but the way forces are applied is incorrect (see correctness below).
-- **Simulation Loop:** Present and uses `application.GetDevice().run()`, `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()`. This is appropriate.
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`). No deduction.
+- **Body Creation:** Present, but **incorrect usage** of `ChBodyEasy*` constructors:
+  - The constructors are called with `(sys, ...)` as the first argument, which is incorrect. According to the API, these constructors take parameters like radius, density, visualize, collision, material, etc., but **do not take the system as an argument**.
+  - Also, the `ChBodyEasy*` constructors require parameters such as radius, density, visualize (bool), collision (bool), and optionally material. The code passes `sys` and then other parameters, which is invalid.
+  - **Deduct 15 points** for missing/incorrect body creation.
+- **Body Properties:** Position, velocity, and rotation are set after creation, which is good.
+- **Force Application:** Custom gravitational force class is defined and added to the system, which is a good approach.
+- **Simulation Loop:** Missing entirely. The code calls `app.GetDevice().run()` but does not include a simulation loop that advances the physics (`sys.DoStepDynamics(dt)`) or updates the visualization (`app.BeginScene()`, `app.DrawAll()`, `app.EndScene()`).
+  - **Deduct 15 points** for missing simulation loop.
+- **Visualization Setup:** Uses `ChIrrApp` which is a higher-level wrapper for visualization, but the code only calls `app.GetDevice().run()` without the typical simulation loop.
+  - **Deduct 5 points** for incomplete visualization loop and rendering steps.
 
-**Deductions:**
-
-- Missing correct parameters for `ChBodyEasyBox` (essential component misconfiguration): **-15 points**
-- Missing visualization initialization steps (`Initialize()`, lights, camera): **-5 points**
-
-**Subtotal Completeness:** 40 - 15 - 5 = 20 points
+**Subtotal Completeness:** 40 - 15 - 15 - 5 = **5 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `ChBodyEasyBox`:** The constructor is called with two parameters instead of three for size, which will cause an error or unexpected behavior. **-15 points**
+- **Incorrect use of `ChBodyEasy*` constructors:** Passing `sys` as first argument is a critical API misuse that will cause runtime errors or incorrect behavior.
+  - **Deduct 15 points**
+- **Quaternion initialization:** `rot = chrono.ChQuaternionD(np.random.uniform(-1, 1, size=4))` is incorrect because `ChQuaternionD` expects four separate floats or a vector and scalar, not a numpy array directly. This will likely cause an error or unexpected behavior.
+  - **Deduct 10 points**
+- **Force calculation in `GravitationalForce.Update`:**
+  - The force formula is `force = 0.1 * (pos_j - pos_i) / dist**3`, which is a simplified gravitational force (proportional to inverse cube of distance). Physically, gravity is inverse square, but since force vector is normalized by `dist**3` (vector difference divided by distance cubed), this is mathematically correct for gravitational force vector: `F = G * m1 * m2 * r_vec / r^3`.
+  - However, the magnitude constant `0.1` is arbitrary and no masses are considered.
+  - The force is applied via `body_i.AddForce(force)`, but `AddForce()` expects a `ChVectorD`, which is correct.
+  - **No deduction here**, as this is a reasonable simplification.
+- **Use of `sys.AddForce(GravitationalForce(sys))`:** The API does not document `AddForce` method on `ChSystemNSC`. Forces are usually applied to bodies, not the system. Custom forces should be applied per body or via force callbacks.
+  - This is a **significant API misuse**.
+  - **Deduct 15 points**
+- **Visualization camera position:** `app.AddTypicalCamera(chronoirr.vector3df(0, 0, -3))` places the camera behind the origin looking forward, which is acceptable.
+- **No simulation stepping:** Without calling `sys.DoStepDynamics(dt)`, the simulation will not advance.
+  - Already deducted under completeness.
 
-- **GravitationalForce class:**
-
-  - The class inherits from `chrono.ChForce`, but the way forces are applied is incorrect:
-    - `self.SetF_x()`, `SetF_y()`, `SetF_z()` expect `ChFunction` objects, but the code sets them repeatedly inside the nested loop for each pair of bodies, overwriting the force functions multiple times.
-    - The force is applied by calling `body_i.AddForce(self)` and `body_j.AddForce(-self)`. However, `AddForce()` expects a `ChVector` or a force vector, not a `ChForce` object.
-    - There is no mechanism to accumulate forces from multiple pairs; the force functions are overwritten each iteration.
-    - The `Update()` method is not correctly overriding the expected method signature or called by the system.
-    - The gravitational force magnitude is hardcoded as `0.1 / distance^2` without considering masses or gravitational constant.
-  
-  These are significant logical and API usage errors that will prevent the gravitational force from working as intended.
-
-  **-15 points**
-
-- **Use of `SetRot(chrono.Q_from_AngZ(...))`:** The method `Q_from_AngZ` is not standard in the documentation; the correct method is `chrono.Q_from_AngAxis(angle, axis)` or `chrono.Q_from_AngX/Y/Z`. This might be a minor API misuse or typo. **-5 points**
-
-- **Use of `application.SetTryRealtime(True)`:** This is acceptable but might cause timing issues if the system is not real-time capable. No deduction.
-
-**Subtotal Correctness:** 30 - 15 - 15 - 5 = -5 (minimum 0 points)
+**Subtotal Correctness:** 30 - 15 - 10 - 15 = **-10 points** (minimum 0, so 0 points)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is reasonably structured with functions and a class.
-- Variable names are meaningful (`particle`, `sys`, `application`).
-- However, there are no comments explaining the purpose of functions or the gravitational force class.
-- The `GravitationalForce` class is not documented, and the logic inside is not clear.
-- Minor formatting issues: inconsistent blank lines, no docstrings.
+- **Readability:** Variable names like `pos`, `vel`, `rot` are clear. The function `create_particle` is well-named.
+- **Structure:** The code is somewhat modular with a function for particle creation and a class for force.
+- **Comments:** No comments explaining the purpose of functions, classes, or key steps.
+  - **Deduct 5 points** for lack of comments.
+- **Formatting:** Reasonable, but the force class lacks docstrings or comments.
+- **Use of numpy for random generation:** Good practice.
+- **Minor issue:** The `rot` quaternion is constructed incorrectly (see correctness), but this is already penalized.
 
-**Deductions:**
-
-- Lack of comments/documentation: **-5 points**
-- Minor readability issues (no docstrings, inconsistent spacing): **-3 points**
-
-**Subtotal Code Quality:** 10 - 5 - 3 = 2 points
+**Subtotal Code Quality:** 10 - 5 = **5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The gravitational force calculation uses a nested loop over all pairs, which is O(n²), acceptable for 10 particles.
-- However, the force is applied inside the nested loop by calling `AddForce(self)` repeatedly, which is inefficient and incorrect.
-- The force functions are reset multiple times unnecessarily.
-- The code does not cache or optimize repeated calculations (e.g., distance checks).
-- The random initialization is fine.
+- **Force calculation nested loops:** Double loop over all bodies for gravitational force is O(n²), which is expected for N-body gravity.
+- **No caching or optimization:** Acceptable for small number of particles.
+- **Unnecessary creation of `ChVectorD` from numpy arrays repeatedly:** Minor inefficiency but negligible.
+- **No simulation loop means no repeated calculations.**
+- **No obvious redundant code.**
 
-**Deductions:**
+**Minor optimization opportunity:** The quaternion could be normalized after creation to ensure valid rotation.
 
-- Unnecessary repeated setting of force functions inside loops: **-5 points**
-- Missing optimization opportunities such as accumulating forces in vectors before applying: **-3 points**
+- **Deduct 3 points** for missing normalization of quaternion and minor inefficiencies.
 
-**Subtotal Efficiency:** 10 - 5 - 3 = 2 points
+**Subtotal Efficiency:** 10 - 3 = **7 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present.
-- No checks for zero distance (which would cause division by zero in gravitational force).
-- No validation of body creation parameters.
+- No error handling or checks for zero distance in gravitational force (division by zero risk).
+- No validation of quaternion normalization.
+- No checks on body creation success.
 - No try-except blocks or warnings.
 
-**Deductions:**
-
-- Lack of basic error handling and edge case checks (e.g., zero distance): **-5 points**
+- **Deduct 5 points** for lack of error handling and robustness.
 
 **Subtotal Error Handling:** 0 points
 
@@ -95,42 +87,40 @@
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Uses `chronoirr.ChIrrApp` which is a high-level visualization helper.
-- However, the code does not call `application.Initialize()`, `AddTypicalLights()`, or `AddCamera()`, which are recommended for proper visualization setup.
-- The window size and title are set, which is good.
-- The rendering loop uses `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()`, which is appropriate.
+- Uses `ChIrrApp` which is a good high-level visualization tool.
+- Adds sky, camera, and light with shadow.
+- However, the visualization loop is missing (no calls to `app.BeginScene()`, `app.DrawAll()`, `app.EndScene()` inside a loop).
+- Calling only `app.GetDevice().run()` is insufficient to run the simulation and visualization properly.
+- **Deduct 5 points** for incomplete visualization setup.
 
-**Deductions:**
-
-- Missing visualization initialization and lighting setup: **-3 points**
-
-**Subtotal Visualization:** 2 points
+**Subtotal Visualization:** 0 points
 
 ---
 
 ### **Final Score Calculation**
 
-| Category                  | Points | Deductions | Score |
-|---------------------------|--------|------------|-------|
-| Completeness              | 40     | 20         | 20    |
-| Correctness               | 30     | 30         | 0     |
-| Code Quality              | 10     | 8          | 2     |
-| Efficiency                | 10     | 8          | 2     |
-| Error Handling & Robustness | 5      | 5          | 0     |
-| Visualization             | 5      | 3          | 2     |
-| **Total**                 | 100    | 74         | 26    |
+| Criterion                  | Points | Deduction | Score |
+|----------------------------|--------|-----------|-------|
+| Completeness               | 40     | 35        | 5     |
+| Correctness                | 30     | 30        | 0     |
+| Code Quality               | 10     | 5         | 5     |
+| Efficiency                 | 10     | 3         | 7     |
+| Error Handling & Robustness| 5      | 5         | 0     |
+| Visualization              | 5      | 5         | 0     |
+| **Total**                 | **100**| **83**    | **17**|
 
 ---
 
 ### Summary of Major Issues:
 
-- Incorrect parameters for `ChBodyEasyBox` (missing one dimension).
-- Incorrect implementation of gravitational force: misuse of `ChForce`, incorrect force application, no accumulation, no mass consideration.
-- Missing visualization initialization steps (`Initialize()`, lights, camera).
-- No error handling or checks for zero distance.
-- Minor API misuse in quaternion rotation.
+- Incorrect use of `ChBodyEasy*` constructors (passing system as first argument).
+- Missing simulation loop to advance physics and render frames.
+- Incorrect quaternion initialization.
+- Incorrect application of custom force to system instead of bodies.
+- Lack of error handling (e.g., division by zero in force).
+- Incomplete visualization loop.
 - Lack of comments/documentation.
 
 ---
 
-[[26]]
+[[17]]

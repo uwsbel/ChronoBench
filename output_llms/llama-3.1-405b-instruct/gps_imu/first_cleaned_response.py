@@ -4,67 +4,50 @@ import pychrono.sensor as sens
 import pychrono.irrlicht as irr
 
 
-step_size = 1e-3
-end_time = 100
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+myvehicle = veh.HMMWV()
+myvehicle.Initialize(chrono.ChContactMethod_NSC)
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')
+mysystem = chrono.ChSystemNSC()
+myterrain = veh.RigidTerrain(myvehicle.GetSystem())
+myterrain.Initialize(chrono.ChContactMethod_NSC)
+mydriver = veh.ChIrrGuiDriver()
+myvehicle.GetChassisBody().SetMass(2000)
 
 
-sys = chrono.ChSystemNSC()
+myvehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
+myvehicle.SetInitFrontAxleTorque(500)
+myvehicle.SetSteeringLinkRatio(0.1)
+myterrain.SetContactFrictionCoefficient(0.7)
+myterrain.SetContactRestitutionCoefficient(0.4)
 
 
-vehicle = veh.ChHMMWV()
-vehicle.Initialize(sys)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+myimu = sens.ChIMUSensor(myvehicle.GetChassisBody())
+mygps = sens.ChGPSSensor(myvehicle.GetChassisBody())
+myvehicle.GetChassisBody().AddSensor(myimu)
+myvehicle.GetChassisBody().AddSensor(mygps)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-vehicle.SetTerrain(terrain)
+myapplication = irr.ChIrrApp(myvehicle.GetSystem(), 'HMMWV Simulation', irr.dimension2du(800, 600))
 
 
-driver = veh.ChIrrlichtDriver(vehicle)
-driver.Initialize()
-
-
-imu = sens.ChIMUSensor(vehicle.GetChassisBody(), 100)
-vehicle.GetChassisBody().AddSensor(imu)
-
-
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10)
-vehicle.GetChassisBody().AddSensor(gps)
-
-
-app = irr.ChIrrApp(sys, "PyChrono HMMWV Simulation", irr.dimension2du(800, 600))
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddCamera(chrono.ChVectorD(0, 1.5, -5))
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-
-while app.GetDevice().run():
-    time = sys.GetChTime()
-    if time >= end_time:
-        break
+while myapplication.GetDevice().run():
+    
+    mydriver.Synchronize(myvehicle.GetChassisBody())
+    myvehicle.Advance(chrono.ChVectorD(0, 0, 0))
+    myterrain.Advance()
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.EndScene()
 
     
-    driver.Synchronize(time)
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
+    print('Vehicle mass:', myvehicle.GetChassisBody().GetMass())
+    myapplication.Render()
+    myapplication.HandleEvents()
 
     
-    print(f"Vehicle mass: {vehicle.GetChassisBody().GetMass()} kg")
-
-    
-    imu.Update(step_size)
-    gps.Update(step_size)
-
-    
-    app.DoStepDynamics(step_size)
+    myimu.Update()
+    mygps.Update()
+    print('IMU data:', myimu.GetAcc(), myimu.GetGyro(), myimu.GetMag())
+    print('GPS data:', mygps.GetLatitude(), mygps.GetLongitude(), mygps.GetAltitude())

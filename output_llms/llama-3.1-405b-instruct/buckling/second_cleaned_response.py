@@ -6,6 +6,7 @@ import pychrono.irrlicht as chronoirr
 import os
 
 
+
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)

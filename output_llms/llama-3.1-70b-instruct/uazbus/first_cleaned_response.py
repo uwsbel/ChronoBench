@@ -1,68 +1,70 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.vehicle as chrono_vehicle
 
 
 chrono.SetChronoDataPath('./data/')
 
 
 mysystem = chrono.ChSystemNSC()
+mysystem.SetSolverType(chrono.ChSolver.Type_PSSOR)
 
 
-uazbus = veh.ChUAZBUS()
-uazbus.SetChassisFixed(False)
-uazbus.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-uazbus.SetInitRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-mysystem.Add(uazbus.GetChassisBody())
+UAZBUS = chrono_vehicle.ChVehicleUAZBUS()
+UAZBUS.SetChassisVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+UAZBUS.SetChassisCollisionType(chrono_vehicle.CollisionType_NONE)
+UAZBUS.SetSuspensionVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+UAZBUS.SetSteeringVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+UAZBUS.SetWheelVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
 
 
-terrain = chrono.ChBodyEasyBox(mysystem, 10, 10, 1, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
+UAZBUS.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+UAZBUS.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+
+
+mysystem.Add(UAZBUS.GetPart(chrono_vehicle.ChPartID_CHASSIS))
+
+
+terrain = chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterial().SetFriction(0.9)
-terrain.GetMaterial().SetRestitution(0.1)
+terrain.GetMaterialSurface().SetFriction(0.9)
+terrain.GetMaterialSurface().SetRestitution(0.01)
+
+
 mysystem.Add(terrain)
 
 
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(uazbus)
-driver.SetSteeringMode(veh.SteeringMode::STEERING_MODE_DEGREES)
-driver.SetSteeringLimit(30 * chrono.CH_C_DEG_TO_RAD)
-driver.SetAccelerationMode(veh.AccelerationMode::ACCELERATION_MODE_TORQUE)
-driver.SetMaxAcceleration(1000)
-driver.SetBrakingMode(veh.BrakingMode::BRAKING_MODE_TORQUE)
-driver.SetMaxBrakingTorque(1000)
+driver = chrono_vehicle.ChIrrlichtDriverUAZBUS(UAZBUS)
+driver.SetZSpeed(1.0)
+driver.SetSteering(0.0)
 
 
-visual_system = chronoirr.ChVisualSystemIrrlicht()
-visual_system.SetWindowSize(800, 600)
-visual_system.SetWindowTitle('UAZBUS Simulation')
-visual_system.SetCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
-visual_system.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-visual_system.SetCameraSpeed(0.5)
-visual_system.SetCameraRotSpeed(0.1)
-visual_system.AddSkyBox()
-visual_system.AddTypicalLights()
+application = chronoirr.ChVisualSystemIrrlicht()
+application.SetWindowSize(1024, 768)
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddLogo('logo_pychrono_alpha.png')
+application.SetShowFPS(True)
+application.SetCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
 
 
-visual_system.Add(uazbus.GetChassisBody())
-visual_system.Add(terrain)
+camera = application.AddCamera(chrono.ChVectorD(0, 1, -3))
+camera.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+camera.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
 
 
-mysystem.SetSolverType(chrono.ChSolver.Type_PSSOR)
-mysystem.SetSolverMaxIterations(100)
-mysystem.SetSolverTolerance(1e-6)
-mysystem.SetTimestep(0.01)
+while application.Run():
+    
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
 
-
-while visual_system.Run():
     
     mysystem.DoStepDynamics(0.01)
-    visual_system.BeginScene()
-    visual_system.DrawAll()
-    visual_system.EndScene()
+
     
     driver.Advance(0.01)
+
     
-    uazbus.GetChassisBody().Update()
-    terrain.Update()
+    application.DoStep()

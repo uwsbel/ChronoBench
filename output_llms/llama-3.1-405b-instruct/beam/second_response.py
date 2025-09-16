@@ -83,6 +83,19 @@ mesh.SetAutomaticGravity(False)
 # Add the mesh to the physical system.
 sys.Add(mesh)
 
+# Euler-Bernoulli beam setup
+builder = fea.ChBuilderBeamEuler()
+# Create a beam from point A to point B using BuildBeam
+builder.BuildBeam(msection,  # beam section
+                  chrono.ChVector3d(0, 0, -0.1),  # point A
+                  chrono.ChVector3d(0.2, 0, -0.1),  # point B
+                  chrono.ChVector3d(0, 1, 0),  # 'Y' up direction
+                  5)  # number of elements
+# Fix the last node of the created beam
+builder.GetLastBeamNodes().back().SetFixed(True)
+# Apply a force of (0, -1, 0) to the first node of the created beam section
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
 # Add visualization for the beams in the mesh.
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) # Visualize the bending moments.
@@ -114,21 +127,6 @@ vis.AddTypicalLights() # Add typical lights for the scene.
 # Change the default solver to the MKL Pardiso solver, which is more precise for FEA.
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver) # Set the MKL Pardiso solver for the system.
-
-# Create a builder for Euler-Bernoulli beams
-builder = fea.ChBuilderBeamEuler()
-
-# Create a beam from point A to point B using BuildBeam
-builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, msection, True)
-
-# Get the last beam nodes
-last_beam_nodes = builder.GetLastBeamNodes()
-
-# Fix the last node of the created beam
-last_beam_nodes[-1].SetFixed(True)
-
-# Apply a force to the first node of the created beam section
-last_beam_nodes[0].SetForce(chrono.ChVector3d(0, -1, 0))
 
 # Simulation loop.
 while vis.Run():

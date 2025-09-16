@@ -39,6 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -68,6 +69,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -80,21 +82,39 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 path_radius = 50.0
-path_center = chrono.ChVector3d(terrainLength/2, terrainWidth/2, 0)
-path = veh.PathFollower(vehicle.GetVehicle(), path_radius, path_center)
-path.SetThrottle(0.3)
+path_center = chrono.ChVector3d(0, 0, 0)
+path_points = []
+for i in range(360):
+    angle = math.radians(i)
+    x = path_radius * math.cos(angle)
+    y = path_radius * math.sin(angle)
+    path_points.append(chrono.ChVector3d(x, y, 0))
 
 
-pid_steering_gain = 0.1
-pid_steering_integral_gain = 0.01
-pid_steering_derivative_gain = 0.001
-pid_steering = veh.PIDController(pid_steering_gain, pid_steering_integral_gain, pid_steering_derivative_gain)
+path_vis = vis.AddPath(path_points, chrono.ChColor(1, 0, 0), 1)
 
 
-sentinel_point = chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0))
-target_point = chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0))
-sentinel_sphere = vis.AddSphere(sentinel_point, 0.1)
-target_sphere = vis.AddSphere(target_point, 0.1)
+sentinel_point = vis.AddSphere(chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0)), 0.1, chrono.ChColor(0, 1, 0))
+target_point = vis.AddSphere(chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0)), 0.1, chrono.ChColor(1, 0, 0))
+
+
+driver = veh.ChPathFollower(vehicle, path_points, path_radius, 0.3)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -105,35 +125,20 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    vehicle_pos = vehicle.GetVehicle().GetPos()
-    vehicle_rot = vehicle.GetVehicle().GetRot()
+    driver_inputs = driver.GetInputs()
 
     
-    steering_error = (vehicle_pos - target_point).Norm()
-
-    
-    pid_steering.Update(steering_error)
-
-    
-    steering_angle = pid_steering.GetOutput()
-
-    
-    path.Update(steering_angle)
-
-    
-    vehicle_pos = path.GetPosition()
-    vehicle_rot = path.GetRotation()
-
-    
-    vehicle.SetPos(vehicle_pos)
-    vehicle.SetRot(vehicle_rot)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

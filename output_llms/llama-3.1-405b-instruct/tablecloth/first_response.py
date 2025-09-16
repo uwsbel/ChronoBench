@@ -1,77 +1,59 @@
-# Import necessary modules
+# Import necessary PyChrono modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.fea as fea
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data/")
-
-# Create a ChronoEngine physical system
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
 
 # Create a mesh grid for the tablecloth
-num_nodes_x = 10
-num_nodes_y = 10
+num_x = 10
+num_y = 10
+length_x = 1.0
+length_y = 1.0
 node_mass = 0.1
-node_radius = 0.01
-mesh_size_x = 1.0
-mesh_size_y = 1.0
 
+# Create nodes
 nodes = []
-for i in range(num_nodes_x):
-    for j in range(num_nodes_y):
-        node = chrono.ChBodyEasyMesh(
-            chrono.ChVectorD(i * mesh_size_x / (num_nodes_x - 1), 
-                             j * mesh_size_y / (num_nodes_y - 1), 
-                             0.0),
-            chrono.QUNIT,
-            node_mass,
-            node_radius,
-            0.0,
-            chrono.ChMaterialSurfaceNSC()
-        )
-        nodes.append(node)
+for i in range(num_x):
+    for j in range(num_y):
+        node = fea.ChNodeFEAxyz()
+        node.SetMass(node_mass)
+        node.SetPosition(chrono.ChVectorD(i * length_x / (num_x - 1), j * length_y / (num_y - 1), 0.0))
         my_system.Add(node)
+        nodes.append(node)
 
 # Create shell elements
-for i in range(num_nodes_x - 1):
-    for j in range(num_nodes_y - 1):
-        nodeA = nodes[i * num_nodes_y + j]
-        nodeB = nodes[(i + 1) * num_nodes_y + j]
-        nodeC = nodes[(i + 1) * num_nodes_y + j + 1]
-        nodeD = nodes[i * num_nodes_y + j + 1]
-        
-        shell = chrono.ChElementShellKirchhoff(
-            nodeA,
-            nodeB,
-            nodeC,
-            nodeD,
-            0.01,  # thickness
-            1e6,  # Young's modulus
-            0.3,  # Poisson's ratio
-            1e-3,  # density
-            0.1,  # alpha damping
-            0.1   # beta damping
-        )
-        my_system.Add(shell)
+material = fea.ChMaterialShellKirchhoff()
+material.SetDensity(1000.0)
+material.SetYoungModulus(1e6)
+material.SetPoissonRatio(0.3)
 
-# Create an Irrlicht visualization system
+elements = []
+for i in range(num_x - 1):
+    for j in range(num_y - 1):
+        node1 = nodes[i * num_y + j]
+        node2 = nodes[(i + 1) * num_y + j]
+        node3 = nodes[(i + 1) * num_y + j + 1]
+        node4 = nodes[i * num_y + j + 1]
+        element = fea.ChElementShellQuadrilateral()
+        element.SetNodes(node1, node2, node3, node4)
+        element.SetMaterial(material)
+        my_system.Add(element)
+        elements.append(element)
+
+# Set up Irrlicht visualization
 application = chronoirr.ChIrrApp(my_system, 'Tablecloth Folding', chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
 application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, 1.0))
 application.AddTypicalLights()
 
-# Use the PardisoMKL solver
+# Set up PardisoMKL solver
 solver = chrono.ChSolverPardisoMKL()
 my_system.SetSolver(solver)
 
-# Set simulation parameters
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-
-# Run the simulation
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+# Simulate the folding of the tablecloth
+application.AssetBindAll()
+application.AssetUpdateAll()
+application.Simulate(0.01, 10.0)

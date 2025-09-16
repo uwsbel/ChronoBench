@@ -5,144 +5,163 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script uses `veh.Kraz()` which internally creates and manages its own system (likely a `ChSystemNSC`), but the script never explicitly creates or references a `ChSystemNSC` or `ChSystemSMC` object. This is acceptable for vehicle models that encapsulate the system, but it is best practice to explicitly manage or at least confirm the system object.  
-  **No deduction here** since the vehicle wrapper handles it.
+  The script uses `veh.Kraz()` which internally creates and manages its own system (`vehicle.GetSystem()`). This is acceptable for vehicle simulations, so no deduction here.
 
 - **Body Creation:**  
-  The vehicle and terrain bodies are created properly via `veh.Kraz()` and `veh.RigidTerrain()`. The terrain patch is added with material and texture.  
-  **No deduction.**
+  The vehicle is created and initialized properly with `vehicle.Initialize()`. Terrain is created using `veh.RigidTerrain` and initialized. Both essential components are present.
 
 - **Visualization:**  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`. The window is initialized, camera set, logo added, lighting and skybox added.  
-  However, the script uses `vis.AttachVehicle(vehicle.GetTractor())` but the vehicle is created as `vehicle = veh.Kraz()`. The `Kraz` class does not have a documented `GetTractor()` method in the API; typically, the vehicle object itself is passed to visualization or `GetVehicle()` is used. This is likely a mistake or confusion with another vehicle type.  
-  **Deduct 15 points for missing or incorrect visualization attachment (essential component).**
+  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, with window size, title, camera, logo, lighting, and skybox added. However, the script uses `vis.AttachVehicle(vehicle.GetTractor())` but the vehicle is created as `vehicle = veh.Kraz()`. The `Kraz` class does not have a `GetTractor()` method according to the standard PyChrono vehicle API; it should be `vehicle.GetVehicle()` or simply `vehicle`. This is a significant mismatch (see correctness below).  
+  Also, the visualization uses `AddLightDirectional()` instead of the documented `AddTypicalLights()`. While `AddLightDirectional()` is a valid Irrlicht call, the documentation recommends `AddTypicalLights()` for standard lighting. This is a minor deviation.
 
 - **Driver Setup:**  
-  The interactive driver is created and initialized properly. Steering, throttle, and braking deltas are set.  
-  **No deduction.**
+  The driver is created with `veh.ChInteractiveDriverIRR(vis)`, which is appropriate. Steering, throttle, and braking deltas are set based on render step size, which is good.
 
 - **Simulation Loop:**  
-  The loop runs with proper synchronization and advancing of all components. The lane change logic is implemented.  
-  **No deduction.**
+  The loop calls `vis.Run()`, synchronizes all components, advances them, and uses a realtime timer. This is complete.
 
-- **Contact and Collision Settings:**  
-  The collision system type is set to BULLET, and contact material is created and assigned to terrain patch.  
-  **No deduction.**
+- **Missing Components:**  
+  - No explicit setting of collision envelope or margin, which is recommended for collision stability (minor omission).  
+  - No error handling or checks for initialization success (see error handling).
 
-- **Initialization of Chrono Data Path:**  
-  The data path is set redundantly: `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`. This is unnecessary but harmless.  
-  **Minor omission: deduct 5 points for redundant or unclear data path setting.**
+**Deductions:**  
+- Minor omission for missing collision envelope/margin settings: **-5 points**  
+- Minor deviation in visualization lighting setup (`AddLightDirectional` vs `AddTypicalLights`): **-2 points**
 
-**Completeness subtotal:** 40 - 15 - 5 = **20 points**
+**Subtotal Completeness:** 40 - 5 - 2 = **33 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Quaternion Initialization:**  
-  `initRot = chrono.ChQuaterniond(0, 0, 1, 0)` is used. Quaternions are usually in the form (w, x, y, z). The quaternion here is (0,0,1,0), which corresponds to zero scalar part and vector part (0,1,0). This is not a unit quaternion and likely represents a 180-degree rotation around the Y-axis or invalid rotation. The API typically uses `chrono.QUNIT` for identity or `chrono.ChQuaterniond(w,x,y,z)` with w as scalar.  
-  This could cause incorrect initial orientation.  
-  **Deduct 15 points for incorrect quaternion initialization.**
+- **Vehicle API usage:**  
+  - `vehicle = veh.Kraz()` is correct.  
+  - However, `vis.AttachVehicle(vehicle.GetTractor())` is incorrect. The `Kraz` vehicle class does not have a `GetTractor()` method; it should be `vehicle.GetVehicle()` or just `vehicle`. This will cause an AttributeError or fail to attach the vehicle to the visualization properly, leading to no vehicle visualization. This is a **significant API misuse**.  
+  - Similarly, `print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())` repeats the same mistake.
 
-- **Visualization Attachment:**  
-  As noted, `vis.AttachVehicle(vehicle.GetTractor())` is incorrect; `Kraz` does not have `GetTractor()`. The correct call should be `vis.AttachVehicle(vehicle)` or `vehicle.GetVehicle()` depending on the API. This will cause runtime errors or no visualization.  
-  **Deduct 15 points for incorrect API usage affecting simulation behavior.**
+- **Initialization of visualization types:**  
+  The calls to `SetChassisVisualizationType(vis_type, vis_type)` and similar for steering, suspension, wheels, and tires are correct and consistent.
 
-- **Driver Steering Delta Adjustment:**  
-  Inside the loop, the steering delta is set to fixed values (0.5, -0.5, 0.0) during lane change, but the driver’s `SetSteeringDelta()` is intended to set the rate of change of steering input, not the steering input itself. This may cause unexpected steering behavior. The correct way would be to set the steering input directly or use a steering function.  
-  **Deduct 10 points for logical error in driver control.**
+- **Contact system:**  
+  The system collision type is set to `chrono.ChCollisionSystem.Type_BULLET`, which is appropriate.
 
-- **Use of `vehicle.SetChassisVisualizationType(vis_type, vis_type)` and similar calls:**  
-  The API shows `SetChassisVisualizationType(vis_type)` with one argument, but here two arguments are passed. This might be a misuse or confusion with other visualization settings.  
-  **Deduct 5 points for minor API misuse.**
+- **Driver input handling:**  
+  The `lane_change` function sets steering delta directly on the driver, which is unusual because the driver’s steering delta is meant to be a rate of change, not an absolute steering angle. This may cause unexpected behavior. However, since the driver is interactive and the function is called every step, this is a **logical error** in controlling the driver input.
 
-- **Use of `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`:**  
-  This is redundant but not incorrect.  
-  **No deduction here.**
+- **Use of `driver.GetInputs()` before `driver.Synchronize()`:**  
+  The code calls `driver.GetInputs()` before `driver.Synchronize(time)`. According to best practices, inputs should be updated after synchronization to reflect the current time step. This is a minor logical error.
 
-**Correctness subtotal:** 30 - 15 - 15 - 10 - 5 = **-15 points** (but minimum 0, so 0 points)
+- **Use of `vehicle.SetChassisFixed(False)`:**  
+  This is correct to allow the chassis to move.
+
+- **Use of `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')`:**  
+  This is correct and consistent.
+
+**Deductions:**  
+- Incorrect use of `GetTractor()` instead of `GetVehicle()` or direct vehicle reference: **-15 points**  
+- Logical error in `lane_change` function setting steering delta directly instead of steering input rate: **-10 points**  
+- Minor logical error in calling `driver.GetInputs()` before `driver.Synchronize()`: **-5 points**
+
+**Subtotal Correctness:** 30 - 15 - 10 - 5 = **0 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is mostly readable with meaningful variable names. However, there is inconsistent spacing (e.g., no blank lines between logical blocks), and some comments are missing or minimal.  
-  **Deduct 3 points for minor readability issues.**
+- **Readability:**  
+  Variable names are mostly meaningful (`initLoc`, `vis_type`, `terrainLength`, etc.).  
+  The code is structured logically with initialization, setup, and simulation loop clearly separated.
 
 - **Comments:**  
-  The code lacks comments explaining key steps, especially for complex parts like lane change logic, driver setup, and visualization.  
-  **Deduct 5 points for insufficient comments.**
+  There are no comments explaining the purpose of blocks or variables. For a complex simulation script, this is a significant omission.
 
-**Code Quality subtotal:** 10 - 3 - 5 = **2 points**
+- **Formatting:**  
+  The code is formatted well with consistent indentation and spacing.
+
+**Deductions:**  
+- Lack of comments/documentation: **-5 points**  
+- Otherwise good readability and structure: no further deduction.
+
+**Subtotal Code Quality:** 10 - 5 = **5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Data Path Setting:**  
-  `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is unnecessary.  
-  **Deduct 5 points for unnecessary code.**
+- **Redundant calls:**  
+  - `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant if the data path is already set; however, this is minor and often used to ensure path is set. No deduction.  
+  - `vehicle.SetChassisVisualizationType(vis_type, vis_type)` passes the same argument twice; the API expects one argument per visualization type. This is likely a misuse or misunderstanding of the API. The vehicle API typically expects one argument per visualization type (e.g., `SetChassisVisualizationType(vis_type)`). Passing two arguments is unnecessary and may cause issues. This is inefficient and incorrect usage.  
+  - Similarly for `SetSteeringVisualizationType(vis_type)` and others, passing two arguments where one is expected is inefficient and incorrect.
 
-- **Calculation of `render_steps`:**  
-  `render_steps = math.ceil(render_step_size / step_size)` is correct and efficient.
+- **`lane_change` function called every step but only changes steering delta at certain times; could be optimized by checking time less frequently or using event triggers. Minor optimization opportunity.
 
-- **In-loop steering delta setting:**  
-  The steering delta is set every loop iteration during lane change, which is acceptable given the logic.
+**Deductions:**  
+- Inefficient and incorrect multiple arguments in visualization type setters: **-5 points**  
+- Minor missed optimization in lane_change function: **-3 points**
 
-- **No other obvious inefficiencies.**
-
-**Efficiency subtotal:** 10 - 5 = **5 points**
+**Subtotal Efficiency:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., try-except blocks, checks for file paths, or validation of inputs).  
-- The code assumes all resources (textures, logos) are available without fallback.  
-- No handling of edge cases like simulation termination conditions other than visualization window closing.  
+- No try-except blocks or error handling for initialization failures or runtime exceptions.
 
-**Deduct 5 points for lack of basic error handling.**
+- No checks for successful initialization of vehicle, terrain, or visualization.
+
+- No handling of edge cases such as simulation time exceeding limits or driver inputs going out of range.
+
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
+
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup includes window title, size, camera, logo, directional light, and skybox.  
-- However, `vis.AddLightDirectional()` is used instead of `vis.AddTypicalLights()`, which is more standard and recommended for balanced lighting.  
-- The incorrect vehicle attachment (`GetTractor()`) will prevent visualization from working properly.  
-- No camera addition besides chase camera; no additional cameras or typical lights.  
+- Visualization window is set up with size and title.
 
-**Deduct 5 points for incorrect/inadequate visualization setup.**
+- Chase camera is set with a fixed point and offsets.
 
----
+- Logo, skybox, and directional light are added.
 
-### **Summary of deductions:**
+- However, the use of `AddLightDirectional()` instead of `AddTypicalLights()` is a minor issue (already deducted under completeness).
 
-| Criterion                   | Points | Deductions | Score  |
-|-----------------------------|--------|------------|--------|
-| Completeness                | 40     | 20         | 20     |
-| Correctness                | 30     | 30         | 0      |
-| Code Quality               | 10     | 8          | 2      |
-| Efficiency                 | 10     | 5          | 5      |
-| Error Handling & Robustness| 5      | 5          | 0      |
-| Visualization Tools        | 5      | 5          | 0      |
-| **Total**                  | 100    | 73         | **27** |
+- The camera is set with `SetChaseCamera(trackPoint, 25.0, 10.5)`, which is appropriate.
+
+- The visualization is attached to `vehicle.GetTractor()`, which is incorrect and will cause visualization failure.
+
+**Deductions:**  
+- Incorrect vehicle attachment to visualization: **-5 points**  
+- Minor lighting setup issue already deducted.
+
+**Subtotal Visualization:** 0 points
 
 ---
 
-### Final score:  
-[[27]]
+### **Final Score Calculation:**
+
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 7          | 33    |
+| Correctness               | 30     | 30         | 0     |
+| Code Quality              | 10     | 5          | 5     |
+| Efficiency                | 10     | 8          | 2     |
+| Error Handling & Robustness | 5      | 5          | 0     |
+| Visualization Tools       | 5      | 5          | 0     |
+| **Total**                 | 100    | 60         | **40**|
 
 ---
 
-### Explanation:
+### **Summary of Major Issues:**
 
-- The script is missing or incorrectly implementing essential components, especially in visualization attachment and quaternion initialization, which are critical for correct simulation behavior.  
-- The driver control logic has a logical error in how steering deltas are applied.  
-- Code quality is moderate but lacks comments and some readability improvements.  
-- Efficiency suffers from redundant code.  
-- No error handling is present, which is important for robustness.  
-- Visualization setup is incomplete and incorrect, which would prevent proper rendering.  
+- Incorrect use of `GetTractor()` method on `veh.Kraz()` vehicle object, causing visualization and mass print to fail.  
+- Logical error in driver input control (`lane_change` sets steering delta directly instead of steering rate).  
+- Lack of error handling and comments/documentation.  
+- Incorrect multiple arguments in visualization type setters.  
+- Visualization attached to wrong vehicle object.
 
-Overall, the script demonstrates a basic understanding of PyChrono vehicle simulation setup but contains significant errors and omissions that would prevent it from running correctly or producing meaningful results without modification.
+---
+
+[[40]]

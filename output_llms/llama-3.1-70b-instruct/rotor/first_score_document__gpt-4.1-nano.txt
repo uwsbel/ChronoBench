@@ -4,107 +4,119 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present (`mysystem = chrono.ChSystemNSC()`), but missing explicit setting of collision detection parameters or contact material definitions, which are often recommended for realistic contact behavior.  
-- **Body Creation:** The script creates a `flywheel` as a cylinder (`chrono.ChBodyEasyCylinder`) and a `beam` as a FEA Euler beam section, but the `beam` object is instantiated as `fea.ChBeamSectionEuler`, which is a section property, not a body. The code then attempts to add `flywheel` and `beam` directly to the system, which is incorrect because `fea.ChBeamSectionEuler` is not a body.  
-- **Visualization:** The Irrlicht visualization is set up with window size, title, logo, and camera, which aligns with the API.  
-- **Joints and Motors:** The motor is created as `chrono.ChLinkMotorRotationSpeed()` but is not initialized with bodies or frames, which is required. The motor's `SetTorque()` and `SetSpeed()` are called, but the motor is not properly connected to bodies.  
-- **Simulation Loop:** The loop is correctly structured, calling `mysystem.DoStepDynamics()` and rendering, but the motor and bodies are not properly connected or configured, which would prevent correct simulation behavior.
+- **System Initialization:**  
+  The script creates a `chrono.ChSystemSMC()` object (`mysim`) but **does not explicitly add bodies or set gravity** or other global system parameters.  
+  **Deduction:** Missing explicit `mysim.Add()` calls for bodies and no gravity setup.  
+  **Points deduction:** -15
 
-**Deduction:**  
-- Missing critical components: proper body creation, connection of bodies via joints, and correct motor setup.  
-- The `beam` is not a body but a section property, so adding it directly to the system is invalid.  
-- The motor is not initialized with bodies, which is essential.
+- **Body Creation:**  
+  The script creates a `flywheel` as a `ChBodyEasyCylinder`, sets inertia, position, and adds it to `beam` via `beam.AddBody()`.  
+  However, **`beam` is a `ChBeamIGA` object**, which is a FEA beam element, not a rigid body.  
+  **Missing:** The `beam` itself is not added to the system (`mysim.Add(beam)`), and the `beam` is not a `ChBody`.  
+  **Deduction:** -15 for missing system addition and proper body setup.
 
-**Score deduction:** 15 points (missing essential components and incorrect body setup).  
-**Remaining points:** 25/40
+- **Visualization:**  
+  The script sets up an `irr.ChVisualSystemIrrlicht()` window, adds lights, camera, sky, and visualization of the beam.  
+  **However:** The code calls `window.AddFEMbeamVisualization(beam, beam_visualization_type)` but **does not call `window.Initialize()`**, which is necessary to start the visualization system.  
+  **Deduction:** -10 for incomplete visualization setup.
+
+- **Simulation Loop:**  
+  The loop runs `mysim.DoStepDynamics()` but **`mysim` has no bodies or joints added**, so the simulation will not behave meaningfully.  
+  Also, the `window` is not attached to the system via `AttachSystem()`, which is necessary for visualization.  
+  **Deduction:** -15 for incomplete simulation setup.
+
+**Total deductions for completeness:** 15 + 15 + 10 + 15 = **-55 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API use:**  
-  - Adding a `fea.ChBeamSectionEuler` directly to the system is invalid; it should be used as part of a mesh or as a section property attached to nodes/elements, not as a body.  
-  - The motor is created but not initialized with bodies (`motor.Initialize()` is missing), which would prevent the motor from functioning.  
-  - The `Add()` method is called on `beam` and `flywheel`, but only `mysystem.Add()` is used for `beam`, `flywheel`, and `motor`, which is correct, but the prior addition of `beam` as a section property is invalid.  
-- **Logical errors:**  
-  - The `motor` is set with torque and speed, but without initialization with bodies, it won't work.  
-  - The `Add()` calls are inconsistent: `mysystem.Add(beam)` (which is a section property) is invalid; only bodies or joints should be added.  
-  - The `Add()` of `flywheel` is correct, but the `beam` object is not a body, so adding it is invalid.
+- **API Usage Errors:**
+  - `mysim` is created but **not linked to the visualization system** via `AttachSystem()`.  
+  - The `motor` is a `ChLinkMotorRotationSpeed()` but **`SetTorque()` is called**, which is incorrect; this class controls speed, not torque.  
+  - The `motor` is added via `beam.AddLink(motor)` but **`AddLink()` is not a valid method for `ChBeamIGA`**; typically, links are added to the `ChSystem` or via specific joint classes.  
+  - The `motor` is not initialized with `Initialize()`; for `ChLinkMotorRotationSpeed`, `Initialize()` is required.  
+  - The `motor`'s `SetTorque()` method is invalid; instead, `SetSpeed()` or `SetSpeedFunction()` should be used.  
+  - The `motor` is added to `beam`, which is a FEA object, not a multibody link, which is inconsistent with API expectations.
 
-**Deduction:**  
-- Significant API misuse and logical errors, especially regarding body and joint setup.
+- **Logical Errors:**
+  - The `beam` is a `ChBeamIGA` object, which is an FEA element, but no `ChMesh` or `ChSystem` addition occurs.  
+  - The `flywheel` is created as a `ChBodyEasyCylinder` but is **not added to the system** (`mysim.Add(flywheel)` is missing).  
+  - The `AddBody()` method is called on `beam`, which is an FEA object, not a `ChBody`.  
+  - The simulation loop calls `mysim.DoStepDynamics()` but the system has no bodies or joints added, so the simulation is invalid.
 
-**Score deduction:** 15 points (incorrect use of API leading to potential simulation failure).  
-**Remaining points:** 15/30
+**Total correctness deductions:** 15 + 10 + 5 = **-30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names are clear but lack comments explaining each step, which would improve readability.  
-- The code structure is straightforward but could benefit from better organization (e.g., separating setup, connection, and simulation phases).  
-- Minor issues: inconsistent capitalization (`false` instead of `False`), which is a syntax error in Python.  
-- No comments or documentation are present.
+- Variable names are mostly clear, but some are inconsistent (`mysim`, `window`, `beam`, `flywheel`, `motor`), which is acceptable.  
+- The code lacks comments, making it harder to understand the purpose of each block.  
+- The code structure is linear but lacks modularity or functions, which would improve readability.
 
-**Deduction:** 8 points (poor readability and missing comments).  
-**Remaining points:** 2/10
+**Deduction:** -8 points for poor commenting and structure.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious inefficiencies or redundant calculations.  
-- The code could be optimized by avoiding repeated object creation or unnecessary calls, but none are evident here.
+- The code performs some redundant calls, e.g., `window.AddCamera()` twice, which is unnecessary.  
+- No significant inefficiencies are apparent, but the code could be optimized by avoiding repeated or unnecessary calls.
 
-**Deduction:** 0 points (no significant inefficiencies).  
-**Remaining points:** 10/10
+**Deduction:** -2 points for minor inefficiencies.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or validation checks are present.  
-- The code will likely crash or behave unexpectedly due to incorrect object types and missing initializations.
+- No error handling is present; for example, no checks if `mysim` or `window` are properly initialized before use.  
+- The code assumes all calls succeed without validation.
 
-**Deduction:** 5 points (lack of robustness).  
-**Remaining points:** 0/5
-
----
-
-### 6. Use of Visualization Tools (5 points)
-
-- Visualization setup is mostly correct, with window size, title, camera, and logo.  
-- Minor issues: `SetWireframe(false)` should be `SetWireframe(False)` (Python boolean).  
-- No advanced visualization features are used, but the basic setup is adequate.
-
-**Deduction:** 2 points (minor visualization setup issues).  
-**Remaining points:** 3/5
+**Deduction:** -5 points for lack of error handling.
 
 ---
 
-### **Final Score Calculation:**
+### 6. Visualization Tools (5 points)
 
-| Criterion | Deduction | Points Awarded |
-|-------------|--------------|----------------|
-| Completeness | 15 | 25/40 |
-| Correctness | 15 | 15/30 |
-| Code Quality | 8 | 2/10 |
-| Efficiency | 0 | 10/10 |
-| Error Handling | 5 | 0/5 |
-| Visualization | 2 | 3/5 |
+- The visualization setup is incomplete: `Initialize()` is missing, and `AttachSystem()` is not called, which are essential for proper visualization.  
+- Lighting, sky, and camera are added, but without proper initialization, visualization will not work correctly.
 
-**Total points:** 25 + 15 + 2 + 10 + 0 + 3 = **55 points**
+**Deduction:** -4 points.
 
-**Final score:**  
-`[[55]]`
+---
+
+### **Final score calculation:**
+
+| Category | Points | Deductions |
+|------------|---------|------------|
+| Completeness | 40 | -55 |
+| Correctness | 30 | -30 |
+| Code Quality | 10 | -8 |
+| Efficiency | 10 | -2 |
+| Error Handling | 5 | -5 |
+| Visualization | 5 | -4 |
+
+**Total points:** 40 + 30 + 10 + 10 + 5 + 5 = **100**  
+**Total deductions:** 55 + 30 + 8 + 2 + 5 + 4 = **-104**
+
+**Final score:** 100 - 104 = **-4**
+
+Since scores cannot be negative, the final score is **0**.
+
+---
+
+### **Final Output:**
+
+[[0]]
 
 ---
 
 ### **Summary of deductions:**
 
-- Major issues with body creation and connection, especially misusing section properties as bodies.
-- Motor setup is incomplete; missing initialization with bodies.
-- Lack of comments and minor syntax issues reduce code clarity.
-- No error handling increases risk of runtime failures.
+- Major omissions in system setup, body addition, and visualization initialization.
+- Incorrect API usage for motor and body addition.
+- Lack of comments and modular structure.
+- No error handling.
 
-**Overall, the code needs significant corrections to be functional and aligned with the API.**
+The code needs significant revisions to be functional and aligned with the PyChrono API and best practices.

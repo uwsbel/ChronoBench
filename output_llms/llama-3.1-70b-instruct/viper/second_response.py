@@ -1,14 +1,10 @@
-"""
-Modified PyChrono script with added sensor manager, camera sensor, and rendering at specific intervals.
-"""
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Import statement added for pychrono.sensor
+import pychrono.sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -34,7 +30,7 @@ rover.SetDriver(driver)  # Assign the driver to the rover
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -61,7 +57,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create a camera sensor
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(1.0, 0, 1.45), chrono.QFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  # update rate
@@ -74,7 +70,7 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
-# Define variables for simulation step and render step size
+# Define simulation step and render step size
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
@@ -85,26 +81,26 @@ while vis.Run():
     time += time_step  # Increment the simulation time
     steering = 0
     max_steering = math.pi / 6  # Maximum steering angle
-
+    
     # Define the steering behavior over time
     if 2 < time < 7:
         steering = max_steering * (time - 2) / 5  # Gradually increase steering
     elif 7 < time < 12:
         steering = max_steering * (12 - time) / 5  # Gradually decrease steering
-
+    
     driver.SetSteering(steering)  # Set the steering for the rover
 
     rover.Update()  # Update the rover's state
 
-    manager.Update()  # Update the sensor manager
+    # Update the sensor manager
+    manager.Update()
 
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-
     step_number += 1
-
+    
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

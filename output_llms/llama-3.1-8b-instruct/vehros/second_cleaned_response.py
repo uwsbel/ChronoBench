@@ -17,11 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_WIREFRAMES)  
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_WIREFRAMES)  
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_WIREFRAMES)  
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_WIREFRAMES)  
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_WIREFRAMES)  
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_WIREFRAME)  
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_WIREFRAME)
     hmmwv.Initialize()  
 
     
@@ -29,8 +29,8 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    patch_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     terrain.Initialize()  
 
     
@@ -48,11 +48,9 @@ def main():
 
     
     visual_system = chronoirr.ChVisualSystemIrrlicht()
-    visual_system.SetDevice(chronoirr.ChDeviceCreateDeviceAPI("irrlicht"))  
-    visual_system.SetCameraPosition(ch.ChVector3d(0, 0, 10))  
-    visual_system.SetLookAt(ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 0, 1))  
-    visual_system.SetSkyBox(ch.ChVector3d(-10, -10, -10), ch.ChVector3d(10, 10, 10))  
-    visual_system.SetLighting(ch.ChVector3d(0, 0, 10), ch.ChVector3d(1, 1, 1))  
+    visual_system.SetCameraPosition(ch.ChVector3d(0, 5, 5))  
+    visual_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))  
+    visual_system.Initialize(hmmwv.GetVehicle())  
 
     
     time = 0
@@ -79,8 +77,13 @@ def main():
             break  
 
         
-        visual_system.RenderFrame()  
-        visual_system.RenderSteps(25)  
+        visual_system.Render()
+
+        
+        visual_system.SetRenderingSteps(100)
+
+        
+        visual_system.RenderFrame()
 
 if __name__ == "__main__":
     main()

@@ -83,28 +83,25 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-vis.AddLightDirectional(chrono.ChVector3d(0, 0, 1), chrono.ChColor(1, 1, 1), 100)
-vis.AddLightPoint(chrono.ChVector3d(0, 0, 5), chrono.ChColor(1, 1, 1), 100)
+sensor_manager = chrono.ChSensorManager()
 
 
-sensor_manager = veh.ChSensorManager()
+light1 = vis.AddLightPoint(chrono.ChVector3d(0, 0, 10), chrono.ChColor(1, 1, 1), 100)
+light2 = vis.AddLightPoint(chrono.ChVector3d(10, 0, 10), chrono.ChColor(1, 1, 1), 100)
+light3 = vis.AddLightPoint(chrono.ChVector3d(-10, 0, 10), chrono.ChColor(1, 1, 1), 100)
 
 
-camera = veh.ChCameraSensor()
-camera.SetResolution(1024, 768)
-camera.SetFieldOfView(60)
-camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-camera.SetLookAt(chrono.ChVector3d(0, 0, 0))
-vehicle.GetChassisBody().AddSensor(camera)
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetResolution(800, 600)
+camera_sensor.SetFieldOfView(60)
+camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+camera_sensor.SetLookAt(chrono.ChVector3d(0, 0, 0))
+vehicle.GetChassisBody().AddSensor(camera_sensor)
 
 
-filter = veh.ChFilterCamera()
-filter.SetCamera(camera)
-filter.SetResolution(1024, 768)
-filter.SetZoom(1)
-filter.SetPosition(chrono.ChVector3d(0, 0, 0))
-filter.SetLookAt(chrono.ChVector3d(0, 0, 0))
-sensor_manager.AddFilter(filter)
+camera_filter = chrono.ChFilterCamera()
+camera_filter.SetSensor(camera_sensor)
+sensor_manager.AddFilter(camera_filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -148,6 +145,8 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
     sensor_manager.Synchronize(time)
 
     
@@ -155,7 +154,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
 
     
     step_number += 1

@@ -29,7 +29,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-end_time = 30
+tend = 1000
 
 
 render_step_size = 1.0 / 50  
@@ -149,7 +149,7 @@ lidar = sens.ChLidarSensor(
     2 * chrono.CH_PI,         
     chrono.CH_PI / 12,         
     -chrono.CH_PI / 6,         
-    30.0,                  
+    100.0,                  
     sens.LidarBeamShape_RECTANGULAR,  
     2,          
     0.003,       
@@ -178,10 +178,10 @@ depth_cam = sens.ChDepthCameraSensor(
     image_width,
     image_height,
     fov,
-    30.0  
+    30
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, 1.0, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 
@@ -189,6 +189,7 @@ manager.AddSensor(depth_cam)
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
+end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
@@ -205,14 +206,14 @@ while time < end_time:
     manager.Update()
 
     
+    vehicle_position = gator.GetChassisBody().GetPos()
+    vehicle_heading = gator.GetChassisBody().GetRot().GetAngle()
+    print(f"Time: {time:.2f}, Position: ({vehicle_position.x:.2f}, {vehicle_position.y:.2f}, {vehicle_position.z:.2f}), Heading: {vehicle_heading:.2f}")
+
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
-
-    
-    pos = gator.GetChassisBody().GetPos()
-    heading = gator.GetChassisBody().GetRot().GetAngle()
-    print(f"Time: {time:.2f}, Pos: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Heading: {heading:.2f}")
 
     
     realtime_timer.Spin(step_size)

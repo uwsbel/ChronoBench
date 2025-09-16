@@ -96,17 +96,22 @@ builder.BuildBeam(mesh,
                     chrono.ChVector3d(0, 1, 0))      
 
 
-
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+last_node = builder.GetLastBeamNodes().back()
 
 
 builder.BuildBeam(mesh, 
                   msection, 
                   5, 
-                  builder.GetLastBeamNodes().back().GetPos(),  
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  
-                  chrono.ChVector3d(0, 1, 0))  
+                  last_node.GetPos(),  
+                  chrono.ChVector3d(0.2, 0.1, -0.1), 
+                  chrono.ChVector3d(0, 1, 0))      
+
+
+
+builder.GetLastBeamNodes().back().SetFixed(True)
+builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
 
 
 mesh.SetAutomaticGravity(False);

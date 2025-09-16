@@ -6,8 +6,7 @@ import math
 sys = chrono.ChSystemNSC()
 
 
-
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))
 
 
 ground = chrono.ChBody()
@@ -37,7 +36,7 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
-pend_1.SetWvel(chrono.ChVector3d(0, 0, 1))  
+pend_1.SetWvel(chrono.ChVector3d(0, 1, 0))  
 
 
 
@@ -46,9 +45,9 @@ sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chr
 sys.AddLink(sph_1)
 
 
-sph_vis = chrono.ChVisualShapeSphere(0.02)  
-sph_vis.SetColor(chrono.ChColor(1, 1, 0))  
-sph_1.AddVisualShape(sph_vis, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0)))
+sph_vis = chrono.ChVisualShapeSphere(2)  
+sph_vis.SetColor(chrono.ChColor(0, 1, 0))  
+sph_1.AddVisualShape(sph_vis)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

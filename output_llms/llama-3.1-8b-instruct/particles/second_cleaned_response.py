@@ -51,7 +51,6 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -89,22 +88,19 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
+    G_constant = 6.674e-3  
+
     
     kinetic_energy = 0
     potential_energy = 0
-    total_energy = 0
-    G_constant = 6.674e-3  
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetAccumulatedForce().Length2()
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-        kinetic_energy += 0.5 * abodyA.GetMass() * abodyA.GetAcceleration().Length2()
-        kinetic_energy += 0.5 * abodyB.GetMass() * abodyB.GetAcceleration().Length2()
+        potential_energy -= f_attract
+
     total_energy = kinetic_energy + potential_energy
     print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 

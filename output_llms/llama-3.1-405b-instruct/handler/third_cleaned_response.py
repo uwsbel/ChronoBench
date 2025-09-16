@@ -9,8 +9,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic):
-        super().__init__(10)  
+    def __init__(self, topic, publish_rate):
+        super().__init__(publish_rate)  
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture("floor_texture.png")  
+    floor.SetTexture("path/to/floor/texture.png")  
     sys.Add(floor)  
 
     
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture("box_texture.png")  
+    box.SetTexture("path/to/box/texture.png")  
     sys.Add(box)  
 
     
@@ -71,24 +71,33 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic")
+    publish_rate = 10  
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    myapplication = chronoirr.ChIrrApp(sys, 'PyChrono example', chronoirr.dimension2du(1024, 768))
-    myapplication.AddTypicalSky()
-    myapplication.AddTypicalLights()
-    myapplication.AddCamera(chronoirr.vector3df(0, 0, 10))
+    myapplication = chronoirr.ChIrrApp(sys, 'PyChrono and Irrlicht', chronoirr.dimension2du(800, 600))
+
+    
+    myapplication.AddCamera(chronoirr.vector3df(0, 0, 5), chronoirr.vector3df(0, 0, 0))
+
+    
+    myapplication.AddLight(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 2, 1, 1)
+    myapplication.AddLight(chronoirr.vector3df(-2, -2, -2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 2, 1, 1)
+
+    
     myapplication.AssetBindAll()
     myapplication.AssetUpdateAll()
+    myapplication.AddShadowAll()
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
+
     step_number = 0
     render_step_size = 1e-2
     render_steps = int(render_step_size / time_step)
@@ -101,6 +110,7 @@ def main():
             break  
 
         step_number += 1
+
         if step_number % render_steps == 0:
             myapplication.BeginScene()
             myapplication.DrawAll()

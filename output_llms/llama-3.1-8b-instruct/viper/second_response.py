@@ -1,14 +1,10 @@
-"""
-Modified PyChrono script for Viper rover simulation with sensor manager and camera sensor.
-"""
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  # Import statement added for pychrono.sensor as sens
+import pychrono.sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -36,22 +32,6 @@ init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create run-time visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
-
 # Create sensor manager
 manager = sens.ChSensorManager(system)
 intensity = 1.0
@@ -61,25 +41,23 @@ manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(inten
 offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
-    15,  # update rate
+    15, # update rate
     offset_pose,
-    720,  # image width
-    480,  # image height
-    1.408  # field of view
+    720, # image width
+    480, # image height
+    1.408 # field of view
 )
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
-# Define simulation step and render step size
-step_number = 0
-render_step_size = 1.0 / 25  # FPS = 25
-render_steps = math.ceil(render_step_size / 1e-3)
-
 # Set the simulation time step
 time_step = 1e-3
 
 # Simulation loop
+step_number = 0
+render_step_size = 1.0 / 25  # FPS = 25
+render_steps = math.ceil(render_step_size / time_step)
 time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
@@ -105,6 +83,6 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
     step_number += 1
-
+    
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

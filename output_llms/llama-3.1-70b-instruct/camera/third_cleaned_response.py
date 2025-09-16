@@ -18,13 +18,13 @@ def main():
     side = 1.0
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetBodyFixed(True)  
+    box_body.SetName("Box Body")  
     mphysicalSystem.Add(box_body)  
 
     
     box_shape = chrono.ChVisualShapeBox()
     box_shape.SetBoxDimensions(chrono.ChVector3d(side, side, side))
-    box_shape.SetName("Box")
+    box_shape.SetName("Box Shape")
     box_shape.SetColor(chrono.ChColor(1, 0, 0))  
     box_body.AddVisualShape(box_shape)  
 
@@ -53,8 +53,6 @@ def main():
     image_width = 1280  
     image_height = 720  
     fov = 1.408  
-    lag = 0  
-    exposure_time = 0  
     cam = sens.ChCameraSensor(
         box_body,              
         update_rate,            
@@ -64,7 +62,9 @@ def main():
         fov                     
     )
     cam.SetName("Camera Sensor")
+    lag = 0  
     cam.SetLag(lag)  
+    exposure_time = 0  
     cam.SetCollectionWindow(exposure_time)  
 
     
@@ -120,11 +120,11 @@ def main():
     orbit_radius = 10  
     orbit_rate = 0.5   
     ch_time = 0.0      
-    step_size = 1e-3  
-    end_time = 20.0  
 
     t1 = time.time()  
 
+    step_size = 1e-3  
+    end_time = 20.0  
     while ch_time < end_time:
         
         cam.SetOffsetPose(chrono.ChFramed(

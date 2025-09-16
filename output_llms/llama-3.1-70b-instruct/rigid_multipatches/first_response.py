@@ -1,111 +1,80 @@
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import numpy as np
+import pychrono.vehicle as chrono_vehicle
 
 # Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('./data/')
-
-# Create the simulation system and set the timestep
-mysystem = chrono.ChSystemNSC()
-mysystem.SetSolverType(chrono.ChSolver.Type_PSSOR)
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.9)
+contact_material.SetDampingF(0.0)
+contact_material.SetCompliance(1e-9)
+contact_material.SetComplianceT(1e-9)
 
 # Create the vehicle
-veh_params = veh.HMMWV()
-veh_params.SetContactMethod(chrono.ChContactMethodType.MULTICORE_SMC)
-veh_params.SetChassisFixed(False)
-veh_params.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-veh_params.SetPowertrainType(veh.PowertrainType_SHAFTS)
-veh_params.SetDriveType(veh.DrivetrainType_FOUR_WHEEL_DRIVE)
-veh_params.SetEngineType(veh.EngineType_INTERNAL_COMBUSTION)
-veh_params.SetBrakeType(veh.BrakeType_SHAFTS)
-veh_params.SetSteeringType(veh.SteeringTypeAckermann())
-veh_params.SetTireType(veh.TireModelType_FrictionCircle)
-veh_params.SetTireStepSize(chrono.ChTime(0.01))
+vehicle = chrono_vehicle.HMMWV(system, contact_material)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetInitRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetEngineType(chrono_vehicle.EngineType::HMMWV_ENGINE_TYPE)
+vehicle.SetDrivetrainType(chrono_vehicle.DrivetrainType::HMMWV_DRIVETRAIN_TYPE)
 
-# Create the vehicle object
-my_vehicle = veh.HMMWV(veh_params)
-mysystem.Add(my_vehicle.GetChassisBody())
-mysystem.Add(my_vehicle.GetChassisBodyAuxRef())
-
-# Add the vehicle components to the simulation
-for axle in my_vehicle.GetAxles():
-    mysystem.Add(axle)
-for wheel in my_vehicle.GetWheels():
-    mysystem.Add(wheel)
-for tire in my_vehicle.GetTires():
-    mysystem.Add(tire)
+# Add visualization to all vehicle components
+for part in vehicle.GetPartList():
+    if part.GetType() == chrono_vehicle.ChPart.Type::CHASSIS:
+        part.AddVisualization(chrono.ChVisualizationType::MESH, "HMMWV_Chassis", 1.0)
+    elif part.GetType() == chrono_vehicle.ChPart.Type::WHEEL:
+        part.AddVisualization(chrono.ChVisualizationType::MESH, "HMMWV_Wheel", 1.0)
+    elif part.GetType() == chrono_vehicle.ChPart.Type::BODY:
+        part.AddVisualization(chrono.ChVisualizationType::MESH, "HMMWV_Body", 1.0)
 
 # Create the terrain
-terrain = chrono.ChBodyEasyBox(mysystem, 100, 10, 100, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -10, 0))
-terrain.SetBodyFixed(True)
-mysystem.Add(terrain)
+terrain = chrono.ChTerrain(system, contact_material)
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# Create a flat patch with a texture
-patch1 = chrono.ChBodyEasyBox(mysystem, 20, 2, 20, 1000, True, True)
-patch1.SetPos(chrono.ChVectorD(-20, -8, 0))
-patch1.SetBodyFixed(True)
-mysystem.Add(patch1)
+# Add flat patches with different textures
+patch1 = chrono.ChTerrainPatch(chrono.ChVectorD(-10, 0, 10), chrono.ChVectorD(10, 0, 10), 1, 1)
+patch1.SetTexture("texture1.png")
+terrain.AddPatch(patch1)
 
-# Create a flat patch with a different texture
-patch2 = chrono.ChBodyEasyBox(mysystem, 20, 2, 20, 1000, True, True)
-patch2.SetPos(chrono.ChVectorD(20, -8, 0))
-patch2.SetBodyFixed(True)
-mysystem.Add(patch2)
+patch2 = chrono.ChTerrainPatch(chrono.ChVectorD(-10, 0, -10), chrono.ChVectorD(10, 0, -10), 1, 1)
+patch2.SetTexture("texture2.png")
+terrain.AddPatch(patch2)
 
-# Create a mesh-based patch for a bump
-bump = chrono.ChBodyEasyMesh(mysystem, 'bump.obj', 1000, True, True)
-bump.SetPos(chrono.ChVectorD(0, -8, 20))
-bump.SetBodyFixed(True)
-mysystem.Add(bump)
+# Add a mesh-based patch for a bump
+bump_patch = chrono.ChTerrainPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(2, 2, 2), 2, 2)
+bump_patch.SetMesh("bump_mesh.obj")
+terrain.AddPatch(bump_patch)
 
-# Create a heightmap-based patch for varying elevations
-heightmap = chrono.ChBodyEasyHeightField(mysystem, 'heightmap.png', 1000, True, True)
-heightmap.SetPos(chrono.ChVectorD(0, -8, -20))
-heightmap.SetBodyFixed(True)
-mysystem.Add(heightmap)
+# Add a heightmap-based patch for varying elevations
+heightmap_patch = chrono.ChTerrainPatch(chrono.ChVectorD(-20, 0, -20), chrono.ChVectorD(20, 0, 20), 40, 40)
+heightmap_patch.SetHeightmap("heightmap.png", 1, 1)
+terrain.AddPatch(heightmap_patch)
 
-# Create an interactive driver system
-driver = veh.ChIrrGuiDriver(my_vehicle)
-driver.SetSteeringMode(veh.SteeringMode_TYPE_2)
+# Create the driver system
+driver = chrono_vehicle.ChIrrlichtDriver(vehicle, 0.5, 0.5, 0.5)
+driver.SetSteering(0.5)
+driver.SetThrottle(0.5)
+driver.SetBraking(0.5)
+
+# Set the simulation parameters
+system.SetStep(0.01)
+system.SetMaxIters(100)
 
 # Create the Irrlicht visualization
-application = chronoirr.ChVisualSystemIrrlicht()
-application.SetWindowSize(1280, 720)
-application.AddTypicalLights()
+application = chronoirr.ChVisualSystemIrrlicht(system)
+application.SetWindowSize(1024, 768)
+application.SetWindowTitle("HMMWV Simulation")
 application.AddSkyBox()
-application.AddLogo('logo.png')
-application.SetShowLogo(True)
-application.SetCamera(chrono.ChVectorD(0, 1.5, -3), chrono.ChVectorD(0, 1, 0))
-application.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-application.SetCameraSpeed(0.5)
-application.SetCameraRotSpeed(0.1)
-
-# Add the vehicle components to the visualization
-for axle in my_vehicle.GetAxles():
-    application.AssetBindAllChildren(axle)
-for wheel in my_vehicle.GetWheels():
-    application.AssetBindAllChildren(wheel)
-for tire in my_vehicle.GetTires():
-    application.AssetBindAllChildren(tire)
-
-# Add the terrain to the visualization
-application.AssetBindAllChildren(terrain)
-application.AssetBindAllChildren(patch1)
-application.AssetBindAllChildren(patch2)
-application.AssetBindAllChildren(bump)
-application.AssetBindAllChildren(heightmap)
-
-# Set the simulation timestep and start the simulation
-mysystem.SetTimestep(0.01)
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 1, 0))
+application.AddCamera(chrono.ChVectorD(0, 2, 0), chrono.ChVectorD(0, 1, 0))
 
 # Run the simulation
 while application.GetDevice().run():
-    mysystem.DoStepDynamics(0.01)
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+    system.DoStepDynamics(0.01)
+    driver.Update(0.01)
+    application.Synchronize(1.0 / 60.0)

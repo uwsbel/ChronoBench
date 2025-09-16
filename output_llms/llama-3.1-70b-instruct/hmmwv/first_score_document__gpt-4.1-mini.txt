@@ -5,163 +5,174 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  Present and correct (`chrono.ChSystemNSC()` used). No deduction.
+  Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
 
-- **Body Creation:**  
-  - Vehicle created using `veh.HMMWV(system)`.  
-  - Terrain created using `chrono.ChBodyEasyBox(...)`.  
-  However, the terrain is created as a `ChBodyEasyBox` but **not added to the system** via `system.Add(terrain)`. This is a critical omission because without adding the terrain to the system, it will not participate in the simulation (no collisions, no dynamics).  
-  **Deduct 15 points** for missing adding terrain to the system.
+- **Contact Material Setup:**  
+  Created and configured with friction, restitution, and Young's modulus. However, `SetRestitution` and `SetYoungModulus` are not standard methods for `ChMaterialSurfaceNSC` in PyChrono NSC contact materials. According to the documentation, `ChMaterialSurfaceNSC` supports friction and damping but not restitution or Young's modulus (which are more relevant for SMC materials). This is a **minor misuse** of API (see correctness below).  
+  No deduction here for completeness since the material is created and assigned.
 
 - **Vehicle Initialization:**  
-  The vehicle is created but **not initialized** with `.Initialize()` or similar method. According to the API documentation and typical vehicle setup, after setting location, rotation, contact method, tire model, and visualization, the vehicle should be initialized (e.g., `hmmwv.Initialize()` or `hmmwv.Initialize(chrono.ChCoordsysd(...))`). This is essential for the vehicle to be properly set up in the simulation.  
-  **Deduct 15 points** for missing vehicle initialization.
+  The vehicle `veh.HMMWV()` is created and configured with visualization types and tire model. However, the vehicle is added to the system by `mysystem.Add(veh_hmmwv.GetPart(0))`. This is suspicious because the vehicle class typically manages its own bodies and adds them internally to the system. The documentation example shows `veh_hmmwv.Initialize()` and then the vehicle is part of the system automatically. Adding `GetPart(0)` (which likely returns a single subcomponent) is not standard and may omit adding other parts. This is a **significant omission** or misuse.  
+  **Deduct 15 points** for missing or incorrect vehicle addition.
+
+- **Vehicle Initialization Position:**  
+  The call `veh_hmmwv.Initialize(chrono.ChCoords(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))` is incorrect. The correct class is `chrono.ChCoordsysD`, not `ChCoords`. This is a **significant correctness error** (see correctness below).  
+  No completeness deduction here, but correctness deduction applies.
+
+- **Tire Setup:**  
+  Tire type and step size are set, which is good.
+
+- **Terrain Creation:**  
+  Terrain is created using `chrono.ChBodyEasyBox(mysystem, 100, 10, 100, 1000, True, contact_material)`. This is incorrect usage:  
+  - The first argument to `ChBodyEasyBox` is `lengthX` (float), but here `mysystem` (a system object) is passed as the first argument.  
+  - The correct signature is `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`.  
+  This is a **major correctness error** and also completeness since the terrain is not properly created.  
+  **Deduct 15 points** for missing or incorrect terrain creation.
+
+- **Terrain Position and Fixing:**  
+  The terrain is positioned and fixed, which is good.
+
+- **Adding Terrain to System:**  
+  Done correctly.
 
 - **Visualization Setup:**  
-  - Visualization system created (`chronoirr.ChVisualSystemIrrlicht(system)`).  
-  - Window size and title set.  
-  - However, **`irrlicht.AttachSystem(system)` is missing**, which is necessary to link the physical system to the visualization. Without this, the visualization will not correctly represent the system.  
-  - Also, **`irrlicht.Initialize()` is missing**, which sets up cameras and lighting.  
-  **Deduct 15 points** for incomplete visualization setup.
+  The visualization system is created and configured with window size, lights, sky, logo, FPS, up axis, camera rig mode, camera path speed, look-at point, camera addition, and up vector. However:  
+  - The method `application.SetUpAxis(chrono.ChVectorD(0, 0, 1))` is incorrect; the API expects an integer axis index (0,1,2) or a predefined constant, not a vector.  
+  - The method `application.SetCameraRigMode(chronoirr.ChCameraRigMode.FOLLOW_PATH)` is used, but no camera path is defined or loaded, which may cause the camera not to move as expected.  
+  - The method `application.AddCamera(chrono.ChVectorD(0, 1, 1), chrono.ChVectorD(0, 0, 0))` is used, but the API expects a single position vector for `AddCamera()`. The second argument is unexpected.  
+  - The method `application.SetCameraUpVector(chrono.ChVectorD(0, 0, 1))` is not part of the documented API.  
+  These are **minor to moderate correctness and completeness issues** in visualization setup.  
+  **Deduct 10 points** for incomplete/incorrect visualization setup.
 
 - **Driver Setup:**  
-  Driver created with `veh.ChIrrlichtDriver(hmmwv.GetPart(0), irrlicht, ...)`.  
-  However, `hmmwv.GetPart(0)` is suspicious because the vehicle API typically provides a method like `GetVehicle()` or `GetChassis()`. The documentation does not mention `GetPart()`. This may be an incorrect or non-existent method.  
-  **Deduct 15 points** for incorrect or unclear driver initialization.
+  Driver is created and configured with vehicle and control modes. However, the driver is added to the system by `mysystem.Add(driver.GetPart(0))`. The driver is typically not added to the system as a body; it is a controller object. This is a **significant correctness and completeness issue**.  
+  **Deduct 15 points** for incorrect driver addition.
+
+- **Timestepper Setup:**  
+  The timestepper is set to `chrono.ChTimestepperHMMWV()`, which is appropriate for HMMWV vehicle simulations.
 
 - **Simulation Loop:**  
-  Present and mostly correct. The loop uses `irrlicht.GetDevice().run()` which is acceptable, though the documentation suggests `vis.Run()` for the visualization system. Minor inconsistency but acceptable.  
-  No deduction.
-
-- **Sleep Function:**  
-  The code uses `chrono.ChUtils::Sleep(0.02)`, which is invalid Python syntax (C++ style). The correct Python call is `chrono.ChUtils.Sleep(0.02)`.  
-  **Deduct 15 points** for incorrect API usage.
-
-**Total Completeness deduction: 15 + 15 + 15 + 15 + 15 = 75 points**  
-Since completeness max is 40 points, and deductions exceed max, cap deduction at 40 points.
+  The loop uses `application.Run()` and calls `mysystem.DoStepDynamics(0.02)`, then renders the scene. However, the visualization rendering calls are `BeginScene()`, `DrawAll()`, and `EndScene()`. The documented API uses `BeginScene()`, `Render()`, and `EndScene()`. `DrawAll()` is not a documented method.  
+  **Deduct 5 points** for minor visualization API misuse.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `SetContactMethod(chrono.ChMaterialSurfaceNSC())` on vehicle:**  
-  `SetContactMethod()` expects an enum or a contact method type (e.g., `chrono.ContactMethod_NSC`), not a material object.  
-  **Deduct 15 points** for incorrect API usage.
+- **Incorrect use of `SetRestitution` and `SetYoungModulus` on `ChMaterialSurfaceNSC`:**  
+  These methods do not exist for NSC materials. This is a **minor correctness error**.  
+  Deduct 5 points.
 
-- **`hmmwv.SetRotation(chrono.Q_from_AngX(chrono.CH_C_PI / 2))`:**  
-  The function `Q_from_AngX` is not documented; the documented function is `chrono.Q_from_AngX` or `chrono.Q_from_AngAxis`. The constant `CH_C_PI` is not documented; the documented constant is `CH_PI`.  
-  This suggests a typo or incorrect constant usage.  
-  **Deduct 10 points** for logical error / incorrect constant.
+- **Incorrect use of `chrono.ChCoords` instead of `chrono.ChCoordsysD` in vehicle initialization:**  
+  This is a **major correctness error** that will cause runtime failure.  
+  Deduct 15 points.
 
-- **Driver initialization with `hmmwv.GetPart(0)`:**  
-  Likely incorrect or non-existent method. Should be `hmmwv.GetVehicle()` or `hmmwv.GetChassis()`.  
-  **Deduct 10 points** for logical error.
+- **Incorrect arguments to `ChBodyEasyBox`:**  
+  Passing `mysystem` as the first argument is a **major correctness error** that will cause runtime failure.  
+  Deduct 15 points.
 
-- **Terrain creation:**  
-  `chrono.ChBodyEasyBox(system, 100, 100, 1, 1000, True, True)` is incorrect usage. The documented signature is:  
-  `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`  
-  The first argument should be lengthX (float), but `system` is passed instead.  
-  **Deduct 15 points** for incorrect API usage.
+- **Adding vehicle and driver parts to system manually:**  
+  The vehicle and driver classes manage their own addition to the system. Adding `GetPart(0)` is incorrect and may omit other parts or cause errors.  
+  Deduct 15 points.
 
-- **Setting texture with `chrono.ChTexture('data/textures/concrete.jpg')`:**  
-  The documentation suggests using `chrono.GetChronoDataFile()` to get the full path.  
-  Minor omission but could cause file not found errors.  
-  **Deduct 3 points** for minor inaccuracy.
-
-- **Using `irrlicht.GetDevice().run()` instead of `irrlicht.Run()`:**  
-  Minor inconsistency but not critical.  
-  No deduction.
-
-**Total Correctness deduction: 15 + 10 + 10 + 15 + 3 = 53 points**  
-Cap at 30 points max.
+- **Visualization API misuse:**  
+  Using `DrawAll()` instead of `Render()`, and incorrect camera setup methods. Minor correctness errors.  
+  Deduct 5 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- No comments at all.  
-- Variable names are minimal but acceptable (`system`, `irrlicht`, `hmmwv`, `terrain`, `driver`).  
-- Formatting is okay.  
-- Lack of comments is a notable omission.  
-- Some variable names could be more descriptive (e.g., `irrlicht` could be `vis` or `visual_system`).  
-- The code mixes C++ style (`chrono.ChUtils::Sleep`) which is invalid in Python, indicating lack of attention to language idioms.  
+- The code is mostly readable with meaningful variable names.
 
-**Deduct 5 points** for lack of comments.  
-**Deduct 3 points** for minor naming and style issues.
+- However, **lack of comments** explaining the steps is notable.  
+  Deduct 5 points.
 
-Total deduction: 8 points.
+- Minor formatting issues: inconsistent spacing in some places, e.g., no blank lines between logical blocks, and no docstrings or comments.  
+  Deduct 3 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or inefficient API use.  
-- The sleep call is incorrect, but if corrected, it is acceptable.  
-- No optimization opportunities explicitly missed.  
+- No obvious redundant calculations or inefficient API usage.
 
-No deduction.
+- However, the incorrect addition of vehicle and driver parts to the system could cause unnecessary overhead or errors.
+
+- Missing `application.Initialize()` call before the simulation loop, which is required to properly initialize the visualization system. This is a minor inefficiency as the visualization may not work properly without it.  
+  Deduct 3 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (e.g., no try-except blocks, no checks for file existence).  
-- While not always mandatory in simple scripts, basic error handling is best practice.  
-- No handling of edge cases or user input.  
+- No error handling or checks are present.
 
-**Deduct 5 points** for lack of error handling.
+- While PyChrono scripts often omit explicit error handling, basic checks (e.g., verifying initialization success) or try-except blocks would improve robustness.
+
+- Deduct 5 points for lack of any error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created but missing `AttachSystem(system)` and `Initialize()`.  
-- No skybox, no lights, no camera added.  
-- This leads to poor visualization quality and incomplete setup.  
-- The window title and size are set, which is good.  
+- Visualization is set up but with several incorrect or missing calls:
 
-**Deduct 5 points** for inadequate visualization setup.
+  - Missing `application.AttachSystem(mysystem)` to link the system to the visualization.
 
----
+  - Missing `application.Initialize()` before the loop.
 
-### Summary of deductions:
+  - Incorrect camera setup calls.
 
-| Category                  | Max Points | Deduction | Notes                                  |
-|---------------------------|------------|-----------|----------------------------------------|
-| Completeness              | 40         | 40        | Missing terrain addition, vehicle init, visualization setup, driver init, sleep call |
-| Correctness              | 30         | 30        | Incorrect API calls, wrong parameters, invalid constants, method calls |
-| Code Quality             | 10         | 8         | No comments, minor style issues        |
-| Efficiency               | 10         | 0         | No major inefficiencies                 |
-| Error Handling & Robustness | 5          | 5         | No error handling                       |
-| Visualization Tools      | 5          | 5         | Missing AttachSystem, Initialize, lighting, camera |
+  - Use of `DrawAll()` instead of `Render()`.
+
+- These issues will cause the visualization to not function as expected.
+
+- Deduct 5 points for inadequate visualization setup.
 
 ---
 
-### Final score calculation:
+### Summary of Deductions
 
-40 - 40 = 0  
-30 - 30 = 0  
-10 - 8 = 2  
-10 - 0 = 10  
-5 - 5 = 0  
-5 - 5 = 0  
-
-Total = 0 + 0 + 2 + 10 + 0 + 0 = 12 points
+| Category                  | Deduction Reason                                    | Points Deducted |
+|---------------------------|----------------------------------------------------|-----------------|
+| Completeness              | Vehicle addition incorrect                          | 15              |
+| Completeness              | Terrain creation incorrect                          | 15              |
+| Completeness              | Visualization setup incomplete/incorrect           | 10              |
+| Completeness              | Driver addition incorrect                           | 15              |
+| Correctness               | `SetRestitution` and `SetYoungModulus` on NSC mat | 5               |
+| Correctness               | Wrong `ChCoords` instead of `ChCoordsysD`          | 15              |
+| Correctness               | Wrong arguments to `ChBodyEasyBox`                  | 15              |
+| Correctness               | Adding vehicle and driver parts manually            | 15              |
+| Correctness               | Visualization API misuse (`DrawAll` etc.)           | 5               |
+| Code Quality              | Lack of comments                                    | 5               |
+| Code Quality              | Minor formatting/readability                        | 3               |
+| Efficiency                | Missing `application.Initialize()`                  | 3               |
+| Error Handling            | No error handling                                  | 5               |
+| Visualization Tools       | Missing `AttachSystem`, `Initialize`, camera setup | 5               |
 
 ---
 
-### **Final Score:**
+### Total Deductions
 
-[[12]]
+- Completeness: 15 + 15 + 10 + 15 = 55 (max is 40, so capped at 40)  
+- Correctness: 5 + 15 + 15 + 15 + 5 = 55 (max is 30, so capped at 30)  
+- Code Quality: 5 + 3 = 8  
+- Efficiency: 3  
+- Error Handling: 5  
+- Visualization Tools: 5  
+
+Sum: 40 + 30 + 8 + 3 + 5 + 5 = 91 points deducted.
+
+Since total points are 100, final score = 100 - 91 = 9 points.
+
+---
+
+### Final Score:  
+[[9]]
 
 ---
 
 ### Explanation:
 
-The script is missing several essential components and contains multiple incorrect API usages that would prevent the simulation from running correctly. The terrain is not added to the system, the vehicle is not initialized, and the visualization system is not properly attached or initialized. The driver is created with a likely invalid method call. The terrain creation call passes the system as a parameter incorrectly. The sleep function uses invalid syntax. These issues lead to a full deduction in completeness and correctness categories.
-
-Additionally, the lack of comments and error handling further reduce the score. Visualization setup is minimal and incomplete, missing important elements like lighting and camera setup.
-
-The only positive aspect is the basic structure of the simulation loop and the use of some correct API calls, which preserve a small fraction of the code quality and efficiency points.
-
-Overall, the code requires significant corrections and additions to be functional and follow best practices.
+The script includes many essential components but suffers from critical API misuse and incorrect method calls that would prevent it from running correctly. The vehicle and terrain are not properly added or initialized, visualization setup is incomplete and incorrect, and driver addition is wrong. There is also a lack of comments and no error handling. Minor inefficiencies and formatting issues further reduce the score. Overall, the script requires significant corrections to be functional and aligned with PyChrono best practices.

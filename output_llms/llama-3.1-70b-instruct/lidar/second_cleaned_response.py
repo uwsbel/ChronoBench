@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -16,17 +15,17 @@ def main():
     
     
     
-    side = 1.0
+    side = 2.0
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetBodyFixed(True)
+    box_body.SetName("Box Body")
     mphysicalSystem.Add(box_body)
 
     
     box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBoxDimensions(chrono.ChVector3D(side, side, side))
-    box_shape.SetName("Box")
-    box_shape.SetColor(chrono.ChColor(1, 0, 0))
+    box_shape.SetName("Box Shape")
+    box_shape.SetBoxDimensions(chrono.ChVector3d(side, side, side))
+    box_shape.SetColor(chrono.ChColor(1, 0, 0))  
     box_body.AddVisualShape(box_shape)
 
     
@@ -154,6 +153,18 @@ def main():
     while ch_time < end_time:
         
         lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
+        
+        lidar_2d.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),

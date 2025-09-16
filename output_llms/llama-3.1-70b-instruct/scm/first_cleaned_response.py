@@ -1,64 +1,60 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.vehicle as chrono_vehicle
 import numpy as np
 
 
-chrono.SetChronoDataPath('./data/')
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-mysystem = chrono.ChSystemNSC()
-chrono.ChCollisionSystem.SetDefaultImpulseThreshold(1e-3)
+veh = chrono_vehicle.HMMWV(system)
+veh.SetChassisFixed(False)
+veh.SetChassisMass(1500)
+veh.SetChassisInertiaXX(chrono.ChVectorD(100, 100, 100))
+veh.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+veh.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-veh_hmmwv = veh.HMMWV(mysystem)
+veh.SetTireModel(chrono_vehicle.RigidTire())
 
 
-veh_hmmwv.SetChassisFixed(False)
-veh_hmmwv.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-veh_hmmwv.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+system.Add(veh.GetChassisBody())
+for axle in veh.GetAxles():
+    system.Add(axle)
 
 
-mysystem.Add(veh_hmmwv.GetChassisBody())
-mysystem.Add(veh_hmmwv.GetPart(0))  
-mysystem.Add(veh_hmmwv.GetPart(1))  
-mysystem.Add(veh_hmmwv.GetPart(2))  
+terrain = chrono.ChTerrainSCM(system)
+terrain.SetName("Terrain")
+terrain.SetFile("terrain.txt")
+terrain.SetScale(1)
+terrain.SetHeightfieldData(chrono.ChHeightfieldData(256, 256, 1, 1, 1, 1))
+terrain.SetSoilParameters(chrono.ChSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+terrain.SetMovingPatchEnabled(True)
+terrain.SetMovingPatchFollowsChassis(veh.GetChassisBody())
+terrain.SetVisualizationType(chrono.ChTerrainSCM.VISUALIZATION_SINKAGE_FALSE_COLOR)
 
 
-terrain = veh.SCMDeformableTerrain(mysystem)
+system.Add(terrain)
 
 
-terrain.SetSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5)
-terrain.SetMovingPatchSize(10, 10)
-terrain.SetMovingPatchCenter(chrono.ChVectorD(0, 0, 0))
-terrain.SetMovingPatchFollowsChassis(True)
+driver = chrono_vehicle.InteractiveDriver(veh)
+driver.SetSteeringRange(chrono.ChReal(-1.57, 1.57))
+driver.SetThrottleRange(chrono.ChReal(0, 1))
+driver.SetBrakingRange(chrono.ChReal(0, 1))
 
 
-mysystem.Add(terrain)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
+vis = chronoirr.ChVisualSystemIrrlicht(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV on SCM Deformable Terrain')
-vis.SetTypicalLenght(1.0)
-vis.SetCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+vis.SetWindowTitle("HMMWV on SCM Deformable Terrain")
+vis.SetCameraRig(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 
-veh_hmmwv.AddVisualizationMesh(vis)
+for part in veh.GetParts():
+    vis.AddVisualizationMesh(part, chrono.ChVisualizationType.MESH_WIREFRAME)
 
 
-terrain.AddVisualization(vis, True, False, True)
-
-
-driver = veh.HMMWV_Driver(veh_hmmwv)
-
-
-mysystem.SetChTimeStep(0.01)
-vis.SetFrameRate(50)
-
-
-while vis.Run():
-    mysystem.DoStepDynamics(0.01)
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+while True:
+    system.DoStepDynamics(0.02)
+    vis.Render()
+    chrono.ChUtils::Sleep(0.02)

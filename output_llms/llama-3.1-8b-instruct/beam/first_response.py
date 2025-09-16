@@ -1,59 +1,43 @@
-import chrono as chrono
-import chrono.irrlicht as irrlicht
+import chrono as ch
+import chrono-python-irrlicht as cpi
 
 # Initialize the PyChrono environment and core components
-chrono.Initialize()
+ch.InitChSystem()
+irrlicht = cpi.ChIrrAppCreate("PyChrono Beam Simulation", 1024, 768)
 
-# Create a new physical system
-sys = chrono.ChSystem()
+# Define a function to create a beam finite element
+def create_beam(node1, node2, length, diameter, Young_modulus, density):
+    beam = ch.ChBeam(node1, node2, length, diameter, Young_modulus, density)
+    beam.SetMaterial(0.5, 0.5, 0.5)  # Set material properties
+    return beam
 
-# Create a new ground body
-ground = chrono.ChBody()
-ground.SetBodyType(chrono.ChBodyType.STATIC)
-ground.SetCollisionShape(chrono.ChCollisionModel.CreateBox(10, 1, 1))
-sys.Add(ground)
+# Create nodes and beams
+node1 = ch.ChNodeXYZ(0, 0, 0)
+node2 = ch.ChNodeXYZ(5, 0, 0)
+node3 = ch.ChNodeXYZ(5, 5, 0)
+node4 = ch.ChNodeXYZ(0, 5, 0)
 
-# Create a new beam body
-beam = chrono.ChBody()
-beam.SetBodyType(chrono.ChBodyType.BEAM)
-beam.SetCollisionShape(chrono.ChCollisionModel.CreateBox(1, 1, 1))
-beam.SetMass(1)
-beam.SetInertia(1)
-sys.Add(beam)
+beam1 = create_beam(node1, node2, 5, 0.1, 2e11, 7850)
+beam2 = create_beam(node2, node3, 5, 0.1, 2e11, 7850)
+beam3 = create_beam(node3, node4, 5, 0.1, 2e11, 7850)
+beam4 = create_beam(node4, node1, 5, 0.1, 2e11, 7850)
 
-# Create a new node body
-node = chrono.ChBody()
-node.SetBodyType(chrono.ChBodyType.STATIC)
-node.SetCollisionShape(chrono.ChCollisionModel.CreateSphere(0.1))
-sys.Add(node)
+# Add visualization and run the simulation loop
+irrlicht.AddObject(node1)
+irrlicht.AddObject(node2)
+irrlicht.AddObject(node3)
+irrlicht.AddObject(node4)
+irrlicht.AddObject(beam1)
+irrlicht.AddObject(beam2)
+irrlicht.AddObject(beam3)
+irrlicht.AddObject(beam4)
 
-# Create a new beam finite element
-beam_fe = chrono.ChBeamFiniteElement()
-beam_fe.SetBeam(beam)
-beam_fe.SetNode1(node)
-beam_fe.SetNode2(chrono.ChNodeBody.GetNode(beam))
-beam_fe.SetLength(1)
-beam_fe.SetCrossSection(chrono.ChBeamCrossSection.CreateBox(0.1, 0.1))
-beam_fe.SetMaterial(chrono.ChMaterialSurface.CreateDefault())
-sys.Add(beam_fe)
+while not irrlicht.IsClosed():
+    irrlicht.BeginScene()
+    irrlicht.DrawAll()
+    irrlicht.EndScene()
+    irrlicht.DoStep()
 
-# Set default parameters
-ground.SetPosition(chrono.ChVector(0, 0, 0))
-beam.SetPosition(chrono.ChVector(0, 1, 0))
-node.SetPosition(chrono.ChVector(0, 2, 0))
-beam_fe.SetPosition(chrono.ChVector(0, 1.5, 0))
-
-# Create an Irrlicht engine for real-time rendering
-engine = irrlicht.CreateIrrlichtDevice(irrlicht.VideoMode(800, 600, irrlicht.EVFT_32))
-view = engine.getSceneManager().addCameraSceneNode()
-view.setTarget(chrono.ChVector(0, 1, 0))
-
-# Run the simulation loop
-while True:
-    sys.DoStep()
-    engine.beginScene()
-    view.beginScene()
-    sys.DrawAll()
-    view.endScene()
-    engine.endScene()
-    engine.nextFrame()
+# Clean up
+irrlicht.Terminate()
+ch.FinalizeChSystem()

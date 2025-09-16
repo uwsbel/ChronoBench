@@ -3,10 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the path to the Chrono data directory
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -33,11 +29,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 1e-4  # decreased simulation step size
+step_size = 5e-4  # decreased step size for finer control
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 100  # decreased render step size (FPS = 100)
+render_step_size = 1.0 / 100  # decreased render step size for finer control
 
 # --------------
 # Create systems
@@ -51,9 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-# Adjust initial vehicle location and orientation
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
 
 vehicle.Initialize()
 
@@ -74,12 +67,12 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Initialize terrain with a highway mesh
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway_mesh.jpg"), 200, 200)  # highway mesh
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
@@ -93,10 +86,10 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 5.0  # increased steering response time to 5 seconds
-throttle_time = 1.0  
-braking_time = 0.3   
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -104,14 +97,15 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Reference speed input
-ref_speed = 10.0  # m/s
+reference_speed = 10.0  # m/s
 
 # PID controller for throttle control
 kp = 0.1
 ki = 0.01
 kd = 0.001
-integral_error = 0.0
+error = 0.0
 prev_error = 0.0
+integral = 0.0
 
 # ---------------
 # Simulation loop
@@ -141,22 +135,27 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Calculate speed error
-    speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - speed
-    integral_error += error * step_size
-    derivative_error = (error - prev_error) / step_size
-    prev_error = error
-
-    # PID control for throttle
-    throttle = kp * error + ki * integral_error + kd * derivative_error
-    driver_inputs.m_throttle = throttle
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Calculate speed error
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = reference_speed - current_speed
+
+    # PID controller
+    integral += error * step_size
+    derivative = (error - prev_error) / step_size
+    throttle = kp * error + ki * integral + kd * derivative
+    prev_error = error
+
+    # Limit throttle value
+    throttle = max(0.0, min(1.0, throttle))
+
+    # Set throttle input
+    driver_inputs.m_throttle = throttle
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

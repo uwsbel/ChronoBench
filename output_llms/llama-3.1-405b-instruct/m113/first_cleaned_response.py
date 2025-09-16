@@ -1,45 +1,67 @@
 import pychrono.core as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
-step_size = 1e-3
-end_time = 100
+vehicle_mass = 1000  
+vehicle_speed = 10  
+terrain_friction = 0.8
+terrain_restitution = 0.2
+time_step = 0.01  
+simulation_time = 100  
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
 
 
-my_vehicle = veh.M113()
-my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-my_system.Add(my_vehicle)
+vehicle = chrono.ChBodyEasyBox(my_system,  
+                               vehicle_mass,  
+                               2,  
+                               1,  
+                               1,  
+                               True,  
+                               True,  
+                               chrono.ChVectorD(0, 0, 0),  
+                               chrono.ChVectorD(vehicle_speed, 0, 0))  
 
 
-terrain = veh.RigidTerrain(my_system)
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20, 0.05, 0.05, 0.001, 0.001)
-my_system.Add(terrain)
+terrain = chrono.ChBodyEasyBox(my_system,  
+                               1e6,  
+                               100,  
+                               100,  
+                               1,  
+                               True,  
+                               True,  
+                               chrono.ChVectorD(0, -2, 0),  
+                               chrono.ChVectorD(0, 0, 0))  
 
 
-driver = veh.ChDriver(my_vehicle)
-driver.Initialize()
+terrain.GetCollisionModel().SetFriction(terrain_friction)
+terrain.GetCollisionModel().SetRestitution(terrain_restitution)
 
 
-myapplication = irr.ChIrrApp(my_system, 'PyChrono M113 Simulation', irr.dimension2du(800, 600))
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLights()
-myapplication.AddCamera(chrono.ChVectorD(0, 1.5, -5))
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
+driver = chrono.ChIrrNodeAsset(my_system, vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStepDynamics(step_size)
-    driver.Synchronize(time)
-    driver.Advance(step_size)
-    myapplication.EndScene()
-    time += step_size
-    if time >= end_time:
+application = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 0, -5))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+
+while application.GetDevice().run():
+    
+    my_system.DoStepDynamics(time_step)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    application.DoStep()
+    
+    simulation_time -= time_step
+    if simulation_time <= 0:
         break

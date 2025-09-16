@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -37,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -69,17 +67,16 @@ patch = terrain.AddPatch(patch_mat,
     terrainLength, terrainWidth)
 
 # Set SCM soil parameters
-terrain.SetSoilParameters(0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+terrain.SetSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
 
 # Initialize SCM terrain using a height map
-terrain.Initialize(chrono.GetChronoDataFile("terrain/heightmaps/flat_terrain.txt"))
+terrain.Initialize(chrono.GetChronoDataFile("terrain/heightmaps/flat01.bmp"))
 
 # Set the SCM terrain texture to dirt
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -89,7 +86,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -129,7 +125,8 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  # Hard-coded throttle value
+    # Hard-coded throttle value
+    driver_inputs.m_throttle = 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

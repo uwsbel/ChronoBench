@@ -6,7 +6,7 @@ from pychrono import irrlicht as chronoirr
 def main():
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set the Chrono data path for vehicle data.
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
     hmmwv.SetChassisFixed(False)  # Make the chassis movable.
@@ -49,15 +49,12 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Set up runtime visualization
+    # Create the Irrlicht application for runtime visualization.
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(800, 600)
     vis.SetWindowTitle("HMMWV Simulation")
     vis.Initialize()
-
-    vis.AddSkyBox()
-    vis.AddTypicalLights()
 
     # Start the simulation loop.
     time = 0
@@ -83,7 +80,7 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene
+        # Render the scene.
         vis.BeginScene()
         vis.DrawAll()
         vis.EndScene()

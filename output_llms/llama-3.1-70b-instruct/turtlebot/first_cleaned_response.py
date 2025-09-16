@@ -3,37 +3,37 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath('./data/')
+chrono.SetChronoDataPath('./')
 
 
-mysystem = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
 
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(system, 10, 2, 10, 1000, True, chrono.ChVectorD(0, -3, 0))
 ground.SetBodyFixed(True)
 
 
-turtlebot = veh.ChTurtlebot(mysystem, chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-turtlebot.SetMass(10)
-turtlebot.SetInertia(chrono.ChVectorD(1, 1, 1))
+turtlebot = veh.Turtlebot(system, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Turtlebot Simulation')
-vis.SetCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.AddTypicalLights()
+motor_control = veh.TurtlebotMotorControl(turtlebot)
 
 
-vis.Add(ground)
-vis.Add(turtlebot)
+viz = chronoirr.ChVisualSystemIrrlicht()
+viz.SetWindowSize(800, 600)
+viz.SetWindowTitle('Turtlebot Simulation')
+viz.SetCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 1, 0))
+viz.AddTypicalLights()
 
 
-dt = 0.01
+viz.Add(turtlebot.GetChassisBody())
+viz.Add(ground)
+
+
+t_step = 0.01
 t_end = 10
 
 
@@ -41,24 +41,19 @@ t = 0
 while t < t_end:
     
     if t < 2:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(1, 0, 0))  
+        motor_control.SetMotorTorque(10, 10)
     elif t < 4:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(-1, 0, 0))  
+        motor_control.SetMotorTorque(-10, 10)
+    elif t < 6:
+        motor_control.SetMotorTorque(10, -10)
     else:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(0, 0, 0))  
+        motor_control.SetMotorTorque(0, 0)
 
     
-    mysystem.DoStepDynamics(dt)
+    system.DoStepDynamics(t_step)
 
     
-    vis.Update()
-    vis.Render()
+    viz.Render()
 
     
-    t += dt
-
-    
-    print(f'Time: {t:.2f}')
-
-
-vis.Run()
+    t += t_step

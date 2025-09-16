@@ -1,6 +1,3 @@
-"""
-Import necessary modules
-"""
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -18,20 +15,21 @@ def main():
     # Add a box to be sensed by a camera
     # -----------------------------------
     # Create a box object with dimensions specified by side
-    side = 1.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    side = 1.0  # side length of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box body
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetRot(chrono.ChQuaterniond(0, 0, 0, 1))  # Set the rotation of the box
     box_body.SetTexture(chrono.ChTextureDiffuse(chrono.ChColor(1, 0, 0)))  # Set the texture of the box
+    box_body.SetName("Box")  # Set the name of the box
+    mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
     # Create a visual representation of the box
     box_shape = chrono.ChVisualShapeBox()
     box_shape.SetBox(box_body)
-    box_shape.SetName("Box")
+    box_shape.SetName("Box Shape")
     box_shape.SetMutable(False)  # Set the box to be immutable
 
-    # Add the box to the physical system
-    mphysicalSystem.Add(box_body)
+    # Create a body to which the visual shape will be attached
+    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box
 
     # -----------------------
     # Create a sensor manager

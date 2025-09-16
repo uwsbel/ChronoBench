@@ -13,7 +13,7 @@ class Model1:
         self.system = system
         self.mesh = mesh
         self.n_chains = n_chains
-        self.end_bodies = []
+        self.chains = []
 
         
         msection_cable2 = fea.ChBeamSectionCable()
@@ -28,15 +28,14 @@ class Model1:
             
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
-            self.system.Add(mtruss)
 
             
             builder.BuildBeam(
-                self.mesh,  
+                mesh,  
                 msection_cable2,  
-                10 + i,  
-                chrono.ChVector3d(i * 0.1, 0, -0.1),  
-                chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1)  
+                10 + i * 2,  
+                chrono.ChVector3d(0, 0, -0.1 + i * 0.05),  
+                chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05)  
             )
 
             
@@ -46,23 +45,23 @@ class Model1:
             
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            self.system.Add(constraint_hinge)  
+            system.Add(constraint_hinge)  
 
             
             box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-            box.SetPos(chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1))
-            self.system.Add(box)
+            box.SetPos(chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05))
+            system.Add(box)
 
             
             constraint_box = fea.ChLinkNodeFrame()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), box)
-            self.system.Add(constraint_box)  
+            system.Add(constraint_box)  
 
-            self.end_bodies.append(box)
+            self.chains.append((builder, mtruss, box))
 
     def PrintBodyPositions(self):
-        for i, body in enumerate(self.end_bodies):
-            print(f"Chain {i+1} end body position: {body.GetPos()}")
+        for i, (builder, mtruss, box) in enumerate(self.chains):
+            print(f"Chain {i+1}: Box position = {box.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

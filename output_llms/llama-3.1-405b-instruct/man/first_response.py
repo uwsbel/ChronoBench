@@ -1,77 +1,69 @@
 # Import necessary PyChrono modules
 import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+chrono.SetChronoDataPath('./chrono_data/')
 
 # Create a Chrono::Engine physical system
 my_system = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(
-    my_system,          # Parent system
-    100, 2, 100,       # Box dimensions (x, y, z)
-    1000,              # Density
-    True,              # Visualization flag
-    True,              # Collision flag
-    0.5                # Friction coefficient
-)
+ground = chrono.ChBodyEasyBox(my_system,  # parent
+                              100, 100, 2,  # x, y, z dimensions
+                              1000,  # density
+                              True,  # visualization
+                              True,  # collision
+                              chrono.ChMaterialSurfaceNSC())  # contact material
 ground.SetBodyFixed(True)
+my_system.Add(ground)
 
-# Create a vehicle model with a TMEasy tire model
-my_truck = veh.ChPart::LoadPart(
-    my_system,          # Parent system
-    "/path/to/vehicle/model",  # Model file path
-    "MAN_10t",          # Vehicle model name
-    0,                  # Visualization flags
-    0                   # Collision flags
-)
-my_truck.Initialize()
+# Create a vehicle
+my_truck = veh.ChPart(ground)
+my_truck.SetMass(10000)
+my_truck.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+my_truck.SetPos(chrono.ChVectorD(0, 0, 1))
+my_system.Add(my_truck)
 
 # Create a TMEasy tire model
-tire_model = veh.ChTMEasyTireModel()
-my_truck.SetTireModel(tire_model)
+tire = veh.ChTMEasy(my_system)
+tire.SetLongitudinalStiffness(100000)
+tire.SetLateralStiffness(100000)
+tire.SetCamberStiffness(100000)
+tire.SetFrictionCoefficient(0.8)
+my_truck.AddTire(tire, chrono.ChVectorD(0, 0, -1))
 
-# Create a driver system with real-time controls for steering, throttle, and braking
-driver = veh.ChIrrNodeDriver(
-    my_system,          # Parent system
-    my_truck,           # Vehicle model
-    irr.IrrlichtDevice()  # Irrlicht device
-)
-driver.Initialize()
+# Create real-time driver controls for steering, throttle, and braking
+driver = veh.ChRealtimeDriver(my_system)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+my_truck.AddDriver(driver)
 
-# Set default parameters
-my_truck.SetInitPosition(chrono.ChVectorD(0, 1, 0))  # Initial position
-my_truck.SetInitPos_dt(chrono.ChVectorD(0, 0, 0))    # Initial velocity
-driver.SetSteering(0)                                # Initial steering angle
-driver.SetThrottle(0)                                # Initial throttle value
-driver.SetBraking(0)                                 # Initial braking value
+# Create an Irrlicht application
+myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Truck Simulation',
+                                   chronoirr.dimension2du(800, 600))
 
-# Create an Irrlicht visualization system
-application = irr.ChIrrApp(
-    my_system,          # Physical system
-    "MAN 10t Truck Simulation",  # Window title
-    irr.dimension2du(800, 600)  # Window dimensions
-)
+# Add a chase camera
+myapplication.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
+myapplication.AddTypicalLights()
+myapplication.AddSkyBox()
+myapplication.SetSymbolscale(0.02)
+myapplication.SetShowInfos(True)
 
-# Set up the Irrlicht visualization system
-application.AddSkyBox()
-application.AddTypicalLights()
-application.AddChaseCamera(
-    my_truck,           # Target object
-    1.5,                # Camera distance
-    0.5                 # Camera height
-)
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Customize terrain textures and logos
+myapplication.SetTerrainTexture(chrono.GetChronoDataFile('textures/pavement.jpg'))
+myapplication.SetLogoPicture(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+
+# Simulate the system
+myapplication.AssetBindAll()
+myapplication.AssetUpdateAll()
+myapplication.Simulate(0, 100)
 
 # Run the simulation
-application.SetTimestep(0.01)  # Time step
-application.SetTryRealtime(True)  # Real-time mode
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()

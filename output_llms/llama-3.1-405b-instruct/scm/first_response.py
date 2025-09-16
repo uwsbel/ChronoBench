@@ -1,72 +1,60 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import numpy as np
+import pychrono.scm as scm
 
-# Initialize the Chrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("path/to/chrono/data/")
+myapp = chronoirr.ChIrrApp(__file__, "HMMWV on SCM Deformable Terrain", chronoirr.dimension2du(800, 600))
+application = veh.ChPart("military")
+myapp.AddTypicalSky()
+myapp.AddTypicalLights()
+myapp.AddTypicalCamera(chronoirr.vector3df(0, 2, -5))
 
-# Create a Chrono system
-sys = chrono.ChSystemNSC()
+# Create the SCM deformable terrain
+terrain = scm.ChSCMTerrain()
+terrain.SetSoilParameters(scm.ChSCMSoilParameters(
+    scm.ChSCMSoilType.SAND,
+    0.1,  # density
+    0.01,  # friction
+    0.1,  # cohesion
+    30,  # elastic modulus
+    0.3  # poisson ratio
+))
+terrain.SetMovingPatchEnabled(True)
+myapp.Add(terrain)
 
-# Create a vehicle (HMMWV)
-vehicle = veh.ChPart('HMMWV')
-vehicle.SetMass(3000)
-vehicle.SetInertiaXX(1000)
-vehicle.SetInertiaYY(1000)
-vehicle.SetInertiaZZ(1000)
+# Create the HMMWV vehicle
+vehicle = veh.ChHMMWV()
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisOrientation(chrono.Q_from_AngZ(chrono.CH_C_PI / 4))
+vehicle.SetTireModel(veh.ChRigidTireModel())
+vehicle.SetTireVisualization(veh.ChTireVisualizationType.MESH)
+myapp.Add(vehicle)
 
-# Set vehicle position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# Add vehicle components (rigid body, tires, etc.)
-chassis = veh.ChChassis()
-vehicle.AddAsset(chassis)
-
-# Create and add tires
-tire = veh.ChRigidTire()
-tire.SetRadius(0.4)
-tire.SetWidth(0.2)
-tire.SetMass(50)
-vehicle.AddAsset(tire)
-
-# Create SCM deformable terrain
-terrain = veh.ChSCMTerrain()
-terrain.SetSoilParameters(0.2, 0.01, 0.01)  # Custom soil parameters
-terrain.EnableMovingPatch(True)
-sys.Add(terrain)
-
-# Add vehicle to system
-sys.Add(vehicle)
-
-# Create Irrlicht application
-app = irr.ChIrrApp(sys, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(800, 600))
-app.AddTypicalLights()
-app.AddSkyBox()
-app.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-
-# Enable mesh visualization for vehicle components
-app.AssetBindAll()
-app.AssetUpdateAll()
-
-# Set up interactive driver system
+# Configure the interactive driver system
 driver = veh.ChIrrNodeAppDriver()
-driver.Initialize()
-sys.Add(driver)
+driver.Initialize(myapp, vehicle)
+driver.SetSteeringIncrement(0.01)
+driver.SetThrottleIncrement(0.01)
+driver.SetBrakingIncrement(0.01)
+myapp.Add(driver)
 
-# Run simulation in real time
-app.SetTimestep(0.02)
-app.SetTryRealtime(True)
+# Enable false color plotting for sinkage visualization
+terrain.SetSinkageVisualization(True)
 
-# Run simulation loop
-while app.GetDevice().run():
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
+# Set up the simulation
+application.SetStep(0.02)
+application.SetTime(0)
+myapp.AssetBindAll()
+myapp.AssetUpdateAll()
 
-    # Update vehicle dynamics
-    sys.DoStepDynamics(app.GetTimestep())
-
-    # Render scene
-    app.Render()
+# Run the simulation
+while myapp.GetDevice().run():
+    myapp.BeginScene()
+    myapp.DrawAll()
+    myapp.EndScene()
+    application.DoStepDynamics(0.02)
+    myapp.Simulate(0.02)
+    myapp.FrameMove()
+    myapp.m_device.run()

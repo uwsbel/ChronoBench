@@ -1,88 +1,104 @@
 import chrono as ch
-import irrlicht
+import chrono.iron as ir
+import chrono.terrain as tr
+import chrono.utils as utils
+import chrono.irrlicht as irr
 
 
 ch.init()
-
-
-sim = ch.ChSystem()
+ir.init()
+tr.init()
+irr.init()
 
 
 vehicle = ch.ChBody()
-vehicle.SetMass(1000.0)
-vehicle.SetInertiaTensor(1000.0, 1000.0, 1000.0)
-vehicle.SetPos(ch.Vec3(0, 0, 0))
-vehicle.SetRot(ch.QFromEuler(0, 0, 0))
-sim.Add(vehicle)
+vehicle.SetName("HMMWV")
+vehicle.SetMass(1500.0)
+vehicle.SetDensity(8000.0)
 
 
-engine = ch.ChEngine()
-engine.SetType(ch.ChEngineType.eEngType_Diesel)
-engine.SetPower(100.0)
-vehicle.Add(engine)
+vehicle.SetPos(0, 0, 0)
 
 
-drivetrain = ch.ChDrivetrain()
-drivetrain.SetType(ch.ChDrivetrainType.eDrivetrainType_4x4)
-vehicle.Add(drivetrain)
+vehicle.SetEngineType(ch.ChEngineType.VEHICLE_ENGINE)
+vehicle.SetDrivetrainType(ch.ChDrivetrainType.VEHICLE_DRIVETRAIN)
 
 
-driver = ch.ChDriver()
-driver.SetSteeringSensitivity(0.1)
-driver.SetThrottleSensitivity(0.1)
-driver.SetBrakeSensitivity(0.1)
-vehicle.Add(driver)
+wheel1 = ch.ChBody()
+wheel1.SetName("Wheel1")
+wheel1.SetMass(50.0)
+wheel1.SetDensity(5000.0)
+wheel1.SetPos(0, 1, 0)
+vehicle.AddAttachPoint(wheel1, "wheel1")
+wheel2 = ch.ChBody()
+wheel2.SetName("Wheel2")
+wheel2.SetMass(50.0)
+wheel2.SetDensity(5000.0)
+wheel2.SetPos(0, -1, 0)
+vehicle.AddAttachPoint(wheel2, "wheel2")
+wheel3 = ch.ChBody()
+wheel3.SetName("Wheel3")
+wheel3.SetMass(50.0)
+wheel3.SetDensity(5000.0)
+wheel3.SetPos(1, 0, 0)
+vehicle.AddAttachPoint(wheel3, "wheel3")
+wheel4 = ch.ChBody()
+wheel4.SetName("Wheel4")
+wheel4.SetMass(50.0)
+wheel4.SetDensity(5000.0)
+wheel4.SetPos(-1, 0, 0)
+vehicle.AddAttachPoint(wheel4, "wheel4")
 
 
-terrain = ch.ChTerrain()
-terrain.SetPatchCount(10)
-terrain.SetPatchSize(10.0)
-terrain.SetPatchTexture(ch.ChTexture("texture1.png"))
-terrain.SetPatchHeight(0.0)
-sim.Add(terrain)
+vehicle.SetMesh(irr.MeshCreateFromFile("hmmwv.obj"))
 
 
-patch = ch.ChTerrainPatch()
-patch.SetType(ch.ChTerrainPatchType.ePatchType_Flat)
-patch.SetTexture(ch.ChTexture("texture2.png"))
-patch.SetHeight(0.0)
-terrain.AddPatch(patch)
+terrain = tr.ChTerrain()
+terrain.SetName("Terrain")
+terrain.SetSize(10, 10)
 
 
-mesh_patch = ch.ChTerrainPatch()
-mesh_patch.SetType(ch.ChTerrainPatchType.ePatchType_Mesh)
-mesh_patch.SetMesh(ch.ChMesh("mesh.obj"))
-mesh_patch.SetHeight(0.0)
-terrain.AddPatch(mesh_patch)
+flat_patch1 = tr.ChTerrainPatch()
+flat_patch1.SetName("Flat Patch 1")
+flat_patch1.SetTexture("flat_texture1.png")
+flat_patch1.SetPosition(0, 0, 0)
+terrain.AddPatch(flat_patch1)
 
+flat_patch2 = tr.ChTerrainPatch()
+flat_patch2.SetName("Flat Patch 2")
+flat_patch2.SetTexture("flat_texture2.png")
+flat_patch2.SetPosition(5, 0, 0)
+terrain.AddPatch(flat_patch2)
 
-heightmap_patch = ch.ChTerrainPatch()
-heightmap_patch.SetType(ch.ChTerrainPatchType.ePatchType_Heightmap)
-heightmap_patch.SetHeightmap(ch.ChHeightmap("heightmap.png"))
-heightmap_patch.SetHeight(0.0)
+bump_patch = tr.ChTerrainPatch()
+bump_patch.SetName("Bump Patch")
+bump_patch.SetMesh(irr.MeshCreateFromFile("bump.obj"))
+bump_patch.SetPosition(2, 0, 0)
+terrain.AddPatch(bump_patch)
+
+heightmap_patch = tr.ChTerrainPatch()
+heightmap_patch.SetName("Heightmap Patch")
+heightmap_patch.SetHeightmap("heightmap.png")
+heightmap_patch.SetPosition(3, 0, 0)
 terrain.AddPatch(heightmap_patch)
 
 
-vehicle.SetMesh(ch.ChMesh("vehicle.obj"))
-vehicle.SetVisual(ch.ChVisual("vehicle.obj"))
-vehicle.SetCollision(ch.ChCollision("vehicle.obj"))
+terrain.SetGravity(0, 0, -9.81)
+terrain.SetTimeStep(0.01)
+terrain.SetTimestep(0.01)
 
 
-irrlicht.init()
-device = irrlicht.createDevice(irrlicht.VideoMode(800, 600, 32), irrlicht.E_DRIVER_TYPE_OPENGL)
-scene = irrlicht.Scene()
-device.setWindowCaption("HMMWV Simulation")
+driver = ch.ChDriver()
+driver.SetName("Driver")
+driver.SetSteeringSensitivity(0.1)
+driver.SetThrottleSensitivity(0.1)
+driver.SetBrakingSensitivity(0.1)
 
 
-while device.run():
-    
-    sim.Update(0.01)
-
-    
-    scene.beginScene()
-    scene.drawAll()
-    scene.endScene()
+sim = ch.ChSimulation()
+sim.AddVehicle(vehicle)
+sim.AddTerrain(terrain)
+sim.AddDriver(driver)
 
 
-device.drop()
-ch.quit()
+sim.Run()

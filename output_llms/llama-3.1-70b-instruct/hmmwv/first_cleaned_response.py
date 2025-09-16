@@ -1,44 +1,68 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
+import pychrono.tire as tire
 
 
-chrono.SetChronoDataPath('./data/')
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('./')
 
 
-irrlicht = chronoirr.ChVisualSystemIrrlicht(system)
-irrlicht.SetWindowSize(800, 600)
-irrlicht.SetWindowTitle('HMMWV Simulation')
+mysystem = chrono.ChSystemNSC()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.9)
+contact_material.SetRestitution(0.1)
+contact_material.SetYoungModulus(1e7)
+mysystem.SetContactMaterial(contact_material)
 
 
-hmmwv = veh.HMMWV(system)
-hmmwv.SetLocation(chrono.ChVectorD(0, 0, 1.5))
-hmmwv.SetRotation(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
-hmmwv.SetContactMethod(chrono.ChMaterialSurfaceNSC())
-hmmwv.SetTireModel(chrono.TireModelType.TMEASY)
-hmmwv.SetVisualizationType(chrono.VisualizationType.PRIMITIVES)
+veh_hmmwv = veh.HMMWV()
+veh_hmmwv.SetContactMaterial(contact_material)
+veh_hmmwv.SetChassisVisualization(veh.VisualizationType.PRIMITIVES)
+veh_hmmwv.SetSuspensionVisualization(veh.VisualizationType.PRIMITIVES)
+veh_hmmwv.SetWheelVisualization(veh.VisualizationType.PRIMITIVES)
+veh_hmmwv.SetSteeringVisualization(veh.VisualizationType.PRIMITIVES)
+veh_hmmwv.SetBrakeVisualization(veh.VisualizationType.PRIMITIVES)
+mysystem.Add(veh_hmmwv.GetPart(0))
 
 
-terrain = chrono.ChBodyEasyBox(system, 100, 100, 1, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetTexture(chrono.ChTexture('data/textures/concrete.jpg'))
+veh_hmmwv.Initialize(chrono.ChCoords(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+veh_hmmwv.SetTireType(tire.TireModelType.TMEASY)
+veh_hmmwv.SetTireStepSize(0.01)
 
 
-driver = veh.ChIrrlichtDriver(hmmwv.GetPart(0), irrlicht, 0.002, 0.002, 0.002, 0.002)
-driver.SetSteeringMode(chrono.SteeringMode.TORQUE)
-driver.SetThrottleMode(chrono.ThrottleMode.TORQUE)
-driver.SetBrakingMode(chrono.BrakingMode.TORQUE)
+terrain = chrono.ChBodyEasyBox(mysystem, 100, 10, 100, 1000, True, contact_material)
+terrain.SetPos(chrono.ChVectorD(0, -10, 0))
+terrain.SetBodyFixed(True)
+mysystem.Add(terrain)
 
 
-time_step = 0.02
-while irrlicht.GetDevice().run():
-    system.DoStepDynamics(time_step)
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.EndScene()
-    chrono.ChUtils::Sleep(0.02)
+application = chronoirr.ChVisualSystemIrrlicht()
+application.SetWindowSize(1024, 768)
+application.AddTypicalLights()
+application.AddTypicalSky()
+application.AddTypicalLogo()
+application.SetShowFPS(True)
+application.SetUpAxis(chrono.ChVectorD(0, 0, 1))
+application.SetCameraRigMode(chronoirr.ChCameraRigMode.FOLLOW_PATH)
+application.SetCameraPathSpeed(10)
+application.SetCameraLookAtPoint(chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, 1, 1), chrono.ChVectorD(0, 0, 0))
+application.SetCameraUpVector(chrono.ChVectorD(0, 0, 1))
 
 
-irrlicht.GetDevice().drop()
+driver = veh.HMMWVDriver()
+driver.SetVehicle(veh_hmmwv)
+driver.SetSteeringMode(veh.SteeringMode.STEERING_WHEEL)
+driver.SetThrottleMode(veh.ThrottleMode.THROTTLE_PEDAL)
+driver.SetBrakingMode(veh.BrakingMode.BRAKING_PEDAL)
+mysystem.Add(driver.GetPart(0))
+
+
+stepping = chrono.ChTimestepperHMMWV()
+mysystem.SetTimestepper(stepping)
+application.SetTimestep(0.02)
+while application.Run():
+    mysystem.DoStepDynamics(0.02)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

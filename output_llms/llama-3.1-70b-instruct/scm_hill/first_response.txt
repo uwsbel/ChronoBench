@@ -1,72 +1,86 @@
-Here is the PyChrono simulation script based on the provided instructions:
 ```python
-# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.engine as eng
 import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('./data/')
-
-# Create the simulation system
-mysystem = chrono.ChSystemNSC()
+# Create the simulation
+mysim = chrono.ChSystemNSC()
 
 # Create the vehicle
-hmmwv = veh.HMMWV(mysystem)
-hmmwv.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0, 1.5))
-hmmwv.SetInitRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+veh_hmmwv = veh.HMMWV()
+veh_hmmwv.SetChassisFixed(False)
+veh_hmmwv.SetVehicleSpeed(10)
+veh_hmmwv.SetSteeringAngle(0)
+veh_hmmwv.SetDriveType(veh.DRIVETYPE_AWD)
+mysim.Add(veh_hmmwv.GetChassisBody())
 
-# Create the SCM deformable terrain
-terrain = eng.SCMDeformableTerrain(mysystem)
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetHeightMap(chrono.ChHeightField(256, 256, 1, 1, 0, 0))
-terrain.SetSoilParameters(chrono.ChSoilParameters(1000, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5))
+# Create the terrain
+terrain = veh.SCMDeformableTerrain(mysim)
+terrain.SetName("terrain")
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+terrain.SetNormal(chrono.ChVectorD(0, 1, 0))
+terrain.SetLength(100)
+terrain.SetWidth(100)
+terrain.SetHeight(10)
+terrain.SetStep(0.5)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
+terrain.SetSoilParameters(100, 1e6, 1e6, 1e6, 1e6)
+terrain.Initialize()
 
 # Create the driver system
 driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(hmmwv)
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+driver.SetVehicle(veh_hmmwv)
+driver.SetSteeringMode(veh.STEERINGMODE_TORQUE)
+driver.SetSteeringValue(0)
+driver.SetThrottleMode(veh.THROTTLEMODE_TORQUE)
+driver.SetThrottleValue(0)
+driver.SetBrakingMode(veh.BRAKINGMODE_TORQUE)
+driver.SetBrakingValue(0)
+mysim.Add(driver.GetDriverBody())
 
-# Create the Irrlicht visualization
+# Create the visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
-vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.SetLightDirection(chrono.ChVectorD(1, 1, 1))
-vis.SetLightColor(chrono.ChColor(1, 1, 1))
-
-# Add the vehicle, terrain, and driver to the simulation system
-mysystem.Add(hmmwv.GetChassisBody())
-mysystem.Add(terrain)
-mysystem.Add(driver)
-
-# Set the simulation parameters
-mysystem.SetStep(0.01)
-mysystem.SetSolverType(chrono.ChSolverType.PGSSOR)
-mysystem.SetSolverMaxIterations(100)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.AddTypicalLights()
+vis.AddSkyBox()
+vis.AddLogo()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUpMode(chronoirr.CameraUpMode.CAMERA_UP_FIXED)
+vis.SetCameraSpeed(0.5)
+vis.SetCameraRotSpeed(0.1)
+vis.SetCameraDistance(10)
+vis.SetShowFPS(True)
+vis.SetShowInfo(True)
 
 # Simulation loop
-while vis.Run():
-    # Synchronize the simulation system
-    mysystem.DoStepDynamics(0.01)
-
-    # Advance the vehicle, terrain, and driver
-    hmmwv.Advance(0.01)
-    terrain.Advance(0.01)
-    driver.Advance(0.01)
-
-    # Update the visualization
+tstep = 0.01
+tend = 10
+while mysim.GetChTime() < tend:
+    # Advance the simulation
+    mysim.DoStepDynamics(tstep)
+    
+    # Synchronize the vehicle, terrain, driver, and visual system
+    veh_hmmwv.Synchronize(tstep)
+    terrain.Synchronize(tstep)
+    driver.Synchronize(tstep)
+    vis.Synchronize(tstep)
+    
+    # Advance the visualization
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    
+    # Check for real-time execution
+    if vis.GetFrameDuration() > tstep:
+        print("Warning: simulation is not running in real-time")
 
-    # Maintain real-time execution
-    chrono.ChUtils::Sleep(0.01)
+# Finalize the simulation
+mysim.GetSystem().RemoveAll()
 ```
-This script initializes the PyChrono environment, creates the HMMWV vehicle, SCM deformable terrain, and driver system, and sets up the Irrlicht visualization. The simulation loop advances the vehicle, terrain, and driver at each timestep, maintaining real-time execution.
+
+This code initializes the PyChrono environment, adds the required physical systems and objects, and sets necessary default parameters. It then creates a real-time visualization using Irrlicht and implements a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep. The simulation loop maintains real-time execution by checking the frame duration and printing a warning if the simulation is not running in real-time.

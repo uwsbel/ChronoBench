@@ -1,72 +1,69 @@
-Here's a Python script that implements the specified PyChrono simulation:
-
 ```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
-import pychrono.irrlicht as irr
-import numpy as np
+import pychrono.irrlicht as chronoirr
 
-# Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('./data/')
-system = chrono.ChSystemNSC()
-
-# Create the simulation scene and add a camera sensor manager
-scene = chrono.ChScene()
-scene.SetAmbientLight(chrono.ChVectorF(0.5, 0.5, 0.5))
-scene.SetCamera(chrono.ChVectorF(0, 0, 0), chrono.ChVectorF(0, 0, -1))
-sensor_manager = sens.ChSensorManager(scene)
+# Create the simulation system and scene
+mysystem = chrono.ChSystemNSC()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.4)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(1e-6)
+contact_material.SetComplianceT(1e-6)
+mysystem.SetContactMaterial(contact_material)
 
 # Load the triangular mesh from a Wavefront .obj file
 mesh = chrono.ChTriangleMesh()
-mesh.LoadWavefrontMesh('mesh.obj')
-mesh.SetStatic(True)
+mesh.LoadWavefrontOBJ("path/to/mesh.obj")
 
-# Create a fixed body and add the mesh to it
-body = chrono.ChBodyEasyMesh(mesh, 1000, True, True)
-body.SetPos(chrono.ChVectorF(0, 0, 0))
-body.SetRot(chrono.ChQuaternionF(1, 0, 0, 0))
-system.Add(body)
+# Create a fixed body and add the mesh as a visualization asset
+body = chrono.ChBodyEasyMesh(mysystem, mesh, False, 1000, 1e-3)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+mysystem.Add(body)
 
-# Create a camera sensor and add it to the sensor manager
+# Create a camera sensor and add it to the body
 camera = sens.ChCameraSensor()
-camera.SetName('camera')
-camera.SetPosition(chrono.ChVectorF(0, 0, 5))
-camera.SetLookAt(chrono.ChVectorF(0, 0, 0))
-camera.SetFov(60)
-camera.SetResolution(640, 480)
+camera.SetName("Camera")
+camera.SetCameraType(sens.ChCameraSensor.CameraType.PINHOLE)
+camera.SetImageSize(640, 480)
+camera.SetFOV(60 * chrono.CH_C_DEG_TO_RAD)
 camera.SetNearClippingPlane(0.1)
 camera.SetFarClippingPlane(100)
-camera.SetNoiseFilter(sens.ChNoiseFilter.GAUSSIAN, 0.1)
-camera.SetVisualization(sens.ChVisualizationType.POINT_CLOUD)
+camera.SetPosition(chrono.ChVectorD(0, 0, 2))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+body.AddSensor(camera)
+
+# Create a sensor manager and add the camera sensor
+sensor_manager = sens.ChSensorManager(mysystem)
 sensor_manager.AddSensor(camera)
 
-# Create a noise filter and add it to the camera sensor
+# Add noise filters to the camera sensor
 noise_filter = sens.ChNoiseFilter()
-noise_filter.SetType(sens.ChNoiseFilter.GAUSSIAN)
-noise_filter.SetIntensity(0.1)
-camera.AddNoiseFilter(noise_filter)
+noise_filter.SetNoiseType(sens.ChNoiseFilter.NoiseType.GAUSSIAN)
+noise_filter.SetNoiseIntensity(0.1)
+camera.AddFilter(noise_filter)
 
-# Create a visualization and add it to the camera sensor
+# Add visualization to the camera sensor
 visualization = sens.ChVisualization()
-visualization.SetType(sens.ChVisualizationType.POINT_CLOUD)
+visualization.SetVisualizationType(sens.ChVisualization.VisualizationType.IMAGE)
 camera.AddVisualization(visualization)
 
-# Simulate the system
-step_size = 0.01
-time_end = 10
-while system.GetChTime() < time_end:
-    system.DoStepDynamics(step_size)
-    camera.SetPosition(chrono.ChVectorF(5 * np.cos(system.GetChTime()), 0, 5 * np.sin(system.GetChTime())))
-    camera.SetLookAt(chrono.ChVectorF(0, 0, 0))
-    sensor_manager.Update()
-    print(camera.GetBuffer().GetDepthData())
+# Create an Irrlicht application
+app = chronoirr.ChIrrApp(mysystem, "PyChrono Simulation", chronoirr.dimension2du(800, 600))
 
-# Visualize the simulation
-application = irr.ChIrrApp(scene, 'PyChrono Simulation', 800, 600)
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorF(0, 0, 0), chrono.ChVectorF(0, 0, -1))
-application.AddCameraSensor(camera)
-application.Run()
+# Set up the simulation loop
+step_size = 0.01
+while app.GetDevice().run():
+    mysystem.DoStepDynamics(step_size)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    camera.GetVisualization().GetImage().Save("camera_image.png")
+    print("Camera buffer data:", camera.GetBuffer().GetData())
+
+# Clean up
+app.GetVideoDriver().drop()
 ```
 
-This script initializes the PyChrono environment, loads a triangular mesh from a Wavefront .obj file, and creates a fixed body with the mesh. It then creates a camera sensor, adds it to a sensor manager, and sets up noise filters and visualizations for the camera. The script simulates the system, dynamically updating the camera's position in an orbit around the mesh, and prints out camera buffer data at each step. Finally, it visualizes the simulation using the Irrlicht engine.
+This script initializes the PyChrono environment and core components, adds the required physical systems and objects, and sets necessary default parameters. It creates a triangular mesh from a Wavefront .obj file, adds a camera sensor to the body, and manages it with a sensor manager. The script also applies noise filters and visualizations to the camera images. The simulation is run dynamically, updating the camera's position in an orbit around the mesh, and prints out camera buffer data at each step.

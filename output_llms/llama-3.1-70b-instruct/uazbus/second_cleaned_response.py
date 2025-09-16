@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -112,10 +111,13 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_start_time = 2.0
-lane_change_duration = 4.0
-braking_start_time = lane_change_start_time + lane_change_duration
-braking_duration = 2.0
+time_interval_1 = 5.0
+time_interval_2 = 10.0
+time_interval_3 = 15.0
+steering_adjustment_1 = -0.5
+steering_adjustment_2 = 0.5
+throttle_adjustment_1 = 0.5
+throttle_adjustment_2 = 0.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -130,21 +132,25 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        driver_inputs.m_steering = 0.5  
-        driver_inputs.m_throttle = 0.5  
-    elif time >= braking_start_time and time < braking_start_time + braking_duration:
-        driver_inputs.m_steering = 0.0  
-        driver_inputs.m_braking = 1.0  
-    else:
-        driver_inputs.m_steering = 0.0  
-        driver_inputs.m_throttle = 0.0  
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    if time < time_interval_1:
+        driver_inputs.m_steering = steering_adjustment_1
+        driver_inputs.m_throttle = throttle_adjustment_1
+    elif time < time_interval_2:
+        driver_inputs.m_steering = steering_adjustment_2
+        driver_inputs.m_throttle = throttle_adjustment_1
+    elif time < time_interval_3:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = throttle_adjustment_2
+    else:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = 1.0
 
     
     driver.Advance(step_size)

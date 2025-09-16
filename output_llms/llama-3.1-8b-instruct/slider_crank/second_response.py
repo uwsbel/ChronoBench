@@ -83,22 +83,20 @@ while time < 20 and vis.Run():
     vis.EndScene()  # End the visualization scene
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
     time += 1e-3
-
     # Collect data during simulation
     array_time.append(time)
-    array_angle.append(mcrank.GetRot().GetAngle())
-    array_pos.append(mcrank.GetPos().x)
-    array_speed.append(mcrank.GetSpeed().x)
+    array_angle.append(mcrank.GetRot().s[1])  # Get the rotational angle of the crank
+    array_pos.append(crank_center + chrono.ChVector3d(crank_rad * np.cos(mcrank.GetRot().s[1]), crank_rad * np.sin(mcrank.GetRot().s[1]), 0).Magnitude())  # Get the position of the crank
+    array_speed.append(mcrank.GetSpeed().Magnitude())  # Get the speed of the crank
 
 # Matplotlib plotting
 plt.figure(figsize=(10, 5))
-
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.title('Position vs. Crank Angle')
-plt.xticks(np.linspace(0, 2*np.pi, 5))
+plt.xticks(np.linspace(0, 2 * np.pi, 5))
 plt.grid(True)
 
 plt.subplot(1, 2, 2)
@@ -106,7 +104,7 @@ plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Speed [m/s]')
 plt.title('Speed vs. Crank Angle')
-plt.xticks(np.linspace(0, 2*np.pi, 5))
+plt.xticks(np.linspace(0, 2 * np.pi, 5))
 plt.grid(True)
 
 plt.tight_layout()

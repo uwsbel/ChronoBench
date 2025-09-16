@@ -1,7 +1,3 @@
-"""
-Modified PyChrono script to simulate a Curiosity rover crossing a long box obstacle.
-"""
-
 import os
 import math
 import numpy as np
@@ -26,10 +22,9 @@ system.Add(ground)
 
 # Create a long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(10, 2, 1, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(5, 0, -0.5))  # Position the obstacle
+obstacle = chrono.ChBodyEasyBox(5, 1, 2, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 1))  # Position the obstacle
 obstacle.SetFixed(True)  # Fix the obstacle in place
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -40,16 +35,20 @@ driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
 # Initialize rover position and orientation
-init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Modified initial position
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# Set the rover to move forward with zero steering input
+driver.SetSpeed(1.0)  # Set the speed to a positive value
+driver.SetSteering(0.0)  # Set the steering input to zero
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain with obstacle')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -67,14 +66,6 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
-
-    # Set steering input for the rover (zero steering input)
-    steering = 0
-    driver.SetSteering(steering)
-
-    # Set motor input for the rover (move forward)
-    motor_input = 10
-    driver.SetMotorInput(motor_input)
 
     # Update rover dynamics
     rover.Update()

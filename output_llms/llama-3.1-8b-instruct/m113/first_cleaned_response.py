@@ -1,62 +1,74 @@
 import chrono as chrono
-import chrono.irrlicht as irrlicht
+import chrono_py as cpy
+import numpy as np
 
 
 chrono.Initialize()
 
 
-terrain = chrono.RigidBodyDynamics()
-terrain.SetGravity(0, 0, -9.81)
+world = cpy.World()
 
 
-terrain_body = terrain.CreateRigidBody(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-terrain_body.SetMass(1000)
-terrain_body.SetFriction(0.5)
-terrain_body.SetRestitution(0.5)
+terrain = cpy.RigidBody(world)
+terrain.SetName("Terrain")
+terrain.SetPosition(cpy.Vec3(0, 0, 0))
+terrain.SetRotation(cpy.Vec3(0, 0, 0))
+terrain.SetMass(1000)  
+terrain.SetFriction(0.5)  
+terrain.SetRestitution(0.5)  
 
 
-vehicle_body = terrain.CreateRigidBody(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-vehicle_body.SetMass(500)
-vehicle_body.SetFriction(0.5)
-vehicle_body.SetRestitution(0.5)
+vehicle = cpy.RigidBody(world)
+vehicle.SetName("M113")
+vehicle.SetPosition(cpy.Vec3(0, 0, 0))
+vehicle.SetRotation(cpy.Vec3(0, 0, 0))
+vehicle.SetMass(5000)  
+vehicle.SetInertia(cpy.MomentOfInertia(1000, 1000, 1000))  
 
 
-driver = chrono.DynamicsSystem()
-driver.Add(vehicle_body)
+driver = cpy.Driver(world)
+driver.SetName("Driver")
+driver.SetPosition(cpy.Vec3(0, 0, 0))
+driver.SetRotation(cpy.Vec3(0, 0, 0))
+driver.SetMass(50)  
+driver.SetInertia(cpy.MomentOfInertia(10, 10, 10))  
 
 
-visual = irrlicht.IrrlichtDeviceCreate(1024, 768, irrlicht.E_DRIVER_TYPE_OPENGL)
-visual.SetWindowCaption("M113 Simulation")
-visual.SetTimestep(1/60.0)
+visual = cpy.Visual(world)
+visual.SetName("Visual")
+visual.SetPosition(cpy.Vec3(0, 0, 0))
+visual.SetRotation(cpy.Vec3(0, 0, 0))
 
 
-camera = visual.GetCamera()
-camera.SetPosition(chrono.ChVectorD(0, 0, 10))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-camera.SetUp(chrono.ChVectorD(0, 1, 0))
+camera = cpy.Camera(visual)
+camera.SetPosition(cpy.Vec3(0, 0, 0))
+camera.SetRotation(cpy.Vec3(0, 0, 0))
+camera.SetFov(60)  
 
 
-light = visual.GetLight()
-light.SetType(irrlicht.LT_DIRECTIONAL)
-light.SetPosition(chrono.ChVectorD(0, 0, 10))
-light.SetDirection(chrono.ChVectorD(0, 0, -1))
+light = cpy.Light(visual)
+light.SetPosition(cpy.Vec3(0, 0, 0))
+light.SetRotation(cpy.Vec3(0, 0, 0))
+light.SetIntensity(10)  
 
 
-while visual.IsRunning():
+def simulate():
     
-    terrain.DoStep()
-    driver.DoStep()
-    visual.DoStep()
+    world.Step(1e-3)  
+
+    
+    vehicle.Synchronize()
+    terrain.Synchronize()
+    driver.Synchronize()
+    visual.Synchronize()
 
     
     camera.Update()
     light.Update()
 
-    
-    visual.BeginScene()
-    visual.DrawAll()
-    visual.EndScene()
+
+while True:
+    simulate()
 
 
-chrono.Finalize()
-visual.Drop()
+chrono.Destroy()

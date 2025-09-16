@@ -4,126 +4,143 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`), no deduction.
-- **Body Creation:** The script creates a vehicle using `veh.ChPart('ARTcar')`.  
-  - **Issue:** According to the documentation, vehicle creation typically uses a specific vehicle class like `veh.ARTcar()`, which includes initialization and setup methods. `veh.ChPart` is not documented as a vehicle class; it seems like a placeholder or incorrect usage.  
-  - **Deduction:** 15 points (missing essential correct vehicle creation).
-- **Vehicle Initialization:** The vehicle is not initialized via an `Initialize()` method, which is standard for vehicle classes (see example with `car.Initialize()`).  
-  - **Deduction:** 15 points (missing essential initialization).
-- **Terrain Creation:** Uses `veh.RigidTerrain(sys)` and sets size, position, and texture.  
-  - **Issue:** The terrain is not initialized (`terrain.Initialize()` is missing), which is required to finalize terrain setup.  
-  - **Deduction:** 15 points (missing essential terrain initialization).
-- **Adding Bodies to System:** `sys.Add(vehicle)` and `sys.Add(terrain)` are called, which is correct.
-- **Driver Setup:** Uses `veh.ChIrrNodeDriver(app)` and calls `driver.Initialize()`.  
-  - **Issue:** The vehicle class does not have a `SetDriver()` method documented; usually, the driver is set via `vehicle.SetDriver(driver)` only if the vehicle class supports it. Since the vehicle is incorrectly created, this is questionable.  
-  - **Deduction:** 10 points (component present but incorrectly configured).
-- **Visualization:** Uses `irr.ChIrrApp` for visualization, sets timestep, realtime, and timer.  
-  - **Issue:** The visualization system is not fully initialized (no call to `app.Initialize()` or equivalent). Also, no camera or lighting setup is done, which are standard for visualization.  
-  - **Deduction:** 5 points (minor omission in visualization setup).
-- **Simulation Loop:** Present and correctly calls `sys.DoStepDynamics()` and visualization rendering calls.  
-  - **No deduction.**
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`). No deduction.
+- **Body Creation:** Ground, vehicle, wheels, and terrain bodies are created. However:
+  - The ground is created as a `ChBodyEasyBox` and also a `ChRigidTerrain` is created separately. This is redundant; usually, terrain is represented by one or the other, not both. The ground body is added to the system but not fixed, so it will fall due to gravity unless fixed. The ground should be fixed to act as a static floor.
+  - The terrain is created but not initialized (`terrain.Initialize()` is missing), which is required for `ChRigidTerrain` to function properly.
+  - Wheels are created but no joints or constraints connect them to the vehicle, so they will just fall independently.
+  - No joints or suspension system for the vehicle wheels, which is essential for a vehicle simulation.
+  - The `driver` is created as a `ChIrrNode`, which is a visualization node, not a driver controller or input handler. This is not a standard way to create a driver in PyChrono vehicle simulations.
+- **Visualization:** Uses `chronoirr.ChIrrApp`, which is a valid visualization tool, but the setup is minimal:
+  - No typical lights or skybox added.
+  - The camera is added but with a fixed position and target; no user interaction or camera control is set.
+- **Simulation Loop:** Present and correct.
 
-**Total Completeness Deduction:** 15 + 15 + 15 + 10 + 5 = 60 points deducted from 40 → capped at 40 points total, so final completeness score is 0.
+**Deductions:**
+
+- Missing `terrain.Initialize()` → -15 points (essential for terrain).
+- Ground body is not fixed → -10 points (logical error, ground should be fixed).
+- Wheels not connected to vehicle via joints → -15 points (essential for vehicle simulation).
+- Driver setup is incorrect (using `ChIrrNode` instead of a proper driver interface) → -15 points.
+- Visualization lacks typical lights and skybox → -2 points (minor visualization omission).
+
+**Subtotal Completeness:** 40 - (15 + 10 + 15 + 15 + 2) = -17 points → 23 points
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Vehicle Creation:** Using `veh.ChPart('ARTcar')` is incorrect; the documented vehicle class is `veh.ARTcar()`. This will cause errors or unexpected behavior.  
-  - **Deduction:** 15 points.
-- **Inertia Setting:** Calls `vehicle.SetInertiaXX(300)`, `SetInertiaYY(400)`, `SetInertiaZZ(500)`.  
-  - **Issue:** According to the documentation, `SetInertiaXX()` expects a `chrono.ChVector3d` representing the inertia tensor diagonal, not separate calls for each axis. The code should be `vehicle.SetInertiaXX(chrono.ChVector3d(300, 400, 500))`.  
-  - **Deduction:** 10 points.
-- **Rotation Setting:** Uses `vehicle.SetRot(chrono.Q_from_AngX(0.2))`.  
-  - **Issue:** The correct function is `chrono.Q_from_AngX()`, but the documentation shows `chrono.Q_from_AngX` (case sensitive). Assuming this is correct, no deduction.  
-- **Driver Setup:** `vehicle.SetDriver(driver)` is not a documented method for vehicle classes; this is likely incorrect.  
-  - **Deduction:** 10 points.
-- **Visualization:** Uses `irr.ChIrrApp` but does not call `app.Initialize()`, which is necessary before running the simulation loop.  
-  - **Deduction:** 5 points.
-- **Timer Setup:** `app.GetDevice().setTimer(50)` is a direct Irrlicht call, which is acceptable but not documented explicitly; no deduction.
-- **Texture Path:** Uses a hardcoded path for terrain texture, which may cause runtime errors if the file is missing. Not a correctness issue per se, but poor practice.
+- **API Usage:**
+  - `ChBodyEasyBox` and `ChBodyEasyCylinder` constructors are incorrectly called with `sys` as the first argument. According to the API, these constructors do not take the system as an argument; they only take size, density, visualize, collision, and material. Bodies are added to the system separately via `sys.Add(body)`.
+  - `chrono.ChIrrNode` is not a driver class; it is a scene node for visualization. This is a misuse.
+  - `chronoirr.ChIrrApp` constructor is called with parameters that do not match documented usage. The documented constructor is `ChIrrApp(sys, title, dimension2du)`. The extra parameters `chronoirr.VerticalFlip, False, False` are not standard or documented.
+  - The camera is added with `app.AddCamera(chronoirr.vector3df(0, 0, 5), chronoirr.vector3df(0, 0, 0))`, but the API expects `ChVector3d` or `chrono.ChVector3d` for positions, not `vector3df` (which is from Irrlicht). This may cause type mismatch.
+- **Logical Errors:**
+  - Ground body not fixed → ground will fall.
+  - Wheels not connected → wheels will fall independently.
+  - Terrain not initialized → terrain will not behave as expected.
+- **Minor inaccuracies:**
+  - Setting rotation of vehicle to identity quaternion is redundant since default is identity.
+  - Using `chrono.ChMaterialSurfaceNSC()` without setting friction or other parameters means default material properties, which may not be realistic.
 
-**Total Correctness Deduction:** 15 + 10 + 10 + 5 = 40 points deducted from 30 → capped at 30 points total, so final correctness score is 0.
+**Deductions:**
+
+- Incorrect constructor usage for `ChBodyEasyBox` and `ChBodyEasyCylinder` → -15 points.
+- Incorrect use of `ChIrrNode` as driver → -15 points.
+- Incorrect `ChIrrApp` constructor usage → -10 points.
+- Camera position type mismatch → -5 points.
+- Ground not fixed (logical error) already deducted under completeness.
+- Wheels not connected (logical error) already deducted under completeness.
+
+**Subtotal Correctness:** 30 - (15 + 15 + 10 + 5) = -45 points → 0 points (minimum zero)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are meaningful (`sys`, `app`, `vehicle`, `terrain`, `driver`).  
-- **Structure:** The code is linear and straightforward but lacks function encapsulation or modularity.  
-- **Comments:** No comments at all explaining the steps or purpose of code blocks.  
-- **Formatting:** Generally acceptable, but missing blank lines between logical blocks reduces readability.
+- Code is mostly readable with reasonable variable names.
+- However, there are no comments explaining the purpose of blocks or parameters.
+- The code is somewhat repetitive (wheel creation could be looped).
+- Formatting is acceptable but could be improved for clarity.
+- No docstrings or inline comments.
 
 **Deductions:**
 
-- Lack of comments: -5 points.
-- Slightly poor structure and lack of modularity: -3 points.
+- Lack of comments → -5 points.
+- Minor repetitive code and no structure (e.g., no functions or classes) → -3 points.
 
-**Total Code Quality Deduction:** 8 points → final score 2/10.
+**Subtotal Code Quality:** 10 - 8 = 2 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or API calls.
-- The use of `SetInertiaXX` multiple times instead of a single vector is inefficient.
-- The simulation loop is minimal and efficient.
-- No optimization opportunities blatantly missed.
+- Repetitive code for wheels could be optimized with loops or helper functions → -3 points.
+- Creating both a ground body and a terrain is redundant → -5 points.
+- No other obvious inefficiencies.
 
-**Deductions:**
-
-- Minor inefficiency in inertia setting: -3 points.
-
-**Final Efficiency Score:** 7/10.
+**Subtotal Efficiency:** 10 - 8 = 2 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (e.g., no try-except blocks, no checks for file existence for textures).
-- No handling of edge cases or validation of inputs.
+- No error handling or checks for file paths (e.g., texture file path).
+- No try-except blocks or validation of inputs.
+- No checks for system initialization or simulation state.
+- Minimal robustness.
 
 **Deductions:**
 
-- Lack of basic error handling: -5 points.
+- Lack of basic error handling → -5 points.
 
-**Final Score:** 0/5.
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Uses `irr.ChIrrApp` correctly but misses important initialization steps (`app.Initialize()`).
-- No camera or lighting setup, which are standard for good visualization.
-- Background color is set, which is good.
-- No skybox, no logo, no typical lights added.
+- Visualization system is used but minimal:
+  - No typical lights or skybox.
+  - Camera setup is minimal and possibly incorrect.
+  - No user interaction or controls.
+- Using `ChIrrApp` is valid but not fully leveraged.
 
 **Deductions:**
 
-- Missing initialization and lighting/camera setup: -5 points.
+- Missing typical lights and skybox → -3 points.
+- Camera setup issues (type mismatch) → -2 points.
 
-**Final Score:** 0/5.
-
----
-
-### Summary of Scores
-
-| Criterion                  | Max Points | Deduction | Score |
-|----------------------------|------------|-----------|-------|
-| Completeness               | 40         | 40        | 0     |
-| Correctness                | 30         | 30        | 0     |
-| Code Quality               | 10         | 8         | 2     |
-| Efficiency                 | 10         | 3         | 7     |
-| Error Handling & Robustness| 5          | 5         | 0     |
-| Visualization             | 5          | 5         | 0     |
-| **Total**                 | **100**    | **91**    | **9** |
+**Subtotal Visualization:** 0 points
 
 ---
 
-### Final Comments
+### **Final Score Calculation**
 
-The script demonstrates a basic structure for a PyChrono vehicle simulation but contains critical errors in vehicle creation and initialization, terrain setup, and visualization initialization. It lacks comments and error handling, which are important for maintainability and robustness. The use of the API deviates from documented best practices, especially for vehicle and terrain setup. Visualization is minimal and incomplete.
+| Category                   | Points | Deductions | Score |
+|----------------------------|--------|------------|-------|
+| Completeness               | 40     | 17         | 23    |
+| Correctness                | 30     | 30 (min 0) | 0     |
+| Code Quality               | 10     | 8          | 2     |
+| Efficiency                 | 10     | 8          | 2     |
+| Error Handling & Robustness| 5      | 5          | 0     |
+| Visualization              | 5      | 5          | 0     |
+| **Total**                 | **100**| **73**     | **27**|
 
 ---
 
-[[9]]
+### **Summary of Major Issues**
+
+- Incorrect usage of `ChBodyEasyBox` and `ChBodyEasyCylinder` constructors (passing system as first argument).
+- Missing initialization of terrain.
+- Ground body not fixed.
+- Wheels not connected to vehicle via joints.
+- Misuse of `ChIrrNode` as driver.
+- Incorrect `ChIrrApp` constructor parameters.
+- Minimal visualization setup (no lights, skybox).
+- No error handling or comments.
+- Redundant ground and terrain bodies.
+
+---
+
+[[27]]

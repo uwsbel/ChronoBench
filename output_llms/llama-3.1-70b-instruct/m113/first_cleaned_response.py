@@ -1,79 +1,62 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.vehicle as chrono_vehicle
 
 
 chrono.SetChronoDataPath('./data/')
-system = chrono.ChSystemNSC()
 
 
+mysystem = chrono.ChSystemNSC()
+mysystem.SetSolverType(chrono.ChSolver.Type_Acceleration)
+mysystem.SetSolverMaxIterations(100)
+mysystem.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+dt = 0.01
+mysystem.SetDt(dt)
 
-m113 = veh.M113()
-m113.SetChassisVisualizationType(veh.VisualizationType_MESH)
-m113.SetChassisMaterial(chrono.ChMaterialSurfaceNSC())
-m113.SetChassisCollisionType(chrono.ChCollisionType_MESH)
-m113.SetChassisSuggestedEnvelope(chrono.ChVectorD(1, 1, 1))
-m113.SetChassisSuggestedMargin(chrono.ChVectorD(0.1, 0.1, 0.1))
-m113.SetChassisMass(5000)
-m113.SetChassisInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-m113.SetChassisInertiaXY(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisInertiaXZ(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisInertiaYY(chrono.ChVectorD(1000, 1000, 1000))
-m113.SetChassisInertiaYZ(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisInertiaZZ(chrono.ChVectorD(1000, 1000, 1000))
-m113.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+
+m113 = chrono_vehicle.M113(mysystem)
+m113.SetChassisVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+m113.SetSuspensionVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+m113.SetWheelVisualizationType(chrono_vehicle.VisualizationType_PRIMITIVES)
+m113.SetChassisCollisionType(chrono_vehicle.CollisionType_NONE)
+m113.SetSuspensionCollisionType(chrono_vehicle.CollisionType_NONE)
+m113.SetWheelCollisionType(chrono_vehicle.CollisionType_NONE)
+
+
+m113.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+m113.SetChassisOrientation(chrono.Q_from_AngX(0 * chrono.CH_C_DEG_TO_RAD))
 m113.SetChassisVelocity(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisAcceleration(chrono.ChVectorD(0, 0, 0))
 m113.SetChassisAngularVelocity(chrono.ChVectorD(0, 0, 0))
-m113.SetChassisAngularAcceleration(chrono.ChVectorD(0, 0, 0))
-system.Add(m113.GetChassisBody())
 
 
-terrain = chrono.ChBodyEasyBox(system, 100, 100, 10, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -10, 0))
+terrain = chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetFriction(0.8)
-terrain.SetRestitution(0.1)
-system.Add(terrain)
+terrain.GetMaterial().SetFriction(0.9)
+terrain.GetMaterial().SetRestitution(0.1)
 
 
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(m113)
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+driver = chrono_vehicle.ChIrrVehicleDriver(m113.GetVehicle())
+driver.Set SteeringDelta(chrono.CH_C_PI / 4)
+driver.SetSteeringSpeed(chrono.CH_C_PI / 2)
+driver.SetThrottleDelta(1)
+driver.SetThrottleSpeed(1)
 
 
-irrApp = chronoirr.ChVisualSystemIrrlicht()
-irrApp.SetWindowSize(1024, 768)
-irrApp.SetWindowTitle('M113 Simulation')
-irrApp.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
-irrApp.AddTypicalLights()
-irrApp.AddSkyBox()
-irrApp.AddLogo()
-irrApp.SetShowInfos(True)
-irrApp.SetShowCollisionModels(True)
-irrApp.SetShowContactForces(True)
-irrApp.SetShowFEMeshes(True)
-irrApp.SetShowMarkers(True)
-irrApp.SetShowShadow(True)
-irrApp.SetShowSkyBox(True)
-irrApp.SetShowLogo(True)
-irrApp.SetShowInfos(True)
-irrApp.SetShowCollisionModels(True)
-irrApp.SetShowContactForces(True)
-irrApp.SetShowFEMeshes(True)
-irrApp.SetShowMarkers(True)
-irrApp.SetShowShadow(True)
-irrApp.SetShowSkyBox(True)
-irrApp.SetShowLogo(True)
+vis = chronoirr.ChVisualSystemIrrlicht(mysystem)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("M113 Simulation")
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 1, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
 
 
-while (irrApp.Run()):
+while vis.Run():
     
-    driver.Synchronize(chrono.ChTime(0.01))
-    system.DoStepDynamics(chrono.ChTime(0.01))
-    irrApp.BeginScene()
-    irrApp.DrawAll()
-    irrApp.EndScene()
+    mysystem.Solve(dt)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    vis.DoStep()

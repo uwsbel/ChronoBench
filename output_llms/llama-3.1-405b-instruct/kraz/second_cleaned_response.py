@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-15, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3,0, 2.1)
+trackPoint = chrono.ChVectorD(3,0, 2.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -40,11 +40,12 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type, vis_type)
@@ -61,7 +62,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -103,6 +104,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+
+start_maneuver_time = 2  
+end_maneuver_time = 10  
+steering_angle = 0.5  
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -117,6 +123,15 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    if start_maneuver_time <= time < end_maneuver_time:
+        if time < (start_maneuver_time + (end_maneuver_time - start_maneuver_time) / 2):
+            driver_inputs.m_steering = steering_angle
+        else:
+            driver_inputs.m_steering = -steering_angle
+    else:
+        driver_inputs.m_steering = 0
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -127,16 +142,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    if time < 5:
-        driver.SetSteering(0.2)
-    elif time < 10:
-        driver.SetSteering(-0.2)
-    elif time < 15:
-        driver.SetSteering(0.2)
-    else:
-        driver.SetSteering(0)
 
     
     step_number += 1

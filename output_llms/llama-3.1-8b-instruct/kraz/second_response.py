@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -9,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0, 0, 1, 0)  # Adjusted rotation
+initRot = chrono.ChQuaterniond(0, 1, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -27,7 +26,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3,0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -74,7 +73,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted chase camera distance
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -106,11 +105,16 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver sequence
-lane_change_time = 10.0  # seconds
-lane_change_start_time = 0.0
-lane_change_end_time = lane_change_time
+# Define lane change maneuver sequence
+def lane_change(vehicle, driver, time):
+    if time < 10:
+        driver.SetSteeringDelta(0.5)
+    elif time < 20:
+        driver.SetSteeringDelta(-0.5)
+    else:
+        driver.SetSteeringDelta(0)
 
+# Simulation loop
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -136,17 +140,17 @@ while vis.Run() :
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Double lane change maneuver sequence
-    if time > lane_change_start_time and time < lane_change_end_time:
-        if time < lane_change_start_time + 2.0:
-            driver.SetSteeringDelta(0.5)  # Turn left
-        elif time < lane_change_start_time + 4.0:
-            driver.SetSteeringDelta(-0.5)  # Turn right
-        else:
-            driver.SetSteeringDelta(0.0)  # Straight
-
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Introduce lane change maneuver sequence
+    lane_change(vehicle, driver, time)
+
+    # Update driver inputs based on simulation time
+    if time > 30:
+        driver.SetSteeringDelta(0)
+        driver.SetThrottleDelta(0)
+        driver.SetBrakingDelta(0)

@@ -4,12 +4,13 @@ import pychrono.vehicle as veh
 import math
 import random
 
+# Set Chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-8, 0, 0.6)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(-8, 0, 0.6)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +27,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -44,10 +45,9 @@ vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -71,7 +71,7 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
 )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 3, 1))
 
 # Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
@@ -90,6 +90,44 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Add objects to the scene
+for _ in range(10):
+    box = chrono.ChBodyEasyBox(
+        1,  # length
+        1,  # width
+        1,  # height
+        1000,  # density
+        True,  # collide
+        True  # visualization
+    )
+    box.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 1))
+    vehicle.GetSystem().Add(box)
+
+# Create the sensor manager
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
+
+# Add point lights
+for _ in range(5):
+    light = chrono.ChPointLight()
+    light.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 2))
+    sensor_manager.AddSensor(light)
+
+# Create a camera sensor
+camera = chrono.ChCameraSensor(
+    640,  # width
+    480,  # height
+    60,  # fov
+    0.1,  # near
+    100  # far
+)
+camera.SetPos(chrono.ChVectorD(0, 0, 2))
+camera.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+sensor_manager.AddSensor(camera)
+
+# Add a filter to visualize the camera feed
+filter = chrono.ChFilterVisualize(camera)
+sensor_manager.AddFilter(filter)
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -102,31 +140,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-# Add objects to the scene
-for i in range(10):
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
-    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0.5))
-    if (box.GetPos() - vehicle.GetChassisBody().GetPos()).Length() > 5:
-        vehicle.GetSystem().AddBody(box)
-
-# Integrate a sensor system
-sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
-
-# Add point lights
-for i in range(5):
-    light = chrono.ChPointLight()
-    light.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 2))
-    vis.AddLightSource(light)
-
-# Create a camera sensor
-camera = chrono.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
-camera.SetFOV(60)
-camera.SetRange(0.1, 100)
-sensor_manager.AddSensor(camera)
-
-# Add a filter to visualize the camera feed
-vis.AddFilter(camera)
 
 # ---------------
 # Simulation loop

@@ -26,17 +26,18 @@ def main():
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
+    
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3D(0, 0, 0), chrono.QUNIT), 
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
-    patch.SetCollisionEnable(True)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                              veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
+    patch.SetCollision(True)
 
     
     visual_mesh = chrono.ChVisualShapeTriangleMesh()
     visual_mesh.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    patch.GetGroundBody().AddVisualShape(visual_mesh)
+    terrain.GetGroundBody().AddVisualShape(visual_mesh)
 
     terrain.Initialize()
 

@@ -4,60 +4,90 @@ import pychrono.mkl as chronomkl
 import numpy as np
 
 
-mysim = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('./')
 
 
-mysim.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
-mysim.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)  
-mysim.SetSolverMaxIterations(100)  
-mysim.SetSolverTolerance(1e-6)  
+mysystem = chrono.ChSystemNSC()
+mysystem.SetSolver(chronomkl.ChSolverPardisoMKL())
+mysystem.SetSolverMaxIterations(100)
+mysystem.SetSolverTolerance(1e-6)
 
 
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.5)  
-material.SetDampingF(0.1)  
+material.SetFriction(0.5)
+material.SetDampingF(0.1)
+material.SetCompliance(1e-6)
 
 
 tablecloth_mesh = chrono.ChMesh()
-tablecloth_mesh.SetMaterial(material)
+tablecloth_mesh.SetAutomaticGravity(False)
 
 
-tablecloth_length = 2.0
-tablecloth_width = 1.5
-tablecloth_thickness = 0.01
+nx = 10
+ny = 10
+dx = 0.1
+dy = 0.1
 
 
 nodes = []
-for i in range(10):
-    for j in range(15):
+for i in range(nx):
+    for j in range(ny):
         node = chrono.ChNodeFEAxyz()
-        node.SetId(i * 15 + j)
-        node.SetPos(chrono.ChVectorD(i * tablecloth_length / 9, j * tablecloth_width / 14, 0))
-        tablecloth_mesh.AddNode(node)
+        node.SetMass(1.0)
+        node.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+        node.SetInertiaXY(chrono.ChVectorD(0, 0, 0))
+        node.SetInertiaXZ(chrono.ChVectorD(0, 0, 0))
+        node.SetInertiaYY(chrono.ChVectorD(1, 1, 1))
+        node.SetInertiaYZ(chrono.ChVectorD(0, 0, 0))
+        node.SetInertiaZZ(chrono.ChVectorD(1, 1, 1))
+        node.SetPos(chrono.ChVectorD(i*dx, j*dy, 0))
         nodes.append(node)
 
 
+for node in nodes:
+    tablecloth_mesh.AddNode(node)
+
+
 elements = []
-for i in range(9):
-    for j in range(14):
-        element = chrono.ChElementShellKirchhoffIso()
-        element.SetNodes(nodes[i * 15 + j], nodes[i * 15 + j + 1], nodes[(i + 1) * 15 + j + 1], nodes[(i + 1) * 15 + j])
-        element.SetThickness(tablecloth_thickness)
-        tablecloth_mesh.AddElement(element)
+for i in range(nx-1):
+    for j in range(ny-1):
+        node1 = nodes[i*ny + j]
+        node2 = nodes[i*ny + j + 1]
+        node3 = nodes[(i+1)*ny + j + 1]
+        node4 = nodes[(i+1)*ny + j]
+        element = chrono.ChElementShellKirchhoffIsotropic()
+        element.SetNodes(node1, node2, node3, node4)
+        element.SetMaterial(material)
+        element.SetThickness(0.01)
         elements.append(element)
 
 
-mysim.Add(tablecloth_mesh)
+for element in elements:
+    tablecloth_mesh.AddElement(element)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht(mysim)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Tablecloth Folding Simulation")
-vis.SetCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+mysystem.Add(tablecloth_mesh)
 
 
-while vis.Run():
-    mysim.DoStepDynamics(0.01)
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+myapplication = chronoirr.ChVisualSystemIrrlicht()
+myapplication.SetWindowSize(1024, 768)
+myapplication.SetWindowTitle("Tablecloth Folding Simulation")
+myapplication.SetCameraDistance(2)
+myapplication.SetCameraAzimuth(45)
+myapplication.SetCameraElevation(45)
+
+
+myapplication.AddSkyBox()
+myapplication.AddLights()
+myapplication.AddTypicalLigths()
+myapplication.AddCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
+myapplication.AddTypicalLights()
+myapplication.AddShadow()
+myapplication.AddTablecloth(tablecloth_mesh)
+
+
+while myapplication.Run():
+    mysystem.DoStepDynamics(0.01)
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.EndScene()

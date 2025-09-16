@@ -1,72 +1,60 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import numpy as np
+import pychrono.scm as scm
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath("path/to/chrono/data/")
+myapp = chronoirr.ChIrrApp(__file__, "HMMWV on SCM Deformable Terrain", chronoirr.dimension2du(800, 600))
+application = veh.ChPart("military")
+myapp.AddTypicalSky()
+myapp.AddTypicalLights()
+myapp.AddTypicalCamera(chronoirr.vector3df(0, 2, -5))
 
 
-sys = chrono.ChSystemNSC()
+terrain = scm.ChSCMTerrain()
+terrain.SetSoilParameters(scm.ChSCMSoilParameters(
+    scm.ChSCMSoilType.SAND,
+    0.1,  
+    0.01,  
+    0.1,  
+    30,  
+    0.3  
+))
+terrain.SetMovingPatchEnabled(True)
+myapp.Add(terrain)
 
 
-vehicle = veh.ChPart('HMMWV')
-vehicle.SetMass(3000)
-vehicle.SetInertiaXX(1000)
-vehicle.SetInertiaYY(1000)
-vehicle.SetInertiaZZ(1000)
-
-
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-chassis = veh.ChChassis()
-vehicle.AddAsset(chassis)
-
-
-tire = veh.ChRigidTire()
-tire.SetRadius(0.4)
-tire.SetWidth(0.2)
-tire.SetMass(50)
-vehicle.AddAsset(tire)
-
-
-terrain = veh.ChSCMTerrain()
-terrain.SetSoilParameters(0.2, 0.01, 0.01)  
-terrain.EnableMovingPatch(True)
-sys.Add(terrain)
-
-
-sys.Add(vehicle)
-
-
-app = irr.ChIrrApp(sys, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(800, 600))
-app.AddTypicalLights()
-app.AddSkyBox()
-app.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0))
-
-
-app.AssetBindAll()
-app.AssetUpdateAll()
+vehicle = veh.ChHMMWV()
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisOrientation(chrono.Q_from_AngZ(chrono.CH_C_PI / 4))
+vehicle.SetTireModel(veh.ChRigidTireModel())
+vehicle.SetTireVisualization(veh.ChTireVisualizationType.MESH)
+myapp.Add(vehicle)
 
 
 driver = veh.ChIrrNodeAppDriver()
-driver.Initialize()
-sys.Add(driver)
+driver.Initialize(myapp, vehicle)
+driver.SetSteeringIncrement(0.01)
+driver.SetThrottleIncrement(0.01)
+driver.SetBrakingIncrement(0.01)
+myapp.Add(driver)
 
 
-app.SetTimestep(0.02)
-app.SetTryRealtime(True)
+terrain.SetSinkageVisualization(True)
 
 
-while app.GetDevice().run():
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
+application.SetStep(0.02)
+application.SetTime(0)
+myapp.AssetBindAll()
+myapp.AssetUpdateAll()
 
-    
-    sys.DoStepDynamics(app.GetTimestep())
 
-    
-    app.Render()
+while myapp.GetDevice().run():
+    myapp.BeginScene()
+    myapp.DrawAll()
+    myapp.EndScene()
+    application.DoStepDynamics(0.02)
+    myapp.Simulate(0.02)
+    myapp.FrameMove()
+    myapp.m_device.run()

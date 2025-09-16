@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -170,20 +169,18 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# create depth camera
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+# Create Depth Camera
 depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
+    chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0)),
     image_width,
     image_height,
     fov,
     30.0
 )
 depth_cam.SetName("Depth Camera")
-# Renders the image at current point in the filter graph
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 # ---------------
@@ -207,16 +204,13 @@ while time < end_time:
 
     manager.Update()
 
+    # Log vehicle state
+    print(f"Time: {time}, Position: ({gator.GetChassisBody().GetPos().x}, {gator.GetChassisBody().GetPos().y}, {gator.GetChassisBody().GetPos().z}), Heading: {gator.GetChassisBody().GetRot().GetAngle()}")
+    
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
-
-    # Log vehicle state
-    print("Time: ", time)
-    print("Position: ", gator.GetChassisBody().GetPos())
-    print("Heading: ", gator.GetChassisBody().GetRot().GetAngle(chrono.ChVector3d(0, 1, 0)))
-    print("\n")
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

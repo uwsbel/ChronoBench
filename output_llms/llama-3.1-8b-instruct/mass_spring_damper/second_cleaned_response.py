@@ -7,12 +7,34 @@ class MySpringForce(chrono.ForceFunctor):
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def GetForce(self, body, point_on_body, rel_pos, rel_v):
+    def GetForce(self, body, pos, normal):
+        spring_force = self.spring_coef * (self.rest_length - self.length)
+        damping_force = -self.damping_coef * self.velocity
+        return chrono.ChVectorD(spring_force, 0, 0) + chrono.ChVectorD(0, damping_force, 0)
+
+    @property
+    def rest_length(self):
         
-        spring_force = self.spring_coef * rel_pos
         
-        damping_force = -self.damping_coef * rel_v
-        return spring_force + damping_force
+        return 1.5
+
+    @property
+    def length(self):
+        
+        
+        return (pos - self.rest_pos).Length()
+
+    @property
+    def velocity(self):
+        
+        
+        return (pos - self.prev_pos).Length() / self.dt
+
+    @property
+    def dt(self):
+        
+        
+        return sys.GetTimestep()
 
 
 rest_length = 1.5
@@ -79,7 +101,9 @@ spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
-spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
+my_spring_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_spring_force)
+spring_2.SetRestLength(rest_length)
 sys.AddLink(spring_2)
 
 

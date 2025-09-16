@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -38,7 +37,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -75,10 +73,9 @@ terrain.Initialize()
 
 
 box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 2, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetPos(chrono.ChVector3d(0, 0, 1))
 box.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
 vehicle.GetSystem().Add(box)
-
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -90,7 +87,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

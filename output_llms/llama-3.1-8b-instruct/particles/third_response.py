@@ -1,6 +1,3 @@
-"""
-Particle emitter demo with three-body simulation
-"""
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations
@@ -29,17 +26,6 @@ msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
 msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody)
-
-# Create two additional spheres for a three-body simulation
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))
-sys.Add(msphereBody2)
-
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))
-sys.Add(msphereBody3)
 
 # Create an emitter
 emitter = chrono.ChParticleEmitter()
@@ -85,6 +71,21 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+
+# Create additional spheres for a three-body simulation
+sphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere2.SetPos(chrono.ChVector3d(-10, -10, 0))
+sphere2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(sphere2)
+
+sphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere3.SetPos(chrono.ChVector3d(0, 20, 0))
+sphere3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(sphere3)
+
+# Configure initial velocities for the new spheres
+sphere2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))
+sphere3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))
 
 # Simulation loop
 stepsize = 1e-2

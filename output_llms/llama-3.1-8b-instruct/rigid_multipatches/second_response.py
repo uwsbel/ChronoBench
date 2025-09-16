@@ -26,23 +26,26 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Define the contact material
-    contact_mat = chrono.ChContactMaterialNSC()
-    contact_mat.SetFriction(0.9)
-    contact_mat.SetRestitution(0.01)
+    # Define the contact material for the terrain
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+    terrain_mat.SetContactThickness(0.01)
 
-    # Define the terrain patch
-    terrain_patch = terrain.AddPatch(contact_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), veh.GetDataFile('vehicle/terrain/meshes/Highway_col.obj'), 0.01, True)
-    terrain_patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+    # Add the terrain patch
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 1.0, 1.0, 0.0, 0.0)
+    terrain_patch.SetCollision(True)
 
     # Create a visual mesh for the terrain
-    visual_mesh = veh.CreateVisualMeshFromFile(veh.GetDataFile('terrain/meshes/Highway_vis.obj'))
-    visual_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    visual_mesh.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+    visual_mesh = veh.ChVisualShapeTriangleMesh()
+    visual_mesh.SetMeshFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_mesh.SetAlpha(1.0)
+    visual_mesh.SetDiffuseColor(chrono.ChColor(0.8, 0.8, 0.5))
+    visual_mesh.SetSpecularColor(chrono.ChColor(0.5, 0.5, 0.5))
+    visual_mesh.SetShininess(10.0)
 
     # Add the visual mesh to the terrain's ground body
-    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(visual_mesh))
+    terrain_patch.AddVisual(visual_mesh)
 
     terrain.Initialize()
 

@@ -1,7 +1,3 @@
-"""
-Modified PyChrono script for a single pendulum simulation on the moon.
-"""
-
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import math
@@ -10,7 +6,7 @@ import math
 sys = chrono.ChSystemNSC()
 
 # Set the gravitational acceleration for the system (in m/s^2)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 on the moon
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 (moon gravity)
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
@@ -39,11 +35,11 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set an initial angular velocity for the pendulum
-pend_1.SetAngVel(chrono.ChVector3d(0, 0, 1))  # Initial angular velocity (rad/s)
+# Set the initial angular velocity of the pendulum
+pend_1.SetRotAngVel(chrono.ChVector3d(0, 0, 1))  # Initial angular velocity around Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around any axis
+# The spherical joint allows rotation around three axes (X, Y, Z)
 sph_1 = chrono.ChLinkLockSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(sph_1)
@@ -52,16 +48,12 @@ sys.AddLink(sph_1)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Modified ChBodyAuxRef demo')  # Set the window title
+vis.SetWindowTitle('ChBodyAuxRef demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization
-
-# Visualization of the joint as a sphere
-sph_1.SetVisualShape(chrono.ChVisualShapeSphere(2))  # Sphere with radius 2
-sph_1.SetColor(chrono.ChColor(0, 0, 1))  # Set the color of the sphere (RGB)
 
 # Simulation loop
 log_info = True  # Flag to control logging
@@ -78,6 +70,4 @@ while vis.Run():
         print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the pendulum
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
-        ang_vel_1 = pend_1.GetAngVel()  # Get the angular velocity of the pendulum
-        print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
         log_info = False  # Disable further logging

@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
@@ -46,16 +45,13 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 # Node monitoring and loading setup
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[i] for i in range(nsections_x + 1)]
-
+nodePlotA = mynodes[10]
+nodePlotB = mynodes[20]
+nodesLoad = [mynodes[5], mynodes[15]]
 def ref_X(t):
     return 0.1 * t
-
 def ref_Y(t):
-    return 0.1 * t
-
+    return 0.2 * t
 load_force = chrono.ChVector3d(0, 0, 0)
 
 # Create elements
@@ -99,9 +95,9 @@ mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup

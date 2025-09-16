@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 # Initialize the PyChrono environment
 chrono.SetChronoDataPath('/path/to/chrono/data/')
@@ -10,75 +9,57 @@ chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+ground = chrono.ChBodyEasyBox(my_system, 100, 100, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
 my_system.Add(ground)
-ground.SetBodyFixed(True)
 
 # Create a mesh body from a Wavefront .obj file
-mesh_module = chrono.ChObjShapeFile()
-mesh_module.SetFilename('path/to/mesh.obj')
-mesh_module.SetScale(1)
-mesh_module.SetDensity(1000)
-mesh_body = chrono.ChBodyEasyMesh(mesh_module, 1000, True, True)
-my_system.Add(mesh_body)
-mesh_body.SetBodyFixed(True)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('/path/to/mesh.obj')
+body = chrono.ChBodyEasyMesh(my_system, mesh, 1000, True, True, False, False)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+my_system.Add(body)
 
 # Create a sensor manager
 manager = sens.ChSensorManager(my_system)
 
 # Create a lidar sensor
 lidar = sens.ChLidarSensor(
-    my_system,  # Physical system
-    100,  # Scanning rate
-    chrono.ChVector(0, 0, 0),  # Offset pose
-    chrono.ChQuaternion(1, 0, 0, 0),  # Offset rotation
-    360,  # Horizontal FOV
-    0.1,  # Minimum range
-    100,  # Maximum range
-    0.1,  # Accuracy
-    0.1  # Angular resolution
+    my_system,              # physical system
+    100,                    # scanning rate
+    chrono.ChVectorD(0, 0, 0),  # offset pose
+    chrono.ChVectorD(0, 0, 1),  # direction
+    100.0,                  # max distance
+    0.05,                   # angular resolution
+    0.05                    # vertical angle
 )
+lidar.SetName("Lidar")
+lidar.SetNoise(sens.ChNoiseNone())
+lidar.SetVisualization(sens.ChVisualizationMode::SENSOR_POINT_CLOUD, 1.0, 1000)
+lidar.SetSaveOptions(sens.ChSaveOptions::SENSOR_DATA, True)
 manager.AddSensor(lidar)
 
-# Add noise filter to the lidar
-noise_filter = sens.ChFilterNoise(0.1, 0.1, 0.1)
-lidar.PushFilter(noise_filter)
-
-# Add visualization to the lidar
-visualization = sens.ChVisualizerLidar(chrono.ChVector(0, 0, 0), chrono.ChQuaternion(1, 0, 0, 0))
-lidar.PushVisualizer(visualization)
-
-# Set saving options for the lidar data
-lidar.SetSaveData(True)
-lidar.SetSavePath('lidar_data/')
+# Add the lidar to the body
+body.AddAsset(lidar)
 
 # Simulate the system
-time_step = 0.01
-end_time = 10
-time = 0
-while time < end_time:
-    # Update the lidar's position in an orbit around the mesh
-    lidar.SetOffsetPose(chrono.ChVector(5 * np.cos(time), 5 * np.sin(time), 0))
-    
-    # Simulate the system for one time step
-    my_system.DoStepDynamics(time_step)
-    
+t_step = 0.01
+t_end = 10.0
+chrono.ChTimestepperChange(my_system, chrono.ChTimestepperType::EULER_IMPLICIT_LINEARIZED)
+while my_system.GetChTime() < t_end:
+    # Update lidar position
+    lidar.SetOffsetPose(chrono.ChVectorD(2 * chrono.CH_C_PI * my_system.GetChTime(), 0, 0))
+    lidar.SetDirection(chrono.ChVectorD(0, 0, 1).RotateY(chrono.CH_C_PI * my_system.GetChTime()))
+
+    # Advance simulation
+    my_system.DoStepDynamics(t_step)
+
     # Print lidar buffer data
-    buffer = lidar.GetBuffer()
-    print('Lidar buffer data at time {}:'.format(time))
+    buffer = lidar.GetMostRecentBuffer()
+    print("Lidar Buffer Data:")
     for point in buffer:
-        print('  - Point: {}'.format(point))
-    
-    # Increment time
-    time += time_step
+        print(point)
 
-# Create an Irrlicht application to visualize the simulation
-myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
-
-# Run the application
-myapplication.AddTypicalSky()
-myapplication.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
-myapplication.AddTypicalLights()
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
-myapplication.SimulationLoop()
+# Shut down the simulation
+del my_system

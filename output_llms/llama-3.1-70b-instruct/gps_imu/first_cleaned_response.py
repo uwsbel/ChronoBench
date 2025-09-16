@@ -1,92 +1,118 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
-import pychrono.sensor as sens
+import pychrono.vehicle as chrono_vehicle
+import pychrono.sensor as chrono_sensor
 
 
 chrono.SetChronoDataPath('./data/')
+system = chrono.ChSystemNSC()
 
 
-mysystem = chrono.ChSystemNSC()
-chrono.ChCollisionSystem.SetDefaultImpulseThreshold(1e-3)
+veh = chrono_vehicle.HMMWV()
+veh.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+veh.SetChassisMaterial(chrono.ChMaterialSurfaceNSC())
+veh.SetTireMaterial(chrono.ChMaterialSurfaceNSC())
+veh.SetTireFrictionCoefficient(0.9)
+veh.SetTireDampingCoefficient(0.9)
+veh.SetChassisVisualization(chrono.ChVisualizationType.PRIMITIVES)
+veh.SetTireVisualization(chrono.ChVisualizationType.MESH)
+veh.SetTireSmoothMesh(True)
+veh.SetChassisCollisionType(chrono.ChCollisionType.BULLET)
+veh.SetTireCollisionType(chrono.ChCollisionType.BULLET)
+veh.SetChassisSuggestedEnvelope(chrono.ChVectorD(1, 1, 1))
+veh.SetTireSuggestedEnvelope(chrono.ChVectorD(1, 1, 1))
+veh.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
 
-hmmwv = veh.HMMWV()
-hmmwv.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-hmmwv.SetChassisFixed(False)
-mysystem.Add(hmmwv.GetChassisBody())
-mysystem.Add(hmmwv.GetPart(0))
-mysystem.Add(hmmwv.GetPart(1))
-mysystem.Add(hmmwv.GetPart(2))
-mysystem.Add(hmmwv.GetPart(3))
-mysystem.Add(hmmwv.GetPart(4))
-mysystem.Add(hmmwv.GetPart(5))
-mysystem.Add(hmmwv.GetPart(6))
-mysystem.Add(hmmwv.GetPart(7))
+system.Add(veh.GetChassisBody())
+system.Add(veh.GetBodyList())
 
 
-terrain = chrono.ChBodyEasyBox(mysystem, 10, 10, 1, 1000, True, True)
+terrain = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, True)
 terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-mysystem.Add(terrain)
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetFriction(0.9)
+terrain.SetDamping(0.9)
+system.Add(terrain)
 
 
-driver = veh.ChIrrGuiDriver()
-driver.SetVehicle(hmmwv)
-driver.SetSteeringMode(veh.SteeringMode::STEERING_MODE_TANK)
-driver.SetSteeringCoeff(0.01)
-driver.SetThrottleCoeff(0.01)
-driver.SetBrakingCoeff(0.5)
-mysystem.Add(driver.GetChassisBody())
+driver = chrono_vehicle.ChIrrVehicleDriver(veh)
+driver.SetSteeringDelta(chrono.CH_C_PI/180)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.1)
+driver.SetTractionLag(0.2)
+driver.SetSteeringLag(0.2)
+driver.SetThrottleLag(0.2)
+driver.SetBrakingLag(0.2)
+driver.Initialize()
 
 
-imu = sens.ChSensorIMU(hmmwv.GetChassisBody())
-imu.SetNoiseLevel(0.01)
-imu.SetBias(chrono.ChVectorD(0, 0, 0))
-imu.SetNoiseType(sens.SensorNoiseType::GAUSSIAN)
-hmmwv.GetChassisBody().Add(imu)
+imu = chrono_sensor.ChSensorIMU(veh.GetChassisBody())
+imu.SetNoiseAcc(0.1)
+imu.SetNoiseGyr(0.1)
+imu.SetNoiseMag(0.1)
+imu.SetFrequency(100)
+imu.SetPosition(chrono.ChVectorD(0, 0, 0))
+imu.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+imu.Initialize()
 
-gps = sens.ChSensorGPS(hmmwv.GetChassisBody())
-gps.SetNoiseLevel(0.01)
-gps.SetBias(chrono.ChVectorD(0, 0, 0))
-gps.SetNoiseType(sens.SensorNoiseType::GAUSSIAN)
-hmmwv.GetChassisBody().Add(gps)
+gps = chrono_sensor.ChSensorGPS(veh.GetChassisBody())
+gps.SetNoisePos(0.1)
+gps.SetNoiseVel(0.1)
+gps.SetFrequency(100)
+gps.SetPosition(chrono.ChVectorD(0, 0, 0))
+gps.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+gps.Initialize()
 
 
 application = chronoirr.ChVisualSystemIrrlicht()
 application.SetWindowSize(1024, 768)
-application.SetWindowTitle('HMMWV Simulation')
-application.SetTypicalLenght(1.0)
-application.SetCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
 application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.ChVectorD(0, 1, -2))
 application.AddSkyBox()
-application.AddLogo('pychrono_logo.pvr')
-application.AddCameraSkyBox()
-application.AddCameraVerticalAlign(chrono.ChVectorD(0, 0, 0))
-application.AddCameraHorizontalAlign(chrono.ChVectorD(0, 0, 0))
-application.AddCameraSpeed(chrono.ChVectorD(0, 0, 0))
-application.AddCameraAcceleration(chrono.ChVectorD(0, 0, 0))
-application.AddCameraDampingRatio(0.5)
-application.AddCameraNaturalFrequency(10.0)
-application.AddCameraMode(chronoirr.CameraMode::CAMERA_MODE_FOLLOW_PATH)
-application.AddCameraPathSpeed(0.5)
-application.AddCameraPathMode(chronoirr.CameraPathMode::CAMERA_PATH_MODE_CIRCLE)
-application.AddCameraPathRadius(1.0)
-application.AddCameraPathCenter(chrono.ChVectorD(0, 0, 0))
-application.AddCameraPathVerticalOffset(0.5)
-application.AddCameraPathHorizontalOffset(0.5)
-application.AddCameraPathAzimuth(0.0)
-application.AddCameraPathElevation(0.0)
-application.AddCameraPathRoll(0.0)
+application.AddLogo()
+application.SetShowInfo(True)
+application.SetShowLogo(True)
+application.SetCamera(chronoirr.ChVectorD(0, 1, -2))
 
 
-while application.GetDevice().run():
+steering = 0
+throttle = 0
+braking = 0
+while application.Run():
     application.BeginScene()
     application.DrawAll()
+    
+    
+    driver.SetSteering(steering)
+    driver.SetThrottle(throttle)
+    driver.SetBraking(braking)
+    
+    
+    veh.Update(1e-3)
+    
+    
+    terrain.Update(1e-3)
+    
+    
+    imu.Update(1e-3)
+    gps.Update(1e-3)
+    
+    
+    print("Vehicle mass: ", veh.GetChassisBody().GetMass())
+    
+    
+    system.DoStepDynamics(1e-3)
+    
+    
     application.EndScene()
-    application.DoStep()
-    mysystem.DoStepDynamics(0.01)
-    hmmwv.Update(0.01)
-    driver.Update(0.01)
-    imu.Process(0.01)
-    gps.Process(0.01)
-    print("Vehicle mass: ", hmmwv.GetChassisBody().GetMass())
+    
+    
+    steering += 0.01
+    throttle += 0.01
+    braking += 0.01
+    
+    
+    steering = max(-chrono.CH_C_PI, min(chrono.CH_C_PI, steering))
+    throttle = max(0, min(1, throttle))
+    braking = max(0, min(1, braking))

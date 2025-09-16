@@ -1,7 +1,3 @@
-"""
-FEA_SHELLS_BST.py
-"""
-
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
@@ -48,38 +44,6 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
-# Create interpolation functions for reference tracking
-def ref_X(iz, ix):
-    return ix * (L_x / nsections_x)
-
-def ref_Y(iz, ix):
-    return iz * (L_z / nsections_z)
-
-# Create node variables for plotting and loading
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[nsections_x * (nsections_z + 1)]
-nodesLoad = []
-
-# Define load force vector
-load_force = chrono.ChVector3d(0, 1000, 0)
-
-# Create monitoring nodes and elements
-mnodemonitor = mynodes[0]
-melementmonitor = None
-
-# Construct boundary nodes with conditional checks
-for iz in range(nsections_z + 1):
-    for ix in range(nsections_x + 1):
-        if ix > 0:
-            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
-        else:
-            boundary_1 = None
-
-        if iz > 0:
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
-        else:
-            boundary_3 = None
-
 # Create elements
 for iz in range(nsections_z):
     for ix in range(nsections_x):
@@ -103,9 +67,43 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        # Assign a specific element for monitoring
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
+# Create monitoring nodes and elements
+mnodemonitor = mynodes[0]
+mesh.AddNode(mnodemonitor)
+
+# Define node variables for plotting
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[1]
+
+# Define list for applying loads
+nodesLoad = [mynodes[10]]
+
+# Create interpolation functions for reference tracking
+ref_X = chrono.ChInterpolationCardinalSpline2D()
+ref_Y = chrono.ChInterpolationCardinalSpline2D()
+
+# Define load force vector
+load_force = chrono.ChVector3d(1, 0, 0)
+
+# Create visualizations for shell elements
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
+
+# Set smooth faces, wireframe mode, and backface culling conditionally
+# mvisualizeshellA.SetSmoothFaces(True)
+# mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetBackfaceCulling(True)
+
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+
+# Create element for monitoring
+ementmonitor = melementA
+mesh.AddElement(ementmonitor)
 
 # Fix upper nodes
 for j in range(30):
@@ -115,16 +113,7 @@ for j in range(30):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# mvisualizeshellA.SetSmoothFaces(True)
-# mvisualizeshellA.SetWireframe(True)
-# mvisualizeshellA.SetBackfaceCulling(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
-
-mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()

@@ -131,6 +131,8 @@ manager.AddSensor(gps)
 
 
 
+
+
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
@@ -184,9 +186,10 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-plt.figure(figsize=(10, 10))
-plt.plot(gps_data[:, 0], gps_data[:, 1])
-plt.xlabel('Longitude (degrees)')
-plt.ylabel('Latitude (degrees)')
+plt.figure(figsize=(10, 8))
+plt.plot([x[0] for x in gps_data], [x[1] for x in gps_data], label='GPS Trajectory')
+plt.xlabel('Latitude')
+plt.ylabel('Longitude')
 plt.title('GPS Trajectory')
+plt.legend()
 plt.show()

@@ -26,28 +26,21 @@ def main():
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
 
     
-    terrain_mesh = chrono.ChTriangleMesh()
-    terrain_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
-    terrain_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+    collision_mesh = chrono.ChTriangleMesh()
+    collision_mesh.LoadWavefrontMesh(veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"))
+    terrain.AddCollisionMesh(collision_mesh, terrain_mat, 0.01)
 
     
-    terrain_vis_mesh = chrono.ChTriangleMesh()
-    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    terrain_vis_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
-
-    
-    terrain.AddMesh(terrain_mesh, terrain_mat, 0.01)
-
-    
-    terrain_vis_shape = chrono.ChVisualShapeTriangleMesh(terrain_vis_mesh)
-    terrain_vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-    terrain.GetGroundBody().AddVisualShape(terrain_vis_shape)
+    visual_mesh = chrono.ChTriangleMesh()
+    visual_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_shape = chrono.ChVisualShapeTriangleMesh(visual_mesh)
+    visual_shape.SetWireframe(False)
+    terrain.GetGroundBody().AddVisualShape(visual_shape)
 
     terrain.Initialize()
 
@@ -97,5 +90,10 @@ def main():
     return 0
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+step_size = 2e-3
+tire_step_size = 1e-3
+
 
 main()

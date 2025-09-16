@@ -1,4 +1,3 @@
-"""
 import math as m  
 import pychrono as chrono  
 import pychrono.fea as fea  
@@ -44,7 +43,7 @@ sys.AddBody(body_crank)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(chrono.ChVectorD(vG)))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)

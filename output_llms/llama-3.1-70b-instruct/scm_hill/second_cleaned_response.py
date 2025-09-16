@@ -3,7 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 import numpy as np
-from pychrono.sensor import ChSensorManager, ChLidarSensor
+import pychrono.sensor as sens
+
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -40,6 +41,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 20  
+
 
 
 vehicle = veh.HMMWV_Full() 
@@ -86,11 +88,11 @@ terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 obstacles = []
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000)
-    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
-    obstacle.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    vehicle.GetSystem().Add(obstacle)
+    obstacleLoc = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5)
+    obstacleRot = chrono.ChQuaternionD(1, 0, 0, 0)
+    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, obstacleLoc, obstacleRot)
     obstacles.append(obstacle)
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -117,21 +119,21 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-manager = ChSensorManager(vehicle.GetSystem())
+manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = ChLidarSensor(vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 1))
+lidar = sens.ChLidarSensor()
 lidar.SetName("Lidar")
-lidar.SetFrequency(10)
-lidar.SetRange(10)
-lidar.SetFOV(60)
+lidar.SetSensorType(sens.ChSensorType.LIDAR)
+lidar.SetPosition(chrono.ChVectorD(0, 0, 1.5))
+lidar.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+lidar.SetRange(100)
+lidar.SetFOV(45)
 lidar.SetResolution(360)
-lidar.SetVisualizationMode(ChLidarSensor.VISUALIZATION_WIREFRAME)
+lidar.SetFrequency(10)
+lidar.SetVisualizationMode(sens.ChSensorVisualizationMode.POINT_CLOUD)
 lidar.SetVisualizationColor(chrono.ChColor(1, 0, 0))
 lidar.SetVisualizationSize(0.1)
-lidar.SetFilter(ChLidarSensor.FILTER_CLOSEST)
-lidar.SetFilterRange(0.1)
-lidar.SetFilterAngle(10)
 manager.AddSensor(lidar)
 
 

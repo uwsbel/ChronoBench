@@ -51,6 +51,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -93,28 +94,31 @@ manager.SceneAdd(vis.GetSceneManager())
 
 lidar = sens.ChLidarSensor(
     vehicle.GetChassisBody(),
-    100,  
-    2,   
-    -chrono.CH_C_PI_2,  
-    chrono.CH_C_PI_2,   
-    -chrono.CH_C_PI_4,  
-    chrono.CH_C_PI_4,   
-    100.0,  
-    0.1,    
-    0.1     
+    update_rate=100.0,
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.ChQuaternionD(1, 0, 0, 0)),
+    collection_window=0.02,
+    horizontal_samples=100,
+    vertical_samples=32,
+    horizontal_fov=2 * math.pi,
+    max_distance=100.0,
+    device_offset=0.02
 )
 manager.AddSensor(lidar)
 
 
-for i in range(10):
+for _ in range(10):
     box = chrono.ChBodyEasyBox(
         vehicle.GetSystem(),
-        1,  
-        1,  
-        1,  
-        1000  
+        1, 1, 1,  
+        1000,  
+        True,  
+        True  
     )
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
+    box.SetPos(chrono.ChVector3d(
+        np.random.uniform(-10, 10),
+        np.random.uniform(-10, 10),
+        np.random.uniform(0.5, 2.0)
+    ))
     vehicle.GetSystem().AddBody(box)
 
 
@@ -157,13 +161,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()
+    manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    manager.Advance(step_size)
 
     
     step_number += 1

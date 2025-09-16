@@ -1,82 +1,73 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
-import numpy as np
-import rospy
-from std_msgs.msg import Int32
+import pychrono_ros as chronoros
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data")
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('./')
 
-# Create a Chrono system
-mysystem = chrono.ChSystemNSC()
+# Create a Chrono system with gravitational acceleration
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set gravitational acceleration
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Create a physical material
+# Add physical material properties
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.5)
-material.SetRestitution(0.5)
+material.SetFriction(0.4)
+material.SetDampingF(0.0001)
+material.SetCompliance(0.0001)
+material.SetComplianceT(0.0001)
 
-# Create a fixed floor
-floor = chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, material)
+# Add a fixed floor to the system
+floor = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, material)
 floor.SetPos(chrono.ChVectorD(0, -1, 0))
 floor.SetBodyFixed(True)
+system.Add(floor)
 
-# Create a movable box
-box = chrono.ChBodyEasyBox(mysystem, 1, 1, 1, 1000, True, material)
+# Add a movable box to the system
+box = chrono.ChBodyEasyBox(system, 1, 1, 1, 1000, True, material)
 box.SetPos(chrono.ChVectorD(0, 2, 0))
-box.SetBodyFixed(False)
+system.Add(box)
 
-# Create a custom ROS handler
-class MyROSHdlr(chrono.ChROSHandler):
+# Create a custom ROS handler to publish integer messages to a specified topic
+class CustomROSPublisher(chronoros.ChROSHandler):
     def __init__(self):
         super().__init__()
-        self.pub = rospy.Publisher('my_topic', Int32, queue_size=10)
+        self.publisher = chronoros.ChROSNode().advertise('custom_topic', 'std_msgs/Int32', 10)
 
-    def Advance(self, mstep):
-        msg = Int32()
-        msg.data = mstep
-        self.pub.publish(msg)
+    def Update(self, time):
+        msg = chronoros.Std_msgsInt32()
+        msg.data = int(time)
+        self.publisher.publish(msg)
 
-# Create a ROS manager
-ros_manager = chrono.ChROSManager()
+# Configure the ROS manager with clock, body, and transform handlers, and register the custom handler
+ros_manager = chronoros.ChROSManager()
+ros_manager.RegisterHandler(chronoros.ChROSClockHandler())
+ros_manager.RegisterHandler(chronoros.ChROSBodyHandler())
+ros_manager.RegisterHandler(chronoros.ChROSTransformHandler())
+ros_manager.RegisterHandler(CustomROSPublisher())
 
-# Create a clock handler
-clock_hdlr = chrono.ChROSClockHandler()
-ros_manager.AddHandler(clock_hdlr)
+# Run a simulation loop, advancing the system and updating ROS communication at each timestep
+while True:
+    time = system.GetChTime()
+    system.DoStepDynamics(0.01)
+    ros_manager.Update(time)
+    if time > 10:
+        break
 
-# Create a body handler
-body_hdlr = chrono.ChROSBODYHandler()
-ros_manager.AddHandler(body_hdlr)
-
-# Create a transform handler
-transform_hdlr = chrono.ChROSTransformHandler()
-ros_manager.AddHandler(transform_hdlr)
-
-# Register the custom ROS handler
-ros_manager.RegisterHandler(MyROSHdlr())
-
-# Create an Irrlicht application
-app = chronoirr.ChVisualSystemIrrlicht()
-app.SetWindowSize(800, 600)
-app.SetWindowTitle("PyChrono Simulation")
-app.SetTypicalLenght(1.0)
-app.SetCamera(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 1, 0))
-
-# Create an Irrlicht driver
-driver = app.GetDriver()
-
-# Set up the simulation loop
-while app.Run():
-    # Advance the simulation
-    mysystem.DoStepDynamics(0.01)
-
-    # Update ROS communication
-    ros_manager.Advance(mysystem.GetChTime())
-
-    # Update the Irrlicht driver
-    driver.BeginScene(True, True, True)
-    driver.Render()
-    driver.EndScene()
+# Visualize the simulation (optional)
+application = chronoirr.ChVisualSystemIrrlicht()
+application.SetWindowSize(1024, 768)
+application.SetWindowTitle('PyChrono Simulation')
+application.SetTypicalSize(chrono.ChVectorD(1, 1, 1))
+application.AddTypicalCamera(chrono.ChVectorD(0, 0, 5))
+application.AddLightWithTarget(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+application.AddCameraMotionMode(chronoirr.CAMERAMOTIONMODE_FOLLOWPATH)
+application.AddCameraPathCurve(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), 1000)
+application.AddSkyBox()
+application.AddTypicalLigths()
+application.AddPostprocessEffect(chronoirr.ChPostprocessEffect(chronoirr.ChPostprocessEffect.ANTIALIASING, 2))
+application.SetShowFPS(True)
+while application.Run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

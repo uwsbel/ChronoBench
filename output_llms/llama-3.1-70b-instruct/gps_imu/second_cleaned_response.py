@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -40,9 +39,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
-
-log_step_size = 0.1
 
 
 vehicle = veh.HMMWV_Full() 
@@ -131,6 +127,9 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
+log_step_size = 0.1
+
+
 gps_data = []
 
 
@@ -142,7 +141,6 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
-log_steps = math.ceil(log_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -164,13 +162,13 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < 6.0:
+    if time < 6:
         driver_inputs.m_throttle = 0.5
         driver_inputs.m_steering = 0.2
     else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_braking = 1.0
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_steering = 0
+        driver_inputs.m_braking = 1
 
     
     driver.Synchronize(time)
@@ -188,7 +186,7 @@ while vis.Run():
     manager.Update()
 
     
-    if step_number % log_steps == 0:
+    if step_number % math.ceil(log_step_size / step_size) == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     

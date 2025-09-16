@@ -186,12 +186,10 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-gps_lat = [data[0] for data in gps_data]
-gps_lon = [data[1] for data in gps_data]
+gps_data = np.array(gps_data)
 plt.figure(figsize=(10, 10))
-plt.plot(gps_lon, gps_lat)
-plt.xlabel('Longitude')
-plt.ylabel('Latitude')
+plt.plot(gps_data[:, 0], gps_data[:, 1])
+plt.xlabel('Latitude')
+plt.ylabel('Longitude')
 plt.title('GPS Trajectory')
-plt.grid(True)
 plt.show()

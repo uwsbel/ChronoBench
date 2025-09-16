@@ -1,4 +1,3 @@
-"""
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -136,11 +135,10 @@ def main():
         time = sys.GetChTime()  # Update simulation time.
 
         # Update sensors and ROS data.
-        if not ros_manager.Update():
-            print("ROS manager update failed. Exiting simulation.")
-            break
-
         sens_manager.Update()
+
+        if not ros_manager.Update():  # Check the ROS manager update status.
+            break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 

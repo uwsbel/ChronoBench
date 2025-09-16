@@ -1,64 +1,133 @@
-import chrono as chrono
-import chrono.irrlicht as chronoirr
-import irrlicht
+import chrono as c
+import chrono-python-irrlicht as irrlicht
 
 # Initialize PyChrono environment and core components
-chrono.Initialize()
-irrlicht.Initialize()
+irrlicht.init()
 
 # Create a RigidTerrain with specified dimensions and a custom texture
-terrain = chrono.RigidTerrain(100, 100, 0.1, "terrain.png")
+terrain = c.RigidTerrain(
+    name="terrain",
+    dim=(100, 100, 0.1),
+    texture=c.Texture(
+        name="terrain_texture",
+        file_name="path/to/terrain_texture.png",
+        scaling=(1, 1),
+        rotation=(0, 0),
+        translation=(0, 0)
+    )
+)
 
-# Create a Gator vehicle
-gator = chrono.CreateGator()
-gator.SetContactMethod(chrono.ContactMethod_3D)
-gator.SetTireModel(chrono.TireModel_TMEASY)
-gator.SetLocation(chrono.Vector3(0, 0, 0))
-gator.SetOrientation(chrono.QFromEuler(0, 0, 0))
-gator.SetMeshVisualization(True)
+# Create a Gator vehicle with specified parameters
+vehicle = c.Gator(
+    name="gator",
+    location=(0, 0, 0),
+    orientation=(0, 0, 0),
+    contact_method=c.ContactMethod(
+        name="contact_method",
+        friction_coeff=0.5,
+        restitution_coeff=0.1
+    ),
+    tire_model=c.TMEasyTireModel(
+        name="tire_model",
+        radius=0.5,
+        stiffness=100000,
+        damping=1000,
+        preload=1000
+    )
+)
 
-# Create a driver system
-driver = chrono.Driver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+# Add vehicle components
+vehicle.add_body(
+    name="chassis",
+    mass=1000,
+    inertia_tensor=(1000, 1000, 1000),
+    mesh=c.Mesh(
+        name="chassis_mesh",
+        file_name="path/to/chassis_mesh.obj",
+        scaling=(1, 1, 1),
+        rotation=(0, 0, 0),
+        translation=(0, 0)
+    )
+)
+
+vehicle.add_wheel(
+    name="front_left_wheel",
+    radius=0.5,
+    stiffness=100000,
+    damping=1000,
+    preload=1000,
+    mesh=c.Mesh(
+        name="front_left_wheel_mesh",
+        file_name="path/to/front_left_wheel_mesh.obj",
+        scaling=(1, 1, 1),
+        rotation=(0, 0, 0),
+        translation=(0, 0)
+    )
+)
+
+vehicle.add_wheel(
+    name="front_right_wheel",
+    radius=0.5,
+    stiffness=100000,
+    damping=1000,
+    preload=1000,
+    mesh=c.Mesh(
+        name="front_right_wheel_mesh",
+        file_name="path/to/front_right_wheel_mesh.obj",
+        scaling=(1, 1, 1),
+        rotation=(0, 0, 0),
+        translation=(0, 0)
+    )
+)
+
+vehicle.add_wheel(
+    name="rear_left_wheel",
+    radius=0.5,
+    stiffness=100000,
+    damping=1000,
+    preload=1000,
+    mesh=c.Mesh(
+        name="rear_left_wheel_mesh",
+        file_name="path/to/rear_left_wheel_mesh.obj",
+        scaling=(1, 1, 1),
+        rotation=(0, 0, 0),
+        translation=(0, 0)
+    )
+)
+
+vehicle.add_wheel(
+    name="rear_right_wheel",
+    radius=0.5,
+    stiffness=100000,
+    damping=1000,
+    preload=1000,
+    mesh=c.Mesh(
+        name="rear_right_wheel_mesh",
+        file_name="path/to/rear_right_wheel_mesh.obj",
+        scaling=(1, 1, 1),
+        rotation=(0, 0, 0),
+        translation=(0, 0)
+    )
+)
+
+# Set up an interactive driver system
+driver = c.Driver(
+    name="driver",
+    vehicle=vehicle,
+    steering_gain=0.1,
+    throttle_gain=0.1,
+    braking_gain=0.1
+)
 
 # Set up the simulation loop
-sim = chrono.ChronoSimulation()
-sim.SetTimestep(0.01)
-sim.SetMaxSteps(1000)
-sim.SetRealtime(True)
-sim.SetTargetFPS(50)
+simulation = c.Simulation(
+    name="simulation",
+    terrain=terrain,
+    vehicle=vehicle,
+    driver=driver,
+    frame_rate=50,
+    real_time=True
+)
 
-# Add the vehicle and terrain to the simulation
-sim.Add(gator)
-sim.Add(terrain)
-
-# Set up the visualization
-vis = chronoirr.ChronoIrrlicht()
-vis.SetDevice(irrlicht.createDevice(irrlicht.EDT_OPENGL))
-vis.SetWindowFlags(irrlicht.EWF_RESIZABLE)
-vis.SetWindowTitle("Gator Simulation")
-vis.SetAmbientLight(chrono.Vector3(0.5, 0.5, 0.5))
-vis.SetLight(chrono.Vector3(0, 0, 0), chrono.Vector3(1, 1, 1), 1)
-
-# Main simulation loop
-while True:
-    # Update vehicle dynamics
-    sim.Step()
-    
-    # Update rendering
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
-    
-    # Update driver inputs
-    driver.Update()
-    
-    # Check for quit event
-    if vis.IsKeyDown(irrlicht.KEY_ESCAPE):
-        break
-
-# Clean up
-chrono.Finalize()
-irrlicht.Finalize()
+# Start the simulation
+simulation.start()

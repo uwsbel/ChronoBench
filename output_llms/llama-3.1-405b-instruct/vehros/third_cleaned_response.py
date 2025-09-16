@@ -2,8 +2,8 @@ import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
-import math
 import pychrono.sensor as sens
+import math
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
@@ -42,16 +42,24 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
     
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000)
-    box.SetPos(ch.ChVector3d(0, 0, 1))
-    box.SetBodyFixed(True)
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(),  
+                            1,  
+                            1,  
+                            1,  
+                            1000,  
+                            True,  
+                            ch.ChColor(1, 0, 0))  
+    box.SetPos(ch.ChVector3d(0, 0, 2))  
+
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
+
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
@@ -59,18 +67,35 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), 100, 100, 0.1, 10)
-    lidar.SetCollectionWindow(0.1)
-    lidar.SetScanningFrequency(10)
-    lidar.AddFilter(sens.ChFilterShade())
-    lidar.AddFilter(sens.ChFilterRange(0.1, 10))
-    
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
-    ros_manager.Initialize()  
+
     
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    sens_manager.AddSensor(lidar)
+
+    
+    lidar = sens.ChLidarSensor(
+        hmmwv.GetChassisBody(),  
+        ch.ChFrameD(ch.ChVector3d(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)),  
+        ch.ChVector3d(0, 0, 1),  
+        100.0,  
+        0.1,  
+        0.01,  
+        0.0,  
+        0.0  
+    )
+    lidar.SetCollectionWindow(0.1)  
+    lidar.SetScanningMode(sens.ChLidarSensor.MODE_HORIZONTAL)  
+    lidar.SetResolution(0.1)  
+    lidar.SetSampleRate(10)  
+
+    
+    lidar.AddFilter(sens.ChFilterShade())  
+    lidar.AddFilter(sens.ChFilterRange(0.1, 100.0))  
+
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+
+    ros_manager.Initialize()  
+
     
     time = 0
     time_step = 1e-3  
@@ -95,12 +120,15 @@ def main():
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
+
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
         
         sens_manager.Update()
+
         
         if not ros_manager.Update(time, time_step):
             break  

@@ -42,6 +42,7 @@ render_step_size = 1.0 / 50
 
 
 log_step_size = 0.1
+log_steps = math.ceil(log_step_size / step_size)
 
 
 vehicle = veh.HMMWV_Full() 
@@ -102,7 +103,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QUNIT)
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuaternionD(1, 0, 0, 0))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
@@ -133,8 +134,14 @@ manager.AddSensor(gps)
 gps_data = []
 
 
+
+
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
 render_steps = math.ceil(render_step_size / step_size)
-log_steps = math.ceil(log_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -153,18 +160,22 @@ while vis.Run():
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs()
+
+    
     if time < 2:
-        driver_inputs = driver.GetInputs()
         driver_inputs.m_throttle = 0.5
         driver_inputs.m_steering = 0.2
-    elif time < 6:
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 1.0
+    elif time < 4:
+        driver_inputs.m_throttle = 0.7
         driver_inputs.m_steering = -0.2
+    elif time < 6:
+        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_steering = 0.2
     else:
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 0.0
         driver_inputs.m_braking = 1.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_steering = 0.0
 
     
     driver.Synchronize(time)
@@ -180,11 +191,12 @@ while vis.Run():
 
     
     manager.Update()
-
+    
     
     if step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
-        gps_data.append(gps_buffer.GetGPSData())
+        if gps_buffer is not None:
+            gps_data.append(gps_buffer.GetGPSData())
 
     
     step_number += 1

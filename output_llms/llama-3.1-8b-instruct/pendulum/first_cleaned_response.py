@@ -1,47 +1,53 @@
-import chrono as c
-import chrono_irrlicht as irr
+import chrono as ch
+import chrono.irrlicht as irr
 
 
-c.init()
+ch.InitCh('pychrono_001')
 
 
-ground = c.Body(c.ChronoMaterial(0.0, 0.0, 0.0), c.ChronoBodyData(0.0, 0.0, 0.0))
-ground.SetPos(c.Vec3(0.0, 0.0, 0.0))
+ground = ch.ChBodyEasyBox(1, 1, 0.01, 0, 0, 0, ch.CH_COLOR_GRAY)
+ground.SetPos(ch.Vec(0, 0, 0))
+ground.SetRot(ch.Mat33(ch.PI/2, 0, 0))
+ground.SetBodyType(ch.CH_BODY_TYPE_STATIC)
+ground.SetMass(0)
 
 
-pendulum = c.Body(c.ChronoMaterial(1.0, 0.0, 0.0), c.ChronoBodyData(0.0, 0.0, 0.0))
-pendulum.SetPos(c.Vec3(0.0, 1.0, 0.0))
-pendulum.SetMass(1.0)
-pendulum.SetInertia(c.Mat3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+pendulum = ch.ChBodyEasyCylinder(0.1, 0.2, 0.01, 0, 0, 0, ch.CH_COLOR_RED)
+pendulum.SetPos(ch.Vec(0, 1, 0))
+pendulum.SetRot(ch.Mat33(0, 0, 0))
+pendulum.SetMass(1)
+pendulum.SetInertiaTensor(0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05)
+pendulum.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
 
 
-joint = c.RevoluteJoint(pendulum, ground, c.Vec3(0.0, 0.0, 0.0), c.Vec3(0.0, 0.0, 0.0))
+joint = ch.ChRevoluteJoint()
+joint.SetPos(ch.Vec(0, 0, 0))
+joint.SetAxis(ch.Vec(0, 0, 1))
+joint.SetBodyA(ground)
+joint.SetBodyB(pendulum)
 
 
-pendulum.SetForce(c.Vec3(0.0, 0.0, 0.0))
-pendulum.SetTorque(c.Vec3(0.0, 0.0, 0.0))
+ch.RegisterBody(ground)
+ch.RegisterBody(pendulum)
+ch.RegisterJoint(joint)
 
 
-vis = irr.IrrlichtVis()
+vis = irr.CreateVisualization()
+vis.Add(ch.GetScene())
 
 
-vis.AddBody(ground)
-vis.AddBody(pendulum)
-vis.AddJoint(joint)
+step = ch.ChStepSettings()
+step.SetStepType(ch.CH_STEP_TYPE_TIME)
+step.SetStepInTime(0)
+step.SetStepOutTime(10)
+step.SetStepTime(0.01)
+step.SetStepMax(10000)
+step.SetTolerance(1e-6)
+step.SetMaxIter(10)
 
 
-sim = c.Simulation()
-sim.AddBody(ground)
-sim.AddBody(pendulum)
-sim.AddJoint(joint)
+log_file = 'pendulum.log'
+log_freq = 0.1  
 
 
-log = c.Logger()
-log.AddBody(pendulum)
-
-
-while True:
-    sim.Step()
-    vis.Render()
-    log.Log()
-    c.wait(0.01)
+ch.RunSimulation(vis, step, log_file, log_freq)

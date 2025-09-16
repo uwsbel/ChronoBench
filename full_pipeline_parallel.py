@@ -97,41 +97,41 @@ def get_nvidia_workers(model_id: str) -> int:
 
     # Large models (70-200B): Slow, can use several workers
     elif "qwen3-235b" in model_lower:
-        return 8  # Qwen3-235B: ~0.8 RPM per worker = 6-7 RPM total
+        return 10  # Qwen3-235B: ~0.8 RPM per worker = 6-7 RPM total
     elif "mixtral-8x22b" in model_lower:
-        return 8  # Mixtral-8x22B (141B MoE): ~1 RPM per worker = 8 RPM total
+        return 10  # Mixtral-8x22B (141B MoE): ~1 RPM per worker = 8 RPM total
     elif "mistral-large" in model_lower:
-        return 8  # Mistral-Large (123B): ~1 RPM per worker = 8 RPM total
+        return 10  # Mistral-Large (123B): ~1 RPM per worker = 8 RPM total
     elif "70b" in model_lower:
-        return 6  # 70B models: ~2 RPM per worker = 12 RPM total
+        return 10  # 70B models: ~2 RPM per worker = 12 RPM total
     elif "mixtral-8x7b" in model_lower:
-        return 5  # Mixtral-8x7B (47B MoE): ~2 RPM per worker = 10 RPM total
+        return 10  # Mixtral-8x7B (47B MoE): ~2 RPM per worker = 10 RPM total
 
     # Medium models (20-50B): Moderate speed
     elif "32b" in model_lower:
-        return 4  # 32B models: ~3 RPM per worker = 12 RPM total
+        return 10  # 32B models: ~3 RPM per worker = 12 RPM total
     elif "27b" in model_lower:
-        return 4  # 27B models: ~3 RPM per worker = 12 RPM total
+        return 10  # 27B models: ~3 RPM per worker = 12 RPM total
     elif "22b" in model_lower or "codestral-22b" in model_lower:
-        return 4  # 22B models: ~3 RPM per worker = 12 RPM total
+        return 10  # 22B models: ~3 RPM per worker = 12 RPM total
 
     # Small-medium models (10-20B): Faster
     elif "17b" in model_lower or "maverick" in model_lower or "scout" in model_lower:
-        return 3  # 17B models: ~4 RPM per worker = 12 RPM total
+        return 10  # 17B models: ~4 RPM per worker = 12 RPM total
     elif "14b" in model_lower or "phi-3-medium" in model_lower:
-        return 3  # 14B models: ~4 RPM per worker = 12 RPM total
+        return 10  # 14B models: ~4 RPM per worker = 12 RPM total
     elif "12b" in model_lower or "nemo" in model_lower:
-        return 3  # 12B models: ~4 RPM per worker = 12 RPM total
+        return 10  # 12B models: ~4 RPM per worker = 12 RPM total
 
     # Small models (<10B): Fast, need throttling
     elif "8b" in model_lower or "9b" in model_lower:
-        return 2  # 8-9B models: ~8 RPM per worker = 16 RPM total
+        return 10  # 8-9B models: ~8 RPM per worker = 16 RPM total
     elif "7b" in model_lower or "mamba" in model_lower:
-        return 2  # 7B models: ~8 RPM per worker = 16 RPM total
+        return 10  # 7B models: ~8 RPM per worker = 16 RPM total
     elif "3.8b" in model_lower or "phi-3-mini" in model_lower:
-        return 2  # 3.8B Phi-mini: ~10 RPM per worker = 20 RPM total
+        return 10  # 3.8B Phi-mini: ~10 RPM per worker = 20 RPM total
     else:
-        return 2  # 1-2B models: ~10 RPM per worker = 20 RPM total
+        return 10  # 1-2B models: ~10 RPM per worker = 20 RPM total
 
 # -----------------------------
 # 1) Paths (edit if needed)
@@ -212,30 +212,28 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
     "Gemini-1.5-pro": ("google", "gemini-1.5-pro"),
 
     # NVIDIA NIM API models (using NVIDIA API for all OSS models)
-    "qwen3-235b-a22b":               ("nvidia", "qwen/qwen3-235b-a22b"),  # Fixed: Using correct 235B model ID
+    "qwen3-235b-a22b":               ("nvidia", "qwen/qwen3-235b-a22b"),
     "gemma-2-27b-it":                ("nvidia", "google/gemma-2-27b-it"),
     "gemma-2-9b-it":                 ("nvidia", "google/gemma-2-9b-it"),
     "gemma-2-2b-it":                 ("nvidia", "google/gemma-2-2b-it"),
     "gemma-3-1b-it":                 ("nvidia", "google/gemma-3-1b-it"),
-    "gemma-3-27b-it":                ("nvidia", "nvdev/google/gemma-3-27b-it"),
-    "llama4_maverick":               ("nvidia", "nvdev/meta/llama-4-maverick-17b-128e-instruct"),
-    "llama4_scout":                  ("nvidia", "nvdev/meta/llama-4-scout-17b-16e-instruct"),
-    "llama-3.3-70b-instruct":        ("nvidia", "nvdev/meta/llama-3.3-70b-instruct"),
+    "gemma-3-27b-it":                ("nvidia", "google/gemma-3-27b-it"),  # FIXED: Removed nvdev/
+    "llama4_maverick":               ("nvidia", "meta/llama-4-maverick-17b-128e-instruct"),  # FIXED: Use meta/ instead of nvdev/meta/
+    "llama4_scout":                  ("nvidia", "meta/llama-4-scout-17b-16e-instruct"),  # FIXED: Use meta/ instead of nvdev/meta/
+    "llama-3.3-70b-instruct":        ("nvidia", "meta/llama-3.3-70b-instruct"),  # FIXED: Removed nvdev/
     "llama-3.1-405b-instruct":       ("nvidia", "meta/llama-3.1-405b-instruct"),
     "llama-3.1-70b-instruct":        ("nvidia", "meta/llama-3.1-70b-instruct"),
     "llama-3.1-8b-instruct":         ("nvidia", "meta/llama-3.1-8b-instruct"),
-    "mixtral-8x22b-instruct-v0.1":   ("nvidia", "mistralai/mixtral-8x22b-instruct"),
-    "mixtral-8x7b-instruct-v0.1":    ("nvidia", "mistralai/mixtral-8x7b-instruct"),
-    "codestral-22b-instruct-v0.1":   ("nvidia", "mistralai/codestral-22b-instruct"),
+    "mixtral-8x22b-instruct-v0.1":   ("nvidia", "mistralai/mixtral-8x22b-instruct-v0.1"),  # FIXED: Added -v0.1
+    "mixtral-8x7b-instruct-v0.1":    ("nvidia", "mistralai/mixtral-8x7b-instruct-v0.1"),  # FIXED: Added -v0.1
+    "codestral-22b-instruct-v0.1":   ("nvidia", "mistralai/codestral-22b-instruct-v0.1"),  # FIXED: Added -v0.1
     "mistral-nemo-12b-instruct":     ("nvidia", "nv-mistralai/mistral-nemo-12b-instruct"),
-    "mistral-large-latest":          ("nvidia", "mistralai/mistral-large"),
     "mamba-codestral-7b-v0.1":       ("nvidia", "mistralai/mamba-codestral-7b-v0.1"),
     "deepseek-r1-8b":                ("nvidia", "deepseek-ai/deepseek-r1-distill-llama-8b"),
     "deepseek-r1-32b":               ("nvidia", "deepseek-ai/deepseek-r1-distill-qwen-32b"),
     "deepseek-r1":                   ("nvidia", "deepseek-ai/deepseek-r1-0528"),
-    "nemotron-4-340b-instruct":      ("nvidia", "nvidia/nemotron-4-340b-instruct"),
     "phi-3-mini-128k-instruct":      ("nvidia", "microsoft/phi-3-mini-128k-instruct"),
-    "phi-3-medium-128k-instruct":    ("nvidia", "microsoft/Phi-3-medium-128k-instruct"),
+    "phi-3-medium-128k-instruct":    ("nvidia", "microsoft/phi-3-medium-128k-instruct"),  # FIXED: Lowercase phi
 
     # Additional models from p_NIM.py
     "mistral-small-3.1-24b-instruct-2503": ("nvidia", "mistralai/mistral-small-3.1-24b-instruct-2503"),
@@ -248,9 +246,9 @@ MODEL_REGISTRY: Dict[str, Tuple[str, str]] = {
 # === Student LLMs to be scored by the 3 judge LLMs ===
 ALL_MODELS = [
     # DeepSeek Models (3)
-    # "deepseek-r1",
-    # "deepseek-r1-8b",
-    # "deepseek-r1-32b",
+    "deepseek-r1",
+    "deepseek-r1-8b",
+    "deepseek-r1-32b",
 
     # Meta/Llama Models (6)
     "llama-3.1-405b-instruct",
@@ -259,9 +257,6 @@ ALL_MODELS = [
     "llama-3.3-70b-instruct",
     "llama4_maverick",
     "llama4_scout",
-
-    # NVIDIA Models (1)
-    "nemotron-4-340b-instruct",
 
     # Microsoft Phi Models (4)
     "phi-3-mini-128k-instruct",
@@ -280,13 +275,12 @@ ALL_MODELS = [
     "mixtral-8x22b-instruct-v0.1",
     "mixtral-8x7b-instruct-v0.1",
     "codestral-22b-instruct-v0.1",
-    "mistral-large-latest",
     "mamba-codestral-7b-v0.1",
     "mistral-small-3.1-24b-instruct-2503",
     "mistral-medium-3-instruct",
 
-    # Qwen Models (3)
-    "qwen3-235b-a22b",
+    # Qwen Models (2)
+    # "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
     "qwq-32b",
     "qwen3-7b-instuct",
 ]

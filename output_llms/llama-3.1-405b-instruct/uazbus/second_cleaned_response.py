@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -39,6 +40,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
+
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -46,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -69,6 +73,7 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,7 +100,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -107,12 +112,14 @@ render_frame = 0
 
 
 time_intervals = [(0, 2), (2, 4), (4, 6), (6, 8)]
-steering_adjustments = [0, 0.2, -0.2, 0]
-throttle_adjustments = [0.5, 0.5, 0.5, 0]
+steering_inputs = [0.2, -0.2, 0.2, -0.2]
+throttle_inputs = [0.5, 0.5, 0.5, 0.0]
+
+current_interval = 0
+start_time = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-    
     
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -136,12 +143,13 @@ while vis.Run() :
     vis.Advance(step_size)
 
     
-    for i, interval in enumerate(time_intervals):
-        if interval[0] <= time <= interval[1]:
-            driver_inputs.m_steering = steering_adjustments[i]
-            driver_inputs.m_throttle = throttle_adjustments[i]
-            if i == len(time_intervals) - 1:
-                driver_inputs.m_braking = 1.0
+    if current_interval < len(time_intervals):
+        interval_start, interval_end = time_intervals[current_interval]
+        if time >= interval_start and time < interval_end:
+            driver_inputs.SetSteering(steering_inputs[current_interval])
+            driver_inputs.SetThrottle(throttle_inputs[current_interval])
+        elif time >= interval_end:
+            current_interval += 1
 
     
     step_number += 1

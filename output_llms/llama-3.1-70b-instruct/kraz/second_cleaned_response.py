@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -107,9 +106,9 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_time = 5.0
-lane_change_start_time = 2.0
-steering_input = 0.0
+lane_change_time = 2.0
+lane_change_distance = 10.0
+target_steering_angle = 0.5
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -131,15 +130,12 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if time > lane_change_start_time and time < lane_change_start_time + lane_change_time:
-        if time < lane_change_start_time + lane_change_time / 2:
-            steering_input = -0.5
-        else:
-            steering_input = 0.5
+    if time < lane_change_time:
+        driver_inputs.m_steering = -target_steering_angle
+    elif time < 2 * lane_change_time:
+        driver_inputs.m_steering = target_steering_angle
     else:
-        steering_input = 0.0
-
-    driver_inputs.m_steering = steering_input
+        driver_inputs.m_steering = 0.0
 
     
     driver.Advance(step_size)

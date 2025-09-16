@@ -3,6 +3,100 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+class SCM_Terrain_Params:
+    def __init__(self, 
+                 bekker_kphi, 
+                 bekker_kc, 
+                 janosi_n_exponent, 
+                 mohr_cohesive_limit, 
+                 mohr_friction_limit, 
+                 janosi_shear_coefficient, 
+                 elastic_stiffness, 
+                 damping):
+        self.bekker_kphi = bekker_kphi
+        self.bekker_kc = bekker_kc
+        self.janosi_n_exponent = janosi_n_exponent
+        self.mohr_cohesive_limit = mohr_cohesive_limit
+        self.mohr_friction_limit = mohr_friction_limit
+        self.janosi_shear_coefficient = janosi_shear_coefficient
+        self.elastic_stiffness = elastic_stiffness
+        self.damping = damping
+
+class Terrain_Params_Config:
+    def __init__(self, 
+                 name, 
+                 params):
+        self.name = name
+        self.params = params
+
+    def get_params(self):
+        return self.params
+
+class SCM_Terrain:
+    def __init__(self, system):
+        self.system = system
+        self.params = None
+
+    def set_soil_parameters(self, params):
+        self.params = params
+
+    def initialize(self, length, width, mesh_resolution):
+        
+        self.system.InitializeSCMTerrain(length, width, mesh_resolution)
+
+    def add_moving_patch(self, body, position, size):
+        
+        self.system.AddMovingPatch(body, position, size)
+
+    def set_plot_type(self, plot_type, plot_min, plot_max):
+        
+        self.system.SetSCMPLOT(plot_type, plot_min, plot_max)
+
+def get_terrain_params_config(name):
+    if name == "soft":
+        return Terrain_Params_Config(
+            name,
+            SCM_Terrain_Params(
+                2e6,   
+                0,     
+                1.1,   
+                0,     
+                30,    
+                0.01,  
+                2e8,   
+                3e4    
+            )
+        )
+    elif name == "mid":
+        return Terrain_Params_Config(
+            name,
+            SCM_Terrain_Params(
+                1e6,   
+                0,     
+                1.1,   
+                0,     
+                30,    
+                0.01,  
+                2e8,   
+                3e4    
+            )
+        )
+    elif name == "hard":
+        return Terrain_Params_Config(
+            name,
+            SCM_Terrain_Params(
+                1e5,   
+                0,     
+                1.1,   
+                0,     
+                30,    
+                0.01,  
+                2e8,   
+                3e4    
+            )
+        )
+    else:
+        raise ValueError("Invalid terrain parameters configuration")
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -19,6 +113,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_RIGID
+
 
 
 terrainHeight = 0      
@@ -48,10 +143,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
-terrain_params = TerrainParameters()
-terrain_params.set_parameters("soft")
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -63,14 +154,11 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.set_parameters(terrain_params)
-
-
-terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
-
-terrain.Initialize(20, 20, 0.02)
+terrain = SCM_Terrain(vehicle.GetSystem())
+terrain.set_soil_parameters(get_terrain_params_config("mid").get_params())
+terrain.initialize(terrainLength, terrainWidth, 0.02)
+terrain.add_moving_patch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+terrain.set_plot_type(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -111,58 +199,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-class TerrainParameters:
-    def __init__(self):
-        self.bekker_kphi = 2e6
-        self.bekker_kc = 0
-        self.bekker_n_exponent = 1.1
-        self.mohr_cohesive_limit = 0
-        self.mohr_friction_limit = 30
-        self.janosi_shear_coefficient = 0.01
-        self.elastic_stiffness = 2e8
-        self.damping = 3e4
-
-    def set_parameters(self, config):
-        if config == "soft":
-            self.bekker_kphi = 1e6
-            self.bekker_kc = 1e3
-            self.bekker_n_exponent = 1.2
-            self.mohr_cohesive_limit = 1e3
-            self.mohr_friction_limit = 20
-            self.janosi_shear_coefficient = 0.05
-            self.elastic_stiffness = 1e8
-            self.damping = 1e4
-        elif config == "mid":
-            self.bekker_kphi = 2e6
-            self.bekker_kc = 1e3
-            self.bekker_n_exponent = 1.1
-            self.mohr_cohesive_limit = 1e3
-            self.mohr_friction_limit = 25
-            self.janosi_shear_coefficient = 0.01
-            self.elastic_stiffness = 2e8
-            self.damping = 3e4
-        elif config == "hard":
-            self.bekker_kphi = 3e6
-            self.bekker_kc = 1e4
-            self.bekker_n_exponent = 1.0
-            self.mohr_cohesive_limit = 1e4
-            self.mohr_friction_limit = 30
-            self.janosi_shear_coefficient = 0.005
-            self.elastic_stiffness = 3e8
-            self.damping = 5e4
-
-    def get_parameters(self):
-        return {
-            "bekker_kphi": self.bekker_kphi,
-            "bekker_kc": self.bekker_kc,
-            "bekker_n_exponent": self.bekker_n_exponent,
-            "mohr_cohesive_limit": self.mohr_cohesive_limit,
-            "mohr_friction_limit": self.mohr_friction_limit,
-            "janosi_shear_coefficient": self.janosi_shear_coefficient,
-            "elastic_stiffness": self.elastic_stiffness,
-            "damping": self.damping
-        }
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -178,13 +214,13 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    terrain.system.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
-    terrain.Advance(step_size)
+    terrain.system.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

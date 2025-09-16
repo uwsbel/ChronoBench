@@ -1,79 +1,69 @@
-Below is a sample PyChrono simulation script that follows the instructions you provided. This script creates a beam buckling scenario with finite element analysis (FEA) for the beam elements, custom motor functions, and constraints between parts of the system. It uses the Irrlicht visualization module and implements a suitable solver and timestepper for accurate dynamics simulation.
-
 ```python
-# Import necessary modules
+# Import necessary PyChrono modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.fea as fea
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+# Set the simulation parameters
+length = 1.0  # beam length (m)
+thickness = 0.01  # beam thickness (m)
+width = 0.1  # beam width (m)
+E = 2.1e9  # Young's modulus (Pa)
+nu = 0.3  # Poisson's ratio
+rho = 7800  # density (kg/m^3)
+force = 100  # applied force (N)
 
-# Create a Chrono::Engine physical system
+# Initialize the Chrono environment
 sys = chrono.ChSystemNSC()
 
-# Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-sys.Add(ground)
+# Create the beam finite element mesh
+mesh = fea.ChMesh()
+beam_L = fea.ChElementBeamEuler()
+beam_L.SetNodes(fea.ChNodeFEAxyz(0, 0, 0), fea.ChNodeFEAxyz(length, 0, 0))
+beam_L.SetSectionProperties(width, thickness)
+beam_L.SetMaterialProperties(E, nu, rho)
+mesh.AddElement(beam_L)
 
-# Create the beam using finite element analysis (FEA)
-beam = chrono.ChMesh(sys)
-beam.SetDefaultFrame(chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), chrono.Q_ROTATE_X_TO_Z))
-sys.Add(beam)
-
-# Define beam elements
-num_elements = 10
-element_length = 1.0
-for i in range(num_elements):
-    node1 = chrono.ChNodeFEAxyzD(chrono.ChVectorD(i * element_length, 1, 0))
-    node2 = chrono.ChNodeFEAxyzD(chrono.ChVectorD((i + 1) * element_length, 1, 0))
-    beam.AddNode(node1)
-    beam.AddNode(node2)
-    beam.AddElement(chrono.ChElementBeamANCF(node1, node2))
-
-# Add constraints between the beam and the ground
-constraint = chrono.ChLinkMateGeneric()
-constraint.Initialize(beam.GetNode(0), ground)
-sys.Add(constraint)
-
-# Define a custom motor function
+# Create the motor function
 class CustomMotor(chrono.ChFunction):
     def __init__(self):
         super().__init__()
-        self.amplitude = 1.0
-        self.frequency = 1.0
+        self.t_ref = 0
+        self.F = force
 
     def Get_y(self, x):
-        return self.amplitude * np.sin(2 * np.pi * self.frequency * x)
+        if x > self.t_ref:
+            self.t_ref = x
+            return self.F
+        else:
+            return 0
 
-# Create a motor and add it to the system
-motor = chrono.ChLinkMotorLinear()
-motor.Initialize(beam.GetNode(0), ground)
-motor.SetMotorFunction(CustomMotor())
-sys.Add(motor)
+motor = CustomMotor()
 
-# Create an Irrlicht application
-app = chronoirr.ChIrrApp(sys, 'Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
-app.AddTypicalSky()
-app.AddTypicalCamera(chronoirr.vector3df(0, 0, -5))
-app.AddTypicalLights()
+# Add constraints
+sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(0), None, False, False, False))
+sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(1), None, False, False, False))
+
+# Add the beam to the system
+sys.Add(mesh)
 
 # Set the solver and timestepper
 solver = chrono.ChSolverBB()
-sys.SetSolver(solver)
-timestepper = chrono.ChTimestepperEulerImplicitProjected()
-sys.SetTimestepper(timestepper)
+timestepper = chrono.ChTimestepperHHT(solver)
+sys.SetSolver(timestepper)
 
-# Simulate the system
-app.GetDevice().run()
-while app.GetDevice().run():
-    sys.DoStepDynamics(0.01)
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+# Initialize the Irrlicht visualization module
+application = chronoirr.ChIrrApp(sys, 'PyChrono Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
+application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512)
+
+# Run the simulation
+application.AssetBindAll()
+application.AssetUpdateAll()
+application.Simulate(10)
+
+# Return the simulation script
 ```
 
-This script creates a beam buckling scenario with finite element analysis (FEA) for the beam elements, custom motor functions, and constraints between parts of the system. It uses the Irrlicht visualization module and implements a suitable solver and timestepper for accurate dynamics simulation. You can modify the script as needed to suit your specific requirements.
-
-Note: You will need to replace `'/path/to/chrono/data/'` with the actual path to the Chrono data directory on your system.
+This script creates a PyChrono simulation of a beam buckling scenario using finite element analysis (FEA) and custom motor functions. It also includes constraints between different parts of the system and uses the Irrlicht visualization module to visualize the simulation. The solver and timestepper are implemented for accurate dynamics simulation.

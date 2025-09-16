@@ -1,10 +1,9 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
 import pychrono.sensor as sens
 import numpy as np
+import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -51,6 +50,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -104,32 +104,26 @@ driver.Initialize()
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+
+
+lidar = sens.ChLidarSensor(chrono.ChVector3d(0, 0, 2), chrono.QUNIT, 1000, 10, 10)
+sensor_manager.AddSensor(lidar)
+
+
+for i in range(10):
+    box = chrono.ChBodyEasyBox(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5), 1, 1, 1, 1000, True, True)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    box.SetRot(chrono.Q_from_AngX(np.random.uniform(0, 2 * math.pi)))
+    vehicle.GetSystem().Add(box)
+
+
 render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-
-
-lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetName("LidarSensor")
-lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 2))
-lidar_sensor.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
-lidar_sensor.SetRange(100)
-lidar_sensor.SetFOV(60)
-lidar_sensor.SetResolution(100)
-sensor_manager.AddSensor(lidar_sensor)
-
-
-for i in range(10):
-    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.5))
-    box.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-    vehicle.GetSystem().Add(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -147,13 +141,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Update()
+    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1

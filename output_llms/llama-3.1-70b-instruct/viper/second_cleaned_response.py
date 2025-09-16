@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  
+import pychrono.sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -30,7 +30,7 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,7 +57,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(1.0, 0, 1.45), chrono.QFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  
@@ -81,26 +81,26 @@ while vis.Run():
     time += time_step  
     steering = 0
     max_steering = math.pi / 6  
-
+    
     
     if 2 < time < 7:
         steering = max_steering * (time - 2) / 5  
     elif 7 < time < 12:
         steering = max_steering * (12 - time) / 5  
-
+    
     driver.SetSteering(steering)  
 
     rover.Update()  
 
-    manager.Update()  
+    
+    manager.Update()
 
     
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-
     step_number += 1
-
+    
     
     system.DoStepDynamics(time_step)

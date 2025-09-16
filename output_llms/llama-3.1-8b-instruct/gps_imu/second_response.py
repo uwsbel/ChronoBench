@@ -40,12 +40,6 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Added logging step size
-log_step_size = 1.0  # Log GPS data every 1 second
-
-# Initialize GPS data list
-gps_data = []
-
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
@@ -132,20 +126,12 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# ---------------
-# Simulation loop
-# ---------------
+# Added logging step size
+log_step_size = 0.1
+log_steps = math.ceil(render_step_size / log_step_size)
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
+# Initialize GPS data list
+gps_data = []
 
 # Simulation loop
 while vis.Run():
@@ -175,23 +161,27 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-
-    # Check if it's time to log GPS data
-    if step_number % math.ceil(log_step_size / step_size) == 0:
-        # Get the most recent GPS data
-        gps_data_buffer = gps.GetMostRecentGPSBuffer()
-        gps_data.append(gps_data_buffer.GetGPSData())
-
+    
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Introduce braking after 6 seconds
-    if time > 6:
-        driver_inputs.throttle = 0
-        driver_inputs.braking = 1
+    # Added GPS data logging
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
-# Print the logged GPS data
-print("GPS Data: ", gps_data)
+    # Modified driver inputs
+    if time > 6:
+        driver_inputs = chrono.ChDriverInputs()
+        driver_inputs.steering = 0.5
+        driver_inputs.throttle = 0.5
+        driver_inputs.brake = 1.0
+
+    # Added GPS data output
+    if step_number == 1000:
+        print("GPS Data: ", gps_data)
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

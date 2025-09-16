@@ -7,17 +7,17 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES
-vis_type_mesh = veh.VisualizationType_MESH
+vis_type = veh.VisualizationType.PRIMITIVES
+vis_type_mesh = veh.VisualizationType.MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType.NONE
 
 # Type of tire model (RIGID, TMEASY, PAC89)
-tire_model = veh.TireModelType_PAC89
+tire_model = veh.TireModelType.PAC89
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -26,10 +26,10 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
+trackPoint = chrono.ChVectorD(-15.0, 10.0, 5.8)
 
 # Contact method
-contact_method = chrono.ChContactMethod_NSC
+contact_method = chrono.ChContactMethod.NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -44,7 +44,7 @@ vehicle = veh.CityBus()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -64,7 +64,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)

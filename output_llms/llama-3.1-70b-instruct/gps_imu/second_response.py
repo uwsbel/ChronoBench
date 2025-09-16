@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -40,9 +39,6 @@ tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
-
-# Added logging step size
-log_step_size = 0.1
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
@@ -130,6 +126,9 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
+# Define log step size
+log_step_size = 0.1
+
 # Initialize GPS data list
 gps_data = []
 
@@ -142,7 +141,6 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
-log_steps = math.ceil(log_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -163,14 +161,14 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Modified driver inputs
-    if time < 6.0:
+    # Modify driver inputs
+    if time < 6:
         driver_inputs.m_throttle = 0.5
         driver_inputs.m_steering = 0.2
     else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_braking = 1.0
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_steering = 0
+        driver_inputs.m_braking = 1
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -187,8 +185,8 @@ while vis.Run():
     # Update sensor manager in each step
     manager.Update()
 
-    # Added GPS data logging
-    if step_number % log_steps == 0:
+    # Log GPS data
+    if step_number % math.ceil(log_step_size / step_size) == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     # Increment frame number
@@ -197,5 +195,5 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Added GPS data output
+# Print GPS data
 print("GPS Data: ", gps_data)

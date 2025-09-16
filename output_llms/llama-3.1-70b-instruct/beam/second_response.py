@@ -113,20 +113,20 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Create a builder helper object for Euler-Bernoulli beams.
+# Create a new beam section using the ChBuilderBeamEuler helper object.
 builder = fea.ChBuilderBeamEuler()
 builder.SetSpans(5)
 builder.SetSection(msection)
 builder.SetYup(chrono.ChVector3d(0, 1, 0))
-builder.SetNode1(chrono.ChVector3d(0, 0, -0.1))
-builder.SetNode2(chrono.ChVector3d(0.2, 0, -0.1))
-builder.BuildBeam(mesh)
+builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
+builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
+builder.BuildBeam(sys, mesh)
 
 # Fix the last node of the created beam.
 builder.GetLastBeamNodes().back().SetFixed(True)
 
 # Apply a force to the first node of the created beam section.
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 # Simulation loop.
 while vis.Run():

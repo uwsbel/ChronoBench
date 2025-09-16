@@ -4,106 +4,160 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Body Creation:** Bodies (floor, crankshaft, rod, piston) are created using `ChBodyEasyBox` and `ChBodyEasyCylinder`. However:
-  - The floor is created with collision enabled (`True`) but not fixed (`False` by default). The floor should be fixed to prevent it from moving under gravity or forces. This is a significant omission.
-  - The bodies do not explicitly set fixed or mass properties beyond what `ChBodyEasy*` provides, which is acceptable for quick setup.
-- **Joints and Links:** Revolute joints are created but use `chrono.ChLinkRevolute()` instead of the recommended `chrono.ChLinkLockRevolute()`. According to the documentation, `ChLinkLockRevolute` is the standard revolute joint class. Using `ChLinkRevolute` is a lower-level class and may not behave as expected.
-- **Motor:** Motor is created and initialized correctly, but the method `SetMotorFunction` is used instead of `SetSpeedFunction` as per the documentation. The correct method is `SetSpeedFunction`.
-- **Visualization:** Visualization system is created and initialized, but `vis.AttachSystem(sys)` is missing. Without attaching the system, visualization will not reflect the physical system state.
-- **Simulation Loop:** Present and correctly structured.
+- **System Initialization:**  
+  Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
 
-**Deductions:**
+- **Body Creation:**  
+  Four bodies created: floor, crankshaft, connecting rod, piston.  
+  However, the constructor calls for `ChBodyEasyBox` and `ChBodyEasyCylinder` are incorrect. The first argument should be the size parameters (lengths or radius/height), not the system object `sys`. The correct usage is like:  
+  ```python
+  floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
+  ```  
+  But in the code, it is:  
+  ```python
+  floor = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+  ```  
+  This is a significant error (see correctness below). So, body creation is incomplete or incorrect.
 
-- Floor not fixed: **-15 points** (essential component misconfigured).
-- Use of `ChLinkRevolute` instead of `ChLinkLockRevolute`: **-15 points** (incorrect API usage for joints).
-- Motor method `SetMotorFunction` instead of `SetSpeedFunction`: **-15 points** (incorrect API usage).
-- Missing `vis.AttachSystem(sys)`: **-15 points** (essential visualization setup missing).
+- **Joint Creation:**  
+  The code uses `chrono.ChLinkRevolute()` and `chrono.ChLinkPrismatic()`. According to the documentation, the correct classes are `ChLinkLockRevolute()` and `ChLinkLockPrismatic()` for revolute and prismatic joints respectively. The used classes are incorrect or do not exist as per the documentation.  
+  Deduct 15 points for missing essential components here.
 
-Subtotal completeness deductions: 15 + 15 + 15 + 15 = 60 points (but max deduction is 40, so capped at 40).
+- **Joint Initialization:**  
+  The `Initialize` calls use `chrono.ChFrameD` and `chrono.Q_ROTATE_Y_TO_Z`. The documentation specifies `chrono.ChCoordsysD` for frames, not `ChFrameD`. Also, `chrono.Q_ROTATE_Y_TO_Z` is not documented as a valid quaternion or constant. The correct approach is to use `chrono.ChCoordsysD(position, rotation)` where rotation is a `chrono.ChQuaternionD`.  
+  Deduct 15 points for incorrect joint initialization.
+
+- **Motor Joint:**  
+  The motor is created with `chrono.ChLinkMotorRotationSpeed()`, which is correct, but the `Initialize` method is called with only one body and a frame:  
+  ```python
+  motor.Initialize(crankshaft, chrono.ChFrameD(...))
+  ```  
+  The documentation states `motor.Initialize(body1, body2, frame)`. The second body is missing here. This is a significant error.  
+  Deduct 15 points.
+
+- **Visualization Setup:**  
+  The code uses `chronoirr.ChIrrApp` which is a valid visualization helper class. However, the documentation recommends using `chronoirr.ChVisualSystemIrrlicht()` and attaching the system to it. The `ChIrrApp` is a higher-level helper but not documented here. This is acceptable but the code manually manipulates the camera and light via Irrlicht calls, which is unusual and not recommended. Also, the code calls `application.AddTypicalLogo()`, `AddTypicalSky()`, and `AddTypicalLights()` after manually setting camera and light, which is inconsistent.  
+  Deduct 5 points for minor deviations in visualization setup.
+
+- **Simulation Loop:**  
+  The loop uses `application.GetDevice().run()` which is correct for Irrlicht apps. The loop calls `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()`. The documentation suggests `BeginScene()`, `Render()`, and `EndScene()`. `DrawAll()` is not documented; likely a method of `ChIrrApp`, but not standard. Minor deviation.  
+  Deduct 5 points.
+
+- **Missing Contact Material and Collision Settings:**  
+  No explicit contact materials or collision margins are set. While not strictly mandatory, best practice is to define materials and collision margins for stability and realism.  
+  Deduct 5 points for minor omission.
+
+**Total Completeness deduction:** 15 (joints) + 15 (joint initialization) + 15 (motor init) + 5 (visualization) + 5 (simulation loop) + 5 (contact materials) = 60 points deducted.  
+Since max is 40, the deduction caps at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- Incorrect joint class (`ChLinkRevolute` vs `ChLinkLockRevolute`) can cause logical errors in joint behavior: **-15 points**.
-- Incorrect motor method (`SetMotorFunction` instead of `SetSpeedFunction`) will prevent motor from working as intended: **-15 points**.
-- Joint initialization uses `chrono.ChVectorD` for the frame instead of `chrono.ChCoordsysD`. The documentation specifies that `Initialize` expects a `ChCoordsysD` (position + rotation). Using just a vector is incorrect and will cause errors or unexpected behavior: **-15 points**.
-- The joints are initialized with only a position vector, no rotation frame, which is not compliant with the API.
-- The floor is not fixed, which can cause simulation instability: **-10 points** (logical error).
-- Minor: The `SetRot` calls use `chrono.ChQuaternionD(0,0,0,1)` which is identity quaternion, acceptable but redundant since default is identity: no deduction.
-- The motor speed is set to `chrono.CH_C_PI / 2` which is a constant speed of π/2 rad/s, acceptable.
+- **Incorrect constructors for bodies:**  
+  Passing `sys` as the first argument to `ChBodyEasyBox` and `ChBodyEasyCylinder` is incorrect. These constructors do not take the system as an argument. This will cause runtime errors.  
+  Deduct 15 points.
 
-Subtotal correctness deductions: 15 + 15 + 15 + 10 = 55 points (capped at 30).
+- **Incorrect joint classes:**  
+  Using `ChLinkRevolute()` and `ChLinkPrismatic()` instead of `ChLinkLockRevolute()` and `ChLinkLockPrismatic()` is a significant API misuse.  
+  Deduct 15 points.
+
+- **Incorrect joint initialization frames:**  
+  Using `ChFrameD` instead of `ChCoordsysD` and `chrono.Q_ROTATE_Y_TO_Z` which is not documented or standard.  
+  Deduct 10 points.
+
+- **Motor initialization missing second body:**  
+  `motor.Initialize(crankshaft, chrono.ChFrameD(...))` is missing the second body argument.  
+  Deduct 15 points.
+
+- **Motor speed function call:**  
+  The code uses `motor.SetMotorFunction()`, but the documentation specifies `motor.SetSpeedFunction()`. This is a naming mismatch.  
+  Deduct 5 points.
+
+- **Camera and light manipulation:**  
+  Directly setting camera and light positions via Irrlicht calls is unusual and may cause unexpected behavior.  
+  Deduct 5 points.
+
+- **Use of `chrono.ChVectorD` instead of `chrono.ChVector3d`:**  
+  The documentation uses `ChVector3d`. The code uses `ChVectorD`. This is a minor inconsistency but likely acceptable since `ChVectorD` is an alias for `ChVector3d` in Python bindings. No deduction.
+
+**Total Correctness deduction:** 15 + 15 + 10 + 15 + 5 + 5 = 65 points, capped at 30 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code lacks comments explaining the purpose of each block or body. This reduces readability and maintainability: **-5 points**.
-- Variable names are meaningful (floor, crankshaft, rod, piston, revolute_joint, motor), which is good.
-- Formatting is consistent and readable.
-- No docstrings or inline comments: **-3 points**.
+- **Readability and structure:**  
+  The code is mostly readable, with meaningful variable names. However, it lacks comments explaining the purpose of each block or step.  
+  Deduct 5 points for insufficient comments.
 
-Subtotal code quality deductions: 5 + 3 = 8 points.
+- **Formatting:**  
+  The code is generally well formatted, but inconsistent spacing around operators and missing blank lines between logical blocks. Minor issue.  
+  Deduct 2 points.
+
+**Total Code Quality deduction:** 7 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No redundant calculations or unnecessary API calls.
-- The `numpy` import is unused: **-5 points** for unnecessary import.
-- The repeated calls to `SetRot` with identity quaternion are unnecessary since default is identity: minor inefficiency but negligible.
-- No other obvious optimization opportunities.
+- **No obvious redundant calculations or unnecessary API calls.**  
+  The code is straightforward.
 
-Subtotal efficiency deductions: 5 points.
+- **However, the manual setting of camera and light before calling `AddTypicalLights()` and `AddTypicalSky()` is inefficient and redundant.**  
+  Deduct 5 points.
+
+- **No use of `SetChronoDataPath()` to ensure data files are found, which is a common best practice.**  
+  Deduct 3 points.
+
+**Total Efficiency deduction:** 8 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for file paths (e.g., `chrono.SetChronoDataPath("/path/to/chrono/data/")` is hardcoded and may fail silently).
-- No try-except blocks or validation of system initialization or visualization setup.
-- No handling of simulation termination or exceptions.
-- Basic error handling is missing: **-5 points**.
+- **No error handling or checks for successful initialization.**  
+  Deduct 5 points.
+
+- **No handling of edge cases or simulation exceptions.**  
+  Deduct 3 points.
+
+**Total deduction:** capped at 5 points.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created and initialized.
-- Missing `vis.AttachSystem(sys)` means the visualization will not show the physical system bodies: **-5 points**.
-- Lighting and camera setup is good.
-- `AddLogo()` is called without a path argument; documentation suggests passing a file path. This may cause issues or default behavior: minor issue, no deduction.
-- Use of `AddCamera` with two arguments instead of one vector position is inconsistent with documentation (which shows one argument). The code uses `AddCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))`. The documentation shows `AddCamera(chrono.ChVector3d(0, 3, 6))`. This could be an API misuse or an overload, but likely incorrect: **-3 points**.
+- **Use of `ChIrrApp` is acceptable but not documented here; better to use `ChVisualSystemIrrlicht()`.**  
+  Deduct 3 points.
 
-Subtotal visualization deductions: 5 + 3 = 8 points (capped at 5).
+- **Manual camera and light setup conflicts with typical visualization setup.**  
+  Deduct 2 points.
+
+**Total deduction:** 5 points.
 
 ---
 
 ### Summary of deductions:
 
-| Category                  | Max Points | Deduction | Notes                              |
-|---------------------------|------------|-----------|----------------------------------|
-| Completeness              | 40         | 40        | Floor not fixed, joint & motor API misuse, missing AttachSystem |
-| Correctness               | 30         | 30        | Wrong joint class, motor method, joint init frame, floor fixed |
-| Code Quality              | 10         | 8         | Lack of comments, minor doc issues |
-| Efficiency                | 10         | 5         | Unused numpy import               |
-| Error Handling & Robustness | 5          | 5         | No error handling                 |
-| Visualization             | 5          | 5         | Missing AttachSystem, camera misuse |
-
-Total deductions = 40 + 30 + 8 + 5 + 5 + 5 = 93 points
-
-Starting from 100 points, final score = 7 points.
+| Criterion                    | Deduction | Max Points | Points Awarded |
+|-----------------------------|-----------|------------|---------------|
+| Completeness                | 40        | 40         | 0             |
+| Correctness                | 30        | 30         | 0             |
+| Code Quality               | 7         | 10         | 3             |
+| Efficiency                 | 8         | 10         | 2             |
+| Error Handling & Robustness| 5         | 5          | 0             |
+| Visualization Tools        | 5         | 5          | 0             |
+| **Total**                  | **65**    | **100**    | **5**         |
 
 ---
 
-### Final score:
-
-[[7]]
+### Final score: [[5]]
 
 ---
 
 ### Explanation:
 
-The script includes all major components but has critical errors in joint and motor API usage, missing essential visualization setup (`AttachSystem`), and the floor body is not fixed, which is a fundamental mistake for a static ground. The joint initialization frames are incorrectly specified, which would cause the simulation to fail or behave incorrectly. The motor method used is deprecated or incorrect. The code lacks comments and includes an unused import. There is no error handling or robustness consideration. Visualization setup is incomplete and slightly incorrect in camera setup. These issues severely impact the correctness and completeness of the simulation script, leading to a very low score.
+The script fundamentally misuses key PyChrono APIs, especially in body constructors, joint classes, and joint initialization frames, which would prevent it from running correctly. The motor joint is incorrectly initialized, and the motor speed function is set with a wrong method name. Visualization setup is inconsistent and partially redundant. The code lacks comments and error handling, reducing clarity and robustness. Minor inefficiencies and missing best practices further reduce the score.
+
+Because of these critical errors, the script scores very low despite some correct high-level structure.

@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Create the HMMWV vehicle, set parameters, and initialize
+    #  Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -26,28 +26,21 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Create a contact material with the same friction and restitution values
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
 
-    # Create a mesh for the terrain
-    terrain_mesh = chrono.ChTriangleMesh()
-    terrain_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_col.obj"))
-    terrain_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+    # Create a collision mesh for the terrain
+    collision_mesh = chrono.ChTriangleMesh()
+    collision_mesh.LoadWavefrontMesh(veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"))
+    terrain.AddCollisionMesh(collision_mesh, terrain_mat, 0.01)
 
     # Create a visual mesh for the terrain
-    terrain_vis_mesh = chrono.ChTriangleMesh()
-    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    terrain_vis_mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
-
-    # Add the terrain mesh to the terrain's ground body
-    terrain.AddMesh(terrain_mesh, terrain_mat, 0.01)
-
-    # Add the visual mesh to the terrain's ground body
-    terrain_vis_shape = chrono.ChVisualShapeTriangleMesh(terrain_vis_mesh)
-    terrain_vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-    terrain.GetGroundBody().AddVisualShape(terrain_vis_shape)
+    visual_mesh = chrono.ChTriangleMesh()
+    visual_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+    visual_shape = chrono.ChVisualShapeTriangleMesh(visual_mesh)
+    visual_shape.SetWireframe(False)
+    terrain.GetGroundBody().AddVisualShape(visual_shape)
 
     terrain.Initialize()
 
@@ -97,5 +90,10 @@ def main():
     return 0
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Simulation step sizes
+step_size = 2e-3
+tire_step_size = 1e-3
+
 
 main()

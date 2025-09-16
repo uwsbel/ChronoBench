@@ -1,70 +1,47 @@
-"""
-Import necessary modules
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-"""
-Set Chrono data path
-"""
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-"""
-Initial vehicle location and orientation
-"""
+# Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-"""
-Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-"""
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-"""
-Collision type for chassis (PRIMITIVES, MESH, or NONE)
-"""
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-"""
-Type of tire model (RIGID, TMEASY)
-"""
-tire_model = veh.TireModelType_RIGID  # Changed from TMEASY to RIGID
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_RIGID
 
-"""
-Rigid terrain
-"""
+# Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-"""
-Poon chassis tracked by the camera
-"""
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
-"""
-Contact method
-"""
+# Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-"""
-Simulation step sizes
-"""
+# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
 
-"""
-Time interval between two render frames
-"""
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-"""
-Create the UAZBUS vehicle, set parameters, and initialize
-"""
+
+# Create the UAZBUS vehicle, set parameters, and initialize
+
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -72,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+vehicle.SetThrottle(0.5)  # Add logic to move the vehicle forward
 
 vehicle.Initialize()
 
@@ -83,9 +61,7 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-"""
-Create the terrain
-"""
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -98,18 +74,19 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-"""
-Create a box obstacle
-"""
-obstacle = veh.RigidBox(vehicle.GetSystem())
-obstacle.SetDimensions(0.5, 5, 0.2)
-obstacle.SetPosition(chrono.ChVector3d(5, 0, 0.1))
-obstacle.SetFixed(True)
-obstacle.Initialize()
+# Create a box obstacle
+box_mat = chrono.ChContactMaterialNSC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+box = veh.RigidBox(vehicle.GetSystem())
+box.SetMass(100)
+box.SetPosition(chrono.ChVector3d(5, 0, 0.1))
+box.SetFixed(True)
+box.SetMaterial(box_mat)
+box.Initialize()
 
-"""
-Create the vehicle Irrlicht interface
-"""
+# Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -120,14 +97,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-"""
-Create the driver system
-"""
+# Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-"""
-Set the time response for steering and throttle keyboard inputs.
-"""
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -137,24 +110,13 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-"""
-Set a constant throttle value
-"""
-vehicle.SetThrottle(0.5)
-
-"""
-output vehicle mass
-"""
+# output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
-"""
-Number of simulation steps between miscellaneous events
-"""
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-"""
-Initialize simulation frame counter s
-"""
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

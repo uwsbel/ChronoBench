@@ -5,46 +5,56 @@ import numpy as np
 chrono.Initialize()
 
 
-m_scene = chrono.Scene()
+scene = chrono.Scene()
 
 
-m_body = chrono.ChBodyLoadWavefront("path_to_your_mesh.obj")
-m_body.SetName("Mesh")
-m_body.SetMass(1.0)
-m_body.SetBodyFixed(True)
-m_body.SetCollide(False)
-m_scene.Add(m_body)
+
+mesh_path = 'path_to_mesh.obj'
+mesh = chrono.ImportOBJ(mesh_path)
 
 
-m_sensor = chrono.ChSensorCamera()
-m_sensor.SetName("Camera")
-m_sensor.SetBody(m_body)
-m_sensor.SetPosition(chrono.ChVector(0, 0, 0))
-m_sensor.SetOrientation(chrono.Q_from_Angles(0, 0, 0))
-m_sensor.SetFocalLength(50)
-m_sensor.SetResolution(800, 600)
-m_sensor.SetNoiseFilter(0.1)
-m_sensor.SetVisualization(chrono.ChColor(1, 0, 0))
-m_scene.Add(m_sensor)
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.AddAsset(chrono.ChTriangleMeshAsset(mesh))
+scene.Add(body)
 
 
-m_sensor_manager = chrono.ChSensorManager()
-m_sensor_manager.AddSensor(m_sensor)
-m_scene.Add(m_sensor_manager)
+camera = chrono.ChCameraSensor()
+camera.SetBody(body)
+camera.SetSensorMode(chrono.ChCameraSensor.SENSOR_MODE_COLOR)
 
 
-m_scene.SetTimestep(0.01)
-m_scene.SetMaxStep(0.1)
-m_scene.SetGravity(chrono.ChVector(0, -9.81, 0))
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(camera)
 
 
-m_sensor.SetPosition(chrono.ChVector(0, 0, 10))
-m_sensor.SetVelocity(chrono.ChVector(0, 0, 0))
+camera.SetFilter(chrono.ChCameraSensor.FILTER_GAUSSIAN)
+camera.SetVisualizationMode(chrono.ChCameraSensor.VISUALIZATION_MODE_GRAYSCALE)
 
 
-while m_scene.GetT() < 10:
-    m_scene.DoStep()
-    print(m_sensor.GetBuffer())
+camera.SetPosition(chrono.ChVector(0, 10, 20))
 
 
-chrono.Destroy()
+t = 0
+dt = 0.01
+step = 0
+max_steps = 1000
+
+while t < max_steps * dt:
+    
+    body_pos = body.GetPos()
+    camera_pos = chrono.ChVector(np.cos(t) * 5, np.sin(t) * 5, 20)
+    camera.SetPosition(camera_pos)
+
+    
+    print(camera.GetBuffer())
+
+    
+    scene.DoStepDynamics(dt)
+
+    
+    t += dt
+    step += 1
+
+
+chrono.CleanUp()

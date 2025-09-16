@@ -1,7 +1,3 @@
-"""
-PyChrono simulation script for HMMWV vehicle with ROS integration and visualization.
-"""
-
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
@@ -21,11 +17,14 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set chassis visualization type.
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set suspension visualization type.
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set steering visualization type.
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set wheel visualization type.
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set tire visualization type.
+
+    # Enhanced visualization settings for HMMWV vehicle
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -50,22 +49,16 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create the Irrlicht application for visualization.
+    # Create the Irrlicht application for visualization
     app = chronoirr.ChVisualSystemIrrlicht()
     app.SetWindowSize(1024, 768)
-    app.SetWindowTitle('HMMWV Simulation')
-    app.SetLogo('logo.png')
-    app.SetCamera(ch.ChVector3D(0, 0, 1.5), ch.ChVector3D(0, 0, 0))
+    app.SetWindowTitle("HMMWV Simulation")
     app.AddTypicalLights()
+    app.AddCamera(chronoirr.ChCamera())
     app.AddSkyBox()
-    app.AddCameraVerticalTrack()
-    app.AddCameraHorizontalTrack()
-    app.AddCameraZoom()
-    app.AddTypicalLights()
-    app.AddSkyBox()
-    app.AddCameraVerticalTrack()
-    app.AddCameraHorizontalTrack()
-    app.AddCameraZoom()
+    app.AddTypicalLogo()
+    app.SetTimestep(1e-3)
+    app.SetTryRealtime(True)
 
     # Start the simulation loop.
     time = 0
@@ -91,13 +84,10 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene.
-        app.BeginScene()
+        # Render the scene
+        app.BeginScene(True, True, ch.ChColor(0.5, 0.5, 0.5))
         app.Render()
         app.EndScene()
-
-        # Handle events.
-        app.GetDevice().run()
 
 if __name__ == "__main__":
     main()

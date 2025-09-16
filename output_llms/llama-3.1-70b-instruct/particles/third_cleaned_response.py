@@ -1,4 +1,3 @@
-"""
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 from itertools import combinations

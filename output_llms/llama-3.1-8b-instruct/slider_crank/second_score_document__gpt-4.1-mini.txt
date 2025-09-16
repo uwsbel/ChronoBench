@@ -4,22 +4,21 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`). No deduction.
 - **Body Creation:** All bodies (floor, crank, rod, piston) are created using `ChBodyEasy*` classes. However:
-  - The `ChBodyEasy*` constructors are called with fewer parameters than recommended. The API suggests specifying `visualize` and `collision` booleans and optionally a material. Here, only size and density are passed, which means default visualization and collision settings are used implicitly. This is acceptable but could be more explicit for clarity and control.
-  - No explicit enabling of collision or visualization flags, which is a minor omission.
-- **Joint Creation:** All joints (revolute and prismatic) are created and initialized properly with correct frames.
-- **Motor Setup:** Motor is created and initialized correctly, with a constant angular speed function.
-- **Visualization:** Visualization system is set up with window size, title, initialization, logo, skybox, camera, and lights. All essential visualization components are present.
-- **Data Collection:** Arrays for time, angle, position, and speed are created and populated during the simulation loop.
-- **Plotting:** Uses matplotlib to plot position and speed vs. crank angle after simulation.
+  - The `ChBodyEasy*` constructors are used without specifying the `visualize` and `collision` boolean flags. According to the API, these are optional but important for visualization and collision detection. The default is `visualize=True` and `collision=True` if not specified, so this is acceptable.
+  - No explicit collision material or contact properties are set. While not strictly required, it is a best practice to define materials for realistic contact behavior. Minor omission.
+- **Joint Creation:** Revolute and prismatic joints are created and initialized correctly with frames. Motor joint is also created and initialized properly.
+- **Visualization:** Visualization system is set up with window size, title, logo, skybox, camera, and lights. All essential visualization components are present.
+- **Data Collection:** Arrays for time, angle, position, and speed are initialized and populated during the simulation loop.
+- **Simulation Loop:** Present and correctly structured with time stepping and visualization rendering.
+- **Plotting:** Uses matplotlib to plot results after simulation.
 
-**Minor omissions:**
+**Deductions:**
 
-- No explicit setting of collision or visualization flags in `ChBodyEasy*` constructors.
-- No setting of material properties (friction, damping) for contacts, which might be important for realistic simulation but not strictly essential here.
+- Minor omission for not explicitly setting collision and visualization flags or contact materials: **-5 points**
 
-**Deduction:** 5 points for minor omissions in body creation details.
+**Completeness score:** 40 - 5 = **35**
 
 ---
 
@@ -27,160 +26,142 @@
 
 - **Body Creation:**
 
-  - `ChBodyEasyCylinder` is called with `chrono.ChAxis_Y` as the first argument. The API documentation does not mention `ChBodyEasyCylinder` taking an axis argument; it expects `(radius, height, density, visualize, collision, material)`.
+  - `mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)`  
+    The API for `ChBodyEasyCylinder` expects `(radius, height, density, visualize=True, collision=True, material=None)`. The first argument should be radius, not an axis. The code passes `chrono.ChAxis_Y` as the first argument, which is incorrect.
 
-  - The code uses `mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)`. This is incorrect usage. The first argument should be radius (float), not an axis enum.
+  - Similarly, `mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)` is incorrect for the same reason.
 
-  - This is a significant API misuse that will cause an error or unexpected behavior.
+  This is a **significant API misuse** that will cause errors or unexpected behavior.
+
+- **Rotation Quaternions:**
+
+  - `mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)` and `mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)` are used. These constants are not standard in the PyChrono API documentation. The API uses `chrono.Q_ROTATE_Y_TO_Z` or `chrono.Q_ROTATE_Z_TO_X`? The documentation does not mention these constants explicitly. This may be a user-defined or legacy constant. This is potentially incorrect or at least unclear.
 
 - **Motor Initialization:**
 
-  - `my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))` is used.
-
-  - The API documentation shows `Initialize(body1, body2, chrono.ChCoordsysD(position, rotation))` as the standard. `chrono.ChFramed` is not mentioned in the documentation; the correct class is `chrono.ChCoordsysD`.
-
-  - Using `chrono.ChFramed` is incorrect and will cause an error.
+  - `my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center))`  
+    The API expects `chrono.ChCoordsysD` (or `ChCoordsys`) for the frame, not `ChFramed`. `ChFramed` is not a documented class in the API. This is an **incorrect API usage**.
 
 - **Joint Initialization:**
 
-  - Similarly, `mjointA.Initialize(mrod, mcrank, chrono.ChFramed(...))` and others use `chrono.ChFramed` instead of `chrono.ChCoordsysD`.
+  - Similarly, `mjointA.Initialize(mrod, mcrank, chrono.ChFramed(...))` and others use `chrono.ChFramed` instead of `chrono.ChCoordsysD` or `chrono.ChCoordsys`. This is incorrect.
 
-  - This is a consistent API misuse.
+- **Data Collection:**
 
-- **Getting angle and speed:**
+  - `array_angle.append(mcrank.GetRot().s[1])`  
+    `GetRot()` returns a quaternion. Accessing `.s[1]` is not a standard way to get an angle. The quaternion components are `(w, x, y, z)` or `.e0, .e1, .e2, .e3`. Using `.s[1]` is unclear and likely incorrect.
 
-  - `mcrank.GetRot().GetAngle()` is used to get the crank angle.
+  - `array_pos.append(crank_center + chrono.ChVector3d(crank_rad * np.cos(mcrank.GetRot().s[1]), crank_rad * np.sin(mcrank.GetRot().s[1]), 0).Magnitude())`  
+    The expression is problematic:
+    - `chrono.ChVector3d(...)` creates a vector.
+    - `.Magnitude()` returns a scalar (length).
+    - Adding a vector (`crank_center`) and a scalar (`Magnitude()`) is invalid.
+    This is a **logical error**.
 
-  - `GetAngle()` is not a documented method of `chrono.ChQuaternion` or `ChRotation`. The API does not provide a direct `GetAngle()` method on rotations.
+  - `array_speed.append(mcrank.GetSpeed().Magnitude())`  
+    `GetSpeed()` is not a documented method for `ChBody`. The correct method to get linear velocity is `GetPos_dt()` or `GetPos_dt()` for velocity vector, or `GetWvel_loc()` for angular velocity. This is likely an **incorrect API usage**.
 
-  - To get the rotation angle about an axis, one would typically extract the angle from the quaternion or use other methods.
+- **Motor Speed Function:**
 
-  - This is a logical error; the code may fail or produce incorrect angle values.
+  - `my_motor.SetMotorFunction(my_angularspeed)`  
+    The API method is `SetSpeedFunction()`, not `SetMotorFunction()`. This is an **incorrect API usage**.
 
-- **Getting speed:**
+**Deductions:**
 
-  - `mcrank.GetSpeed().x` is used.
+- Incorrect use of `ChBodyEasyCylinder` constructor: **-15 points**
+- Incorrect use of `chrono.ChFramed` instead of `chrono.ChCoordsysD` in joint and motor initialization: **-15 points**
+- Logical errors in data collection (quaternion angle extraction, vector + scalar addition): **-10 points**
+- Incorrect method names (`SetMotorFunction` instead of `SetSpeedFunction`, `GetSpeed`): **-10 points**
 
-  - `GetSpeed()` returns the linear velocity vector of the body center of mass, not angular velocity.
+Total deductions here exceed 30, but max is 30.
 
-  - To get angular velocity, `GetWvel_loc()` or `GetWvel_par()` should be used.
-
-  - Using linear speed x-component is likely incorrect for the intended measurement.
-
-- **Motor speed function:**
-
-  - `my_motor.SetMotorFunction(my_angularspeed)` is called.
-
-  - The API documentation uses `SetSpeedFunction()`, not `SetMotorFunction()`.
-
-  - This is an incorrect API call.
-
-**Summary of correctness deductions:**
-
-- Incorrect use of `ChBodyEasyCylinder` constructor: -15 points
-- Incorrect use of `chrono.ChFramed` instead of `chrono.ChCoordsysD` in joint and motor initialization: -15 points
-- Incorrect method to get crank angle: -10 points (logical error)
-- Incorrect use of `GetSpeed()` for angular velocity: -10 points (logical error)
-- Incorrect method `SetMotorFunction` instead of `SetSpeedFunction`: -15 points
-
-Total deductions exceed the maximum for correctness (30 points), so capped at -30 points.
+**Correctness score:** 0 (full deduction due to multiple critical errors)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names are meaningful and consistent (`mcrank`, `mrod`, `mpiston`, `my_motor`, etc.).
-- Code is structured logically.
-- However, there are **no comments** explaining the purpose of code blocks or variables.
-- Minor formatting inconsistencies (e.g., inconsistent spacing around operators).
-- The plotting section is clear and well-structured.
+- Variable names are meaningful (`mcrank`, `mrod`, `mpiston`, `my_motor`, etc.).
+- Code is reasonably structured.
+- However, **no comments** explaining the purpose of blocks or variables.
+- Some lines are long and complex (e.g., the position calculation in data collection).
+- Minor formatting inconsistencies (e.g., spaces around operators).
 
-**Deduction:**
+**Deductions:**
 
-- -5 points for lack of comments/documentation.
-- No major readability issues, so no further deduction.
+- Lack of comments: **-5 points**
+- Minor readability issues: **-2 points**
+
+**Code Quality score:** 10 - 7 = **3**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The simulation loop uses a fixed time step of 1e-3, which is reasonable.
-- The visualization rendering calls are in the correct order.
-- Data collection is done every step, which is acceptable.
-- No redundant or unnecessary calculations detected.
-- The use of `np.linspace` in plotting is appropriate.
+- The simulation loop uses a fixed small time step (1e-3), which is fine.
+- However, the data collection line for position uses `.Magnitude()` unnecessarily and adds scalar to vector, which is inefficient and incorrect.
+- The angle extraction from quaternion is done incorrectly, which could be optimized by converting quaternion to angle properly.
+- No redundant code, but some calculations could be optimized or corrected.
 
-**No deductions.**
+**Deductions:**
+
+- Unnecessary and incorrect calculation in position data collection: **-5 points**
+- Missing obvious optimization in angle extraction: **-3 points**
+
+**Efficiency score:** 10 - 8 = **2**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present.
-- No checks for visualization initialization success.
-- No try-except blocks or input validation.
-- While not always mandatory, basic error handling is a best practice.
+- No error handling (try-except) or checks for simulation stability.
+- No handling of edge cases or invalid states.
+- This is common in simple scripts but still a best practice.
 
-**Deduction:**
+**Deductions:**
 
-- -5 points for lack of basic error handling.
+- Lack of basic error handling: **-5 points**
+
+**Error Handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly initialized and attached.
-- Window size and title are set.
-- Logo, skybox, camera, and lights are added.
-- Camera is added with two arguments instead of one: `vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))`.
+- Visualization system is set up correctly with window size, title, logo, skybox, camera, and lights.
+- However, the camera is added with two arguments: `vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))`.  
+  The API documentation shows `AddCamera(position)` with a single argument. Passing two arguments is likely incorrect or unsupported.
 
-- The API documentation shows `AddCamera(position)` with a single argument, no second argument.
+- The rendering loop calls `vis.BeginScene()`, `vis.Render()`, `vis.EndScene()` correctly.
 
-- This is an incorrect API call and may cause an error or be ignored.
+**Deductions:**
 
-- Minor issue with camera setup.
+- Incorrect `AddCamera` usage (two arguments instead of one): **-3 points**
 
-**Deduction:**
-
-- -3 points for incorrect `AddCamera` usage.
+**Visualization score:** 5 - 3 = **2**
 
 ---
 
 ### **Summary of deductions:**
 
-| Criterion                   | Deduction Points | Reason                                                                                   |
-|-----------------------------|------------------|------------------------------------------------------------------------------------------|
-| Completeness                | 5                | Minor omissions in body creation parameters (collision/visualization flags)              |
-| Correctness                | 30               | Multiple incorrect API usages and logical errors (capped at max deduction)               |
-| Code Quality               | 5                | Lack of comments/documentation                                                          |
-| Efficiency                 | 0                | No issues                                                                               |
-| Error Handling and Robustness | 5                | No error handling                                                                       |
-| Visualization Tools        | 3                | Incorrect `AddCamera` usage                                                             |
-| **Total Deductions**        | **48**           |                                                                                          |
+| Criterion                 | Max Points | Deduction | Score |
+|---------------------------|------------|-----------|-------|
+| Completeness              | 40         | 5         | 35    |
+| Correctness              | 30         | 30        | 0     |
+| Code Quality             | 10         | 7         | 3     |
+| Efficiency               | 10         | 8         | 2     |
+| Error Handling           | 5          | 5         | 0     |
+| Visualization            | 5          | 3         | 2     |
+| **Total**                | **100**    | **58**    | **42**|
 
 ---
 
-### Final score:
-
-100 - 48 = 52
+### Final score: [[42]]
 
 ---
 
 ### Explanation:
 
-The script includes all essential components and is logically structured, but it suffers from multiple significant API misuses:
+The script includes all essential components but suffers from multiple critical API misuse errors, especially in body creation, joint initialization, and motor control. These errors would prevent the simulation from running correctly or produce invalid results. Minor omissions in comments and error handling reduce code quality and robustness. Visualization setup is mostly correct but includes a minor API misuse in camera setup. Efficiency is affected by incorrect and unnecessary calculations in data collection.
 
-- Using `chrono.ChFramed` instead of `chrono.ChCoordsysD` for joint and motor initialization.
-- Incorrect constructor arguments for `ChBodyEasyCylinder`.
-- Wrong method calls for motor speed function and getting rotation angle.
-- Incorrect retrieval of angular velocity.
-- Incorrect `AddCamera` call with two arguments.
-- Lack of comments and error handling.
-
-These issues would prevent the script from running correctly or producing meaningful simulation results without modification.
-
----
-
-**Final score:**
-
-[[52]]
+The score reflects these significant correctness issues and moderate deductions in other categories.

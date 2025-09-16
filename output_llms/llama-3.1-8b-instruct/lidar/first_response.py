@@ -1,59 +1,50 @@
 import chrono as chrono
-import numpy as np
+from chrono import ChColor, ChVector
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 chrono.Initialize()
+space = chrono.ChSpace()
+space.Set_G(0, 0, 0)
 
-# Create a scene
-m_scene = chrono.Scene()
+# Load the Wavefront .obj file
+mesh = chrono.ChTriangleMesh()
+mesh.Load('path_to_your_mesh.obj')
 
-# Create a body from a Wavefront .obj file
-m_body = chrono.ChBodyEasyBox(1, 1, 1, 1000)
-m_body.SetBodyFixed(True)
-m_body.SetPosition(chrono.ChVector(0, 0, 0))
-m_scene.Add(m_body)
+# Create a fixed body from the loaded mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.SetMass(1.0)
+body.SetBodyInertia(1.0, 1.0, 1.0)
+body.SetPos(ChVector(0, 0, 0))
+body.SetRot(ChVector(0, 0, 0))
+body.SetBodyMaterial(0.5, 0.5, 0.5)
+space.Add(body)
+body.AddAsset(mesh)
 
-# Create a sensor manager
-m_sensor_manager = chrono.ChSensorManager()
-m_sensor_manager.SetSensorType(chrono.ChSensorManager.SENSOR_TYPE_LIDAR)
-m_sensor_manager.SetSensorName("LidarSensor")
-m_body.AddSensor(m_sensor_manager)
+# Add a lidar sensor to the body
+sensor = chrono.ChSensor()
+sensor.SetBody(body)
+sensor.SetSensorType(chrono.SensorType.SENSOR_TYPE_LIDAR)
+sensor.SetSensorRange(10.0)
+sensor.SetSensorAngularResolution(1.0)
+sensor.SetSensorAngularRange(360.0)
+space.Add(sensor)
 
-# Set sensor parameters
-m_sensor_manager.SetSensorRange(10)
-m_sensor_manager.SetSensorAngle(0.1)
-m_sensor_manager.SetSensorNoise(0.1)
-m_sensor_manager.SetSensorVisualization(True)
-m_sensor_manager.SetSensorSave(True)
-
-# Create a lidar sensor
-m_lidar_sensor = m_sensor_manager.GetSensor()
-m_lidar_sensor.SetPosition(chrono.ChVector(0, 0, 5))
-
-# Create a dynamic body for the lidar sensor
-m_lidar_body = chrono.ChBody()
-m_lidar_body.SetMass(1)
-m_lidar_body.SetInertia(1)
-m_lidar_body.SetBodyFixed(False)
-m_lidar_body.SetPosition(chrono.ChVector(0, 0, 5))
-m_lidar_body.SetRotation(chrono.ChQuaternion(0, 0, 0, 1))
-m_scene.Add(m_lidar_body)
-
-# Create a dynamic constraint between the lidar body and the fixed body
-m_constraint = chrono.ChConstraintSemiImplicitSpringDamper()
-m_constraint.SetBodyA(m_lidar_body)
-m_constraint.SetBodyB(m_body)
-m_constraint.SetSemiImplicitSpringDamper(1, 1, 1)
-m_scene.Add(m_constraint)
-
-# Set the simulation parameters
-m_scene.SetTimestep(0.01)
-m_scene.SetMaxStep(0.01)
+# Set the sensor manager
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(sensor)
+sensor_manager.SetVisualization(True)
+sensor_manager.SetNoiseFilter(True)
+sensor_manager.SetSaveData(True)
 
 # Simulate the system
-while m_scene.GetT() < 10:
-    m_scene.DoStep()
-    print(m_lidar_sensor.GetBuffer())
+dt = 0.01
+t = 0.0
+while t < 10.0:
+    space.DoStepDynamics(dt)
+    lidar_data = sensor_manager.GetLidarData()
+    print(lidar_data)
+    t += dt
 
 # Clean up
-chrono.Destroy()
+chrono.finalize()

@@ -1,58 +1,54 @@
 import chrono as ch
-import chrono_irrlicht as chirr
+import chrono.vehicle as chv
+import chrono.vehicles as cv
+import chrono.utils as cu
+import chrono.irrlicht as ir
 
-# Initialize PyChrono environment and core components
-ch.InitChrono()
+# Initialize the PyChrono environment
+ch.init()
 
 # Create a rigid terrain
 terrain = ch.RigidBodyDynamics()
 terrain.SetGravity(ch.Vec3(0, 0, -9.81))
 
-# Add a Kraz vehicle
-kraz = ch.RigidBody()
-kraz.SetMass(1500)
+# Add a rigid terrain with specified properties
+terrain.AddBody(ch.BoxBody(ch.Vec3(100, 100, 1), ch.Mass(0), ch.Vec3(0, 0, 0)))
+terrain.AddForce(ch.Vec3(0, 0, 0), ch.Vec3(0, 0, 0), 1000)
+
+# Create a Kraz vehicle
+kraz = chv.Kraz()
+kraz.SetMass(2500)
 kraz.SetInertiaTensor(ch.Mat33(1000, 0, 0, 0, 1000, 0, 0, 0, 1000))
 kraz.SetPosition(ch.Vec3(0, 0, 0))
-terrain.Add(kraz)
+kraz.SetOrientation(ch.Q(ch.Vec3(0, 0, 0)))
 
-# Add a driver system
-driver = ch.Driver()
+# Initialize the driver system
+driver = chv.Driver()
 driver.SetVehicle(kraz)
-driver.SetSteeringGain(0.1)
-driver.SetAccelerationGain(0.1)
-driver.SetBrakeGain(0.1)
 
-# Set initial conditions
-kraz.SetLinearVelocity(ch.Vec3(0, 0, 0))
-kraz.SetAngularVelocity(ch.Vec3(0, 0, 0))
-driver.SetSpeed(0)
-driver.SetSteeringAngle(0)
+# Create a real-time visualization using Irrlicht
+ir.init()
 
-# Set visualization settings
-irrlicht = chirr.Irrlicht()
-irrlicht.SetCameraPosition(ch.Vec3(0, 10, 10))
-irrlicht.SetCameraTarget(ch.Vec3(0, 0, 0))
-irrlicht.SetLighting(ch.Vec3(1, 1, 1), ch.Vec3(0, 0, 0), 0.5)
+# Set up camera settings and lighting
+ir.addCamera(ch.Vec3(0, 0, 5), ch.Vec3(0, 0, 0), ch.Vec3(0, 1, 0))
+ir.addLight(ch.Vec3(10, 10, 10), ch.Color(1, 1, 1), 100)
 
-# Set terrain properties
-terrain.SetFriction(0.5)
-terrain.SetRestitution(0.5)
-
-# Simulation loop
-while True:
+# Define the simulation loop
+def simulate():
     # Synchronize and advance the vehicle, terrain, driver, and visual system
-    terrain.Synchronize()
-    driver.Synchronize()
-    irrlicht.Synchronize()
-    
-    # Advance the simulation
-    terrain.Advance(0.01)
-    driver.Advance(0.01)
-    irrlicht.Advance(0.01)
-    
-    # Check for real-time execution
-    if not irrlicht.IsRealTime():
-        break
+    terrain.Simulate(0.01)
+    driver.Simulate(0.01)
+    ir.Simulate(0.01)
+    kraz.Simulate(0.01)
 
-# Clean up
-ch.FinalizeChrono()
+    # Update the visualization
+    ir.beginScene()
+    ir.draw(kraz)
+    ir.endScene()
+
+# Run the simulation loop
+while True:
+    simulate()
+    ch.CheckAndPerformCollision(terrain)
+    ch.CheckAndPerformContact(terrain)
+    ir.pollEvents()

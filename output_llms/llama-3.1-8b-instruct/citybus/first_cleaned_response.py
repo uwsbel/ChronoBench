@@ -1,69 +1,62 @@
-import PyChrono as pch
-from PyChrono.Irrlicht import *
-from PyChrono import chrono as pch
-from PyChrono import chrono as chrono
-from PyChrono import chrono as chrono
-import numpy as np
+import chrono as chrono
+import chrono_irrlicht as chronoirr
+import irr
 
 
 chrono.Initialize()
+core = chrono.Core()
 
 
-terrain = pch.RigidTerrain()
-terrain.SetTexture("path_to_your_texture.png")
-terrain.SetDimensions(100, 100, 1)
-terrain.SetPosition(0, 0, 0)
+terrain = chrono.CreateRigidBody(core, "terrain")
+terrain.SetName("Terrain")
+terrain.SetPos(chrono.Vec3(0, 0, 0))
+terrain.SetRot(chrono.QfromEuler(0, 0, 0))
+terrain.SetMass(1000)
+terrain.SetMaterial(chrono.Material(0.5, 0.5, 0.5, 0.1))
+terrain.SetTexture(chrono.Texture("path/to/terrain_texture.jpg"))
 
 
-bus = pch.CityBus()
-bus.SetPosition(0, 0, 0)
-bus.SetOrientation(0, 0, 0)
-bus.SetTireModel(pch.TireModelType.SEMI_ELLIPTICAL)
+bus = chrono.CreateRigidBody(core, "bus")
+bus.SetName("CityBus")
+bus.SetPos(chrono.Vec3(0, 0, 0))
+bus.SetRot(chrono.QfromEuler(0, 0, 0))
+bus.SetMass(500)
+bus.SetMaterial(chrono.Material(0.8, 0.2, 0.2, 0.1))
 
 
-bus.SetVisualizationType(pch.VisualizationType.MESH, pch.VisualizationType.PRIMITIVE)
+tire = chrono.CreateTire(bus, "tire")
+tire.SetName("Tire")
+tire.SetPos(chrono.Vec3(0, 0, 0))
+tire.SetRot(chrono.QfromEuler(0, 0, 0))
+tire.SetRadius(0.5)
+tire.SetStiffness(1000)
+tire.SetDamping(100)
+tire.SetFriction(0.5)
 
 
-camera = pch.Camera()
-camera.SetPosition(10, 10, 10)
-camera.SetTarget(bus.GetPosition())
-camera.SetOrientation(0, 0, 0)
+driver = chrono.CreateDriver(core, "driver")
+driver.SetName("Driver")
+driver.SetPos(chrono.Vec3(0, 0, 0))
+driver.SetRot(chrono.QfromEuler(0, 0, 0))
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 
-driver = pch.Driver()
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
+viewer = chronoirr.IrrlichtViewer(core, "CityBus Simulation")
+viewer.SetCameraPosition(chrono.Vec3(0, 10, 10))
+viewer.SetCameraTarget(chrono.Vec3(0, 0, 0))
+viewer.SetDrawWireframe(True)
+viewer.SetDrawNormals(False)
 
 
-chrono.SetSimulationLoop(50)
+dt = 1/50.0  
+t = 0
+while t < 10:  
+    core.Step(dt)
+    viewer.UpdateScene()
+    viewer.Render()
+    t += dt
 
 
-while True:
-    
-    bus.UpdateDynamics()
-
-    
-    renderer = pch.Renderer()
-    renderer.Render()
-
-    
-    camera.SetPosition(bus.GetPosition() + np.array([0, 0, 10]))
-
-    
-    driver.Update()
-
-    
-    if driver.IsSteeringPressed():
-        bus.SetSteeringAngle(driver.GetSteeringAngle())
-    if driver.IsThrottlePressed():
-        bus.SetThrottle(driver.GetThrottle())
-    if driver.IsBrakingPressed():
-        bus.SetBraking(driver.GetBraking())
-
-    
-    if driver.IsQuitPressed():
-        break
-
-
-chrono.Deinitialize()
+chrono.Finalize()

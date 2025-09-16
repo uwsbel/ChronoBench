@@ -16,7 +16,7 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# SCM deformable terrain
+# SCM terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -36,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -59,14 +58,19 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM terrain
-scm_terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-scm_terrain.SetHeightMap(veh.GetDataFile("terrain/heightmap.png"))
-scm_terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
-scm_terrain.SetSoilParameters(0.5, 0.1, 0.01, 0.1)
-scm_terrain.Initialize()
+soil_params = veh.SCMSoilParams()
+soil_params.SetFriction(0.9)
+soil_params.SetRestitution(0.01)
+soil_params.SetDamping(0.1)
+soil_params.SetBounciness(0.5)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParams(soil_params)
+terrain.InitializeFromHeightMap(terrainLength, terrainWidth, terrainHeight)
+
+# Set the SCM terrain texture to dirt
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -117,12 +121,12 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    scm_terrain.Synchronize(time)
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    scm_terrain.Advance(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     # Increment frame number

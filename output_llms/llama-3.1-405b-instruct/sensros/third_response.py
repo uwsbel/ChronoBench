@@ -138,7 +138,6 @@ def main():
         sens_manager.Update()
 
         if not ros_manager.Update():
-            print("ROS manager update failed. Exiting simulation.")
             break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.

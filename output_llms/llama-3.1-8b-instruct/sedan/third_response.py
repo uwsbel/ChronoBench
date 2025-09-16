@@ -1,18 +1,19 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
+
 print(veh)
+
 """
 !!!! Set this path before running the demo!
 """
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation adjusted
+# Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(0, 0, 1, 0)  # Adjusted rotation to match highway orientation
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -24,10 +25,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-terrain_model = veh.RigidTerrain.HIGHWAY_MESH  # Initialize with highway mesh
 terrainHeight = 0      # terrain height
 terrainLength = 1000.0  # size in X direction
 terrainWidth = 10.0   # size in Y direction
+terrain_mesh = veh.RigidTerrainMesh(vehicle.GetSystem())
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -37,7 +38,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 1e-4  # Decreased simulation step size for finer control
+step_size = 1e-4  # Decreased simulation step size
 tire_step_size = step_size
 
 # Time interval between two render frames
@@ -67,17 +68,10 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+terrain_mesh.AddMesh(veh.GetDataFile("terrain/mesh/highway.obj"))
+terrain_mesh.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain_mesh.Initialize()
 
 # Create the vehicle Irrlicht interface
 
@@ -105,10 +99,8 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # PID controller for throttle control
-pid_controller = veh.PIDController(0.1, 0.01, 0.001)  # Initialize PID controller
-
-# Reference speed input
-ref_speed = 50.0  # Set reference speed
+pid_controller = veh.PIDController(0.1, 0.0, 0.0)
+pid_controller.SetTargetSpeed(50.0)  # Reference speed input
 
 # ---------------
 # Simulation loop
@@ -140,19 +132,22 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain_mesh.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain_mesh)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    terrain.Advance(step_size)
+    terrain_mesh.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # PID control for throttle
-    speed_error = ref_speed - vehicle.GetSpeed()
-    throttle_input = pid_controller.Calculate(speed_error)
+    # PID controller for throttle control
+    speed_error = 50.0 - vehicle.GetVehicle().GetSpeed()
+    pid_controller.Update(speed_error)
+    throttle_input = pid_controller.GetThrottle()
+
+    # Set throttle input
     driver_inputs.throttle = throttle_input
 
     # Increment frame number

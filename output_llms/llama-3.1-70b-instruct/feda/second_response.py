@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # Increased terrain length
+terrainLength = 200.0   # Increased terrain length
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -83,20 +83,21 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a path that follows the ISO standard double lane change maneuver
+# Create a path for the double lane change maneuver
 path = veh.DoubleLaneChangePath()
-path.SetPathWidth(3.5)
-path.SetPathLength(100)
-path.SetEntrySpeed(10)
+path.SetInitialLocation(chrono.ChVector3d(-50, 0, 0.5))
+path.SetInitialDirection(chrono.ChVector3d(1, 0, 0))
+path.SetLaneWidth(3.5)
+path.SetLaneChangeDistance(50)
+path.SetTargetSpeed(10.0)
 
 # Create a path-follower driver system
 driver = veh.ChPathFollowerDriver()
+driver.SetVehicle(vehicle.GetVehicle())
 driver.SetPath(path)
 driver.SetTargetSpeed(10.0)
-driver.SetLookAheadDistance(5)
-driver.SetSteeringGain(0.5)
-driver.SetSpeedGain(0.5)
-
+driver.SetSteeringController(veh.ChSteeringControllerLookAhead(5))
+driver.SetSpeedController(veh.ChSpeedControllerPID(2, 0.5, 0))
 driver.Initialize()
 
 # output vehicle mass
@@ -120,14 +121,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -8,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Modified initial vehicle position
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed initial vehicle position
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -71,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Modified terrain texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed terrain texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -111,11 +110,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Lane change maneuver
-lane_change_start_time = 2.0
-lane_change_duration = 4.0
-braking_start_time = lane_change_start_time + lane_change_duration
-braking_duration = 2.0
+# Time intervals and corresponding steering and throttle adjustments
+time_interval_1 = 5.0
+time_interval_2 = 10.0
+time_interval_3 = 15.0
+steering_adjustment_1 = -0.5
+steering_adjustment_2 = 0.5
+throttle_adjustment_1 = 0.5
+throttle_adjustment_2 = 0.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -129,22 +131,26 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Lane change maneuver
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        driver_inputs.m_steering = 0.5  # Steer to the right
-        driver_inputs.m_throttle = 0.5  # Maintain speed
-    elif time >= braking_start_time and time < braking_start_time + braking_duration:
-        driver_inputs.m_steering = 0.0  # Straighten the wheels
-        driver_inputs.m_braking = 1.0  # Brake
-    else:
-        driver_inputs.m_steering = 0.0  # Straighten the wheels
-        driver_inputs.m_throttle = 0.0  # Coast
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Lane change maneuver logic
+    if time < time_interval_1:
+        driver_inputs.m_steering = steering_adjustment_1
+        driver_inputs.m_throttle = throttle_adjustment_1
+    elif time < time_interval_2:
+        driver_inputs.m_steering = steering_adjustment_2
+        driver_inputs.m_throttle = throttle_adjustment_1
+    elif time < time_interval_3:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = throttle_adjustment_2
+    else:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = 1.0
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

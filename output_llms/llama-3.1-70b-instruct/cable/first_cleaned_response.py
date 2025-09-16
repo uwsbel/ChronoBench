@@ -1,70 +1,62 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.analytical_functions as mfunc
 import numpy as np
 
 
 chrono.SetChronoDataPath('./data/')
+system = chrono.ChSystemNSC()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.5)
+contact_material.SetDampingF(0.1)
+contact_material.SetCompliance(1e-4)
+contact_material.SetComplianceT(1e-4)
 
 
-mysystem = chrono.ChSystemNSC()
-
-
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-ground = chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, contact_material)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
 ground.SetBodyFixed(True)
 
 
 beam_length = 10
-beam_mass = 10
-beam_density = beam_mass / beam_length
-beam_cross_section_area = 0.1
-beam_young_modulus = 2e11
-beam_poisson_ratio = 0.3
+beam_thickness = 0.1
+beam_density = 1000
+beam_youngs_modulus = 1e9
+beam_poissons_ratio = 0.3
+beam_num_elements = 10
 
 
-beam_elements = []
-num_elements = 10
-for i in range(num_elements):
-    beam_elements.append(chrono.ChElementCableANCF(
-        mysystem, beam_density, beam_cross_section_area, beam_young_modulus, beam_poisson_ratio,
-        chrono.ChVectorD(beam_length * i / num_elements, 0, 0),
-        chrono.ChVectorD(beam_length * (i + 1) / num_elements, 0, 0)
-    ))
+beam = chrono.ChBodyEasyCableANCF(beam_length, beam_thickness, beam_density, beam_youngs_modulus, beam_poissons_ratio, beam_num_elements, contact_material)
+beam.SetPos(chrono.ChVectorD(0, 5, 0))
 
 
-for element in beam_elements:
-    mysystem.Add(element)
+hinge = chrono.ChLinkHinge(beam, ground, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, -5, 0))
+system.Add(hinge)
 
 
-hinge = chrono.ChLinkHinge(
-    mysystem, ground, beam_elements[0].GetNode1(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0)
-)
-mysystem.Add(hinge)
+system.Add(beam)
+system.Add(ground)
 
 
-myapplication = chronoirr.ChVisualSystemIrrlicht()
-myapplication.SetWindowSize(800, 600)
-myapplication.SetWindowTitle('Beam Simulation')
-myapplication.SetTypicalLength(1.0)
-myapplication.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_ACCGSM)
 
 
-while myapplication.GetDevice().run():
-    mysystem.DoStepDynamics(0.01)
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.EndScene()
+application = chronoirr.ChVisualSystemIrrlicht()
+application.SetWindowSize(1024, 768)
+application.SetWindowTitle('Beam Simulation')
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+application.SetShowFPS(True)
+
+
+while application.Run():
+    system.DoStepDynamics(0.01)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
 
     
-    for i, element in enumerate(beam_elements):
-        node1 = element.GetNode1()
-        node2 = element.GetNode2()
-        print(f'Node {i+1}: {node1.GetPos().x}, {node1.GetPos().y}, {node1.GetPos().z}')
-        print(f'Node {i+2}: {node2.GetPos().x}, {node2.GetPos().y}, {node2.GetPos().z}')
-
-
-del myapplication
+    for i in range(beam_num_elements):
+        node_pos = beam.GetNodePosition(i)
+        application.DrawSphere(chrono.ChVectorD(node_pos.x(), node_pos.y(), node_pos.z()), 0.1, chrono.ChVectorD(1, 0, 0))

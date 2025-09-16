@@ -3,91 +3,67 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-np.random.seed(42)
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
 sys = chrono.ChSystemNSC()
 
 
-application = chronoirr.ChIrrApp(sys, 'PyChrono Gravitational Attraction', chronoirr.dimension2du(800, 600))
+def create_particle(sys):
+    
+    shape = np.random.choice(['Sphere', 'Box', 'Cylinder'])
+    pos = np.random.uniform(-1, 1, size=3)
+    vel = np.random.uniform(-1, 1, size=3)
+    rot = chrono.ChQuaternionD(np.random.uniform(-1, 1, size=4))
 
+    
+    if shape == 'Sphere':
+        particle = chrono.ChBodyEasySphere(sys, 0.1, 1.0, pos)
+    elif shape == 'Box':
+        particle = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 1.0, pos)
+    elif shape == 'Cylinder':
+        particle = chrono.ChBodyEasyCylinder(sys, 0.1, 0.1, 1.0, pos)
 
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
+    
+    particle.SetPos(chrono.ChVectorD(pos))
+    particle.SetVel(chrono.ChVectorD(vel))
+    particle.SetRot(rot)
 
-
-def create_particle():
     
-    shape = np.random.choice(['sphere', 'box', 'cylinder'])
-    
-    
-    if shape == 'sphere':
-        particle = chrono.ChBodyEasySphere(0.1,  
-                                           1,    
-                                           True,  
-                                           True)  
-    elif shape == 'box':
-        particle = chrono.ChBodyEasyBox(0.2,  
-                                        1,    
-                                        True,  
-                                        True)  
-    else:
-        particle = chrono.ChBodyEasyCylinder(0.1,  
-                                             0.2,  
-                                             1,    
-                                             True,  
-                                             True)  
-    
-    
-    particle.SetPos(chrono.ChVectorD(np.random.uniform(-1, 1),
-                                     np.random.uniform(-1, 1),
-                                     np.random.uniform(-1, 1)))
-    
-    
-    particle.SetVel(chrono.ChVectorD(np.random.uniform(-0.5, 0.5),
-                                     np.random.uniform(-0.5, 0.5),
-                                     np.random.uniform(-0.5, 0.5)))
-    
-    
-    particle.SetRot(chrono.Q_from_AngZ(np.random.uniform(0, 2 * np.pi)))
-    
-    return particle
+    sys.AddBody(particle)
 
 
 for _ in range(10):
-    particle = create_particle()
-    sys.Add(particle)
+    create_particle(sys)
 
 
 class GravitationalForce(chrono.ChForce):
-    def __init__(self):
+    def __init__(self, sys):
         super().__init__()
-        self.SetF_x(chrono.ChFunction_Const(0))
-        self.SetF_y(chrono.ChFunction_Const(0))
-        self.SetF_z(chrono.ChFunction_Const(0))
-    
-    def Update(self, time):
-        
-        for i in range(sys.GetNbodies()):
-            for j in range(i + 1, sys.GetNbodies()):
-                body_i = sys.GetBody(i)
-                body_j = sys.GetBody(j)
-                distance = (body_i.GetPos() - body_j.GetPos()).Length()
-                force = 0.1 / (distance ** 2)  
-                direction = (body_j.GetPos() - body_i.GetPos()).GetNormalized()
-                self.SetF_x(chrono.ChFunction_Const(force * direction.x()))
-                self.SetF_y(chrono.ChFunction_Const(force * direction.y()))
-                self.SetF_z(chrono.ChFunction_Const(force * direction.z()))
-                body_i.AddForce(self)
-                body_j.AddForce(-self)
+        self.sys = sys
+
+    def Update(self, time, dt):
+        for i in range(self.sys.GetNbodies()):
+            for j in range(i+1, self.sys.GetNbodies()):
+                body_i = self.sys.GetBody(i)
+                body_j = self.sys.GetBody(j)
+                pos_i = body_i.GetPos()
+                pos_j = body_j.GetPos()
+                dist = (pos_i - pos_j).Length()
+                force = 0.1 * (pos_j - pos_i) / dist**3
+                body_i.AddForce(force)
+                body_j.AddForce(-force)
 
 
-force = GravitationalForce()
-sys.Add(force)
+sys.AddForce(GravitationalForce(sys))
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+app = chronoirr.ChIrrApp(sys, 'Gravitational Attraction', chronoirr.dimension2du(800, 600))
+
+
+app.AddTypicalSky()
+app.AddTypicalCamera(chronoirr.vector3df(0, 0, -3))
+app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512)
+
+
+app.GetDevice().run()

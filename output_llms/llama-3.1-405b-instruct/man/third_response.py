@@ -51,6 +51,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -86,35 +87,38 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create sensor manager
+# Create the sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 manager.SceneAdd(vis.GetSceneManager())
 
-# Create lidar sensor
+# Create a lidar sensor
 lidar = sens.ChLidarSensor(
     vehicle.GetChassisBody(),
-    100,  # number of horizontal samples
-    2,   # number of vertical samples
-    -chrono.CH_C_PI_2,  # horizontal start angle
-    chrono.CH_C_PI_2,   # horizontal end angle
-    -chrono.CH_C_PI_4,  # vertical start angle
-    chrono.CH_C_PI_4,   # vertical end angle
-    100.0,  # max distance
-    0.1,    # accuracy
-    0.1     # scanning rate
+    update_rate=100.0,
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.ChQuaternionD(1, 0, 0, 0)),
+    collection_window=0.02,
+    horizontal_samples=100,
+    vertical_samples=32,
+    horizontal_fov=2 * math.pi,
+    max_distance=100.0,
+    device_offset=0.02
 )
 manager.AddSensor(lidar)
 
-# Create random boxes
-for i in range(10):
+# Create some random boxes
+for _ in range(10):
     box = chrono.ChBodyEasyBox(
         vehicle.GetSystem(),
-        1,  # length
-        1,  # width
-        1,  # height
-        1000  # density
+        1, 1, 1,  # dimensions
+        1000,  # density
+        True,  # collide
+        True  # visualization
     )
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
+    box.SetPos(chrono.ChVector3d(
+        np.random.uniform(-10, 10),
+        np.random.uniform(-10, 10),
+        np.random.uniform(0.5, 2.0)
+    ))
     vehicle.GetSystem().AddBody(box)
 
 # Create the driver system
@@ -157,13 +161,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()
+    manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

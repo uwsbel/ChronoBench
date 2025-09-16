@@ -15,20 +15,21 @@ def main():
     
     
     
-    side = 1.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    side = 1.0  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetRot(chrono.ChQuaterniond(0, 0, 0, 1))  
     box_body.SetTexture(chrono.ChTextureDiffuse(chrono.ChColor(1, 0, 0)))  
+    box_body.SetName("Box")  
+    mphysicalSystem.Add(box_body)  
 
     
     box_shape = chrono.ChVisualShapeBox()
     box_shape.SetBox(box_body)
-    box_shape.SetName("Box")
+    box_shape.SetName("Box Shape")
     box_shape.SetMutable(False)  
 
     
-    mphysicalSystem.Add(box_body)
+    box_body.AddVisualShape(box_shape)  
 
     
     

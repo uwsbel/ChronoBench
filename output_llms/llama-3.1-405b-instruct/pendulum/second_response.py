@@ -6,7 +6,7 @@ import math
 sys = chrono.ChSystemNSC()
 
 # Set the gravitational acceleration for the system (in m/s^2)
-sys.Set_G_acc(chrono.ChVectorD(0, -1.62, 0))  # g = 1.62 m/s^2 (on the moon)
+sys.Set_G_acc(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 (on the moon)
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
@@ -16,32 +16,32 @@ ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization cylinder to the ground
 cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
-ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, +1)))
+ground.AddVisualShape(cyl_1, chrono.ChFrame(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
-sys.Add(pend_1)
+sys.AddBody(pend_1)
 pend_1.SetBodyFixed(False)  # The pendulum can move
 pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_1.SetMass(2)  # Set the mass of the pendulum (in kg)
-pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))  # Set the inertia tensor (in kg·m^2)
+pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Set the inertia tensor (in kg·m^2)
 
 # Add a visualization cylinder to the pendulum
 cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_C_PI_2)))
+pend_1.AddVisualShape(cyl_1, chrono.ChFrame(chrono.VNULL, chrono.Q_from_AngY(chrono.CH_PI_2)))
 
 # Set the initial position of the pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
-pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set the initial angular velocity for the pendulum
-pend_1.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
+# Set the initial angular velocity of the pendulum
+pend_1.SetWvel_loc(chrono.ChVector3d(0, 0, 1))
 
 # Create a spherical joint to connect the pendulum to the ground
 # The spherical joint allows rotation around all axes
-sph_1 = chrono.ChLinkMateSpherical()
-sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(sph_1)
 
 # Add a visualization sphere to the joint
@@ -56,7 +56,7 @@ vis.SetWindowTitle('ChBodyAuxRef demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
-vis.AddCamera(chrono.ChVectorD(0, 3, 6))  # Add a camera to the visualization
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Simulation loop

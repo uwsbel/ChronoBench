@@ -1,87 +1,85 @@
 import pychrono.core as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
 sys = chrono.ChSystemNSC()
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetContactFrictionCoefficient(0.9)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(0.7, 0.01)
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_ROTATE_X_TO_Y))
+terrain = chrono.ChBodyEasyBox(sys,  
+                               100, 100, 2,  
+                               1000,  
+                               True,  
+                               False,  
+                               chrono.ChMaterialSurfaceNSC())  
 terrain.SetBodyFixed(True)
-sys.Add(terrain)
+terrain.SetPos(chrono.ChVectorD(0, 0, -1))
 
 
-gator = veh.Gator()
-gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_ROTATE_X_TO_Y))
-gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
-gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+terrain_texture = chrono.ChTexture()
+terrain_texture.SetTextureFilename('/path/to/terrain/texture.png')
+terrain.GetVisualShape().AddAsset(terrain_texture)
 
 
-gator.SetContactMethod(chrono.ChContactMethod_NSC)
-gator.SetTireType(veh.TireModel::TMEASY)
-gator.SetTireStepSize(0.01)
-gator.SetVehicleMass(1500)
-gator.SetEngineTorque(100)
-gator.SetTransmissionType(veh.TransmissionModel::MANUAL)
+vehicle = chrono.ChPart(sys,  
+                        'Gator_Vehicle')  
+vehicle.SetMass(2000)  
+vehicle.SetInertiaXX(chrono.ChVectorD(1, 1, 1))  
 
 
-sys.Add(gator)
+vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-app = irr.ChIrrApp(sys, 'Gator Vehicle Simulation', irr.dimension2du(800, 600))
+contact_method = chrono.ChMaterialSurfaceNSC()
+contact_method.SetFriction(0.8)
+contact_method.SetRestitution(0.2)
+vehicle.GetCollisionModel().ClearModel()
+vehicle.GetCollisionModel().AddBox(contact_method, 2, 1, 0.5)
+vehicle.GetCollisionModel().BuildModel()
 
 
-terrain.SetBoxGeometry(chrono.ChVectorD(100, 1, 100))
-terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'))
+tire_model = chrono.ChTireModelTMEasy()
+tire_model.SetLongitudinalStiffness(100000)
+tire_model.SetLateralStiffness(100000)
+tire_model.SetCamberStiffness(10000)
+vehicle.SetTireType(tire_model)
 
 
-def interactive_driver(app):
+vehicle_mesh = chrono.ChTriangleMeshConnected()
+vehicle_mesh.LoadWavefrontMesh('/path/to/gator/mesh.obj')
+vehicle.GetVisualShape().AddAsset(vehicle_mesh)
+
+
+driver = chrono.ChIrrNode(sys, vehicle,  
+                          chronoirr.TrackballCamera())  
+driver.SetCameraPosition(chrono.ChVectorD(0, -5, 2))
+driver.SetCameraTarget(chrono.ChVectorD(0, 0, 1))
+
+
+time_step = 1e-3  
+fps = 50  
+while sys.GetChTime() < 100:
     
-    speed = gator.GetVehicleSpeed()
-
+    sys.DoStepDynamics(time_step)
     
-    steering = app.GetInput().GetSteering()
-    throttle = app.GetInput().GetThrottle()
-    braking = app.GetInput().GetBraking()
-
     
-    gator.SetSteering(steering)
-    gator.SetThrottle(throttle)
-    gator.SetBraking(braking)
-
-
-app.SetTimestep(1e-3)
-app.SetTryRealtime(True)
-while app.GetDevice().run():
-    time = app.GetSystem().GetChTime()
-
+    driver.Render()
+    chronoirr.ChIrrTools.DrawAllCOGs(sys, driver.GetVideoDriver())
+    driver.GetVideoDriver().EndScene()
+    driver.GetDevice().run()
     
-    sys.DoStepDynamics(time)
-
     
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
-
+    steering = 0.5 * np.sin(sys.GetChTime())
+    throttle = 0.5 * np.cos(sys.GetChTime())
+    braking = 0.2 * np.sin(sys.GetChTime())
+    vehicle.SetSteering(steering)
+    vehicle.SetThrottle(throttle)
+    vehicle.SetBraking(braking)
     
-    interactive_driver(app)
-
     
-    app.GetDevice().setEventReceiver(app.GetInput())
-    app.GetDevice().yield_()
-    while app.GetDevice().isWindowActive():
-        if app.GetDevice().getVideoDriver().getScreenSize().getWidth() <= 0 or app.GetDevice().getVideoDriver().getScreenSize().getHeight() <= 0:
-            break
-        time += 1e-3
-        if time >= 1e-3 * 50:
-            break
+    while driver.GetDevice().getTimer().getRealTime() < 1.0 / fps:
+        pass

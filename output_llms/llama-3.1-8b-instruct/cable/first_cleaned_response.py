@@ -1,87 +1,54 @@
 import chrono as chrono
-import irrlight as irrlight
+from chrono import Irrlicht
 
 
 chrono.Initialize()
+irr = Irrlicht.CreateWindowedScene('PyChrono Beam Simulation', size=(800, 600))
 
 
-world = chrono.ChSystemDynamics()
-
-
-ground = chrono.ChBodyEasyBox(m=1, l=10, w=10, h=0.1)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground = chrono.ChBodyEasyBox(10, 0.1, 10, 1000)
+ground.SetPos(0, 0, 0)
+ground.SetRot(0, 0, 0)
 ground.SetBodyFixed(True)
-world.Add(ground)
+irr.Add(irr.ChNodeBody.CreateNodeBody(ground))
 
 
-beam = chrono.ChBodyEasyBox(m=1, l=10, w=0.1, h=0.1)
-beam.SetPos(chrono.ChVectorD(0, 10, 0))
+beam = chrono.ChBodyEasyBox(0.1, 10, 0.1, 1e-3)
+beam.SetPos(0, 5, 0)
+beam.SetRot(0, 0, 0)
 beam.SetBodyFixed(False)
-world.Add(beam)
+irr.Add(irr.ChNodeBody.CreateNodeBody(beam))
 
 
-joint = chrono.ChHingeJoint()
-joint.SetBodyA(ground)
-joint.SetBodyB(beam)
-joint.SetAnchorA(chrono.ChVectorD(0, 0, 0))
-joint.SetAnchorB(chrono.ChVectorD(0, 10, 0))
-world.Add(joint)
+hinge = chrono.ChHinge2D(beam, ground)
+hinge.SetAxis(chrono.ChVectorD(0, 1, 0))
+irr.Add(irr.ChNodeHinge.CreateNodeHinge2D(hinge))
 
 
-cable = chrono.ChCableElement()
-cable.SetBodyA(beam)
-cable.SetBodyB(ground)
-cable.SetAnchorA(chrono.ChVectorD(0, 10, 0))
-cable.SetAnchorB(chrono.ChVectorD(0, 0, 0))
-cable.SetLength(10)
-cable.SetStiffness(1000)
-cable.SetDamping(10)
-world.Add(cable)
+force = chrono.ChForce()
+force.SetType(chrono.FET_FORCE)
+force.SetDir(chrono.ChVectorD(0, -9.81, 0))
+force.SetPos(0, 5, 0)
+force.SetMagnitude(1e-3)
+beam.AddForce(force)
 
 
-world.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+cable = chrono.ChCable(beam, 0, 0, 0, 0, 0, 0)
+cable.SetAnchor(chrono.ChVectorD(0, 0, 0))
+cable.SetForce(chrono.ChVectorD(0, 1e-3, 0))
+cable.SetStiffness(1e3)
+irr.Add(irr.ChNodeCable.CreateNodeCable(cable))
 
 
-engine = irrlight.IrrlichtCreateDevice(irrlight.E_DRIVER_OPENGL)
+irr.SetUserCamera(irr.ChCamera.CreateCamera())
+irr.SetUserCamera(irr.ChCamera.GetCamera())
 
 
-camera = engine.getCamera()
-camera.setTarget(chrono.ChVectorD(0, 10, 0))
-camera.setTarget(chrono.ChVectorD(0, 0, 0))
+while not irr.IsQuitRequested():
+    irr.BeginScene()
+    irr.DrawAll()
+    irr.EndScene()
+    irr.ShowImage()
+    chrono.DoStep()
 
-
-light = engine.getLight()
-light.setAmbientColor(irrlight.Color(1, 1, 1))
-light.setDiffuseColor(irrlight.Color(1, 1, 1))
-light.setSpecularColor(irrlight.Color(1, 1, 1))
-
-
-while True:
-    
-    world.DoStepDynamics(chrono.SIMSTEPS, chrono.STEP_EULER)
-
-    
-    nodes = beam.GetNodes()
-    for i in range(len(nodes)):
-        node = nodes[i]
-        pos = node.GetPos()
-        print(f"Node {i} position: {pos.x}, {pos.y}, {pos.z}")
-
-    
-    engine.beginScene(irrlight.SCENE_MODE_WIREFRAME)
-    engine.drawAll()
-    engine.endScene()
-
-    
-    engine.beginScene(irrlight.SCENE_MODE_WIREFRAME)
-    engine.drawAll()
-    engine.endScene()
-
-    
-    key = engine.getKey()
-    if key == irrlight.KEY_ESCAPE:
-        break
-
-
-chrono.Finalize()
-engine.drop()
+chrono Finalize()

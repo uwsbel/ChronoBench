@@ -2,20 +2,24 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 
+
 class MySpringForce(chrono.ForceFunctor):
     def __init__(self, spring_coef, damping_coef):
         super().__init__()
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def Evaluate(self, time, pos, vel, F):
+    def Evaluate(self, time, object1, object2, id, P1, P2, D):
         
-        F.Set(chrono.ChVector3d(0, -self.spring_coef * pos.y - self.damping_coef * vel.y, 0))
+        force = chrono.ChVector3D()
+        force = (P2 - P1) * self.spring_coef + (D) * self.damping_coef
+        return force
 
 
 rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
+
 
 
 sys = chrono.ChSystemNSC()

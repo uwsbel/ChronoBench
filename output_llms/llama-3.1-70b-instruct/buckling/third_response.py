@@ -1,4 +1,3 @@
-"""
 import math as m  # Import the math library for trigonometric functions, constants, etc.
 import pychrono as chrono  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
@@ -44,7 +43,7 @@ sys.AddBody(body_crank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(chrono.ChVectorD(vG)))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)

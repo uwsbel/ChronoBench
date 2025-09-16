@@ -1,70 +1,123 @@
-import chrono as chrono
+import chrono as ch
 import numpy as np
 
 
-chrono.Initialize()
+ch.InitChWorld()
 
 
-terrain = chrono.BodyDynamics.CreateRigidBodyDynamics()
-terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
-terrain.SetMass(1000)
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC3D(0.9, 0.0001, 0.0001, 0.0001, 0.0001))
+vehicle = ch.ChBody()
+vehicle.SetName('Gator')
+vehicle.SetPos(ch.Vec3(0, 0, 0))
+vehicle.SetRot(ch.Vec3(0, 0, 0))
+vehicle.SetMass(1000)  
+vehicle.SetBodyFixed(True)
+vehicle.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
 
 
-gator = chrono.BodyDynamics.CreateRigidBodyDynamics()
-gator.SetPosition(chrono.ChVectorD(0, 0, 0))
-gator.SetMass(1000)
-gator.SetMaterial(chrono.ChMaterialSurfaceNSC3D(0.9, 0.0001, 0.0001, 0.0001, 0.0001))
+chassis = ch.ChBody()
+chassis.SetName('Chassis')
+chassis.SetPos(ch.Vec3(0, 0, 0))
+chassis.SetRot(ch.Vec3(0, 0, 0))
+chassis.SetMass(500)  
+chassis.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
+vehicle.AddAsset(chassis)
+
+wheel1 = ch.ChBody()
+wheel1.SetName('Wheel1')
+wheel1.SetPos(ch.Vec3(-1, 0, 0))
+wheel1.SetRot(ch.Vec3(0, 0, 0))
+wheel1.SetMass(100)  
+wheel1.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
+vehicle.AddAsset(wheel1)
+
+wheel2 = ch.ChBody()
+wheel2.SetName('Wheel2')
+wheel2.SetPos(ch.Vec3(1, 0, 0))
+wheel2.SetRot(ch.Vec3(0, 0, 0))
+wheel2.SetMass(100)  
+wheel2.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
+vehicle.AddAsset(wheel2)
 
 
-gator.Add(chrono.ChassisDynamics.CreateChassisDynamics(gator))
-gator.Add(chrono.WheelDynamics.CreateWheelDynamics(gator, chrono.ChassisDynamics.CreateChassisDynamics(gator)))
-gator.Add(chrono.WheelDynamics.CreateWheelDynamics(gator, chrono.ChassisDynamics.CreateChassisDynamics(gator)))
-gator.Add(chrono.WheelDynamics.CreateWheelDynamics(gator, chrono.ChassisDynamics.CreateChassisDynamics(gator)))
-gator.Add(chrono.WheelDynamics.CreateWheelDynamics(gator, chrono.ChassisDynamics.CreateChassisDynamics(gator)))
+chassis.SetVizType(ch.CH_VIZ_TYPE_WIRE)
+wheel1.SetVizType(ch.CH_VIZ_TYPE_WIRE)
+wheel2.SetVizType(ch.CH_VIZ_TYPE_WIRE)
 
 
-gator.GetChassis().SetBodyFixedInertia(100, 100, 100)
-gator.GetChassis().SetBodyFixedInertia(100, 100, 100)
-gator.GetChassis().SetBodyFixedInertia(100, 100, 100)
-gator.GetChassis().SetBodyFixedInertia(100, 100, 100)
-gator.GetChassis().SetBodyFixedInertia(100, 100, 100)
+terrain = ch.ChBody()
+terrain.SetName('Terrain')
+terrain.SetPos(ch.Vec3(0, 0, 0))
+terrain.SetRot(ch.Vec3(0, 0, 0))
+terrain.SetMass(100000)  
+terrain.SetBodyType(ch.CH_BODY_TYPE_RIGID)
+terrain.SetBodyFixed(True)
 
 
-driver = chrono.ChDriver()
-driver.SetPosition(chrono.ChVectorD(0, 0, 0))
-driver.SetMass(1000)
-driver.SetMaterial(chrono.ChMaterialSurfaceNSC3D(0.9, 0.0001, 0.0001, 0.0001, 0.0001))
+driver = ch.ChDriver()
+driver.SetName('Driver')
+driver.SetPos(ch.Vec3(0, 0, 0))
+driver.SetRot(ch.Vec3(0, 0, 0))
+driver.SetMass(50)  
+driver.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
+vehicle.AddAsset(driver)
 
 
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.Add(chrono.ChPointLight(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), 1))
-sensor_manager.Add(chrono.ChCamera(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), 1))
+sensor_manager = ch.ChSensorManager()
+sensor_manager.SetName('SensorManager')
+sensor_manager.SetPos(ch.Vec3(0, 0, 0))
+sensor_manager.SetRot(ch.Vec3(0, 0, 0))
 
 
-simulation = chrono.ChSimulation()
-simulation.Add(terrain)
-simulation.Add(gator)
-simulation.Add(driver)
-simulation.Add(sensor_manager)
+light1 = ch.ChPointLight()
+light1.SetName('Light1')
+light1.SetPos(ch.Vec3(0, 0, 0))
+light1.SetIntensity(10)  
+sensor_manager.AddAsset(light1)
+
+light2 = ch.ChPointLight()
+light2.SetName('Light2')
+light2.SetPos(ch.Vec3(0, 0, 0))
+light2.SetIntensity(10)  
+sensor_manager.AddAsset(light2)
 
 
-gator.GetChassis().SetPosition(chrono.ChVectorD(0, 0, 0))
-gator.GetChassis().SetVelocity(chrono.ChVectorD(0, 0, 0))
-gator.GetChassis().SetAcceleration(chrono.ChVectorD(0, 0, 0))
-gator.GetChassis().SetForce(chrono.ChVectorD(0, 0, 0))
-gator.GetChassis().SetTorque(chrono.ChVectorD(0, 0, 0))
+camera = ch.ChCamera()
+camera.SetName('Camera')
+camera.SetPos(ch.Vec3(0, 0, 0))
+camera.SetRot(ch.Vec3(0, 0, 0))
+camera.SetResolution(800, 600)  
+camera.SetFov(60)  
+sensor_manager.AddAsset(camera)
 
 
-while simulation.GetT() < 10:
-    simulation.Step()
-    driver.Update()
-    terrain.Update()
-    gator.Update()
-    sensor_manager.Update()
-    simulation.Synchronize()
-    simulation.Advance()
+ch.World.Add(vehicle)
+ch.World.Add(terrain)
+ch.World.Add(sensor_manager)
 
 
-chrono.Clear()
-chrono.Terminate()
+dt = 0.01  
+t = 0
+while t < 10:
+    
+    driver.Update(dt)
+
+    
+    terrain.Update(dt)
+
+    
+    vehicle.Update(dt)
+
+    
+    sensor_manager.Update(dt)
+
+    
+    camera.Render()
+
+    
+    ch.World.Synchro()
+    ch.World.Advance()
+
+    t += dt
+
+
+ch.DestroyChWorld()

@@ -1,70 +1,69 @@
-import chrono as e
-import irrlicht
+import chrono as c
+import irrlicht as irr
+import time
 
 
-e.init()
+c.init()
 
 
-scene = e.ChScene()
+sim = c.Simulation()
 
 
-terrain = e.ChTerrain()
-terrain.SetDim(100, 100, 0.1)
-terrain.SetTexture("path/to/terrain/texture.png")
-terrain.SetPosition(0, 0, 0)
-terrain.SetRotation(0, 0, 0)
-scene.Add(terrain)
+terrain = c.RigidTerrain(sim, 10, 10, c.Vector3(0, 0, 0))
+terrain.set_texture("path/to/terrain/texture.jpg")
 
 
-vehicle = e.ChBody()
-vehicle.SetName("HMMWV")
-vehicle.SetMass(2000)
-vehicle.SetInertia(1000, 1000, 1000)
-vehicle.SetPosition(0, 0, 0)
-vehicle.SetRotation(0, 0, 0)
-vehicle.SetContactMethod(e.ChContactMethod::CM_CONTACT)
-vehicle.SetTireModel(e.ChTireModel::TMEASY)
-scene.Add(vehicle)
+vehicle = c.RigidBody(sim, "HMMWV")
+vehicle.set_position(c.Vector3(0, 0, 0))
+vehicle.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
+vehicle.set_contact_method(c.ContactMethod.SWEEPER)
+vehicle.set_tire_model(c.TireModel.TMEASY)
 
 
-chassis = e.ChBody()
-chassis.SetName("Chassis")
-chassis.SetMass(1000)
-chassis.SetInertia(500, 500, 500)
-chassis.SetPosition(0, 0, 0)
-chassis.SetRotation(0, 0, 0)
-chassis.SetContactMethod(e.ChContactMethod::CM_CONTACT)
-chassis.SetTireModel(e.ChTireModel::TMEASY)
-vehicle.Add(chassis)
+chassis = c.RigidBody(sim, "Chassis")
+chassis.set_position(c.Vector3(0, 0, 0))
+chassis.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
+vehicle.add_component(chassis)
 
-engine = e.ChBody()
-engine.SetName("Engine")
-engine.SetMass(500)
-engine.SetInertia(200, 200, 200)
-engine.SetPosition(0, 0, 0)
-engine.SetRotation(0, 0, 0)
-engine.SetContactMethod(e.ChContactMethod::CM_CONTACT)
-engine.SetTireModel(e.ChTireModel::TMEASY)
-vehicle.Add(engine)
+engine = c.RigidBody(sim, "Engine")
+engine.set_position(c.Vector3(0, 0, 0))
+engine.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
+vehicle.add_component(engine)
+
+wheels = []
+for i in range(4):
+    wheel = c.RigidBody(sim, f"Wheel {i}")
+    wheel.set_position(c.Vector3(-2, 0, -1 + i * 1.5))
+    wheel.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
+    vehicle.add_component(wheel)
+    wheels.append(wheel)
 
 
-driver = e.ChDriver()
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
-driver.SetSteeringAngle(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+for component in [chassis, engine] + wheels:
+    component.set_primitive_type(c.PrimitiveType.BOX)
 
 
-simloop = e.ChSimLoop()
-simloop.SetFPS(50)
-simloop.SetRealTime(True)
+driver = c.Driver(sim)
+driver.set_steering_gain(1.0)
+driver.set_throttle_gain(1.0)
+driver.set_braking_gain(1.0)
 
 
-while simloop.IsRunning():
-    simloop.Step()
-    scene.Render()
+sim.set_fps(50)
+sim.set_real_time(True)
 
 
-e.quit()
+while True:
+    sim.update()
+    time.sleep(1 / 50)  
+
+    
+    irr.init()
+    irr.set_window_title("HMMWV Simulation")
+    irr.set_window_size(800, 600)
+    irr.begin()
+    irr.draw_terrain(terrain)
+    irr.draw_rigid_body(vehicle)
+    irr.end()
+    irr.update()
+    irr.wait_key()

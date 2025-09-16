@@ -1,109 +1,123 @@
-import chrono as chrono
-import irrlicht
+import chrono as e
+import chrono.irrlicht as irr
 
 
-chrono.Initialize()
-irrlicht.Initialize()
+e.init()
+e.set_trace_level(1)
 
 
-sim = chrono.ChSystem()
+scene = e.ChScene()
 
 
-terrain_collision = chrono.ChCollisionModel()
-terrain_collision.SetName("Terrain_collision")
-terrain_collision.SetMesh("Highway_col.obj")
-sim.Add(terrain_collision)
+terrain_collision = e.ChCollisionModel()
+terrain_collision.load_mesh("Highway_col.obj")
+terrain_collision.set_name("TerrainCollision")
 
-terrain_visual = chrono.ChVisualModel()
-terrain_visual.SetName("Terrain_visual")
-terrain_visual.SetMesh("Highway_vis.obj")
-sim.Add(terrain_visual)
+terrain_visual = e.ChVisualModel()
+terrain_visual.load_mesh("Highway_vis.obj")
+terrain_visual.set_name("TerrainVisual")
 
 
-vehicle = chrono.ChBody()
-vehicle.SetName("HMMWV")
-vehicle.SetMass(5000)  
-vehicle.SetInertia(chrono.ChVector(1000, 1000, 1000))  
-vehicle.SetPos(chrono.ChVector(0, 0, 0))
-vehicle.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-vehicle.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-vehicle.SetTMEasyTireModel(chrono.ChTMEasyTireModel())
-sim.Add(vehicle)
+scene.add(terrain_collision)
+scene.add(terrain_visual)
 
 
-wheel1 = chrono.ChBody()
-wheel1.SetName("Wheel1")
-wheel1.SetMass(100)  
-wheel1.SetInertia(chrono.ChVector(10, 10, 10))  
-wheel1.SetPos(chrono.ChVector(-1.5, -1.5, 0))
-wheel1.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-wheel1.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-wheel1.SetTMEasyTireModel(chrono.ChTMEasyTireModel())
-sim.Add(wheel1)
-
-wheel2 = chrono.ChBody()
-wheel2.SetName("Wheel2")
-wheel2.SetMass(100)  
-wheel2.SetInertia(chrono.ChVector(10, 10, 10))  
-wheel2.SetPos(chrono.ChVector(1.5, -1.5, 0))
-wheel2.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-wheel2.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-wheel2.SetTMEasyTireModel(chrono.ChTMEasyTireModel())
-sim.Add(wheel2)
-
-wheel3 = chrono.ChBody()
-wheel3.SetName("Wheel3")
-wheel3.SetMass(100)  
-wheel3.SetInertia(chrono.ChVector(10, 10, 10))  
-wheel3.SetPos(chrono.ChVector(-1.5, 1.5, 0))
-wheel3.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-wheel3.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-wheel3.SetTMEasyTireModel(chrono.ChTMEasyTireModel())
-sim.Add(wheel3)
-
-wheel4 = chrono.ChBody()
-wheel4.SetName("Wheel4")
-wheel4.SetMass(100)  
-wheel4.SetInertia(chrono.ChVector(10, 10, 10))  
-wheel4.SetPos(chrono.ChVector(1.5, 1.5, 0))
-wheel4.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-wheel4.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-wheel4.SetTMEasyTireModel(chrono.ChTMEasyTireModel())
-sim.Add(wheel4)
-
-chassis = chrono.ChBody()
-chassis.SetName("Chassis")
-chassis.SetMass(2000)  
-chassis.SetInertia(chrono.ChVector(500, 500, 500))  
-chassis.SetPos(chrono.ChVector(0, 0, 0))
-chassis.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVector(1, 0, 0)))
-chassis.SetContactMethod(chrono.ChContactMethod::CM_DEFAULT)
-sim.Add(chassis)
+vehicle = e.ChVehicle()
+vehicle.set_name("HMMWV")
+vehicle.set_mass(2000)
+vehicle.set_inertia_tensor([1000, 1000, 1000, 0, 0, 0])
+vehicle.set_location([0, 0, 0])
+vehicle.set_orientation([0, 0, 0])
+vehicle.set_contact_method(e.ChContactMethod.TMEASY)
+vehicle.set_tire_model(e.ChTireModel.TMEASY)
 
 
-driver = chrono.ChDriver()
-driver.SetName("Driver")
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakeGain(0.1)
-sim.Add(driver)
+vehicle_body = e.ChBody()
+vehicle_body.set_name("Body")
+vehicle_body.set_mass(1500)
+vehicle_body.set_inertia_tensor([500, 500, 500, 0, 0, 0])
+vehicle_body.set_location([0, 0, 0])
+vehicle_body.set_orientation([0, 0, 0])
+vehicle_body.set_collision_model(e.ChCollisionModel())
+vehicle_body.set_visual_model(e.ChVisualModel())
+scene.add(vehicle_body)
 
 
-irrlicht.SetDevice(new irrlicht.IrrlichtDevice(irrlicht.VideoMode(800, 600, irrlicht.EVDF_TRUECOLOR)))
-irrlicht.GetDevice().SetWindowCaption("HMMWV Simulation")
-irrlicht.GetDevice().SetEventReceiver(irrlicht.IrrlichtDevice.GetDefaultEventReceiver())
+wheel1 = e.ChBody()
+wheel1.set_name("Wheel1")
+wheel1.set_mass(100)
+wheel1.set_inertia_tensor([100, 100, 100, 0, 0, 0])
+wheel1.set_location([0, -1, 0])
+wheel1.set_orientation([0, 0, 0])
+wheel1.set_collision_model(e.ChCollisionModel())
+wheel1.set_visual_model(e.ChVisualModel())
+scene.add(wheel1)
+
+wheel2 = e.ChBody()
+wheel2.set_name("Wheel2")
+wheel2.set_mass(100)
+wheel2.set_inertia_tensor([100, 100, 100, 0, 0, 0])
+wheel2.set_location([1, -1, 0])
+wheel2.set_orientation([0, 0, 0])
+wheel2.set_collision_model(e.ChCollisionModel())
+wheel2.set_visual_model(e.ChVisualModel())
+scene.add(wheel2)
+
+wheel3 = e.ChBody()
+wheel3.set_name("Wheel3")
+wheel3.set_mass(100)
+wheel3.set_inertia_tensor([100, 100, 100, 0, 0, 0])
+wheel3.set_location([0, 1, 0])
+wheel3.set_orientation([0, 0, 0])
+wheel3.set_collision_model(e.ChCollisionModel())
+wheel3.set_visual_model(e.ChVisualModel())
+scene.add(wheel3)
+
+wheel4 = e.ChBody()
+wheel4.set_name("Wheel4")
+wheel4.set_mass(100)
+wheel4.set_inertia_tensor([100, 100, 100, 0, 0, 0])
+wheel4.set_location([1, 1, 0])
+wheel4.set_orientation([0, 0, 0])
+wheel4.set_collision_model(e.ChCollisionModel())
+wheel4.set_visual_model(e.ChVisualModel())
+scene.add(wheel4)
 
 
-sim.SetRealTimeSimulation(True)
-sim.SetMaxStepSize(0.01)
-sim.SetMaxStepCount(50)
-sim.SetTimeStep(0.01)
+vehicle_body.add_constraint(e.ChConstraint())
+vehicle_body.add_constraint(e.ChConstraint())
+wheel1.add_constraint(e.ChConstraint())
+wheel2.add_constraint(e.ChConstraint())
+wheel3.add_constraint(e.ChConstraint())
+wheel4.add_constraint(e.ChConstraint())
+
+
+driver = e.ChDriver()
+driver.set_name("Driver")
+driver.set_steering_gain(0.5)
+driver.set_throttle_gain(0.5)
+driver.set_brake_gain(0.5)
+
+
+timestep = 0.02
+dt = 0.02
+clock = e.ChClock()
+clock.set_real_time(50)
 
 
 while True:
-    sim.DoStep()
-    irrlicht.GetDevice().BeginScene()
-    irrlicht.GetDevice().DrawAll()
-    irrlicht.GetDevice().EndScene()
-    irrlicht.GetDevice().UpdateDevice()
-    irrlicht.GetDevice().Sleep(0.02)
+    
+    scene.update(timestep)
+
+    
+    irr.init()
+    irr.set_scene(scene)
+    irr.render()
+    irr.shutdown()
+
+    
+    if clock.get_real_time() > 10:
+        break
+
+
+e.shutdown()

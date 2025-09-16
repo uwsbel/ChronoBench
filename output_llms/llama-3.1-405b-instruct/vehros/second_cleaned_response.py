@@ -6,7 +6,7 @@ from pychrono import irrlicht as chronoirr
 def main():
     
     hmmwv = veh.HMMWV_Full()
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
     hmmwv.SetChassisFixed(False)  
@@ -55,9 +55,6 @@ def main():
     vis.SetWindowSize(800, 600)
     vis.SetWindowTitle("HMMWV Simulation")
     vis.Initialize()
-
-    vis.AddSkyBox()
-    vis.AddTypicalLights()
 
     
     time = 0

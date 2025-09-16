@@ -92,16 +92,27 @@ class MyDriver(veh.ChDriver):
 
     def Synchronize(self, time):
         self.time = time
-        inputs = veh.DriverInputs()
-        if time > self.delay:
-            inputs.throttle = min(0.7, (time - self.delay) / 0.2)
-            if time > 2:
-                inputs.steering = math.sin((time - 2) * 2)
-        return inputs
+        throttle = 0
+        if time > 0.2:
+            throttle = min(0.7, (time - 0.2) / 0.5)
+        steering = 0
+        if time > 2:
+            steering = math.sin((time - 2) * 2 * math.pi)
+        braking = 0
+        self.SetThrottle(throttle)
+        self.SetSteering(steering)
+        self.SetBraking(braking)
 
 
 
 driver = MyDriver(0.5)
+driver.Initialize()
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -112,21 +123,23 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % int(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    driver_inputs = driver.Synchronize(time)
+    driver_inputs = driver.GetInputs()
 
     
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -112,10 +111,10 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver
-lane_change_time = 10.0  # total time for lane change
-steering_interval = 2.0  # time interval for steering
-throttle_interval = 2.0  # time interval for throttle
-braking_interval = 1.0  # time interval for braking
+lane_change_time = 5.0  # time for lane change
+steering_interval = lane_change_time / 2.0  # time for steering
+throttle_interval = lane_change_time / 2.0  # time for throttle
+braking_interval = lane_change_time / 2.0  # time for braking
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -139,20 +138,18 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
 
     # Double lane change maneuver
-    if time < lane_change_time / 2:
-        driver.SetSteeringDelta(render_step_size / steering_interval)
-        driver.SetThrottleDelta(render_step_size / throttle_interval)
-    elif time < lane_change_time:
-        driver.SetSteeringDelta(-render_step_size / steering_interval)
-        driver.SetThrottleDelta(render_step_size / throttle_interval)
-    else:
-        driver.SetSteeringDelta(0)
-        driver.SetThrottleDelta(0)
-        if time > lane_change_time + braking_interval:
-            driver.SetBrakingDelta(render_step_size / braking_interval)
+    if time < lane_change_time:
+        # Steering
+        if time < steering_interval:
+            driver.SetSteeringDelta(render_step_size / steering_time)
+        # Throttle
+        elif time < steering_interval + throttle_interval:
+            driver.SetThrottleDelta(render_step_size / throttle_time)
+        # Braking
+        else:
+            driver.SetBrakingDelta(render_step_size / braking_time)
 
     # Increment frame number
     step_number += 1

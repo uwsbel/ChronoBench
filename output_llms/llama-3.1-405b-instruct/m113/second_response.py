@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVectorD(-15, 0, 0.0)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(-15, 0, 0.0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -16,13 +16,13 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# SCM Deformable terrain
+# SCM deformable terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVectorD(0.0, 0.0, 0.1)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -36,15 +36,16 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
-vehicle.SetDrivelineType(veh.DrivelineType_TV_BDS)
+vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
 vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -57,30 +58,27 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM deformable terrain
+# Create the SCM terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(0.1,  # density
-                          0.01,  # friction angle (rad)
-                          1500,  # cohesion (Pa)
-                          100,   # elastic modulus (Pa)
-                          0.4)   # poisson ratio
-terrain.Initialize(chrono.GetDataFile("terrain/meshes/heightmap.bmp"),  # height map
-                   128,  # width of height map
-                   128,  # length of height map
-                   0.1,  # x scale
-                   0.1,  # y scale
-                   0,    # min height
-                   10)   # max height
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
-                         terrainLength, terrainWidth)
-patch.SetTexture(chrono.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+                         0.01,  # friction angle (rad)
+                         0.1,   # cohesion (Pa)
+                         0.01,  # damping ratio
+                         0.001, # elastoplastic stiffness (N/m)
+                         0.001, # hardening coefficient (m/m)
+                         0.1,   # viscous damping coefficient (s/m)
+                         0.01,  # friction coefficient
+                         0.01,  # dilatancy coefficient
+                         0.01)  # non-associativity coefficient
+terrain.SetHeightMap(chrono.GetDataFile("terrain/height_maps/bumpy_1024.bmp"), 1024, 1024, 0.1)
+terrain.SetTexture(chrono.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -109,7 +107,7 @@ driver.Initialize()
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,10 +116,10 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -129,7 +127,7 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  # hard-coded throttle value
+    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

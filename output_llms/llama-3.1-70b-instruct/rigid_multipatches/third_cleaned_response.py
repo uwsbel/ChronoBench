@@ -12,7 +12,7 @@ def main():
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    hmmwv.SetTireStepSize(1e-3)  
+    hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
 
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
@@ -29,21 +29,21 @@ def main():
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
-    patch1 = terrain.AddPatch(patch1_mat, chrono.ChCoordsysd(chrono.ChVector3d(-20, 5, 0), chrono.QUNIT), 32, 20)  
+    patch1 = terrain.AddPatch(patch1_mat, chrono.ChCoordsysd(chrono.ChVector3d(-20, 5, 0), chrono.QUNIT), 32, 20)
     patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
 
     patch2_mat = chrono.ChContactMaterialNSC()
     patch2_mat.SetFriction(0.9)
     patch2_mat.SetRestitution(0.01)
-    patch2 = terrain.AddPatch(patch2_mat, chrono.ChCoordsysd(chrono.ChVector3d(20, -5, 0.2), chrono.QUNIT), 32, 30)  
+    patch2 = terrain.AddPatch(patch2_mat, chrono.ChCoordsysd(chrono.ChVector3d(20, -5, 0.2), chrono.QUNIT), 32, 30)
     patch2.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
     patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
 
     patch3_mat = chrono.ChContactMaterialNSC()
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
-    patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(5, -45, 0), chrono.QUNIT),  
+    patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(5, -45, 0), chrono.QUNIT),
                               veh.GetDataFile("terrain/meshes/bump.obj"))
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
@@ -51,7 +51,7 @@ def main():
     patch4_mat = chrono.ChContactMaterialNSC()
     patch4_mat.SetFriction(0.9)
     patch4_mat.SetRestitution(0.01)
-    patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysd(chrono.ChVector3d(10, 40, 0), chrono.QUNIT),  
+    patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysd(chrono.ChVector3d(10, 40, 0), chrono.QUNIT),
                               veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
     patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 6.0, 6.0)
 
@@ -95,10 +95,10 @@ def main():
         vis.Synchronize(time, driver_inputs)
 
         
-        driver.Advance(2e-3)  
-        terrain.Advance(2e-3)
-        hmmwv.Advance(2e-3)
-        vis.Advance(2e-3)
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        hmmwv.Advance(step_size)
+        vis.Advance(step_size)
 
     return 0
 

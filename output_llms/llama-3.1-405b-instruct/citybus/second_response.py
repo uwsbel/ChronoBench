@@ -83,29 +83,32 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver = veh.ChDataDriver()
+# Define driver inputs
 driver_inputs = veh.vector_Entry()
+entry0 = veh.DataDriverEntry()
+entry0.time = 0.0
+entry0.throttle = 0.0
+entry0.steering = 0.0
+entry0.braking = 0.0
+driver_inputs.append(entry0)
 
-# Define a sequence of driver inputs
-entry1 = veh.DataDriverEntry(0.0)
-entry1.SetThrottle(0.0)
-entry1.SetSteering(0.0)
-entry1.SetBraking(0.0)
+entry1 = veh.DataDriverEntry()
+entry1.time = 0.1
+entry1.throttle = 1.0
+entry1.steering = 0.0
+entry1.braking = 0.0
 driver_inputs.append(entry1)
 
-entry2 = veh.DataDriverEntry(0.1)
-entry2.SetThrottle(1.0)
-entry2.SetSteering(0.0)
-entry2.SetBraking(0.0)
+entry2 = veh.DataDriverEntry()
+entry2.time = 0.5
+entry2.throttle = 1.0
+entry2.steering = 0.7
+entry2.braking = 0.0
 driver_inputs.append(entry2)
 
-entry3 = veh.DataDriverEntry(0.5)
-entry3.SetThrottle(1.0)
-entry3.SetSteering(0.7)
-entry3.SetBraking(0.0)
-driver_inputs.append(entry3)
-
+driver = veh.ChDataDriver()
 driver.SetInputs(driver_inputs)
+driver.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -128,14 +131,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_input = driver.GetInputs(time)
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_input, terrain)
-    vis.Synchronize(time, driver_input)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -27,6 +27,20 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()  
 
 
+def move(mode):
+    if mode == "straight":
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(0, 1)
+    elif mode == "left":
+        robot.SetMotorSpeed(-math.pi, 0)
+        robot.SetMotorSpeed(0, 1)
+    elif mode == "right":
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(math.pi, 1)
+    else:
+        raise ValueError("Invalid mode. Choose 'straight', 'left', or 'right'.")
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -38,45 +52,31 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-vis.EnableShadows()  
 
 
-class WheelID:
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
+vis.EnableShadows()
 
 
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(0, WheelID.LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, WheelID.RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, WheelID.LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, WheelID.RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(0, WheelID.LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, WheelID.RIGHT_DRIVE_WHEEL)
-    else:
-        raise ValueError('Invalid mode. Please use "straight", "left", or "right".')
+time_step = 2e-3
 
 
 time = 0
 while vis.Run():
     
     if time < 5:
-        print('Robot is moving straight.')
-        move('straight')
+        print("Moving straight...")
+        move("straight")
     
     elif time < 10:
-        print('Robot is turning left.')
-        move('left')
+        print("Turning left...")
+        move("left")
     
     else:
-        print('Robot is turning right.')
-        move('right')
+        print("Turning right...")
+        move("right")
 
     
-    time += 2e-3  
+    time += time_step
 
     
     vis.BeginScene()
@@ -84,4 +84,4 @@ while vis.Run():
     vis.EndScene()
 
     
-    system.DoStepDynamics(2e-3)
+    system.DoStepDynamics(time_step)

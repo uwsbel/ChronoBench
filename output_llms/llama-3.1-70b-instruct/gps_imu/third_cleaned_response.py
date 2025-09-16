@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -187,7 +186,7 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-plt.figure(figsize=(10, 10))
+plt.figure()
 plt.plot([x[0] for x in gps_data], [x[1] for x in gps_data])
 plt.xlabel('Latitude')
 plt.ylabel('Longitude')

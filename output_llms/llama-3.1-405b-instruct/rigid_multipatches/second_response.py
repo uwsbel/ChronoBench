@@ -23,20 +23,21 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single patch
+    # Create the terrain
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
+    # Create a single terrain patch
     patch_mat = chrono.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3D(0, 0, 0), chrono.QUNIT), 
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
-    patch.SetCollisionEnable(True)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                              veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
+    patch.SetCollision(True)
 
     # Create a visual mesh for the terrain
     visual_mesh = chrono.ChVisualShapeTriangleMesh()
     visual_mesh.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    patch.GetGroundBody().AddVisualShape(visual_mesh)
+    terrain.GetGroundBody().AddVisualShape(visual_mesh)
 
     terrain.Initialize()
 

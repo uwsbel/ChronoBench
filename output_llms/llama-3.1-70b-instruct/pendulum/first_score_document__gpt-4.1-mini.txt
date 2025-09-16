@@ -4,116 +4,146 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`mysystem = chrono.ChSystemNSC()`). No deduction.
-- **Body Creation:** Both ground and pendulum bodies are created using `ChBodyEasyBox`. However:
-  - The ground is created and fixed properly.
-  - The pendulum is created, positioned, and mass/inertia set, but `SetMass` and `SetInertiaXX` calls are redundant or unnecessary because `ChBodyEasyBox` already sets mass and inertia based on density and size. Also, `SetMass` and `SetInertiaXX` are called after creation without clear reason.
-  - The pendulum is not explicitly added to the system with `mysystem.Add(pendulum)`. Although `ChBodyEasyBox` constructor with system argument usually adds the body automatically, the documentation suggests explicit addition is good practice.
-- **Joint Creation:** The revolute joint is created, but the code uses `chrono.ChLinkRevolute()` which is **not** the documented class for revolute joints. The documentation specifies `chrono.ChLinkLockRevolute()` for revolute joints. This is a significant API misuse.
-- **Joint Initialization:** The joint is initialized with a frame at `(0,0,0)` and a rotation of `Q_from_AngX(chrono.CH_C_PI_2)`. This is acceptable if the joint axis is intended to be along Y or Z, but the choice is not explained or commented.
-- **Adding Joint to System:** The joint is added to the system.
-- **Visualization Setup:** The visualization system is created (`ChVisualSystemIrrlicht`), window size and title set, camera set, skybox and lights added. However:
-  - The visualization system is **not attached** to the physical system (`vis.AttachSystem(mysystem)` is missing).
-  - The visualization system is **not initialized** (`vis.Initialize()` is missing).
-  - The camera is set via `SetCamera` which is not the documented method; the documentation suggests `AddCamera(position)` instead.
-  - The code calls `AddCameraMotionMode` **multiple times (over 100 times)** redundantly, which is clearly unnecessary and likely a copy-paste or generation error.
-  - The ground is added to visualization with `AddGround` but the position and rotation may not match the physical ground body exactly.
-- **Simulation Loop:** The code snippet ends abruptly and does not include a simulation loop, stepping the system forward or rendering frames.
-- **Comments:** No comments are present to explain the code.
+- **System Initialization:** Present and correct (`mysystem = chrono.ChSystemNSC()`).  
+- **Body Creation:**  
+  - Ground created with `ChBodyEasyBox`, but missing the `visualize` and `collision` boolean parameters that are required for `ChBodyEasyBox` constructor (see API: `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`). The code passes `mysystem` as the first argument, which is incorrect.  
+  - Pendulum created with `ChBodyEasyCylinder` similarly with wrong parameters (passing `mysystem` as first argument). Also, `ChBodyEasyCylinder` requires parameters `(radius, height, density, visualize, collision, material)`; the code passes `(mysystem, 0.5, 2, 1000)`, which is incorrect.  
+  - The bodies are not added to the system explicitly with `mysystem.Add(body)`. This is essential because `ChBodyEasyBox` and `ChBodyEasyCylinder` do not automatically add themselves to the system.  
+- **Body Properties:**  
+  - Ground is fixed correctly with `SetBodyFixed(True)` (should be `SetFixed(True)` per API).  
+  - Pendulum mass and inertia are set manually, but `ChBodyEasyCylinder` already sets mass and inertia based on density; setting mass and inertia manually is redundant and inconsistent.  
+- **Joint Creation:**  
+  - Uses `chrono.ChLinkRevolute()`, but the API documentation specifies `ChLinkLockRevolute()` for revolute joints. `ChLinkRevolute` is not documented and likely incorrect.  
+  - Joint initialization uses `chrono.ChFrameD(chrono.ChVectorD(0, 0, 0))`, but the API expects `chrono.ChCoordsysD(position, rotation)`. `ChFrameD` is not a valid class.  
+  - The joint is added to the system with `mysystem.Add(revolute_joint)`, which is correct.  
+- **Visualization:**  
+  - Visualization system created with `chronoirr.ChVisualSystemIrrlicht(mysystem)`, but the API shows `ChVisualSystemIrrlicht()` without arguments, and then `AttachSystem(mysystem)` is called.  
+  - Window size and title set correctly.  
+  - Camera set with `SetCamera(...)`, but the API recommends `AddCamera(position)` and `AddTypicalLights()`. No call to `Initialize()`, `AddSkyBox()`, or `AddTypicalLights()` which are standard for visualization setup.  
+- **Simulation Loop:**  
+  - Loop uses `while vis.Run():` which is correct.  
+  - Missing calls to `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()` inside the loop, which are necessary for proper rendering.  
+  - Time step passed to `DoStepDynamics` matches the system step size, which is good.  
+- **Final Step:**  
+  - `mysystem.SetStep(0)` at the end is unusual and unnecessary; no such method is documented. Possibly a misunderstanding or typo.
 
-**Deductions:**
+**Deductions:**  
+- Missing or incorrect body creation and addition to system: **-15 points**  
+- Incorrect joint class and initialization: **-15 points**  
+- Incomplete visualization setup (missing AttachSystem, Initialize, lights, skybox, rendering calls): **-10 points**  
+- Minor issues with body fixed method name and redundant mass/inertia setting: **-5 points**
 
-- Missing explicit system attachment and initialization of visualization: -15 points (essential component missing).
-- Incorrect joint class used: -15 points (incorrect API usage).
-- Missing simulation loop: -15 points (essential component missing).
-- Redundant or missing body addition or mass/inertia setting: -10 points (component present but incorrectly configured).
-- Visualization setup issues (camera method, multiple redundant calls): -10 points (component present but incorrectly configured).
-- Minor omissions: no comments: -5 points.
-
-**Subtotal Completeness:** 40 - 15 - 15 - 15 - 10 - 10 - 5 = **-30 points** → So 10 points remain.
+**Subtotal Completeness:** 40 - 15 - 15 - 10 - 5 = **-5 points (minimum 0)** → So **0 points** for completeness.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Joint Class:** Using `chrono.ChLinkRevolute()` instead of `chrono.ChLinkLockRevolute()` is a significant API misuse and will cause the joint not to behave as expected. -15 points.
-- **Mass and Inertia Setting:** Calling `SetMass` and `SetInertiaXX` after creating `ChBodyEasyBox` is unnecessary and may cause inconsistency. -5 points.
-- **Visualization API:** Using `SetCamera` instead of `AddCamera` is incorrect per documentation. -5 points.
-- **Redundant multiple calls to `AddCameraMotionMode`:** Unnecessary and potentially harmful. -5 points.
-- **No simulation stepping or rendering loop:** Logical error, simulation will not run. -10 points.
+- **Incorrect use of `ChBodyEasyBox` and `ChBodyEasyCylinder` constructors:** Passing system as first argument is wrong and will cause runtime errors.  
+- **Incorrect joint class (`ChLinkRevolute` instead of `ChLinkLockRevolute`) and wrong initialization frame type (`ChFrameD` instead of `ChCoordsysD`):** These are significant API misuse errors.  
+- **Visualization system constructed incorrectly (passing system to constructor instead of calling `AttachSystem`):** Will cause visualization not to work properly.  
+- **Missing rendering calls in visualization loop:** Will cause no visual output.  
+- **Use of `SetBodyFixed` instead of `SetFixed`:** Minor API misuse but may cause attribute error.  
+- **Setting mass and inertia manually on `ChBodyEasyCylinder`:** Not an error but inconsistent and unnecessary.  
+- **`mysystem.SetStep(0)` at the end:** No such method; likely an error.
 
-**Subtotal Correctness:** 30 - 15 - 5 - 5 - 5 - 10 = **-40 points**, but max deduction is 30, so final correctness score is 0.
+**Deductions:**  
+- Major API misuse in body constructors and joint usage: **-15 points**  
+- Logical errors in visualization setup and loop: **-10 points**  
+- Minor API misuse and redundant calls: **-5 points**
+
+**Subtotal Correctness:** 30 - 15 - 10 - 5 = **0 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- No comments or documentation: -5 points.
-- Poor readability due to repeated redundant calls and lack of structure: -5 points.
+- Variable names are meaningful (`mysystem`, `ground`, `pendulum`, `revolute_joint`, `vis`).  
+- Code formatting is acceptable.  
+- No comments explaining the purpose of code blocks or parameters.  
+- No docstrings or inline comments to aid understanding.  
+- Some inconsistent method naming (`SetBodyFixed` vs `SetFixed`).  
+- No separation of concerns or modularization (e.g., no functions).
 
-**Subtotal Code Quality:** 0 points.
+**Deductions:**  
+- Lack of comments and documentation: **-5 points**  
+- Minor inconsistencies and no modularization: **-3 points**
+
+**Subtotal Code Quality:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Massive redundant calls to `AddCameraMotionMode` (over 100 times) are extremely inefficient: -10 points.
-- Unnecessary calls to `SetMass` and `SetInertiaXX` after `ChBodyEasyBox` creation: -5 points.
+- No obvious redundant calculations or loops.  
+- Setting mass and inertia manually after using `ChBodyEasyCylinder` is unnecessary.  
+- Visualization setup could be optimized by adding typical lights and skybox once.  
+- No use of `SetStep` on system (except the incorrect call at the end).  
+- No optimization in printing (printing every step without formatting or throttling).
 
-**Subtotal Efficiency:** 10 - 10 - 5 = 0 points.
+**Deductions:**  
+- Redundant mass/inertia setting: **-5 points**  
+- Missing visualization setup optimizations: **-3 points**
+
+**Subtotal Efficiency:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks at all: -5 points.
+- No error handling (try-except blocks) or checks for system initialization or visualization success.  
+- No handling of edge cases (e.g., what if visualization fails to initialize?).  
+- No checks on body creation or joint initialization success.
+
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
+
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system not attached to system: -3 points.
-- Visualization system not initialized: -3 points.
-- Incorrect camera setup (`SetCamera` instead of `AddCamera`): -2 points.
-- Redundant calls to `AddCameraMotionMode`: -3 points.
+- Visualization system created but incorrectly (passing system in constructor instead of attaching).  
+- Missing `AttachSystem(mysystem)` call.  
+- Missing `Initialize()`, `AddTypicalLights()`, `AddSkyBox()`.  
+- Camera set with `SetCamera()` which is not in the API; should use `AddCamera()`.  
+- Missing rendering calls (`BeginScene()`, `Render()`, `EndScene()`) inside loop.
 
-Total deductions exceed 5, so full -5 points.
+**Deductions:**  
+- Incorrect visualization setup: **-5 points**
 
----
-
-### Summary of deductions:
-
-| Category                  | Points Deducted | Notes                                      |
-|---------------------------|-----------------|--------------------------------------------|
-| Completeness              | 30              | Missing visualization attach/init, joint class, simulation loop, etc. |
-| Correctness               | 30              | Incorrect joint class, visualization API misuse, no simulation loop |
-| Code Quality              | 10              | No comments, poor readability              |
-| Efficiency                | 10              | Massive redundant calls, unnecessary calls |
-| Error Handling            | 5               | No error handling                           |
-| Visualization Tools       | 5               | Missing attach/init, incorrect camera, redundant calls |
-
-Total deductions: 90 points.
-
-Starting from 100 points, final score = 10 points.
+**Subtotal Visualization:** 0 points
 
 ---
 
-### Additional Notes:
+### **Final Score Calculation**
 
-- The script is incomplete and contains many redundant and incorrect API usages.
-- The joint class is a critical error.
-- Visualization setup is incomplete and inefficient.
-- No simulation loop means the simulation will not run.
-- No comments or structure reduce maintainability and clarity.
-- The repeated `AddCameraMotionMode` calls are likely a copy-paste or generation error and severely impact code quality and efficiency.
-
----
-
-**Final Score:**
-
-[[10]]
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 40         | 0     |
+| Correctness               | 30     | 30         | 0     |
+| Code Quality              | 10     | 8          | 2     |
+| Efficiency                | 10     | 8          | 2     |
+| Error Handling & Robustness | 5      | 5          | 0     |
+| Visualization Tools       | 5      | 5          | 0     |
+| **Total**                 | 100    | 96         | **4** |
 
 ---
 
-**Explanation:**  
-The script includes the basic elements of a PyChrono simulation but misses several essential components (visualization attachment and initialization, simulation loop), uses incorrect API classes (wrong joint type), and contains severe inefficiencies (hundreds of redundant calls). The lack of comments and error handling further reduce code quality and robustness. These issues lead to a large deduction, leaving a final score of 10 out of 100.
+### **Summary of Major Issues**
+
+- Incorrect constructors for bodies (`ChBodyEasyBox` and `ChBodyEasyCylinder`) — passing system as first argument is invalid.  
+- Missing adding bodies to the system explicitly.  
+- Wrong joint class (`ChLinkRevolute` instead of `ChLinkLockRevolute`).  
+- Wrong joint initialization frame (`ChFrameD` instead of `ChCoordsysD`).  
+- Visualization system created incorrectly (missing `AttachSystem`, `Initialize`, lights, skybox).  
+- Missing rendering calls inside the simulation loop.  
+- No comments or documentation.  
+- No error handling.  
+- Minor API misuse (`SetBodyFixed` vs `SetFixed`).  
+- Redundant manual mass and inertia setting on easy bodies.
+
+---
+
+[[4]]

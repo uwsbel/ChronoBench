@@ -1,46 +1,67 @@
-# Import necessary PyChrono modules
 import pychrono.core as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
+import numpy as np
 
-# Set the simulation step size and end time
-step_size = 1e-3
-end_time = 100
+# Set the simulation parameters
+vehicle_mass = 1000  # kg
+vehicle_speed = 10  # m/s
+terrain_friction = 0.8
+terrain_restitution = 0.2
+time_step = 0.01  # s
+simulation_time = 100  # s
 
-# Initialize the Chrono::Engine
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+# Initialize the Chrono environment
 my_system = chrono.ChSystemNSC()
 
 # Create the M113 vehicle
-my_vehicle = veh.M113()
-my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-my_system.Add(my_vehicle)
+vehicle = chrono.ChBodyEasyBox(my_system,  # Parent system
+                               vehicle_mass,  # Mass
+                               2,  # Length
+                               1,  # Width
+                               1,  # Height
+                               True,  # Visualization
+                               True,  # Collision
+                               chrono.ChVectorD(0, 0, 0),  # Position
+                               chrono.ChVectorD(vehicle_speed, 0, 0))  # Velocity
 
-# Create the terrain
-terrain = veh.RigidTerrain(my_system)
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20, 0.05, 0.05, 0.001, 0.001)
-my_system.Add(terrain)
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(my_system,  # Parent system
+                               1e6,  # Mass
+                               100,  # Length
+                               100,  # Width
+                               1,  # Height
+                               True,  # Visualization
+                               True,  # Collision
+                               chrono.ChVectorD(0, -2, 0),  # Position
+                               chrono.ChVectorD(0, 0, 0))  # Velocity
 
-# Create the driver system
-driver = veh.ChDriver(my_vehicle)
-driver.Initialize()
+# Set the terrain properties
+terrain.GetCollisionModel().SetFriction(terrain_friction)
+terrain.GetCollisionModel().SetRestitution(terrain_restitution)
 
-# Create the Irrlicht application
-myapplication = irr.ChIrrApp(my_system, 'PyChrono M113 Simulation', irr.dimension2du(800, 600))
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLights()
-myapplication.AddCamera(chrono.ChVectorD(0, 1.5, -5))
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
+# Initialize the driver system
+driver = chrono.ChIrrNodeAsset(my_system, vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+# Create the Irrlicht visualization
+application = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 0, -5))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Simulation loop
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStepDynamics(step_size)
-    driver.Synchronize(time)
-    driver.Advance(step_size)
-    myapplication.EndScene()
-    time += step_size
-    if time >= end_time:
+while application.GetDevice().run():
+    # Synchronize the vehicle, terrain, driver, and visual system
+    my_system.DoStepDynamics(time_step)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    application.DoStep()
+    # Advance the simulation time
+    simulation_time -= time_step
+    if simulation_time <= 0:
         break

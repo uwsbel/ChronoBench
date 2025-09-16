@@ -1,56 +1,86 @@
 import chrono as ch
-import irrlight as irrl
+import irrrlicht as irr
 
 
-ch.InitChSystem()
+ch.InitChronicEngine()
 
 
-ground = ch.ChBodyEasyBox(10, 0.1, 10, 1e-3, 1e-3, 1e-3, 0, 0, 0)
-ground.SetPos(ch.Vec(0, -0.05, 0))
-ground.SetRot(ch.Mat33.Identity())
-ground.SetBodyFixed(True)
+world = ch.ChWorld()
 
 
-mass = ch.ChBodyEasyBox(0.1, 0.1, 0.1, 1, 1, 1, 0, 0, 0)
-mass.SetPos(ch.Vec(0, 0.05, 0))
-mass.SetRot(ch.Mat33.Identity())
-mass.SetBodyMass(1)
+ground = ch.ChBodyEasyBox(10, 0.1, 10, 1, 1, 1)
+ground.SetPos(ch.Vec3(0, -5, 0))
+ground.SetRot(ch.Vec3(0, 0, 0))
+ground.SetBodyType(ch.ChBodyKT)
+ground.SetCollisionModel(ch.ChCollisionModelDefault)
+world.Add(ground)
 
 
-spring = ch.ChLinkTSDA()
-spring.SetBodyA(ground)
-spring.SetBodyB(mass)
-spring.SetPosA(ch.Vec(0, -0.05, 0))
-spring.SetPosB(ch.Vec(0, 0.05, 0))
-spring.SetRotA(ch.Mat33.Identity())
-spring.SetRotB(ch.Mat33.Identity())
-spring.SetK(1000)  
-spring.SetC(10)    
-spring.SetDamping(0.1)  
+mass = ch.ChBodyEasySphere(1, 1, 1)
+mass.SetPos(ch.Vec3(0, 0, 0))
+mass.SetRot(ch.Vec3(0, 0, 0))
+mass.SetBodyType(ch.ChBodyKT)
+mass.SetCollisionModel(ch.ChCollisionModelDefault)
+world.Add(mass)
 
 
-irrl.InitIrrlicht()
-irrl.SetCurrentWindow(irrl.CreateWindow(irrl.VideoMode(800, 600, 32)))
-irrl.SetCurrentWindow(irrl.CreateDevice(irrl.EDT_OPENGL))
+link = ch.ChLinkTSDA()
+link.SetSpring(1, 1)
+link.SetDamp(0.5, 0.5)
+link.SetPos(ch.Vec3(0, 0, 0))
+link.SetRot(ch.Vec3(0, 0, 0))
+link.SetBodyA(mass)
+link.SetBodyB(ground)
+world.Add(link)
 
 
-irrl.SetCameraTarget(ch.Vec(0, 0.05, 0))
-irrl.SetCameraDistance(5)
-irrl.SetCameraRotation(ch.Vec(0, 0, 0))
+mass_visual = ch.ChVisualShapeChain()
+mass_visual.SetBody(mass)
+mass_visual.AddSegment(ch.Vec3(0, 0, 0), ch.Vec3(0, 0.1, 0))
+mass_visual.AddSegment(ch.Vec3(0, 0.1, 0), ch.Vec3(0.1, 0, 0))
+mass_visual.AddSegment(ch.Vec3(0.1, 0, 0), ch.Vec3(0, 0, 0))
+world.Add(mass_visual)
 
 
-irrl.SetLight(irrl.ELIGHT0, irrl.ELIGHT0, irrl.ELIGHT0, irrl.ELIGHT0, irrl.ELIGHT0, irrl.ELIGHT0)
-irrl.SetLightPosition(irrl.ELIGHT0, ch.Vec(0, 0, 0))
-irrl.SetLightColor(irrl.ELIGHT0, ch.Vec(1, 1, 1))
+spring_visual = ch.ChVisualShapeCylinder()
+spring_visual.SetBody(link)
+spring_visual.SetPos(ch.Vec3(0, 0, 0))
+spring_visual.SetRot(ch.Vec3(0, 0, 0))
+spring_visual.SetLength(0.1)
+spring_visual.SetRadius(0.01)
+world.Add(spring_visual)
 
 
-mass.SetVisualShape(ch.ChShapeBox(0.1, 0.1, 0.1))
-spring.SetVisualShape(ch.ChShapeSpring(0.1, 0.1, 0.1))
+app = irr.Application()
+app.SetWindowDimension(800, 600)
+app.SetWindowPosition(100, 100)
+app.SetWindowCaption("Mass-Spring-Damper System")
+app.SetRenderMode(irr.RenderMode.RENDER_MODE_2D)
+app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_D3D9)
+app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_D3D9)
+app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_OPENGL)
+app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_OPENGL)
 
 
-ch.RunSimulation(10)
+camera = app.GetCamera()
+camera.SetPosition(ch.Vec3(0, 0, 10))
+camera.SetTarget(ch.Vec3(0, 0, 0))
+camera.SetUp(ch.Vec3(0, 1, 0))
 
 
-ch.ClearChSystem()
-irrl.CloseDevice()
-irrl.CloseWindow()
+light = irr.Light()
+light.SetType(irr.Light.LIGHT_DIRECTIONAL)
+light.SetDiffuseColor(irr.Color(1, 1, 1))
+light.SetSpecularColor(irr.Color(1, 1, 1))
+light.SetDirection(ch.Vec3(0, 0, 1))
+app.AddLight(light)
+
+
+while app.IsRunning():
+    app.RenderFrame()
+    world.DoStepDynamics(0.01)
+    app.Update()
+
+
+app.Close()
+ch.DestroyChronicEngine()

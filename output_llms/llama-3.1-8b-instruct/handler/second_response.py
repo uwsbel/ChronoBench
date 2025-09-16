@@ -1,15 +1,10 @@
-"""
-Import necessary modules for the simulation.
-"""
 import pychrono as ch
 import pychrono.ros as chros
 
 import rclpy.publisher
 from std_msgs.msg import String
 
-"""
-Define a custom ROS handler for publishing string messages.
-"""
+# Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
 
@@ -19,7 +14,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Define the message attribute.
+        self.message = "Hello, world! At time: "  # Set the message to be published.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""

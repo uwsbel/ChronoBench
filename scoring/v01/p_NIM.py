@@ -169,7 +169,7 @@ def main():
         "mixtral-8x22b-instruct-v0.1": "mistralai/mixtral-8x22b-instruct-v0.1",
         "codestral-22b-instruct-v0.1": "mistralai/codestral-22b-instruct-v0.1",
         "mixtral-8x7b-instruct-v0.1": "mistralai/mixtral-8x7b-instruct-v0.1",
-        "mistral-large-latest": "mistralai/mistral-large",
+        "mistral-large-latest":  "mistralai/mistral-large",
         "mistral-small-3.1-24b-instruct-2503":"mistralai/mistral-small-3.1-24b-instruct-2503",
         "mistral-medium-3-instruct":"mistralai/mistral-medium-3-instruct",
         "mamba-codestral-7b-v0.1": "mistralai/mamba-codestral-7b-v0.1",

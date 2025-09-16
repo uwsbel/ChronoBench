@@ -1,58 +1,60 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath('./data/')
 system = chrono.ChSystemNSC()
 
 
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+
+ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
 
 
-rover = chrono.ChBodyEasyBox(system, 1, 1, 2, 100, True, True)
-rover.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.SetMass(100)
+viper = veh.ViperRover(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
 
-driver = chrono.ChIrrlichtDriver()
-driver.SetWindowSize(800, 600)
-driver.SetWindowTitle('Viper Rover Simulation')
-driver.SetCameraDistance(5)
-driver.SetCameraAzimuth(45)
-driver.SetCameraElevation(30)
-driver.SetCameraPos(chrono.ChVectorD(0, 1, 0))
+driver = veh.ChIrrlichtDriver(viper)
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
-system.SetStep(0.01)  
-system.SetMaxItersSolverSpeed(100)  
+driver.SetTrackSmoothSteering(True)
+driver.SetSteeringSmoothSpeed(chrono.CH_C_PI / 4)
+driver.SetSteeringMin(chrono.CH_C_PI / 4)
+driver.SetSteeringMax(chrono.CH_C_PI / 2)
 
 
-driver.AddCamera(chrono.ChIrrlichtCamera(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0)))
-driver.AddLightWithShadow(chrono.ChIrrlichtLightDirectional(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 10, 10, 10, 100, 100, 100))
+vis = chronoirr.ChVisualSystemIrrlicht(system)
 
 
-steering_angle = 0
-steering_rate = 0.1
-simulation_time = 10
-timestep = 0.01
-while system.GetChTime() < simulation_time:
+vis.SetCamera(chrono.ChVectorD(0, 1.5, -3), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
+
+
+vis.AddTypicalLights()
+
+
+time_end = 10
+tstep = 0.01
+time = 0
+
+while time < time_end:
     
-    steering_angle += steering_rate * timestep
-    rover.SetSteering(steering_angle)
+    driver.SetSteering(chrono.CH_C_PI / 4 * chrono.ChMath.Cos(time))
 
     
-    system.DoStepDynamics(timestep)
-    driver.BeginScene()
-    driver.DrawAll()
-    driver.EndScene()
+    system.DoStepDynamics(tstep)
 
     
-    system.GetChTime() += timestep
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    
+    time += tstep
 
 
-driver.GetDevice().run()
+while vis.Run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

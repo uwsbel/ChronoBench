@@ -1,37 +1,58 @@
-import chrono as chrono
-import chrono_irrlicht as chronoirr
-import irrlicht
+import chrono as ch
+import chrono.irrlicht as ir
+import numpy as np
 
 
-chrono.Initialize()
-core = chrono.Core()
-core.SetTimestep(1/50.0)  
+ch.init()
 
 
-terrain = chrono.RigidTerrain(100, 100, 0.1)
-terrain.SetTexture(chrono.GetAssetPath() + "/textures/terrain.png")
+terrain = ch.RigidTerrain(
+    name="terrain",
+    width=10,
+    length=10,
+    height=0.1,
+    texture="path/to/custom/texture.png"
+)
 
 
-vehicle = chrono.ARTcar()
-vehicle.SetPosition(chrono.Vector(0, 0, 0))
-vehicle.SetOrientation(chrono.QfromEuler(0, 0, 0))
-vehicle.SetContactMethod(chrono.ContactMethod(chrono.ContactMethodFlags.CONTACT_METHOD_DEFAULT))
-vehicle.SetVisualizationType(chrono.VisualizationType(chrono.VisualizationTypeFlags.VISUALIZATION_TYPE_DEFAULT))
+vehicle = ch.ArtCar(
+    name="artcar",
+    mass=1000,
+    length=2,
+    width=1,
+    height=1,
+    wheel_radius=0.2,
+    suspension_stiffness=10000,
+    damping_ratio=0.5,
+    contact_method=ch.ContactMethod.SMOOTH,
+    visualization_type=ch.VisualizationType.IRR
+)
 
 
-core.Add(vehicle)
+vehicle.set_pos(np.array([0, 0, 0]))
+vehicle.set_rot(np.array([0, 0, 0]))
+vehicle.set_vel(np.array([0, 0, 0]))
 
 
-driver = chrono.InteractiveDriver()
-driver.Add(vehicle)
+ch.add_body(vehicle)
+
+
+driver = ch.InteractiveDriver(
+    name="driver",
+    steering_gain=0.1,
+    throttle_gain=0.1,
+    braking_gain=0.1
+)
+
+
+def simulation_loop():
+    ch.update()
+    ir.update()
+    ir.render()
+
+
+ch.set_fps(50)
 
 
 while True:
-    core.DoStep()
-    chronoirr.Render(core, 50)  
-    driver.Update()  
-    if core.GetTime() > 10:  
-        break
-
-
-chrono.Destroy()
+    simulation_loop()

@@ -4,157 +4,143 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Terrain Setup:** Uses `veh.SCMDeformableTerrain` with soil parameters and initialization. However:
-  - The `SetHeightMap` method is called with a NumPy array of random values scaled between -1 and 1, which is unusual. Typically, height maps represent positive terrain elevations (e.g., heights above a base plane). Negative values might cause unexpected terrain deformation or errors. The API documentation does not explicitly mention `SetHeightMap` accepting a NumPy array directly, nor the expected value range. This is a potential missing detail or misuse.
-  - Also, the terrain initialization uses `(1024, 1024, 20.0)` which matches the height map size, so that is consistent.
-- **Vehicle Setup:** The vehicle is created with `veh.HMMWV` with drivetrain and suspension specified, chassis position and rotation set, and then initialized. This is complete.
-- **Driver Setup:** Uses `veh.ChIrrNodeDriver(vehicle)` and initializes it. This is appropriate.
-- **Visualization Setup:** Uses `irr.ChIrrApp` with window size, sky, lights, camera, and symbol scale set. This is mostly complete.
-- **Simulation Loop:** The loop calls `Synchronize` on vehicle and terrain with `app.GetSimulationTime()`, advances vehicle and terrain by `app.GetStepSize()`, updates driver, and renders the scene. However:
-  - The order of calls is slightly off compared to best practices: typically, the driver update should happen before vehicle synchronization to update driver inputs before the vehicle state is synchronized. Here, `driver.Update()` is called after vehicle and terrain advance, which is not ideal.
-  - The `app.Step()` call is used instead of the more typical `app.DoStep()` or `sys.DoStepDynamics()`. According to PyChrono Irrlicht examples, `app.Step()` advances the simulation and rendering internally, so calling `vehicle.Advance()` and `terrain.Advance()` separately might be redundant or cause double stepping.
-  - The loop does not include any explicit time step setting or control, which is usually important for stable simulation.
-- **Missing Components:**
-  - No explicit setting of contact or collision parameters for the system or vehicle.
-  - No error handling or checks for simulation stability.
-  - No comments or documentation in the code.
-  - No explicit call to `sys.Add()` for bodies is needed here because the vehicle and terrain internally add themselves to the system.
+- **System Initialization Missing (Deduct 15 points):**  
+  The script does not create or initialize a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system explicitly. The vehicle object internally creates a system, but best practice and the API documentation require explicit system initialization and management. This is essential for simulation control and adding bodies or other elements.
 
-**Deductions:**
+- **Vehicle Initialization Incomplete (Deduct 10 points):**  
+  The vehicle is created with `veh.HMMWV()`, but it is missing the call to `vehicle.Initialize()` which is required to properly initialize the vehicle in the simulation system. Without this, the vehicle may not be fully ready for simulation.
 
-- Terrain height map usage is questionable and lacks important detail: **-10 points**
-- Simulation loop order and stepping logic is not ideal and may cause issues: **-10 points**
-- Missing comments/documentation: **-5 points**
+- **Terrain Initialization Incomplete (Deduct 10 points):**  
+  The terrain is created and configured, but the call to `terrain.Initialize()` is missing. According to the API, terrain initialization is necessary after setting parameters and before simulation.
 
-**Subtotal Completeness: 40 - 10 - 10 - 5 = 15 points**
+- **Driver Initialization Incomplete (Deduct 5 points):**  
+  The driver is created with `veh.ChDriver(vehicle)`, but it is missing initialization or synchronization steps that typically involve setting the initial time or input states.
+
+- **Visualization Initialization Missing (Deduct 10 points):**  
+  The visualization system is created but never attached to the system (`vis.AttachSystem()` is missing), nor is `vis.Initialize()` called. Also, the visualization window size, title, and typical lights or skybox are not set up, which are standard for a complete visualization setup.
+
+- **Time Variable Initialization Missing (Deduct 5 points):**  
+  The variable `time` is used in the loop but never initialized before the loop starts.
+
+**Total Completeness Deduction: 15 + 10 + 10 + 5 + 10 + 5 = 55 points**  
+Since the maximum is 40, the score for completeness is **0/40** (cannot be negative).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**
-  - `chrono.SetChronoDataPath('./data/')` is correctly used.
-  - `veh.SCMDeformableTerrain` and `SetSoilParameters` are used correctly.
-  - `terrain.Initialize(1024, 1024, 20.0)` matches the height map size.
-  - `terrain.SetHeightMap(height_map)` usage is questionable because the API does not document this method accepting a NumPy array directly, nor negative height values. This could cause incorrect terrain behavior.
-  - Vehicle initialization with drivetrain and suspension enums is correct.
-  - `vehicle.SetChassisPosition` and `SetChassisRotation` use correct types.
-  - `veh.ChIrrNodeDriver(vehicle)` is a valid driver class.
-  - Visualization with `irr.ChIrrApp` is correct, but `app.SetSymbolscale(0.02)` is not a documented method in the provided API docs; it might be a typo or an undocumented feature.
-  - The simulation loop calls `vehicle.Synchronize(time=app.GetSimulationTime())` and `terrain.Synchronize(time=app.GetSimulationTime())` correctly.
-  - The calls to `vehicle.Advance()` and `terrain.Advance()` with `app.GetStepSize()` are potentially redundant because `app.Step()` advances the simulation internally.
-  - The rendering calls `app.BeginScene()`, `app.DrawAll()`, and `app.EndScene()` are consistent with Irrlicht usage.
-- **Logical Errors:**
-  - Calling `driver.Update()` after advancing the vehicle and terrain is logically incorrect; driver inputs should be updated before synchronization and advancement.
-  - The use of `app.Step()` after manually advancing vehicle and terrain is likely to cause double stepping or inconsistent simulation timing.
-- **Minor inaccuracies:**
-  - `app.SetSymbolscale(0.02)` is not documented and may be unnecessary or incorrect.
-  - The chassis rotation is set with a quaternion `(1, 0, 0, 0)`, which is identity, so correct but could be simplified or commented.
-  
-**Deductions:**
+- **Incorrect Visualization Enum Syntax (Deduct 15 points):**  
+  The line  
+  ```python
+  vis.SetLightingMode(irr.Visualization_LightingMode::ARTIFICIAL)
+  ```  
+  uses C++-style scope resolution `::` which is invalid in Python. The correct usage should be `irr.Visualization_LightingMode.ARTIFICIAL`.
 
-- Incorrect or questionable use of `terrain.SetHeightMap` with negative values and NumPy array: **-15 points**
-- Logical error in simulation loop order and double stepping: **-10 points**
-- Minor inaccuracies (undocumented `SetSymbolscale` and minor style issues): **-5 points**
+- **Incorrect Advance Calls (Deduct 10 points):**  
+  The calls to `Advance()` methods are incorrectly passing `chrono.ChVectorD(0, 0, 0)` as an argument. According to the API, `Advance()` should be called with a time step (float), e.g., `vehicle.Advance(time_step)`. Passing a vector is incorrect and will cause runtime errors or unexpected behavior.
 
-**Subtotal Correctness: 30 - 15 - 10 - 5 = 0 points**
+- **Missing `sys.DoStepDynamics()` (Deduct 10 points):**  
+  The simulation loop does not advance the physics system via `sys.DoStepDynamics(time_step)`. This is essential to update the system state each time step.
+
+- **Incorrect Synchronize Order and Missing Parameters (Deduct 5 points):**  
+  The synchronization calls lack proper time step management and do not include driver inputs or other necessary parameters. Also, `driver.Synchronize()` typically requires input from the driver (e.g., steering, throttle), which is missing.
+
+- **Use of `chrono.ChVectorD` instead of `chrono.ChVector3d` (Deduct 5 points):**  
+  The API uses `ChVector3d` (double precision 3D vector). `ChVectorD` is not a valid class in PyChrono.
+
+**Total Correctness Deduction: 15 + 10 + 10 + 5 + 5 = 45 points**  
+Maximum is 30, so score is **0/30**.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with reasonable variable names (`sys`, `terrain`, `vehicle`, `driver`, `app`).
-- However, there are no comments explaining the purpose of code blocks or parameters.
-- The code structure is linear and straightforward but lacks modularization or function encapsulation.
-- Formatting is acceptable but could be improved with blank lines between logical blocks.
-- No docstrings or inline comments.
+- **Poor Readability and Lack of Comments (Deduct 7 points):**  
+  The code lacks comments explaining the purpose of each block or step, which is important for maintainability and clarity.
 
-**Deductions:**
+- **Variable Naming and Formatting (Deduct 3 points):**  
+  Variable names like `vehicle`, `terrain`, `driver`, and `vis` are acceptable, but the code formatting is inconsistent (e.g., no blank lines between logical blocks, inconsistent indentation in the loop). Also, the `while chrono.ChClock.GetTime() < time:` busy-wait loop is not explained or justified.
 
-- Lack of comments/documentation: **-5 points**
-- Minor readability and structure issues (linear script, no functions): **-3 points**
-
-**Subtotal Code Quality: 10 - 5 - 3 = 2 points**
+**Total Code Quality Deduction: 10 points**  
+Score: **0/10**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The code uses `numpy.random.rand` to generate a height map every run, which is fine for testing but not efficient or meaningful for a terrain simulation.
-- The terrain height map is set every frame? No, only once before initialization, so no inefficiency there.
-- The simulation loop calls `vehicle.Advance()` and `terrain.Advance()` separately and then calls `app.Step()`, which likely advances the simulation again internally, causing redundant calculations.
-- No caching or reuse of expensive computations is evident.
-- No obvious unnecessary calculations besides the double stepping.
+- **Busy-Wait Loop for Timing (Deduct 5 points):**  
+  The loop  
+  ```python
+  while chrono.ChClock.GetTime() < time:
+      pass
+  ```  
+  is a CPU-intensive busy wait, which is inefficient. A better approach would be to use a sleep function or proper timing synchronization.
 
-**Deductions:**
+- **Redundant Calls to Advance with Zero Vector (Deduct 5 points):**  
+  Passing zero vectors to `Advance()` is unnecessary and incorrect, as explained above.
 
-- Redundant simulation stepping (manual advance + `app.Step()`): **-5 points**
-- Minor inefficiency in height map generation (not critical): **-3 points**
-
-**Subtotal Efficiency: 10 - 5 - 3 = 2 points**
+**Total Efficiency Deduction: 10 points**  
+Score: **0/10**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks.
-- No checks for valid height map values or terrain initialization success.
-- No handling of edge cases like simulation device failure or driver errors.
-- No validation of parameters.
+- **No Error Handling (Deduct 5 points):**  
+  The script does not include any error handling or checks for initialization success, file paths, or runtime exceptions.
 
-**Deductions:**
+- **No Edge Case Handling (Deduct 0 points):**  
+  No explicit edge case handling is expected here, so no deduction.
 
-- Lack of basic error handling: **-5 points**
-
-**Subtotal Error Handling: 0 points**
+**Total Deduction: 5 points**  
+Score: **0/5**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up with `irr.ChIrrApp`, adding sky, lights, and camera.
-- The camera position is set reasonably.
-- The sky and lights are added using typical functions.
-- However, `app.SetSymbolscale(0.02)` is undocumented and may be unnecessary.
-- No addition of a skybox or logo, which are common in examples.
-- The rendering loop uses `BeginScene`, `DrawAll`, and `EndScene` correctly.
-- No user interaction or camera control is implemented.
-- Lighting and sky setup is minimal but acceptable.
+- **Incomplete Visualization Setup (Deduct 5 points):**  
+  The visualization system is not properly initialized (`vis.Initialize()` missing), not attached to the system (`vis.AttachSystem()` missing), and lacks window size, title, skybox, or typical lights setup. Also, the incorrect enum usage for lighting mode is a critical error.
 
-**Deductions:**
+- **Camera Setup Issues (Deduct 2 points):**  
+  The camera rotation is set to a quaternion `(1, 0, 0, 0)` which is identity, but no explanation or adjustment is made. Also, the camera position is behind the vehicle, which might be intentional but is not justified.
 
-- Minor visualization issue: missing skybox or logo: **-2 points**
-- Use of undocumented `SetSymbolscale`: **-2 points**
-
-**Subtotal Visualization: 5 - 2 - 2 = 1 point**
+**Total Visualization Deduction: 7 points**  
+Maximum is 5, so score is **0/5**
 
 ---
 
-### **Final Score Calculation**
+### Summary of Scores:
 
-| Category                    | Points | Deductions | Score |
-|-----------------------------|--------|------------|-------|
-| Completeness                | 40     | 25         | 15    |
-| Correctness                | 30     | 30         | 0     |
-| Code Quality               | 10     | 8          | 2     |
-| Efficiency                 | 10     | 8          | 2     |
-| Error Handling & Robustness| 5      | 5          | 0     |
-| Visualization              | 5      | 4          | 1     |
-| **Total**                  | 100    | 80         | **20**|
-
----
-
-### **Summary of Major Issues:**
-
-- Incorrect or undocumented use of `terrain.SetHeightMap` with negative values and NumPy array.
-- Logical error in simulation loop order and redundant stepping.
-- Lack of comments and documentation.
-- No error handling.
-- Minor visualization and efficiency issues.
+| Criterion                     | Max Points | Deductions | Score |
+|-------------------------------|------------|------------|-------|
+| Completeness                  | 40         | 55 (capped at 40) | 0     |
+| Correctness                  | 30         | 45 (capped at 30) | 0     |
+| Code Quality                 | 10         | 10         | 0     |
+| Efficiency                   | 10         | 10         | 0     |
+| Error Handling and Robustness| 5          | 5          | 0     |
+| Visualization Tools          | 5          | 7 (capped at 5) | 0     |
+| **Total**                   | **100**    | **87+**    | **0** |
 
 ---
 
-**Final score:**
+### Final Comments:
 
-[[20]]
+The script misses critical components required for a working PyChrono vehicle simulation:
+
+- No explicit system initialization or management.
+- Missing vehicle and terrain initialization calls.
+- Incorrect usage of API methods (`Advance()` with vectors, wrong enum syntax).
+- No physics stepping (`DoStepDynamics`).
+- Visualization setup is incomplete and incorrect.
+- No time variable initialization.
+- Busy-wait loop for timing is inefficient.
+- No comments or error handling.
+
+These issues would prevent the script from running correctly or producing meaningful simulation results.
+
+---
+
+**Final Score:**
+
+[[0]]

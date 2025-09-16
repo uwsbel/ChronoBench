@@ -1,64 +1,61 @@
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.vehicle as chrono_vehicle
 import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('./data/')
-
-# Create the simulation system and add it to the environment
-mysystem = chrono.ChSystemNSC()
-chrono.ChCollisionSystem.SetDefaultImpulseThreshold(1e-3)
+# Initialize the PyChrono environment and core components
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the vehicle
-veh_hmmwv = veh.HMMWV(mysystem)
+veh = chrono_vehicle.HMMWV(system)
+veh.SetChassisFixed(False)
+veh.SetChassisMass(1500)
+veh.SetChassisInertiaXX(chrono.ChVectorD(100, 100, 100))
+veh.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+veh.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Set the vehicle's initial position and orientation
-veh_hmmwv.SetChassisFixed(False)
-veh_hmmwv.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
-veh_hmmwv.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+# Create the rigid tire model
+veh.SetTireModel(chrono_vehicle.RigidTire())
 
-# Add the vehicle to the simulation system
-mysystem.Add(veh_hmmwv.GetChassisBody())
-mysystem.Add(veh_hmmwv.GetPart(0))  # Add the vehicle's body
-mysystem.Add(veh_hmmwv.GetPart(1))  # Add the vehicle's wheels
-mysystem.Add(veh_hmmwv.GetPart(2))  # Add the vehicle's suspension
+# Add vehicle components to the system
+system.Add(veh.GetChassisBody())
+for axle in veh.GetAxles():
+    system.Add(axle)
 
 # Create the SCM terrain
-terrain = veh.SCMDeformableTerrain(mysystem)
+terrain = chrono.ChTerrainSCM(system)
+terrain.SetName("Terrain")
+terrain.SetFile("terrain.txt")
+terrain.SetScale(1)
+terrain.SetHeightfieldData(chrono.ChHeightfieldData(256, 256, 1, 1, 1, 1))
+terrain.SetSoilParameters(chrono.ChSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+terrain.SetMovingPatchEnabled(True)
+terrain.SetMovingPatchFollowsChassis(veh.GetChassisBody())
+terrain.SetVisualizationType(chrono.ChTerrainSCM.VISUALIZATION_SINKAGE_FALSE_COLOR)
 
-# Set the terrain's parameters
-terrain.SetSoilParameters(0.1, 0.2, 0.3, 0.4, 0.5)
-terrain.SetMovingPatchSize(10, 10)
-terrain.SetMovingPatchCenter(chrono.ChVectorD(0, 0, 0))
-terrain.SetMovingPatchFollowsChassis(True)
-
-# Add the terrain to the simulation system
-mysystem.Add(terrain)
-
-# Create the visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV on SCM Deformable Terrain')
-vis.SetTypicalLenght(1.0)
-vis.SetCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-
-# Add visualization to the vehicle's components
-veh_hmmwv.AddVisualizationMesh(vis)
-
-# Add visualization to the terrain
-terrain.AddVisualization(vis, True, False, True)
+# Add the terrain to the system
+system.Add(terrain)
 
 # Create the interactive driver system
-driver = veh.HMMWV_Driver(veh_hmmwv)
+driver = chrono_vehicle.InteractiveDriver(veh)
+driver.SetSteeringRange(chrono.ChReal(-1.57, 1.57))
+driver.SetThrottleRange(chrono.ChReal(0, 1))
+driver.SetBrakingRange(chrono.ChReal(0, 1))
 
-# Set the simulation's time step and frame rate
-mysystem.SetChTimeStep(0.01)
-vis.SetFrameRate(50)
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV on SCM Deformable Terrain")
+vis.SetCameraRig(chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
-# Run the simulation
-while vis.Run():
-    mysystem.DoStepDynamics(0.01)
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+# Add visualization to all vehicle components
+for part in veh.GetParts():
+    vis.AddVisualizationMesh(part, chrono.ChVisualizationType.MESH_WIREFRAME)
+
+# Run the simulation in real time
+while True:
+    system.DoStepDynamics(0.02)
+    vis.Render()
+    chrono.ChUtils::Sleep(0.02)

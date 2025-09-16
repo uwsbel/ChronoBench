@@ -5,6 +5,7 @@ import pychrono.pardisomkl as pardiso
 import pychrono.irrlicht as chronoirr
 import os
 
+
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):

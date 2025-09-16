@@ -6,53 +6,47 @@ import pychrono.vehicle as chrono_vehicle
 chrono.SetChronoDataPath('./data/')
 system = chrono.ChSystemNSC()
 
-# Create the Irrlicht visualization
-irrlicht = chronoirr.ChIrrlichtVisualization(system)
-irrlicht.SetWindowSize(800, 600)
-irrlicht.SetWindowTitle('ARTcar Simulation')
-irrlicht.SetCameraDistance(10)
-irrlicht.SetCameraAzimuth(45)
-irrlicht.SetCameraElevation(30)
+# Create the vehicle
+vehicle = chrono_vehicle.ArticulatedVehicle(system)
+vehicle.SetContactMethod(chrono_vehicle.ContactMethod_ELLIPSOID)
+vehicle.SetChassisVisualization(chrono_vehicle.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualization(chrono_vehicle.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualization(chrono_vehicle.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualization(chrono_vehicle.VisualizationType_PRIMITIVES)
 
-# Create the ARTcar vehicle
-vehicle = chrono_vehicle.ChVehicle()
-vehicle.SetChassisBodyMass(1500)
-vehicle.SetChassisBodyInertia(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetChassisBodyPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisBodyOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetContactMethod(chrono.ChContactMethodType.SHAPE)
-vehicle.SetVisualizationType(chrono.ChVisualizationType.MESH)
+# Set the vehicle's location and orientation
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Create the RigidTerrain
-terrain = chrono.ChRigidTerrain()
-terrain.SetSize(chrono.ChVectorD(100, 100, 10))
-terrain.SetTexture('data/textures/terrain.png')
+# Create the terrain
+terrain = chrono.ChBodyEasyRigidBox(system, 10, 10, 0.5, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 
-# Add the terrain to the system
-system.Add(terrain)
+# Add a custom texture to the terrain
+texture = chrono.ChTexture()
+texture.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+terrain.AddVisualization(texture)
 
-# Add the vehicle to the system
-system.Add(vehicle)
-
-# Create an interactive driver system
+# Create the interactive driver system
 driver = chrono_vehicle.ChIrrlichtDriver(vehicle)
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
 
-# Simulation loop
-while True:
-    # Update the vehicle dynamics
-    system.DoStepDynamics(0.02)
+# Set up the simulation loop
+step_size = 0.01
+time_end = 10
+visualizer = chronoirr.ChVisualSystemIrrlicht()
+visualizer.SetWindowSize(1024, 768)
+visualizer.SetWindowTitle('ARTcar Vehicle Simulation')
+visualizer.Initialize(system)
 
-    # Update the visualization
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.EndScene()
+while visualizer.Run():
+    vehicle.Synchronize(chrono.ChTime(0, 0.01))
+    vehicle.Advance(step_size)
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.EndScene()
+    chrono.ChUtils::Sleep(0.02)
 
-    # Update the driver system
-    driver.Update()
-
-    # Display the simulation at 50 frames per second
-    chrono.ChSleep(0.02)
+# Remove the vehicle and terrain from the system
+system.Remove(vehicle)
+system.Remove(terrain)

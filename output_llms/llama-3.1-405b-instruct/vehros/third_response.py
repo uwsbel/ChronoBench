@@ -2,8 +2,8 @@ import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
-import math
 import pychrono.sensor as sens
+import math
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
@@ -42,16 +42,24 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Modified camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
     # Create a visualization box
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000)
-    box.SetPos(ch.ChVector3d(0, 0, 1))
-    box.SetBodyFixed(True)
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(),  # Create a box body
+                            1,  # length
+                            1,  # width
+                            1,  # height
+                            1000,  # density
+                            True,  # visualization flag
+                            ch.ChColor(1, 0, 0))  # box color (red)
+    box.SetPos(ch.ChVector3d(0, 0, 2))  # Set box position
+
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
+
     # Create the ROS manager and register handlers for communication.
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
@@ -59,18 +67,35 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    # Create and configure a ChLidarSensor
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 100, ch.ChVector3d(0, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), 100, 100, 0.1, 10)
-    lidar.SetCollectionWindow(0.1)
-    lidar.SetScanningFrequency(10)
-    lidar.AddFilter(sens.ChFilterShade())
-    lidar.AddFilter(sens.ChFilterRange(0.1, 10))
-    # Register the lidar handler to publish lidar data to ROS topic '~/output/lidar'.
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
-    ros_manager.Initialize()  # Initialize the ROS manager.
-    # Create a sensor manager
+
+    # Create the sensor manager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-    sens_manager.AddSensor(lidar)
+
+    # Create a lidar sensor
+    lidar = sens.ChLidarSensor(
+        hmmwv.GetChassisBody(),  # body lidar is attached to
+        ch.ChFrameD(ch.ChVector3d(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)),  # lidar offset pose
+        ch.ChVector3d(0, 0, 1),  # lidar beam direction
+        100.0,  # max lidar range
+        0.1,  # lidar beam width
+        0.01,  # lidar angular resolution
+        0.0,  # lidar vertical angle
+        0.0  # lidar horizontal angle
+    )
+    lidar.SetCollectionWindow(0.1)  # Set lidar collection window
+    lidar.SetScanningMode(sens.ChLidarSensor.MODE_HORIZONTAL)  # Set scanning mode
+    lidar.SetResolution(0.1)  # Set lidar resolution
+    lidar.SetSampleRate(10)  # Set lidar sample rate
+
+    # Add filters to the lidar
+    lidar.AddFilter(sens.ChFilterShade())  # Add shade filter
+    lidar.AddFilter(sens.ChFilterRange(0.1, 100.0))  # Add range filter
+
+    # Register the lidar handler
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+
+    ros_manager.Initialize()  # Initialize the ROS manager.
+
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
@@ -95,12 +120,15 @@ def main():
         driver.Synchronize(time)  # Synchronize the driver system.
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
+
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
         # Update the sensor manager
         sens_manager.Update()
+
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.

@@ -1,10 +1,9 @@
-"""
-PyChrono simulation script with ROS communication and visualization using Irrlicht.
-"""
-
 import pychrono as ch
+import pychrono.irrlicht as chirr
 import pychrono.ros as chros
-import rclpy.publisher
+
+import rclpy
+from rclpy.node import Node
 from std_msgs.msg import Int64
 
 # Define a custom ROS handler for publishing integer messages.
@@ -22,7 +21,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -60,42 +59,42 @@ def main():
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
+    publish_rate = 10  # Set the publishing rate for ROS handlers.
     
     # Register a clock handler for the simulation time.
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
     # Register a body handler to communicate the box's state.
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
     
     # Create and register a transform handler for coordinate transformations.
-    tf_handler = chros.ChROSTFHandler(30)
+    tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", 10)  # Set publish rate to 10 Hz.
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Set up visualization with Irrlicht.
-    vis = ch.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("PyChrono Simulation")
-    vis.SetCamera(ch.ChVector3d(0, 0, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddTypicalLights()
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 0, 5), ch.ChVector3d(0, 0, 0))
+    # Create the Irrlicht application.
+    app = chirr.ChVisualSystemIrrlicht()
+    app.SetWindowSize(1024, 768)  # Set the window size.
+    app.SetWindowTitle("PyChrono Simulation")  # Set the window title.
+    app.AddTypicalLights()  # Add typical lights.
+    app.AddTypicalCamera(ch.ChVector3d(0, 0, 5))  # Add a typical camera.
+    app.SetShowFPS(True)  # Show the frames per second.
+    app.SetCameraZoom(0.5)  # Set the camera zoom.
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-    publish_rate = 10  # Set publish rate for ROS handlers.
-    step_number = 0
-    render_step_size = 10
-    render_steps = 0
+    step_number = 0  # Initialize the step number.
+    render_step_size = 10  # Set the rendering step size.
+    render_steps = 0  # Initialize the rendering steps.
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
@@ -105,13 +104,15 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        # Conditional rendering.
-        render_steps += 1
-        if render_steps >= render_step_size:
-            vis.Render()
-            render_steps = 0
+        step_number += 1  # Increment the step number.
+        render_steps += 1  # Increment the rendering steps.
 
-        step_number += 1
+        if render_steps >= render_step_size:
+            app.BeginScene()  # Begin the scene.
+            app.DrawAll()  # Draw all objects.
+            app.EndScene()  # End the scene.
+            render_steps = 0  # Reset the rendering steps.
+
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
 # Entry point of the script.

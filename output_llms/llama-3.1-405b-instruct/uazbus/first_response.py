@@ -2,45 +2,48 @@ import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize the Chrono environment
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 # Create a Chrono::Engine physical system
 my_system = chrono.ChSystemNSC()
 
+# Create the ground body
+ground = chrono.ChBodyEasyBox(my_system,  # Parent system
+                              100, 100, 2,  # x, y, z dimensions
+                              1000,  # Density
+                              True,  # Visualization
+                              True,  # Collision
+                              chrono.ChMaterialSurfaceNSC())  # Material
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground.SetBodyFixed(True)
+
 # Create the vehicle
 my_vehicle = veh.ChUAZBUS()
-my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(0)))
-my_vehicle.SetSuspensionType(veh.ChUAZBUS.SuspensionType_SHAFTS)
-my_vehicle.SetTireType(veh.ChUAZBUS.TireModelType_RIGID)
-my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(0)))
-my_vehicle.SetPowertrainType(veh.ChUAZBUS.PowertrainModelType_SIMPLE)
-my_vehicle.SetDriveType(veh.ChUAZBUS.DriveType_REARWHEELDRIVE)
-my_vehicle.SetBrakeType(veh.ChUAZBUS.BrakeType_SHAFTS)
-
-# Create the terrain
-terrain = veh.RigidTerrain(my_system)
-terrain.SetFrictionCoefficient(0.8)
-terrain.SetRestitutionCoefficient(0.2)
-terrain.Initialize()
+my_vehicle.Initialize(my_system, chrono.ChContactMethod_NSC)
+my_vehicle.SetChassisPosition(chrono.ChVectorD(0, 1.5, 0))
+my_vehicle.SetChassisRot(chrono.Q_from_AngY(0))
+my_vehicle.SetInitVehicleSpeed(10)
 
 # Create the driver system
-my_driver = veh.ChIrrNodeDriver(my_vehicle)
+my_driver = veh.ChIrrlichtDriver(my_vehicle)
 my_driver.Initialize()
 
-# Create the Irrlicht visualization
-application = irr.ChIrrApp(my_system, 'UAZBUS Simulation', irr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(-5, 2, -10), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Create the Irrlicht application
+my_app = irr.ChIrrApp(my_system, 'UAZBUS Simulation', irr.dimension2du(800, 600))
+my_app.AddTypicalSky()
+my_app.AddTypicalLights()
+my_app.AddCamera(chrono.ChVectorD(0, 10, -30))
+my_app.AssetBindAll()
+my_app.AssetUpdateAll()
 
 # Simulation loop
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+while my_app.GetDevice().run():
+    my_app.BeginScene()
+    my_app.DrawAll()
+    my_app.EndScene()
+
+    # Synchronize and advance
+    my_driver.Synchronize(my_app.GetTime())
+    my_system.DoStepDynamics(my_app.GetTimeStep())
+    my_app.SetTimestep(my_system.GetChTime())

@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -76,12 +75,12 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat = chrono.ChContactMaterialNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
-box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 7000, True, box_mat)
+box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 1000, True, box_mat)
 box.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box.SetBodyFixed(True)
+box.SetFixed(True)
 
 
 

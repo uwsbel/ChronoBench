@@ -1,7 +1,7 @@
-!!!! Set this path before running the demo!
-"""
-chrono.SetChronoDataPath("/path/to/chrono/data")  
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -17,7 +17,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -30,7 +29,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 1e-4  
+step_size = 1e-4
 tire_step_size = step_size
 
 
@@ -70,8 +69,7 @@ patch = terrain.AddPatch(patch_mat,
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize(veh.RigidTerrain.HIGHWAY)  
-
+terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -98,16 +96,30 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-pid_controller = veh.ChPIDController()
-pid_controller.SetGains(1.0, 0.1, 0.01)  
-pid_controller.SetTargetSpeed(50.0)  
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.setpoint = setpoint
+        self.error_prev = 0
+        self.error_sum = 0
+
+    def update(self, current_value):
+        error = self.setpoint - current_value
+        self.error_sum += error
+        error_diff = error - self.error_prev
+        self.error_prev = error
+        return self.kp * error + self.ki * self.error_sum + self.kd * error_diff
+
+pid_controller = PIDController(1.0, 0.1, 0.1, 10.0)  
 
 
 
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -117,11 +129,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -137,19 +149,21 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    speed_error = pid_controller.GetTargetSpeed() - vehicle.GetVehicle().GetSpeed()
+    vehicle_speed = vehicle.GetVehicle().GetChassisBody().GetPos_dt().Length()
+    throttle_input = pid_controller.update(vehicle_speed)
 
     
-    pid_controller.Update(speed_error, time)
+    throttle_input = max(0.0, min(throttle_input, 1.0))
 
     
-    driver_inputs.m_throttle = pid_controller.GetOutput()
+    driver_inputs.m_throttle = throttle_input
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
     
     step_number += 1
 

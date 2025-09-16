@@ -38,14 +38,16 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -68,6 +70,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -78,56 +81,88 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a path using two balls
-path_radius = 20.0
-num_balls = 100
-balls = []
-for i in range(num_balls):
-    angle = 2 * math.pi * i / num_balls
+# Path and Controller Implementation
+# Implement a circular path with a reasonable radius.
+# Visualize the path using two balls.
+path_radius = 50.0
+num_path_points = 100
+path_points = []
+for i in range(num_path_points):
+    angle = 2 * math.pi * i / num_path_points
     x = path_radius * math.cos(angle)
     y = path_radius * math.sin(angle)
-    ball = chrono.ChSphereShape()
-    ball.GetSphereGeometry().SetRadius(0.5)
-    ball.SetPos(chrono.ChVector3d(x, y, 1.0))
-    balls.append(ball)
+    path_points.append(chrono.ChVector3d(x, y, 0.5))
 
-# Create a PID controller for steering control
-Kp = 0.1
-Ki = 0.01
-Kd = 0.001
-controller = veh.ChPathFollowerPID(vehicle.GetVehicle(), Kp, Ki, Kd)
-controller.SetTargetSpeed(5.0)
+# Create the path visualization
+path_vis = []
+for point in path_points:
+    path_vis.append(vis.AddSphere(point, 0.5, chrono.ChColor(1, 0, 0)))
 
-# Set the throttle value
-throttle_value = 0.3
+# PID controller gains
+kp = 0.1
+ki = 0.01
+kd = 0.1
+
+# PID controller variables
+error_prev = 0
+integral = 0
+
+# Constant throttle value
+throttle = 0.3
 
 # Simulation loop
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (int(time / render_step_size) % 2 == 0) :
+    if (step_number % int(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    # Update modules (process inputs from other modules)
-    controller.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, chrono.ChDriverInputs(throttle_value, controller.GetSteering()))
+    # Get the current vehicle position
+    vehicle_pos = vehicle.GetVehicle().GetPos()
 
-    # Advance simulation for one timestep for all modules
-    controller.Advance(step_size)
-    terrain.Advance(step_size)
+    # Find the closest point on the path to the vehicle
+    closest_point = None
+    closest_distance = float('inf')
+    for point in path_points:
+        distance = (vehicle_pos - point).Length()
+        if distance < closest_distance:
+            closest_distance = distance
+            closest_point = point
+
+    # Calculate the error
+    error = (closest_point - vehicle_pos).Length()
+
+    # Update the PID controller variables
+    integral += error * step_size
+    derivative = (error - error_prev) / step_size
+    error_prev = error
+
+    # Calculate the steering input
+    steering = kp * error + ki * integral + kd * derivative
+
+    # Update the vehicle inputs
+    vehicle_inputs = veh.ChDriverInputs()
+    vehicle_inputs.SetThrottle(throttle)
+    vehicle_inputs.SetSteering(steering)
+
+    # Update the vehicle
+    vehicle.Synchronize(time, vehicle_inputs, terrain)
+
+    # Advance the simulation
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
-    # Visualize the path using two balls
-    for ball in balls:
-        vis.DrawShape(ball, chrono.ChColor(1.0, 0.0, 0.0))
+    # Increment the frame number
+    step_number += 1
 
-    # Visualize the sentinel and target points
-    sentinel_point = chrono.ChVector3d(controller.GetSentinelPoint().x(), controller.GetSentinelPoint().y(), 1.0)
-    target_point = chrono.ChVector3d(controller.GetTargetPoint().x(), controller.GetTargetPoint().y(), 1.0)
-    vis.DrawSphere(sentinel_point, 0.5, chrono.ChColor(0.0, 1.0, 0.0))
-    vis.DrawSphere(target_point, 0.5, chrono.ChColor(0.0, 0.0, 1.0))
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

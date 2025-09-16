@@ -17,7 +17,7 @@ vis_type_mesh = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_PACEJKA89
+tire_model = veh.TireModelType_PACEJKA_89
 
 
 

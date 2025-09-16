@@ -48,20 +48,20 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Create a sensor manager
+# Create sensor manager
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-# Create a camera sensor
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.ChQuaterniond(chrono.Q_from_AngAxis(.2, chrono.ChVector3d(0, 1, 0))))
+# Create camera sensor
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
-    15,  # update rate
+    15, # update rate
     offset_pose,
-    720,  # image width
-    480,  # image height
-    1.408  # field of view
+    720, # image width
+    480, # image height
+    1.408 # field of view
 )
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
@@ -75,7 +75,6 @@ step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
 
-# Simulation loop
 time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
@@ -92,8 +91,7 @@ while vis.Run():
 
     rover.Update()  # Update the rover's state
 
-    # Update the sensor manager
-    manager.Update()
+    manager.Update()  # Update the sensor manager
 
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):
@@ -101,6 +99,6 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
     step_number += 1
-
+    
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

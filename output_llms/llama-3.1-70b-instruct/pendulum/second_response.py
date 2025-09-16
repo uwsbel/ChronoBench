@@ -1,7 +1,3 @@
-"""
-Modified PyChrono script for a single pendulum simulation
-"""
-
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import math
@@ -9,9 +5,8 @@ import math
 # Initialize the Chrono simulation system
 sys = chrono.ChSystemNSC()
 
-# Set the gravitational acceleration for the system (in m/s^2)
-# Simulate the pendulum on the moon
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 on the moon
+# Set the gravitational acceleration for the system (in m/s^2) to simulate the pendulum on the moon
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
@@ -41,18 +36,18 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 # Set an initial angular velocity for the pendulum
-pend_1.SetWvel(chrono.ChVector3d(0, 0, 1))  # Set the angular velocity (in rad/s)
+pend_1.SetWvel(chrono.ChVector3d(0, 1, 0))  # Set the angular velocity (in rad/s)
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around all three axes
+# The spherical joint allows rotation around all axes
 sph_1 = chrono.ChLinkLockSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QUNIT))
 sys.AddLink(sph_1)
 
 # Add a visualization sphere to the joint
-sph_vis = chrono.ChVisualShapeSphere(0.02)  # Sphere with radius 0.02
-sph_vis.SetColor(chrono.ChColor(1, 1, 0))  # Set the color of the sphere (RGB)
-sph_1.AddVisualShape(sph_vis, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0)))
+sph_vis = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
+sph_vis.SetColor(chrono.ChColor(0, 1, 0))  # Set the color of the sphere (RGB)
+sph_1.AddVisualShape(sph_vis)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()

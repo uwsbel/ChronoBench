@@ -1,57 +1,57 @@
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath('/path/to/chrono/data')
 
 
-my_system = chrono.ChSystemNSC()
+sys = chrono.ChSystemNSC()
 
 
-my_gator = veh.Gator()
-my_gator.Initialize(my_system)
-my_gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
-my_gator.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-my_gator.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-my_gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
+gator = veh.ChPart('gator')
+gator.SetMass(1000)
+gator.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+sys.Add(gator)
 
 
-terrain = veh.RigidTerrain(my_system)
-terrain.Initialize()
+chassis = veh.ChPart('chassis')
+chassis.SetVisualizationType(veh.VisualizationType_MESH)
+gator.Add(chassis)
+
+wheel = veh.ChPart('wheel')
+wheel.SetVisualizationType(veh.VisualizationType_SPHERE)
+gator.Add(wheel)
 
 
-driver = veh.ChDriver(my_gator)
-driver.Initialize()
+terrain = veh.ChTerrain()
+sys.Add(terrain)
 
 
-manager = sens.ChSensorManager(my_system)
+driver = veh.ChDriver()
+sys.Add(driver)
 
 
-plight1 = sens.ChPointLight()
-plight1.SetPosition(chrono.ChVector(0, 2, 0))
-plight1.SetPower(100)
-manager.AddSensor(plight1)
+manager = sens.ChSensorManager()
+sys.Add(manager)
 
-plight2 = sens.ChPointLight()
-plight2.SetPosition(chrono.ChVector(0, -2, 0))
-plight2.SetPower(100)
-manager.AddSensor(plight2)
+
+light1 = sens.ChPointLight()
+light1.SetLocation(chrono.ChVectorD(1, 1, 1))
+manager.AddSensor(light1)
+
+light2 = sens.ChPointLight()
+light2.SetLocation(chrono.ChVectorD(-1, -1, -1))
+manager.AddSensor(light2)
 
 
 camera = sens.ChCameraSensor()
-camera.SetPosition(chrono.ChVector(0, 1, -5))
-camera.SetFocusPoint(chrono.ChVector(0, 1, 0))
-camera.SetCameraParameters(50, 1.4, 640, 480)
+camera.SetLocation(chrono.ChVectorD(0, 0, 1))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
 manager.AddSensor(camera)
 
 
-camera.SetSaveData(True)
-camera.SetSaveInterval(1)
-
-
-while my_system.GetChTime() < 100:
+while sys.GetChTime() < 10:
     
     driver.Update()
 
@@ -59,13 +59,13 @@ while my_system.GetChTime() < 100:
     terrain.Update()
 
     
-    my_gator.Update()
+    gator.Update()
 
     
     manager.Update()
 
     
-    my_system.DoStepDynamics(chrono.ChTimestepperEulerImplicitLinearized())
+    sys.DoStepDynamics(0.01)
 
     
     camera.Render()

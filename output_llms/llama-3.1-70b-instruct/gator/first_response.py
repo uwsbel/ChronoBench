@@ -1,58 +1,52 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
+import numpy as np
 
-# Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('./data/')
+# Create the simulation system and add a visualization system
 system = chrono.ChSystemNSC()
-
-# Create the Irrlicht visualization
-irrlicht = chronoirr.ChIrrlichtVisualization(system)
-irrlicht.SetWindowSize(800, 600)
-irrlicht.SetWindowTitle('Gator Vehicle Simulation')
-irrlicht.SetCameraDistance(2.0)
-irrlicht.SetCameraAzimuth(1.57)
-irrlicht.SetCameraElevation(0.785)
+vis = chronoirr.ChVisualSystemIrrlicht(system)
 
 # Create the vehicle
-gator = chrono_vehicle.ChGator(system)
-
-# Set vehicle parameters
-gator.SetLocation(chrono.ChVectorD(0, 0, 0))
-gator.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-gator.SetContactMethod(chrono.ChContactMethodType.NSC)
+gator = chrono_vehicle.ChGator()
+gator.SetContactMethod(chrono.ChContactMethod_NSC)
+gator.SetChassisVisualization(chrono.ChVisualizationType.MESH)
+gator.SetSuspensionVisualization(chrono.ChVisualizationType.MESH)
+gator.SetSteeringVisualization(chrono.ChVisualizationType.MESH)
+gator.SetWheelVisualization(chrono.ChVisualizationType.MESH)
 gator.SetTireModel(chrono_vehicle.ChTireModelType.TMEASY)
 
-# Add vehicle components with mesh visualization
-gator.AddMeshVisualization(True)
+# Initialize the vehicle
+gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
-# Create the rigid terrain
-terrain = chrono.ChRigidTerrain(system)
-terrain.SetSize(chrono.ChVectorD(100, 100, 1))
-terrain.SetTexture('data/textures/terrain.png')
+# Create the terrain
+terrain = chrono.ChRigidTerrain()
+terrain.SetTexture(chrono.ChTexture("terrain", "rock.jpg"))
+terrain.SetSize(chrono.ChVectorD(10, 10, 1))
+terrain.SetPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, -0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 
-# Add the terrain to the system
+# Add the vehicle and terrain to the simulation system
+system.Add(gator.GetChassisBody())
 system.Add(terrain)
 
-# Create the interactive driver system
-driver = chrono_vehicle.ChIrrlichtDriver(gator, irrlicht)
+# Create an interactive driver system
+driver = chrono_vehicle.ChIrrlichtDriver()
+driver.SetVehicle(gator)
+driver.SetSteeringDelta(chrono.CH_C_PI/180)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.1)
 
-# Set the simulation loop parameters
-time_step = 0.02
-irrlicht.SetTimePerFrame(time_step)
+# Set up the visualization system
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Gator Simulation")
+vis.SetCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
-# Simulation loop
-while irrlicht.Run():
-    # Update the vehicle dynamics
-    system.DoStepDynamics(time_step)
-
-    # Update the visualization
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.EndScene()
-
-    # Update the driver system
-    driver.Synchronize(time_step)
-
-    # Limit the simulation to 50 frames per second
-    chrono.ChSleep(0.02)
+# Set up the simulation loop
+step_size = 0.02
+vis.SetStepSize(step_size)
+while vis.Run():
+    driver.Advance(step_size)
+    system.DoStepDynamics(step_size)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

@@ -14,17 +14,17 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box with dimensions specified by side
+    # Create a box object with dimensions specified by side
     side = 1.0
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetBodyFixed(True)  # Fix the box in space
+    box_body.SetName("Box Body")  # Set the name of the box
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
     # Create a visual representation of the box
     box_shape = chrono.ChVisualShapeBox()
     box_shape.SetBoxDimensions(chrono.ChVector3d(side, side, side))
-    box_shape.SetName("Box")
+    box_shape.SetName("Box Shape")
     box_shape.SetColor(chrono.ChColor(1, 0, 0))  # Set the color of the box
     box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box
 
@@ -53,8 +53,6 @@ def main():
     image_width = 1280  # Image width in pixels
     image_height = 720  # Image height in pixels
     fov = 1.408  # Camera's horizontal field of view in radians
-    lag = 0  # Lag (in seconds) between sensing and when data becomes accessible
-    exposure_time = 0  # Exposure (in seconds) of each image
     cam = sens.ChCameraSensor(
         box_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
@@ -64,7 +62,9 @@ def main():
         fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
+    lag = 0  # Set the lag between sensing and data accessibility
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
+    exposure_time = 0  # Set the exposure time for the camera
     cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
     # ------------------------------------------------------------------
@@ -120,11 +120,11 @@ def main():
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
-    step_size = 1e-3  # Simulation step size
-    end_time = 20.0  # Simulation end time
 
     t1 = time.time()  # Record the start time of the simulation
 
+    step_size = 1e-3  # Simulation step size
+    end_time = 20.0  # Simulation end time
     while ch_time < end_time:
         # Dynamically set the camera's position around the orbit
         cam.SetOffsetPose(chrono.ChFramed(

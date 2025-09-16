@@ -1,5 +1,10 @@
-!!!! Set this path before running the demo!
-"""
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+print(veh)
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -49,18 +54,15 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
-vehicle2 = veh.BMW_E90()
-vehicle2.SetContactMethod(contact_method)
-vehicle2.SetChassisCollisionType(chassis_collision_type)
-vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(5.0, 0.0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle2.SetTireType(tire_model)
-vehicle2.SetTireStepSize(tire_step_size)
-
-
 vehicle.Initialize()
-vehicle2.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -74,6 +76,25 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
+
+vehicle2 = veh.BMW_E90()
+vehicle2.SetContactMethod(contact_method)
+vehicle2.SetChassisCollisionType(chassis_collision_type)
+vehicle2.SetChassisFixed(False)
+vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(10, 0, 0.5), chrono.QUNIT))
+vehicle2.SetTireType(tire_model)
+vehicle2.SetTireStepSize(tire_step_size)
+
+vehicle2.Initialize()
+
+vehicle2.SetChassisVisualizationType(vis_type)
+vehicle2.SetSuspensionVisualizationType(vis_type)
+vehicle2.SetSteeringVisualizationType(vis_type)
+vehicle2.SetWheelVisualizationType(vis_type)
+vehicle2.SetTireVisualizationType(vis_type)
+
+vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 
@@ -90,14 +111,13 @@ vis.AttachVehicle(vehicle2.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3   
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -106,9 +126,9 @@ driver2.SetSteeringDelta(render_step_size / steering_time)
 driver2.SetThrottleDelta(render_step_size / throttle_time)
 driver2.SetBrakingDelta(render_step_size / braking_time)
 
+driver.Initialize()
+driver2.Initialize()
 
-steering_angle = 0.0
-steering_angle2 = 0.0
 
 
 
@@ -123,6 +143,9 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+steering_input = 0
+steering_input2 = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -140,32 +163,28 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    driver2.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs)
+    driver2.Synchronize(time)
+    vehicle2.Synchronize(time, driver_inputs2, terrain)
+    vis.Synchronize(time, driver_inputs2)
+
+    
+    steering_input = 0.5 * math.sin(2 * math.pi * time / steering_time)
+    steering_input2 = 0.5 * math.sin(2 * math.pi * time / steering_time + math.pi)
+
+    driver.SetSteeringDelta(steering_input * render_step_size / steering_time)
+    driver2.SetSteeringDelta(steering_input2 * render_step_size / steering_time)
 
     
     driver.Advance(step_size)
-    driver2.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    vis.Advance(step_size)
+    driver2.Advance(step_size)
     vehicle2.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    steering_angle += 0.01
-    steering_angle2 += 0.01
-    if steering_angle > math.pi / 2:
-        steering_angle = math.pi / 2
-    if steering_angle2 > math.pi / 2:
-        steering_angle2 = math.pi / 2
-
-    
-    driver.SetSteeringAngle(steering_angle)
-    driver2.SetSteeringAngle(steering_angle2)
-
     
     step_number += 1
 

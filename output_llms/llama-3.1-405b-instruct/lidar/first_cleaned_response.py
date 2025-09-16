@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
 import pychrono.irrlicht as chronoirr
-import numpy as np
 
 
 chrono.SetChronoDataPath('/path/to/chrono/data/')
@@ -10,75 +9,57 @@ chrono.SetChronoDataPath('/path/to/chrono/data/')
 my_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+ground = chrono.ChBodyEasyBox(my_system, 100, 100, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
 my_system.Add(ground)
-ground.SetBodyFixed(True)
 
 
-mesh_module = chrono.ChObjShapeFile()
-mesh_module.SetFilename('path/to/mesh.obj')
-mesh_module.SetScale(1)
-mesh_module.SetDensity(1000)
-mesh_body = chrono.ChBodyEasyMesh(mesh_module, 1000, True, True)
-my_system.Add(mesh_body)
-mesh_body.SetBodyFixed(True)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('/path/to/mesh.obj')
+body = chrono.ChBodyEasyMesh(my_system, mesh, 1000, True, True, False, False)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+my_system.Add(body)
 
 
 manager = sens.ChSensorManager(my_system)
 
 
 lidar = sens.ChLidarSensor(
-    my_system,  
-    100,  
-    chrono.ChVector(0, 0, 0),  
-    chrono.ChQuaternion(1, 0, 0, 0),  
-    360,  
-    0.1,  
-    100,  
-    0.1,  
-    0.1  
+    my_system,              
+    100,                    
+    chrono.ChVectorD(0, 0, 0),  
+    chrono.ChVectorD(0, 0, 1),  
+    100.0,                  
+    0.05,                   
+    0.05                    
 )
+lidar.SetName("Lidar")
+lidar.SetNoise(sens.ChNoiseNone())
+lidar.SetVisualization(sens.ChVisualizationMode::SENSOR_POINT_CLOUD, 1.0, 1000)
+lidar.SetSaveOptions(sens.ChSaveOptions::SENSOR_DATA, True)
 manager.AddSensor(lidar)
 
 
-noise_filter = sens.ChFilterNoise(0.1, 0.1, 0.1)
-lidar.PushFilter(noise_filter)
+body.AddAsset(lidar)
 
 
-visualization = sens.ChVisualizerLidar(chrono.ChVector(0, 0, 0), chrono.ChQuaternion(1, 0, 0, 0))
-lidar.PushVisualizer(visualization)
-
-
-lidar.SetSaveData(True)
-lidar.SetSavePath('lidar_data/')
-
-
-time_step = 0.01
-end_time = 10
-time = 0
-while time < end_time:
+t_step = 0.01
+t_end = 10.0
+chrono.ChTimestepperChange(my_system, chrono.ChTimestepperType::EULER_IMPLICIT_LINEARIZED)
+while my_system.GetChTime() < t_end:
     
-    lidar.SetOffsetPose(chrono.ChVector(5 * np.cos(time), 5 * np.sin(time), 0))
+    lidar.SetOffsetPose(chrono.ChVectorD(2 * chrono.CH_C_PI * my_system.GetChTime(), 0, 0))
+    lidar.SetDirection(chrono.ChVectorD(0, 0, 1).RotateY(chrono.CH_C_PI * my_system.GetChTime()))
+
     
+    my_system.DoStepDynamics(t_step)
+
     
-    my_system.DoStepDynamics(time_step)
-    
-    
-    buffer = lidar.GetBuffer()
-    print('Lidar buffer data at time {}:'.format(time))
+    buffer = lidar.GetMostRecentBuffer()
+    print("Lidar Buffer Data:")
     for point in buffer:
-        print('  - Point: {}'.format(point))
-    
-    
-    time += time_step
+        print(point)
 
 
-myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
-
-
-myapplication.AddTypicalSky()
-myapplication.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
-myapplication.AddTypicalLights()
-myapplication.AssetBindAll()
-myapplication.AssetUpdateAll()
-myapplication.SimulationLoop()
+del my_system

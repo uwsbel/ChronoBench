@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0      
-terrainLength = 200.0  
+terrainLength = 200.0   
 terrainWidth = 100.0   
 
 
@@ -85,18 +85,19 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 path = veh.DoubleLaneChangePath()
-path.SetPathWidth(3.5)
-path.SetPathLength(100)
-path.SetEntrySpeed(10)
+path.SetInitialLocation(chrono.ChVector3d(-50, 0, 0.5))
+path.SetInitialDirection(chrono.ChVector3d(1, 0, 0))
+path.SetLaneWidth(3.5)
+path.SetLaneChangeDistance(50)
+path.SetTargetSpeed(10.0)
 
 
 driver = veh.ChPathFollowerDriver()
+driver.SetVehicle(vehicle.GetVehicle())
 driver.SetPath(path)
 driver.SetTargetSpeed(10.0)
-driver.SetLookAheadDistance(5)
-driver.SetSteeringGain(0.5)
-driver.SetSpeedGain(0.5)
-
+driver.SetSteeringController(veh.ChSteeringControllerLookAhead(5))
+driver.SetSpeedController(veh.ChSpeedControllerPID(2, 0.5, 0))
 driver.Initialize()
 
 
@@ -121,13 +122,10 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     
     driver.Advance(step_size)

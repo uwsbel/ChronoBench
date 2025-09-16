@@ -1,6 +1,3 @@
-"""
-Import necessary modules
-"""
 import pychrono.core as chrono
 import pychrono.sensor as sens
 

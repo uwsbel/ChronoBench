@@ -84,6 +84,19 @@ mesh.SetAutomaticGravity(False)
 sys.Add(mesh)
 
 
+builder = fea.ChBuilderBeamEuler()
+
+builder.BuildBeam(msection,  
+                  chrono.ChVector3d(0, 0, -0.1),  
+                  chrono.ChVector3d(0.2, 0, -0.1),  
+                  chrono.ChVector3d(0, 1, 0),  
+                  5)  
+
+builder.GetLastBeamNodes().back().SetFixed(True)
+
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) 
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4) 
@@ -114,21 +127,6 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver) 
-
-
-builder = fea.ChBuilderBeamEuler()
-
-
-builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, msection, True)
-
-
-last_beam_nodes = builder.GetLastBeamNodes()
-
-
-last_beam_nodes[-1].SetFixed(True)
-
-
-last_beam_nodes[0].SetForce(chrono.ChVector3d(0, -1, 0))
 
 
 while vis.Run():

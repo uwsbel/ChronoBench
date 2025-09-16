@@ -83,6 +83,29 @@ mesh.SetAutomaticGravity(False)
 # Add the mesh to the physical system.
 sys.Add(mesh)
 
+# Create a builder object to create a beam.
+builder = fea.ChBuilderBeamEuler()
+# Set the beam section properties.
+builder.SetBeamSection(msection)
+# Set the beam nodes.
+builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0, 0, -0.1)))
+builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1)))
+# Set the beam direction (Y up).
+builder.SetBeamDirection(chrono.ChVector3d(0, 1, 0))
+# Set the number of elements.
+builder.SetBeamNElements(5)
+# Build the beam.
+builder.BuildBeam()
+
+# Get the last beam nodes.
+last_node = builder.GetLastBeamNodes().back()
+
+# Fix the last node of the created beam.
+last_node.SetFixed(True)
+
+# Apply a force to the first node of the created beam section.
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
 # Add visualization for the beams in the mesh.
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) # Visualize the bending moments.
@@ -100,6 +123,10 @@ visualizebeamC.SetSymbolsScale(0.01) # Set symbol scale.
 visualizebeamC.SetZbufferHide(False) # Do not hide symbols behind objects.
 mesh.AddVisualShapeFEA(visualizebeamC)
 
+# Change the default solver to the MKL Pardiso solver, which is more precise for FEA.
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver) # Set the MKL Pardiso solver for the system.
+
 # Create an Irrlicht visualization window.
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys) # Attach the simulation system to the visual system.
@@ -110,25 +137,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png')) # Add the Chron
 vis.AddSkyBox() # Add a skybox.
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2)) # Add a camera.
 vis.AddTypicalLights() # Add typical lights for the scene.
-
-# Create a builder helper object for Euler-Bernoulli beams.
-builder = fea.ChBuilderBeamEuler()
-
-# Create a beam from point A to point B using the builder helper object.
-builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, 0, 0, 1)
-
-# Get the last beam nodes from the builder.
-last_beam_nodes = builder.GetLastBeamNodes()
-
-# Fix the last node of the created beam.
-last_beam_nodes.back().SetFixed(True)
-
-# Apply a force to the first node of the created beam section.
-last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-# Change the default solver to the MKL Pardiso solver, which is more precise for FEA.
-msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver) # Set the MKL Pardiso solver for the system.
 
 # Simulation loop.
 while vis.Run():

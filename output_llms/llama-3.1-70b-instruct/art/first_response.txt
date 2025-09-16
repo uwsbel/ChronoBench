@@ -1,62 +1,84 @@
-Here is the PyChrono simulation script based on the provided instructions:
 ```python
+# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
+import pychrono.vehicle as veh
 
-# Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('./data/')
-system = chrono.ChSystemNSC()
+# Create the simulation system and add a visualization Irrlicht module
+mysystem = chrono.ChSystemNSC()
+visualization = chronoirr.ChVisualSystemIrrlicht(mysystem)
 
-# Create the Irrlicht visualization
-irrlicht = chronoirr.ChIrrlichtVisualization(system)
-irrlicht.SetWindowSize(800, 600)
-irrlicht.SetWindowTitle('ARTcar Simulation')
-irrlicht.SetCameraDistance(10)
-irrlicht.SetCameraAzimuth(45)
-irrlicht.SetCameraElevation(30)
+# Create the vehicle and set its parameters
+vehicle = veh.ArticulatedVehicle(mysystem)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetChassisVisualizationFile("path/to/chassis/mesh.obj")
+vehicle.SetChassisCollisionType(veh.CollisionType_MESH)
+vehicle.SetChassisCollisionFile("path/to/chassis/collision/mesh.obj")
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRISMATIC)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRISMATIC)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelCollisionType(veh.CollisionType_MESH)
+vehicle.SetChassisMass(1500)
+vehicle.SetChassisInertiaXX(chrono.ChVectorD(1000, 0, 0))
+vehicle.SetChassisInertiaYY(chrono.ChVectorD(0, 1000, 0))
+vehicle.SetChassisInertiaZZ(chrono.ChVectorD(0, 0, 1000))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI / 4))
 
-# Create the ARTcar vehicle
-vehicle = chrono_vehicle.ChVehicle()
-vehicle.SetChassisBodyMass(1500)
-vehicle.SetChassisBodyInertia(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetChassisBodyPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisBodyOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.SetContactMethod(chrono.ChContactMethodType.SHAPE)
-vehicle.SetVisualizationType(chrono.ChVisualizationType.MESH)
+# Create the terrain and set its parameters
+terrain = veh.RigidTerrain(mysystem)
+terrain.SetName("terrain")
+terrain.SetBox(chrono.ChVectorD(10, 1, 10))
+terrain.SetBodyFixed(True)
+terrain.SetVisualizationType(veh.VisualizationType_MESH)
+terrain.SetFile("path/to/terrain/mesh.obj")
+texture = chrono.ChTexture()
+texture.SetTextureFilename("path/to/terrain/texture.png")
+terrain.AddTexture(texture)
 
-# Create the RigidTerrain
-terrain = chrono.ChRigidTerrain()
-terrain.SetSize(chrono.ChVectorD(100, 100, 10))
-terrain.SetTexture('data/textures/terrain.png')
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+# Add the vehicle and terrain to the simulation system
+mysystem.Add(vehicle.GetPart(0))
+mysystem.Add(terrain)
 
-# Add the terrain to the system
-system.Add(terrain)
+# Create the interactive driver system
+driver = veh.ArticulatedDriver(vehicle)
+driver.SetSteeringDelta(chrono.CH_C_PI / 180)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
-# Add the vehicle to the system
-system.Add(vehicle)
-
-# Create an interactive driver system
-driver = chrono_vehicle.ChIrrlichtDriver(vehicle)
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakingGain(0.1)
-
-# Simulation loop
-while True:
+# Set up the simulation loop
+steering = 0
+throttle = 0
+braking = 0
+while visualization.Run():
     # Update the vehicle dynamics
-    system.DoStepDynamics(0.02)
-
+    mysystem.DoStepDynamics(0.02)
+    
     # Update the visualization
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.EndScene()
-
-    # Update the driver system
-    driver.Update()
-
-    # Display the simulation at 50 frames per second
+    visualization.BeginScene()
+    visualization.DrawAll()
+    visualization.EndScene()
+    
+    # Update the interactive driver system
+    driver.SetSteering(steering)
+    driver.SetThrottle(throttle)
+    driver.SetBraking(braking)
+    
+    # Handle keyboard input
+    if visualization.GetDevice().isKeyPushed(chronoirr.EKEY_UP):
+        throttle += driver.GetThrottleDelta()
+    elif visualization.GetDevice().isKeyPushed(chronoirr.EKEY_DOWN):
+        braking += driver.GetBrakingDelta()
+    elif visualization.GetDevice().isKeyPushed(chronoirr.EKEY_LEFT):
+        steering -= driver.GetSteeringDelta()
+    elif visualization.GetDevice().isKeyPushed(chronoirr.EKEY_RIGHT):
+        steering += driver.GetSteeringDelta()
+    
+    # Limit the steering, throttle, and braking values
+    steering = chrono.ChUtils::Clamp(steering, -chrono.CH_C_PI / 4, chrono.CH_C_PI / 4)
+    throttle = chrono.ChUtils::Clamp(throttle, 0, 1)
+    braking = chrono.ChUtils::Clamp(braking, 0, 1)
+    
+    # Update the simulation at 50 frames per second
     chrono.ChSleep(0.02)
 ```
-This script initializes the PyChrono environment, creates an ARTcar vehicle with specific parameters, sets up a RigidTerrain with a custom texture, and incorporates an interactive driver system to control the vehicle's steering, throttle, and braking. The simulation loop updates the vehicle dynamics and visualization in real time, displaying the simulation at 50 frames per second using Irrlicht for visualization.

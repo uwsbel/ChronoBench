@@ -118,15 +118,15 @@ builder = fea.ChBuilderBeamEuler()
 builder.SetSpans(5)
 builder.SetSection(msection)
 builder.SetYup(chrono.ChVector3d(0, 1, 0))
-builder.SetNode1(chrono.ChVector3d(0, 0, -0.1))
-builder.SetNode2(chrono.ChVector3d(0.2, 0, -0.1))
-builder.BuildBeam(mesh)
+builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
+builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
+builder.BuildBeam(sys, mesh)
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
 
 
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
 while vis.Run():

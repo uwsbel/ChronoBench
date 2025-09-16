@@ -44,7 +44,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(ch.ChTexture2D("floor_texture.png"))  
+    floor.SetTexture(ch.ChTextureAsset("path_to_floor_texture.png"))  
     sys.Add(floor)  
 
     
@@ -52,7 +52,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(ch.ChTexture2D("box_texture.png"))  
+    box.SetTexture(ch.ChTextureAsset("path_to_box_texture.png"))  
     sys.Add(box)  
 
     
@@ -70,27 +70,24 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)  
+    publish_rate = 10  
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    irr = ch.ChIrrApp(sys, "ChronoPyROS", ch.EAAD_NO_WINDOW)
-    irr.AddSkySphere(True, 1000)
-    irr.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(0, 0, 0), 1000, 0.5)
-    irr.AddLight(ch.ChVector3d(0, 0, -10), ch.ChVector3d(0, 0, 0), 1000, 0.5)
-    irr.SetCurrentCameraTarget(ch.ChVector3d(0, 0, 0))
-    irr.SetCurrentCameraPosition(ch.ChVector3d(0, 0, 10))
-    irr.SetRenderWindowFlags(ch.EAWF_FULLSCREEN)
-    irr.SetWindowSize(800, 600)
-    irr.SetWindowFlags(ch.EAWF_FULLSCREEN)
+    visualizer = ch.ChVisualizer()
+    visualizer.SetCamera(ch.ChCamera(0, 0, 5))  
+    visualizer.AddLight(ch.ChLightDistant(0, 0, 1))  
+    visualizer.SetWindowSize(800, 600)  
+    visualizer.SetWindowTitle("Chrono Simulation")  
 
     
     step_number = 0
-    render_step_size = 10
-    render_steps = 100
+    render_step_size = 5  
+    render_steps = 10  
 
     
     time = 0
@@ -105,13 +102,13 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
+        
         step_number += 1
-        if step_number % render_step_size == 0:
-            
-            irr.BeginScene(True, True, ch.ChColor(0.2, 0.2, 0.2))
-            irr.DrawAll()
-            irr.EndScene()
-            step_number = 0
+        if step_number % render_step_size == 0 and render_steps > 0:
+            visualizer.Render()  
+            render_steps -= 1  
+            if render_steps == 0:
+                break  
 
         realtime_timer.Spin(time_step)  
 

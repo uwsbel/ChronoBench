@@ -1,67 +1,82 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.engine as eng
 import numpy as np
 
 
-chrono.SetChronoDataPath('./data/')
+mysim = chrono.ChSystemNSC()
 
 
-mysystem = chrono.ChSystemNSC()
+veh_hmmwv = veh.HMMWV()
+veh_hmmwv.SetChassisFixed(False)
+veh_hmmwv.SetVehicleSpeed(10)
+veh_hmmwv.SetSteeringAngle(0)
+veh_hmmwv.SetDriveType(veh.DRIVETYPE_AWD)
+mysim.Add(veh_hmmwv.GetChassisBody())
 
 
-hmmwv = veh.HMMWV(mysystem)
-hmmwv.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0, 1.5))
-hmmwv.SetInitRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-terrain = eng.SCMDeformableTerrain(mysystem)
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetHeightMap(chrono.ChHeightField(256, 256, 1, 1, 0, 0))
-terrain.SetSoilParameters(chrono.ChSoilParameters(1000, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5))
+terrain = veh.SCMDeformableTerrain(mysim)
+terrain.SetName("terrain")
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+terrain.SetNormal(chrono.ChVectorD(0, 1, 0))
+terrain.SetLength(100)
+terrain.SetWidth(100)
+terrain.SetHeight(10)
+terrain.SetStep(0.5)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
+terrain.SetSoilParameters(100, 1e6, 1e6, 1e6, 1e6)
+terrain.Initialize()
 
 
 driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(hmmwv)
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+driver.SetVehicle(veh_hmmwv)
+driver.SetSteeringMode(veh.STEERINGMODE_TORQUE)
+driver.SetSteeringValue(0)
+driver.SetThrottleMode(veh.THROTTLEMODE_TORQUE)
+driver.SetThrottleValue(0)
+driver.SetBrakingMode(veh.BRAKINGMODE_TORQUE)
+driver.SetBrakingValue(0)
+mysim.Add(driver.GetDriverBody())
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
-vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.SetLightDirection(chrono.ChVectorD(1, 1, 1))
-vis.SetLightColor(chrono.ChColor(1, 1, 1))
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.AddTypicalLights()
+vis.AddSkyBox()
+vis.AddLogo()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUpMode(chronoirr.CameraUpMode.CAMERA_UP_FIXED)
+vis.SetCameraSpeed(0.5)
+vis.SetCameraRotSpeed(0.1)
+vis.SetCameraDistance(10)
+vis.SetShowFPS(True)
+vis.SetShowInfo(True)
 
 
-mysystem.Add(hmmwv.GetChassisBody())
-mysystem.Add(terrain)
-mysystem.Add(driver)
-
-
-mysystem.SetStep(0.01)
-mysystem.SetSolverType(chrono.ChSolverType.PGSSOR)
-mysystem.SetSolverMaxIterations(100)
-
-
-while vis.Run():
+tstep = 0.01
+tend = 10
+while mysim.GetChTime() < tend:
     
-    mysystem.DoStepDynamics(0.01)
-
+    mysim.DoStepDynamics(tstep)
     
-    hmmwv.Advance(0.01)
-    terrain.Advance(0.01)
-    driver.Advance(0.01)
-
+    
+    veh_hmmwv.Synchronize(tstep)
+    terrain.Synchronize(tstep)
+    driver.Synchronize(tstep)
+    vis.Synchronize(tstep)
+    
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
     
-    chrono.ChUtils::Sleep(0.01)
+    
+    if vis.GetFrameDuration() > tstep:
+        print("Warning: simulation is not running in real-time")
+
+
+mysim.GetSystem().RemoveAll()

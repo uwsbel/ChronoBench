@@ -14,17 +14,13 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain_length = 20
-terrain_width = 20
-terrain_mesh_resolution = 0.1
-soil_density = 1500
-soil_youngs_modulus = 1e7
-soil_damping_ratio = 0.1
-soil_friction_angle = math.radians(30)
-
-terrain = chrono.ChBodyEasyBox(system, terrain_length, terrain_width, 1, soil_density, True, True)
-terrain.SetPos(chrono.ChVector3d(0, 0, -1))  
-terrain.SetFixed(True)  
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+terrain.SetLength(20)
+terrain.SetWidth(20)
+terrain.SetMeshResolution(20)
+terrain.SetSoilParameters(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+system.Add(terrain)
 
 
 rover = viper.Viper(system)  
@@ -41,7 +37,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - SCM deformable terrain')
+vis.SetWindowTitle('Viper rover - Deformable terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

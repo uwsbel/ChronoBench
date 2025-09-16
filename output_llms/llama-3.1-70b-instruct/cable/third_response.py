@@ -13,7 +13,7 @@ class Model1:
         self.system = system
         self.mesh = mesh
         self.n_chains = n_chains
-        self.end_bodies = []
+        self.chains = []
 
         # Create a section, i.e. define thickness and material properties for the cable beam
         msection_cable2 = fea.ChBeamSectionCable()
@@ -28,15 +28,14 @@ class Model1:
             # Create a truss body (a fixed reference frame in the simulation)
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  # Fix the truss body
-            self.system.Add(mtruss)
 
             # Use BuildBeam to create a beam structure consisting of ANCF elements:
             builder.BuildBeam(
-                self.mesh,  # The mesh to which the created nodes and elements will be added
+                mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
-                10 + i,  # Number of ANCF elements to create along the beam
-                chrono.ChVector3d(i * 0.1, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+                10 + i * 2,  # Number of ANCF elements to create along the beam
+                chrono.ChVector3d(0, 0, -0.1 + i * 0.05),  # Starting point ('A' point) of the beam
+                chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05)  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
@@ -46,23 +45,23 @@ class Model1:
             # Create and initialize a hinge constraint to fix beam's end point to the truss
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            self.system.Add(constraint_hinge)  # Add the constraint to the system
+            system.Add(constraint_hinge)  # Add the constraint to the system
 
             # Create a box body
             box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-            box.SetPos(chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1))
-            self.system.Add(box)
+            box.SetPos(chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05))
+            system.Add(box)
 
-            # Create and initialize a constraint to connect the beam endpoint to the box
+            # Create and initialize a constraint between the beam endpoint and the box
             constraint_box = fea.ChLinkNodeFrame()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), box)
-            self.system.Add(constraint_box)  # Add the constraint to the system
+            system.Add(constraint_box)  # Add the constraint to the system
 
-            self.end_bodies.append(box)
+            self.chains.append((builder, mtruss, box))
 
     def PrintBodyPositions(self):
-        for i, body in enumerate(self.end_bodies):
-            print(f"Chain {i+1} end body position: {body.GetPos()}")
+        for i, (builder, mtruss, box) in enumerate(self.chains):
+            print(f"Chain {i+1}: Box position = {box.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()

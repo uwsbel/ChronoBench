@@ -62,7 +62,6 @@ def main():
 
     
     lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterScanAccess())  
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))  
     lidar2d.SetName("lidar2d")
@@ -120,7 +119,6 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    
     ros_manager.Initialize()  
 
     
@@ -139,7 +137,6 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  
 
-        
         sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":

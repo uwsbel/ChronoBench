@@ -15,7 +15,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -42,6 +42,7 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
+# Define a function to control the robot's movement
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(math.pi, 0)
@@ -53,20 +54,23 @@ def move(mode):
         robot.SetMotorSpeed(-math.pi, 0)
         robot.SetMotorSpeed(0, 1)
     else:
-        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Mode should be 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
 while vis.Run():
+    # Move the robot straight for the first 5 seconds
     if time < 5:
         move('straight')
-        print("Moving straight")
+        print("Moving straight...")
+    # Turn the robot left for the next 5 seconds
     elif time < 10:
         move('left')
-        print("Turning left")
+        print("Turning left...")
+    # Turn the robot right thereafter
     else:
         move('right')
-        print("Turning right")
+        print("Turning right...")
 
     # Increment time counter
     time += time_step

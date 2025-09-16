@@ -3,6 +3,41 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Define a new class to manage SCM terrain parameters
+class SCMTerrainParams:
+    def __init__(self, config):
+        if config == "soft":
+            self.bekker_Kphi = 1e6
+            self.bekker_Kc = 0
+            self.bekker_n = 1.1
+            self.mohr_cohesive_limit = 0
+            self.mohr_friction_limit = 30
+            self.janosi_shear_coefficient = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
+        elif config == "mid":
+            self.bekker_Kphi = 2e6
+            self.bekker_Kc = 0
+            self.bekker_n = 1.1
+            self.mohr_cohesive_limit = 0
+            self.mohr_friction_limit = 30
+            self.janosi_shear_coefficient = 0.01
+            self.elastic_stiffness = 4e8
+            self.damping = 6e4
+        elif config == "hard":
+            self.bekker_Kphi = 4e6
+            self.bekker_Kc = 0
+            self.bekker_n = 1.1
+            self.mohr_cohesive_limit = 0
+            self.mohr_friction_limit = 30
+            self.janosi_shear_coefficient = 0.01
+            self.elastic_stiffness = 8e8
+            self.damping = 1e5
+        else:
+            raise ValueError("Invalid terrain configuration")
+
+    def set_params(self, terrain):
+        terrain.SetSoilParameters(self.bekker_Kphi, self.bekker_Kc, self.bekker_n, self.mohr_cohesive_limit, self.mohr_friction_limit, self.janosi_shear_coefficient, self.elastic_stiffness, self.damping)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -61,53 +96,12 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create a new class to manage and set the SCM terrain parameters
-class SCMTerrainParams:
-    def __init__(self, config):
-        if config == "soft":
-            self.bekker_Kphi = 1e6
-            self.bekker_Kc = 0
-            self.bekker_n = 1.0
-            self.mohr_cohesion = 0
-            self.mohr_friction = 20
-            self.janosi_shear = 0.01
-            self.elastic_stiffness = 1e8
-            self.damping = 2e4
-        elif config == "mid":
-            self.bekker_Kphi = 2e6
-            self.bekker_Kc = 0
-            self.bekker_n = 1.1
-            self.mohr_cohesion = 0
-            self.mohr_friction = 30
-            self.janosi_shear = 0.01
-            self.elastic_stiffness = 2e8
-            self.damping = 3e4
-        elif config == "hard":
-            self.bekker_Kphi = 3e6
-            self.bekker_Kc = 0
-            self.bekker_n = 1.2
-            self.mohr_cohesion = 0
-            self.mohr_friction = 40
-            self.janosi_shear = 0.01
-            self.elastic_stiffness = 3e8
-            self.damping = 4e4
-        else:
-            raise ValueError("Invalid terrain configuration")
+# Create the SCM deformable terrain patch
+terrain = veh.SCMTerrain(vehicle.GetSystem())
 
 # Initialize terrain parameters using the new class
 terrain_params = SCMTerrainParams("mid")
-
-# Create the SCM deformable terrain patch
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(terrain_params.bekker_Kphi,   # Bekker Kphi
-                            terrain_params.bekker_Kc,     # Bekker Kc
-                            terrain_params.bekker_n,   # Bekker n exponent
-                            terrain_params.mohr_cohesion,     # Mohr cohesive limit (Pa)
-                            terrain_params.mohr_friction,    # Mohr friction limit (degrees)
-                            terrain_params.janosi_shear,  # Janosi shear coefficient (m)
-                            terrain_params.elastic_stiffness,   # Elastic stiffness (Pa/m), before plastic yield
-                            terrain_params.damping    # Damping (Pa s/m), proportional to negative vertical speed (optional)
-)
+terrain_params.set_params(terrain)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

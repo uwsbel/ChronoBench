@@ -84,6 +84,29 @@ mesh.SetAutomaticGravity(False)
 sys.Add(mesh)
 
 
+builder = fea.ChBuilderBeamEuler()
+
+builder.SetBeamSection(msection)
+
+builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0, 0, -0.1)))
+builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1)))
+
+builder.SetBeamDirection(chrono.ChVector3d(0, 1, 0))
+
+builder.SetBeamNElements(5)
+
+builder.BuildBeam()
+
+
+last_node = builder.GetLastBeamNodes().back()
+
+
+last_node.SetFixed(True)
+
+
+builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ) 
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4) 
@@ -101,6 +124,10 @@ visualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamC)
 
 
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver) 
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys) 
 vis.SetWindowSize(1024, 768) 
@@ -110,25 +137,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox() 
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2)) 
 vis.AddTypicalLights() 
-
-
-builder = fea.ChBuilderBeamEuler()
-
-
-builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, 0, 0, 1)
-
-
-last_beam_nodes = builder.GetLastBeamNodes()
-
-
-last_beam_nodes.back().SetFixed(True)
-
-
-last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-
-msolver = mkl.ChSolverPardisoMKL()
-sys.SetSolver(msolver) 
 
 
 while vis.Run():

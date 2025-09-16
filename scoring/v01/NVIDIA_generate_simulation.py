@@ -128,16 +128,16 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-    # DeepSeek models
-    "deepseek-r1": "deepseek-ai/deepseek-r1",
-    "deepseek-r1-32b": "deepseek-ai/deepseek-r1-32b",
-    "deepseek-r1-8b": "deepseek-ai/deepseek-r1-8b",
+    # # DeepSeek models
+    # "deepseek-r1": "deepseek-ai/deepseek-r1",
+    # "deepseek-r1-32b": "deepseek-ai/deepseek-r1-32b",
+    # "deepseek-r1-8b": "deepseek-ai/deepseek-r1-8b",
     
-    # Meta/Llama models
-    "llama-3.1-405b-instruct": "meta/llama-3.1-405b-instruct",
-    "llama-3.1-70b-instruct": "meta/llama-3.1-70b-instruct",
-    "llama-3.1-8b-instruct": "meta/llama-3.1-8b-instruct",
-    "llama-3.3-70b-instruct": "meta/llama-3.3-70b-instruct",
+    # # Meta/Llama models
+    # "llama-3.1-405b-instruct": "meta/llama-3.1-405b-instruct",
+    # "llama-3.1-70b-instruct": "meta/llama-3.1-70b-instruct",
+    # "llama-3.1-8b-instruct": "meta/llama-3.1-8b-instruct",
+    #"llama-3.3-70b-instruct": "meta/llama-3.3-70b-instruct",
     "llama4_maverick": "nvdev/meta/llama-4-maverick-17b-128e-instruct",
     "llama4_scout": "nvdev/meta/llama-4-scout-17b-16e-instruct",
     

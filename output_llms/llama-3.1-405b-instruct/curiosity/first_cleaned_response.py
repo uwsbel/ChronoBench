@@ -3,74 +3,58 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+ground_length = 20
+ground_width = 10
+rover_mass = 1000
+rover_length = 2
+rover_width = 1
+rover_height = 1
+motor_torque = 100
+max_speed = 5
 
 
 sys = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(sys,  
-                              100, 100, 2,  
-                              1000,  
-                              True,  
-                              True,  
-                              chrono.ChMaterialSurfaceNSC()  
-                              )
-ground.SetBodyFixed(True)
+ground = chrono.ChBodyEasyBox(sys, ground_length, ground_width, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
 sys.Add(ground)
 
 
-rover = chrono.ChBodyEasyBox(sys,  
-                             2, 1, 1,  
-                             1000,  
-                             True,  
-                             True,  
-                             chrono.ChMaterialSurfaceNSC()  
-                             )
-rover.SetPos(chrono.ChVectorD(0, 0, 1.5))  
+rover = chrono.ChBodyEasyBox(sys, rover_length, rover_width, rover_height, rover_mass, True, True)
+rover.SetPos(chrono.ChVectorD(0, rover_height/2, 0))
 sys.Add(rover)
 
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(rover,  
-                 chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),  
-                                 chrono.QUNIT)  
-                 )
+motor = chrono.ChPartMotor(sys)
+motor.SetMotorType(chrono.ChPartMotor.MOTOR_TYPE_TORQUE)
+motor.SetTorqueFunction(chrono.ChFunctionConst(motor_torque))
+motor.SetMotorDirection(chrono.ChPartMotor.MOTOR_DIR_X)
+motor.SetPartA(rover)
+motor.SetPartB(ground)
 sys.Add(motor)
 
 
-app = chronoirr.ChIrrApp(sys,  
-                         "Curiosity Rover Simulation",  
-                         chronoirr.dimension2du(800, 600),  
-                         chronoirr.VerticalFlip,  
-                         chronoirr.SkyBox,  
-                         chronoirr.SkyLight  
-                         )
+application = chronoirr.ChIrrApp(sys, 'Curiosity Rover Simulation', chronoirr.dimension2du(800, 600))
 
 
-app.AddCamera(chronoirr.vector3df(0, 0, 5),  
-              chronoirr.vector3df(0, 0, 0))  
-app.AddTypicalLights()  
-app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2),  
-                       chronoirr.vector3df(0, 0, 0),  
-                       3,  
-                       2,  
-                       10,  
-                       512,  
-                       1000)  
+application.AddTypicalCamera(chronoirr.vector3df(0, 2, -4), chronoirr.vector3df(0, 0, 0))
 
 
-app.AssetBindAll()
-app.AssetUpdateAll()
+application.AddTypicalLights()
 
 
-sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
-sys.SetStep(0.01)  
-sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)  
+application.EnableShadows(True)
 
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+
+application.SetTimestep(0.01)
+application.GetSystem().Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

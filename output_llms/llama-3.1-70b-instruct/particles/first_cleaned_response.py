@@ -3,104 +3,53 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('./')
-
-
 mysystem = chrono.ChSystemNSC()
+mysystem.SetStep(0.01)
 
 
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+myapplication = chronoirr.ChVisualSystemIrrlicht(mysystem)
+myapplication.SetWindowSize(800, 600)
+myapplication.SetWindowTitle("Gravitational Attraction")
+myapplication.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 
 class ParticleEmitter:
-    def __init__(self, system):
+    def __init__(self, system, num_particles):
         self.system = system
-        self.particle_count = 0
+        self.num_particles = num_particles
+        self.particles = []
 
-    def emit_particle(self):
-        
-        shape_type = np.random.choice(['sphere', 'box'])
-
-        if shape_type == 'sphere':
+    def emit_particles(self):
+        for _ in range(self.num_particles):
             
-            radius = np.random.uniform(0.1, 0.5)
-            
-            particle = chrono.ChBodyEasySphere(self.system, radius, 1000, True, True)
-        else:
-            
-            length = np.random.uniform(0.1, 0.5)
-            width = np.random.uniform(0.1, 0.5)
-            height = np.random.uniform(0.1, 0.5)
-            
-            particle = chrono.ChBodyEasyBox(self.system, length, width, height, 1000, True, True)
+            particle = chrono.ChBodyEasySphere(self.system, 0.1, 1000, chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
+            particle.SetPos(chrono.ChVectorD(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)))
+            particle.SetVel(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
+            particle.SetRot(chrono.ChQuaternionD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
+            self.particles.append(particle)
+            self.system.Add(particle)
 
-        
-        x = np.random.uniform(-5, 5)
-        y = np.random.uniform(5, 10)
-        z = np.random.uniform(-5, 5)
-        particle.SetPos(chrono.ChVectorD(x, y, z))
+    def apply_gravitational_force(self):
+        for i in range(len(self.particles)):
+            for j in range(i + 1, len(self.particles)):
+                particle1 = self.particles[i]
+                particle2 = self.particles[j]
+                distance = (particle2.GetPos() - particle1.GetPos()).Length()
+                force = 0.1 / (distance ** 2)
+                direction = (particle2.GetPos() - particle1.GetPos()).GetNormalized()
+                particle1.ApplyForceToCOF(force * direction)
+                particle2.ApplyForceToCOF(-force * direction)
 
-        
-        vx = np.random.uniform(-1, 1)
-        vy = np.random.uniform(-1, 1)
-        vz = np.random.uniform(-1, 1)
-        particle.SetVel(chrono.ChVectorD(vx, vy, vz))
-
-        
-        angle = np.random.uniform(0, 2 * np.pi)
-        axis = chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
-        axis.Normalize()
-        particle.SetRot(chrono.Q_from_AngAxis(angle, axis))
-
-        
-        self.system.Add(particle)
-        self.particle_count += 1
+emitter = ParticleEmitter(mysystem, 100)
+emitter.emit_particles()
 
 
-emitter = ParticleEmitter(mysystem)
-
-
-for _ in range(100):
-    emitter.emit_particle()
-
-
-myapplication = chronoirr.ChVisualSystemIrrlicht()
-
-
-myapplication.AddCamera(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 1, 0))
-
-
-myapplication.SetWindowSize(800, 600)
-myapplication.SetWindowTitle('PyChrono Simulation')
-myapplication.SetCameraDistance(10)
-myapplication.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-
-
-class CustomGravitationalForce(chrono.ChForce):
-    def __init__(self, system):
-        super().__init__()
-        self.system = system
-
-    def ComputeF(self, time):
-        
-        for particle in self.system.Get_bodies():
-            
-            force = chrono.ChVectorD(0, 0, 0)
-            for other_particle in self.system.Get_bodies():
-                if particle != other_particle:
-                    distance = (particle.GetPos() - other_particle.GetPos()).Length()
-                    force += (other_particle.GetPos() - particle.GetPos()) / distance * 0.1 / distance**2
-            
-            particle.AddForce(force)
-
-
-custom_force = CustomGravitationalForce(mysystem)
-mysystem.Add(custom_force)
-
-
-while myapplication.GetDevice().run():
+while myapplication.Run():
+    mysystem.DoStepDynamics(0.01)
+    emitter.apply_gravitational_force()
     myapplication.BeginScene()
     myapplication.DrawAll()
     myapplication.EndScene()
-    mysystem.DoStepDynamics(0.01)
-    myapplication.Synchronize(True)
+
+
+del myapplication

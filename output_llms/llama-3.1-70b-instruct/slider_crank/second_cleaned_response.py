@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono  
 import pychrono.irrlicht as chronoirr  
 import matplotlib.pyplot as plt  
@@ -59,6 +58,12 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -70,14 +75,8 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
-time = 0
-while vis.Run() and time < 20:
+sim_time = 0
+while vis.Run() and sim_time < 20:
     
     vis.BeginScene()  
     vis.Render()  
@@ -85,12 +84,12 @@ while vis.Run() and time < 20:
     sys.DoStepDynamics(1e-3)  
 
     
-    array_time.append(time)
-    array_angle.append(mcrank.GetRot().GetAngleZ())
-    array_pos.append(mpiston.GetPos().x)
-    array_speed.append(mcrank.GetWvel().z)
+    array_time.append(sim_time)
+    array_angle.append(my_motor.GetMotorFunction().Get_y())
+    array_pos.append(mjointC.GetPosRel().x())
+    array_speed.append(mjointC.GetVelRel().x())
 
-    time += 1e-3
+    sim_time += 1e-3
 
 
 fig, axs = plt.subplots(2, figsize=(8, 6))
@@ -99,14 +98,14 @@ axs[0].plot(array_angle, array_pos)
 axs[0].set_title('Position vs Crank Angle')
 axs[0].set_xlabel('Crank Angle [rad]')
 axs[0].set_ylabel('Position [m]')
-axs[0].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[0].set_xticks(np.arange(0, 2*np.pi+np.pi/2, np.pi/2))
 axs[0].set_xticklabels(['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 axs[1].plot(array_angle, array_speed)
 axs[1].set_title('Speed vs Crank Angle')
 axs[1].set_xlabel('Crank Angle [rad]')
 axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[1].set_xticks(np.arange(0, 2*np.pi+np.pi/2, np.pi/2))
 axs[1].set_xticklabels(['0', r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$'])
 
 plt.tight_layout()

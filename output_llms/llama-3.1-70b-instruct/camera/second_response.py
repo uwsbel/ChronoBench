@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -54,52 +53,47 @@ def main():
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
         mesh_body,              # Body the camera is attached to
-        update_rate,            # Camera update rate in Hz
+        30,                     # Camera update rate in Hz
         offset_pose,            # Offset pose of the camera
-        image_width,            # Image width in pixels
-        image_height,           # Image height in pixels
-        fov                     # Camera's horizontal field of view in radians
+        960,                    # Image width in pixels
+        480,                    # Image height in pixels
+        1.408                   # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
-    cam.SetLag(lag)  # Set the lag between sensing and data accessibility
-    cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
+    cam.SetLag(0)  # Set the lag between sensing and data accessibility
+    cam.SetCollectionWindow(0)  # Set the exposure time for the camera
 
     # ------------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
-    if noise_model == "CONST_NORMAL":
+    if True:  # Assuming noise model is always applied
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
-    elif noise_model == "PIXEL_DEPENDENT":
-        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  # Add pixel-dependent noise
-    elif noise_model == "NONE":
-        # No noise model applied
-        pass
 
     # Visualize the image before applying grayscale filter
-    if vis:
-        cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+    if True:  # Assuming visualization is always enabled
+        cam.PushFilter(sens.ChFilterVisualize(960, 480, "Before Grayscale Filter"))
 
     # Provide host access to the RGBA8 buffer from the camera
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
     # Save the current image to a PNG file at the specified path
-    if save:
-        cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
+    if True:  # Assuming saving is always enabled
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/rgb/"))
 
     # Convert the camera image to grayscale
     cam.PushFilter(sens.ChFilterGrayscale())
 
     # Visualize the grayscaled image
-    if vis:
-        cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
+    if True:  # Assuming visualization is always enabled
+        cam.PushFilter(sens.ChFilterVisualize(480, 240, "Grayscale Image"))
 
     # Save the grayscaled image to a PNG file at the specified path
-    if save:
-        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+    if True:  # Assuming saving is always enabled
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/gray/"))
 
     # Resize the image to the specified width and height
-    cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+    cam.PushFilter(sens.ChFilterImageResize(480, 240))
 
     # Access the grayscaled image buffer as R8 pixels
     cam.PushFilter(sens.ChFilterR8Access())
@@ -116,7 +110,7 @@ def main():
 
     t1 = time.time()  # Record the start time of the simulation
 
-    while ch_time < end_time:
+    while ch_time < 20.0:
         # Dynamically set the camera's position around the orbit
         cam.SetOffsetPose(chrono.ChFramed(
             chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
@@ -133,54 +127,12 @@ def main():
         manager.Update()
 
         # Perform a step of dynamics simulation
-        mphysicalSystem.DoStepDynamics(step_size)
+        mphysicalSystem.DoStepDynamics(1e-3)
 
         # Update the current simulation time
         ch_time = mphysicalSystem.GetChTime()
 
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-# -----------------
-# Camera parameters
-# -----------------
-
-# Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-
-# Update rate in Hz
-update_rate = 30
-
-# Image width and height
-image_width = 960
-image_height = 480
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
-
-# Lag (in seconds) between sensing and when data becomes accessible
-lag = 0
-
-# Exposure (in seconds) of each image
-exposure_time = 0
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 20.0
-
-# Save camera images
-save = True
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
+    print("Sim time:", 20.0, "Wall time:", time.time() - t1)
 
 # Main function entry point
 main()

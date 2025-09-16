@@ -2,41 +2,49 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the Chrono environment and core components
-chrono.SetChronoDataPath('/path/to/chrono/data/')
-my_system = chrono.ChSystemNSC()
+# Set up the Chrono system
+system = chrono.ChSystemNSC()
 
-# Add the required physical systems and objects
-# Create the ground body
-ground = chrono.ChBodyEasyBox(my_system,  # parent
-                              10, 10, 1,  # x, y, z dimensions
-                              1000,       # density
-                              True,       # visualization
-                              True,       # collision
-                              chrono.ChMaterialSurfaceNSC())
-ground.SetPos(chrono.ChVectorD(0, 0, -1))
-my_system.Add(ground)
+# Add a ground body
+ground = chrono.ChBodyEasyBox(system, 10, 10, 0.1, 1000, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(ground)
 
-# Create the Turtlebot robot
-turtlebot = chrono.ChBodyEasyBox(my_system,  # parent
-                                 0.2, 0.2, 0.1,  # x, y, z dimensions
-                                 100,        # density
-                                 True,       # visualization
-                                 True,       # collision
-                                 chrono.ChMaterialSurfaceNSC())
-turtlebot.SetPos(chrono.ChVectorD(0, 0, 0.05))
-turtlebot.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
-my_system.Add(turtlebot)
+# Initialize the Turtlebot
+turtlebot = chrono.ChBodyEasyBox(system, 0.2, 0.2, 0.1, 10, True)
+turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))
+turtlebot.SetRot(chrono.Q_from_AngZ(chrono.CH_C_PI / 4))
+system.Add(turtlebot)
 
-# Set necessary default parameters
-my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# Add left and right wheels
+left_wheel = chrono.ChBodyEasyCylinder(system, 0.05, 0.1, 1, True)
+left_wheel.SetPos(chrono.ChVectorD(-0.1, 0.05, 0))
+left_wheel.SetRot(chrono.Q_from_AngZ(chrono.CH_C_PI / 2))
+turtlebot.AddChild(left_wheel)
 
-# Create real-time visualization
-application = chronoirr.ChIrrApp(my_system, 'Turtlebot Simulation', chronoirr.dimension2du(800, 600))
+right_wheel = chrono.ChBodyEasyCylinder(system, 0.05, 0.1, 1, True)
+right_wheel.SetPos(chrono.ChVectorD(0.1, 0.05, 0))
+right_wheel.SetRot(chrono.Q_from_AngZ(-chrono.CH_C_PI / 2))
+turtlebot.AddChild(right_wheel)
+
+# Add motors
+left_motor = chrono.ChLinkMotorRotationSpeed(system)
+left_motor.Initialize(left_wheel, turtlebot)
+left_motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI))
+system.Add(left_motor)
+
+right_motor = chrono.ChLinkMotorRotationSpeed(system)
+right_motor.Initialize(right_wheel, turtlebot)
+right_motor.SetMotorFunction(chrono.ChFunction_Const(-chrono.CH_C_PI))
+system.Add(right_motor)
+
+# Create a real-time visualization
+application = chronoirr.ChIrrApp(system, "Turtlebot Simulation", chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 0, 2),  # position
-                      chronoirr.vector3df(0, 0, 0))  # target
+
+# Set camera settings
+application.SetCamera(chronoirr.vector3df(0, 0.5, -1), chronoirr.vector3df(0, 0, 0))
 
 # Simulation loop
 application.AssetBindAll()
@@ -46,15 +54,18 @@ time = 0
 while application.GetDevice().run():
     time += 0.01
 
-    # Control the Turtlebot's motors
-    if time < 2:
-        turtlebot.SetAngVel(chrono.ChVectorD(0, 0, np.pi / 2))  # turn left
-    elif time < 4:
-        turtlebot.SetAngVel(chrono.ChVectorD(0, 0, -np.pi / 2))  # turn right
+    # Control left and right turns
+    if time < 5:
+        left_motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI))
+        right_motor.SetMotorFunction(chrono.ChFunction_Const(-chrono.CH_C_PI))
+    elif time < 10:
+        left_motor.SetMotorFunction(chrono.ChFunction_Const(-chrono.CH_C_PI))
+        right_motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI))
     else:
-        turtlebot.SetAngVel(chrono.ChVectorD(0, 0, 0))  # stop
+        left_motor.SetMotorFunction(chrono.ChFunction_Const(0))
+        right_motor.SetMotorFunction(chrono.ChFunction_Const(0))
 
+    system.DoStepDynamics(time)
     application.BeginScene()
     application.DrawAll()
-    application.DoStepDynamics(0.01)
     application.EndScene()

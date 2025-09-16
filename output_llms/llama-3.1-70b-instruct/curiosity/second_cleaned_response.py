@@ -22,10 +22,9 @@ system.Add(ground)
 
 
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(10, 2, 1, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(5, 0, -0.5))  
+obstacle = chrono.ChBodyEasyBox(5, 1, 2, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 1))  
 obstacle.SetFixed(True)  
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
 
@@ -38,14 +37,18 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+
+driver.SetSpeed(1.0)  
+driver.SetSteering(0.0)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover - Rigid terrain with obstacle')
+vis.SetWindowTitle('Curiosity rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -63,14 +66,6 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
-
-    
-    steering = 0
-    driver.SetSteering(steering)
-
-    
-    motor_input = 10
-    driver.SetMotorInput(motor_input)
 
     
     rover.Update()

@@ -4,10 +4,6 @@ import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -33,7 +29,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 1e-4  
+step_size = 5e-4  
 tire_step_size = step_size
 
 
@@ -51,9 +47,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-
-vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
 
 vehicle.Initialize()
 
@@ -74,10 +67,10 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway_mesh.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -104,14 +97,15 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-ref_speed = 10.0  
+reference_speed = 10.0  
 
 
 kp = 0.1
 ki = 0.01
 kd = 0.001
-integral_error = 0.0
+error = 0.0
 prev_error = 0.0
+integral = 0.0
 
 
 
@@ -142,21 +136,26 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
-    speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - speed
-    integral_error += error * step_size
-    derivative_error = (error - prev_error) / step_size
-    prev_error = error
-
-    
-    throttle = kp * error + ki * integral_error + kd * derivative_error
-    driver_inputs.m_throttle = throttle
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = reference_speed - current_speed
+
+    
+    integral += error * step_size
+    derivative = (error - prev_error) / step_size
+    throttle = kp * error + ki * integral + kd * derivative
+    prev_error = error
+
+    
+    throttle = max(0.0, min(1.0, throttle))
+
+    
+    driver_inputs.m_throttle = throttle
 
     
     driver.Advance(step_size)

@@ -83,20 +83,14 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_inputs = veh.vector_Entry()
-driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
-driver_inputs.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-driver_inputs.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
+driver_inputs = [
+    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
+    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
+    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
+]
+
 
 driver = veh.ChDataDriver(driver_inputs)
-
-driver.Initialize()
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -107,7 +101,7 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -128,3 +122,6 @@ while vis.Run() :
     step_number += 1
     
     realtime_timer.Spin(step_size)
+
+    
+    print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

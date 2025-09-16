@@ -1,4 +1,3 @@
-"""
 import pychrono as ch
 import pychrono.sensor as sens
 import pychrono.ros as chros
@@ -23,7 +22,7 @@ def main():
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetFixed(True)  # Make the body fixed.
+    mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
     sys.Add(mesh_body)
 
@@ -52,7 +51,7 @@ def main():
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a lidar sensor.
+    # Create and configure a 3D lidar sensor.
     lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
@@ -62,8 +61,9 @@ def main():
     sens_manager.AddSensor(lidar)
 
     # Create and configure a 2D lidar sensor.
-    lidar2d = sens.ChLidarSensor2D(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, 0.1, 100., 0)
+    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar2d.PushFilter(sens.ChFilterScanAccess())  # Access scan data.
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "Lidar 2D Scan"))  # Visualize the scan.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)

@@ -82,29 +82,22 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
 
 
 sensor_manager = veh.ChSensorManagerIrrlicht(vis)
 
 
-light1 = irr.PyLight()
-light1.SetPosition(chrono.ChVector3d(10, 10, 10))
-light1.SetIntensity(10)
-light2 = irr.PyLight()
-light2.SetPosition(chrono.ChVector3d(-10, -10, -10))
-light2.SetIntensity(10)
-vis.AddLight(light1)
-vis.AddLight(light2)
+vis.AddLightPoint(chrono.ChVector3d(0, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(10, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(-10, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(0, 10, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLightPoint(chrono.ChVector3d(0, -10, 0), 10, chrono.ChColor(1, 1, 1))
 
 
-camera = veh.ChCameraSensorIrrlicht()
+camera = veh.ChCameraSensor(vehicle.GetVehicle().GetChassisBody())
 camera.SetResolution(1024, 768)
 camera.SetFOV(math.radians(60))
-camera.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-camera.SetTarget(chrono.ChVector3d(0, 0, 0))
-camera.SetUp(chrono.ChVector3d(0, 1, 0))
-camera.SetFilter(irr.PyImageFilter())
+camera.SetFilter(veh.ChVisualizationFilter())
 sensor_manager.AddSensor(camera)
 
 
@@ -149,14 +142,13 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time, driver_inputs)
+    camera.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
 
     
     step_number += 1

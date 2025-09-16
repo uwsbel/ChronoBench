@@ -45,38 +45,6 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 
-def ref_X(iz, ix):
-    return ix * (L_x / nsections_x)
-
-def ref_Y(iz, ix):
-    return iz * (L_z / nsections_z)
-
-
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[nsections_x * (nsections_z + 1)]
-nodesLoad = []
-
-
-load_force = chrono.ChVector3d(0, 1000, 0)
-
-
-mnodemonitor = mynodes[0]
-melementmonitor = None
-
-
-for iz in range(nsections_z + 1):
-    for ix in range(nsections_x + 1):
-        if ix > 0:
-            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
-        else:
-            boundary_1 = None
-
-        if iz > 0:
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
-        else:
-            boundary_3 = None
-
-
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -99,9 +67,43 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
+
+mnodemonitor = mynodes[0]
+mesh.AddNode(mnodemonitor)
+
+
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[1]
+
+
+nodesLoad = [mynodes[10]]
+
+
+ref_X = chrono.ChInterpolationCardinalSpline2D()
+ref_Y = chrono.ChInterpolationCardinalSpline2D()
+
+
+load_force = chrono.ChVector3d(1, 0, 0)
+
+
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
+
+
+
+
+
+
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+
+
+ementmonitor = melementA
+mesh.AddElement(ementmonitor)
 
 
 for j in range(30):
@@ -111,16 +113,7 @@ for j in range(30):
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-
-
-
 mesh.AddVisualShapeFEA(mvisualizeshellA)
-
-mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

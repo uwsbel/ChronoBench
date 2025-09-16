@@ -25,6 +25,13 @@ terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
+# Path follower driver system
+path = veh.PathFollower()
+path.SetTargetSpeed(10.0)
+path.SetSteeringLookahead(5.0)
+path.SetSteeringGains(0.1, 0.1, 0.1)
+path.SetSpeedGains(0.1, 0.1)
+
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
@@ -48,21 +55,18 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Create a path for the path-follower driver
-path = veh.Path()
-path.AddWaypoint(chrono.ChVector3d(-50, -10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(-50, 10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, 10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, -10, 0.5))
-path.AddWaypoint(chrono.ChVector3d(50, 0, 0.5))
-path.AddWaypoint(chrono.ChVector3d(-50, 0, 0.5))
+# Add path follower driver
+vehicle.AddDriver(veh.PathFollowerDriver(vehicle, path))
 
-# Create a path-follower driver
-driver = veh.PathFollowerDriver()
-driver.SetTargetSpeed(10.0)
-driver.SetSteeringControllerGains(0.1, 0.01, 0.001, 5.0)
-driver.SetSpeedControllerGains(0.1, 0.01, 0.001)
-driver.SetPath(path)
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
@@ -90,6 +94,16 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # output vehicle mass

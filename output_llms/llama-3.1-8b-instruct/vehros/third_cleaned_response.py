@@ -2,13 +2,11 @@ import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
 import pychrono.sensor as sens
-from pychrono import irrlicht as chronoirr
+import pychrono.irrlicht as chronoirr
 import math
 
 def main():
-    
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
     
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
@@ -27,7 +25,6 @@ def main():
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  
@@ -36,7 +33,6 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
-
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -51,29 +47,6 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     
-    box = ch.ChBodyEasyBox(1, 1, 1, ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-    box.SetBodyFixed(True)
-    box.SetInertiaFromBox(1, 1, 1)
-    box.SetCollisionShape(ch.ChCollisionModelBox(1, 1, 1))
-    hmmwv.GetSystem().AddBody(box)
-
-    
-    sens_manager = sens.ChSensorManager()
-    hmmwv.GetSystem().AddSensorManager(sens_manager)
-
-    
-    lidar = sens.ChLidarSensor()
-    lidar.SetName("Lidar")
-    lidar.SetPosition(ch.ChVector3d(0, 1, 1))
-    lidar.SetDirection(ch.ChVector3d(0, 0, 1))
-    lidar.SetRange(10)
-    lidar.SetResolution(0.1)
-    lidar.SetFilter(sens.ChLidarFilterType_RAYCAST)
-    lidar.SetFilterRange(0.1)
-    lidar.SetFilterResolution(0.01)
-    sens_manager.AddSensor(lidar)
-
-    
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
 
@@ -84,9 +57,35 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
     ros_manager.Initialize()  
+
+    
+    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0, ch.ChCoordsysd(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
+    box.SetBodyFixed(True)
+    hmmwv.GetSystem().AddBody(box)
+
+    
+    sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.Initialize()
+
+    
+    lidar = sens.ChLidarSensor()
+    lidar.SetSensorId(0)
+    lidar.SetSensorName("LidarSensor")
+    lidar.SetSensorType(sens.ChSensorType_LIDAR)
+    lidar.SetSensorPosition(ch.ChVector3d(0, 1.5, 0))
+    lidar.SetSensorOrientation(ch.ChQuaterniond(1, 0, 0, 0))
+    lidar.SetSensorRange(10)
+    lidar.SetSensorResolution(0.1)
+    lidar.SetSensorRate(100)
+    lidar.SetSensorFilters(sens.ChSensorFilter_TYPE, sens.ChSensorFilter_PASS)
+    lidar.SetSensorFilters(sens.ChSensorFilter_DISTANCE, sens.ChSensorFilter_PASS)
+    lidar.SetSensorFilters(sens.ChSensorFilter_INTENSITY, sens.ChSensorFilter_PASS)
+    lidar.SetSensorFilters(sens.ChSensorFilter_COLOR, sens.ChSensorFilter_PASS)
+    sens_manager.AddSensor(lidar)
+
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/data"))
 
     
     time = 0
@@ -117,11 +116,11 @@ def main():
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+        sens_manager.Update()  
 
         
         if not ros_manager.Update(time, time_step):
             break  
-        sens_manager.Update()  
         step_number += 1
 
 if __name__ == "__main__":

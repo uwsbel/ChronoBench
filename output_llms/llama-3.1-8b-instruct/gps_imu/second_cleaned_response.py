@@ -41,12 +41,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-log_step_size = 1.0  
-
-
-gps_data = []
-
-
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -133,19 +127,11 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
+log_step_size = 0.1
+log_steps = math.ceil(render_step_size / log_step_size)
 
 
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
-
-
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
+gps_data = []
 
 
 while vis.Run():
@@ -175,13 +161,7 @@ while vis.Run():
 
     
     manager.Update()
-
     
-    if step_number % math.ceil(log_step_size / step_size) == 0:
-        
-        gps_data_buffer = gps.GetMostRecentGPSBuffer()
-        gps_data.append(gps_data_buffer.GetGPSData())
-
     
     step_number += 1
 
@@ -189,9 +169,19 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+
+    
     if time > 6:
-        driver_inputs.throttle = 0
-        driver_inputs.braking = 1
+        driver_inputs = chrono.ChDriverInputs()
+        driver_inputs.steering = 0.5
+        driver_inputs.throttle = 0.5
+        driver_inputs.brake = 1.0
+
+    
+    if step_number == 1000:
+        print("GPS Data: ", gps_data)
 
 
-print("GPS Data: ", gps_data)
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

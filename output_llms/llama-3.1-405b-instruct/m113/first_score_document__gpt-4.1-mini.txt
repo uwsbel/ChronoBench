@@ -4,114 +4,166 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), no deduction.
-- **Vehicle Creation:** Vehicle created using `veh.M113()`, initialized properly with position and orientation. However, the vehicle is added to `my_system` using `my_system.Add(my_vehicle)`. According to the API, vehicle objects are typically part of their own system or manage their own system internally. Usually, the vehicle's system is accessed via `my_vehicle.GetSystem()`. Adding the vehicle object directly to the system is not standard practice and may cause issues.  
-  **Deduct 10 points** for incorrect or incomplete vehicle integration.
-- **Terrain Creation:** The terrain is created as `veh.RigidTerrain(my_system)`, which is correct. However, the `Initialize` method is called with many parameters:  
-  ```python
-  terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20, 0.05, 0.05, 0.001, 0.001)
-  ```  
-  The API documentation for `RigidTerrain.Initialize()` typically expects fewer parameters or uses a different pattern (e.g., adding patches). The parameters here seem to be a mix of terrain size, resolution, and friction parameters, but the API example shows adding patches to terrain and then initializing. This usage is likely incorrect or incomplete.  
-  **Deduct 15 points** for incorrect terrain initialization.
-- **Driver Setup:** `veh.ChDriver(my_vehicle)` is created and initialized. This is correct.
-- **Visualization Setup:** Uses `irr.ChIrrApp` for visualization, adds sky, lights, camera, and binds assets. This is mostly correct.
-- **Simulation Loop:** The loop uses `myapplication.GetDevice().run()` which is correct. However, the variable `time` is used but never initialized before the loop. This will cause a runtime error.  
-  **Deduct 15 points** for missing initialization of `time`.
-- **Adding Vehicle and Terrain to System:** The vehicle is added directly to `my_system` via `my_system.Add(my_vehicle)`, which is not standard. The terrain is also added via `my_system.Add(terrain)`, but `RigidTerrain` is usually initialized with the system and manages its own bodies internally. Adding it explicitly may be redundant or incorrect.  
-  **Deduct 10 points** for improper system additions.
+- **System Initialization:**  
+  The system is initialized correctly with `chrono.ChSystemNSC()`.  
+  **No deduction.**
 
-**Total deductions for completeness:** 10 + 15 + 15 + 10 = 50 points (but max deduction capped at 40 points).
+- **Body Creation:**  
+  Two bodies are created using `chrono.ChBodyEasyBox`. However, the constructor usage is incorrect:  
+  The API specifies the signature as:  
+  ```python
+  chrono.ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)
+  ```  
+  But the code calls:  
+  ```python
+  chrono.ChBodyEasyBox(my_system, vehicle_mass, 2, 1, 1, True, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(vehicle_speed, 0, 0))
+  ```  
+  This is incorrect because:  
+  - The first argument should be `lengthX` (float), not the system object.  
+  - The second argument should be `lengthY` (float), but `vehicle_mass` (int) is passed.  
+  - The density is missing or misplaced.  
+  - Position and initial velocity are not arguments of `ChBodyEasyBox`. Instead, these should be set via `SetPos()` and `SetPos_dt()` or similar methods after creation.  
+  - The material argument is missing.  
+
+  Also, the created bodies are not added to the system via `my_system.Add(body)`. This is essential for the bodies to be part of the simulation.  
+
+  **Deduction: 15 points for missing proper body creation and addition to the system.**
+
+- **Material and Contact Properties:**  
+  The code attempts to set friction and restitution on the terrain's collision model via:  
+  ```python
+  terrain.GetCollisionModel().SetFriction(terrain_friction)
+  terrain.GetCollisionModel().SetRestitution(terrain_restitution)
+  ```  
+  According to the documentation, friction and restitution should be set on a `ChContactMaterial` object, which is then assigned to the body or collision model. Setting these directly on the collision model is incorrect.  
+
+  **Deduction: 15 points for incorrect configuration of contact material properties.**
+
+- **Driver Setup:**  
+  The code creates a `chrono.ChIrrNodeAsset` as a driver, which is not a driver class. The documentation shows drivers like `robosimian.RS_Driver` or vehicle-specific drivers, but `ChIrrNodeAsset` is for visualization assets, not driver control. Also, `SetSteering`, `SetThrottle`, and `SetBraking` are called on this object, which do not exist for `ChIrrNodeAsset`.  
+
+  **Deduction: 15 points for missing or incorrect driver setup.**
+
+- **Visualization Setup:**  
+  The code uses `chronoirr.ChIrrApp` for visualization, which is a valid class, but the documentation recommends using `chronoirr.ChVisualSystemIrrlicht()` and attaching the system to it. Also, the code calls `application.AddTypicalSky()`, but the documentation shows `AddSkyBox()` as the method. The camera is added at `(0, 0, -5)`, which may be behind the scene looking away (usually positive Z or Y is used).  
+
+  **Deduction: 5 points for minor deviations in visualization setup (method names and camera placement).**
+
+- **Simulation Loop:**  
+  The loop uses `application.GetDevice().run()` which is not documented; the recommended method is `vis.Run()`. Also, the loop calls `application.DoStep()` after `my_system.DoStepDynamics(time_step)`, which is redundant or unclear. The typical loop is:  
+  ```python
+  while vis.Run():
+      vis.BeginScene()
+      vis.Render()
+      vis.EndScene()
+      sys.DoStepDynamics(time_step)
+  ```  
+  **Deduction: 10 points for incomplete or incorrect simulation loop structure.**
+
+**Total Completeness Deduction: 15 + 15 + 15 + 5 + 10 = 60 points**  
+Since the maximum is 40, the deduction is capped at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `my_system.Add(my_vehicle)`:** Vehicle objects are not bodies; they manage their own system internally. Adding the vehicle object directly to the system is incorrect and can cause simulation errors.  
-  **Deduct 15 points**.
-- **Terrain Initialization:** The parameters passed to `terrain.Initialize()` do not match the documented API usage. Terrain patches should be added via `AddPatch()` before calling `Initialize()`.  
-  **Deduct 15 points**.
-- **Use of `myapplication.DoStepDynamics(step_size)` before `driver.Synchronize(time)`:** The driver should be synchronized before advancing the system to ensure inputs are applied correctly. The order should be:  
-  1. `driver.Synchronize(time)`  
-  2. `driver.Advance(step_size)`  
-  3. `myapplication.DoStepDynamics(step_size)`  
-  The current order is incorrect and can cause logical errors in simulation behavior.  
-  **Deduct 10 points**.
-- **`time` variable usage without initialization:** This is a logical error.  
-  **Deduct 10 points**.
-- **Visualization calls:** The API recommends `BeginScene()`, `Render()`, and `EndScene()`. The code uses `DrawAll()` instead of `Render()`. This is a minor API misuse.  
-  **Deduct 5 points**.
+- **Incorrect use of `ChBodyEasyBox`:**  
+  As noted, the constructor is misused, which will cause runtime errors or incorrect behavior.  
+  **Deduct 15 points.**
 
-**Total deductions for correctness:** 15 + 15 + 10 + 10 + 5 = 55 points (max 30 points).
+- **Setting friction and restitution directly on collision model:**  
+  This is incorrect and will not have the intended effect.  
+  **Deduct 15 points.**
+
+- **Driver object misuse:**  
+  Using `ChIrrNodeAsset` as a driver and calling non-existent methods is a logical error.  
+  **Deduct 15 points.**
+
+- **Visualization method `AddTypicalSky()` does not exist; should be `AddSkyBox()`.**  
+  Minor but affects visualization correctness.  
+  **Deduct 5 points.**
+
+- **Simulation loop uses `application.GetDevice().run()` instead of `vis.Run()`.**  
+  Minor but non-standard.  
+  **Deduct 5 points.**
+
+Total deductions here exceed 30, so capped at 30 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are meaningful (`my_system`, `my_vehicle`, `terrain`, `driver`, `myapplication`).  
-- **Structure:** The code is mostly linear and straightforward.  
-- **Comments:** No comments at all. The code lacks explanations for steps, which is important for maintainability and clarity.  
-  **Deduct 5 points** for lack of comments.
-- **Formatting:** The code is formatted reasonably well, but the missing initialization of `time` and the order of calls reduce clarity.  
-  **Deduct 3 points** for minor structure/readability issues.
+- The code has no comments explaining the steps or parameters.  
+- Variable names are meaningful.  
+- Formatting is acceptable but could be improved (e.g., line breaks, spacing).  
+- No docstrings or explanations.  
 
-**Total deductions for code quality:** 8 points.
+**Deduct 5 points for lack of comments/documentation.**  
+**Deduct 3 points for minor readability issues and lack of structure.**
+
+Total: 8 points deducted.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant calls:** Adding `my_vehicle` and `terrain` to `my_system` may be redundant or incorrect, potentially causing overhead or errors.  
-  **Deduct 5 points**.
-- **No other obvious inefficiencies or redundant calculations.**
+- No obvious redundant calculations or inefficient API usage.  
+- However, setting friction and restitution incorrectly means the code is not efficient in achieving its goal.  
+- The simulation loop calls `application.DoStep()` after `my_system.DoStepDynamics(time_step)`, which may be redundant or unnecessary.  
 
-**Total deductions for efficiency:** 5 points.
+**Deduct 5 points for redundant or unnecessary API calls.**  
+**Deduct 3 points for missing optimization in simulation loop structure.**
+
+Total: 8 points deducted.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (e.g., no try-except blocks, no checks for file paths or initialization success).  
-  **Deduct 5 points**.
+- No error handling or checks for simulation stability or initialization.  
+- No try-except blocks or validation of inputs.  
+- No handling of edge cases like zero or negative masses, or invalid parameters.  
+
+**Deduct 5 points for lack of error handling.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is mostly correct: sky, lights, camera added.  
-- However, the code uses `AddTypicalSky()` instead of `AddSkyBox()`. The documentation suggests `AddSkyBox()` is the standard method.  
-- The rendering call uses `DrawAll()` instead of `Render()`.  
-- Camera placement is reasonable but could be improved with better positioning or dynamic control.  
-  **Deduct 3 points** for minor visualization issues.
+- Visualization is set up but with incorrect method calls (`AddTypicalSky()` instead of `AddSkyBox()`).  
+- Camera placement is questionable (behind the scene).  
+- Lighting is added correctly.  
+- No initialization call for the visualization system (`Initialize()` is missing).  
+- The loop uses `DrawAll()` instead of documented `Render()`.  
+
+**Deduct 5 points for incorrect visualization setup and incomplete initialization.**
 
 ---
 
 ### Summary of deductions:
 
-| Criterion                     | Points | Deduction | Notes                                  |
-|-------------------------------|--------|-----------|----------------------------------------|
-| Completeness                  | 40     | 40        | Missing `time` init, terrain init, vehicle addition issues |
-| Correctness                  | 30     | 30        | Wrong vehicle addition, terrain init, wrong call order, `time` usage, `DrawAll()` vs `Render()` |
-| Code Quality                 | 10     | 8         | No comments, minor readability issues |
-| Efficiency                  | 10     | 5         | Redundant system additions             |
-| Error Handling and Robustness | 5      | 5         | No error handling                      |
-| Visualization Tools          | 5      | 3         | Minor visualization setup issues       |
+| Criterion                     | Max Points | Deduction | Notes                                      |
+|-------------------------------|------------|-----------|--------------------------------------------|
+| Completeness                  | 40         | 40        | Major missing/incorrect components         |
+| Correctness                  | 30         | 30        | Misuse of API calls and logical errors     |
+| Code Quality                 | 10         | 8         | Lack of comments, minor readability issues |
+| Efficiency                  | 10         | 8         | Redundant calls and missing optimizations  |
+| Error Handling and Robustness | 5          | 5         | No error handling                           |
+| Visualization Tools          | 5          | 5         | Incorrect visualization setup               |
+| **Total Deduction**           |            | 96        |                                            |
 
-**Total deductions:** 40 + 30 + 8 + 5 + 5 + 3 = 91 points
+Since total points are 100, and deductions are 96, final score is:
 
-**Final score:** 100 - 91 = 9 points
-
----
-
-### Additional notes:
-
-- The script is missing the initialization of the `time` variable before the simulation loop, which will cause a runtime error.
-- The vehicle and terrain are not integrated according to the API best practices.
-- The simulation loop order is incorrect, potentially causing incorrect simulation behavior.
-- Lack of comments and error handling reduces maintainability and robustness.
-- Visualization setup is mostly correct but could be improved by using the recommended API calls.
+**4 points out of 100.**
 
 ---
 
-**Final score:**
+### Final score:
 
-[[9]]
+[[4]]
+
+---
+
+### Explanation:
+
+The script fundamentally misuses key PyChrono APIs, especially in body creation and material setup, which would prevent the simulation from running correctly. The driver setup is incorrect, and visualization is improperly configured. The simulation loop deviates from best practices and documented usage. The code lacks comments and error handling, reducing maintainability and robustness. While some variable names are reasonable, the overall structure and API usage errors dominate the evaluation, leading to a very low score.

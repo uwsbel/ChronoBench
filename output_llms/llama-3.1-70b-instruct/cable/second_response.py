@@ -1,4 +1,3 @@
-"""
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
@@ -84,7 +83,7 @@ solver = chrono.ChSolverMINRES()  # Choose MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
-solver.SetMaxIterations(200)  # Set the maximum number of iterations
+solver.SetMaxIterations(200)  # Set the maximum number of iterations for the solver
 solver.SetTolerance(1e-10)  # Set the solver tolerance
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start

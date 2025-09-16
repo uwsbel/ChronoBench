@@ -1,4 +1,3 @@
-"""
 import pychrono as ch
 import pychrono.ros as chros
 
@@ -16,7 +15,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.node.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Added message attribute.
+        self.message = "Hello, world! At time: "
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -94,6 +93,6 @@ def main():
 
 # Entry point of the script.
 if __name__ == "__main__":
-    rclpy.init()  # Initialize the ROS node.
+    rclpy.init()
     main()
-    rclpy.shutdown()  # Shutdown the ROS node.
+    rclpy.shutdown()

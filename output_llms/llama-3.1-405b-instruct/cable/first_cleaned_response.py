@@ -3,64 +3,68 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-beam_length = 5.0  
-beam_thickness = 0.1  
-num_elements = 10
-num_nodes = num_elements + 1
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')  
+mysystem = chrono.ChSystemNSC()
 
 
-sys = chrono.ChSystemNSC()
+ground = chrono.ChBodyEasyBox(mysystem,  
+                              10, 10, 1,  
+                              1000,       
+                              True,       
+                              True)       
+ground.SetBodyFixed(True)
+mysystem.Add(ground)
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 10, 1, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-sys.Add(ground)
+beam_length = 5.0
+beam_nodes = 10
+beam_elements = beam_nodes - 1
+
+node_mass = 1.0
+node_radius = 0.1
+
+nodes = []
+for i in range(beam_nodes):
+    node = chrono.ChNodeFEAxyzD(mysystem)
+    node.SetMass(node_mass)
+    node.SetPos(chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0))
+    nodes.append(node)
+
+elements = []
+for i in range(beam_elements):
+    element = chrono.ChElementCableANCF(mysystem)
+    element.SetNodes(nodes[i], nodes[i + 1])
+    element.SetEA(10000)  
+    elements.append(element)
 
 
-beam_nodes = []
-for i in range(num_nodes):
-    node = chrono.ChNodeFEAxyzD(sys)
-    node.SetPos(chrono.ChVectorD(i * beam_length / num_elements, 0, 0))
-    beam_nodes.append(node)
-    sys.Add(node)
+for node in nodes:
+    mysystem.Add(node)
+for element in elements:
+    mysystem.Add(element)
 
 
-for i in range(num_elements):
-    element = chrono.ChElementCableANCF()
-    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
-    element.SetArea(chrono.ChVectorD(beam_thickness, beam_thickness, beam_thickness))
-    sys.Add(element)
+hinge = chrono.ChLinkMateFixPointPoint(mysystem)
+hinge.Initialize(nodes[0], ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+mysystem.Add(hinge)
 
 
-hinge = chrono.ChLinkMateFix()
-hinge.Initialize(ground, beam_nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sys.Add(hinge)
+gravity = chrono.ChForceGravity(mysystem)
+mysystem.Add(gravity)
 
 
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-application = chronoirr.ChIrrApp(sys, 'Beam Simulation', chronoirr.dimension2du(800, 600))
-
-
-application.AddSkyBox()
+application = chronoirr.ChIrrApp(mysystem, "PyChrono Simulation", chronoirr.dimension2du(800, 600))
+application.AddTypicalSky()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
 application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
 while application.GetDevice().run():
-    
-    sys.DoStepDynamics(0.01)
-
-    
     application.BeginScene()
     application.DrawAll()
+    application.DoStep()
     application.EndScene()
-
-    
-    for i, node in enumerate(beam_nodes):
-        print(f'Node {i+1} position: {node.GetPos()}')

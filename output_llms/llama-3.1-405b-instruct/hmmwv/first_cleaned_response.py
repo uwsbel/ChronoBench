@@ -1,52 +1,58 @@
 import pychrono.core as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath("C:/path/to/chrono/data/")
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 
 sys = chrono.ChSystemNSC()
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetContactFrictionCoefficient(0.7)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(0.7, 0.01)
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 1024, 1024, 20, 20)
+vehicle = chrono.ChHMMWV()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisCollisionType(chrono.ChCollisionSystem::BULLET)
+vehicle.SetChassisVisualizationType(chrono.ChVisualizationType::PRIMITIVES)
+vehicle.SetWheelVisualizationType(chrono.ChVisualizationType::PRIMITIVES)
+vehicle.SetTireModel(chrono.ChTireModel::TMEASY)
 
 
-vehicle = veh.WheeledVehicle(sys, veh.WheeledVehicle.WHEEL_CONFIG_FULL)
-vehicle.SetContactMethod(chrono.ChContactMethod.SMC)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-vehicle.SetTireType(veh.TireModel.TMEASY)
-vehicle.SetTireStepSize(0.01)
-vehicle.SetVisualizationType(veh.VisualizationType.PRIMITIVE)
+vehicle.SetLocation(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetMass(2500)
+vehicle.SetInertiaXX(500)
+vehicle.SetInertiaYY(1000)
+vehicle.SetInertiaZZ(500)
 
 
-sys.Add(vehicle)
+terrain = chrono.ChRigidTerrain()
+terrain.SetSize(100, 100)
+terrain.SetTexture(chrono.ChVectorD(0.1, 0.1, 0.1))
+terrain.SetFriction(0.7)
+sys.Add(terrain)
 
 
-driver = veh.ChIrrNodeDriver(vehicle)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
+driver = chrono.ChIrrNodeDriver()
+driver.Initialize()
+driver.SetSteeringDelta(0.01)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
+sys.Add(driver)
 
 
-app = irr.ChIrrApp(sys, "PyChrono HMMWV Simulation", irr.dimension2du(800, 600))
+app = chronoirr.ChIrrApp(sys, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
 app.AddTypicalSky()
+app.AddTypicalCamera(chrono.ChVectorD(0, 0.5, -5))
 app.AddTypicalLights()
-app.AddCamera(chrono.ChVectorD(-2, 1, -2), chrono.ChVectorD(0, 0, 0))
-app.AssetBindAll()
-app.AssetUpdateAll()
+app.SetSymbolscale(0.02)
+app.SetShowInfos(True)
 
 
+app.SetTimestep(0.02)
+app.SetTryRealtime(True)
 while app.GetDevice().run():
-    time = sys.GetChTime()
+    sys.DoStepDynamics(0.02)
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
-    sys.DoStepDynamics(1 / 50.0)
-    app.GetDevice().setWindowCaption("PyChrono HMMWV Simulation - Time: {:.2f} s".format(time))
+    app.Run Irrlicht Loop()

@@ -7,11 +7,10 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-truck_initLoc = chrono.ChVector3d(0, 0, 0.5)
-truck_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
-
-sedan_initLoc = chrono.ChVector3d(10, 0, 0.5)
-sedan_initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc_truck = chrono.ChVector3d(0, 0, 0.5)
+initRot_truck = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc_sedan = chrono.ChVector3d(10, 0, 0.5)
+initRot_sedan = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -20,12 +19,11 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-truck_tire_model = veh.TireModelType_RIGID
-sedan_tire_model = veh.TireModelType_TMEASY
+tire_model_truck = veh.TireModelType_RIGID
+tire_model_sedan = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrain_model = veh.RigidTerrain.MESH
-terrain_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -45,49 +43,49 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
-truck = veh.Kraz()
-truck.SetContactMethod(contact_method)
-truck.SetChassisCollisionType(chassis_collision_type)
-truck.SetChassisFixed(False)
-truck.SetInitPosition(chrono.ChCoordsysd(truck_initLoc, truck_initRot))
-truck.SetTireModel(truck_tire_model)
-truck.Initialize()
+vehicle_truck = veh.Kraz()
+vehicle_truck.SetContactMethod(contact_method)
+vehicle_truck.SetChassisCollisionType(chassis_collision_type)
+vehicle_truck.SetChassisFixed(False)
+vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
+vehicle_truck.SetTireType(tire_model_truck)
+vehicle_truck.Initialize()
 
-truck.SetChassisVisualizationType(vis_type, vis_type)
-truck.SetSteeringVisualizationType(vis_type)
-truck.SetSuspensionVisualizationType(vis_type, vis_type)
-truck.SetWheelVisualizationType(vis_type, vis_type)
-truck.SetTireVisualizationType(vis_type, vis_type)
+vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
+vehicle_truck.SetSteeringVisualizationType(vis_type)
+vehicle_truck.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle_truck.SetWheelVisualizationType(vis_type, vis_type)
+vehicle_truck.SetTireVisualizationType(vis_type, vis_type)
 
-truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle_truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the sedan vehicle, set parameters, and initialize
-sedan = veh.Sedan()
-sedan.SetContactMethod(contact_method)
-sedan.SetChassisCollisionType(chassis_collision_type)
-sedan.SetChassisFixed(False)
-sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
-sedan.SetTireModel(sedan_tire_model)
-sedan.Initialize()
+vehicle_sedan = veh.Sedan()
+vehicle_sedan.SetContactMethod(contact_method)
+vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
+vehicle_sedan.SetChassisFixed(False)
+vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
+vehicle_sedan.SetTireType(tire_model_sedan)
+vehicle_sedan.Initialize()
 
-sedan.SetChassisVisualizationType(vis_type, vis_type)
-sedan.SetSteeringVisualizationType(vis_type)
-sedan.SetSuspensionVisualizationType(vis_type, vis_type)
-sedan.SetWheelVisualizationType(vis_type, vis_type)
-sedan.SetTireVisualizationType(vis_type, vis_type)
+vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
+vehicle_sedan.SetSteeringVisualizationType(vis_type)
+vehicle_sedan.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle_sedan.SetWheelVisualizationType(vis_type, vis_type)
+vehicle_sedan.SetTireVisualizationType(vis_type, vis_type)
 
-sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle_sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(truck.GetSystem())
+terrain = veh.RigidTerrain(vehicle_truck.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrain_mesh)
+    terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.obj"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -100,31 +98,31 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(truck.GetTractor())
-vis.AttachVehicle(sedan.GetChassis())
+vis.AttachVehicle(vehicle_truck.GetTractor())
+vis.AttachVehicle(vehicle_sedan.GetChassis())
 
-# Create the driver system for the truck
-truck_driver = veh.ChInteractiveDriverIRR(vis)
+# Create the driver system
+driver_truck = veh.ChInteractiveDriverIRR(vis)
+driver_sedan = veh.ChDriver()
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
-truck_driver.SetSteeringDelta(render_step_size / steering_time)
-truck_driver.SetThrottleDelta(render_step_size / throttle_time)
-truck_driver.SetBrakingDelta(render_step_size / braking_time)
+driver_truck.SetSteeringDelta(render_step_size / steering_time)
+driver_truck.SetThrottleDelta(render_step_size / throttle_time)
+driver_truck.SetBrakingDelta(render_step_size / braking_time)
 
-truck_driver.Initialize()
+driver_truck.Initialize()
+driver_sedan.Initialize()
 
-# Create the driver system for the sedan
-sedan_driver = veh.ChDriver()
-sedan_driver.SetThrottle(0.5)
-sedan_driver.SetSteering(0.0)
-sedan_driver.Initialize()
+# Set fixed throttle and steering for sedan
+driver_sedan.SetThrottle(0.5)
+driver_sedan.SetSteering(0.0)
 
 # output vehicle mass
-print( "TRUCK MASS: ",  truck.GetTractor().GetMass())
-print( "SEDAN MASS: ",  sedan.GetChassis().GetMass())
+print( "VEHICLE MASS (TRUCK): ",  vehicle_truck.GetTractor().GetMass())
+print( "VEHICLE MASS (SEDAN): ",  vehicle_sedan.GetChassis().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -134,11 +132,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-truck_states = []
-sedan_states = []
+states_truck = []
+states_sedan = []
 
 while vis.Run() :
-    time = truck.GetSystem().GetChTime()
+    time = vehicle_truck.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
@@ -148,39 +146,31 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    truck_driver_inputs = truck_driver.GetInputs()
+    driver_inputs_truck = driver_truck.GetInputs()
+    driver_inputs_sedan = driver_sedan.GetInputs()
 
     # Update modules (process inputs from other modules)
-    truck_driver.Synchronize(time)
-    sedan_driver.Synchronize(time)
+    driver_truck.Synchronize(time)
+    driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
-    truck.Synchronize(time, truck_driver_inputs, terrain)
-    sedan.Synchronize(time, sedan_driver.GetInputs(), terrain)
-    vis.Synchronize(time, truck_driver_inputs)
+    vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
+    vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
+    vis.Synchronize(time, driver_inputs_truck)
 
     # Advance simulation for one timestep for all modules
-    truck_driver.Advance(step_size)
-    sedan_driver.Advance(step_size)
+    driver_truck.Advance(step_size)
+    driver_sedan.Advance(step_size)
     terrain.Advance(step_size)
-    truck.Advance(step_size)
-    sedan.Advance(step_size)
+    vehicle_truck.Advance(step_size)
+    vehicle_sedan.Advance(step_size)
     vis.Advance(step_size)
 
-    # Store vehicle states
-    truck_states.append((truck.GetTractor().GetPos(), truck.GetTractor().GetRot()))
-    sedan_states.append((sedan.GetChassis().GetPos(), sedan.GetChassis().GetRot()))
+    # Store the state of the truck's tractor and trailer
+    states_truck.append(vehicle_truck.GetTractor().GetPos())
+    states_sedan.append(vehicle_sedan.GetChassis().GetPos())
 
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Save vehicle states to file
-with open("truck_states.txt", "w") as f:
-    for state in truck_states:
-        f.write(str(state[0].x) + " " + str(state[0].y) + " " + str(state[0].z) + " " + str(state[1].e0) + " " + str(state[1].e1) + " " + str(state[1].e2) + " " + str(state[1].e3) + "\n")
-
-with open("sedan_states.txt", "w") as f:
-    for state in sedan_states:
-        f.write(str(state[0].x) + " " + str(state[0].y) + " " + str(state[0].z) + " " + str(state[1].e0) + " " + str(state[1].e1) + " " + str(state[1].e2) + " " + str(state[1].e3) + "\n")
