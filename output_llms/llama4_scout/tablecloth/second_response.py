@@ -63,7 +63,7 @@ for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
         
-        # Construct boundary nodes with conditional checks
+        # Boundary nodes with conditional checks
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
@@ -72,7 +72,6 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], 
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], 
                            boundary_1, boundary_2, boundary_3)
-        
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
         
@@ -82,7 +81,7 @@ for iz in range(nsections_z):
 
         melementB = fea.ChElementShellBST()
         
-        # Construct boundary nodes with conditional checks
+        # Boundary nodes with conditional checks
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix] 
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
         boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
@@ -91,7 +90,6 @@ for iz in range(nsections_z):
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], 
                            mynodes[iz * (nsections_x + 1) + ix + 1], 
                            boundary_1, boundary_2, boundary_3)
-        
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 

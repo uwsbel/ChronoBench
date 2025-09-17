@@ -1,6 +1,7 @@
 import pychrono as ch
 import pychrono.ros as chros
 import pychrono.irrlicht as chirr
+import rclpy
 from rclpy.publisher import Publisher
 from std_msgs.msg import Int64
 
@@ -42,10 +43,8 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor_asset = floor.GetAssets()[0]
-    floor_visual_material = ch.ChVisualMaterial()
-    floor_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/concrete.jpg"))
-    floor_asset.material_list.append(floor_visual_material)
+    floor_asset = ch.ChTexture().CreateFromFile("path/to/floor_texture.png")  
+    floor.AddAsset(floor_asset)  
     sys.Add(floor)  
 
     
@@ -53,15 +52,13 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box_asset = box.GetAssets()[0]
-    box_visual_material = ch.ChVisualMaterial()
-    box_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/blue.png"))
-    box_asset.material_list.append(box_visual_material)
+    box_asset = ch.ChTexture().CreateFromFile("path/to/box_texture.png")  
+    box.AddAsset(box_asset)  
     sys.Add(box)  
 
     
-    publish_rate = 10  
     ros_manager = chros.ChROSPythonManager()
+    publish_rate = 10  
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
@@ -74,22 +71,24 @@ def main():
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
     
-    ros_manager.Initialize()
+    if not ros_manager.Initialize():
+        print("Failed to initialize ROS manager.")
+        return
 
     
     vis = chirr.ChVisualSystemIrrlicht()
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Chrono::Irrlicht ROS Demo')
+    vis.SetWindowTitle('Chrono Simulation')
     vis.Initialize()
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(5, 5, 5))
-    vis.AddLight(ch.ChVector3d(10, 10, 10), 10)
+    vis.AddCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChVector3d(10, 10, 10), 100)
+    vis.AddLightWithShadow(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0), 10, 1, 10, 40)
     vis.AttachSystem(sys)
 
     
     step_number = 0
     render_step_size = 1e-3  
-    render_steps = int(render_step_size / (1 / 60))  
+    render_steps = int(render_step_size / 1e-3)  
 
     
     time = 0
@@ -100,8 +99,7 @@ def main():
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
-        
-        if not ros_manager.Update(time, time_step):
+        if not ros_manager.Update(time, time_step):  
             break  
 
         
@@ -112,6 +110,7 @@ def main():
 
         realtime_timer.Spin(time_step)  
 
-    
+    vis.Destroy()
+
 if __name__ == "__main__":
     main()

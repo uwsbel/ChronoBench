@@ -60,11 +60,11 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 # Create piston-truss joint (modified to planar)
-mjointC = chrono.ChLinkLockPlanar()
+mjointC = chrono.ChLinkLockPlane()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.QUNIT)  # Identity rotation for planar joint
+                                   chrono.QUNIT)
                    )
 sys.Add(mjointC)
 
@@ -97,8 +97,8 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
-    # stop simulation after 20 seconds
-    if sys.GetChTime() > 20:
+    # stop simulation after 2 seconds
+    if sys.GetChTime() > 2:
         vis.GetDevice().closeDevice()
 
 # Use matplotlib to make two plots when simulation ended:

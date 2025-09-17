@@ -26,11 +26,11 @@ sys = chrono.ChSystemSMC()
 L = 1.2  
 H = 0.3  
 K = 0.07  
-vA = chrono.ChVector3d(0, 0, 0)
-vC = chrono.ChVector3d(L, 0, 0)
-vB = chrono.ChVector3d(L, -H, 0)
-vG = chrono.ChVector3d(L - K, -H, 0)
-vd = chrono.ChVector3d(0, 0, 0.0001)
+vA = chrono.ChVector3d(0, 0, 0)  
+vC = chrono.ChVector3d(L, 0, 0)  
+vB = chrono.ChVector3d(L, -H, 0)  
+vG = chrono.ChVector3d(L - K, -H, 0)  
+vd = chrono.ChVector3d(0, 0, 0.0001)  
 
 
 body_truss = chrono.ChBody()
@@ -38,8 +38,8 @@ body_truss.SetFixed(True)
 sys.AddBody(body_truss)
 
 
-boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)  
-body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
+body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.015, 0, 0), chrono.QUNIT))
 
 
 body_crank = chrono.ChBody()
@@ -47,7 +47,7 @@ body_crank.SetPos((vB + vG) * 0.5)
 sys.AddBody(body_crank)
 
 
-boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)  
+boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)
 body_crank.AddVisualShape(boxcrank)
 
 
@@ -96,7 +96,7 @@ section2.SetAsCircularSection(hbeam_d)
 
 
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))  
+builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 
 node_top = builderA.GetLastBeamNodes()[0]
@@ -109,7 +109,7 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 
 
-sphereconstr2 = chrono.ChVisualShapeSphere(0.012)  
+sphereconstr2 = chrono.ChVisualShapeSphere(0.012)
 constr_bb.AddVisualShape(sphereconstr2)
 
 
@@ -123,7 +123,7 @@ section3.SetAsCircularSection(crankbeam_d)
 
 
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))  
+builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
 
 
 node_crankG = builderB.GetLastBeamNodes()[0]
@@ -142,7 +142,7 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
 
-sphereconstr3 = chrono.ChVisualShapeSphere(0.014)  
+sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
 constr_bc.AddVisualShape(sphereconstr3)
 
 
@@ -163,7 +163,7 @@ mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
 mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizebeamC.SetSymbolsThickness(0.006)
-mvisualizebeamC.SetSymbolsScale(0.015)  
+mvisualizebeamC.SetSymbolsScale(0.015)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
@@ -175,7 +175,7 @@ vis.SetWindowTitle('Beams and constraints')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0.0, 0.7, -1.2))  
+vis.AddCamera(chrono.ChVector3d(0.0, 0.7, -1.2))
 vis.AddTypicalLights()
 
 
@@ -191,7 +191,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
-                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.001)

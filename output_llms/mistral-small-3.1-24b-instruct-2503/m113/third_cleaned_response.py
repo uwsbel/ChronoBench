@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -63,23 +63,12 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
-
-box_shape = chrono.ChBoxShape()
-box_shape.GetBoxGeometry().SetLengths(chrono.ChVector3d(50, 10, 1))
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVector3d(50, 0, 1))
-box_body.SetMass(1000)
-box_body.SetCollide(True)
-box_body.AddVisualShape(box_shape, chrono.ChFrameD())
-box_body.AddCollisionShape(box_shape)
-vehicle.GetSystem().AddBody(box_body)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -117,9 +106,18 @@ render_steps = math.ceil(render_step_size / step_size)
 
 step_number = 0
 render_frame = 0
+
+
+box_size = chrono.ChVector3d(50, 10, 2)
+box_pos = chrono.ChVector3d(0, 0, 1)
+box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True)
+box.SetPos(box_pos)
+vehicle.GetSystem().Add(box)
+
 vehicle.GetVehicle().EnableRealtime(True)
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
     
     if step_number % render_steps == 0:
         vis.BeginScene()
@@ -131,17 +129,19 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    driver_inputs.throttle = 0.8
+    driver_inputs.SetThrottle(0.8)
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
     
     step_number += 1

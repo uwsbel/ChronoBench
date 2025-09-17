@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
 import pychrono.vehicle as veh
-import pychrono.vehicle.artcar as artcar
+import pychrono.irrlicht as irr
 
 import numpy as np
 import time
@@ -11,55 +11,46 @@ def main():
     
     
     
-    mphysicalSystem = chrono.ChSystemNSC()
+    
+    vehicleSystem = veh.ChVehicleSystem()
+    vehicleSystem.SetChTime(0)
+    vehicleSystem.SetStepSize(step_size)
 
     
     
     
-    vehicle = artcar.ChVehicleARTcar()
-    vehicle.SetChassisFixed(False)
-    vehicle.SetChassisMass(1000)
-    vehicle.SetChassisInertiaXX(chrono.ChVector3d(100, 100, 100))
-    vehicle.SetChassisCOM(chrono.ChVector3d(0, 0, 0.5))
-    vehicle.SetChassisDimensions(chrono.ChVector3d(2.0, 1.5, 0.5))
-    vehicle.SetWheelRadius(0.3)
-    vehicle.SetWheelWidth(0.2)
-    vehicle.SetWheelMass(10)
-    vehicle.SetWheelInertia(0.1)
-    vehicle.SetWheelSuspensionTravel(0.1)
-    vehicle.SetWheelSuspensionStiffness(10000)
-    vehicle.SetWheelSuspensionDamping(1000)
-    vehicle.SetWheelTireStiffness(50000)
-    vehicle.SetWheelTireDamping(500)
-    vehicle.SetWheelTireFriction(0.8)
-
     
-    vehicle.Initialize(chrono.ChCoordinatorys(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
-
-    
-    mphysicalSystem.Add(vehicle.GetSystem())
+    artcar = veh.ARTcar(vehicleSystem)
+    artcar.SetContactMethod(chrono.ChContactMethod_NSC)
+    artcar.SetChassisFixed(False)
+    artcar.SetInitPosition(chrono.ChCoorSysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
+    artcar.SetInitFwdVel(10)
+    artcar.Initialize()
 
     
     
     
-    driver = veh.ChDriver()
-    driver.SetSteering(0.0)
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
+    driver = veh.ChDataDriver()
+    driver.SetSteering(0)
+    driver.SetThrottle(0.3)
+    driver.SetBraking(0)
+    artcar.SetDriver(driver)
 
     
     
     
-    terrain = veh.ChTerrain(mphysicalSystem)
-    terrain.SetContactMaterialProperties(1e6, 0.8, 0.4)
+    terrain = veh.Terrain(vehicleSystem)
+    terrain.SetContactMaterialProperties(2e6, 0.8)
+    terrain.SetContactFriction(0.9)
+    terrain.SetContactRestitution(0.1)
     terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.jpg"))
-    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
-    terrain.SetHeightField(0, 0, 100, 100, 0, 0)  
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize(0, 0, 100, 100)
 
     
     
     
-    manager = sens.ChSensorManager(mphysicalSystem)
+    manager = sens.ChSensorManager(vehicleSystem)
 
     
     
@@ -68,20 +59,20 @@ def main():
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        vehicle.GetChassisBody(),  
-        update_rate,               
-        offset_pose,               
-        horizontal_samples,        
-        vertical_samples,          
-        horizontal_fov,            
-        max_vert_angle,            
-        min_vert_angle,            
-        100.0,                     
+        artcar.GetChassis(),  
+        update_rate,          
+        offset_pose,          
+        horizontal_samples,   
+        vertical_samples,     
+        horizontal_fov,       
+        max_vert_angle,       
+        min_vert_angle,       
+        100.0,                
         sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,             
-        divergence_angle,          
-        divergence_angle,          
-        return_mode                
+        sample_radius,        
+        divergence_angle,     
+        divergence_angle,     
+        return_mode           
     )
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
@@ -112,20 +103,20 @@ def main():
 
     
     lidar_2d = sens.ChLidarSensor(
-        vehicle.GetChassisBody(),  
-        update_rate,               
-        offset_pose,               
-        horizontal_samples,        
-        1,                         
-        horizontal_fov,            
-        0.0,                       
-        0.0,                       
-        100.0,                     
+        artcar.GetChassis(),  
+        update_rate,          
+        offset_pose,          
+        horizontal_samples,   
+        1,                    
+        horizontal_fov,       
+        0.0,                  
+        0.0,                  
+        100.0,                
         sens.LidarBeamShape_RECTANGULAR,  
-        sample_radius,             
-        divergence_angle,          
-        divergence_angle,          
-        return_mode                
+        sample_radius,        
+        divergence_angle,     
+        divergence_angle,     
+        return_mode           
     )
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
@@ -150,56 +141,53 @@ def main():
     
     
     
-    camera_offset = chrono.ChFramed(
-        chrono.ChVector3d(-2.0, 0, 1.5), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
     camera = sens.ChCameraSensor(
-        vehicle.GetChassisBody(),  
-        update_rate,               
-        camera_offset,             
-        640,                       
-        480,                       
-        chrono.CH_PI / 3,          
-        100.0                      
+        artcar.GetChassis(),  
+        update_rate,          
+        chrono.ChFramed(chrono.ChVector3d(0, 0, 1.75), chrono.QuatFromAngleAxis(chrono.CH_PI, chrono.ChVector3d(0, 1, 0))),
+        1280,                 
+        720,                  
+        chrono.CH_PI / 3,     
+        chrono.CH_PI / 3      
     )
     camera.SetName("Third Person Camera")
     camera.SetLag(lag)
     camera.SetCollectionWindow(collection_time)
     if vis:
-        camera.PushFilter(sens.ChFilterVisualize(640, 480, "Camera View"))
+        camera.PushFilter(sens.ChFilterVisualize(1280, 720, "Third Person Camera"))
     camera.PushFilter(sens.ChFilterRGBA8Access())
     manager.AddSensor(camera)
 
     
     
     
-    orbit_radius = 10
-    orbit_rate = 0.1
     ch_time = 0.0
-
     render_time = 0
     t1 = time.time()
 
     while ch_time < end_time:
         
-        driver.SetThrottle(0.3)
-        driver.SetSteering(0.1 * math.sin(ch_time * 0.5))
+        ch_time = vehicleSystem.GetChTime()
 
         
-        vehicle.Synchronize(ch_time)
-        vehicle.Update()
+        driver.Synchronize(ch_time)
+        artcar.Synchronize(ch_time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
 
         
         terrain.Synchronize(ch_time)
 
         
+        xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
+        if xyzi_buffer.HasData():
+            xyzi_data = xyzi_buffer.GetXYZIData()
+            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data)))
+
+        
         manager.Update()
 
         
-        mphysicalSystem.DoStepDynamics(step_size)
-
-        
-        ch_time = mphysicalSystem.GetChTime()
+        vehicleSystem.DoStepDynamics(step_size)
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 

@@ -87,34 +87,16 @@ while vis.Run():
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
-    G_constant = 6.674e-3  
-
     
-    kinetic_energy = 0.0
-    for body in sys.GetBodies():
-        mass = body.GetMass()
-        vel = body.GetPos_dt()  
-        kinetic_energy += 0.5 * mass * vel.Length2()
-
     
-    potential_energy = 0.0
+    G_constant = 6.674e-3
+    
+    
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract < 1e-6:
-            continue  
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
-
-    
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        if r_attract < 1e-6:
+        if r_attract < 1e-6:  
             continue
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
@@ -122,3 +104,24 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
+
+    
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+
+    
+    for body in sys.GetBodies():
+        velocity = body.GetPos_dt()
+        kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
+
+    
+    mlist_energy = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist_energy:
+        D = abodyB.GetPos() - abodyA.GetPos()
+        r = D.Length()
+        if r < 1e-6:
+            continue
+        potential_energy += -G_constant * abodyA.GetMass() * abodyB.GetMass() / r
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")

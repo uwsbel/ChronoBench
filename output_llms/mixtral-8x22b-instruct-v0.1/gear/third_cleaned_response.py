@@ -104,52 +104,53 @@ link_gearBC.SetEpicyclic(True)
 sys.AddLink(link_gearBC)                                                  
 
 
-mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,                 
-                                        radD, 0.5,                      
-                                        1000, True, False, mat)         
-sys.Add(mbody_gearD)                                                    
-mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))                        
-mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                      
-mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)                   
+mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
+                                        radD, 0.5,                  
+                                        1000, True, False, mat)     
+sys.Add(mbody_gearD)                                                
+mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))                   
+mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 
+mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
 
-link_revoluteTD = chrono.ChLinkLockRevolute()                            
-link_revoluteTD.Initialize(mbody_truss, mbody_gearD,                     
-                           chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   
-                                           chrono.QUNIT))                
-sys.AddLink(link_revoluteTD)                                             
+link_revoluteTD = chrono.ChLinkLockRevolute()                         
+link_revoluteTD.Initialize(mbody_truss, mbody_gearD,                  
+                           chrono.ChFramed(chrono.ChVector3d(-10, 0, 0),  
+                                           chrono.QUNIT))             
+sys.AddLink(link_revoluteTD)                                          
 
 
-link_gearAD = chrono.ChLinkLockGear()                                    
+link_gearAD = chrono.ChLinkLockGear()                                     
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())       
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
 link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
-link_gearAD.SetTransmissionRatio(1)                                      
-link_gearAD.SetEnforcePhase(True)                                        
-sys.AddLink(link_gearAD)                                                 
+link_gearAD.SetTransmissionRatio(1)                             
+link_gearAD.SetEnforcePhase(True)                                         
+sys.AddLink(link_gearAD)                                                  
 
 
-mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,               
-                                          radE, 0.5,                    
-                                          1000, True, False, mat)       
-sys.Add(mbody_pulleyE)                                                  
-mbody_pulleyE.SetPos(chrono.ChVector3d(-10, -11, -9))                    
-mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                    
-mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)                 
+mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
+                                          radE, 0.5,                  
+                                          1000, True, False, mat)     
+sys.Add(mbody_pulleyE)                                                
+mbody_pulleyE.SetPos(chrono.ChVector3d(-10, -11, -9))                 
+mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))                 
+mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
 
-link_revoluteTE = chrono.ChLinkLockRevolute()                            
-link_revoluteTE.Initialize(mbody_truss, mbody_pulleyE,                   
-                           chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   
-                                           chrono.QUNIT))                
-sys.AddLink(link_revoluteTE)                                             
+link_revoluteTE = chrono.ChLinkLockRevolute()                         
+link_revoluteTE.Initialize(mbody_truss, mbody_pulleyE,                  
+                           chrono.ChFramed(chrono.ChVector3d(-10, -11, 0),  
+                                           chrono.QUNIT))             
+sys.AddLink(link_revoluteTE)                                          
 
 
-link_synchroDE = chrono.ChLinkSynchronization()                          
-link_synchroDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())  
-link_synchroDE.SetSynchroMotion(True)                                    
-link_synchroDE.SetTransmissionRatio(1)                                   
-sys.AddLink(link_synchroDE)                                              
+link_beltDE = chrono.ChLinkSynchronoMotor()                              
+link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())    
+link_beltDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
+link_beltDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
+link_beltDE.SetReductionRatio(1)                             
+sys.AddLink(link_beltDE)                                                  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()                        

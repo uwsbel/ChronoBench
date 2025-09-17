@@ -21,20 +21,46 @@ ground.SetBodyFixed(True)
 system.Add(ground)
 
 
-rover = chrono.ChChassis(
-    "Viper", chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0),
-    chrono.ChChassis.Type_VEHICLES, 1000
-)
+
+
+
+
+
+
+rover = chrono.ChWheeledVehicle("viper_rover.obj")
 system.Add(rover)
 
 
-driver = chrono.ChBodyEasySphere(0.2, 1000)
-driver.SetPos(chrono.ChVectorD(0, 0.8, 0))
-driver.SetBodyFixed(True)
+rover.SetPos(chrono.ChVectorD(0, 1, 0))
+rover.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
+
+
+
+
+
+
+
+
+
+
+
+driver = chrono.ChDriver(rover)
 system.Add(driver)
 
 
-rover.AddSensor(driver)
+
+
+
+
+
+
+vis = chronoirr.ChIrrApp(system, "Viper Rover Simulation", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 1, 0))
+
+
+vis.GetCamera().SetNearClipPlane(0.1)
+vis.GetCamera().SetFarClipPlane(100)
 
 
 
@@ -43,48 +69,34 @@ rover.AddSensor(driver)
 
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Viper Rover Simulation")
-vis.Initialize()
+t = 0
+dt = 0.01
+time_end = 10
 
 
-vis.GetCamera().SetTarget(chrono.ChVectorD(0, 0.5, 0))
-vis.GetCamera().SetPosition(chrono.ChVectorD(5, 2, 5))
+initial_steering = 0
+final_steering = math.radians(30)
+steering_change_time = 5
 
+while vis.GetDevice().run() and t < time_end:
+    t += dt
 
-vis.AddLightWithShadow(chrono.ChVectorD(2, 5, 2), chrono.ChVectorD(0.8, 0.8, 0.8), 10)
-
-
-
-
-
-
-
-
-timestep = 0.01
-
-
-steering_start = 0
-steering_end = math.pi / 4
-steering_duration = 5
-
-
-while vis.Run():
     
-    simulation_time = system.GetChTime()
-    steering_angle = chrono.ChInterp.Linear(
-        steering_start, steering_end, simulation_time / steering_duration
-    )
+    if t < steering_change_time:
+        steering_angle = initial_steering + (final_steering - initial_steering) * (t / steering_change_time)
+    else:
+        steering_angle = final_steering
 
     
     
 
     
-    system.DoStepDynamics(timestep)
+    system.DoStepDynamics(dt)
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+
+vis.GetDevice().closeDevice()

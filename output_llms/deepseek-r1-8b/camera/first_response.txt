@@ -1,103 +1,92 @@
 <think>
 Okay, so I need to create a PyChrono simulation based on the user's instructions. Let me break down what they want.
 
-First, they mentioned a triangular mesh loaded from a Wavefront .obj file. I remember that PyChrono can load meshes using the SceneIO module, so I'll need to import that. I'll also need to create a scene and add the mesh as a fixed body. That means setting its mass to zero so it doesn't move.
+First, they mentioned a triangular mesh loaded from a Wavefront .obj file. I remember that PyChrono can load meshes using the load_obj function. So I'll need to import that and load the mesh. But wait, I should check if the .obj file is included in the project. If not, I might need to add it to the project directory.
 
-Next, the user wants a camera sensor attached to this body. I think the SensorManager is the way to go here. I'll add a camera sensor to the body and attach a SensorManager to it. The sensor should have noise filters applied, so I'll include a GaussianNoiseFilter with a certain sigma value. Maybe 0.1 for a bit of noise.
+Next, the mesh should be a fixed body. In PyChrono, fixed bodies are created with the create_fixed_body function. So I'll create a body from the mesh and set its mass to zero to make it static.
 
-The camera needs to orbit around the mesh. I'll set up a rotational motion using Euler angles for the body's position. I'll create a function, update_camera, that updates the camera's position based on time. Using sine and cosine functions should work for the rotation. I'll make sure to apply the motion to the body's local position so the camera moves correctly relative to the mesh.
+Then, there's the camera sensor. I think the SensorManager class is used for this. I'll add a camera sensor to the body. The sensor needs a noise filter, probably a Gaussian filter, so I'll import that and apply it with sensor.add_noise_filter(gaussian_filter). Also, I should set the sensor properties like sensor_type, resolution, and frame_rate to match a typical camera setup.
 
-Visualization is important, so I'll set up a renderer with a camera node connected to the sensor. Using a LookAt camera makes sense here. I'll enable antialiasing for smoother images.
+The camera should orbit around the mesh. I'll need to create a rotational movement. Using a RotationalMovement from the core.components.movement module makes sense. I'll set the pivot point to the mesh's center to make the rotation smooth.
 
-At each step, I need to print the camera buffer data. I'll use a SimulationLoop, run it with a timestep of 0.1 seconds, and in each step, capture the image data from the sensor. Then, I'll convert the image to a numpy array and print it out.
+Now, the simulation loop. I'll set a simulation time step and loop, updating the simulation each frame. In each step, I'll update the camera's position using the rotational movement and then get the image data from the sensor.
 
-Putting it all together, I'll initialize the environment, set up the scene with the mesh, add the camera and sensor, attach the sensor manager, define the motion function, set up the renderer, and then run the simulation loop. I'll make sure to include all necessary imports and set up the physics and rendering settings properly.
+Finally, I need to print the camera buffer data at each step. I'll convert the image to a numpy array and print it with some text indicating the frame number.
 
-I should test this script to ensure the mesh is fixed, the camera orbits correctly, and the sensor data is captured and displayed. If everything works, the script should meet all the user's requirements.
+I should also make sure all the necessary imports are included, like importing the core, mesh, sensors, and movement modules. Oh, and the user might need to install PyWavefront if they haven't already, so I should mention that.
+
+Putting it all together, I'll structure the code step by step, making sure each part is correctly implemented and tested.
 </think>
 
-Here's a Python script that implements the requested simulation:
+Here's a Python simulation script based on your instructions using PyChrono:
 
 ```python
-import pychrono as pychrono
-import pychrono.visualizations as pyvis
+import pychrono as pc
+from pychrono import core, mesh, sensors, movement
 import numpy as np
 
 # Initialize PyChrono environment
-pychrono.init()
+pc.init()
 
-# Create a scene and add a triangular mesh from a Wavefront .obj file
-scene = pychrono.Scene()
-# Load the triangular mesh from the Wavefront .obj file
-mesh = pychrono.Mesh("data/triangular_mesh.obj")
-# Add the mesh as a fixed body to the scene
-body = pychrono.Body()
-body.set_mass(0)  # Make it a fixed body
-body.set_name("Triangular Mesh")
-scene.add_body(body, mesh)
+# Load the triangular mesh from the .obj file
+mesh_path = "triangle_mesh.obj"
+mesh = pc.load_obj(mesh_path)
 
-# Add a camera sensor to the body
-sensor = pychrono.Sensors.CameraSensor(body)
-# Attach a sensor manager to the camera sensor
-sensor_manager = pychrono.Sensors.SensorManager(sensor)
-# Add a noise filter to the camera sensor
-noise_filter = pychrono.Sensors.NoiseFilters.GaussianNoiseFilter(sigma=0.1)
-sensor_manager.add_filter(noise_filter)
+# Create a fixed body from the mesh
+body = pc.create_fixed_body(mesh, mass=0)  # Mass is set to 0 for a fixed body
 
-# Define the camera's orbit motion
-def update_camera(sim, body, time):
-    # Define the orbit parameters
-    radius = 5.0  # Distance from the mesh
-    angle = time * 0.5  # Angular speed
-    # Update the body's local position for camera movement
-    body_local_pos = body.get_local_position()
-    body_local_pos.x = radius * pychrono.maths.sin(angle)
-    body_local_pos.y = radius * pychrono.maths.cos(angle)
-    body.set_local_position(body_local_pos)
+# Create a sensor manager and add a camera sensor with noise filter
+sensor_manager = pc.SensorManager(body)
+sensor = pc.create_camera_sensor(sensor_manager, name="orbital_camera")
 
-# Set up the camera sensor properties
-sensor.set_resolution(256, 256)  # Set camera resolution
-sensor.set_focal_length(512.0)  # Set focal length for depth sensing
-sensor.set_depth_mode(pychrono.Sensors.CameraSensor.DepthMode.PHI)  # Set depth sensing mode
+# Add a Gaussian noise filter to the sensor
+from pychrono.sensors import gaussian_filter
+sensor.add_noise_filter(gaussian_filter)
 
-# Set up the visualization
-renderer = pyvis.Renderer()
-renderer.set_camera(sensor)
-renderer.set_antialiasing(16)  # Enable antialiasing for smoother images
+# Set camera properties
+sensor.sensor_properties.sensor_type = pc.CAMERA_TYPE PINHOLE
+sensor.sensor_properties.resolution = 512  # Resolution in pixels
+sensor.sensor_properties.frame_rate = 30  # Frames per second
 
-# Create a simulation loop
-simulation_loop = pychrono.SimulationLoop()
-simulation_loop.set_timestep(0.1)  # Set simulation timestep
+# Create a rotational movement for the camera orbiting around the mesh
+pivot_point = body.get_body_point("center")  # Get the center of the mesh as pivot
+rotational_motion = pc.create_rotational_movement(pivot_point, body, name="camera_orbit")
 
-# Add the camera position update function
-simulation_loop.add_function(update_camera, body, 0.1)
+# Set the rotation axis (let's use Z-axis for orbital motion)
+rotational_motion.set_rotation_axis(pc.Vec3d(0, 0, 1))
 
-# Run the simulation
-simulation_loop.start()
+# Set the rotation speed (degrees per second)
+rotational_motion.set_rotation_speed(2)  # Adjust this value to control rotation speed
 
-# Print the camera buffer data at each step
-while True:
-    # Get the current camera image
+# Set simulation time step
+time_step = 0.01
+
+# Initialize simulation
+simulation = pc.Simulation(body, time_step, max_time=1000, gui=True)
+
+# Create a print function to output camera buffer data
+def print_camera_data(frame):
     image = sensor.get_image()
-    # Convert the image to a numpy array for display
-    img_array = np.array(image)
-    print("Camera Image Data:")
-    print(img_array)
-    # Add a small delay to ensure the simulation runs at the correct speed
-    pychrono.sleep(0.1)
+    print(f"Frame: {frame}")
+    print(f"Camera buffer data: {image}")
+    print("\n")
+
+# Set up the simulation loop
+simulation.add_event("camera_orbit", callback=print_camera_data, event_type=pc.SIM_EVENT_STEP)
+
+# Start the simulation
+simulation.run()
 ```
 
-This script creates a simulation where:
-1. A triangular mesh is loaded and added as a fixed body
-2. A camera sensor is attached to the mesh with a noise filter
-3. The camera orbits around the mesh using a simple rotational motion
-4. The camera sensor data is captured and printed at each step
+This script will:
+1. Create a fixed triangular mesh body from the .obj file
+2. Add a camera sensor with a noise filter
+3. Implement orbital camera movement around the mesh
+4. Print camera buffer data at each simulation step
 
-The simulation runs in an infinite loop, continuously updating the camera position and printing the camera sensor data to the console.
+To run this script, make sure:
+1. The PyWavefront library is installed
+2. The 'triangle_mesh.obj' file is in your project directory
+3. The required PyChrono dependencies are installed
 
-To run this simulation, you'll need to:
-1. Have the PyChrono library installed
-2. Have the required Wavefront .obj file in the "data" directory
-3. The necessary Python packages installed (numpy and pychrono)
-
-The script uses PyChrono's visualization system to render the scene and processes the camera sensor data. The camera sensor data can be used for further processing or visualization purposes as needed.
+The simulation will automatically start and show the mesh and camera in the PyChrono GUI. The camera will orbit around the mesh, and the camera buffer data will be printed to the console at each frame.

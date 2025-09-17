@@ -145,8 +145,8 @@ def main():
 # Noise model attached to the sensor
 noise_model = "CONST_NORMAL"  # Constant normal noise model
 
-# Camera lens model
-lens_model = sens.PINHOLE  # Pinhole lens model
+# Camera lens model (unused, removed)
+# lens_model = sens.PINHOLE  # Pinhole lens model
 
 # Update rate in Hz
 update_rate = 30
@@ -166,7 +166,7 @@ exposure_time = 0
 
 # ---------------------
 # Simulation parameters
-# -----------------
+# ---------------------
 
 # Simulation step size
 step_size = 1e-3
@@ -182,3 +182,6 @@ vis = True
 
 # Output directory
 out_dir = "SENSOR_OUTPUT/"
+
+# Main function entry point
+main()

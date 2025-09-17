@@ -14,7 +14,7 @@ sys.Add(ground)
 ground.SetFixed(True)  # The ground is fixed and does not move
 ground.EnableCollision(False)  # Disable collision detection for the ground
 
-# Add a visualization cylinder to the ground
+# Create a visualization cylinder to the ground
 cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
 ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
@@ -44,18 +44,17 @@ cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and hei
 cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-# Set the initial position of the first pendulum (center of mass) in the absolute frame
+# Set the initial position of the pendulums
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+pend_2.SetPos(chrono.ChVector3d(1, 0, 1))  # Set the initial position of the second pendulum
 
-# Create a revolute joint to connect the first pendulum to the ground
-# The revolute joint allows rotation around a single axis (the Z-axis in this case)
+# Create revolute joints for the pendulums
 rev_1 = chrono.ChLinkLockRevolute()
 rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_1)
 
-# Create a revolute joint to connect the second pendulum to the first pendulum
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+rev_2.Initialize(ground, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
 
 # Create the Irrlicht visualization system

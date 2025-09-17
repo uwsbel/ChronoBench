@@ -49,11 +49,13 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
+# Set visualization for all vehicle parts
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -80,20 +82,24 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 
-# Add point light
-light = chrono.ChLightDirectional()
-light.SetPosition(chrono.ChVector3d(5, 5, 5))
-light.SetIntensity(1.5)
-vis.AddLight(light)
+# Add point lights
+vis.AddLightDirectional(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1.0, 1.0, 1.0), 1000.0, 45.0, 45.0)
+vis.AddLightDirectional(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1.0, 1.0, 1.0), 1000.0, 45.0, 45.0)
+vis.AddLightDirectional(chrono.ChVector3d(5, -5, 5), chrono.ChColor(1.0, 1.0, 1.0), 1000.0, 45.0, 45.0)
 
 # Create sensor manager
-sensor_manager = vehicle.GetSystem().CreateSensorManager()
-sensor_manager.AddCameraSensor(
-    chrono.ChCameraSensor(
-        chrono.ChVector3d(0, 0, 0),  # position
-        2048, 2048, 16, 90.0  # resolution, fov
-    )
-)
+sensor_manager = veh.ChSensorManager(vis)
+sensor = veh.ChCameraSensor(sensor_manager, "Chassis", 2560, 1440, 90.0)
+
+# Add visualization filter to the sensor
+filter = veh.ChVisualizationFilterSensor(sensor)
+filter.SetFilterType(veh.VisualizationFilterType.NONE)
+filter.SetFilterName("Camera Filter")
+filter.Initialize()
+sensor.SetVisualizationFilter(filter)
+
+# Attach sensor to vehicle
+sensor_manager.AttachSensor(sensor, trackPoint, 0, 0, 0)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -149,7 +155,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Update sensor manager and camera visualization
-    sensor_manager.Update()
-    vis.AddCameraSensor()

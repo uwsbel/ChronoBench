@@ -48,7 +48,7 @@ class SCMTerrainParams:
             self.n_exponent = 1.1
             self.cohesion = 0
             self.friction = 30
-            self.shear_coefficient = 0.01
+            self.janosi = 0.01
             self.elastic_stiffness = 2e7
             self.damping = 3e4
         elif config == "mid":
@@ -57,7 +57,7 @@ class SCMTerrainParams:
             self.n_exponent = 1.1
             self.cohesion = 0
             self.friction = 30
-            self.shear_coefficient = 0.01
+            self.janosi = 0.01
             self.elastic_stiffness = 2e8
             self.damping = 3e4
         elif config == "hard":
@@ -66,7 +66,7 @@ class SCMTerrainParams:
             self.n_exponent = 1.1
             self.cohesion = 0
             self.friction = 40
-            self.shear_coefficient = 0.005
+            self.janosi = 0.005
             self.elastic_stiffness = 3e8
             self.damping = 2e4
         else:
@@ -101,9 +101,9 @@ terrain.SetSoilParameters(
     terrain_params.n_exponent,
     terrain_params.cohesion,
     terrain_params.friction,
-    terrain_params.shear_coefficient,
+    terrain_params.janosi,
     terrain_params.elastic_stiffness,
-    terrain_params.damping,
+    terrain_params.damping
 )
 
 

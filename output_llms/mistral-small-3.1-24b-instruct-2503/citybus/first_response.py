@@ -1,91 +1,101 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
+import math
 
-# Initialize the Chrono::Engine system
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to the Chrono data directory
+# Initialize the Chrono::Engine
+chrono.SetChronoDataPath('path_to_chrono_data')  # Set the path to the Chrono data directory
+
+# Create a Chrono::Engine system
 system = chrono.ChSystemNSC()
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('CityBus Simulation')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddLightDirectional()
+# Create a contact material
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetRestitution(0.2)
 
-# Create the rigid terrain
-terrain = chrono.ChRigidTerrain()
-terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 1000, 1000)
-terrain.SetMaterialProperties(0.9, 0.9, 0.5, 0.1, 10, 10, 10)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-system.Add(terrain)
+# Create the ground (rigid terrain)
+ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True, material)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
 # Load the CityBus vehicle
 vehicle = chrono.ChVehicle()
-vehicle.SetChassisBody(system.NewBody(chrono.ChMaterialSurfaceNSC(), 1500, True))
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(1, 1, 3, 1000, True, True, material))
 vehicle.Initialize()
 
 # Set the initial position and orientation of the vehicle
-vehicle.GetChassis()->SetPos(chrono.ChVectorD(0, 0, 1))
-vehicle.GetChassis()->SetRot(chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.VECT_X))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Add wheels and tires to the vehicle
-wheel_radius = 0.5
-wheel_width = 0.3
-for i in range(4):
-    wheel = vehicle.AddWheel(vehicle.GetChassis(), wheel_radius, wheel_width)
-    wheel.SetInitialPosition(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.VECT_X))
+# Set the tire model
+vehicle.SetTireModelType(chrono.ChVehicleTireModelType.TMEE_FAYON)
+vehicle.SetTireStepSize(0.01)
 
-# Set up the tire model
-tire_model = chrono.ChTireModelTMeasy()
-tire_model.SetRoadFrictionCoeff(1.0)
-for wheel in vehicle.GetWheels():
-    wheel.SetTireModel(tire_model)
+# Add the vehicle to the system
+system.Add(vehicle.GetVehicleBody())
 
-# Create the driver system
+# Create an Irrlicht application to visualize the system
+myapplication = chronoirr.ChIrrApp(chrono.GetDataFile('citybus/vehicle.irr'), 'CityBus Simulation', chronoirr.dimension2du(800, 600))
+myapplication.AddSystem(system)
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLogo(chrono.GetDataFile('logo_pychrono_small.png'))
+myapplication.AddTypicalCamera(chrono.ChVectorD(5, 3, -3), chrono.ChVectorD(0, 0, 0))
+
+# Set the camera to follow the vehicle
+camera = myapplication.GetSceneManager().getActiveCamera()
+camera.setTarget(vehicle.GetChassisBody().GetPos())
+camera.setFarValue(1000)
+
+# Create an interactive driver system
 driver = chrono.ChDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringDelta(0)
-driver.SetThrottle(0)
+driver.Initialize(vehicle, system)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottle(0.5)
 driver.SetBraking(0)
 
-# Set up the camera to follow the vehicle
-camera = vis.AddCamera(chrono.ChVectorD(5, -5, 3), vehicle.GetChassis()->GetPos())
-camera.SetFPSMode(vehicle.GetChassis())
+# Set the simulation step size
+system.SetTimestepperType(chrono.ChTimestepperType.BDF)
+system.SetStep(0.02)
 
-# Set up the simulation loop
-chrono.ChSystemNSC::SetMaxPenetrationRecoverySpeed(1.0)
-system.SetSolverType(chrono.ChSolverType.BARZILAIBORWEIN)
+# Set the simulation duration and frame rate
+duration = 10  # seconds
+frame_rate = 50  # frames per second
 
 # Run the simulation
-while vis.Run():
-    time = system.GetChTime()
-    system.DoStepDynamics(1.0 / 50.0)
+myapplication.SetTimestep(1.0 / frame_rate)
+myapplication.SetTryRealTime(True)
+myapplication.SetSymbolScale(2.0)
 
-    # Update the driver system
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_W):
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()
+
+    # Update the camera to follow the vehicle
+    camera.setTarget(vehicle.GetChassisBody().GetPos())
+
+    # Update the driver inputs
+    if myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_W):
         driver.SetThrottle(1.0)
-    else:
-        driver.SetThrottle(0.0)
-
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_S):
+    elif myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_S):
         driver.SetBraking(1.0)
     else:
+        driver.SetThrottle(0.0)
         driver.SetBraking(0.0)
 
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_A):
-        driver.SetSteeringDelta(-1.0)
-    elif vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_D):
-        driver.SetSteeringDelta(1.0)
+    if myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_A):
+        driver.SetSteeringDelta(-0.04)
+    elif myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_D):
+        driver.SetSteeringDelta(0.04)
     else:
         driver.SetSteeringDelta(0.0)
 
-    # Update the visualization
-    vis.Render()
-    vis.Update()
+    # Check for simulation duration
+    if system.GetChTime() > duration:
+        break
 
-# Close the visualization
-vis.Close()
+# Close the application
+myapplication.Close()

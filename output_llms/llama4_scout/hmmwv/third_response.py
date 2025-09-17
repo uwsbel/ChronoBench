@@ -85,25 +85,23 @@ class MyDriver(veh.ChDriver):
         super(MyDriver, self).__init__(vehicle)
         self.delay = delay
 
-    def Synchronize(self, time, *args):
-        if time < self.delay:
-            throttle = 0
-            steering = 0
-            braking = 0
-        else:
-            throttle = 0.7 if time < self.delay + 0.2 else 0.7
-            steering = math.sin((time - self.delay - 2) * math.pi) if time > self.delay + 2 else 0
-            braking = 0
+    def Synchronize(self, time):
+        throttle = 0.7 if time > 0.2 else 0.0
+        steering = 0.5 * math.sin((time - 2.0) * 2 * math.pi) if time > 2.0 else 0.0
+        braking = 0.0
 
-        self.SetThrottle(throttle)
-        self.SetSteering(steering)
-        self.SetBraking(braking)
+        driver_inputs = veh.DriverInputs()
+        driver_inputs.throttle = throttle
+        driver_inputs.steering = steering
+        driver_inputs.braking = braking
+
+        self.SetInputs(driver_inputs)
 
 # Create the driver system with a delay of 0.5 seconds
 driver = MyDriver(vehicle.GetVehicle(), 0.5)
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -114,7 +112,8 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
+# Simulation loop with end condition
+while vis.Run() and vehicle.GetSystem().GetChTime() < 4.0:
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
@@ -125,13 +124,12 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

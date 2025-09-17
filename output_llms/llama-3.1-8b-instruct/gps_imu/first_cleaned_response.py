@@ -1,106 +1,61 @@
 import chrono as chrono
-from chrono import irrrlicht as irrl
-import numpy as np
+from chrono import ChRo
+from chrono import IrrlichtVisual
+from chrono import Vehicle
+from chrono import Driver
+from chrono import Terrain
+from chrono import IMUSensor
+from chrono import GPSSensor
 
 
-chrono.Initialize()
+ChRo().Initialize()
 
 
-chassis = chrono.ChBody()
-chassis.SetName('HMMWV')
-chassis.SetPosition(chrono.ChVectorD(0, 0, 0))
-chassis.SetMass(2000)  
-chassis.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))  
-chassis.SetBodyFixed(True)
-chrono.Add(chassis)
+vehicle = Vehicle('HMMWV', 2000.0, 5.0, 3.0)
 
 
-terrain = chrono.ChBody()
-terrain.SetName('Terrain')
-terrain.SetPosition(chrono.ChVectorD(0, -10, 0))
-terrain.SetMass(0)  
-terrain.SetInertiaXX(chrono.ChVectorD(0, 0, 0))  
-terrain.SetBodyFixed(True)
-terrain.SetCollide(True)
-chrono.Add(terrain)
+driver = Driver('Driver', vehicle)
 
 
-driver = chrono.ChBody()
-driver.SetName('Driver')
-driver.SetPosition(chrono.ChVectorD(0, 0, 0))
-driver.SetMass(70)  
-driver.SetInertiaXX(chrono.ChVectorD(30, 30, 30))  
-driver.SetBodyFixed(True)
-chrono.Add(driver)
+terrain = Terrain('Terrain', 1000.0, 1000.0, 100.0)
 
 
-suspension = chrono.ChLinkBodySpringDamper()
-suspension.SetName('Suspension')
-suspension.SetBodyA(chassis)
-suspension.SetBodyB(terrain)
-suspension.SetSpringStiffness(100000)
-suspension.SetDamperStiffness(1000)
-suspension.SetRestLength(0.5)
-chrono.Add(suspension)
+imu_sensor = IMUSensor('IMU', vehicle, 10.0, 10.0, 10.0)
 
 
-driver_input = chrono.ChInputForce()
-driver_input.SetName('Driver Input')
-driver_input.SetForce(chrono.ChVectorD(0, 0, 0))
-driver_input.SetPosition(chrono.ChVectorD(0, 0, 0))
-driver_input.SetBody(chassis)
-chrono.Add(driver_input)
+gps_sensor = GPSSensor('GPS', vehicle, 10.0, 10.0, 10.0)
 
 
-irrl.CreateWindow(800, 600)
-irrl.AddScene(chrono.GetScene())
-irrl.SetCameraPosition(chrono.ChVectorD(0, 10, 0))
+vehicle.SetPosition(0.0, 0.0, 0.0)
+vehicle.SetForce(0.0, 0.0, 0.0)
+imu_sensor.SetPosition(0.0, 0.0, 0.0)
+gps_sensor.SetPosition(0.0, 0.0, 0.0)
 
 
-imu = chrono.ChSensor()
-imu.SetName('IMU')
-imu.SetPosition(chrono.ChVectorD(0, 0, 0))
-imu.SetBody(chassis)
-imu.SetType(chrono.ChSensor.SENSOR_ROTATION)
-chrono.Add(imu)
-
-gps = chrono.ChSensor()
-gps.SetName('GPS')
-gps.SetPosition(chrono.ChVectorD(0, 0, 0))
-gps.SetBody(chassis)
-gps.SetType(chrono.ChSensor.SENSOR_POSITION)
-chrono.Add(gps)
+vehicle.SetInteractionParams(1.0, 1.0, 1.0)
+imu_sensor.SetInteractionParams(1.0, 1.0, 1.0)
+gps_sensor.SetInteractionParams(1.0, 1.0, 1.0)
 
 
-def process_sensor_data():
-    
-    imu_data = imu.GetRotation()
-    gps_data = gps.GetPosition()
-    
-    
-    
-    
-    
-    imu.SetRotation(imu_data)
-    gps.SetPosition(gps_data)
-
-
-def simulate():
-    
-    chrono.DoStep()
-    
-    
-    process_sensor_data()
-    
-    
-    mass = chassis.GetMass()
-    
-    
-    print(f'Vehicle mass: {mass} kg')
-    
-    
-    irrl.Render()
+visual = IrrlichtVisual('Visual', terrain, vehicle, driver)
 
 
 while True:
-    simulate()
+    
+    vehicle.Synchronize()
+    terrain.Synchronize()
+    driver.Synchronize()
+    visual.Synchronize()
+    
+    
+    imu_sensor.Update()
+    gps_sensor.Update()
+    
+    
+    print('Vehicle mass:', vehicle.GetMass())
+    
+    
+    visual.Render()
+    
+    
+    chrono.GetChrono().Advance(0.01)

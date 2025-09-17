@@ -55,10 +55,10 @@ def ref_X(time):
 def ref_Y(time):
     return 0.0
 
-load_force = chrono.ChVector3d(0, -100, 0)
+load_force = chrono.ChVector3d(0, -10, 0)
 
 
-melementmonitor = None
+ementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -70,8 +70,8 @@ for iz in range(nsections_z):
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
+        if (iz == 0 and ix == 1):
+            ementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
@@ -81,11 +81,6 @@ for iz in range(nsections_z):
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
-
-
-for j in range(nsections_z):
-    for k in range(nsections_x + 1):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
@@ -119,6 +114,11 @@ sys.SetSolver(mkl_solver)
 
 
 timestep = 0.005
+
+
+for j in range(nsections_z + 1):
+    for k in range(nsections_x + 1):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 
 sys.Setup()

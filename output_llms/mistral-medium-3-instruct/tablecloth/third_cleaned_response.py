@@ -13,7 +13,7 @@ try:
     os.mkdir(out_dir)  
 except OSError as exc:
     if exc.errno != errno.EEXIST:  
-        print("Error creating output directory ")
+        print("Error creating output directory")
 
 
 sys = chrono.ChSystemSMC()  
@@ -87,8 +87,8 @@ if (True):
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix] if (ix > 0) else None
-            boundary_3 = mynodes[(iz) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
             
             melementA.SetNodes(

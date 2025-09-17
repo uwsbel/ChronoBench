@@ -26,9 +26,9 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -42,7 +42,7 @@ step_size = 1e-4  # Decreased step size
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 100  # Increased render step size for finer control
+render_step_size = 1.0 / 100  # Increased render step size
 
 # --------------
 # Create systems
@@ -68,17 +68,18 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with highway mesh
+# Create the terrain with a highway mesh
 terrain_file = veh.GetDataFile("terrain/highway.obj")
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(chrono.ChContactMaterialNSC(), 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch.SetMesh(terrain_file)
+    terrainLength, terrainWidth, mesh_filename=terrain_file)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
@@ -95,8 +96,8 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 5.0  # Increased steering response time
-throttle_time = 1.0  
-braking_time = 0.3   
+throttle_time = 1.0  # time to go from 0 to +1 
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -104,13 +105,15 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # PID controller for throttle control
-kp = 0.5  # Proportional gain
-ki = 0.1  # Integral gain
-kd = 0.05 # Derivative gain
-target_speed = 20  # Desired speed (m/s)
-speed_error = 0
-integral_error = 0
-previous_error = 0
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+target_speed = 20.0  # Set desired speed
+error = 0.0
+integral = 0.0
+derivative = 0.0
+
+driver.Initialize()
 
 # ---------------
 # Simulation loop
@@ -146,17 +149,14 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    speed_error = target_speed - current_speed
-
     # PID control for throttle
-    integral_error += speed_error * step_size
-    derivative_error = (speed_error - previous_error) / step_size
-    throttle_output = kp * speed_error + ki * integral_error + kd * derivative_error
-
-    # Apply throttle output
-    driver_inputs['throttle'] = throttle_output
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = target_speed - current_speed
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    previous_error = error
+    throttle = Kp * error + Ki * integral + Kd * derivative
+    driver_inputs.throttle = throttle
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -168,21 +168,27 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-    previous_error = speed_error
 
 
 
 ```
 
-**Explanation of Changes:**
+**Changes Made:**
 
-1. **Initial Location and Orientation:** The `initLoc` and `initRot` variables were adjusted to the desired starting position.
-2. **Steering Response Time:** The `steering_time` variable was increased to 5 seconds to slow down the steering response.
-3. **Step Size and Render Step Size:** Both `step_size` and `render_step_size` were decreased to 1e-4 and 1.0/100 respectively for finer control over the simulation.
-4. **Highway Terrain:** The `terrain_file` variable was set to "terrain/highway.obj" to load a highway mesh for the terrain.
-5. **Reference Speed Input:** A `target_speed` variable was added to define the desired speed for the vehicle.
-6. **PID Controller:** A PID controller was implemented to regulate the throttle input based on the speed error. The `kp`, `ki`, and `kd` variables control the proportional, integral, and derivative gains of the PID controller.
+1. **Initial Location and Orientation:** Adjusted `initLoc` and `initRot` to the desired values.
+2. **Steering Response Time:** Increased `steering_time` to 5.0 seconds.
+3. **Step Size and Render Step Size:** Decreased `step_size` and `render_step_size` for finer control.
+4. **Highway Terrain:**
+   - Loaded a highway mesh using `veh.GetDataFile("terrain/highway.obj")`.
+   - Created a `RigidTerrain` object and added a patch using the mesh filename.
+5. **Reference Speed Input:**
+   - Introduced `target_speed` to define the desired vehicle speed.
+6. **PID Controller:**
+   - Implemented a basic PID controller to regulate throttle based on the speed error.
+   - You can adjust `Kp`, `Ki`, and `Kd` to fine-tune the controller's performance.
 
+**Explanation:**
 
-
-Let me know if you have any other questions.
+- The PID controller continuously calculates the error between the target speed and the current speed.
+- It then uses the proportional, integral, and derivative terms to determine the appropriate throttle input.
+- The `target_speed` variable allows you to set the desired speed for the vehicle.

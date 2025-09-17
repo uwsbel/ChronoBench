@@ -1,64 +1,71 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
+from pychrono import *
+from pychrono.irrlicht import IrrlichtEngine
+import pychrono.irrlicht as irr
+from pychrono.irrlicht import IrrlichtScene, IrrlichtEngine
 
 
-chrono.Init()
+app = PyChronoApp()
 
 
-world = chrono.World()
+dt = 0.01  
+gravity = 9.81
+friction = 0.5
+restitution = 0.8
 
 
-terrain = chrono.Terrain()
-terrain.SetFriction(0.5)
-terrain.SetRestitution(0.8)
-terrain.SetSize(chrono.Vector3(10, 10, 10))
-world.Add(terrain)
+terrain = Terrain(
+    size=100,
+    position=Vec3(0, 0, 0),
+    friction=friction,
+    restitution=restitution,
+)
 
 
-vehicle = chrono.Vehicle()
-vehicle.SetModel("models/m113.stl")  
-vehicle.SetMass(1000)  
-vehicle.SetPosition(chrono.Vector3(0, 0, 0))  
-vehicle.SetOrientation(chrono.Quaternion(1, 0, 0, 0))  
+vehicle = M113(
+    position=Vec3(0, 0, 0),
+    mass=1000,
+    friction=friction,
+    restitution=restitution,
+)
 
 
-world.Add(vehicle)
+driver = Driver(
+    vehicle=vehicle,
+    acceleration_factor=1.0,
+    max_speed=50.0,
+)
 
 
-driver = chrono.Driver()
-driver.SetModel("models/driver.stl")  
-driver.SetPosition(chrono.Vector3(0, 0, 0))  
-driver.SetOrientation(chrono.Quaternion(1, 0, 0, 0))  
+engine = IrrlichtEngine()
+scene = IrrlichtScene(engine)
 
 
-world.Add(driver)
+camera = IrrlichtCamera(scene)
+camera.position = Vec3(0, 0, 10)
+camera.lookAt = Vec3(0, 0, 0)
+camera.fov = 60.0
 
 
-irr = irrlicht.Irrlicht()
-irr.Init()
+light = IrrlichtLight(scene)
+light.position = Vec3(0, 10, 0)
+light.color = Vec3(1, 1, 1)
 
 
-camera = irr.CreateCamera()
-camera.SetPosition(chrono.Vector3(0, 0, 5))
-camera.SetLookAt(chrono.Vector3(0, 0, 0))
-irr.SetCamera(camera)
-
-
-light = irr.CreateLight()
-light.SetPosition(chrono.Vector3(0, 1, 0))
-light.SetDirection(chrono.Vector3(0, 1, 0))
-irr.SetLight(light)
+scene.add(terrain)
+scene.add(vehicle)
+scene.add(driver)
+scene.add(light)
+scene.add(camera)
 
 
 while True:
     
-    world.Update()
-
+    driver.update(dt)
+    vehicle.update(dt)
+    terrain.update(dt)
     
-    irr.Render()
-
     
-    irr.Update()
-
+    app.update()
     
-    chrono.Sleep(1/60)
+    
+    engine.render(scene)

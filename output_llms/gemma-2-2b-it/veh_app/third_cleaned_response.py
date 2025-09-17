@@ -123,7 +123,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -138,35 +138,26 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-depth_camera = sens.ChDepthCameraSensor(
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
-    1280,
-    720,
-    1.408,
-    30
+    chrono.ChVector3d(-5.0, 0, 2),
+    image_width,
+    image_height,
+    fov,
+    30.0,  
+    sens.DepthCameraBeamShape_RECTANGULAR,  
+    0.003,       
+    0.003,       
+    sens.DepthCameraReturnMode_STRONGEST_RETURN
 )
-depth_camera.SetName("Depth Camera")
-depth_camera.SetLag(lag)
-depth_camera.SetCollectionWindow(1/update_rate)
+depth_cam.SetName("Depth Camera")
+depth_cam.SetLag(lag)
+depth_cam.SetCollectionWindow(1/update_rate)
 
-depth_camera.PushFilter(sens.ChFilterDIAccess())
+depth_cam.PushFilter(sens.ChFilterDIAccess())
 
-depth_camera.PushFilter(sens.ChFilterPCfromDepth())
+depth_cam.PushFilter(sens.ChFilterPCfromDepth())
 
-depth_camera.PushFilter(sens.ChFilterXYZIAccess())
-depth_camera.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))
-
-manager.AddSensor(depth_camera)
-
-
-
-
-
-
-realtime_timer = chrono.ChRealtimeStepTimer()
-time = 0
-end_time = 30
-while time < end_time:
-    time = gator.GetSystem().Get
+depth_cam.PushFilter(sens.ChFilterXYZIAccess())
+depth_cam.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))

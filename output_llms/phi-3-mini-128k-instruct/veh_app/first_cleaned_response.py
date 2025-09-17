@@ -1,90 +1,102 @@
 import pychrono as chrono
-import pychrono_sim as sim
+
+import pychrono.visualization as visual
+
+import pychrono.core as chrono_core
 
 
-sim_env = chrono.ChSystemNSC()
 
 
-gator_vehicle = chrono.ChBodyEasyBox(1.5, 0.5, 2.0, 1000, 1000, 0.1)
+my_chrono_instance = chrono_core.ChromeCore()
+
+
+
+
+gator_vehicle = my_chrono_instance.AddNewRigidBody(False, 1)
+
+gator_vehicle.SetName("GatorVehicle")
+
 gator_vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
-gator_vehicle.SetBodyFixed(True)
-gator_vehicle.SetMass(10000.0)
-gator_vehicle.SetInertiaXX(chrono.ChVectorD(2000.0, 2000.0, 2000.0))
+
+gator_vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+gator_vehicle.SetMass(1000)
 
 
-engine = chrono.ChBodyEasyBox(0.1, 0.2, 0.3, 100, 100, 1000)
-engine.SetPos(chrono.ChVectorD(0.25, 0.1, 0.3))
-engine.SetBodyFixed(True)
-engine.SetMass(5000.0)
-engine.SetInertiaXX(chrono.ChVectorD(1000.0, 1000.0, 1000.0))
-
-wheel = chrono.ChBodyEasyBox(0.1, 0.2, 0.3, 10, 10, 100)
-wheel.SetPos(chrono.ChVectorD(0.4, 0.1, 0.3))
-wheel.SetBodyFixed(True)
-wheel.SetMass(100.0)
-wheel.SetInertiaXX(chrono.ChVectorD(100.0, 100.0, 100.0))
 
 
-terrain = chrono.ChBodyEasyBox(100, 100, 0.1, 0, 0, 0)
-terrain.SetPos(chrono.ChVectorD(0, 0, -1))
-terrain.SetBodyFixed(True)
+gator_vehicle.AddVisualizationFrame(chrono.ChVisualizationFrame_Body)
+
+gator_vehicle.AddVisualizationFrame(chrono.ChVisualizationFrame_Wheels)
+
+gator_vehicle.AddVisualizationFrame(chrono.ChVisualizationFrame_Tires)
 
 
-sim_env.Add(gator_vehicle)
-sim_env.Add(engine)
-sim_env.Add(wheel)
-sim_env.Add(terrain)
 
 
-engine_vis = chrono.ChVisualizationType_Shape
-wheel_vis = chrono.ChVisualizationType_Shape
+terrain = my_chrono_instance.AddNewRigidBody(False, 2)
+
+terrain.SetName("RigidTerrain")
+
+terrain.SetPos(chrono.ChVectorD(0, -10, 0))
+
+terrain.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+terrain.SetMass(0)
+
+terrain.SetFriction(1)
+
+terrain.SetRestitution(0)
 
 
-engine_shape = chrono.ChBoxShape(chrono.ChVectorD(0.1, 0.2, 0.3))
-wheel_shape = chrono.ChBoxShape(chrono.ChVectorD(0.1, 0.2, 0.3))
-
-gator_vehicle.SetVisualization(engine_vis, engine_shape)
-engine.SetVisualization(engine_vis, engine_shape)
-wheel.SetVisualization(wheel_vis, wheel_shape)
 
 
-sensor_manager = chrono.ChSensorManager()
+sensor_manager = my_chrono_instance.AddNewSensorManager(False, 3)
+
+sensor_manager.SetName("SensorManager")
 
 
-point_light = chrono.ChLight()
-point_light.SetAttenuation(chrono.ChVectorD(0.1, 0.1, 0.1))
-point_light.SetPos(chrono.ChVectorD(10, 10, 10))
-sensor_manager.Add(point_light)
 
 
-camera = chrono.ChCamera()
-camera.SetPosition(chrono.ChVectorD(0, 10, 10))
-camera.SetFov(60)
+light1 = sensor_manager.AddNewPointLight()
+
+light1.SetName("PointLight1")
+
+light1.SetPos(chrono.ChVectorD(10, 10, 10))
+
+light1.SetColor(chrono.ChColor(1, 1, 1, 1))
+
+light1.SetAmbientIntensity(0.5)
 
 
-sensor_manager.Add(camera)
 
 
-sim_env.Add(sensor_manager)
+camera = sensor_manager.AddNewCamera()
+
+camera.SetName("VehicleCamera")
+
+camera.SetPos(gator_vehicle.GetPos())
+
+camera.SetLookAt(gator_vehicle.GetPos() + chrono.ChVectorD(0, 1, 0))
+
+camera.SetFocalPoint(chrono.ChVectorD(0, 0, 0))
+
+camera.SetViewUp(chrono.ChVectorD(0, 0, 1))
+
+camera.SetFieldOfView(45)
 
 
-driver_system = chrono.ChDriverSystem()
 
 
-sim_env.Add(driver_system)
+while my_chrono_instance.GetChTime() < 10:
+
+    my_chrono_instance.DoStepDynamics(1e-3, True)
+
+    
+
+    
 
 
-def run_simulation():
-    while sim_env.DoStep(0.001, True) == 0:
-        
-        driver_system.Update()
-        sim_env.DoStepDynamics(0.001, True)
-        
-        
-        sensor_manager.Update()
-        
-        
-        sensor_manager.Render()
 
 
-run_simulation()
+visual.SaveGLTF(my_chrono_instance, "gator_simulation.gltf")

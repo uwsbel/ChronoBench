@@ -96,19 +96,18 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 
-box = veh.ChBoxObject(gator.GetSystem())
-box.SetPosition(chrono.ChVector3d(0, 0, 0.5))
-box.SetDimensions(1, 1, 1)
-box.SetTexture(veh.GetDataFile("terrain/textures/blue.png"), 1, 1)
-box.Initialize()
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetColor(chrono.ChColor(0, 0, 1))
+box.SetTexture(veh.GetDataFile("terrain/textures/blue.png"), 50, 50)
+gator.GetSystem().Add(box)
 
 
-cylinder = veh.ChCylinderObject(gator.GetSystem())
-cylinder.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetRadius(0.5)
-cylinder.SetHeight(1)
-cylinder.SetTexture(veh.GetDataFile("terrain/textures/blue.png"), 1, 1)
-cylinder.Initialize()
+cylinder = chrono.ChBodyCylinder(0.5, 1, 1000)
+cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cylinder.SetColor(chrono.ChColor(0, 0, 1))
+cylinder.SetTexture(veh.GetDataFile("terrain/textures/blue.png"), 50, 50)
+gator.GetSystem().Add(cylinder)
 
 
 driver = veh.ChDriver(gator.GetVehicle())
@@ -140,7 +139,6 @@ manager.AddSensor(cam)
 
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
-    update_rate,
     chrono.ChVector3d(0.0, 0, 2),
     800,
     300,
@@ -148,17 +146,18 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,
     -chrono.CH_PI / 6,
     100.0,
-    sens.ChBeamShapeRectangular,
+    True,
     2,
     0.003,
-    sens.ChLidarSensor.StrongestReturnMode
+    sens.ChLidarSensor.StrongestReturnMode,
+    sens.ChFilterDepth(),
+    sens.ChFilterIntensity(),
+    sens.ChFilterXYZI(),
+    sens.ChFilterVisualize(image_width, image_height, "Lidar Sensor")
 )
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterXYZI(image_width, image_height, "Lidar Data"))
-lidar.PushFilter(sens.ChFilterDepth(image_width, image_height, "Depth Data"))
-lidar.PushFilter(sens.ChFilterIntensity(image_width, image_height, "Intensity Data"))
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Visualization"))
 manager.AddSensor(lidar)
+
 
 
 

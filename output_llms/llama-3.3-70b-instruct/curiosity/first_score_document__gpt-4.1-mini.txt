@@ -4,165 +4,129 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**: Present and correct (`chrono.ChSystemNSC()` used). **No deduction**.
-- **Body Creation**:
-  - Ground body created with `ChBodyEasyBox` but the constructor is incorrectly called with `sys` as the first argument, which is not per API. The API expects dimensions, density, visualize, collision, material, but not the system.  
-  - Rover body created similarly with the same issue.
-  - The ground is fixed properly.
-  - The rover's mass is explicitly set after creation, which is acceptable but redundant since `ChBodyEasyBox` sets mass from density and volume.
-- **Contact Material**:
-  - Created with `chrono.ChMaterialSurfaceNSC()`, but the API documentation specifies `chrono.ChContactMaterialNSC()` for NSC materials. This is a **significant error**.
-- **Joint (Motor)**:
-  - Motor created with `chrono.ChLinkMotorRotationSpeed()`, but the motor is initialized with `rover` and `sys.GetGroundBody()`, which is correct.
-  - However, the motor is initialized but **not added to the system** before setting speed. The code adds the motor after setting speed, which is acceptable.
-  - The speed is set with `motor.SetSpeed(1)`, but per API, `SetSpeedFunction()` should be used with a `ChFunction` object (e.g., `ChFunction_Const(1.0)`). Using `SetSpeed(1)` is **incorrect**.
-- **Adding Bodies and Joints to System**:
-  - `sys.Add(ground)`, `sys.Add(rover)`, and `sys.Add(motor)` are called, which is correct.
-- **Visualization Setup**:
-  - Visualization system created with `chronoirr.ChVisualSystemIrrlicht()`.
-  - However, **the visualization system is not attached to the physical system** via `vis.AttachSystem(sys)`, which is essential for visualization to reflect the simulation state.
-  - Cameras are added twice, which is acceptable.
-  - `vis.SetWindowSize()` is called.
-  - `vis.SetLogo("")` is called, which is unusual but not necessarily wrong.
-  - `vis.AddTypicalGround()` and `vis.AddTypicalGroundLogo()` are called, which is good.
-  - **Missing `vis.Initialize()` call**, which is required to initialize the visualization system before rendering.
-- **Simulation Loop**:
-  - The loop runs for 10 seconds with a time step of 0.01.
-  - The loop condition is `while sys.GetChTime() < 10:`, but **no check for `vis.Run()` to ensure the window is open**.
-  - The rendering calls use `vis.BeginScene()`, `vis.DrawAll()`, `vis.EndScene()`, and `vis.DoStep()`.
-  - According to the API, `vis.Render()` should be used instead of `vis.DrawAll()`.
-- **Summary of completeness deductions**:
-  - Missing `vis.AttachSystem(sys)` → **-15 points**
-  - Missing `vis.Initialize()` → **-15 points**
-  - Incorrect motor speed setting (should use `SetSpeedFunction`) → **-15 points**
-  - Incorrect body creation calls (passing `sys` as first argument) → **-15 points**
-  - Missing `vis.Run()` check in simulation loop → **-10 points**
-  
-**Total completeness deduction: 70 points (but max is 40, so capped at 40 points deduction).**
+- **System Initialization:**  
+  Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+
+- **Body Creation:**  
+  - Ground body created using `chrono.ChBodyEasyBox` but **incorrectly instantiated**:  
+    The constructor is called as `chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)`.  
+    According to the API, `ChBodyEasyBox` signature is:  
+    `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)`  
+    The first argument should be `lengthX` (float), not the system object. The system is not passed here.  
+    This is a **major error** (see correctness below).  
+  - Similarly, the chassis and wheels are created using `chrono.ChBodyEasyBox(sys, ...)` and `chrono.ChWheel(sys, ...)` which are **not correct API calls**.  
+    `ChWheel` is not a class in `chrono` core; wheels in vehicle module are typically added via vehicle-specific APIs or created as bodies.  
+    Also, `veh.ChWheeledVehicle` is an abstract class and does not have methods like `AddChassis` or `AddWheel`. The vehicle module expects initialization via derived vehicle classes or specific initialization calls.  
+    This indicates missing or incorrect vehicle setup.  
+  - The chassis is added to the system via `sys.Add(rover.GetChassis())`, which is correct in principle, but since the chassis creation is incorrect, this is invalid.  
+  - No contact materials or collision settings are defined, which are generally essential for realistic simulations.  
+  **Deduction:** Missing proper body creation and vehicle initialization → **-15 points**
+
+- **Visualization:**  
+  - Visualization system created with `chronoirr.ChVisualSystemIrrlicht()`.  
+  - However, **`vis.AttachSystem(sys)` is missing**, which is essential to link the physical system to the visualization.  
+  - `vis.Initialize()` is also missing, which is required to properly initialize the visualization system before running the loop.  
+  - Multiple calls to `AddCamera` with the same position are redundant.  
+  - `AddTexture` is called on `ground`, but `AddTexture` is not a documented method of `ChVisualSystemIrrlicht` or bodies; textures are usually applied via visual shapes or materials.  
+  - `AddLogo` is called with a position vector, but the API shows `AddLogo(path)` only; the position argument is not documented.  
+  **Deduction:** Visualization present but incomplete and incorrectly configured → **-10 points**
+
+- **Simulation Loop:**  
+  Present and correctly structured with `while vis.Run(): sys.DoStepDynamics(0.01)` and rendering calls. No deduction.
+
+- **Summary Completeness:**  
+  - Missing proper vehicle and wheel creation and initialization.  
+  - Missing visualization attachment and initialization.  
+  - Incorrect application of textures and logos.  
+  **Total Completeness Deduction: 15 + 10 = 25 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `ChMaterialSurfaceNSC()` instead of `ChContactMaterialNSC()`**: This is a **major API misuse** and will cause errors or unexpected behavior. **-15 points**
-- **Incorrect initialization of bodies**: Passing `sys` as first argument to `ChBodyEasyBox` is not per API and will cause errors. **-15 points**
-- **Motor speed setting with `SetSpeed(1)` instead of `SetSpeedFunction(ChFunction_Const(1))`**: This is an API misuse that affects motor behavior. **-15 points**
-- **Visualization calls**:
-  - Using `vis.DrawAll()` instead of `vis.Render()` is a minor API misuse. **-5 points**
-- **Simulation loop lacks `vis.Run()` check**: This is a logical error that can cause the loop to continue after the window is closed. **-10 points**
+- **Incorrect API usage:**  
+  - `chrono.ChBodyEasyBox(sys, ...)` is invalid; system object should not be passed to the constructor.  
+  - `chrono.ChWheel(sys, ...)` is invalid; `ChWheel` is not a core class and does not take system as argument.  
+  - `veh.ChWheeledVehicle` is an abstract base class and does not have `AddChassis` or `AddWheel` methods. Vehicle initialization requires derived classes or specific initialization calls.  
+  - Missing `vis.AttachSystem(sys)` and `vis.Initialize()` calls for visualization.  
+  - `AddTexture` and `AddLogo` usage is incorrect per API.  
+  **Deduction:** Each of these is a significant API misuse that would cause runtime errors or incorrect simulation behavior. Deduct **-15 points** for these major API misuses.
 
-Total deductions here exceed 30, so capped at **-30 points**.
+- **Logical errors:**  
+  - Setting chassis position and rotation after adding it to the system is acceptable but better done before adding. Minor issue.  
+  - Multiple calls to `AddCamera` with same parameters are redundant but not logically wrong. Minor issue.  
+  **Deduction:** Minor logical issues → **-5 points**
+
+- **Summary Correctness Deduction:** 15 + 5 = 20 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability**:
-  - Variable names like `sys`, `motor`, `rover`, `ground` are meaningful.
-  - Code is mostly well structured.
-  - However, lack of comments explaining steps or purpose of code blocks.
-- **Formatting**:
-  - Imports are fine.
-  - Some minor spacing issues (e.g., no blank lines between logical blocks).
-- **No docstrings or inline comments**.
-  
-Deductions:
-
-- Lack of comments/documentation → **-5 points**
-- Minor readability issues (lack of blank lines, no separation of sections) → **-3 points**
-
-Total: **-8 points**
+- **Readability and structure:**  
+  - Variable names like `sys`, `ground`, `rover`, and `vis` are acceptable.  
+  - Code is mostly linear without functions or modularization, but for a short script, this is acceptable.  
+  - Formatting is consistent.  
+  - However, no comments explaining steps or rationale.  
+  **Deduction:** Lack of comments → **-5 points**  
+  No major readability issues → no further deduction.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or code.
-- Setting mass explicitly after `ChBodyEasyBox` is redundant but minor.
-- Adding two cameras is acceptable for visualization.
-- No other inefficiencies noted.
+- **Redundant calls:**  
+  - Two calls to `AddCamera` with same position and one with additional parameters; redundant and unnecessary.  
+  - Multiple calls to `vis.GetCamera().SetPosition` and `SetLookAt` after adding cameras; could be consolidated.  
+  **Deduction:** Redundant visualization setup → **-5 points**
 
-Deductions:
-
-- Minor redundancy in setting mass → **-3 points**
+- **No other obvious inefficiencies.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except blocks, checks for initialization success, etc.).
-- No handling of edge cases (e.g., checking if visualization window is open).
-- While PyChrono scripts often omit explicit error handling, best practices recommend at least checking `vis.Run()`.
-
-Deductions:
-
-- Lack of basic error handling → **-5 points**
+- No error handling or checks for resource loading (e.g., texture or logo files).  
+- No try-except blocks or validation of inputs.  
+- While not always mandatory in simple scripts, best practice is to handle potential errors especially when loading external assets.  
+**Deduction:** Lack of basic error handling → **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Missing `vis.AttachSystem(sys)` → major visualization setup error.
-- Missing `vis.Initialize()` → major visualization setup error.
-- Using `vis.DrawAll()` instead of `vis.Render()` → minor issue.
-- Adding two cameras is acceptable.
-- Adding skybox, typical lights, typical ground, and ground logo is good.
-- Setting logo to empty string is unusual but not critical.
-
-Deductions:
-
-- Missing attach and initialize → **-5 points**
-- Using `DrawAll()` instead of `Render()` → **-2 points**
+- Missing `vis.AttachSystem(sys)` and `vis.Initialize()` → visualization will not work properly.  
+- Incorrect usage of `AddTexture` and `AddLogo`.  
+- Lighting and skybox added correctly.  
+- Camera setup redundant but acceptable.  
+**Deduction:** Incorrect/incomplete visualization setup → **-5 points**
 
 ---
 
-### Summary of deductions:
+### Summary of Deductions
 
-| Criterion                     | Max Points | Deduction | Notes                                    |
-|-------------------------------|------------|-----------|------------------------------------------|
-| Completeness                  | 40         | 40        | Multiple missing essential components    |
-| Correctness                  | 30         | 30        | Major API misuse and logical errors      |
-| Code Quality                 | 10         | 8         | Lack of comments and minor readability   |
-| Efficiency                  | 10         | 3         | Minor redundancy                          |
-| Error Handling and Robustness| 5          | 5         | No error handling                         |
-| Visualization Tools          | 5          | 7 (capped at 5) | Major visualization setup errors         |
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | -25       | Missing proper vehicle setup, visualization incomplete |
+| Correctness               | 30     | -20       | Major API misuse, minor logical issues     |
+| Code Quality              | 10     | -5        | No comments                                |
+| Efficiency                | 10     | -5        | Redundant camera calls                      |
+| Error Handling & Robustness | 5      | -5        | No error handling                           |
+| Visualization Tools       | 5      | -5        | Missing attach/init, incorrect texture/logo usage |
 
-Total deductions = 40 + 30 + 8 + 3 + 5 + 5 = 91 points
+**Total deductions:** 25 + 20 + 5 + 5 + 5 + 5 = 65 points
 
-Starting from 100 points:
-
-100 - 91 = 9 points
+**Final score:** 100 - 65 = 35 points
 
 ---
 
-### Final score: [[9]]
+### Additional remarks:
+
+- The script shows an attempt to create a vehicle simulation but does not follow the PyChrono vehicle module API correctly.  
+- Visualization setup is incomplete and will prevent the simulation from displaying properly.  
+- Lack of comments and error handling reduces maintainability and robustness.  
+- The script would not run successfully without corrections to API usage and visualization setup.
 
 ---
 
-### Explanation:
-
-The script demonstrates an attempt to set up a PyChrono simulation with bodies, materials, joints, and visualization. However, it contains several critical errors:
-
-- The use of `ChMaterialSurfaceNSC()` instead of `ChContactMaterialNSC()` is a fundamental API misuse.
-- The `ChBodyEasyBox` constructor is incorrectly called with the system as the first argument, which is not supported.
-- The motor speed is set incorrectly using `SetSpeed(1)` instead of the required `SetSpeedFunction()`.
-- The visualization system is not attached to the physical system and is not initialized, which will prevent proper rendering.
-- The simulation loop does not check if the visualization window is still open.
-- Visualization rendering uses `DrawAll()` instead of `Render()`.
-- The code lacks comments and error handling, reducing readability and robustness.
-
-These issues severely impact the correctness and completeness of the simulation script, resulting in a very low score.
-
----
-
-**Recommendation:**  
-- Correct the material creation to use `ChContactMaterialNSC()`.  
-- Remove the `sys` argument from `ChBodyEasyBox` constructors.  
-- Use `motor.SetSpeedFunction(chrono.ChFunction_Const(1.0))` instead of `SetSpeed(1)`.  
-- Attach the visualization system to the physical system with `vis.AttachSystem(sys)` and call `vis.Initialize()` before the simulation loop.  
-- Use `vis.Run()` in the loop condition and replace `vis.DrawAll()` with `vis.Render()`.  
-- Add comments and basic error handling for robustness.
-
----
-
-[[9]]
+[[35]]

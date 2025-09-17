@@ -88,7 +88,6 @@ def main():
     sens_manager.AddSensor(mag)
 
     
-    
     lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  

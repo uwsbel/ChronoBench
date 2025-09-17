@@ -14,26 +14,31 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-terrain_length = 20.0  # length in X direction
-terrain_width = 20.0   # length in Y direction
-terrain_mesh_res = 0.05  # mesh resolution
-
-# Create the terrain
+terrainLength = 20.0  # length in X direction
+terrainWidth = 20.0   # length in Y direction
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
-terrain.SetLength(terrain_length)
-terrain.SetWidth(terrain_width)
-terrain.SetMeshResolution(terrain_mesh_res)
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  # ground at Z=0
+terrain.SetLength(terrainLength)
+terrain.SetWidth(terrainWidth)
+terrain.SetMeshResolution(0.1, 0.1)  # resolution of the underlying mesh
 
-# Set soil parameters
-terrain.SetSoilParameters(2e6,    # Bekker Kphi
-                          0,      # Bekker Kc
-                          1.1,    # Bekker n exponent
-                          0,      # Mohr cohesive limit (Pa)
-                          30,     # Mohr friction angle (deg)
-                          0.01)   # Janosi shear coefficient (m)
+# Soil parameters
+soil_params = veh.SCMDeformableTerrain.SoilParameters()
+soil_params.Bekker_Kphi = 1e6
+soil_params.Bekker_Kc = 1e6
+soil_params.Bekker_n = 1.0
+soil_params.Mohr_cohesion = 0.5
+soil_params.Mohr_friction = 35 * math.pi / 180
+soil_params.Janes_cohesion = 0.5
+soil_params.Janes_friction = 35 * math.pi / 180
+soil_params.Janes_suction = 0
+soil_params.Janes_exponent = 0.5
+soil_params.Damp_Rayleigh = 0.1
+soil_params.Damp_viscous = 0.01
+terrain.SetSoilParameters(soil_params)
 
 terrain.Initialize()
+system.Add(terrain)
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
@@ -50,7 +55,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - SCM deformable terrain')
+vis.SetWindowTitle('Viper rover - Deformable terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -68,8 +73,9 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
-    steering = 0.0  # Constant steering value
 
+    # Set constant steering value of 0.0
+    steering = 0.0
     driver.SetSteering(steering)  # Set the steering for the rover
 
     rover.Update()  # Update the rover's state

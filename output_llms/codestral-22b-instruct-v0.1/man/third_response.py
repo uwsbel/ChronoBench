@@ -64,6 +64,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -81,6 +82,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -88,27 +91,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
-# Create sensor manager and lidar sensor
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-lidar_sensor = sens.ChLidarSensor(vehicle.GetSystem(), 200, 10, 30, 100)
-lidar_sensor.SetName("Lidar")
-lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-lidar_sensor.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
-lidar_sensor.SetUpdateRate(10)
-sensor_manager.AddSensor(lidar_sensor)
-
-# Create and add random boxes to the simulation
-for i in range(10):
-    box = chrono.ChBody()
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.5))
-    box.SetMass(10)
-    box.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
-    box.SetCollide(True)
-    box_shape = chrono.ChBoxShape()
-    box_shape.GetBoxGeometry().Size = chrono.ChVector3d(1, 1, 1)
-    box.AddAsset(box_shape)
-    vehicle.GetSystem().Add(box)
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -120,6 +102,27 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# Create sensor manager and lidar sensor
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+lidar_sensor = sens.ChLidarSensor(vehicle.GetSystem(), 200, 0.001, 100, 2, chrono.ChCoordsysd(chrono.ChVector3d(0.5, 0, 1.5), chrono.QUNIT))
+sensor_manager.AddSensor(lidar_sensor)
+
+# Create and add random boxes to the simulation
+num_boxes = 10
+for i in range(num_boxes):
+    box_size = np.random.uniform(0.5, 2.0)
+    box_pos = np.random.uniform(low=-terrainLength/2, high=terrainLength/2, size=3)
+    box_pos[2] += box_size / 2  # Adjust height to be above the terrain
+    box_body = chrono.ChBody()
+    box_body.SetPos(chrono.ChVector3d(*box_pos))
+    box_body.SetMass(1000)
+    box_body.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+    box_body.SetCollide(True)
+    box_shape = chrono.ChBoxShape()
+    box_shape.GetBoxGeometry().SetLengths(chrono.ChVector3d(box_size, box_size, box_size))
+    box_body.AddAsset(box_shape)
+    vehicle.GetSystem().Add(box_body)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()

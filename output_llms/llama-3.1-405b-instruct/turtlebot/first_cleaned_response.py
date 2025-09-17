@@ -41,20 +41,17 @@ system.Add(right_motor)
 
 application = chronoirr.ChIrrApp(system, "Turtlebot Simulation", chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
-application.AddTypicalLights()
-
-
-application.SetCamera(chronoirr.vector3df(0, 0.5, -1), chronoirr.vector3df(0, 0, 0))
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
+application.AddLightWithShadow(chronoirr.vector3df(1, 1, 1), chronoirr.vector3df(0, 0, 0), 3, 3, 3, 3, 128)
 
 
 application.AssetBindAll()
 application.AssetUpdateAll()
+application.AddShadowAll()
 
 time = 0
 while application.GetDevice().run():
     time += 0.01
-
-    
     if time < 5:
         left_motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI))
         right_motor.SetMotorFunction(chrono.ChFunction_Const(-chrono.CH_C_PI))
@@ -65,7 +62,7 @@ while application.GetDevice().run():
         left_motor.SetMotorFunction(chrono.ChFunction_Const(0))
         right_motor.SetMotorFunction(chrono.ChFunction_Const(0))
 
-    system.DoStepDynamics(time)
+    system.DoStepDynamics(0.01)
     application.BeginScene()
     application.DrawAll()
     application.EndScene()

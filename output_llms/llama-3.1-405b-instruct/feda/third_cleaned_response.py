@@ -87,18 +87,20 @@ plight1 = vis.AddPointLight(chrono.ChVector3d(-5, 0, 5), chrono.ChColor(1, 1, 1)
 plight2 = vis.AddPointLight(chrono.ChVector3d(5, 0, 5), chrono.ChColor(1, 1, 1), 1000)
 
 
-manager = veh.ChSensorManager(vehicle.GetSystem())
-vehicle.GetSystem().AddManager(manager)
+sman = chrono.ChSensorManager(vehicle.GetSystem())
 
 
-camera = veh.ChCameraSensor(vehicle.GetChassisBody(), 1280, 1024, 60)
-camera.SetFOV(1.0472) 
-camera.SetCollectionWindow(chrono.ChVector3d(-1, -1, 1), chrono.ChVector3d(1, 1, 1))
+cam = chrono.ChCameraSensor(vehicle.GetChassisBody(), 1024, 768, 60)
+cam.SetFOV(60)
+cam.SetCollectionWindow(chrono.ChVector3d(-0.5, -0.5, 1), chrono.ChVector3d(0.5, 0.5, 1))
+sman.AddSensor(cam)
 
 
-filter = veh.ChVisualizationFilter()
-filter.AddCameraSensor(camera)
-manager.AddFilter(filter)
+vis_filter = chrono.ChVisualizationFilter(cam)
+vis_filter.SetVisualizationType(chrono.ChVisualizationType_IMAGE)
+vis_filter.SetImageWidth(1024)
+vis_filter.SetImageHeight(768)
+sman.AddFilter(vis_filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -135,9 +137,6 @@ while vis.Run() :
         render_frame += 1
 
     
-    camera.Update()
-
-    
     driver_inputs = driver.GetInputs()
 
     
@@ -145,14 +144,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Synchronize(time)
+    sman.Synchronize(time) 
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    manager.Advance(step_size)
+    sman.Advance(step_size) 
 
     
     step_number += 1

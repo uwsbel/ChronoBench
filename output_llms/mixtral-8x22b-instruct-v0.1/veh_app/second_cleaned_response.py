@@ -140,7 +140,7 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-lidar = sens.ChLidarSensor(
+lidar_sensor = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     chrono.ChVector3d(0.0, 0, 2),  
@@ -150,17 +150,16 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,  
     -chrono.CH_PI / 6,  
     100.0,  
-    sens.LidarShape_RECTANGULAR,  
+    sens.LidarShape_Rectangular,  
     2,  
     0.003,  
-    sens.LidarMode_STRONGEST,  
+    sens.LidarReturnMode_Strongest,  
 )
-lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterDepth())
-lidar.PushFilter(sens.ChFilterIntensity())
-lidar.PushFilter(sens.ChFilterXYZI())
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Sensor"))
-manager.AddSensor(lidar)
+lidar_sensor.PushFilter(sens.ChFilterDepth())
+lidar_sensor.PushFilter(sens.ChFilterIntensity())
+lidar_sensor.PushFilter(sens.ChFilterXYZI())
+lidar_sensor.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
+manager.AddSensor(lidar_sensor)
 
 
 
@@ -172,8 +171,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
-    driver.SetSteering(0.5)
-    driver.SetThrottle(0.2)
+    driver.SetSteering(0.5)  
+    driver.SetThrottle(0.2)  
     
     driver_inputs = driver.GetInputs()
 

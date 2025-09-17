@@ -165,20 +165,18 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# ---------------
-# Create and add the Depth Camera
-# ---------------
-depth_cam_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+# Added Depth Camera
+depth_cam_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2))
 depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
     depth_cam_offset_pose,
     image_width,
     image_height,
-    fov
+    fov,
+    sens.ChFilterDepthMap()  # Added visualization filter for Depth Map
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Camera"))
 manager.AddSensor(depth_cam)
 
 # ---------------
@@ -202,9 +200,8 @@ while time < end_time:
 
     manager.Update()
 
-    # Log vehicle state
-    vehicle_state = gator.GetChassisBody().GetPos()
-    print(f"Time: {time}, Position: {vehicle_state.x}, {vehicle_state.y}, {vehicle_state.z}, Heading: {vehicle_state.r}")
+    # Log Vehicle State
+    print(f"Time: {time}, Position: {gator.GetSystem().GetChPos().x}, {gator.GetSystem().GetChPos().y}, {gator.GetSystem().GetChPos().z}, Heading: {gator.GetSystem().GetChQuat().w}")
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

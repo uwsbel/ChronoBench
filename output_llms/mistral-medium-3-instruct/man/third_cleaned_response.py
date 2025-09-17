@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor
+import pychrono.sensor as sens
 import numpy as np
 import math
 
@@ -48,7 +48,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -97,50 +96,42 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = sensor.ChLidarSensor(
-    vehicle.GetChassisBody(),  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1.5), chrono.QUNIT),  
-    10,  
-    30,  
-    10,  
-    0.1,  
-    50,  
-    0.01  
-)
+lidar = sens.ChLidarSensor("lidar",  
+                           10,       
+                           chrono.ChVector3d(0, 0, 0.5),  
+                           chrono.ChVector3d(0, 0, 1),    
+                           chrono.ChVector3d(0, 1, 0),    
+                           30,       
+                           30,       
+                           50)       
 sensor_manager.AddSensor(lidar)
 
 
-num_boxes = 5
-box_size = 1.0
-box_height = 1.0
-for i in range(num_boxes):
-    
-    x = np.random.uniform(-terrainLength/2 + 5, terrainLength/2 - 5)
-    y = np.random.uniform(-terrainWidth/2 + 5, terrainWidth/2 - 5)
+def add_random_boxes(system, num_boxes=10):
+    for i in range(num_boxes):
+        box = chrono.ChBody()
+        box.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20),
+                                    np.random.uniform(-20, 20),
+                                    np.random.uniform(0.5, 2)))
+        box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+        box.SetBodyFixed(True)
 
-    
-    box_body = chrono.ChBody()
-    box_body.SetPos(chrono.ChVector3d(x, y, box_height/2))
-    box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-    box_body.SetBodyFixed(False)
+        box_shape = chrono.ChBoxShape()
+        box_shape.GetBoxGeometry().SetLengths(chrono.ChVector3d(1, 1, 1))
+        box.AddAsset(box_shape)
 
-    
-    box_body.GetCollisionModel().AddBox(box_size/2, box_size/2, box_height/2)
-    box_body.GetCollisionModel().SetFamily(1)
-    box_body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
-    box_body.GetVisualModel().AddBox(box_size/2, box_size/2, box_height/2)
+        box_vis = chrono.ChColorAsset()
+        box_vis.SetColor(chrono.ChColor(np.random.random(),
+                                       np.random.random(),
+                                       np.random.random()))
+        box.AddAsset(box_vis)
 
-    
-    box_mat = chrono.ChContactMaterialNSC()
-    box_mat.SetFriction(0.8)
-    box_mat.SetRestitution(0.2)
-    box_body.GetMaterialSurfaceNSC().SetContactMaterial(box_mat)
+        system.AddBody(box)
 
-    
-    vehicle.GetSystem().Add(box_body)
+add_random_boxes(vehicle.GetSystem())
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -155,15 +146,16 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
+    
+    sensor_manager.Update()
+
     
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    
-    sensor_manager.Update()
 
     
     driver_inputs = driver.GetInputs()

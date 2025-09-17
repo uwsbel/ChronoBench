@@ -1,80 +1,77 @@
-importchrono as chrono
-import math
+importchrono
+importkeyboard
+importtime
 
 
-system = chrono.ChSystem()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system =chrono.ChSystem()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_time_step(0.001)
 
 
-vis = chrono.ChIrrApp(system, "ARTcar Simulation", chrono.CHDimension(800, 600))
-vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-vis.SetCameraRotation(chrono.ChVectorD(-45, 45, 0))
+vis =chrono.ChIrrApp(system, "ARTcar Simulation", 1024, 768)
+vis.SetCamPosition(chrono.ChVectorD(0, 10, 20))
+vis.SetCamRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vis.AddTypicalLights()
 
 
-car = chrono.ChVehicleArtcar()
-car.SetPos(chrono.ChVectorD(0, 0, 1))  
-car.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
-car.SetContactMethod(chrono.ChContactMethod_NSM)  
-car.SetVisualization(chrono.ChVisualizationType_MESH)  
-system.Add(car)
+vehicle =chrono.vehicle.ARTcar()
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chrono.CHRONO)
+vehicle.SetVisualization(chrono.VISUALIZE)
+system.Add(vehicle.GetChassis())
 
 
-terrain = chrono.ChRigidTerrain()
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-terrain.SetSize(100, 100)  
-terrain.SetHeight(0)  
-terrain.SetTexture("terrain_texture.jpg", 100, 100)  
+terrain =chrono.ChRigidTerrain(system, chrono.ChVectorD(100, 100, 1))
+terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"))
 system.Add(terrain)
 
 
-terrain_node = chrono.ChIrrNodeShared(terrain)
-vis.GetScene().Add(terrain_node)
-
-
-steering = 0.0
-throttle = 0.0
-brake = 0.0
+steering = 0
+throttle = 0
+brake = 0
 
 def on_key_press(event):
     global steering, throttle, brake
-    if event.key == chrono.CH_KEY_LEFT:
-        steering += 0.1
-    if event.key == chrono.CH_KEY_RIGHT:
-        steering -= 0.1
-    if event.key == chrono.CH_KEY_UP:
+    if event.name == 'left':
+        steering = -0.5
+    elif event.name == 'right':
+        steering = 0.5
+    elif event.name == 'up':
         throttle = 0.5
-        brake = 0.0
-    if event.key == chrono.CH_KEY_DOWN:
-        throttle = 0.0
+    elif event.name == 'down':
         brake = 0.5
 
-vis.SetKeyboardCallback(on_key_press)
+def on_key_release(event):
+    global steering, throttle, brake
+    if event.name in ['left', 'right']:
+        steering = 0
+    elif event.name in ['up', 'down']:
+        throttle = 0
+        brake = 0
+
+keyboard.on_press(on_key_press)
+keyboard.on_release(on_key_release)
 
 
-frame_rate = 50
-time_step = 1.0 / frame_rate
-step_count = 1000
+try:
+    while True:
+        
+        vehicle.GetDriver().SetSteering(steering)
+        vehicle.GetDriver().SetThrottle(throttle)
+        vehicle.GetDriver().SetBrake(brake)
+        
+        
+        system.DoStepDynamics()
+        
+        
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        
+        time.sleep(0.02)
+except KeyboardInterrupt:
+    pass
 
-for step in range(step_count):
-    
-    car.GetDriver().SetThrottle(throttle)
-    car.GetDriver().SetBrake(brake)
-    car.GetDriver().SetSteering(steering)
-    
-    
-    car.Update(time_step)
-    
-    
-    system.DoStepDynamics(time_step)
-    
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    
-    chrono.Sleep(time_step * 1000)
-
-
-vis.Close()
+keyboard.unhook_all()

@@ -1,91 +1,78 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import pychrono.vehicle as vehicle
 import pychrono.tmeasy as tmeasy
-import pychrono.collision as collision
+import pychrono.vehicle as vehicle
 
 # Initialize PyChrono
 chrono.init()
 
-# Create the scene
-scene = chrono.Scene()
+# Create the simulation environment
+world = chrono.World()
 
-# Create the terrain
+# Define the terrain
 terrain = chrono.Terrain(
-    chrono.Shape(chrono.Cylinder(2, 10, 1)),
-    chrono.Material(chrono.Color(1, 1, 1, 1)),
-    chrono.Position(0, 0, 0),
+    "terrain.png",  # Replace with your terrain texture path
+    "terrain_logo.png",  # Replace with your logo texture path
+    chrono.Vector3(0, 0, 0),  # Position of the terrain
+    chrono.Vector3(100, 100, 100),  # Size of the terrain
+    chrono.Vector3(1, 1, 1),  # Height of the terrain
 )
 
-# Create the vehicle
+# Create the truck model
 truck = vehicle.Vehicle(
-    chrono.Model("truck"),
-    chrono.Position(0, 0, 0),
-    chrono.Rotation(0, 0, 0),
-    chrono.Scale(1, 1, 1),
-    chrono.Visualize(
-        chrono.Visualization(
-            chrono.Material(chrono.Color(1, 0, 0, 1)),
-            chrono.Shape(chrono.Cylinder(2, 10, 1)),
-            chrono.Position(0, 0, 0),
-        )
-    ),
+    "truck.obj",  # Replace with your truck model path
+    chrono.Vector3(0, 0, 0),  # Initial position of the truck
+    chrono.Vector3(10, 10, 10),  # Initial size of the truck
+    chrono.Vector3(1, 1, 1),  # Initial height of the truck
 )
 
-# Set default parameters
-truck.set_position(chrono.Position(0, 0, 0))
-truck.set_rotation(chrono.Rotation(0, 0, 0))
-truck.set_scale(chrono.Scale(1, 1, 1))
-
-# Create the tire model
+# Add the TMEASY tire model
 tire = tmeasy.Tire(
-    chrono.Model("tire"),
-    chrono.Position(0, 0, 0),
-    chrono.Rotation(0, 0, 0),
-    chrono.Scale(1, 1, 1),
+    "tire.obj",  # Replace with your tire model path
+    chrono.Vector3(0, 0, 0),  # Initial position of the tire
+    chrono.Vector3(1, 1, 1),  # Initial height of the tire
 )
 
-# Create the driver controls
-driver_controls = chrono.DriverControls(
-    chrono.Throttle(0, 100),
-    chrono.Brake(0, 100),
-    chrono.Steering(0, 100),
+# Set the truck's visual settings
+truck.set_visual_settings(
+    chrono.Color(1, 0, 0),  # Set the truck's color to red
+    chrono.Material(
+        chrono.Vector3(1, 1, 1),  # Set the truck's material
+        chrono.Vector3(1, 1, 1),  # Set the truck's material
+        chrono.Vector3(1, 1, 1),  # Set the truck's material
+    )
 )
 
-# Add the tire model to the vehicle
-truck.add_tire(tire)
+# Set the tire's visual settings
+tire.set_visual_settings(
+    chrono.Color(0, 1, 0),  # Set the tire's color to green
+    chrono.Material(
+        chrono.Vector3(0.5, 0.5, 0.5),  # Set the tire's material
+        chrono.Vector3(0.5, 0.5, 0.5),  # Set the tire's material
+        chrono.Vector3(0.5, 0.5, 0.5),  # Set the tire's material
+    )
+)
 
-# Add the driver controls to the vehicle
-truck.add_controls(driver_controls)
+# Add the truck to the world
+world.add_object(truck)
+world.add_object(tire)
 
-# Add the terrain to the scene
-scene.add_object(terrain)
-
-# Add the vehicle to the scene
-scene.add_object(truck)
-
-# Create the Irrlicht engine
-irrlicht_engine = irrlicht.IrrlichtEngine()
-
-# Set up the Irrlicht visualization
-irrlicht_engine.set_fullscreen(True)
-irrlicht_engine.set_window_title("MAN 10t Truck Simulation")
+# Create the Irrlicht visualization system
+irrlicht_env = irrlicht.IrrlichtEnvironment()
 
 # Set up the camera
-camera = irrlicht_engine.create_camera()
-camera.setPosition(chrono.Position(0, 0, 10))
-camera.setRotation(chrono.Rotation(0, 0, 0))
+camera = irrlicht_env.get_camera()
+camera.setPosition(chrono.Vector3(0, 10, 0))
+camera.setLookAt(chrono.Vector3(0, 0, 0))
 
 # Set up the lighting
-irrlicht_engine.set_directional_light(chrono.Position(0, 1, 0))
-irrlicht_engine.set_skybox(chrono.Skybox(chrono.Color(0, 0, 0, 1)))
+irrlicht_env.add_light(chrono.Light("DirectionalLight", chrono.Vector3(0, 1, 0)))
 
-# Set up the visualization
-irrlicht_engine.set_visualization(irrlicht.Visualization(
-    irrlicht.Material(chrono.Color(1, 1, 1, 1)),
-    irrlicht.Shape(chrono.Cylinder(2, 10, 1)),
-    chrono.Position(0, 0, 0),
-))
+# Add the terrain to the Irrlicht visualization system
+irrlicht_env.add_terrain(terrain)
 
 # Start the simulation
-irrlicht_engine.run()
+world.run()
+
+# Run the Irrlicht visualization system
+irrlicht_env.run()

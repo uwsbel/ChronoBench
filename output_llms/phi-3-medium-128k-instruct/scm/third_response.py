@@ -119,6 +119,33 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Create a sensor manager
+sensorManager = chrono.ChSensorManager()
+
+# Create a camera sensor
+cameraSensor = chrono.ChCameraSensor(vehicle.GetSystem(), 100, 100, 60, 0.01, 0.01, 0.01, 0.01, 1.0, 0.01)
+
+# Add the camera sensor to the sensor manager
+sensorManager.AddSensor(cameraSensor)
+
+# Create point lights
+for i in range(5):
+    light = chrono.ChLightPoint(chrono.ChVector3d(random.uniform(-10, 10), chrono.ChVector3d(random.uniform(-10, 10), chrono.ChVector3d(random.uniform(-10, 10), 100.0)
+    sensorManager.AddSensor(light)
+
+# Add the sensor manager to the vehicle
+vehicle.GetSystem().AddSensor(sensorManager)
+
+# Create a filter to visualize the camera feed during the simulation
+cameraFilter = chrono.ChSensorFilter()
+cameraFilter.AddSensor(cameraSensor)
+cameraFilter.AddSensor(chrono.ChSensorFilter.Type_TEXTURE)
+
+# Initialize the sensor manager
+sensorManager.Initialize()
+
+# Create the vehicle Irrlicht interface
+
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -138,21 +165,6 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Add randomly positioned boxes in the simulation environment
-    for _ in range(5):  # Add 5 boxes
-        box_size = 1.0
-        box_mass = 1.0
-        box_pos = chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0.0)
-        box = chrono.ChBodyEasyBox(box_mass, box_size)
-        if not (box_pos.x() >= -terrainLength and box_pos.x() <= terrainLength and box_pos.y() >= -terrainWidth and box_pos.y() <= terrainWidth):
-            box.SetPos(box_pos)
-            vehicle.GetSystem().AddBody(box)
-
-    # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
@@ -165,22 +177,8 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Integrate a Sensor System
-    sensor_manager = chrono.ChSensorManager()
-    sensor_manager.AddPointLight(chrono.ChVector3d(0, 10, 10), 100.0, chrono.ChColor(1, 1, 1, 1))
-    sensor_manager.AddPointLight(chrono.ChVector3d(-10, 0, 10), 100.0, chrono.ChColor(1, 1, 1, 1))
-    sensor_manager.AddPointLight(chrono.ChVector3d(10, 0, 10), 100.0, chrono.ChColor(1, 1, 1, 1))
-    vehicle.GetSystem().AddSensor(sensor_manager)
+    # Update the sensor manager
+    sensorManager.Update()
 
-    # Create a camera sensor attached to the vehicle chassis
-    camera = chrono.ChCamera(chrono.ChVector3d(0, 0, 2), chrono.ChVector3d(0, 0, 0), 75, chrono.ChColor(1, 1, 1, 1), 60)
-    vehicle.GetSystem().AddSensor(camera)
-
-    # Add a filter to visualize the camera feed during the simulation
-    sensor_manager.AddSensorFilter(chrono.ChSensorFilterCamera(camera))
-
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    # Render the camera feed
+    sensorManager.Render()

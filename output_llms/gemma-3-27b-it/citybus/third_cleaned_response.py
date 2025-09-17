@@ -18,7 +18,7 @@ vis_type_mesh = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_PACELJKA89
+tire_model = veh.TireModelType_PACELJKA
 
 
 
@@ -48,14 +48,13 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+vehicle.SetPacejkaVersion(veh.PacejkaVersion_89) 
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type_mesh)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -101,6 +100,7 @@ render_steps = math.ceil(render_step_size / step_size)
 s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 

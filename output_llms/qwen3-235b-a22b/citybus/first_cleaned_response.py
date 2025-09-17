@@ -4,52 +4,47 @@ import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-vehicle = veh.ChCityBus(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-vehicle.SetTireType(veh.TireModelType_TMEASY)
-vehicle.Initialize()
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/grass.jpg"), 20, 20)
 
 
-terrain = veh.ChRigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200), 'concrete')
-patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-terrain.Initialize()
+vehicle = veh.CityBus(system)
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetTireModel(veh.TMeasyTireModel())
 
 
-application = irr.ChIrrApp(system, 'CityBus Simulation', irr.dimension2du(800, 600))
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+
+application = irr.ChIrrApp(system, 'CityBus Simulation', irr.dimension2du(1280, 720))
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -6), vehicle.GetChassis().GetPos())
+application.AddCamera(chrono.ChVectorD(0, -6, 2), chrono.ChVectorD(0, 0, 0))
 
 
-driver = veh.ChIrrGuiDriver(application)
+driver = veh.ChIrrGuiDriver(vehicle)
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
 
+time = 0
 step_size = 1.0 / 50.0  
-time = 0.0
 
 
 while application.GetDevice().run():
     
-    driver_inputs = driver.GetInputs()
-    
-    
-    vehicle.Synchronize(driver_inputs, terrain)
+    driver.Synchronize(time)
     
     
     system.DoStepDynamics(step_size)
     time += step_size
-    
-    
-    chassis_pos = vehicle.GetChassis().GetPos()
-    camera_pos = chassis_pos + chrono.ChVectorD(0, 3, -6)
-    application.GetSceneManager().getActiveCamera().setPosition(camera_pos)
-    application.GetSceneManager().getActiveCamera().setTarget(chassis_pos)
     
     
     application.BeginScene()

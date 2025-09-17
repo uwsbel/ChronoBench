@@ -4,148 +4,159 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), but gravity is set as `(0, -9.81, 0)` instead of `(0, 0, -9.81)` as in the reference. This is a significant difference affecting simulation realism. Deduct 10 points for incorrect gravity vector.
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), but gravity is set with `Set_G_acc` instead of the documented `SetGravitationalAcceleration`. Minor deviation but functional. No deduction here as the system is initialized and gravity set.
 
-- **Material Creation:** The code uses `chrono.ChMaterialSurfaceNSC()`, which is not the correct class for NSC contact materials. The reference uses `ch.ChContactMaterialNSC()`. This is a major API misuse (see correctness below). Deduct 15 points for missing essential component (correct material class).
+- **Body Creation:** Both floor and box bodies are created, but:
 
-- **Body Creation:**
+  - The floor is created with `chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, material)`. This is incorrect usage. According to the API, `ChBodyEasyBox` expects dimensions as floats, density, booleans for visualization and collision, and material. The first argument should be lengthX, not the system object. The reference code correctly calls `ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)`. The provided code incorrectly passes `system` as the first argument, which is a significant error.
 
-  - The floor and box are created with `chrono.ChBodyEasyBox(system, ...)` which is incorrect. The constructor signature is `(lengthX, lengthY, lengthZ, density, visualize, collision, material)`. Passing `system` as the first argument is wrong. This is a critical error. Deduct 15 points for missing essential component (correct body creation).
+  - Similarly, the box is created with `chrono.ChBodyEasyBox(system, 1, 1, 1, 1000, True, material)`, again passing `system` incorrectly.
 
-  - Positions differ: floor at `(0, -1, 0)` vs `(0, 0, -1)` in reference; box at `(0, 2, 0)` vs `(0, 0, 5)`. This is a minor deviation but affects simulation setup. Deduct 5 points.
+  - The floor position is set to `(0, -1, 0)` instead of `(0, 0, -1)` as in the reference. This is a minor deviation.
 
-  - The floor is fixed correctly, but the method used is `SetBodyFixed(True)` instead of `SetFixed(True)` as per API docs. This is a minor API misuse. Deduct 5 points.
+  - The floor is fixed with `SetBodyFixed(True)` instead of `SetFixed(True)` as in the reference. `SetBodyFixed` is not a documented method; the correct method is `SetFixed`.
 
-  - The box lacks rotation and naming (`SetName`) which is present in the reference. Deduct 5 points for minor omissions.
+  - The box position is `(0, 2, 0)` instead of `(0, 0, 5)` and no rotation is applied, unlike the reference.
+
+  - The floor and box are not named, which is important for ROS communication.
 
 - **ROS Integration:**
 
-  - The provided code uses `pychrono_ros` and creates a `CustomROSPublisher` that inherits from `chronoros.ChROSHandler`, but the reference uses `pychrono.ros` with proper ROS2 Python API usage (`rclpy.publisher.Publisher`, `std_msgs.msg.Int64`).
+  - The provided code uses `pychrono_ros` and creates a custom ROS handler subclassing `chronoros.ChROSHandler`, but the implementation is quite different from the reference:
 
-  - The custom handler in the provided code does not implement `Initialize` or `Tick` methods, instead uses `Update` with a different signature. This is a significant deviation from best practices and likely non-functional with ROS2. Deduct 15 points for missing essential component (proper ROS handler implementation).
+    - The reference uses `chros.ChROSPythonManager` and registers handlers with explicit update rates and body/topic associations.
 
-  - The ROS manager is created as `chronoros.ChROSManager()` instead of `chros.ChROSPythonManager()`. The reference registers handlers with parameters (e.g., `ChROSBodyHandler(25, box, "~/box")`), which are missing in the provided code. Deduct 10 points for incomplete ROS setup.
+    - The provided code uses `chronoros.ChROSManager()` (not `ChROSPythonManager`) and registers handlers without specifying update rates or associating bodies.
 
-  - The ROS manager is not initialized (`ros_manager.Initialize()` missing). Deduct 10 points.
+    - The custom handler in the provided code creates a new `ChROSNode` inside the handler's constructor and advertises a topic, which is not the recommended approach. The reference uses the `Initialize` method to create the publisher via the interface's node.
+
+    - The provided code's custom handler publishes `std_msgs/Int32` messages, but uses `chronoros.Std_msgsInt32()`, which is not standard ROS Python message usage. The reference uses `std_msgs.msg.Int64` from ROS Python packages.
+
+  - The ROS manager is updated every step with `ros_manager.Update(time)`, but no initialization is shown, and no error handling is present.
 
 - **Simulation Loop:**
 
-  - The provided code runs a simple loop with `while True` and breaks after 10 seconds, but does not use a real-time timer or check for ROS manager update success as in the reference. Deduct 5 points for minor omission.
+  - The provided code runs a simple loop stepping the system and updating ROS until time > 10.
+
+  - The reference runs a loop until 30 seconds with a real-time timer and checks the return value of `ros_manager.Update()`.
 
 - **Visualization:**
 
-  - The provided code creates an Irrlicht application **after** the simulation loop, which is logically incorrect; visualization should be integrated with the simulation loop.
+  - The provided code creates an Irrlicht visualization system, sets window size, title, camera, lighting, skybox, postprocessing, and FPS display.
 
-  - The visualization system is not attached to the system (`application.AttachSystem(system)` missing).
+  - However, it does not attach the system to the visualization (`application.AttachSystem(system)` is missing).
 
-  - The reference uses `Initialize()` on the visualization system, which is missing.
+  - The reference code does not show visualization, but the PyChrono API documentation emphasizes attaching the system to the visualizer.
 
-  - The provided code uses some visualization setup calls (`AddTypicalLigths()` typo, should be `AddTypicalLights()`), and adds a camera motion mode and path curve which are not in the reference. This is extra but not necessarily wrong.
+---
 
-  - The visualization loop uses `application.DoStep()` instead of `system.DoStepDynamics()`. This is a misuse; `DoStep()` is for the visualization system and does not advance simulation. Deduct 15 points for incorrect visualization integration.
+**Deductions:**
 
-**Total Completeness deductions: 15 (material) + 15 (body creation) + 10 (gravity vector) + 5 (positions) + 5 (SetBodyFixed) + 5 (box rotation/name) + 15 (ROS handler) + 10 (ROS manager setup) + 10 (ROS manager initialization) + 5 (simulation loop) + 15 (visualization integration) = 110 points.**
+- **Body creation incorrect usage:** 15 points (significant API misuse).
 
-Since maximum is 40, cap deductions at 40.
+- **Missing body naming for ROS:** 10 points (important for ROS communication).
+
+- **Incorrect gravity setting method:** 5 points (minor deviation).
+
+- **Floor position differs:** 5 points (minor deviation).
+
+- **Floor fixed method incorrect:** 10 points (incorrect API usage).
+
+- **ROS handler implementation deviates from best practice:** 10 points (important for correct ROS integration).
+
+- **Missing ROS manager initialization:** 5 points (minor omission).
+
+- **Visualization missing system attachment:** 5 points (minor omission).
+
+Total Completeness deduction: 15 + 10 + 5 + 5 + 10 + 10 + 5 + 5 = 65 points (but max deduction is 40, so capped at 40).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Material Class:** Using `ChMaterialSurfaceNSC()` instead of `ChContactMaterialNSC()` is a critical API misuse that will cause simulation errors. Deduct 15 points.
+- **Incorrect use of `ChBodyEasyBox`:** Passing `system` as first argument is a critical error, likely causing runtime failure or unexpected behavior. Deduct 15 points.
 
-- **Body Creation:** Passing `system` as first argument to `ChBodyEasyBox` is incorrect; the signature expects dimensions first. This will cause runtime errors. Deduct 15 points.
+- **Using `Set_G_acc` instead of `SetGravitationalAcceleration`:** Not a documented method; likely no effect or error. Deduct 15 points.
 
-- **Gravity Vector:** Gravity is set as `(0, -9.81, 0)` instead of `(0, 0, -9.81)`. This changes the gravity direction and simulation behavior. Deduct 10 points.
+- **Using `SetBodyFixed` instead of `SetFixed`:** Not documented, likely no effect. Deduct 15 points.
 
-- **ROS Handler:** The custom ROS handler does not follow the documented interface (`Initialize`, `Tick`), uses a non-standard `Update` method, and uses `chronoros.Std_msgsInt32()` instead of standard ROS2 message types. Deduct 15 points.
+- **ROS custom handler creates new node inside handler:** This is incorrect; the node should be shared and passed via interface. Deduct 10 points.
 
-- **Visualization:** Using `application.DoStep()` inside the visualization loop instead of advancing the system with `system.DoStepDynamics()` is incorrect and will cause the simulation not to advance. Deduct 15 points.
+- **ROS message creation using `chronoros.Std_msgsInt32()` instead of standard ROS message:** Deduct 10 points.
 
-- **Method Names:** Using `Set_G_acc` instead of `SetGravitationalAcceleration` is a minor API misuse. Deduct 5 points.
+- **No error checking on `ros_manager.Update()`:** Deduct 5 points.
 
-**Total Correctness deductions: 15 + 15 + 10 + 15 + 15 + 5 = 75 points.**
-
-Cap at 30 points.
+Total Correctness deduction: 15 + 15 + 15 + 10 + 10 + 5 = 70 points (max deduction 30, capped at 30).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The provided code lacks meaningful comments, especially around the ROS handler and simulation setup.
+- The provided code lacks comments and documentation, unlike the reference which has docstrings and inline comments.
 
-- Variable names like `system`, `material`, `floor`, `box` are acceptable but could be improved for clarity.
+- Variable names like `system`, `material`, `floor`, `box` are acceptable but could be more descriptive.
 
-- The custom ROS handler class is poorly documented and does not follow the reference's style.
+- The custom ROS handler class is named `CustomROSPublisher` without docstrings.
 
-- The code structure is somewhat disorganized: visualization is set up after the simulation loop, which is counterintuitive.
+- The code structure is somewhat disorganized: ROS manager is updated before visualization loop, which is separated.
 
-- Minor typos like `AddTypicalLigths()` reduce readability.
+- The visualization setup is verbose but lacks comments.
 
-Deduct 7 points for insufficient comments and poor structure.
+- Deduct 7 points for lack of comments and documentation.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The simulation loop uses a fixed time step but no real-time timer or synchronization, unlike the reference.
+- The provided code calls `ros_manager.Update(time)` every simulation step without checking return value or controlling update rate, unlike the reference which uses update rates and real-time timer.
 
-- The ROS manager update is called without checking return status.
+- The visualization loop calls `application.DoStep()` without specifying time step or synchronization.
 
-- The visualization loop is separated and does not integrate simulation stepping efficiently.
+- The custom ROS handler publishes every update, no rate limiting.
 
-- The custom ROS handler publishes at every update without rate limiting.
-
-Deduct 6 points for inefficient simulation and ROS update handling.
+- Deduct 5 points for inefficient ROS update and publishing.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for ROS manager initialization or update success.
+- No error handling for ROS initialization or update failures.
 
-- No handling for possible failures in ROS publisher creation.
+- No checks on simulation step success.
 
-- The simulation loop is a `while True` with a break condition, which is less robust than a timed loop.
-
-Deduct 5 points for lack of error handling.
+- Deduct 5 points.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up after the simulation loop, which is incorrect.
+- Visualization is set up but missing `AttachSystem(system)` call, which is essential.
 
-- The visualization system is not attached to the system (`AttachSystem` missing).
+- Lighting setup is mostly correct but `AddTypicalLigths()` is misspelled (should be `AddTypicalLights()`).
 
-- Missing `Initialize()` call on visualization system.
+- Minor spelling error in `AddTypicalLigths()`.
 
-- Typo in `AddTypicalLigths()`.
-
-- Using `application.DoStep()` instead of advancing the system in the visualization loop.
-
-Deduct 5 points.
+- Deduct 3 points for missing system attachment and minor spelling error.
 
 ---
 
 ### Summary of deductions:
 
-| Criterion                   | Max Points | Deducted | Notes                                         |
-|-----------------------------|------------|----------|-----------------------------------------------|
-| Completeness                | 40         | 40       | Multiple missing/incorrect components         |
-| Correctness                | 30         | 30       | Critical API misuse and logic errors           |
-| Code Quality               | 10         | 7        | Poor comments, structure, typos                 |
-| Efficiency                 | 10         | 6        | No real-time sync, inefficient ROS updates     |
-| Error Handling & Robustness| 5          | 5        | No error handling                               |
-| Visualization Tools        | 5          | 5        | Incorrect visualization setup                   |
-| **Total**                  | **100**    | **93**   |                                               |
+| Category                     | Deduction |
+|------------------------------|-----------|
+| Completeness                 | 40        |
+| Correctness                 | 30        |
+| Code Quality                | 7         |
+| Efficiency                  | 5         |
+| Error Handling and Robustness | 5         |
+| Visualization Tools         | 3         |
+| **Total**                   | 90        |
+
+Total possible points: 100  
+Score = 100 - 90 = 10
 
 ---
 
-### Final Score: 100 - 93 = 7
+**Final score:**
 
----
-
-**Final output:**
-
-[[7]]
+[[10]]

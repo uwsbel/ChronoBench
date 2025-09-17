@@ -18,46 +18,53 @@ ground.SetBodyFixed(True)
 my_system.Add(ground)
 
 
-viper = chrono.ChBodyEasyCylinder(0.2, 0.5, 1000, True, True)
-viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
-viper.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+viper = chrono.ChBodyEasyCylinder(0.3, 0.1, 1000, True, True)
+viper.SetPos(chrono.ChVectorD(0, 0.1, 0))
 my_system.Add(viper)
 
 
+wheel_radius = 0.1
+wheel_width = 0.1
+wheel_mass = 1
+wheel_positions = [chrono.ChVectorD(-0.2, 0.05, 0.3), chrono.ChVectorD(-0.2, 0.05, -0.3),
+                   chrono.ChVectorD(0.2, 0.05, 0.3), chrono.ChVectorD(0.2, 0.05, -0.3)]
+
+for pos in wheel_positions:
+    wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, wheel_mass, True, True)
+    wheel.SetPos(pos)
+    my_system.Add(wheel)
 
 
-viper_driver = chrono.ChDriverUTest(viper)
-viper_driver.Set_dt(0.01)
-viper_driver.Set_initial_speed(0)
-viper_driver.Set_final_speed(10)
-viper_driver.Set_initial_steering(0)
-viper_driver.Set_final_steering(math.pi / 4)  
-viper_driver.Set_steering_time(10)
-viper_driver.Set_speed_time(0)
-viper_driver.Set_acceleration(0)
-viper_driver.Set_braking(0)
-viper_driver.Initialize()
 
 
-application = chronoirr.ChIrrApp(my_system, "Viper Rover Simulation", chronoirr.dimension2du(800, 600), False, True)
-application.AddTypicalSky()
-application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-application.AddTypicalCamera(chrono.ChVectorD(0, 1, -5))
-application.AddLightWithShadow(chrono.ChVectorD(2, 4, -2), chrono.ChVectorD(0, -1, 0), 1, 10, 50, 512, 2048)
+driver = chrono.ChIrrGuiDriver(my_system, chronoirr.ChIrrApp(my_system, "Viper Rover", chronoirr.dimension2du(800, 600)))
 
 
-application.SetTimestep(0.01)
-application.SetTryRealtime(True)
+driver.GetView()->SetPos(chrono.ChVectorD(0, 1, -3))
+driver.GetView()->SetFar(100)
+driver.GetLight()->SetPos(chrono.ChVectorD(5, 5, -5))
+driver.GetLight()->SetDirection(chrono.ChVectorD(-1, -1, -1))
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+
+total_time = 10  
+timestep = 0.01  
+
+
+start_time = time.time()
+current_time = 0
+steering_change_duration = 5  
+steering_angle_change = 30 * math.pi / 180  
+
+while current_time < total_time:
+    
+    steering_angle = steering_angle_change * min(current_time / steering_change_duration, 1)
 
     
-    viper_driver.Update(application.GetTimestep())
+    my_system.DoStepDynamics(timestep)
+    driver.BeginScene()
+    driver.DrawAll()
+    driver.EndScene()
 
-    time.sleep(application.GetTimestep())
+    current_time = time.time() - start_time
 
-application.Close()
+driver.Close()

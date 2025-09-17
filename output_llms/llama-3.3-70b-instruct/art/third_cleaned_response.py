@@ -3,7 +3,10 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
+chrono.SetChronoDataPath("/path/to/chrono/data")
+
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -18,7 +21,6 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
-
 
 
 terrainHeight = 0      
@@ -49,11 +51,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26) 
-vehicle.SetStallTorque(0.4) 
-vehicle.SetTireRollingResistance(0.03) 
+vehicle.SetMaxMotorVoltageRatio(0.26)  
+vehicle.SetStallTorque(0.4)  
+vehicle.SetTireRollingResistance(0.03)  
 
-vehicle.Initialize()
+try:
+    vehicle.Initialize()
+except Exception as e:
+    print("Error initializing vehicle:", str(e))
+    exit()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -74,8 +80,11 @@ patch = terrain.AddPatch(patch_mat,
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
-
+try:
+    terrain.Initialize()
+except Exception as e:
+    print("Error initializing terrain:", str(e))
+    exit()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -99,14 +108,18 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.Initialize()
+try:
+    driver.Initialize()
+except Exception as e:
+    print("Error initializing driver:", str(e))
+    exit()
 
 
 
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)

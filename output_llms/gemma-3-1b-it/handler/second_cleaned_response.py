@@ -58,7 +58,7 @@ def main():
     
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
+
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
     

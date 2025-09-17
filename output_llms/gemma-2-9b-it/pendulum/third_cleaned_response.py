@@ -21,39 +21,34 @@ ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 pend_1 = chrono.ChBody()
 sys.AddBody(pend_1)
-pend_1.SetFixed(False)  
-pend_1.EnableCollision(False)  
-pend_1.SetMass(1)  
+pend_1.SetFixed(False) 
+pend_1.EnableCollision(False) 
+pend_1.SetMass(1) 
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 
 
 cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
 cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-
-
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
-
-
-pend_2 = chrono.ChBody()
-sys.AddBody(pend_2)
-pend_2.SetFixed(False)  
-pend_2.EnableCollision(False)  
-pend_2.SetMass(1)  
-pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
-
-
-cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  
-pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
-
-
-pend_2.SetPos(chrono.ChVector3d(1.5, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))  
 
 
 rev_1 = chrono.ChLinkLockRevolute()
 rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_1)
+
+
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)
+pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))
+
+
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 rev_2 = chrono.ChLinkLockRevolute()
@@ -82,8 +77,8 @@ while vis.Run():
     
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  
-        pos_2 = pend_2.GetPos()  
+        pos_2 = pend_2.GetPos()
         print("t = ", sys.GetChTime())
-        print("     ", pos_1.x, "  ", pos_1.y)
-        print("     ", pos_2.x, "  ", pos_2.y)
+        print("     Pendulum 1: ", pos_1.x, "  ", pos_1.y)
+        print("     Pendulum 2: ", pos_2.x, "  ", pos_2.y)
         log_info = False

@@ -11,7 +11,7 @@ def main():
     
     
     my_vehicle = vehi.ARTcar()
-    my_vehicle.Initialize(chrono.GetChronoDataFile('vehicle/vehicle/car/car.json'))
+    my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
     mphysicalSystem = my_vehicle.GetSystem()
 
     
@@ -24,6 +24,20 @@ def main():
     box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     box.SetFixed(True)
     mphysicalSystem.Add(box)
+
+    
+    
+    
+    my_driver = vehi.ChIrrGuiDriver(my_vehicle)
+
+    
+    
+    
+    terrain = vehi.ChTerrainPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/ground.jpg"), 200, 200)
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.SetContactMaterial(0.9, 0.01, 0.0001, 0.0001)
+    mphysicalSystem.Add(terrain)
 
     
     
@@ -119,6 +133,33 @@ def main():
     
     
     
+    camera = sens.ChCameraSensor(
+        my_vehicle.GetChassis(),              
+        chrono.ChVector3d(1.0, 0, 1),          
+        chrono.ChVector3d(0, 0, 0),            
+        chrono.ChVector3d(0, 1, 0),            
+        1.0,                                  
+        1.0,                                  
+        0.1,                                  
+        100.0,                                
+        640,                                  
+        480,                                  
+        sens.CameraRenderMode_OPENGL          
+    )
+    camera.SetName("Third Person Camera")
+    camera.SetLag(lag)
+    camera.SetCollectionWindow(collection_time)
+    if vis:
+        
+        camera.PushFilter(sens.ChFilterVisualizeImage(640, 480, "Third Person Camera Image"))
+    
+    camera.PushFilter(sens.ChFilterImageAccess())
+    
+    manager.AddSensor(camera)
+
+    
+    
+    
     orbit_radius = 10
     orbit_rate = 0.1
     ch_time = 0.0
@@ -151,6 +192,14 @@ def main():
 
         
         mphysicalSystem.DoStepDynamics(step_size)
+
+        
+        my_vehicle.Synchronize(step_size)
+        terrain.Synchronize(my_vehicle.GetSystem(), my_vehicle.GetChassis(), step_size)
+
+        
+        my_vehicle.Advance(step_size)
+        my_driver.Advance(step_size)
 
         
         ch_time = mphysicalSystem.GetChTime()

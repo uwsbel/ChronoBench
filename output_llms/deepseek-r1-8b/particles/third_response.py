@@ -24,28 +24,22 @@ sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
 # Sphere 1
-msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody1.SetUseGyroTorque(False)
+msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
+msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody)
 
 # Sphere 2
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetVelocity(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity for Sphere 2
-msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody2.SetUseGyroTorque(False)
+mbody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+mbody2.SetPos(chrono.ChVector3d(-10, -10, 0))
+mbody2.SetVelocity(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity for Sphere 2
+sys.Add(mbody2)
 
 # Sphere 3
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetVelocity(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity for Sphere 3
-msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody3.SetUseGyroTorque(False)
-
-sys.Add(msphereBody1)
-sys.Add(msphereBody2)
-sys.Add(msphereBody3)
+mbody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+mbody3.SetPos(chrono.ChVector3d(0, 20, 0))
+mbody3.SetVelocity(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity for Sphere 3
+sys.Add(mbody3)
 
 # Create an emitter
 emitter = chrono.ChParticleEmitter()
@@ -78,7 +72,7 @@ emitter.SetParticleCreator(mcreator_spheres)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Three-body simulation')
+vis.SetWindowTitle('Particle emitter demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -105,7 +99,7 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    G_constant = 6.674e-11  # Adjusted to realistic gravitational constant
+    G_constant = 6.674e-3  # Modified gravitational constant
 
     # Calculate the total kinetic energy of the system
     kinetic_energy = 0

@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -19,6 +18,7 @@ chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 
 tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -48,6 +48,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -72,6 +73,11 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
+
+
+
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -81,6 +87,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -96,34 +103,47 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    if step_number % render_steps == 0:
+    
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    
     driver_inputs = driver.GetInputs()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

@@ -34,18 +34,16 @@ beam_L = 0.1
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, -0.1))) # Node at origin.
 hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1))) # Node at beam length.
 
-# Use ChBuilderBeamEuler helper object for beam creation.
+# Create a builder object for Euler-Bernoulli beams.
 builder = fea.ChBuilderBeamEuler()
-builder.SetSection(msection)
-builder.SetUpVector(chrono.ChVector3d(0, 1, 0)) # Set the 'Y' up direction.
-builder.SetNelements(5)
 
-# Create a beam from point A to point B.
-beam = builder.BuildBeam(hnode1, hnode2)
-mesh.AddElement(beam)
+# Use the builder to create a beam from point A to point B with a specified 'Y' up direction and 5 elements.
+belement1 = builder.BuildBeam(hnode1, hnode2, chrono.ChVector3d(0, 1, 0), 5)
+belement1.SetSection(msection) # Assign the section properties to this beam element.
+mesh.AddElement(belement1) # Add the first beam element to the mesh.
 
-# Fix the last node of the created beam.
-beam.GetLastBeamNodes().back().SetFixed(True)
+# Fix the last node of the created beam using builder.
+builder.GetLastBeamNodes().back().SetFixed(True)
 
 # Apply a force to the first node of the created beam section.
 hnode1.SetForce(chrono.ChVector3d(0, -1, 0))
@@ -55,16 +53,16 @@ mtruss = chrono.ChBody()
 mtruss.SetFixed(True) # Fix the truss so it won't move.
 sys.Add(mtruss) # Add the truss to the physical system.
 
-# Replace the direct setting of a node as fixed with constraints to fix node 1.
+# Create and initialize a constraint that connects node 2 to the fixed truss.
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+constr_bc.Initialize(hnode2, mtruss, False, hnode2.Frame(), hnode2.Frame())
 sys.Add(constr_bc) # Add the constraint to the system.
 constr_bc.SetConstrainedCoords(True, True, True, # Constrain x, y, z translations.
                                 True, True, True) # Constrain Rx, Ry, Rz rotations.
 
-# Create and initialize a constraint that connects node 2 to the fixed truss.
+# Replace the direct setting of a node as fixed with constraints to fix node 1 using ChLinkMateGeneric.
 constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode2, mtruss, False, hnode2.Frame(), hnode2.Frame())
+constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d) # Add the constraint to the system.
 constr_d.SetConstrainedCoords(False, True, True, # Constrain only y, z translations.
                               False, False, False) # Do not constrain any rotations.

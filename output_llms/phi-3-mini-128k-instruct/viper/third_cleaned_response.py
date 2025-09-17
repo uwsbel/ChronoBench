@@ -44,4 +44,25 @@ vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
+vis.AddTypicalLights()
+
+
+
+time_step = 1e-3
+
+
+time = 0
+while vis.Run():
+    time += time_step  
+    
+    
+    rover.Update()
+
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    
+    system.DoStepDynamics(time_step)

@@ -1,62 +1,38 @@
 # Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.analytical_functions as chronoaf
+import numpy as np
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Set the default contact material properties
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
-contact_material.SetRestitution(0.1)
-contact_material.SetCompliance(1e-6)
-
 # Set the default parameters
-beam_length = 10  # length of the beam
-num_elements = 10  # number of ANCF cable elements
-density = 7850  # density of the beam material (steel)
-youngs_modulus = 2e11  # Young's modulus of the beam material (steel)
-poissons_ratio = 0.3  # Poisson's ratio of the beam material (steel)
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, contact_material)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-ground.SetBodyFixed(True)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -5, 0))
+sys.Add(ground)
 
 # Create the beam
-beam = chrono.ChBody()
-beam.SetMass(1)
-beam.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
-beam.SetInertiaXY(chrono.ChVectorD(0, 0, 0))
-beam.SetInertiaXZ(chrono.ChVectorD(0, 0, 0))
-beam.SetInertiaYY(chrono.ChVectorD(1, 1, 1))
-beam.SetInertiaYZ(chrono.ChVectorD(0, 0, 0))
-beam.SetInertiaZZ(chrono.ChVectorD(1, 1, 1))
+beam = chrono.ChBodyEasyCableANCF(sys, 10, 0.1, 1000, True, chrono.ChVectorD(0, 5, 0))
+sys.Add(beam)
 
-# Create the ANCF cable elements
-ancf_elements = []
-for i in range(num_elements):
-    ancf_element = chrono.ChElementCableANCF(beam_length / num_elements, density, youngs_modulus, poissons_ratio)
-    ancf_elements.append(ancf_element)
-    beam.Add(ancf_element)
+# Set the beam's material properties
+beam.GetMaterial().SetYoungModulus(2e11)
+beam.GetMaterial().SetPoissonsRatio(0.3)
+beam.GetMaterial().SetDampingRatio(0.1)
 
-# Create the hinge constraint
-hinge = chrono.ChLinkMateGeneric()
+# Create a hinge constraint between the beam and the ground
+hinge = chrono.ChLinkMateFixed()
 hinge.SetName("hinge")
 hinge.Initialize(beam, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
-
-# Add the hinge constraint to the system
 sys.Add(hinge)
 
-# Set the gravity
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Create the Irrlicht visualization
+# Create the Irrlicht engine for rendering
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
 vis.AddTypicalLights()
 
 # Simulation loop
@@ -69,6 +45,10 @@ while sys.GetChTime() < end_time:
     vis.EndScene()
     vis.Run()
 
-    # Print the nodal positions
-    for i, ancf_element in enumerate(ancf_elements):
-        print(f"Node {i+1} position: {ancf_element.GetNode().GetPos()}")
+    # Print the beam's deformation and nodal positions
+    print("Time: ", sys.GetChTime())
+    for i in range(beam.GetNDofN()):
+        print("Node {}: {}".format(i, beam.GetNodeN(i).GetPos()))
+
+# Clean up
+vis.CloseWindow()

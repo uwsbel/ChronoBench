@@ -16,14 +16,14 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body with contact material and add it to the system
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
-ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box for rover to cross
+# Create a long box for rover to cross (corrected z-position)
 box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
-box.SetPos(chrono.ChVector3d(0, 0, 0.125))  # Adjusted Z position to sit on ground
+box.SetPos(chrono.ChVector3d(0, 0, 0.125))  # Center at z=0.125 to sit on ground surface
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
@@ -40,38 +40,26 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create sensor manager and lidar sensor
-manager = sens.ChSensorManager(system)  # Create sensor manager
+# Create sensor manager
+manager = sens.ChSensorManager(system)
 
-# Get rover chassis body
-chassis = rover.GetChassis().GetBody()
-
-# Create lidar sensor with appropriate parameters
-offset = chrono.ChFramed(chrono.ChVector3d(0.5, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0))
+# Create and configure lidar sensor
 lidar = sens.ChLidarSensor(
-    chassis,
+    rover.GetChassis(),  # Attach to rover's chassis
     10,  # Update rate in Hz
-    offset,
+    chrono.ChFrame(chrono.ChVector3d(0.5, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0)),  # Position and orientation
     360,  # Horizontal samples
-    1,    # Vertical samples (2D lidar)
-    chrono.CH_C_PI,  # Horizontal field of view (180 degrees)
-    chrono.CH_C_PI / 12,  # Vertical field of view (15 degrees)
-    100,  # Max distance
-    sens.LidarBeamShape_RECTANGULAR,
-    2,    # Sample radius
-    0.003,  # Divergence angle
-    sens.LidarReturnMode_STRONGEST_RETURN
+    1,    # Vertical samples
+    chrono.CH_C_PI * 2,  # Horizontal field of view (360 degrees)
+    0.0,  # Vertical field of view (flat 2D lidar)
+    100.0  # Maximum distance
 )
+lidar.PushFilter(sens.ChFilterDIAccess())  # Allow data access
+lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth to point cloud
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(360, 1, "Lidar Point Cloud"))  # Visualize
+manager.AddSensor(lidar)  # Add lidar to sensor manager
 
-# Add filters for lidar data processing
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Lidar Point Cloud"))
-
-# Add lidar to sensor manager
-manager.AddSensor(lidar)
-
-# Create Irrlicht visualization
+# Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)

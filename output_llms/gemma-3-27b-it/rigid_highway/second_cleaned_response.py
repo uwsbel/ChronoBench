@@ -62,7 +62,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), True, 0.01, False)
+                         chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
     veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
@@ -76,18 +76,14 @@ patch_mat2 = chrono.ChContactMaterialNSC()
 patch_mat2.SetFriction(0.9)
 patch_mat2.SetRestitution(0.01)
 patch2 = terrain.AddPatch(patch_mat2, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-                         chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, 0.01, False)
-vis_mesh2 = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/bump.obj"), True, True)
-tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
-tri_mesh_shape2.SetMesh(vis_mesh2)
-tri_mesh_shape2.SetMutable(False)
-patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
-patch2.GetGroundBody().GetMaterialSurfaceNSC().SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+                          chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, 0.01, False)
+
+
+patch2.GetGroundBody().GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0.5, 0.8))
 texture = chrono.ChTexture2D()
-texture.SetFilename(veh.GetDataFile("terrain/textures/dirt.jpg"))
+texture.SetFile(veh.GetDataFile("terrain/textures/dirt.jpg"))
 texture.SetScale(6.0, 6.0)
-patch2.GetGroundBody().GetMaterialSurfaceNSC().SetTexture(texture)
+patch2.GetGroundBody().GetVisualShape(0).SetTexture(texture)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -103,7 +99,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
-
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
@@ -111,7 +106,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
 
 
 

@@ -34,14 +34,12 @@ sys.Add(msphereBody1)
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
 msphereBody2.SetVel(chrono.ChVector3d(-0.5, 0, -0.1))
-msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
 msphereBody3.SetVel(chrono.ChVector3d(0, -0.5, 0.2))
-msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
 
@@ -75,7 +73,7 @@ emitter.SetParticleCreator(mcreator_spheres)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Three-body problem demo')
+vis.SetWindowTitle('Three-body simulation demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

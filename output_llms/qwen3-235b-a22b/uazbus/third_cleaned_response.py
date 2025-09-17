@@ -46,13 +46,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.Initialize()
+
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.Initialize()
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -69,10 +71,22 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBodyEasyBox(0.5, 5.0, 0.2, 1000)  
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))  
-box.SetBodyFixed(True)  
-vehicle.GetSystem().Add(box)  
+box = chrono.ChBody()
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+box.SetCollide(True)
+
+
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(patch_mat, 0.25, 2.5, 0.1)
+box.GetCollisionModel().BuildModel()
+
+
+box_shape = chrono.ChVisualShapeBox(0.5, 5, 0.2)
+box_shape.SetColor(chrono.ChColor(1, 0, 0))  
+box.AddVisualShape(box_shape)
+
+vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,6 +109,7 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 
@@ -110,7 +125,7 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    
+
     
     if step_number % render_steps == 0:
         vis.BeginScene()
@@ -120,7 +135,7 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.5  
+    driver_inputs.m_throttle = 0.5  
 
     
     driver.Synchronize(time)
@@ -136,4 +151,6 @@ while vis.Run():
 
     
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

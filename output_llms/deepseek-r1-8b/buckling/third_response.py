@@ -8,18 +8,15 @@ import os  # Import the OS library for file and directory operations
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrono.ChFunction.__init__(self)
+        super().__init__()
     def GetVal(self, x):
-        if x > 0.5:
-            return m.pi  # Fixed: Replaced 'chrono.CH_PI' with 'm.pi'
-        else:
-            return -m.pi * (1.0 - m.cos(m.pi * x / 0.3)) / 2.0
+        return chrono.CH_PI * m.cos(chrono.CH_PI * x / 0.3) / 2.0
 
 # Define the output directory path
 out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
 
 # Create a Chrono::Engine physical system
-sys = chrono.ChSytemSMC()
+sys = chrono.ChSystemSMC()
 
 # Define key geometrical parameters
 L = 1.2
@@ -159,7 +156,7 @@ mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_VECTORS)
 mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_FULL)
 mvisualizebeamC.SetSymbolsThickness(0.005)
 mvisualizebeamC.SetSymbolsScale(0.01)
-mvisualizebeamC.SetZbufferHide(True)
+mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 # Create the Irrlicht visualization system

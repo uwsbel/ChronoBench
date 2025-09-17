@@ -40,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()
-
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)

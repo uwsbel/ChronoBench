@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import math
 
 
 
@@ -9,34 +10,31 @@ import pychrono.irrlicht as chronoirr
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
-        self.chain_bodies = []  
-
-        
-        msection_cable = fea.ChBeamSectionCable()
-        msection_cable.SetDiameter(0.015)  
-        msection_cable.SetYoungModulus(0.01e9)  
-        msection_cable.SetRayleighDamping(0.0001)
+        self.chains = []
+        self.end_bodies = []
 
         
         for i in range(n_chains):
             
+            msection_cable = fea.ChBeamSectionCable()
+            msection_cable.SetDiameter(0.015)  
+            msection_cable.SetYoungModulus(0.01e9)  
+            msection_cable.SetRayleighDamping(0.0001)
+
+            
             builder = fea.ChBuilderCableANCF()
 
             
-            x_pos = i * 0.1  
-            start_point = chrono.ChVector3d(x_pos, 0, -0.1)
-            end_point = chrono.ChVector3d(x_pos + 0.5, 0, -0.1)
-
-            
-            n_elements = 5 + i * 2  
+            x_pos = i * 0.2  
+            num_elements = 10 + i * 2  
 
             
             builder.BuildBeam(
                 mesh,
                 msection_cable,
-                n_elements,
-                start_point,
-                end_point
+                num_elements,
+                chrono.ChVector3d(x_pos, 0, -0.1),  
+                chrono.ChVector3d(x_pos + 0.5, 0, -0.1)  
             )
 
             
@@ -45,41 +43,41 @@ class Model1:
             system.Add(mtruss)
 
             
-            
-            constraint_fix = fea.ChLinkNodeFrame()
-            constraint_fix.Initialize(builder.GetLastBeamNodes().front(), mtruss)
-            system.Add(constraint_fix)
+            constraint_hinge = fea.ChLinkNodeFrame()
+            constraint_hinge.Initialize(builder.GetLastBeamNodes().front(), mtruss)
+            system.Add(constraint_hinge)
 
             
-            builder.GetLastBeamNodes().back().SetForce(chrono.ChVector3d(0, -0.7, 0))
+            end_body = chrono.ChBody()
+            end_body.SetPos(chrono.ChVector3d(x_pos + 0.5, 0, -0.1))
+            end_body.SetMass(0.1)
+            end_body.SetInertiaXX(chrono.ChVector3d(0.001, 0.001, 0.001))
+            end_body.SetCollide(True)
+            end_body.GetCollisionModel().AddBox(0.05, 0.05, 0.05)
+            system.Add(end_body)
 
             
-            box_body = chrono.ChBody()
-            box_body.SetPos(end_point)
-            box_body.SetMass(0.1)
-            box_body.SetInertiaXX(chrono.ChVector3d(0.001, 0.001, 0.001))
-            box_body.SetCollide(True)
-            box_body.GetCollisionModel().AddBox(0.05, 0.05, 0.05)
-            system.Add(box_body)
+            box_vis = chrono.ChVisualShapeBox(0.05)
+            box_vis.SetColor(chrono.ChColor(0.5, 0.2 + i*0.1, 0.1 + i*0.15))
+            end_body.AddVisualShape(box_vis)
 
             
-            link_node_body = fea.ChLinkNodeBody()
-            link_node_body.Initialize(builder.GetLastBeamNodes().back(), box_body)
-            system.Add(link_node_body)
+            link = fea.ChLinkNodeFrame()
+            link.Initialize(builder.GetLastBeamNodes().back(), end_body)
+            system.Add(link)
 
             
-            self.chain_bodies.append(box_body)
+            end_body.SetForce(chrono.ChVector3d(0, -0.5 - i*0.1, 0))
 
             
-            box_vis = chrono.ChBoxShape()
-            box_vis.GetBoxGeometry().SetLengths(chrono.ChVector3d(0.05, 0.05, 0.05))
-            box_body.AddVisualShape(box_vis)
+            self.chains.append(builder)
+            self.end_bodies.append(end_body)
 
     def PrintBodyPositions(self):
-        print("\nCurrent positions of end bodies:")
-        for i, body in enumerate(self.chain_bodies):
+        print("\nCurrent end body positions:")
+        for i, body in enumerate(self.end_bodies):
             pos = body.GetPos()
-            print(f"Chain {i+1}: X={pos.x:.3f}, Y={pos.y:.3f}, Z={pos.z:.3f}")
+            print(f"Chain {i+1} end body position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f})")
 
 
 sys = chrono.ChSystemSMC()
@@ -114,7 +112,7 @@ vis.SetWindowTitle('FEA Multiple Chains')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0.5, 0.6, -1))
+vis.AddCamera(chrono.ChVector3d(1.0, 0.6, -1.5))
 vis.AddTypicalLights()
 
 

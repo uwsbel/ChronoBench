@@ -1,4 +1,4 @@
-import math
+import math as m
 import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
@@ -6,66 +6,52 @@ import pychrono.irrlicht as chronoirr
 
 
 class ChFunctionMyFun(chrono.ChFunction):
-    def __init__(self):
-        chrono.ChFunction.__init__(self)
-        self.A1 = 40.0   
-        self.A2 = 0.2    
-        self.T1 = 0.5    
-        self.T2 = 1.0    
-        self.T3 = 1.5    
-        self.w = 40.0    
-    
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1  
+        self.A2 = A2  
+        self.T1 = T1  
+        self.T2 = T2  
+        self.T3 = T3  
+        self.w = w    
+
     def GetVal(self, x):
         
         if x < self.T1:
-            return 0.0  
+            return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            
-            return self.A1 * (x - self.T1) / (self.T2 - self.T1)
+            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(2 * self.w * x)
         elif x < self.T3:
-            return self.A1  
+            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(3 * self.w * x)
         else:
-            
-            return self.A1 + self.A2 * math.sin(self.w * (x - self.T3))
-    
-    def Clone(self):
-        
-        new_func = ChFunctionMyFun()
-        new_func.A1 = self.A1
-        new_func.A2 = self.A2
-        new_func.T1 = self.T1
-        new_func.T2 = self.T2
-        new_func.T3 = self.T3
-        new_func.w = self.w
-        return new_func
+            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(4 * self.w * x)
 
 
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-
 mesh.SetAutomaticGravity(True, 2)  
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
-
 
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
+CH_PI = 3.141592653589793  
 
 
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
-minertia.SetArea(math.pi * (beam_ro**2 - beam_ri**2))
-minertia.SetIyy((math.pi / 4) * (beam_ro**4 - beam_ri**4))
-minertia.SetIzz((math.pi / 4) * (beam_ro**4 - beam_ri**4))
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
 melasticity.SetShearModulusFromPoisson(0.3)
-melasticity.SetIyy(minertia.GetIyy())
-melasticity.SetIzz(minertia.GetIzz())
-melasticity.SetJ(math.pi/2 * (beam_ro**4 - beam_ri**4))
+melasticity.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
@@ -73,30 +59,20 @@ msection.SetDrawCircularRadius(beam_ro)
 
 
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(
-    mesh,                   
-    msection,               
-    20,                     
-    chrono.ChVector3d(0, 0, 0),  
-    chrono.ChVector3d(beam_L, 0, 0),  
-    chrono.ChVector3d(0, 1, 0),  
-    3                       
-)
+builder.BuildBeam(mesh, msection, 20, 
+                  chrono.ChVector3d(0, 0, 0), 
+                  chrono.ChVector3d(beam_L, 0, 0), 
+                  chrono.VECT_Y, 1)
 
 
 nodes = builder.GetLastBeamNodes()
 node_mid = nodes[len(nodes) // 2]
 
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(
-    chrono.ChAxis_Y, 0.24, 0.1, 7800  
-)
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
 mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(
-        node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
-        chrono.QuatFromAngleAxis(math.pi / 2, chrono.ChVector3d(0, 0, 1))  
-    )
-)
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
 sys.Add(mbodyflywheel)
 
 
@@ -110,28 +86,23 @@ truss.SetFixed(True)
 sys.Add(truss)
 
 
+bearing_frame = chrono.ChFrameD(builder.GetLastBeamNodes().back().GetPos())
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(
-    builder.GetLastBeamNodes().back(),  
-    truss,                              
-    chrono.ChFrameD(builder.GetLastBeamNodes().back().GetPos())  
-)
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, bearing_frame)
 sys.Add(bearing)
 
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(
-    builder.GetLastBeamNodes().front(),  
-    truss,                              
-    chrono.ChFrameD(  
-        builder.GetLastBeamNodes().front().GetPos(),
-        chrono.QUNIT  
-    )
+rotmotor_frame = chrono.ChFrameD(
+    builder.GetLastBeamNodes().front().GetPos(),
+    chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)
 )
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, rotmotor_frame)
 sys.Add(rotmotor1)
 
 
-rotmotor1.SetMotorFunction(ChFunctionMyFun())
+motor_fun = ChFunctionMyFun(A1=40, A2=20, T1=1, T2=2, T3=3, w=0.4 * m.pi)
+rotmotor1.SetMotorFunction(motor_fun)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -148,16 +119,10 @@ mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 
-
-
-
-
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Modified FEA: Jeffcott rotor with IGA beams')
+vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -169,7 +134,9 @@ msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
 
-sys.DoStaticLinear()
+
+
+
 
 
 while vis.Run():

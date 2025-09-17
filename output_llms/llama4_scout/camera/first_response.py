@@ -1,63 +1,72 @@
 import chrono as ch
 import chrono.sensor as chs
-import chrono.irr as chirr
+import chrono.utils as ch_utils
+import numpy as np
 
-# 1. Initialize the PyChrono environment and core components.
-ch.ChronoEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
 
-# Create the main application
-app = ch.ChIrrApp()
+# Create the main simulation system
+system = ch.PhysicalSystem()
 
-# 2. Add the required physical systems and objects.
+# Create and set the collision detection system
+collision_system = ch.ChCollisionSystem(system.GetContactContainer())
+system.SetCollisionSystem(collision_system)
+
+# Create and set the solver
+solver = ch.ChSolver(system)
+system.SetSolver(solver)
+
+# 2. Add the required physical systems and objects
 # Load the triangular mesh from a Wavefront .obj file
-mesh = ch.ChTriangleMeshConnected()
+mesh = ch.ChTriangleMeshShape()
 mesh.LoadWavefrontMesh('path/to/your/mesh.obj')
 
-# Create a fixed body for the mesh
-body = ch.ChBody()
-body.SetPos(ch.ChVectorD(0, 0, 0))
-body.SetBodyFixed(True)
+# Create a fixed body and add the mesh
+body = ch.ChBody(body_type=ch.ChBodyType.FIXED)
 body.AddVisualShape(mesh)
-
-# Add the body to the system
-system = ch.ChSystemNSC()
 system.AddBody(body)
 
-# 3. Set necessary default parameters and add a camera sensor.
+# 3. Set necessary default parameters and add a camera sensor
 # Create a camera sensor
-camera = chs.ChCameraSensor(body, 
-                            chs.ChFrameD(ch.ChVectorD(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)), 
-                            640, 480, 
-                            ch.ChVectorD(45, 45))
+camera = chs.ChCameraSensor(body,  # parent body
+                           1.0,    # sampling rate
+                           ch.ChVector3d(0, 0, 0),  # offset pose
+                           ch.ChQuaterniond(1, 0, 0, 0),  # offset quaternion
+                           640,    # image width
+                           480,    # image height
+                           ch.ChSensor.PerspectiveProjection(60))  # perspective projection
 
 # Add noise filters and visualizations
-noise = chs.ChCameraNoiseModelGaussian()
-noise.SetParameters(0.1, 0.05)
+noise = chs.ChCameraSensorNoiseModel(camera)
+noise.SetType(chs.ChCameraSensorNoiseModel.Type.GAUSSIAN)
+noise.SetParameters(0.1,  # noise mean
+                    0.5)   # noise stddev
 camera.SetNoiseModel(noise)
 
-# Create a sensor manager
+visualization = chs.ChCameraSensorVisualizer(camera)
+visualization.SetImageOutput(chs.ChCameraSensorVisualizer.ImageOutput.ABOVE)
+camera.SetVisualizer(visualization)
+
+# Create a sensor manager and add the camera sensor
 sensor_manager = chs.ChSensorManager(system)
 sensor_manager.AddSensor(camera)
 
-# Enable visualization of camera images
-sensor_manager.Visualize()
-
 # Simulation loop
-while True:
-    # Update the system
-    system.Update(0.01)
-
+while system.GetChTimeStep() < 10:
+    system.DoStepDynamics(0.01)
+    
     # Dynamically update the camera's position in an orbit around the mesh
-    angle = system.GetChTime()
-    camera_pos = ch.ChVectorD(5 * ch.cos(angle), 5 * ch.sin(angle), 2)
-    camera_frame = ch.ChFrameD(camera_pos, ch.ChQuaternionD(1, 0, 0, 0))
-    camera.SetFrame(camera_frame)
+    angle = system.GetChTimeStep() * 0.1
+    radius = 5.0
+    camera_pos = ch.ChVector3d(radius * np.cos(angle), radius * np.sin(angle), 2.0)
+    camera.SetPos(camera_pos)
+    camera.SetQuaternion(ch.ChQuaterniond(ch.ChVector3d(0, 0, 1), angle))
 
     # Print out camera buffer data at each step
     buffer = camera.GetBuffer()
     if buffer.IsValid():
-        print(buffer)
-
-    # Render the scene
-    app.Render()
-    app.Update()
+        print("Camera Buffer Data:")
+        print(f"  - Time: {buffer.GetTime()}")
+        print(f"  - Width: {buffer.GetWidth()}, Height: {buffer.GetHeight()}")
+        print(f"  - Data: {buffer.GetData().shape}")

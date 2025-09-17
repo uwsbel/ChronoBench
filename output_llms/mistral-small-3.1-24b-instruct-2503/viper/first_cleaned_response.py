@@ -1,67 +1,66 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
 import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath('path_to_your_chrono_data')  
+chrono.SetChronoDataPath('path/to/chrono/data')  
+
+
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 ground_body = chrono.ChBodyEasyBox(10, 10, 0.5, 1000, True, True)
-ground_body.SetPos(chrono.ChVectorD(0, 0, -0.25))
+ground_body.SetPos(chrono.ChVectorD(0, -0.25, 0))
 ground_body.SetBodyFixed(True)
 system.Add(ground_body)
 
 
-system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+viper_vehicle = veh.Viper()
+viper_vehicle.SetChassisBody(ground_body)
+viper_vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
+viper_vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+viper_vehicle.SetDriver(veh.ViperDriver(viper_vehicle.GetVehicle()))
 
 
-viper_robot = veh.ChViper()
-viper_robot.SetChassisBody(system)
-viper_robot.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-viper_robot.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
-viper_robot.SetDriver(veh.ChDriverVehicleRigid)
-viper_robot.Initialize(system)
+system.Add(viper_vehicle.GetVehicle())
 
 
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetCamera(chrono.ChVectorD(5, -5, 5), chrono.ChVectorD(0, 0, 0))
-visualization.SetWindowSize(1280, 720)
-visualization.SetWindowTitle('Viper Rover Simulation')
-visualization.SetLightDirection(chrono.ChVectorD(1, -1, -1))
-visualization.Initialize()
-visualization.AddLogo()
-visualization.AddSkyBox()
+myapplication = chronoirr.ChIrrApp(system, 'Viper Rover Simulation', chrono.ChVectorD(0.2, 0.2, 0.75))
 
 
-steering_angle = 0
-steering_change_rate = 0.01  
-simulation_time = 10  
-timestep = 0.01  
+camera = myapplication.GetSceneManager().addCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(2, 2, 2))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
 
 
-while visualization.Run():
+myapplication.AddLightWithShadow(camera.getPosition(), chrono.ChVectorD(1, -1, -1), 100, 500, 100, 40, 512)
+
+
+step_size = 0.01
+total_time = 10.0
+steering_change_time = 5.0
+
+
+myapplication.SetTimestep(step_size)
+myapplication.SetTryRealTime(True)
+
+driver = viper_vehicle.GetDriver()
+
+for t in range(int(total_time / step_size)):
     
-    steering_angle += steering_change_rate
-    if steering_angle > 0.5:
-        steering_change_rate = -0.01
-    if steering_angle < -0.5:
-        steering_change_rate = 0.01
+    if t < int(steering_change_time / step_size):
+        steering = t * (1 / int(steering_change_time / step_size))
+    else:
+        steering = 1
 
-    
-    viper_robot.SetSteering(steering_angle)
-
-    
-    system.DoStepDynamics(timestep)
+    driver.SetSteering(steering)
 
     
-    visualization.Render()
+    myapplication.DoStep()
 
     
-    if system.GetChTime() >= simulation_time:
-        break
+    myapplication.Render()
 
 
-visualization.Close()
+myapplication.Close()

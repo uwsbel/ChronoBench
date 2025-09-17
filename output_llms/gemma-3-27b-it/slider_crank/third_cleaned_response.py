@@ -84,11 +84,13 @@ while vis.Run():
     array_angle.append(my_motor.GetMotorAngle())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
+
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
+
     
     if sys.GetChTime() > 20:
         vis.GetDevice().closeDevice()
@@ -101,6 +103,7 @@ ax1.grid()
 ax2.plot(array_angle, array_speed, 'r--')
 ax2.set(ylabel='speed [m]', xlabel='angle [rad]')
 ax2.grid()
+
 
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 plt.show()

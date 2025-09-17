@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import ChSensorManager, ChLidarSensor
+from pychrono.sensor import ChSensorManager, ChLidarSensor, ChSensor
 
 
 system = chrono.ChSystemNSC()
@@ -53,20 +53,26 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 
-
-
-
-sens = ChSensorManager(system)
+manager = ChSensorManager(system)
 
 
 lidar_sensor = ChLidarSensor(
     update_rate=10,  
     horizontal_samples=1024,  
     vertical_samples=512,  
-    fov=50.0  
+    field_of_view=30,  
+    min_distance=0.1,  
 )
 lidar_sensor.AttachToChassis(rover)  
-sens.AddSensor(lidar_sensor)
+
+
+
+
+
+manager.AddSensor(lidar_sensor)
+
+
+manager.Update()
 
 
 time_step = 1e-3
@@ -89,6 +95,3 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
-
-    
-    sens.Update()

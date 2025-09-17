@@ -87,6 +87,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
+
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3   
@@ -169,7 +170,7 @@ while vis.Run():
 
     
     manager.Update()
-    
+
     
     realtime_timer.Spin(step_size)
     
@@ -253,6 +254,6 @@ while vis.Run():
 
     
     manager.Update()
-    
+
     
     realtime_timer.Spin(step_size)

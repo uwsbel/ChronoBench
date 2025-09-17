@@ -1,52 +1,73 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.fem as fem
 import pychrono.solver as solver
+import pychrono.utils as utils
 
-# Initialize the Chrono::Engine
-chrono.ChSystemNSC my_system()
-my_system.SetSolverType(solver.ChSolver.PARDISOMKL)  # Use PardisoMKL solver
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono data files
 
-# Material properties for the tablecloth
-E = 2e9  # Young's modulus in Pa
-nu = 0.3  # Poisson's ratio
-thickness = 0.001  # Thickness of the tablecloth in meters
+# Create a Chrono::Engine physical system
+system = chrono.ChSystemNSC()
 
-# Create the Kirchhoff material
-material = chrono.ChMaterialShellKirchhoff()
-material.SetYoungModulus(E)
-material.SetPoissonRatio(nu)
-material.SetThickness(thickness)
+# Create a mesh for the tablecloth using shell elements
+mesh = fem.ChElementShellIso34()
+mesh.SetYoungModulus(2e9)  # Young's modulus
+mesh.SetPoissonRatio(0.3)  # Poisson's ratio
+mesh.SetThickness(0.001)  # Thickness of the shell
 
-# Mesh grid parameters
-width = 1.0  # Width of the tablecloth in meters
-height = 1.0  # Height of the tablecloth in meters
-num_x = 10  # Number of divisions along the width
-num_y = 10  # Number of divisions along the height
+# Generate a mesh grid for the tablecloth
+num_nodes_x = 50
+num_nodes_y = 50
+length_x = 1.0
+length_y = 1.0
 
-# Create the shell mesh
-mesh = chrono.ChShellMesh()
-mesh.CreateGrid(width, height, num_x, num_y, material)
+nodes = []
+elements = []
 
-# Add the shell mesh to the system
-my_system.Add(mesh)
+# Create nodes
+for i in range(num_nodes_x):
+    for j in range(num_nodes_y):
+        node = chrono.ChNodeFEAxyzD()
+        node.SetPos(chrono.ChVectorD(i * length_x / (num_nodes_x - 1),
+                                      j * length_y / (num_nodes_y - 1),
+                                      0))
+        system.Add(node)
+        nodes.append(node)
 
-# Create an Irrlicht visualization system
-visualization = chronoirr.ChIrrApp(my_system, "Tablecloth Folding Simulation", chronoirr.dimension2du(800, 600))
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile("logo_chrono_small.png"))
-visualization.AddTypicalFloor()
+# Create shell elements
+for i in range(num_nodes_x - 1):
+    for j in range(num_nodes_y - 1):
+        elem = fem.ChElementShellIso34()
+        elem.SetNodes(nodes[(i + 1) * num_nodes_y + j],
+                      nodes[i * num_nodes_y + j],
+                      nodes[i * num_nodes_y + j + 1],
+                      nodes[(i + 1) * num_nodes_y + j + 1])
+        system.Add(elem)
+        elements.append(elem)
 
-# Add the shell mesh to the visualization
-visualization.AddVisualSystem(chrono.ChVisualSystemIrrlicht())
-visualization.AssetBind(mesh)
+# Set up the visualization system
+visualization = chronoirr.ChIrrApp(system, 'Tablecloth Folding Simulation', chronoirr.dimension2du(800, 600))
+
+# Add a floor to the visualization
+floor = chrono.ChBodyEasyBox(2, 0.1, 2, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(floor)
+visualization.AddTypicalLights()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+visualization.AddSkyBox()
+visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 5, 5, 50, 50, 100, 200)
+
+# Set up the PardisoMKL solver
+solver = solver.ChSolverPardisoMKL()
+solver.SetVerbose(False)
+system.SetSolver(solver)
 
 # Run the simulation
-visualization.SetTimestep(0.01)
-visualization.SetTryRealTime(True)
+visualization.SetStepCallback([], system, update_func)
 
-# Main simulation loop
-while visualization.Run():
-    my_system.DoStepDynamics(0.01)
+def update_func():
+    system.DoStepDynamics(chrono.ChTimeStep(0.01))  # Time step of 0.01 seconds
 
-# Close the visualization
-visualization.Close()
+# Run the visualization
+visualization.Run()

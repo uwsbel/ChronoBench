@@ -7,58 +7,56 @@ sys = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
 
 hmmwv = veh.HMMWV()
 hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
-hmmwv.SetTireModel(veh.TireModel_TMEASY)
-hmmwv.SetChassisVisualization(chrono.ChVisualSystem().Asset("hmmwv_chassis.obj"))
-hmmwv.SetSuspensionVisualization(chrono.ChVisualSystem().Asset("hmmwv_suspension.obj"))
-hmmwv.SetSteeringVisualization(chrono.ChVisualSystem().Asset("hmmwv_steering.obj"))
-hmmwv.SetWheelVisualization(chrono.ChVisualSystem().Asset("hmmwv_wheel.obj"))
-hmmwv.SetLocation(chrono.ChVectorD(0, 0, 1))
+hmmwv.SetTireModel(chrono.ChTireModel.TMEASY)
+hmmwv.SetLocation(chrono.ChVectorD(0, 0, 1.5))
 hmmwv.SetRotation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
 
 
+sys.Add(hmmwv)
+
+
 terrain = chrono.ChBodyEasyMesh()
-terrain.SetMesh(chrono.GetMeshList()[0])
+terrain.SetMesh(chrono.GetMesh(..../Highway_col.obj))
 terrain.SetCollide(True)
 terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.AddVisualMesh(chrono.GetMeshList()[1])
 sys.Add(terrain)
 
 
-sys.Add(hmmwv.GetPartChassis())
-sys.Add(hmmwv.GetPartWheel1())
-sys.Add(hmmwv.GetPartWheel2())
-sys.Add(hmmwv.GetPartWheel3())
-sys.Add(hmmwv.GetPartWheel4())
+terrain_vis = chrono.ChBodyEasyMesh()
+terrain_vis.SetMesh(chrono.GetMesh(..../Highway_vis.obj))
+terrain_vis.SetCollide(False)
+terrain_vis.SetBodyFixed(True)
+sys.Add(terrain_vis)
 
 
 driver = veh.ChIrrlichtDriver()
 driver.SetVehicle(hmmwv)
-driver.SetSteeringMode(veh.SteeringMode_KINEMATIC)
-driver.SetThrottleMode(veh.ThrottleMode_PERCENT)
-driver.SetBrakingMode(veh.BrakingMode_PERCENT)
+driver.AddTypicalInputs()
 
 
-step_size = 0.02
-vis.SetWindowSize(1024, 768)
-vis.SetCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-vis.SetLogo("")
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+sys.SetMaxPenetrationRecoverySpeed(1.0)
+sys.SetStep(0.02)
+
 
 while vis.Run():
     
-    hmmwv.Update(0.02)
-    sys.DoStepDynamics(step_size)
-
+    sys.DoStepDynamics(0.02)
+    
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
+    
+    
+    driver.Synchronize(0.02)
+    
     
     chrono.ChSleep(0.02)

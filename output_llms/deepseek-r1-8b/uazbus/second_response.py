@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -33,12 +32,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 1e-3
+step_size = 1e-3  # 0.001 seconds
 tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
-
 
 # Create the UAZBUS vehicle, set parameters, and initialize
 vehicle = veh.UAZBUS() 
@@ -64,8 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
@@ -86,10 +84,10 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+# Set time response for steering and throttle keyboard inputs
+steering_time = 1.0   # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0   # time to go from 0 to +1
+braking_time = 0.3    # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,62 +100,70 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Define time intervals for double lane change maneuver
-lane_change_time = 3.0  # Total time for lane change maneuver
-straight_time = 1.0    # Time spent going straight before lane change
-lane_change_duration = 0.5  # Duration of lane change (90 degree turn)
-deceleration_time = 0.5  # Time to decelerate after lane change
-braking_time_total = 0.5  # Total braking time after lane change
+# Lane change maneuver parameters
+lane_change_speed = 0.5  # m/s
+lane_change_time = 2.0    # seconds to complete lane change
+lane_change_distance = lane_change_speed * lane_change_time  # 1.5 meters
 
-# Calculate time points for each phase
-change_point_time = straight_time + lane_change_duration
-deceleration_start_time = change_point_time
-braking_start_time = deceleration_start_time + deceleration_time
+# Double lane change parameters
+double_lane_change_time = 4.0  # total time for double lane change
+double_lane_change_speed = 0.5  # m/s
+double_lane_change_distance = double_lane_change_speed * double_lane_change_time  # 2 meters
 
-# Define steering and throttle adjustments
-straight_steering = 0.0
-max_steering = 0.5
-lane_change_steering = max_steering  # 90 degree turn
-deceleration_steering = 0.0
-braking_steering = 0.0
+# Calculate time intervals for each phase
+acceleration_phase = 1.0  # seconds to accelerate onto first lane
+deceleration_phase = 0.5  # seconds to decelerate before second lane
+double_lane_braking_phase = 0.5  # seconds to stop after double lane change
 
-straight_throttle = 0.5
-lane_change_throttle = straight_throttle  # Maintain throttle during lane change
-deceleration_throttle = 0.0
-braking_throttle = 0.0
+# Calculate step sizes for each phase
+acceleration_steps = acceleration_phase / render_step_size
+deceleration_steps = deceleration_phase / render_step_size
+double_lane_braking_steps = double_lane_braking_phase / render_step_size
 
-# Initialize time variables
-current_time = 0.0
-target_time = lane_change_time
-
-def get_input(delta_time):
-    global current_time, target_time
-    current_time += delta_time
+# Update driver inputs for lane change maneuver
+def update_driver_inputs(time):
+    # Initial straight driving phase
+    if time < acceleration_phase:
+        driver.SetSteeringDelta(0.0)
+        driver.SetThrottleDelta(0.5)
+        driver.SetBrakingDelta(0.0)
     
-    # Straight movement
-    if current_time < straight_time:
-        steering = straight_steering
-        throttle = straight_throttle
-    # Lane change maneuver
-    elif current_time >= straight_time and current_time < change_point_time:
-        turn_angle = (current_time - straight_time) * (2 * lane_change_steering) / lane_change_duration
-        steering = max_steering * (1 - math.sin(turn_angle / 2))
-        throttle = lane_change_throttle
-    # Deceleration phase
-    elif current_time >= change_point_time and current_time < braking_start_time:
-        steering = deceleration_steering
-        throttle = deceleration_throttle
-    # Braking phase
+    # Accelerating onto first lane
+    elif acceleration_phase <= time < acceleration_phase + deceleration_steps:
+        steering_angle = math.radians(45)  # 45 degrees for smooth lane change
+        driver.SetSteeringDelta(steering_angle)
+        driver.SetThrottleDelta(1.0)
+        driver.SetBrakingDelta(0.0)
+    
+    # Decelerating before lane change
+    elif acceleration_phase + deceleration_steps <= time < acceleration_phase + deceleration_steps + double_lane_braking_phase:
+        driver.SetSteeringDelta(steering_angle)
+        driver.SetThrottleDelta(0.0)
+        driver.SetBrakingDelta(1.0)
+    
+    # Accelerating onto second lane
+    elif acceleration_phase + deceleration_steps + double_lane_braking_phase <= time < double_lane_change_time:
+        steering_angle = math.radians(-45)  # -45 degrees for smooth lane change
+        driver.SetSteeringDelta(steering_angle)
+        driver.SetThrottleDelta(1.0)
+        driver.SetBrakingDelta(0.0)
+    
+    # Final braking phase after double lane change
     else:
-        steering = braking_steering
-        throttle = braking_throttle
-        
-    return steering, throttle
+        driver.SetSteeringDelta(0.0)
+        driver.SetThrottleDelta(0.0)
+        driver.SetBrakingDelta(1.0)
+
+# Update driver input handler
+driver_input_handler = chrono.ChFunctionPtr(update_driver_inputs)
+
+# Set up driver input handling
+driver.SetInputHandler(driver_input_handler)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -172,7 +178,7 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -184,17 +190,6 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Get steering and throttle inputs for the vehicle
-    steering_input, throttle_input = get_input(step_size)
-    
-    # Update driver inputs with new values
-    driver.SetInputs(chrono.ChInputState(step_size, 
-        steering_input, 
-        0, 
-        throttle_input,
-        0,
-        0))
-    
     # Increment frame number
     step_number += 1
     # Spin in place for real time to catch up

@@ -64,13 +64,12 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-height_map = veh.HeightMap(terrainLength, terrainWidth, 1.0, 1.0)
-height_map.SetHeight(0, 0, 0.5)
-height_map.SetHeight(10, 10, 1.0)
-height_map.SetHeight(20, 20, 0.5)
-patch = terrain.AddHeightMap(patch_mat, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
-    height_map)
+height_map = chrono.ChHeightfield()
+height_map.Initialize(100, 100, terrainLength, terrainWidth, 0, 0, 0)
+for i in range(100):
+    for j in range(100):
+        height_map.SetHeight(i, j, math.sin((i / 10.0) * math.pi) * math.cos((j / 10.0) * math.pi))
+patch = terrain.AddHeightfield(patch_mat, height_map)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -101,7 +100,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -111,10 +110,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

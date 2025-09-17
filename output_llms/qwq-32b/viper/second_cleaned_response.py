@@ -31,7 +31,35 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
+
+
+manager = sens.ChSensorManager(system)
+intensity = 1.0
+manager.scene.AddPointLight(
+    chrono.ChVector3f(2, 2.5, 100),
+    chrono.ChColor(1.0, 1.0, 1.0),
+    500.0
+)
+
+
+offset_pose = chrono.ChFrameD(
+    chrono.ChVector3d(1.0, 0, 1.45),
+    chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))  
+)
+cam = sens.ChCameraSensor(
+    rover.GetChassis().GetBody(),
+    offset_pose,
+    720,
+    480,
+    1.408,
+    0.1,  
+    100.0  
+)
+cam.SetName("Third Person POV")
+cam.SetUpdateRate(15)  
+cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
+manager.AddSensor(cam)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -44,30 +72,11 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-
-manager = sens.ChSensorManager(system)
-intensity = 1.0
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-
-offset_pose = chrono.ChFramed(
-    chrono.ChVector3d(1.0, 0, 1.45),
-    chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))  
+vis.AddLightWithShadow(
+    chrono.ChVector3d(1.5, -2.5, 5.5),
+    chrono.ChVector3d(0, 0, 0.5),
+    3, 4, 10, 40, 512
 )
-cam = sens.ChCameraSensor(
-    rover.GetChassis().GetBody(),
-    15,  
-    offset_pose,
-    720,  
-    480,  
-    1.408  
-)
-cam.SetName("Third Person POV")
-cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
-manager.AddSensor(cam)
-
 
 time_step = 1e-3
 step_number = 0
@@ -89,13 +98,12 @@ while vis.Run():
     driver.SetSteering(steering)
     rover.Update()
     
-    
-    system.DoStepDynamics(time_step)  
-    manager.Update()
-    
+    manager.Update()  
     
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
     step_number += 1
+    
+    system.DoStepDynamics(time_step)

@@ -2,104 +2,99 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
 
-# --- Simulation setup ---
-chrono.SetChronoDataPath("./")  # Replace with the path to your Chrono data directory
+# ---
+#  Create the simulation system
+# ---
 
-# Create a physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# --- Create the IGA beam ---
+# ---
+#  Create the beam using IGA
+# ---
+
 # Define beam parameters
 beam_length = 1.0
 beam_radius = 0.02
-beam_segments = 20
-beam_order = 3  # Cubic NURBS
+num_segments = 20
+beam_young = 2.0e11  # Young's modulus
+beam_density = 7850  # Density
 
-# Create the IGA beam object
-beam = chrono.ChBodyEasy.New()
+# Create the IGA beam
+beam = chrono.ChBodyEasy.New(beam_length * 0.5, 0.0, 0.0,  # x, y, z
+                             beam_radius, beam_radius, beam_radius,  # rx, ry, rz
+                             beam_density)
 beam.SetBodyFixed(False)
-beam.SetMass(1.0)
-beam.SetInertia(1.0)
-
-# Create a NURBS section
-section = chrono.ChNurbsSection()
-section.SetShapeType(chrono.ChNurbsShape.CIRCLE)
-section.SetRadius(beam_radius)
-section.SetSegments(beam_segments)
-
-# Create the IGA beam mesh
-iga_beam = chrono.ChIGABeam.New()
-iga_beam.SetSection(section)
-iga_beam.SetLength(beam_length)
-iga_beam.SetOrder(beam_order)
-iga_beam.BuildMesh()
-
-# Attach the IGA beam mesh to the body
-beam.AddAsset(iga_beam)
 beam.SetCollide(True)
-beam.SetVisualizationType(chrono.ChVisualizationType.MESH)
+beam.SetMaterialWithProperties(chrono.ChMaterialSurfaceNSC(), beam_young, 0.3)
+beam.SetShapeType(chrono.ChShapeType.SHAPE_IGA_BEAM)
 
-# Add the beam to the system
-system.Add(beam)
+# Set IGA beam parameters
+beam.GetShape().Set_Length(beam_length)
+beam.GetShape().Set_Radius(beam_radius)
+beam.GetShape().Set_Segments(num_segments)
+beam.GetShape().Set_Section(chrono.ChIGASectionCircle(beam_radius))
 
-# --- Create the flywheel ---
+my_system.Add(beam)
+
+# ---
+#  Create the flywheel
+# ---
+
 flywheel_radius = 0.05
-flywheel_mass = 0.5
-flywheel = chrono.ChBodyEasy.New()
+flywheel_mass = 0.1
+flywheel = chrono.ChBodyEasy.New(flywheel_radius, flywheel_radius, flywheel_radius,
+                                 flywheel_mass, True, True)
 flywheel.SetBodyFixed(False)
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertia(chrono.ChVectorD(flywheel_mass * flywheel_radius * flywheel_radius,
-                                     flywheel_mass * flywheel_radius * flywheel_radius,
-                                     flywheel_mass * flywheel_radius * flywheel_radius))
-flywheel.SetShape(chrono.ChSphereShape(flywheel_radius))
 flywheel.SetCollide(True)
-flywheel.SetVisualizationType(chrono.ChVisualizationType.MESH)
+flywheel.SetMaterialWithProperties(chrono.ChMaterialSurfaceNSC(), 2.0e11, 0.3)
+flywheel.SetShapeType(chrono.ChShapeType.SHAPE_SPHERE)
+flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
+my_system.Add(flywheel)
 
-# Position the flywheel at the center of the beam
-flywheel_pos = chrono.ChVectorD(beam_length / 2.0, 0, 0)
-flywheel.SetPos(flywheel_pos)
+# Connect the flywheel to the beam's center
+rev_joint = chrono.ChLink revolute_joint = chrono.ChLinkRevolute()
+rev_joint.Initialize(beam, flywheel, chrono.ChCoordsys(chrono.ChVectorD(beam_length / 2, 0, 0)))
+my_system.Add(rev_joint)
 
-# Add the flywheel to the system
-system.Add(flywheel)
 
-# Create a revolute joint to connect the flywheel to the beam
-joint = chrono.ChLinkRevolute.New()
-joint.Initialize(beam, flywheel, chrono.ChCoordsys(flywheel_pos))
-system.Add(joint)
+# ---
+#  Create a rotational motor
+# ---
 
-# --- Create the motor ---
-motor_torque = 1.0
-motor = chrono.ChMotorLinearSpring.New()
-motor.Set_SpringRestLength(0.0)
-motor.Set_SpringK(0.0)
-motor.Set_SpringR(0.0)
-motor.Set_Torque(motor_torque)
-motor.Set_Mode(chrono.ChMotorMode.TORQUE_CONTROL)
-
-# Attach the motor to the beam
+motor = chrono.ChLinkMotorRotationSpeed()
 motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(motor)
+motor.Set_RotationalSpeed(10)  # rad/s
+motor.Set_Torque(1.0)
+my_system.Add(motor)
 
-# --- Visualization ---
-# Create an Irrlicht application
+# ---
+#  Visualization
+# ---
+
+# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Jeffcott Rotor with IGA Beam')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(2, 2, -2))
+vis.AddTypicalCamera(chrono.ChVectorD(0, 0, -2))
 vis.AddTypicalLights()
 
-# --- Simulation loop ---
-time_step = 0.001
+# ---
+#  Simulation loop
+# ---
+
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+my_system.SetStepTime(0.001)
 time_end = 10.0
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    system.DoStepDynamics(time_step)
+    my_system.DoStepDynamics(0.001)
 
-    if system.GetChTime() > time_end:
-        vis.GetIrrlichtApplication().Close()
+    if my_system.GetChTime() > time_end:
+        break

@@ -41,7 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 100  
 
 
-ref_speed = 20
+ref_speed = 20.0
 
 
 
@@ -55,7 +55,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetRefSpeed(ref_speed)
 
 vehicle.Initialize()
 
@@ -75,9 +74,11 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
+
+
+patch.SetMesh(veh.GetDataFile("terrain/meshes/highway.obj"))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-patch.SetMesh(veh.GetDataFile("terrain/meshes/highway.obj"))
 terrain.Initialize()
 
 
@@ -93,7 +94,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -104,16 +104,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-
-kp = 1.0
-ki = 0.0
-kd = 0.0
-throttle_controller = veh.ChPIDController(kp, ki, kd)
-throttle_controller.SetSetpoint(ref_speed)
-throttle_controller.SetOutputLimits(-1, 1)
-
-driver.AddController(throttle_controller)
-
 driver.Initialize()
 
 
@@ -121,7 +111,7 @@ driver.Initialize()
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -130,6 +120,15 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+speed_error = 0
+prev_speed_error = 0
+integral = 0
+derivative = 0
+kp = 0.5
+ki = 0.1
+kd = 0.1
+throttle_controller = veh.ChPIDController(kp, ki, kd)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -145,6 +144,14 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    speed_error = ref_speed - current_speed
+
+    
+    throttle_controller.Update(time, speed_error, 0)
+    throttle_input = throttle_controller.GetOutput()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -155,10 +162,6 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    throttle_controller.Update(time, vehicle.GetVehicle().GetSpeed())
-
     
     step_number += 1
 

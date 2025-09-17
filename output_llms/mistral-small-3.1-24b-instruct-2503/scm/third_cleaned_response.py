@@ -61,14 +61,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   
-                            0,     
-                            1.1,   
-                            0,     
-                            30,    
-                            0.01,  
-                            2e8,   
-                            3e4    
-)
+                          0,     
+                          1.1,   
+                          0,     
+                          30,    
+                          0.01,  
+                          2e8,   
+                          3e4    
+                          )
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -104,6 +104,54 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+system = vehicle.GetSystem()
+for _ in range(10):
+    x = random.uniform(-50, 50)
+    y = random.uniform(-50, 50)
+    z = random.uniform(0.5, 2.0)
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
+    box.SetPos(chrono.ChVectorD(x, y, z))
+    system.Add(box)
+
+
+sensor_manager = chrono.ChSensorManager(system)
+sensor_manager.SetOutputDirectory(chrono.GetChronoDataPath() + 'SENSORDATA/')
+
+
+light1 = chrono.ChPointLight()
+light1.SetPos(chrono.ChVectorD(10, 10, 5))
+light1.SetDirection(chrono.ChVectorD(-1, -1, -1))
+light1.SetAmbientColor(chrono.ChColor(0.5, 0.5, 0.5))
+light1.SetDiffuseColor(chrono.ChColor(1, 1, 1))
+light1.SetSpecularColor(chrono.ChColor(1, 1, 1))
+light1.SetAttenuation(chrono.ChVectorD(1, 0, 0))
+sensor_manager.AddPointLight(light1)
+
+light2 = chrono.ChPointLight()
+light2.SetPos(chrono.ChVectorD(-10, -10, 5))
+light2.SetDirection(chrono.ChVectorD(1, 1, -1))
+light2.SetAmbientColor(chrono.ChColor(0.5, 0.5, 0.5))
+light2.SetDiffuseColor(chrono.ChColor(1, 1, 1))
+light2.SetSpecularColor(chrono.ChColor(1, 1, 1))
+light2.SetAttenuation(chrono.ChVectorD(1, 0, 0))
+sensor_manager.AddPointLight(light2)
+
+
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetName("vehicle_camera")
+camera_sensor.SetCameraPosition(chrono.ChVectorD(0, 0, 1.71))
+camera_sensor.SetCameraOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+camera_sensor.SetParent(vehicle.GetChassisBody())
+camera_sensor.SetPose(chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.71), chrono.ChQuaternionD(1, 0, 0, 0)))
+camera_sensor.SetFov(chrono.ChFov(chrono.ChFov.HORIZONTAL, 60))
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetOutputEnabled(True)
+sensor_manager.AddCameraSensor(camera_sensor)
+
+
+vis.AddSensorCamera(camera_sensor)
+
+
 
 
 
@@ -117,47 +165,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-system = vehicle.GetSystem()
-for _ in range(10):
-    box_size = chrono.ChVector3d(1, 1, 1)
-    box_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(1, 5))
-    box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True, system)
-    box.SetPos(box_pos)
-    box.SetBodyFixed(False)
-
-
-sensor_manager = chrono.ChSensorManager(system)
-sensor_manager.SetOutputEnabled(True)
-
-
-for _ in range(5):
-    light_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(10, 20))
-    light = chrono.ChPointLight()
-    light.SetPos(light_pos)
-    light.SetColor(chrono.ChColor(1, 1, 1))
-    light.SetIntensity(1.0)
-    sensor_manager.AddLight(light)
-
-
-camera_sensor = chrono.ChCameraSensor()
-camera_sensor.SetName("VehicleCamera")
-camera_sensor.SetParent(vehicle.GetChassisBody())
-camera_sensor.SetPos(chrono.ChVector3d(0, 0, 2))  
-camera_sensor.SetDir(chrono.ChVector3d(0, 1, 0))  
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(chrono.ChFovAngle(chrono.ChAngle(60 * chrono.CH_C_DEG_TO_RAD)))
-sensor_manager.AddSensor(camera_sensor)
-
-
-camera_filter = chrono.ChCameraFilter()
-camera_filter.SetName("CameraFilter")
-camera_filter.SetCamera(camera_sensor)
-camera_filter.SetWindowPosition(10, 10)
-camera_filter.SetWindowSize(640, 480)
-camera_filter.SetEnabled(True)
-sensor_manager.AddFilter(camera_filter)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -177,12 +184,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Update()
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1

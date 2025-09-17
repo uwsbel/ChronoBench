@@ -20,13 +20,11 @@ def main():
     hmmwv.Initialize()  
 
     
-    hmmwv.GetChassisBody().SetChassisVisualizationType(ch.ChVisualizationType.CH_VISUAL_WIREFRAME)
-    hmmwv.GetChassisBody().SetSuspensionVisualizationType(ch.ChVisualizationType.CH_VISUAL_SPHERE)
-    hmmwv.GetSteeringSystem().SetSteeringVisualizationType(ch.ChVisualizationType.CH_VISUAL_SPHERE)
-    for wheel in hmmwv.GetWheels():
-        wheel.SetWheelVisualizationType(ch.ChVisualizationType.CH_VISUAL_SPHERE)
-    for tire in hmmwv.GetTires():
-        tire.SetTireVisualizationType(ch.ChVisualizationType.CH_VISUAL_SPHERE)
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_WIREFRAME)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_SOLID)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_SOLID)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -34,7 +32,7 @@ def main():
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100) 
     terrain.Initialize()  
 
     
@@ -43,27 +41,28 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-    
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
-    
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  
+
+    
+    vis = chronoirr.ChVisualSystemIrrlicht(
+        width=800, height=600,
+        far_clip=1000,
+        
+    )
+    vis.AddCamera(hmmwv.GetChassisBody(), 
+                  ch.ChVector3d(0, 10, 10), 
+                  ch.ChVector3d(0, 0, 0))
+    vis.SetCamera(0)
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
 
-    hmmwv.GetVehicle().EnableRealtime(True)  
-    vis = chronoirr.ChVisualSystemIrrlicht(
-        window_size=(800, 600),
-        fullscreen=False,
-        background_color=(1, 1, 1, 1),
-    )
-    vis.AddModel(hmmwv.GetChassisBody())
-    vis.AddModel(terrain.GetPatch(0))
-
+    hmmwv.GetVehicle().EnableRealtime(True) 
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -83,7 +82,9 @@ def main():
             break  
 
         
-        vis.render()
+        vis.BeginScene()
+        vis.DrawAll()
+        vis.EndScene()
 
 if __name__ == "__main__":
     main()

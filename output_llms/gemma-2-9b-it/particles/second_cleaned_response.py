@@ -110,5 +110,6 @@ while vis.Run():
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
     total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+    print(f"Kinetic Energy: {kinetic_energy:.2f}, Potential Energy: {potential_energy:.2f}, Total Energy: {total_energy:.2f}")

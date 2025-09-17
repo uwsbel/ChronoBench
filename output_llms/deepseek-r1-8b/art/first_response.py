@@ -2,86 +2,78 @@ import pychrono as pychrono
 import pychrono.vehicles as vehicles
 import pychrono.render as render
 import pychrono.input as input
-import pychrono.dynamics as dynamics
+import numpy as np
 
-# Initialize PyChrono simulation
-simulation = pychrono.Simulation()
-simulation.set_time_step(1.0/50)  # 50 FPS
+# Initialize PyChrono environment
+pychrono.init()
 
-# Initialize vehicle
-car = vehicles.Vehicle(simulation)
-car.set_name("ARTcar")
-car.set_contact_method("Contact")
-car.set_location([0, 0, 0])
-car.set_orientation(0)
-car.set_visualization_type("Irrlicht")
-car.set_mass(1000)
-car.set_friction(0.5)
-car.set_roll_friction(0.1)
-car.set_spinning_damping(0.1)
-car.set_max_speed(20)
-car.set_max_acceleration(10)
-car.set_max_braking_acceleration(-10)
+# Set up the simulation with ODE as physics solver
+sim = pychrono.Simulation(pychrono.ODE())
+sim.set_time_step(0.001)  # 1ms time step
 
-# Initialize terrain
-terrain = pychrono.objects.RigidTerrain(simulation)
-terrain.set_size([100, 100, 0])
-terrain.set_ground_type("ground")
-terrain.set_texture("terrain_texture.png")
-terrain.set_type("rigid")
+# Initialize the vehicle
+vehicle = vehicles.ArtCar("ground")
+vehicle.set_name("ARTcar")
+vehicle.set_contact_method("rolling")
+vehicle.set驾驶("driver")
+vehicle.set_position(np.array([0, 0, 0.5], dtype=np.float64))
+vehicle.set_orientation(np.array([0, 0, 1], dtype=np.float64))
+vehicle.set_driver(input.Driver("logitech", "gamepad"))  # Use Logitech gamepad for controls
+vehicle.set_visualization_type("car")  # Use car visualization type
+vehicle.set驾驶("driver")  # Set up driver input
 
-# Initialize driver
-driver = pychrono.input.Driver(simulation)
-driver.set_name("Simulator")
-driver.set_control_mapping({
-    'throttle': 'W',
-    'brake': 'S',
-    'steering': ['A', 'D']
-})
-driver.set_force_limits([5, 5, 5])
+# Initialize the terrain
+terrain = pychrono.objects.RigidTerrain("ground")
+terrain.set_size(100, 100, 10)  # 100x100m terrain with 10m height
+terrain.set_position(np.array([50, 50, 0], dtype=np.float64))
+terrain.set_material("checkerboard", "flat")  # Apply checkerboard texture with flat shading
 
-# Add vehicle and terrain to simulation
-simulation.add_object(car)
-simulation.add_object(terrain)
+# Add the vehicle to the simulation
+sim.add_object(vehicle)
+sim.add_object(terrain)
 
-# Visualization setup
-renderer = render.IrrlichtRenderer(simulation)
-renderer.set_rendering_enabled(True)
-renderer.set_camera_position([50, 50, 50])
-renderer.set_camera_rotation([0, 0, 0])
-renderer.set_vehicle_renderer(car)
-renderer.set_terrain_renderer(terrain)
+# Set up the camera
+cam = render.PyChronoCamera()
+cam.set_position(np.array([0, 0, 10], dtype=np.float64))
+cam.set_lookat(np.array([0, 0, 0], dtype=np.float64))
+cam.set_up(np.array([0, 1, 0], dtype=np.float64))
 
-# Add simulation loop
-simulation.add_loop("Main", 50, "Main", function():
-    # Update vehicle dynamics
-    simulation.update()
+# Create the simulation loop
+while True:
+    # Update physics
+    sim.update()
     
-    # Get current state
-    state = simulation.get_state()
-    
-    # Apply driver controls
-    input_state = driver.get_input_state()
-    steering = input_state['steering']
-    throttle = input_state['throttle']
-    brake = input_state['brake']
-    
-    # Update vehicle controls
-    car.set_force([0, 0, 0])
-    car.set_torque([0, 0, 0])
-    
-    if brake:
-        car.set_braking_force(-10)
-    else:
-        car.set_braking_force(0)
-        
-    car.set_steering_force(steering * 10)
-    car.set_throttle_input(throttle * 10)
-    
-    # Render visualization
-    renderer.begin_frame()
+    # Update visualization
+    renderer = render.PyChronoRenderer()
+    renderer.add(cam, "cam")
+    renderer.add(terrain, "terrain")
+    renderer.add(vehicle, "vehicle")
     renderer.render()
-    renderer.end_frame()
-
-# Start simulation
-simulation.start_loop("Main")
+    renderer.draw()
+    
+    # Display the frame
+    display.FrontBufferSwap()
+    
+    # Control the vehicle
+    # Read gamepad inputs
+    inputs = input.get_inputs()
+    steer = inputs["logitech"].get_axis("steering")
+    brake = inputs["logitech"].get_key("brake")
+    accelerate = inputs["logitech"].get_key("accelerate")
+    
+    # Update vehicle controls based on inputs
+    if brake:
+        vehicle.set_brake(1)
+    if accelerate:
+        vehicle.set_throttle(1)
+    if steer > 0:
+        vehicle.set_steering(0.5 * steer)  # Scale steering input
+    elif steer < 0:
+        vehicle.set_steering(-0.5 * steer)  # Scale steering input
+    
+    # Render the scene
+    renderer.render()
+    display.FrontBufferSwap()
+    
+    # Limit the simulation to 50 FPS
+    sim.set_time_step(1/50)

@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -42,6 +43,8 @@ def main():
     
     intensity = 1.0  
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
     
     
@@ -85,60 +88,4 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         
-        manager.Update()
-
-        
-        mphysicalSystem.DoStepDynamics(step_size)
-
-        
-        ch_time = mphysicalSystem.GetChTime()
-
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-
-
-
-
-
-noise_model = "CONST_NORMAL"  
-
-
-
-
-
-update_rate = 30
-
-
-image_width = 960  
-image_height = 480  
-
-
-fov = 1.408  
-
-
-lag = 0
-
-
-exposure_time = 0
-
-
-
-
-
-
-step_size = 1e-3
-
-
-end_time = 20.0
-
-
-save = True  
-
-
-vis = True
-
-
-out_dir = "SENSOR_OUTPUT/"
-
-
-main()
+        manager, and 0

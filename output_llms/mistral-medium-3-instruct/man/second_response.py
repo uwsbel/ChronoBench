@@ -19,7 +19,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Rigid terrain with hills
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -39,13 +39,14 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed from veh.MAN_10t to veh.MAN_5t
+vehicle = veh.MAN_5t()  # Changed from MAN_10t to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -56,33 +57,28 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with height map (changed from flat terrain)
+# Create the terrain with hills
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Create height map terrain (changed from flat terrain)
-height_map = veh.HeightMap(vehicle.GetSystem())
-height_map.SetDimensions(terrainLength, terrainWidth)
-height_map.SetResolution(100, 100)  # Number of points in X and Y directions
+# Create a height map for hills
+height_map = veh.HeightMap()
+height_map.LoadFromFile(veh.GetDataFile("terrain/height_maps/hills.dat"))
 
-# Create some hills (example height map)
-for i in range(100):
-    for j in range(100):
-        x = -terrainLength/2 + i * terrainLength/100
-        y = -terrainWidth/2 + j * terrainWidth/100
-        # Create some hills using sine waves
-        z = 2 * math.sin(x/10) * math.cos(y/10)
-        height_map.SetPoint(i, j, chrono.ChVector3d(x, y, z))
+# Add patch with height map
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth, height_map)
 
-height_map.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
-height_map.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-height_map.Initialize()
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed from "tile4.jpg" to "grass.jpg"
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo with Hills')  # Updated title
+vis.SetWindowTitle('MAN 5t Demo')  # Updated title
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -104,7 +100,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -128,13 +124,13 @@ while vis.Run():
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    height_map.Synchronize(time)  # Changed from terrain to height_map
-    vehicle.Synchronize(time, driver_inputs, height_map)  # Changed from terrain to height_map
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    height_map.Advance(step_size)  # Changed from terrain to height_map
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

@@ -106,6 +106,16 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
+    if time < 2:
+        driver.SetSteering(-1)  
+    elif time < 4:
+        driver.SetSteering(1)  
+    elif time < 6:
+        driver.SetSteering(-1)  
+    else:
+        driver.SetSteering(0)  
+
+    
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
@@ -114,16 +124,6 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
-    
-    if time < 5:
-        driver_inputs.m_steering = 1  
-    elif time < 10:
-        driver_inputs.m_steering = -1  
-    elif time < 15:
-        driver_inputs.m_steering = 1  
-    else:
-        driver_inputs.m_steering = 0  
 
     
     driver.Synchronize(time)
@@ -251,6 +251,16 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
+    if time < 2:
+        driver.SetSteering(-1)  
+    elif time < 4:
+        driver.SetSteering(1)  
+    elif time < 6:
+        driver.SetSteering(-1)  
+    else:
+        driver.SetSteering(0)  
+
+    
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
@@ -259,16 +269,6 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
-    
-    if time < 5:
-        driver_inputs.m_steering = 1  
-    elif time < 10:
-        driver_inputs.m_steering = -1  
-    elif time < 15:
-        driver_inputs.m_steering = 1  
-    else:
-        driver_inputs.m_steering = 0  
 
     
     driver.Synchronize(time)

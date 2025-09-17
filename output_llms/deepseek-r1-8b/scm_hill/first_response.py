@@ -1,75 +1,80 @@
-import pychrono as py
+import pychrono as pychrono
 import numpy as np
-import time
 
 # Initialize PyChrono environment
-py.init()
+pychrono.init()
 
-# Initialize vehicle
-vehicle = py.Vehicle(py.Core(), name="HMMWV")
-vehicle.set_name("HMMWV")
-vehicle.set_mass(1000)  # mass in kg
-vehicle.set_initial_position(py.Vec3(0, 0, 0))
-vehicle.set_initial_velocity(py.Vec3(0, 0, 0))
-vehicle.set_ground_reaction_force(True)
-vehicle.set_friction(True)
+# Initialize simulation core components
+core = pychrono.Core()
+core.setTimeUnit(pychrono.TimeUnit.SECOND)
+core.setGravity(pychrono.Vec3(0, -9.81, 0))
+
+# Define vehicle model (HMMWV)
+vehicle_model = pychrono.models汽车.HeavyMultiPurposeWheeledVehicle()
+vehicle_model.setMass(10000)  # 10,000 kg
+vehicle_model.setLength(4, 2.5)  # length, width
+vehicle_model.setWidth(3.2)  # width
+vehicle_model.setHeight(2.5)  # height
+vehicle_model.setTreadWidth(0.8)  # tire width
+vehicle_model.setTireRadius(0.6)  # tire radius
+vehicle_model.setSuspensionTravel(1.0)  # suspension extension
+vehicle_model.setCamberAngle(0.5)  # degree
+vehicle_model.setSteeringRadius(3.0)  # steering radius
+vehicle_model.setFricition(0.1)  # friction coefficient
+vehicle_model.setRollingResistance(0.01)  # rolling resistance coefficient
+vehicle_model.setTyreInflation(200000)  # tire inflation pressure
+vehicle_model.setTyreHardness(0.001)  # tire hardness
+core.addSystem(vehicle_model)
+
+# Initialize SCM deformable terrain
+terrain = pychrono.deformables.Terrain()
+terrain.setDamping(0.1)  # damping coefficient
+terrain.setShearModulus(1000)  # shear modulus
+terrain.setCohesion(0.5)  # cohesion coefficient
+terrain.setHeightMap(np.array([[0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0]]))  # flat terrain
+core.addSystem(terrain)
 
 # Initialize driver system
-driver = py.DriverSystem()
-driver.set_name("Driver")
-driver.set_vehicle(vehicle)
-driver.set_control_mode(py.DriverControlMode.AUTONOMOUS)
+driver = pychrono.controllers.Driver()
+driver.setVehicle(vehicle_model)
+core.addSystem(driver)
 
-# Initialize terrain
-terrain = py.Terrain(py.SCM())
-terrain.set_name("Soil")
-terrain.set_soil_parameters(soil_strength=1000, young_modulus=1e6, poisson_ratio=0.2)
-terrain.initialize_height_map(np.array([0, 0, 0], dtype=np.float32))
+# Initialize Irrlicht visualization
+renderer = pychrono.renderers.Irrlicht()
+renderer.setCamera(pychrono.Vec3(10, 10, 10))  # camera position
+renderer.setFocalLength(45.0)  # focal length
+renderer.setLightDirection(pychrono.Vec3(10, 10, 10))  # lighting direction
+renderer.setAmbientLight(pychrono.Vec3(0.5, 0.5, 0.5))  # ambient light
+renderer.setRenderingQuality(pychrono.RenderingQuality.HIGH)  # high quality
+core.addSystem(renderer)
 
-# Initialize visualization
-renderer = py.Visualizer(py.IrrlichtRenderer())
-renderer.set_name("Irrlicht")
-renderer.set_camera_position(py.Vec3(5, 5, 5))
-renderer.set_camera_rotation(py.Vec3(0, 0, 0))
-renderer.set_light_settings(py.LightSettings(
-    ambient_color=py.Color(1, 1, 1),
-    directional_light_position=py.Vec3(10, 10, 10),
-    directional_light_color=py.Color(1, 1, 1)
-))
+# Set initial conditions
+initial_position = pychrono.Vec3(0, 0, 0)
+initial_velocity = pychrono.Vec3(0, 0, 0)
+vehicle_model.setInitialPosition(initial_position)
+vehicle_model.setInitialVelocity(initial_velocity)
+terrain.setInitialHeightMap(np.array([[0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 0.0]]))
 
-# Define simulation timestep
-timestep = 1e-4
-simulation_time = 0
+# Simulation loop
+timestep = 0.1  # 10 ms per step
+t_manager = pychrono.TimestepManager(core, timestep)
+t_manager.addSystem(core)
+t_manager.addSystem(terrain)
+t_manager.addSystem(renderer)
+t_manager.addSystem(driver)
 
-# Initialize simulation
-simulation = py.Simulation()
-simulation.add_system(vehicle)
-simulation.add_system(terrain)
-simulation.add_system(driver)
-simulation.add_system(renderer)
-simulation.set_timestep(timestep)
-
-# Example forces (to be applied by driver)
-example_forces = np.zeros((4, 4, 4))  # Assuming 4 wheels
-simulation.set_forces(vehicle, example_forces)
-
-# Define simulation loop
-while True:
-    # Update simulation
-    simulation.update()
-    simulation_time += timestep
-
-    # Synchronize visualization
+def update():
+    t_manager.update()
+    # Update visualization
     renderer.update()
+    # Keep real-time execution
+    t_manager.step()
 
-    # Print status (for testing)
-    print(f"Simulation Time: {simulation_time}")
-    print(f"Vehicle Position: {vehicle.get_position()}")
-    print(f"Vehicle Velocity: {vehicle.get_velocity()}")
-    print(f"Driver Input: {driver.get_input()}")
-    print(f"Terrain Deformation: {terrain.get_deformation()}")
-    print("-------------------")
-
-    # Break loop if user interrupts (for testing)
-    if input().strip() == "stop":
-        break
+# Start simulation
+t_manager.start()
+while True:
+    update()

@@ -41,23 +41,29 @@ msection.SetDrawCircularRadius(beam_ro)
 
 
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, 
-                 msection, 
-                 20, 
-                 chrono.ChVector3d(0, 0, 0), 
-                 chrono.ChVector3d(beam_L, 0, 0), 
-                 chrono.VECT_Y, 
-                 3)  
+builder.BuildBeam(
+    mesh, 
+    msection, 
+    20,  
+    chrono.ChVector3d(0, 0, 0), 
+    chrono.ChVector3d(beam_L, 0, 0), 
+    chrono.VECT_Y, 
+    3  
+)
+
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800) 
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
 mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), 
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    chrono.ChCoordsysd(
+        node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
+        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)
+    )
 )
 sys.Add(mbodyflywheel)
+
 
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
@@ -70,8 +76,7 @@ sys.Add(truss)
 
 
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss, 
-                  chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 
@@ -97,15 +102,23 @@ class ChFunctionMyFun(chrono.ChFunction):
 
 
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(), 
-                     truss, 
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), 
-                                    chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+rotmotor1.Initialize(
+    builder.GetLastBeamNodes().front(),  
+    truss,  
+    chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
 )
 sys.Add(rotmotor1)
 
 
-f_ramp = ChFunctionMyFun(A1=0, A2=100, T1=0, T2=0.5, T3=1.0, w=50)
+A1 = 0.0
+A2 = 100.0
+T1 = 0.0
+T2 = 1.0
+T3 = 2.0
+w = 50.0
+
+
+f_ramp = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
 rotmotor1.SetMotorFunction(f_ramp)
 
 

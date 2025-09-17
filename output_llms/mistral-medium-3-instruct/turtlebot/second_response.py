@@ -42,34 +42,40 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows
 vis.EnableShadows()
 
-# Set the simulation time step
-time_step = 2e-3
+# Define WheelID enum values for motor control
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
 
 def move(mode):
     """Control the robot's movement based on the specified mode."""
     if mode == "straight":
-        robot.SetMotorSpeed(math.pi, 0)  # LEFT_DRIVE_WHEEL
-        robot.SetMotorSpeed(math.pi, 1)  # RIGHT_DRIVE_WHEEL
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
         print("Moving straight")
     elif mode == "left":
-        robot.SetMotorSpeed(0, 0)  # LEFT_DRIVE_WHEEL
-        robot.SetMotorSpeed(-math.pi, 1)  # RIGHT_DRIVE_WHEEL
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
         print("Turning left")
     elif mode == "right":
-        robot.SetMotorSpeed(-math.pi, 0)  # LEFT_DRIVE_WHEEL
-        robot.SetMotorSpeed(0, 1)  # RIGHT_DRIVE_WHEEL
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
         print("Turning right")
     else:
         raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
+# Set the simulation time step
+time_step = 2e-3
+
 # Simulation loop
 time = 0
 while vis.Run():
-    # Control the robot's movement based on time
+    # Move straight for the first 5 seconds
     if time < 5.0:
         move("straight")
-    elif time < 10.0:
+    # Turn left for the next 5 seconds
+    elif 5.0 <= time < 10.0:
         move("left")
+    # Turn right thereafter
     else:
         move("right")
 

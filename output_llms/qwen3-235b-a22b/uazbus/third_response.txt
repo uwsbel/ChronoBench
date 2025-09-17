@@ -20,7 +20,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed to RIGID
+tire_model = veh.TireModelType_RIGID  # Modified tire model
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
@@ -49,13 +49,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.Initialize()
 
+# Set visualization types before initialization
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.Initialize()
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -71,11 +73,23 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add a box obstacle
-box = chrono.ChBodyEasyBox(0.5, 5.0, 0.2, 1000)  # Dimensions and density
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))  # Position
-box.SetBodyFixed(True)  # Fix the box
-vehicle.GetSystem().Add(box)  # Add to the system
+# Add box obstacle
+box = chrono.ChBody()
+box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box.SetBodyFixed(True)
+box.SetCollide(True)
+
+# Collision shape (half-lengths)
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(patch_mat, 0.25, 2.5, 0.1)
+box.GetCollisionModel().BuildModel()
+
+# Visualization shape (full dimensions)
+box_shape = chrono.ChVisualShapeBox(0.5, 5, 0.2)
+box_shape.SetColor(chrono.ChColor(1, 0, 0))  # Red color
+box.AddVisualShape(box_shape)
+
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -98,6 +112,7 @@ braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # Output vehicle mass
@@ -113,7 +128,7 @@ render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    
+
     # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
@@ -123,21 +138,23 @@ while vis.Run():
 
     # Get driver inputs and set constant throttle
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.5  # Constant throttle value
+    driver_inputs.m_throttle = 0.5  # Constant throttle
 
-    # Update modules
+    # Synchronize modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment frame number
+    # Increment step number
     step_number += 1
+
+    # Spin in place for real time
     realtime_timer.Spin(step_size)
 ```

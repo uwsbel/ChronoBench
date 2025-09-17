@@ -30,19 +30,14 @@ def main():
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
-    terrain_mat.SetContactThick(0.01)
 
-    # Create the terrain patch using the mesh file
-    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), veh.GetDataFile('vehicle/terrain/meshes/Highway_col.obj'))
-    terrain_patch.SetCollision(True)
+    # Create the terrain patch using a mesh defined by the file 'vehicle/terrain/meshes/Highway_col.obj'
+    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), veh.GetDataFile('vehicle/terrain/meshes/Highway_col.obj'), 0.01, True)
+    terrain_patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
 
-    # Create a visual mesh for the terrain
-    terrain_visual_mesh = veh.ChVisualShapeTriangleMesh()
-    terrain_visual_mesh.SetMesh(veh.GetDataFile('terrain/meshes/Highway_vis.obj'))
-    terrain_visual_mesh.SetFlags(veh.ChVisualShape::SHC_STATIC)
-
-    # Add the visual mesh to the terrain's ground body
-    terrain_patch.AddVisual(terrain_visual_mesh)
+    # Add a visual mesh to the terrain's ground body
+    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh, veh.GetDataFile('terrain/meshes/Highway_vis.obj'), 0.01)
 
     terrain.Initialize()
 

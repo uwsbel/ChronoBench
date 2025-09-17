@@ -35,33 +35,40 @@ terrain = chrono.ChBodyEasyBox(my_system,  # Parent system
                                chrono.ChVectorD(0, -2, 0),  # Position
                                chrono.ChVectorD(0, 0, 0))  # Velocity
 
-# Set the terrain properties
+# Set the terrain friction and restitution
 terrain.GetCollisionModel().SetFriction(terrain_friction)
 terrain.GetCollisionModel().SetRestitution(terrain_restitution)
 
 # Initialize the driver system
 driver = chrono.ChIrrNodeAsset(my_system, vehicle)
 driver.SetSteering(0)
-driver.SetThrottle(0)
+driver.SetThrottle(1)
 driver.SetBraking(0)
 
 # Create the Irrlicht visualization
 application = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 0, -5))
+application.AddCamera(chrono.ChVectorD(0, 0, -10))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 # Simulation loop
 while application.GetDevice().run():
-    # Synchronize the vehicle, terrain, driver, and visual system
+    # Synchronize and advance the simulation
     my_system.DoStepDynamics(time_step)
+
+    # Update the driver system
+    driver.Synchronize(time_step)
+
+    # Update the Irrlicht visualization
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-    application.DoStep()
-    # Advance the simulation time
-    simulation_time -= time_step
-    if simulation_time <= 0:
+
+    # Check for termination
+    if my_system.GetChTime() >= simulation_time:
         break
+
+# Close the Irrlicht device
+application.GetDevice().closeDevice()

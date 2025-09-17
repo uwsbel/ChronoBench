@@ -15,7 +15,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position adjusted per instruction
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -42,42 +42,49 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Define WheelID enum values for motor control
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
 # Define movement control function
 def move(mode):
+    """Control robot movement based on specified mode"""
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      # Forward left
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     # Forward right
+        # Both wheels forward at same speed
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)     # Reverse left
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     # Forward right
+        # Turn left: right wheel forward, left wheel stopped
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      # Forward left
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)    # Reverse right
+        # Turn right: left wheel forward, right wheel stopped
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid movement mode")
+        raise ValueError("Invalid movement mode. Use 'straight', 'left', or 'right'")
 
 # Simulation loop
 time = 0
-current_mode = None
+current_mode = None  # Track current movement mode
+
 while vis.Run():
-    # Determine current movement mode based on time
+    # Control robot based on time
     if time < 5.0:
-        new_mode = 'straight'
+        if current_mode != 'straight':
+            print("Moving straight")
+            current_mode = 'straight'
+        move('straight')
     elif time < 10.0:
-        new_mode = 'left'
+        if current_mode != 'left':
+            print("Turning left")
+            current_mode = 'left'
+        move('left')
     else:
-        new_mode = 'right'
-    
-    # Update movement if mode changed
-    if new_mode != current_mode:
-        print(f"Robot now moving: {new_mode}")
-        current_mode = new_mode
-        move(new_mode)
-    
+        if current_mode != 'right':
+            print("Turning right")
+            current_mode = 'right'
+        move('right')
+
     # Increment time counter
     time += time_step
 

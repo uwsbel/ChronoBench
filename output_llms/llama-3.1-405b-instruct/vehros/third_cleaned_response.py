@@ -53,8 +53,10 @@ def main():
                             1,  
                             1000,  
                             True,  
-                            ch.ChColor(1, 0, 0))  
-    box.SetPos(ch.ChVector3d(0, 0, 2))  
+                            True,  
+                            )
+    box.SetPos(ch.ChVector3d(0, 0, 1))
+    box.SetBodyFixed(True)
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -74,25 +76,23 @@ def main():
     
     lidar = sens.ChLidarSensor(
         hmmwv.GetChassisBody(),  
-        ch.ChFrameD(ch.ChVector3d(0, 0, 2), ch.ChQuaternionD(1, 0, 0, 0)),  
+        100,  
         ch.ChVector3d(0, 0, 1),  
-        100.0,  
-        0.1,  
-        0.01,  
-        0.0,  
-        0.0  
+        ch.ChQuaterniond(1, 0, 0, 0),  
+        100,  
+        270,  
+        0.05,  
+        100,  
+        0.05,  
+        0.05  
     )
-    lidar.SetCollectionWindow(0.1)  
-    lidar.SetScanningMode(sens.ChLidarSensor.MODE_HORIZONTAL)  
-    lidar.SetResolution(0.1)  
-    lidar.SetSampleRate(10)  
+    
+    lidar.AddFilter(sens.ChFilterRange(0.05, 100))  
+    lidar.AddFilter(sens.ChFilterDenoise(0.1))  
+    sens_manager.AddSensor(lidar)  
 
     
-    lidar.AddFilter(sens.ChFilterShade())  
-    lidar.AddFilter(sens.ChFilterRange(0.1, 100.0))  
-
-    
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
 
     ros_manager.Initialize()  
 

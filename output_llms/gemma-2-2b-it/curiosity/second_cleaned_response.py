@@ -57,8 +57,8 @@ while vis.Run():
     time += time_step
 
     
-    driver.SetSteering(0) 
-    
+    rover.SetVelocity(chrono.ChVector3d(0, 0, 1))  
+
     
     rover.Update()
 

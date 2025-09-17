@@ -91,10 +91,7 @@ driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
 driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
 driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 
-driver.SetDriverInputs(driver_inputs)
-
-
-driver.Initialize()
+driver.SetInputs(driver_inputs)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

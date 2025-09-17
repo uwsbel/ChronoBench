@@ -6,53 +6,56 @@ from pychrono import irrlicht as chronoirr
 def main():
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
-    hmmwv.SetChassisFixed(False)  # Make the chassis movable.
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  # Initialize vehicle position and orientation.
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  # Use shaft-based engine model.
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  # Use automatic transmission with shafts.
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  # Set all-wheel drive.
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
-    hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-    hmmwv.Initialize()  # Initialize the vehicle.
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
+    hmmwv.SetChassisFixed(False)  
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)  
+    hmmwv.SetTireStepSize(1e-3)  
+    hmmwv.Initialize()  
 
     # Create the terrain for the vehicle to interact with.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
-    patch_mat.SetFriction(0.9)  # Set friction for the terrain.
-    patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
-    terrain.Initialize()  # Initialize the terrain.
+    patch_mat = ch.ChContactMaterialNSC()  
+    patch_mat.SetFriction(0.9)  
+    patch_mat.SetRestitution(0.01)  
+    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    terrain.Initialize()  
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()  # Initialize the driver system.
+    driver.Initialize()  
 
     # Create the ROS manager and register handlers for communication.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
     # Register the driver inputs handler for ROS topic '~/input/driver_inputs'.
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  # Initialize the ROS manager.
+    ros_manager.Initialize()  
+
+    # Set the Chrono data path for vehicle data.
+    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/') 
 
     # Start the simulation loop.
     time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 30  # Set the total duration of the simulation.
+    time_step = 1e-3  
+    time_end = 30  
 
-    hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+    hmmwv.GetVehicle().EnableRealtime(True)  
     while time < time_end:
-        time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
+        time = hmmwv.GetSystem().GetChTime()  
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
         driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  # Synchronize the driver system.
-        terrain.Synchronize(time)  # Synchronize the terrain.
-        hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
+        driver.Synchronize(time)  
+        terrain.Synchronize(time)  
+        hmmwv.Synchronize(time, driver_inputs, terrain)  
 
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
@@ -63,17 +66,11 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-    # Visualization setup
+    # Initialize Irrlicht for visualization
     chronoirr.ChVisualSystemIrrlicht()
-    
-    # Render loop setup
-    chronoirr.SetRenderMode(chronoirr.RenderMode_OPENGL)
-    chronoirr.SetRenderResolution(1280, 720)  
-    chronoirr.SetRenderFrameRate(60)  
-    chronoirr.SetRenderBackgroundColor(ch.ColorRGBA(0, 0, 0, 1))  
 
-    # Render the scene
-    chronoirr.Render()  
+    # Render loop setup
+    chronoirr.ChRenderLoop() 
     
 if __name__ == "__main__":
     main()

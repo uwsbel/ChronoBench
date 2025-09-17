@@ -3,57 +3,70 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
+import numpy as np
 
-# Initialize the PyChrono environment
+# Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
+# Set default parameters
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedRadius(0.001)
+
+# Create the beam using Isogeometric Analysis (IGA)
+beam = fea.ChBeamSectionElastic()
+beam.SetE(2e11)  # Young's modulus
+beam.SetIy(1e-5)  # Moment of inertia about y-axis
+beam.SetIz(1e-5)  # Moment of inertia about z-axis
+beam.SetJ(1e-6)  # Polar moment of inertia
+beam.SetA(1e-4)  # Cross-sectional area
+beam.SetAs(1e-4)  # Shear area
+beam.SetKs(0.85)  # Timoshenko shear coefficient
+beam.SetAlpha(0.01)  # Damping coefficient
+
 # Create the IGA beam
-beam = fea.ChBeamIGA()
-beam.SetNodesNumber(10)  # Set the number of nodes in the beam
-beam.SetCubicHermite()   # Set the cubic Hermite basis functions
-beam.SetYoungModulus(2e11)  # Set the Young's modulus
-beam.SetDensity(7850)      # Set the density
-beam.SetCrossSectionArea(0.01)  # Set the cross-sectional area
-beam.SetInertiaJ(1e-4)     # Set the moment of inertia
-beam.SetInertiaI(1e-4)     # Set the moment of inertia
-sys.Add(beam)              # Add the beam to the system
+iga_beam = fea.ChBeamIGA()
+iga_beam.SetSection(beam)
+iga_beam.SetL(1.0)  # Length of the beam
+iga_beam.SetN(10)  # Number of elements
+iga_beam.SetP(3)  # Degree of the basis functions
+iga_beam.SetR(0.01)  # Radius of the beam
+
+# Add the beam to the system
+sys.Add(iga_beam)
 
 # Create the flywheel
-flywheel = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 7850)
-flywheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Set the position of the flywheel
-flywheel.SetRot(chrono.Q_from_AngX(0))      # Set the rotation of the flywheel
-sys.Add(flywheel)                          # Add the flywheel to the system
+flywheel = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 7800)  # Density of steel
+flywheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Position at the center of the beam
+flywheel.SetRot(chrono.Q_from_AngX(0))  # Initial rotation
 
-# Create a rigid link between the beam and the flywheel
-link = chrono.ChLinkMateGeneric()
-link.Initialize(beam.GetNode(5), flywheel)  # Attach the flywheel to the middle node of the beam
-sys.Add(link)                              # Add the link to the system
+# Add the flywheel to the system
+sys.Add(flywheel)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotation()
-motor.Initialize(beam.GetNode(0), sys.GetGround())  # Attach the motor to one end of the beam
-motor.SetMotorFunction(chrono.ChFunction_Const(10))  # Set the rotational speed
-sys.Add(motor)                                  # Add the motor to the system
+motor.Initialize(iga_beam, flywheel)
+motor.SetMotorFunction(chrono.ChFunction_Const(10))  # Rotational speed of 10 rad/s
 
-# Create an Irrlicht window
+# Add the motor to the system
+sys.Add(motor)
+
+# Create the Irrlicht window
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2))
 vis.AddTypicalLights()
 
-# Create a FEM visualization
-fem_vis = fea.ChFEMVisualization(beam)
-fem_vis.SetFEMDataType(fea.ChFEMVisualization.E_PLOT_DISPLACEMENT)
-fem_vis.SetWireframe(False)
-vis.AddFEMVisualization(fem_vis)
+# Create the FEM visualization
+fem_vis = fea.ChVisualizationFEMGL()
+fem_vis.AddBeam(iga_beam)
 
 # Simulation loop
 while vis.Run():
     sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
+    fem_vis.DrawAll()
     vis.EndScene()
 ```
-
-This script generates a PyChrono simulation of a Jeffcott rotor using an IGA beam, with a flywheel attached at its center and a rotational motor driving one end of the beam. The simulation includes FEM visualization and an Irrlicht window to observe the dynamics of the beam and flywheel system.
+This script models the dynamic behavior of a Jeffcott rotor using an IGA beam, with a flywheel attached at its center and a rotational motor driving one end of the beam. The simulation includes FEM visualization and an Irrlicht window to observe the dynamics of the beam and flywheel system.

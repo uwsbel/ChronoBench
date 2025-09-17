@@ -1,79 +1,95 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
 import numpy as np
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-terrain = chrono.ChBodyEasyBox(20, 0.5, 20, 1000, True, True)
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-terrain.GetVisualModel().ClearModel()
-terrain.GetVisualModel().AddBox(20, 0.5, 20, chrono.ChVectorD(0, -0.5, 0),
-                               chrono.ChQuaternionD(1, 0, 0, 0))
-terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-terrain.GetCollisionModel().ClearModel()
-terrain.GetCollisionModel().AddBox(20, 0.5, 20, chrono.ChVectorD(0, -0.5, 0),
-                                 chrono.ChQuaternionD(1, 0, 0, 0))
-system.Add(terrain)
 
 
-
-vehicle = veh.WheelVehicle(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_vehicle.json"))
-vehicle.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-
-
-driver = veh.ChInteractiveDriverIRR()
-driver.Initialize(vehicle)
+ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetBodyFixed(True)
+ground.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
 
 
-mat = veh.ChTerrainContactMaterial()
-mat.mu = 0.8  
-mat.k = 1e5   
-mat.gamma = 50  
+rover = chrono.ChBodyEasyBox(1.5, 0.5, 1.0, 500, True, True)
+rover.SetPos(chrono.ChVectorD(0, 0.5, 0))
+system.Add(rover)
 
 
-terrain = veh.RigidTerrain(system)
-terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(20, 0, 20),
-                chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                chrono.GetChronoDataFile("textures/concrete.jpg"))
-vehicle.SetTerrain(terrain, mat)
+wheel_radius = 0.25
+wheel_width = 0.2
+wheel_positions = [
+    chrono.ChVectorD(0.8, 0.3, 0.5),  
+    chrono.ChVectorD(0.8, 0.3, -0.5), 
+    chrono.ChVectorD(0, 0.3, 0.5),    
+    chrono.ChVectorD(0, 0.3, -0.5),   
+    chrono.ChVectorD(-0.8, 0.3, 0.5), 
+    chrono.ChVectorD(-0.8, 0.3, -0.5) 
+]
 
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("Curiosity Rover Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0, 0))
-vis.SetCameraMoveScale(0.005)
-vis.AddLight(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 5, chrono.ChColor(1, 1, 1))
-vis.EnableShadows()
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+wheels = []
+for i, pos in enumerate(wheel_positions):
+    wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 10, True, True)
+    wheel.SetPos(pos)
+    wheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_PI/2, chrono.ChVectorD(0,0,1)))
+    system.Add(wheel)
+    wheels.append(wheel)
 
     
-    driver_inputs = driver.GetInputs()
+    joint = chrono.ChLinkLockRevolute()
+    joint.Initialize(wheel, rover, chrono.ChCoordsysD(pos))
+    system.Add(joint)
+
+
+motor = chrono.ChLinkMotorRotationTorque()
+motor.Initialize(wheels[0], rover, chrono.ChFrameD(wheel_positions[0]))
+system.Add(motor)
+motor.SetTorqueFunction(chrono.ChFunction_Const(5))  
+
+
+
+
+for body in [ground, rover] + wheels:
+    body.GetCollisionModel().SetFamily(1)
+    body.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
+
+
+application = chronoirr.ChIrrApp(system, "Curiosity Rover Simulation", chronoirr.dimension2du(1280, 720))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights(chrono.ChVectorD(30, 50, 30), chrono.ChVectorD(0, 0, 0))
+application.AddTypicalCamera(chrono.ChVectorD(5, 2, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+
+camera = application.GetDevice().getSceneManager().addCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(5, 5, 5))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
+
+
+application.AddShadowAll()
+
+
+application.SetTimestep(0.01)
+while(application.GetDevice().run()):
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 
     
-    vehicle.SetSteering(driver_inputs.m_steering)
-    vehicle.SetThrottle(driver_inputs.m_throttle)
-    vehicle.SetBrake(driver_inputs.m_braking)
-
-    
-    system.DoStepDynamics(0.01)
-
-
-vis.Close()
+    time = system.GetChTime()
+    for i, wheel in enumerate(wheels):
+        if i % 2 == 0:  
+            wheel.SetWvel_loc(chrono.ChVectorD(0, 10*np.sin(time), 0))
+        else:  
+            wheel.SetWvel_loc(chrono.ChVectorD(0, -10*np.sin(time), 0))

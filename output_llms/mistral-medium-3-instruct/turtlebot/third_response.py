@@ -5,7 +5,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens
+from pychrono import sensor as sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -28,53 +28,56 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
 robot.Initialize()  # Initialize the robot
 
-# Create sensor manager
+# Create sensor manager and add to system
 sensor_manager = sens.ChSensorManager(system)
 system.Add(sensor_manager)
 
 # Configure and add lidar sensor
-lidar = sens.ChLidarSensor()
-lidar.SetName("lidar_sensor")
-lidar.SetScanRate(10)  # Hz
-lidar.SetHorizontalResolution(0.5)  # degrees
-lidar.SetVerticalResolution(0.5)  # degrees
-lidar.SetHorizontalAngleRange(chrono.ChVector2d(-90, 90))  # degrees
-lidar.SetVerticalAngleRange(chrono.ChVector2d(-15, 15))  # degrees
-lidar.SetRange(5.0)  # meters
-lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.1), chrono.ChQuaterniond(1, 0, 0, 0)))
-lidar.AddFilter(sens.ChFilterRayHit())
-lidar.AddFilter(sens.ChFilterPCfromDepth())
+lidar = sens.ChLidarSensor(robot.GetChassisBody(),  # parent body
+                           10,                      # update rate in Hz
+                           chrono.ChFrameD(chrono.ChVector3d(0.1, 0, 0.1),  # position
+                                           chrono.Q_from_AngAxis(-chrono.CH_PI/4, chrono.ChVector3d(0, 0, 1))),  # orientation
+                           1.0,                     # horizontal range (full 360 deg)
+                           0.5,                     # vertical range (+- 90 deg)
+                           1.0,                     # horizontal resolution
+                           0.5,                     # vertical resolution
+                           0.1,                     # min range
+                           5.0)                     # max range
+lidar.SetName("LidarSensor")
+lidar.AddFilter(sens.ChFilterRayC2C())  # add ray casting filter
+lidar.AddFilter(sens.ChFilterPC2Grid()) # add point cloud filter
 sensor_manager.AddSensor(lidar)
 
 # Create randomly placed boxes
 box_mat = chrono.ChContactMaterialNSC()
+box_mat.SetFriction(0.3)
+box_mat.SetRestitution(0.1)
+
 for i in range(5):
     box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True, box_mat)
     box.SetPos(chrono.ChVector3d(random.uniform(-2, 2), random.uniform(-2, 2), 0.1))
-    box.SetRot(chrono.ChQuaterniond(random.random(), random.random(), random.random(), random.random()).GetNormalized())
+    box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    box.GetVisualShape(0).SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
     system.Add(box)
 
 # Motion control function for Turtlebot
 def move(mode):
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, 0)  # LEFT_DRIVE_WHEEL
+        robot.SetMotorSpeed(math.pi, 1)  # RIGHT_DRIVE_WHEEL
     elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, 0)        # LEFT_DRIVE_WHEEL
+        robot.SetMotorSpeed(-math.pi, 1) # RIGHT_DRIVE_WHEEL
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, 0) # LEFT_DRIVE_WHEEL
+        robot.SetMotorSpeed(0, 1)        # RIGHT_DRIVE_WHEEL
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with Lidar')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -91,10 +94,10 @@ time_step = 2e-3
 # Simulation loop
 time = 0
 while vis.Run():
-    # Use move function for Turtlebot's movement
+    # Use the move function to control the robot
     move('straight')
 
-    # Update sensor manager
+    # Update the sensor manager
     sensor_manager.Update()
 
     # Increment time counter

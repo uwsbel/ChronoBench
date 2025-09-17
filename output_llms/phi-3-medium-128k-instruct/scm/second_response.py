@@ -86,12 +86,12 @@ class SCMTerrainParams:
 
 # Define predefined configurations for SCM terrain
 soft_terrain_params = [2e6, 0, 1.1, 0, 30, 0.01, 2e8]
-mid_terrain_params = [1e7, 0.5, 1.5, 10, 20, 0.02, 2e7]
-hard_terrain_params = [5e7, 0.1, 2.0, 100, 200, 0.02]
+mid_terrain_params = [1e7, 0.5, 1.5, 10, 20, 0.02, 1e7]
+hard_terrain_params = [5e7, 0.1, 2.0, 20, 40, 0.01, 5e8]
 
-# Initialize the SCM terrain with predefined configuration
-terrain_params = SCMTerrainParams(soft_terrain_params, veh.SCMTerrain.PLOT_SINKAGE, 20)
-terrain_params.initialize_terrain()
+# Initialize the SCM terrain using predefined configurations
+terrain_config = SCMTerrainParams(soft_terrain_params, veh.SCMTerrain.PLOT_SINKAGE, 20)
+terrain_config.initialize_terrain()
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

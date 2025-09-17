@@ -36,12 +36,11 @@ contact_vis = False
 
 step_size = 1e-3
 tire_step_size = step_size
-
-
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full()
+
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -99,9 +98,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
-                                 10,  
-                                 offset_pose,  
-                                 sens.ChNoiseNone())  
+                                10,  
+                                offset_pose,  
+                                sens.ChNoiseNone())  
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)  
@@ -154,18 +153,12 @@ while vis.Run():
     
     if time < 6:
         driver_inputs = driver.GetInputs()
-        throttle = 0.5
-        steering = 0.1
+        driver_inputs.throttle = 0.5
+        driver_inputs.steering = 0.2
     else:
         driver_inputs = driver.GetInputs()
-        throttle = 0.0
-        steering = 0.0
-        driver_inputs.throttle = throttle
-        driver_inputs.steering = steering
         driver_inputs.braking = 1.0
 
-    driver_inputs.throttle = throttle
-    driver_inputs.steering = steering
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

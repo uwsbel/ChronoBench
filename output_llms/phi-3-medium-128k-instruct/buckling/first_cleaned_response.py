@@ -9,109 +9,110 @@ from pychrono.irrlicht import *
 
 chrono = Chrono()
 
-chrono_assets = Chrono_Assets()
+chrono_assets = Chrono_assets()
 
-chrono.SetAssets(chrono_assets)
+chrono.AddAssets(chrono_assets)
 
 
 
 
 irr = Irrlicht()
 
-irr.SetUse3D(True)
-
-irr.SetUse3DProjection(True)
+irr.SetName("PyChrono Simulation")
 
 
 
 
-beam_length = 2.0
-
-beam_width = 0.1
+beam_length = 1.0
 
 beam_height = 0.1
 
-beam_material = IrMaterial_Dominant_Diffuse(Color(0.5, 0.5, 0.5))
+beam_width = 0.1
 
-beam_mesh = ChBody_Mesh()
+beam_material = IrBeamMaterial(1.0, 0.3, 0.3, 0.3)  
 
-beam_mesh.SetScale(Vector(beam_width, beam_height, beam_length))
-
-beam_mesh.SetMaterial(beam_material)
-
-beam_body = ChBody(1.0, beam_mesh)
-
-beam_body.SetPos(Vector(0.0, 0.0, beam_length / 2))
+beam = IrBeam(beam_length, beam_width, beam_height, beam_material)
 
 
 
 
-system = ChSystemNSC()
+body = ChBodyA::New(chrono, beam)
 
-system.SetSolver(ChSolver_Newton())
-
-system.SetSolverIterationLimit(100)
-
-system.SetMaxLinearSolveIterations(100)
-
-system.SetMaxNonlinearSolveIterations(100)
-
-system.SetLinearSolverMethod(ChSolver_Type_Newton_Linear_Full)
-
-system.SetNonlinearSolverMethod(ChSolver_Type_Newton_Nonlinear_Full)
-
-system.AddBody(beam_body)
+chrono.AddBody(body)
 
 
 
 
-motor = ChBody_Motor(1.0, Vector(0.0, 0.0, 1.0))
+def custom_motor(body, force, length):
 
-motor.SetVel(Vector(0.0, 0.0, 10.0))
+    motor = ChBodyA::CreateMotor(body, force, length)
 
-system.AddJoint(motor)
+    chrono.AddBody(body)
 
-
-
-
-beam_elements = FEA_Beam_Mesh()
-
-beam_elements.SetScale(Vector(beam_width, beam_height, beam_length))
-
-beam_elements.SetMaterial(ChMaterial_Iron)
-
-beam_elements.SetElasticModulus(210e9)
-
-beam_elements.SetPoissonsRatio(0.3)
-
-beam_elements.SetDensity(7850.0)
-
-beam_elements.SetMass(0.0)
+    return motor
 
 
 
 
-beam_body.AddMesh(beam_elements)
+motor = custom_motor(body, 1000, beam_length)
 
 
 
 
-irr.AddBody(beam_body)
+joint = IrBeamJoint(body, beam)
 
-irr.SetUse3DProjection(True)
+joint.Set1(body)
+
+joint.Set2(body)
+
+joint.Set2Pivot(0, 0, beam_length)
+
+chrono.AddConstraint(joint)
 
 
 
 
-system.SetDataStepper(ChTimeStepper_Z_Euler(1.0/100.0, 1.0/100.0))
+irr.AddModel(beam)
 
-while chrono.IsTimeStepAvailable():
 
-    system.DoStepDynamics()
 
-    irr.UpdateScene()
+
+solver = ChSolverSystem::New(chrono)
+
+solver.SetSolver(ChSolverSystem::Solvers::Newtonian)
+
+solver.SetMaxIterations(100)
+
+solver.SetTolerance(1.0e-8)
+
+
+stepper = ChSystemNSL::New(chrono, solver)
+
+stepper.SetMaxTimeStep(0.001)
+
+stepper.SetMinTimeStep(0.0001)
+
+
+
+
+chrono.SetSolver(stepper)
+
+
+
+
+while chrono.GetChTime() < 10.0:
+
+    chrono.DoStepDynamics(0.01)
+
+    irr.BeginScene()
+
+    irr.DrawAll()
+
+    irr.EndScene()
 
 
 
 
 chrono.Free()
+
+irr.End()

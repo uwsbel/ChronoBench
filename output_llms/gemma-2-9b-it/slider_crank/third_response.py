@@ -61,7 +61,7 @@ mjointB.Initialize(mpiston,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Create piston-truss joint (plane-plane)
+# Create piston-truss joint (planar)
 mjointC = chrono.ChLinkPlane()
 mjointC.Initialize(mpiston,
                    mfloor,

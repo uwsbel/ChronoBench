@@ -32,33 +32,35 @@ for i in range(n_x):
     for j in range(n_y):
         x = i * dx
         y = j * dy
-        node = chrono.ChNodeShell(x, y, 0, H)
+        z = H / 2
+        node = chrono.ChBodyEasyBox(L/10, W/10, H/10, material, True, False)
+        node.SetPos(chrono.ChVector(x, y, z))
+        world.Add(node)
         nodes.append(node)
-        if i < n_x - 1 and j < n_y - 1:
-            element = chrono.ChShellTriangle(node, nodes[(i + 1) * n_y + j], nodes[i * n_y + j + 1])
-            elements.append(element)
+for i in range(n_x - 1):
+    for j in range(n_y - 1):
+        node1 = nodes[i * n_y + j]
+        node2 = nodes[i * n_y + j + 1]
+        node3 = nodes[(i + 1) * n_y + j + 1]
+        node4 = nodes[(i + 1) * n_y + j]
+        element = chrono.ChShellEasyBox(L/10, W/10, H/10, node1, node2, node3, node4)
+        world.Add(element)
+        elements.append(element)
 
 
-for node in nodes:
-    world.Add(node)
-for element in elements:
-    world.Add(element)
+visualizer = IrrlichtVisualizer()
+visualizer.SetWorld(world)
+visualizer.SetCameraPosition(chrono.ChVector(0, 5, 5))
+visualizer.SetCameraTarget(chrono.ChVector(0, 0, 0))
+visualizer.Render()
 
 
-visualizer = IrrlichtVisualizer(world)
-visualizer.SetAmbientLight(0.5, 0.5, 0.5)
-visualizer.SetCameraPosition(0, 0, 10)
-visualizer.SetCameraTarget(0, 0, 0)
-
-
-world.SetGravity(0, 0, -9.81)
-solver.SetMaxIterations(1000)
-solver.SetTolerance(1e-6)
-
-
-for i in range(100):
-    world.DoStep()
+t = 0
+dt = 0.01
+while t < 10:
+    world.DoStep(dt)
     visualizer.Render()
+    t += dt
 
 
 chrono FINALIZE()

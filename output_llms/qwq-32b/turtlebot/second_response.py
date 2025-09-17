@@ -8,41 +8,29 @@ from pychrono import irrlicht as chronoirr
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create ground body with corrected position and system parameter
+# Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(system, 20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))
-ground.SetFixed(True)
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))  # Adjusted ground position
+ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 # Create Turtlebot Robot
-init_pos = chrono.ChVector3d(0, 0.2, 0)
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)
-robot.Initialize()
+init_pos = chrono.ChVectorD(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
 
-# Create visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Define motor control constants
+# Define wheel IDs outside the loop
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
+# Define the move function
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
@@ -56,34 +44,44 @@ def move(mode):
     else:
         raise ValueError("Invalid mode")
 
-# Simulation loop setup
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 0.2), chrono.ChVectorD(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Set the simulation time step
 time_step = 2e-3
-time = 0
-previous_mode = 'straight'
 
 # Simulation loop
+time = 0
 while vis.Run():
-    current_time = time
-
     # Determine current mode based on time
-    if current_time < 5:
+    if time < 5:
         current_mode = 'straight'
-    elif 5 <= current_time < 10:
+    elif time < 10:
         current_mode = 'left'
     else:
         current_mode = 'right'
-
-    # Update and print action if mode changed
-    if current_mode != previous_mode:
-        print(f"Robot action: {current_mode}")
-        previous_mode = current_mode
-
-    # Apply motor speeds
+    
+    # Apply the motor speeds
     move(current_mode)
+    print(f"Current action: {current_mode}")
 
-    # Increment time and advance simulation
+    # Increment time counter
     time += time_step
+
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

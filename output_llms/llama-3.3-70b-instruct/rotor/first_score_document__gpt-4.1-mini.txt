@@ -4,154 +4,145 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemNSC()`). No deduction.
-- **Body Creation:**
-  - Beam creation: Uses `fea.ChBeamIGA()`, sets nodes, material properties, and adds to system. However, **missing the creation and addition of a `fea.ChMesh()` to hold the beam and missing adding the beam to the mesh**. In PyChrono FEA, beams are typically added to a mesh, which is then added to the system. The current code adds the beam directly to the system, which is not standard or correct usage.
-  - Flywheel creation: Uses `chrono.ChBodyEasyBox()`, but the signature is incorrect (see correctness below). Also, no material is specified, and no collision or visualization flags are given.
-- **Joints and Links:**
-  - Link between beam node and flywheel: uses `chrono.ChLinkMateGeneric()`, but the `Initialize` method is called with only two arguments, which is incorrect (see correctness).
-  - Motor joint: uses `chrono.ChLinkMotorRotation()`, but the `Initialize` method is called with only two arguments instead of three (see correctness).
-- **Visualization:**
-  - Visualization system created, skybox, lights, camera added.
-  - Visualization attached to system is **missing** (`vis.AttachSystem(sys)` is not called).
-  - Visualization initialized (`vis.Initialize()`) is **missing**.
-  - FEM visualization created and added to visualization system.
-- **Simulation Loop:**
-  - Present and correct.
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **Body Creation:**  
+  - The beam is created as an IGA beam (`fea.ChBeamIGA`), with a proper section defined. However, the beam is not added to a mesh (`fea.ChMesh`), which is typically required for FEA elements to be simulated properly. The documentation and examples show that beams should be part of a mesh (`mesh.AddElement()` and `sys.Add(mesh)`). Here, the beam is added directly to the system, which is not standard practice.  
+  - The flywheel is created using `chrono.ChBodyEasyBox`, but the constructor is incorrectly called with `sys` as the first argument, which is not part of the documented signature. The documented signature is:  
+    `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize=True, collision=True, material=None)`  
+    The code uses:  
+    `flywheel = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 7800)`  
+    This is incorrect and will cause an error or unexpected behavior.  
+- **Joint Creation:**  
+  - The motor joint is created as `chrono.ChLinkMotorRotation()`, but the documentation specifies `ChLinkMotorRotationSpeed()` for rotational motors. Also, the `Initialize()` method requires three arguments: `body1`, `body2`, and a `chrono.ChCoordsysD` frame specifying the joint frame. Here, only two arguments are passed: `iga_beam` and `flywheel`. This is incorrect usage.  
+- **Visualization:**  
+  - The visualization system is created and typical lights, skybox, and camera are added. However, the visualization system is never attached to the physical system via `vis.AttachSystem(sys)`, which is essential for visualization to work properly.  
+  - The beam visualization is created with `fea.ChVisualizationFEMGL()` and the beam is added, which is good.  
+- **Simulation Loop:**  
+  - The loop runs while `vis.Run()`, calls `sys.DoStepDynamics(0.01)`, and renders the scene. This is mostly correct, but the order of visualization calls is slightly off. The documentation suggests using `vis.Render()` instead of `vis.DrawAll()`. Also, `fem_vis.DrawAll()` is called inside the loop, which is acceptable but could be improved by attaching the visualization to the system or mesh.
 
-**Deductions:**
+**Deductions:**  
+- Missing mesh for the beam and adding beam directly to system: **-15 points** (essential component missing for FEA).  
+- Incorrect flywheel creation (wrong constructor usage): **-15 points** (essential component incorrectly configured).  
+- Incorrect motor joint initialization (missing frame argument and wrong class): **-15 points** (essential component incorrectly configured).  
+- Visualization system missing `AttachSystem`: **-10 points** (component present but lacks important detail).  
+- Minor: Duplicate call to `vis.AddTypicalLights()` (called twice): **-5 points** (minor omission/slight deviation).
 
-- Missing mesh creation and addition for FEA beam: -15 points (essential component missing).
-- Missing `vis.AttachSystem(sys)` and `vis.Initialize()`: -15 points (essential for visualization to work).
-- Minor omission: no material or collision flags for flywheel (minor but relevant): -5 points.
-
-**Subtotal Completeness:** 40 - 15 - 15 - 5 = 5 points deducted → 35 points.
+**Subtotal Completeness:** 40 - 15 - 15 - 15 - 10 - 5 = **-20 points** (out of 40)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Beam:**
-  - Adding beam directly to system (`sys.Add(beam)`) is incorrect; beams should be part of a mesh (`fea.ChMesh()`), and the mesh added to the system.
-- **Flywheel:**
-  - `chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 7850)` is incorrect usage.
-    - According to docs, signature is `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize=True, collision=True, material=None)`.
-    - The first argument should be lengthX (float), but here `sys` (the system object) is passed as first argument.
-- **Link Initialization:**
-  - `link.Initialize(beam.GetNode(5), flywheel)` is incorrect.
-    - `Initialize` requires two bodies and a frame (`chrono.ChCoordsysD`), or two bodies and a frame specifying the joint location.
-    - `beam.GetNode(5)` returns a node, not a body.
-    - Nodes are not bodies and cannot be linked directly to bodies with `ChLinkMateGeneric`.
-- **Motor Initialization:**
-  - `motor.Initialize(beam.GetNode(0), sys.GetGround())` is incorrect for the same reason: `beam.GetNode(0)` is a node, not a body.
-  - Also, `ChLinkMotorRotation` requires a frame argument in `Initialize`.
-- **Visualization:**
-  - `vis.AddTypicalLights()` is called twice (redundant).
-- **Other:**
-  - `chrono.Q_from_AngX(0)` is not a documented function; the correct function is `chrono.Q_from_AngX` or `chrono.Q_from_AngAxis`? The docs show `chrono.Q_from_AngX` is not listed; the standard is `chrono.Q_from_AngX` or `chrono.Q_from_AngAxis`. This is minor but possibly incorrect.
-  - The correct quaternion for zero rotation is `chrono.QUNIT` or `chrono.ChQuaternionD(1,0,0,0)`.
+- **Flywheel creation:** Passing `sys` as first argument is incorrect and will cause an error.  
+- **Motor joint:** Using `ChLinkMotorRotation()` instead of `ChLinkMotorRotationSpeed()` and missing the frame argument in `Initialize()` will cause the motor not to work or raise an error.  
+- **Beam addition:** Adding `fea.ChBeamIGA()` directly to the system is not correct; it should be added to a mesh, and the mesh added to the system.  
+- **Collision settings:** The code sets `SetDefaultSuggestedRadius(0.001)`, but the documentation specifies `SetDefaultSuggestedMargin()` for collision margin, not radius. The method `SetDefaultSuggestedRadius()` does not exist in the documentation. This is an incorrect API call.  
+- **Visualization:** Missing `AttachSystem()` call means visualization won't properly track the system state.  
+- **Motor function:** The method `SetMotorFunction()` is used, but the documentation shows `SetSpeedFunction()` for `ChLinkMotorRotationSpeed()`. This is inconsistent and likely incorrect.
 
-**Deductions:**
+**Deductions:**  
+- Incorrect flywheel constructor: **-15 points** (significant API misuse).  
+- Incorrect motor joint class and initialization: **-15 points** (significant API misuse).  
+- Incorrect beam addition (missing mesh): **-15 points** (logical error).  
+- Incorrect collision API call (`SetDefaultSuggestedRadius`): **-15 points** (incorrect API usage).  
+- Missing visualization attachment: **-5 points** (minor in correctness but affects behavior).  
+- Incorrect motor function method name: **-5 points** (minor in correctness).
 
-- Incorrect use of `ChBodyEasyBox`: -15 points.
-- Incorrect joint initialization with nodes instead of bodies: -15 points.
-- Missing frame argument in joint initialization: -10 points.
-- Redundant call to `AddTypicalLights()`: -5 points.
-- Minor quaternion usage issue: -5 points.
-
-**Subtotal Correctness:** 30 - 15 - 15 - 10 - 5 - 5 = -20 points → 10 points remaining.
+**Subtotal Correctness:** 30 - 15 - 15 - 15 - 15 - 5 - 5 = **-40 points** (out of 30, capped at 0)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names like `sys`, `beam`, `flywheel`, `link`, `motor`, `vis` are meaningful and concise.
-- Code formatting is acceptable.
-- **Lack of comments** throughout the code explaining steps.
-- No docstrings or explanations.
-- Minor: `vis.AddTypicalLights()` called twice, which could confuse readers.
+- The code lacks comments explaining the purpose of each block or parameters.  
+- Variable names like `sys`, `beam`, `iga_beam`, `flywheel`, and `motor` are acceptable but could be more descriptive (e.g., `system`, `beam_section`, `beam_element`, `flywheel_body`, `motor_joint`).  
+- Formatting is generally okay, but the duplicate call to `vis.AddTypicalLights()` is redundant and suggests lack of careful review.  
+- No docstrings or inline comments.
 
-**Deductions:**
+**Deductions:**  
+- Lack of comments/documentation: **-5 points**  
+- Minor readability issues and redundant calls: **-3 points**
 
-- Lack of comments: -5 points.
-- Minor redundancy and no docstrings: -3 points.
-
-**Subtotal Code Quality:** 10 - 5 - 3 = 2 points.
+**Subtotal Code Quality:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations except the double call to `AddTypicalLights()`.
-- No loops or complex structures that could be optimized.
-- No use of `chrono.SetChronoDataPath()` to set data path, which could be considered an optimization for resource loading, but not mandatory.
-- No unnecessary API calls otherwise.
+- Duplicate call to `vis.AddTypicalLights()` is unnecessary.  
+- The beam is added directly to the system instead of a mesh, which is inefficient and incorrect for FEA.  
+- The simulation loop calls `vis.DrawAll()` instead of `vis.Render()`, which is less efficient and not aligned with the documentation.  
+- No other obvious inefficiencies.
 
-**Deductions:**
+**Deductions:**  
+- Duplicate lighting call: **-5 points**  
+- Using `DrawAll()` instead of `Render()`: **-3 points**
 
-- Redundant `AddTypicalLights()` call: -5 points.
-- Missing `SetChronoDataPath()` is minor, but not critical: no deduction.
-
-**Subtotal Efficiency:** 10 - 5 = 5 points.
+**Subtotal Efficiency:** 10 - 5 - 3 = **2 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except blocks, input validation, or checks).
-- No checks for node or body existence before using them.
-- No handling of visualization initialization failure.
-- However, typical PyChrono scripts often omit explicit error handling; still, per guidelines, lack of basic error handling is penalized.
+- No error handling or checks are present.  
+- No try-except blocks or validation of inputs.  
+- No handling of edge cases such as empty meshes or invalid joint initialization.  
+- While not always mandatory in simple scripts, basic error handling is recommended.
 
-**Deductions:**
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
 
-- Lack of basic error handling: -5 points.
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and some elements added.
-- Missing `vis.AttachSystem(sys)` and `vis.Initialize()` means visualization will not work properly.
-- Double call to `AddTypicalLights()` is redundant.
-- Camera position is set but could be improved (e.g., better positioning or orientation).
-- No window size or title set.
-- No call to `vis.Render()`; instead, `vis.DrawAll()` is called, which is not documented in the API (should be `vis.Render()`).
+- Visualization system is created and lights, skybox, and camera are added.  
+- Missing `AttachSystem()` call means visualization won't properly display the system state.  
+- Duplicate `AddTypicalLights()` call is redundant.  
+- Using `DrawAll()` instead of `Render()` is not per documentation.  
+- Beam visualization is added, which is good.
 
-**Deductions:**
+**Deductions:**  
+- Missing `AttachSystem()`: **-5 points**  
+- Duplicate lights and minor visualization call issues: **-2 points**
 
-- Missing `AttachSystem` and `Initialize`: -5 points.
-- Using `DrawAll()` instead of `Render()`: -3 points.
-- Double `AddTypicalLights()`: already deducted under correctness and efficiency, no double deduction here.
-
-**Subtotal Visualization:** 5 - 5 - 3 = -3 points → 2 points remaining.
+**Subtotal Visualization:** 5 - 5 - 2 = **-2 points** (capped at 0)
 
 ---
 
 ### **Final Score Calculation**
 
-| Category                  | Points | Deduction | Remaining |
-|---------------------------|--------|-----------|-----------|
-| Completeness              | 40     | 15+15+5=35| 5         |
-| Correctness              | 30     | 15+15+10+5+5=50 (max 30) | 10 (minimum 0) |
-| Code Quality             | 10     | 5+3=8     | 2         |
-| Efficiency               | 10     | 5         | 5         |
-| Error Handling           | 5      | 5         | 0         |
-| Visualization            | 5      | 5+3=8 (max 5) | 2         |
-
-Sum: 5 + 10 + 2 + 5 + 0 + 2 = 24 points.
+| Category                  | Points | Deduction | Score |
+|---------------------------|--------|-----------|-------|
+| Completeness              | 40     | 20        | 20    |
+| Correctness               | 30     | 30+ (capped at 30) | 0     |
+| Code Quality              | 10     | 8         | 2     |
+| Efficiency                | 10     | 8         | 2     |
+| Error Handling            | 5      | 5         | 0     |
+| Visualization             | 5      | 5+2 (capped at 5) | 0     |
+| **Total**                 | 100    | 78        | **24**|
 
 ---
 
-### **Summary of Major Issues:**
+### **Summary of Major Issues**
 
-- The beam is not properly added to a mesh, which is essential in FEA simulations.
-- The flywheel body is created with incorrect arguments.
-- Joints are initialized with nodes instead of bodies and missing required frame arguments.
-- Visualization system is not properly attached or initialized.
+- Incorrect constructor usage for `ChBodyEasyBox` (passing system as first argument).  
+- Incorrect motor joint class and missing frame argument in initialization.  
+- Missing mesh for FEA beam and adding beam directly to system.  
+- Incorrect collision API call (`SetDefaultSuggestedRadius` instead of `SetDefaultSuggestedMargin`).  
+- Missing `AttachSystem()` for visualization.  
+- Duplicate lighting calls and minor API misuse in visualization.  
 - Lack of comments and error handling.
-- Minor redundancy and API misuse in visualization calls.
 
 ---
+
+**Final score:**
 
 [[24]]
+
+---
+
+**Explanation:**  
+The script contains several critical API misuse errors that would prevent it from running correctly or producing the intended simulation results. The most severe issues are the incorrect flywheel creation, motor joint initialization, and beam handling. Visualization setup is incomplete, and code quality and robustness are lacking. Minor inefficiencies and redundant calls further reduce the score. Overall, the script requires significant corrections to meet PyChrono API standards and best practices.

@@ -1,80 +1,77 @@
-importchrono as chrono
-import math
+importchrono
+importkeyboard
+importtime
 
-# Initialize the Chrono system
-system = chrono.ChSystem()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# Initialize PyChrono system
+system =chrono.ChSystem()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.Set_time_step(0.001)
 
 # Set up Irrlicht visualization
-vis = chrono.ChIrrApp(system, "ARTcar Simulation", chrono.CHDimension(800, 600))
-vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-vis.SetCameraRotation(chrono.ChVectorD(-45, 45, 0))
+vis =chrono.ChIrrApp(system, "ARTcar Simulation", 1024, 768)
+vis.SetCamPosition(chrono.ChVectorD(0, 10, 20))
+vis.SetCamRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vis.AddTypicalLights()
 
-# Create the ARTcar vehicle
-car = chrono.ChVehicleArtcar()
-car.SetPos(chrono.ChVectorD(0, 0, 1))  # Position
-car.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Orientation (identity)
-car.SetContactMethod(chrono.ChContactMethod_NSM)  # Contact method
-car.SetVisualization(chrono.ChVisualizationType_MESH)  # Visualization type
-system.Add(car)
+# Create vehicle
+vehicle =chrono.vehicle.ARTcar()
+vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chrono.CHRONO)
+vehicle.SetVisualization(chrono.VISUALIZE)
+system.Add(vehicle.GetChassis())
 
-# Create the rigid terrain
-terrain = chrono.ChRigidTerrain()
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-terrain.SetSize(100, 100)  # X and Z dimensions
-terrain.SetHeight(0)  # Y dimension
-terrain.SetTexture("terrain_texture.jpg", 100, 100)  # Apply texture
+# Create terrain
+terrain =chrono.ChRigidTerrain(system, chrono.ChVectorD(100, 100, 1))
+terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"))
 system.Add(terrain)
 
-# Add terrain to Irrlicht scene
-terrain_node = chrono.ChIrrNodeShared(terrain)
-vis.GetScene().Add(terrain_node)
-
 # Set up driver controls
-steering = 0.0
-throttle = 0.0
-brake = 0.0
+steering = 0
+throttle = 0
+brake = 0
 
 def on_key_press(event):
     global steering, throttle, brake
-    if event.key == chrono.CH_KEY_LEFT:
-        steering += 0.1
-    if event.key == chrono.CH_KEY_RIGHT:
-        steering -= 0.1
-    if event.key == chrono.CH_KEY_UP:
+    if event.name == 'left':
+        steering = -0.5
+    elif event.name == 'right':
+        steering = 0.5
+    elif event.name == 'up':
         throttle = 0.5
-        brake = 0.0
-    if event.key == chrono.CH_KEY_DOWN:
-        throttle = 0.0
+    elif event.name == 'down':
         brake = 0.5
 
-vis.SetKeyboardCallback(on_key_press)
+def on_key_release(event):
+    global steering, throttle, brake
+    if event.name in ['left', 'right']:
+        steering = 0
+    elif event.name in ['up', 'down']:
+        throttle = 0
+        brake = 0
+
+keyboard.on_press(on_key_press)
+keyboard.on_release(on_key_release)
 
 # Simulation loop
-frame_rate = 50
-time_step = 1.0 / frame_rate
-step_count = 1000
+try:
+    while True:
+        # Update vehicle controls
+        vehicle.GetDriver().SetSteering(steering)
+        vehicle.GetDriver().SetThrottle(throttle)
+        vehicle.GetDriver().SetBrake(brake)
+        
+        # Update simulation
+        system.DoStepDynamics()
+        
+        # Update visualization
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        # Cap frame rate
+        time.sleep(0.02)
+except KeyboardInterrupt:
+    pass
 
-for step in range(step_count):
-    # Update vehicle controls
-    car.GetDriver().SetThrottle(throttle)
-    car.GetDriver().SetBrake(brake)
-    car.GetDriver().SetSteering(steering)
-    
-    # Update vehicle
-    car.Update(time_step)
-    
-    # Update system
-    system.DoStepDynamics(time_step)
-    
-    # Update visualization
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    # Sleep to maintain frame rate
-    chrono.Sleep(time_step * 1000)
-
-# Close the visualization window
-vis.Close()
+keyboard.unhook_all()

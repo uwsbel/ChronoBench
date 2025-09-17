@@ -1,75 +1,68 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-chrono.ChEngine.Initialize()
+ch.set_default_G_acc(9.81)
 
 
-application = irr.IrrlichtApplication()
+app = irr.ChIrrApp()
 
 
-vehicle = veh.HMMWV()
+vehicle = veh.ChHMMWV()
 
 
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisPos(chrono.ChVector3d(0, 0, 1.0))
-vehicle.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetChassisPos(ch.ChVector3d(0, 0, 1.0))
+vehicle.SetChassisRot(ch.ChQuaterniond(1, 0, 0, 0))
 
 
-vehicle.SetTireModel(veh.TireModel.Rigid)
+vehicle.SetTireModel(veh.ChTireModel.RIGID)
 
 
-vehicle.EnableVisualization(True)
+vehicle.EnableMeshVisualization(True)
 
 
-terrain = veh.SCMTerrain(vehicle)
+terrain = veh.ChSCMTerrain()
 
 
-soil_params = terrain.GetSoilParameters()
-soil_params.k1 = 700000  
-soil_params.k2 = 2100000  
-soil_params.n = 1.0
-soil_params.c = 0.0
-soil_params.friction = 0.8
-soil_params.damping = 0.5
-terrain.SetSoilParameters(soil_params)
+terrain.SetSoilParameters(
+    ch.ChSoil.K_r(30000000.0),  
+    ch.ChSoil.K_t(30000000.0),  
+    ch.ChSoil.n(1.0),          
+    ch.ChSoil.c_d(0.0),        
+    ch.ChSoil.phi(30.0),       
+    ch.ChSoil.cohesion(1000.0)  
+)
 
 
 terrain.EnableMovingPatch(True)
-terrain.SetMovingPatchThreshold(0.5)
 
 
-terrain.EnableColorPlot(True)
+terrain.EnableFalseColorPlot(True)
 
 
-driver = veh.Driver(vehicle)
+terrain.SetSize(ch.ChVector3d(20, 20, 10))
+terrain.SetResolution(1)
 
 
-driver.SetSteering(chrono.ChFunction_Constant(0))
-driver.SetThrottle(chrono.ChFunction_Constant(0.5))
-driver.SetBraking(chrono.ChFunction_Constant(0))
+driver = veh.ChInteractiveDriverIRR()
 
 
-simulation = chrono.ChSimulation(vehicle)
+driver.SetThrottleMax(1.0)
+driver.SetSteeringMax(ch.ChDegreeToRad(45))
 
 
-simulation.SetTimestep(0.02)
-simulation.SetMaxSteps(100000)
+sim = veh.ChVehicleSimulation()
 
 
-simulation.AddTerrain(terrain)
+sim.AddVehicle(vehicle)
+sim.AddTerrain(terrain)
+sim.AddDriver(driver)
 
 
-simulation.AddDriver(driver)
+sim.SetTimestep(0.02)
+sim.SetFixedTimestep(1 / 50.0)
 
 
-while simulation.GetChTime() < 10 and application.GetDevice().run():
-    simulation.Step(0.02)
-    application.BeginScene()
-    application.RenderItem(vehicle)
-    application.RenderItem(terrain)
-    application.EndScene()
-
-application.GetDevice().close()
-chrono.ChEngine.Finalize()
+app.SetSimulation(sim)
+app.Run()

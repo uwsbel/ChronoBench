@@ -1,63 +1,48 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.sensors as sensors
-import pychrono.core as core
+import pychrono.sensor_manager as sensor_manager
+import numpy as np
 
 # Initialize PyChrono
-chrono.Init()
+chrono.init()
 
-# Create a new Chrono world
-world = chrono.World()
+# Create the scene
+scene = chrono.Scene()
 
-# Load the triangular mesh from a Wavefront .obj file
+# Load the triangular mesh
 mesh_file = "your_mesh.obj"  # Replace with your mesh file path
-mesh = chrono.Mesh.LoadMesh(mesh_file)
+mesh = chrono.Mesh.from_file(mesh_file)
 
-# Create a fixed body from the mesh
+# Add the mesh as a fixed body
 mesh_body = chrono.Body(mesh)
-mesh_body.SetFixed()
+mesh_body.set_mass(1.0)
+mesh_body.set_inertia(chrono.Inertia.create_identity(mesh_body.get_mass()))
+mesh_body.set_position(chrono.Vec3(0, 0, 0))
+scene.add_body(mesh_body)
 
-# Create a lidar sensor
-lidar = sensors.Lidar()
-lidar_manager = sensors.SensorManager(lidar)
+# Create the lidar sensor
+lidar_sensor = sensor_manager.LidarSensor()
+lidar_sensor.set_position(chrono.Vec3(0, 0, 5))  # Adjust position as needed
 
-# Set lidar parameters
-lidar_manager.SetNoiseFilter(sensors.GaussianFilter())
-lidar_manager.SetVisualization(vis.PointCloudVisualizer())
-lidar_manager.SetSaveOptions(sensors.SaveOptions(filename="lidar_data.csv"))
+# Configure the lidar sensor
+lidar_sensor.set_noise_filter(sensor_manager.NoiseFilter.Gaussian(stddev=0.1))
+lidar_sensor.set_visualization(vis.Visualization.Color(color="red"))
+lidar_sensor.set_save_options(sensor_manager.SaveOptions.csv())
 
-# Add the lidar sensor to the body
-mesh_body.AddSensor(lidar_manager)
+# Add the lidar sensor to the scene
+scene.add_sensor(lidar_sensor)
 
-# Define the lidar's orbit around the mesh
-orbit_radius = 1.0
-orbit_angle = 0.0
-lidar_position = chrono.Vector3(0.0, 0.0, 0.0)  # Initial lidar position
-lidar_velocity = chrono.Vector3(0.0, 0.0, 0.0)  # Initial lidar velocity
-
-# Define simulation parameters
+# Set the simulation parameters
 dt = 0.01  # Time step
-simulation_duration = 1000  # Simulation duration
+simulation_time = 10  # Simulation duration in seconds
 
-# Initialize the simulation
-world.SetSimulationTime(0)
-world.SetSimulationDuration(simulation_duration)
+# Start the simulation
+chrono.run(scene, dt, simulation_time)
 
-# Main simulation loop
-for step in range(int(simulation_duration / dt)):
-    # Update the lidar's position
-    lidar_position = chrono.Vector3(
-        lidar_position.x + lidar_velocity.x * dt,
-        lidar_position.y + lidar_velocity.y * dt,
-        lidar_position.z + lidar_velocity.z * dt,
-    )
-
-    # Update the lidar sensor data
-    lidar_data = lidar_manager.GetSensorData()
-    print(lidar_data)
-
-    # Update the simulation
-    world.Update()
+# Print lidar buffer data at each step
+for step in range(int(simulation_time / dt)):
+    print(lidar_sensor.get_buffer_data())
 
 # Clean up
-world.Shutdown()
+scene.clear()
+chrono.finalize()

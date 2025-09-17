@@ -2,40 +2,44 @@ import pychrono as chrono
 import pychrono.irrlicht as irr
 
 
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('path/to/chrono/data/')
 
 
-vehicle = chrono.ARTcar(system)
-vehicle.SetChassisFixed(False)
-vehicle.SetChassisCollisionType(chrono.ChCollisionModel.CollisionType_BOX)
-vehicle.SetChassisVisualizationType(chrono.VisualizationType_MESH)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1)))
-vehicle.Initialize()
+my_system = chrono.ChSystemNSC()
 
 
-terrain = chrono.RigidTerrain(system)
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-terrain.SetUseMaterialProperties(True)
-terrain.SetMaterialSurface(chrono.MaterialSurfaceNSC())
-terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
-terrain.Initialize()
+car = chrono.vehicle.ARTcar()
+car.Initialize(my_system)
+car.SetChassisFixed(False)
+car.SetChassisCollisionType(chrono.ChMaterialSurface.NSC)
+car.SetChassisVisualizationType(chrono.VisualizationType_MESH)
+car.SetChassisPos(chrono.ChVectorD(0, 0, 0))
+car.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-driver = chrono.ChDriver(system)
-driver.Initialize()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+terrain = chrono.ChBoxShape()
+terrain.Size = chrono.ChVectorD(10, 1, 10)
+terrain_body = chrono.ChBodyEasyBox(1000, 1, 1000, 1000, True, True)
+terrain_body.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain_body.SetBodyFixed(True)
+my_system.Add(terrain_body)
 
 
-app = irr.ChIrrApp(system, "ARTcar on Rigid Terrain", irr.dimension2du(1024, 768))
+texture = irr.loadTexture('path/to/texture.png')
+terrain_body.GetVisualShape(0).SetTexture(texture)
+
+
+driver = chrono.vehicle.ChDriver(car)
+driver.SetSteeringMethod(chrono.vehicle.SteeringMethod_PID)
+driver.SetThrottleMethod(chrono.vehicle.ThrottleMethod_PID)
+driver.SetBrakingMethod(chrono.vehicle.BrakingMethod_PID)
+
+
+app = irr.ChIrrApp(my_system, 'ARTcar Simulation', irr.dimension2du(1280, 720), False)
 app.AddTypicalLogo()
 app.AddTypicalSky()
 app.AddTypicalLights()
-app.AddTypicalCamera(irr.vector3df(0, 3, -6))
-app.SetTimestep(0.01)
-app.SetTryRealtime(True)
-app.SetVideoframeSaveInterval(1)
+app.AddTypicalCamera(chrono.ChVectorD(0, 3, -6))
 
 
 while app.GetDevice().run():
@@ -43,11 +47,4 @@ while app.GetDevice().run():
     app.DrawAll()
     app.DoStep()
     app.EndScene()
-
-    
-    vehicle.Update()
-    vehicle.Synchronize(driver.GetTime())
-    driver.Synchronize(vehicle.GetSystem())
-
-    
-    chrono.ChTime.Sleep(0.02)
+    chrono.ChTime.Sleep(1/50)

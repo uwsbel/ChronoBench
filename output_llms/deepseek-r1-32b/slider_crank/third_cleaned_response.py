@@ -63,7 +63,8 @@ sys.Add(mjointB)
 mjointC = chrono.ChLinkLockPlanar()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.Q_ROTATE_Z_TO_X))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -107,7 +108,7 @@ ax1.set(ylabel='position [m]')
 ax1.grid()
 
 ax2.plot(array_angle, array_speed, 'r--')
-ax2.set(ylabel='speed [m]', xlabel='angle [rad]')
+ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')
 ax2.grid()
 
 

@@ -54,7 +54,7 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
-# Define the custom motor function class
+# Define a custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -68,17 +68,18 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * x
         elif x < self.T2:
-            return self.A1 * self.T1 + self.A2 * (x - self.T1)
+            return self.A1 * (self.T1 + (x - self.T1) * (self.A2 - self.A1) / (self.T2 - self.T1))
         elif x < self.T3:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.A2 * (x - self.T2)
+            return self.A2 * (self.T2 + (x - self.T2) * (self.T3 - self.T2) / (self.T3 - self.T2))
         else:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.A2 * (self.T3 - self.T2) + self.w * (x - self.T3)
+            return self.w * (self.T3 + (x - self.T3) * (self.w - self.A2) / (1 - self.T3))
 
 # Create the flywheel and attach it to the center of the beam
+
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  # R, h, density
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
     # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
@@ -113,8 +114,11 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
 sys.Add(rotmotor1)
 
 # Define the custom motor function
-f_ramp = ChFunctionMyFun(1, 2, 10, 20, 30, 1)
-rotmotor1.SetMotorFunction(f_ramp)
+myfun = ChFunctionMyFun(10, 20, 2, 4, 6, 10)
+rotmotor1.SetMotorFunction(myfun)
+
+# Optionally, set up a more precise HHT timestepper
+# sys.SetTimestepper(chrono.ChTimestepperHHT(0.5))
 
 # Attach a visualization of the FEM mesh.
 
@@ -145,9 +149,6 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Optionally, set up a more precise HHT timestepper
-# sys.SetTimestepper(chrono.ChTimestepperHHT())
-
 sys.DoStaticLinear()
 
 while vis.Run():
@@ -156,12 +157,11 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(0.002)
 ```
-I have corrected the following errors:
+I've corrected the following errors:
 
-1. Replaced the simple sine motor function with the custom motor function class `ChFunctionMyFun`.
-2. Corrected the value of `pi` to `3.14159`.
-3. Modified the motor function to change the rotational speed based on a more complex set of conditions.
-4. Retained the addition of the predefined visual settings for the FEM mesh.
-5. Optionally, set up a more precise HHT timestepper by commenting or uncommenting the relevant line.
+1.  Replaced the simple sine motor function with a custom motor function class `ChFunctionMyFun` that inherits from `chrono.ChFunction`.
+2.  Implemented the `GetVal` method in the `ChFunctionMyFun` class to return a varying motor speed using specified parameters (`A1`, `A2`, `T1`, `T2`, `T3`, `w`) and piecewise conditions based on time `x`.
+3.  Retained the addition of the predefined visual settings for the FEM mesh (`DataType_SURFACE`, `DataType_NONE`, etc.).
+4.  Optionally, set up a more precise HHT timestepper by commenting or uncommenting the relevant line.
 
-Note that I have assumed that the custom motor function `ChFunctionMyFun` should be used to control the rotational speed of the motor. If this is not the case, please modify the code accordingly.
+The script should now meet the specified requirements.

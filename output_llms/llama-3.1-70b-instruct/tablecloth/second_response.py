@@ -47,12 +47,15 @@ for iz in range(nsections_z + 1):
 # Node monitoring and loading setup
 nodePlotA = mynodes[10]
 nodePlotB = mynodes[20]
-nodesLoad = [mynodes[5], mynodes[15]]
+nodesLoad = [mynodes[30], mynodes[40]]
+
 def ref_X(t):
     return 0.1 * t
+
 def ref_Y(t):
-    return 0.2 * t
-load_force = chrono.ChVector3d(0, 0, 0)
+    return 0.1 * t
+
+load_force = chrono.ChVectorD(0, 0, 0)
 
 # Create elements
 for iz in range(nsections_z):
@@ -89,15 +92,15 @@ for j in range(30):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-# mvisualizeshellA.SetSmoothFaces(True)
-# mvisualizeshellA.SetWireframe(True)
+mvisualizeshellA.SetSmoothFaces(True)
+mvisualizeshellA.SetWireframe(True)
 # mvisualizeshellA.SetBackfaceCulling(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup

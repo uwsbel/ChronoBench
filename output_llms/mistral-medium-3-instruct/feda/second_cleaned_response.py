@@ -85,25 +85,22 @@ driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
 
 
 path = veh.ChBezierCurve()
-path.AddPoint(chrono.ChVector3d(0, 0, 0))
-path.AddPoint(chrono.ChVector3d(15, 3.5, 0))
-path.AddPoint(chrono.ChVector3d(30, 0, 0))
-path.AddPoint(chrono.ChVector3d(45, -3.5, 0))
-path.AddPoint(chrono.ChVector3d(60, 0, 0))
-path.AddPoint(chrono.ChVector3d(75, 3.5, 0))
-path.AddPoint(chrono.ChVector3d(90, 0, 0))
-path.AddPoint(chrono.ChVector3d(100, 0, 0))
-
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-30, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-15, 3.5, 0.5))
+path.AddPoint(chrono.ChVector3d(0, 3.5, 0.5))
+path.AddPoint(chrono.ChVector3d(15, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(30, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(50, 0, 0.5))
 
 driver.SetPath(path)
-driver.SetTargetSpeed(10.0)  
 
 
+driver.SetTargetSpeed(10.0)
 driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0.0, 0.0)  
+driver.GetSteeringController().SetGains(0.5, 0.0)
+driver.GetSpeedController().SetGains(0.5, 0.1, 0.0)
 
-
-driver.GetSpeedController().SetGains(0.5, 0.1, 0.0)  
 driver.Initialize()
 
 
@@ -128,13 +125,10 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     
     driver.Advance(step_size)

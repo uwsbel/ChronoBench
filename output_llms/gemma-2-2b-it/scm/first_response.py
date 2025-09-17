@@ -1,59 +1,71 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.irrlicht_tools as irr_tools
+# Import necessary libraries
+from pychrono import *
+from pychrono.irrlicht import IrrlichtDevice
+from pychrono.irrlicht.irrlicht import irrlicht_engine
+from pychrono.irrlicht.irrlicht import irrlicht_camera
+from pychrono.irrlicht.irrlicht import irrlicht_gui
+from pychrono.irrlicht.irrlicht import irrlicht_scene
+from pychrono.irrlicht.irrlicht import irrlicht_video_output
 
 # Initialize PyChrono
 chrono.init()
 
-# Create the Irrlicht engine
-engine = irr.IrrlichtEngine()
+# Create Irrlicht device
+device = IrrlichtDevice("IrrlichtDemo")
+engine = irrlicht_engine(device)
 
-# Create a SCM terrain with custom soil parameters
-terrain = chrono.SCMTerrain()
-terrain.setSoilParameters(
-    density=1000,  # kg/m^3
-    shear_strength=1000,  # Pa
-    friction=0.5,  # dimensionless
-    viscosity=100,  # Pa*s
-)
-
-# Create a moving patch feature for the terrain
-patch = chrono.MovingPatch(terrain)
-patch.setMovementSpeed(1.0)
-
-# Create the HMMWV
-vehicle = chrono.Vehicle()
-vehicle.setMeshVisualization(True)
+# Create Irrlicht scene
+scene = irrlicht_scene(engine)
+camera = irrlicht_camera(engine, (100, 100), (0, 0, 0))
+gui = irrlicht_gui(engine)
 
 # Define vehicle parameters
-vehicle.setPosition(chrono.Vector3(0, 0, 0))
-vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
-vehicle.setMass(1000)  # kg
-vehicle.setInertia(chrono.Vector3(100, 100, 100))
+vehicle_mass = 2000.0
+vehicle_length = 4.0
+vehicle_width = 2.0
+vehicle_height = 1.5
+vehicle_center_of_mass = (vehicle_length / 2, vehicle_width / 2, vehicle_height / 2)
 
-# Add a rigid tire model to the vehicle
-tire = chrono.RigidTire(vehicle)
-tire.setRadius(0.1)  # m
-tire.setStiffness(10000)  # N/m
-tire.setFriction(0.5)  # dimensionless
+# Define tire parameters
+tire_radius = 0.5
+tire_mass = 10.0
 
-# Set up the driver system
-driver = chrono.Driver()
-driver.setSteeringSensitivity(0.1)
-driver.setThrottleSensitivity(0.1)
-driver.setBrakingSensitivity(0.1)
+# Create vehicle object
+vehicle = Vehicle(vehicle_mass, vehicle_length, vehicle_width, vehicle_height, vehicle_center_of_mass)
 
-# Set up the simulation
-chrono.setSimulationTime(10)  # seconds
-chrono.setFrameRate(50)  # frames per second
+# Create tire objects
+tire_left = Tire(tire_radius, tire_mass, vehicle.position, vehicle.orientation)
+tire_right = Tire(tire_radius, tire_mass, vehicle.position, vehicle.orientation)
 
-# Run the simulation
-engine.run()
+# Create a SCM terrain object
+terrain = SCMTerrain(soil_parameters)
 
-# Visualize the scene
-engine.render()
+# Initialize SCM terrain with a moving patch feature
+terrain.enable_moving_patch(vehicle.position, vehicle.orientation)
 
-# ... (rest of the simulation code) ...
+# Set up a sinkage visualization
+terrain.enable_sinkage_visualization(color_scheme=(0, 0, 255))
 
-# Example: Update vehicle dynamics and render the scene
-# ... (code for updating vehicle dynamics and rendering) ...
+# Configure the driver system
+driver_system = DriverSystem(vehicle)
+
+# Set up the simulation loop
+while engine.running():
+    # Update vehicle dynamics
+    driver_system.update(engine.get_time())
+
+    # Update vehicle position and orientation
+    vehicle.update(driver_system.position, driver_system.orientation)
+
+    # Update tire position and orientation
+    tire_left.update(vehicle.position, vehicle.orientation)
+    tire_right.update(vehicle.position, vehicle.orientation)
+
+    # Update SCM terrain
+    terrain.update(vehicle.position, vehicle.orientation)
+
+    # Render the scene
+    engine.render()
+
+    # Update the display
+    engine.update()

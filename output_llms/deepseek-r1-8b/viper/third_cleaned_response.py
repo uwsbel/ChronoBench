@@ -1,36 +1,34 @@
-terrain = chrono.ChSCMDeformableTerrain()
-   terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  
-   terrain.SetDimensions(100, 100, 1)  
-   terrain.SetMeshResolution(100, 100, 10)  
-   terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  
-   system.Add(terrain)
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import veh, irrlicht as chronoirr
+from pychrono import irrlicht as chronoirr
+from pychrono import vehicle as veh
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = chrono.ChSCMDeformableTerrain()
-terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  
-terrain.SetDimensions(100, 100, 1)  
-terrain.SetMeshResolution(100, 100, 10)  
-terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  
+terrain.SetPlaneEquation(chrono.ChVector3d(-0, -0, 1))  
+terrain.SetDimensions(20, 20, 10)  
+terrain.SetMeshResolution(10)       
+terrain.SetYoungModulus(1e6)      
+terrain.SetPoissonsRatio(0.3)     
+terrain.SetDampingRatio(0.5)     
+terrain.SetFrictionCoefficient(1.0)  
 system.Add(terrain)
+terrain.SetFixed(True)  
 
 
-rover = viper.Viper(system)
-driver = viper.ViperDCMotorControl()
-rover.SetDriver(driver)
+rover = viper.Viper(system)  
+driver = viper.ViperDCMotorControl()  
+rover.SetDriver(driver)  
 
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
@@ -59,17 +57,17 @@ time_step = 1e-3
 
 time = 0
 while vis.Run():
-    time += time_step
+    time += time_step  
     steering = 0.0  
 
     driver.SetSteering(steering)  
 
-    rover.Update()
+    rover.Update()  
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     
     system.DoStepDynamics(time_step)

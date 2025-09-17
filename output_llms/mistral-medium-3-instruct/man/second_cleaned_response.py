@@ -46,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -63,26 +64,21 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-height_map = veh.HeightMap(vehicle.GetSystem())
-height_map.SetDimensions(terrainLength, terrainWidth)
-height_map.SetResolution(100, 100)  
+height_map = veh.HeightMap()
+height_map.LoadFromFile(veh.GetDataFile("terrain/height_maps/hills.dat"))
 
 
-for i in range(100):
-    for j in range(100):
-        x = -terrainLength/2 + i * terrainLength/100
-        y = -terrainWidth/2 + j * terrainWidth/100
-        
-        z = 2 * math.sin(x/10) * math.cos(y/10)
-        height_map.SetPoint(i, j, chrono.ChVector3d(x, y, z))
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth, height_map)
 
-height_map.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
-height_map.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-height_map.Initialize()
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo with Hills')  
+vis.SetWindowTitle('MAN 5t Demo')  
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -128,13 +124,13 @@ while vis.Run():
 
     
     driver.Synchronize(time)
-    height_map.Synchronize(time)  
-    vehicle.Synchronize(time, driver_inputs, height_map)  
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
-    height_map.Advance(step_size)  
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

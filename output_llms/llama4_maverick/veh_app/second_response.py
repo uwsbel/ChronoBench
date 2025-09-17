@@ -28,7 +28,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Simulation end time
-tend = 1000
+tend = 30
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -51,9 +51,6 @@ lag = 0
 
 # Exposure time (in seconds) for each image
 exposure_time = 0
-
-# View camera images
-vis = True
 
 # Create the vehicle, set parameters, and initialize
 gator = veh.Gator()
@@ -101,7 +98,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create two cameras and add them to the sensor manager
-offset_pose = chrono.ChFrame(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -127,14 +124,14 @@ cylinder_body.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue color
 gator.GetSystem().Add(cylinder_body)
 
 # Create and add a Lidar sensor to the system
-lidar_offset_pose = chrono.ChFrame(chrono.ChVector3d(0.0, 0, 2), chrono.QUNIT)
+lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     lidar_offset_pose,
     800,
     300,
-    2 * chrono.CH_PI,
+    chrono.CH_PI * 2,
     chrono.CH_PI / 12,
     -chrono.CH_PI / 6,
     100.0,
@@ -144,15 +141,13 @@ lidar = sens.ChLidarSensor(
     sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Lidar XYZI"))
 manager.AddSensor(lidar)
 
 # Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
-while time < end_time:
+while time < tend:
     time = gator.GetSystem().GetChTime()
 
     # Set driver inputs
@@ -176,4 +171,3 @@ while time < end_time:
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-### Provided Python code with the modifications as per the instructions.

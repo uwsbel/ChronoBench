@@ -109,9 +109,8 @@ class ChFunctionMyFun(chrono.ChFunction):
             return self.A1
 
 
-f_ramp = ChFunctionMyFun(0.0, 1.0, 10, 20, 30, 0.2)
+f_ramp = ChFunctionMyFun(1, 2, 10, 20, 30, 40)
 rotmotor1.SetMotorFunction(f_ramp)
-
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -138,13 +137,13 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-
-
-
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
 sys.DoStaticLinear()
+
+
+
 
 while vis.Run():
     vis.BeginScene()

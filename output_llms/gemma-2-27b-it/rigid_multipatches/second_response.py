@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -29,14 +29,13 @@ def main():
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
     patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                             veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"),
-                             True, 0.01)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+                              veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 
+                              True, 0.01)
 
     # Add visual mesh to the terrain
     vis_mesh = chrono.ChVisualShapeTriangleMesh()
-    vis_mesh.SetMesh(chrono.ChTriangleMeshConnected(veh.GetDataFile("terrain/meshes/Highway_vis.obj")))
-    vis_mesh.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
+    vis_mesh.SetMesh(chrono.ChTrimesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj")))
+    vis_mesh.SetTexture(veh.GetDataFile("terrain/textures/asphalt.jpg"))
     patch.GetGroundBody().AddVisualShape(vis_mesh)
 
     terrain.Initialize()

@@ -3,60 +3,45 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data/')
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
-sys = chrono.ChSystemSMC()
-
-
-sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
-chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-
-terrain_mat = chrono.ChMaterialSurfaceSMC()
-terrain_mat.SetFriction(0.9)
-terrain_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChMaterialSurfaceSMC(terrain_mat)
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), 100, 100)
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 100, 100)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
-
-vehicle = veh.M113(sys)
+vehicle = veh.M113()
 vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngZ(0)))
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 vehicle.SetInitFwdVel(5)
-vehicle.Initialize()
+vehicle.SetTireStepSize(1e-3)
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(100, 100, 0))
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitutionCoefficient(0.01)
+patch.SetContactMaterial(chrono.ChMaterialSurfaceSMC())
+terrain.Initialize()
 
 
 driver = veh.ChDriver(vehicle.GetVehicle())
 
 
-vis = irr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1280, 720)
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Vehicle Simulation')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(-6, -6, 3), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLightDirectional()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-realtime_timer = chrono.ChRealtimeStepTimer()
 while vis.Run():
-    time = sys.GetChTime()
+    time = vehicle.GetSystem().GetChTime()
     driver_inputs = driver.GetInputs()
-    driver_inputs.SetSteering(0.0)
-    driver_inputs.SetThrottle(0.5)
-    driver_inputs.SetBraking(0.0)
     vehicle.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
-    sys.DoStepDynamics(1e-3)
-    vis.Synchronize('', driver_inputs)
-    vis.Render()
-    realtime_timer.Spin(1e-3)
+    vis.Synchronize("", driver_inputs)
+    vehicle.Advance(1e-3)
+    terrain.Advance(1e-3)
+    vis.Advance(1e-3)
+    vehicle.GetSystem().DoStepDynamics(1e-3)

@@ -7,17 +7,18 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVectorD(1, 0, 0.5)  
+initLoc = chrono.ChVectorD(1, 0, 0.5)
 initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES  
+vis_type = veh.VisualizationType_PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_MESH  
+chassis_collision_type = veh.CollisionType_MESH
 
 
-tire_model = veh.TireModelType_FIALA  
+tire_model = veh.TireModelType_FIALA
+
 
 terrainHeight = 0      
 terrainLength = 100.0  
@@ -25,13 +26,18 @@ terrainWidth = 100.0
 
 trackPoint = chrono.ChVectorD(0.0, 0.0, 0.2)
 
+
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
+
 
 step_size = 1e-3
 tire_step_size = step_size
 
+
 render_step_size = 1.0 / 50  
+
+
 
 
 vehicle = veh.ARTcar()
@@ -53,16 +59,17 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystemType_BULLET)
 
 
-patch_mat = chrono.ChContactMaterialNSC()
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -77,14 +84,16 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle)  
+
+vis.AttachVehicle(vehicle)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -96,10 +105,9 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetChassis().GetMass())
+print("VEHICLE MASS: ", vehicle.GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

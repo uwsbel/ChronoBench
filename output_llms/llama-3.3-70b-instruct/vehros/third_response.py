@@ -33,6 +33,9 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
+    # Create a visualization box
+    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True, True)
+    box.SetPos(ch.ChVector3d(0, 0, 2))
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -42,14 +45,9 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Changed camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-    # Create a visualization box
-    box = ch.ChBodyEasyBox(hmmwv.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
-    box.SetMaterialSurface(ch.ChMaterialSurfaceNSC())
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -64,25 +62,19 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Set up sensor manager
+    # Create sensor manager
     sens_manager = sens.ChSensorManager()
-    sens_manager.SetSystem(hmmwv.GetSystem())
-
-    # Add and configure a lidar sensor
-    lidar_sensor = sens.ChLidarSensor()
-    lidar_sensor.SetName("Lidar")
-    lidar_sensor.SetPosition(ch.ChVector3d(0, 0, 2))
-    lidar_sensor.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
-    lidar_sensor.SetRange(0, 100)
-    lidar_sensor.SetHorizontalFOV(360)
-    lidar_sensor.SetVerticalFOV(180)
+    # Create and configure a lidar sensor
+    lidar_sensor = sens.ChLidarSensor(hmmwv.GetChassisBody())
+    lidar_sensor.SetLidarType(sens.ChLidarType_POINT_CLOUD)
+    lidar_sensor.SetRange(10)
+    lidar_sensor.SetHorizontalFOV(2 * math.pi)
+    lidar_sensor.SetVerticalFOV(2 * math.pi)
     lidar_sensor.SetFrequency(10)
-    lidar_sensor.SetPointDensity(0.1)
-    lidar_sensor.AddFilter(sens.ChLidarFilterDistance(0, 10))
-    lidar_sensor.AddFilter(sens.ChLidarFilterIntensity(0, 100))
+    lidar_sensor.AddFilter(sens.ChLidarFilterType_RANGE, 0, 10)
+    lidar_sensor.AddFilter(sens.ChLidarFilterType_INTENSITY, 0, 1)
     sens_manager.AddSensor(lidar_sensor)
-
-    # Register lidar handler to publish lidar data to ROS
+    # Register lidar handler
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar"))
 
     # Start the simulation loop.
@@ -110,13 +102,11 @@ def main():
         terrain.Synchronize(time)  # Synchronize the terrain.
         hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
 
-        # Update sensor manager
-        sens_manager.Update()
-
         # Advance the simulation for all modules by one timestep.
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+        sens_manager.Update()  # Update sensor manager
 
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):

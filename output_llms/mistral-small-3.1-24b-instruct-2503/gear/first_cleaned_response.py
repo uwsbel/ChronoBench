@@ -1,62 +1,83 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.engine as chronoengine
+import pychrono.fea as chronofea
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
 system = chrono.ChSystemNSC()
 
 
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.6)
-material.SetRestitution(0.2)
+time_step = 0.01
+system.SetTimestepperType(chronoengine.ChTimestepperType.HHT)
+system.SetMaxPenetrationRecoverySpeed(1.0)
+system.SetMaxIterationsPenetrationRecovery(100)
 
 
-truss = chrono.ChBodyEasyBox(1, 1, 0.1, 1000, True, True, material)
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('Epicyclic Gears Simulation')
+visualization.SetTryFullscreen(False)
+visualization.SetUseShadows(True)
+visualization.SetDefaultFontScale(0.8)
+visualization.SetDefaultDirLightDirection(chrono.ChVectorD(0, 1, -1))
+
+
+visualization.AttachSystem(system)
+
+
+truss = chrono.ChBodyEasyBox(1, 1, 0.1, 1000, True, True)
 truss.SetPos(chrono.ChVectorD(0, 0, 0.5))
 truss.SetBodyFixed(True)
 system.Add(truss)
 
 
-bar = chrono.ChBodyEasyBox(0.1, 0.1, 2, 1000, True, True, material)
+bar = chrono.ChBodyEasyBox(0.1, 1, 0.1, 1000, True, True)
 bar.SetPos(chrono.ChVectorD(0, 0, 1))
 system.Add(bar)
 
 
-gear1 = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True, material)
+gear1 = chrono.ChBodyEasyBox(0.2, 0.2, 0.05, 1000, True, True)
 gear1.SetPos(chrono.ChVectorD(0.5, 0, 1))
+gear1.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 system.Add(gear1)
 
-
-gear2 = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True, material)
+gear2 = chrono.ChBodyEasyBox(0.2, 0.2, 0.05, 1000, True, True)
 gear2.SetPos(chrono.ChVectorD(-0.5, 0, 1))
+gear2.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 system.Add(gear2)
 
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar, gear1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.ChVectorD(0, 0, 10)))  
-system.Add(motor)
+gear_motor = chrono.ChLinkMotorRotationSpeed()
+gear_motor.Initialize(gear1, truss, chrono.ChVectorD(0, 0, 1))
+gear_motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.ChVectorD(0, 0, 10)))
+system.Add(gear_motor)
 
 
-application = chronoirr.ChIrrApp(system, 'Epicyclic Gear System', chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
-application.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 10, 40, 50)
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetRestitution(0.2)
+material.SetCompliance(0.00001)
+material.SetComplianceT(0.00001)
 
 
-application.AssetBind(truss, chronoirr.ChIrrNodePointCloud(chrono.ChVectorD(0, 0, 0)))
-application.AssetBind(bar, chronoirr.ChIrrNodePointCloud(chrono.ChVectorD(0, 0, 0)))
-application.AssetBind(gear1, chronoirr.ChIrrNodePointCloud(chrono.ChVectorD(0, 0, 0)))
-application.AssetBind(gear2, chronoirr.ChIrrNodePointCloud(chrono.ChVectorD(0, 0, 0)))
+truss.GetMaterialSurface().SetMaterialProperties(material)
+bar.GetMaterialSurface().SetMaterialProperties(material)
+gear1.GetMaterialSurface().SetMaterialProperties(material)
+gear2.GetMaterialSurface().SetMaterialProperties(material)
 
 
-application.SetTimestep(0.01)
-application.SetTryRealTime(True)
-application.SetSymbolBcgColor(chrono.ChColor(0.8, 0.8, 0.8))
+run_simulation = True
+while run_simulation:
+    visualization.BeginScene()
+    visualization.Render()
+    visualization.EndScene()
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+    system.DoStepDynamics(time_step)
 
-application.Close()
+    chrono.ChIrrAppTimerStep()
+
+    if visualization.GetDevice().isWindowActive() == False:
+        run_simulation = False

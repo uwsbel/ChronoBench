@@ -74,8 +74,11 @@ terrain.SetSoilParameters(2e6,   # Bekker Kphi
                             3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
+# Set the terrain height map
+terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/height_maps/bump64.bmp"))
+
 # Set the terrain texture
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface
 

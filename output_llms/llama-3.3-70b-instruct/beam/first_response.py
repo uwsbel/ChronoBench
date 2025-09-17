@@ -1,55 +1,42 @@
 # Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
+import pychrono.beams as chronobeam
 
 # Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Create the mesh
-mesh = fea.ChMesh()
+# Set the default contact material properties
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.5)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(1e-9)
+contact_material.SetComplianceT(1e-9)
+sys.SetDefaultContactMaterial(contact_material)
 
-# Add nodes to the mesh
-node1 = fea.ChNodeFEAxyz(0, 0, 0)
-node2 = fea.ChNodeFEAxyz(1, 0, 0)
-node3 = fea.ChNodeFEAxyz(2, 0, 0)
-mesh.AddNode(node1)
-mesh.AddNode(node2)
-mesh.AddNode(node3)
+# Create a mesh composed of beams and nodes
+beam_mesh = chronobeam.ChBeamSectionEuler()
+beam_mesh.SetYoungModulus(200e9)  # Pa
+beam_mesh.SetArea(0.01)  # m^2
+beam_mesh.SetIyy(1e-5)  # m^4
+beam_mesh.SetIzz(1e-5)  # m^4
+beam_mesh.SetJ(1e-6)  # m^4
+beam_mesh.SetDensity(7850)  # kg/m^3
 
-# Add beam finite elements to the mesh
-beam1 = fea.ChElementBeamEuler()
-beam1.SetNodes(node1, node2)
-beam1.SetSection(fea.ChSectionEulerSimple(0.1, 0.1, 1000, 1000))
-mesh.AddElement(beam1)
+# Create the beam finite element mesh
+beam = chronobeam.ChBeamSectionEuler()
+beam.SetMesh(beam_mesh)
+beam.SetNodes([chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0)])
+sys.Add(beam)
 
-beam2 = fea.ChElementBeamEuler()
-beam2.SetNodes(node2, node3)
-beam2.SetSection(fea.ChSectionEulerSimple(0.1, 0.1, 1000, 1000))
-mesh.AddElement(beam2)
-
-# Add the mesh to the physical system
-sys.Add(mesh)
-
-# Set default parameters
-sys.Set_G(chrono.ChVectorD(0, -9.81, 0))  # gravity
-
-# Create the Irrlicht visualization engine
+# Add visualization using the Irrlicht engine
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-
-# Add the physical system to the visualization engine
-vis.AddCamera(chrono.ChCamera())
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
 vis.AddTypicalLights()
-vis.SetWindowSize(1024, 768)
-vis.SetCamera(chrono.ChCamera().GetCamera())
-vis.SetCameraDistance(5)
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddSystem(sys)
 
-# Simulation loop
+# Run the simulation loop
 while vis.Run():
     sys.DoStepDynamics(0.01)
     vis.BeginScene()

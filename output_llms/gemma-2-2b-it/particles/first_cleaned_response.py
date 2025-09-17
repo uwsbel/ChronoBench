@@ -1,44 +1,49 @@
-import pychrono as chrono
-import pychrono.core as core
-import pychrono.irrlicht as irrlicht
-import random
+import pychrono as pchrono
 import numpy as np
+from irrlicht import irrlicht
+from irrlicht import irrlichtEngine
 
 
-chrono.Init()
+pchrono.init()
 
 
-world = chrono.World()
+engine = irrlichtEngine()
 
 
-emitter = chrono.ParticleEmitter(world)
-emitter.SetGravity(chrono.Vector3(0, 0, -9.81))  
-emitter.SetParticleCount(100)  
+particle_emitter = pchrono.ParticleEmitter()
 
 
-particle_radius = 0.1
-particle_mass = 1.0
+particle_properties = pchrono.ParticleProperties()
+particle_properties.shape = pchrono.Shape.sphere
+particle_properties.size = 0.1
+particle_properties.color = (1, 0, 0)  
 
 
-for i in range(emitter.GetParticleCount()):
-    position = chrono.Vector3(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10))
-    velocity = chrono.Vector3(random.uniform(-5, 5), random.uniform(-5, 5), random.uniform(-5, 5))
-    orientation = chrono.Quaternion(random.uniform(0, 2*np.pi), random.uniform(0, 2*np.pi), random.uniform(0, 2*np.pi))
-    emitter.AddParticle(position, velocity, orientation)
+particle = pchrono.Particle()
+particle.properties = particle_properties
 
 
-irrlicht_scene = irrlicht.IrrlichtScene()
+particle.position = np.array([0, 0, 0])
+particle.velocity = np.array([0, 0, 0])
+particle.orientation = np.array([0, 0, 0])
 
 
-for particle in emitter.GetParticles():
-    irrlicht_scene.AddParticle(particle)
+particle_emitter.add_particle(particle)
 
 
-irrlicht_scene.SetCameraPosition(chrono.Vector3(0, 0, 10))
-irrlicht_scene.SetCameraRotation(chrono.Quaternion(0, 0, 0, 1))
+time_step = 0.01
 
 
-irrlicht_system = irrlicht_scene.CreateIrrlichtSystem()
+gravity = pchrono.Force(pchrono.Vector3(0, -9.81, 0))
 
 
-chrono.Run()
+scene = pchrono.Scene()
+
+
+scene.add_component(particle_emitter)
+
+
+scene.add_force(gravity)
+
+
+engine.run()

@@ -3,11 +3,11 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 
 # Set data paths
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+chrono_data_path = chrono.GetChronoDataPath()
+veh.SetDataPath(chrono_data_path + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed initial position
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain parameters
-terrainHeight = 0  # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0  # size in Y direction
+terrainHeight = 0 
+terrainLength = 100.0 
+terrainWidth = 100.0 
 
 # Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -36,7 +36,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50  # FPS = 50
+render_step_size = 1.0 / 50 
 
 # Create the UAZBUS vehicle, set parameters, and initialize
 vehicle = veh.UAZBUS()
@@ -62,8 +62,8 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed terrain texture
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 terrain.Initialize()
@@ -83,64 +83,55 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3  # time to go from 0 to +1
-
+steering_time = 1.0 
+throttle_time = 1.0 
+braking_time = 0.3 
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = int(render_step_size / step_size)
+render_steps = round(render_step_size / step_size)
 
-# Simulation variables
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver parameters
-lane_change_time = 2.0  # time to complete a lane change
-lane_change_start = 2.0  # start time for the first lane change
-lane_change_interval = 4.0  # time interval between lane changes
-
-# Main simulation loop
-while vis.Run():
+# Simulation loop
+double_lane_change_time = 5.0
+braking_time = 10.0
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
-    if step_number % render_steps == 0:
+    # Render scene 
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     # Get driver inputs
-    if time > lane_change_start and time < lane_change_start + lane_change_time:
-        # First lane change
-        driver_inputs = veh.Inputs()
-        driver_inputs.m_steering = 0.5
-        driver_inputs.m_throttle = 0.5
-    elif time > lane_change_start + lane_change_interval and time < lane_change_start + lane_change_interval + lane_change_time:
-        # Second lane change
-        driver_inputs = veh.Inputs()
-        driver_inputs.m_steering = -0.5
-        driver_inputs.m_throttle = 0.5
-    elif time > lane_change_start + 2 * lane_change_interval:
-        # Braking
-        driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.5
-    else:
-        # Default driver inputs
-        driver_inputs = driver.GetInputs()
+    driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Implement double lane change maneuver
+    if time > double_lane_change_time and time < double_lane_change_time + 2:
+        driver_inputs.m_steering = 0.5
+    elif time > double_lane_change_time + 2 and time < double_lane_change_time + 4:
+        driver_inputs.m_steering = -0.5
+    elif time > double_lane_change_time + 4:
+        driver_inputs.m_steering = 0
+
+    if time > braking_time:
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_braking = 1
+
+    # Update modules 
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)

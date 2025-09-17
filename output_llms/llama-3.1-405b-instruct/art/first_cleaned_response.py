@@ -16,7 +16,7 @@ ground = chrono.ChBodyEasyBox(sys,
                               True,  
                               chrono.ChMaterialSurfaceNSC())  
 ground.SetPos(chrono.ChVectorD(0, 0, -1))  
-sys.Add(ground)  
+ground.SetBodyFixed(True)  
 
 
 vehicle = chrono.ChBodyEasyBox(sys,  
@@ -27,91 +27,88 @@ vehicle = chrono.ChBodyEasyBox(sys,
                                chrono.ChMaterialSurfaceNSC())  
 vehicle.SetPos(chrono.ChVectorD(0, 0, 1))  
 vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
-sys.Add(vehicle)  
-
-
-terrain = chrono.ChRigidTerrain(sys,  
-                                100, 100,  
-                                2,  
-                                10, 10,  
-                                chrono.ChMaterialSurfaceNSC())  
-terrain.SetPos(chrono.ChVectorD(0, 0, -1))  
-sys.Add(terrain)  
-
-
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename('/path/to/terrain/texture.png')
-terrain.AddAsset(terrain_texture)
 
 
 wheel_front_left = chrono.ChBodyEasyCylinder(sys,  
-                                             1,  
-                                             1,  
-                                             500,  
+                                             0.5,  
+                                             0.2,  
+                                             100,  
                                              True,  
                                              True,  
                                              chrono.ChMaterialSurfaceNSC())  
 wheel_front_left.SetPos(chrono.ChVectorD(-1.5, 1, 0.5))  
-sys.Add(wheel_front_left)  
+wheel_front_left.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 wheel_front_right = chrono.ChBodyEasyCylinder(sys,  
-                                              1,  
-                                              1,  
-                                              500,  
+                                              0.5,  
+                                              0.2,  
+                                              100,  
                                               True,  
                                               True,  
                                               chrono.ChMaterialSurfaceNSC())  
 wheel_front_right.SetPos(chrono.ChVectorD(1.5, 1, 0.5))  
-sys.Add(wheel_front_right)  
+wheel_front_right.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 wheel_rear_left = chrono.ChBodyEasyCylinder(sys,  
-                                            1,  
-                                            1,  
-                                            500,  
+                                            0.5,  
+                                            0.2,  
+                                            100,  
                                             True,  
                                             True,  
                                             chrono.ChMaterialSurfaceNSC())  
 wheel_rear_left.SetPos(chrono.ChVectorD(-1.5, -1, 0.5))  
-sys.Add(wheel_rear_left)  
+wheel_rear_left.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 wheel_rear_right = chrono.ChBodyEasyCylinder(sys,  
-                                             1,  
-                                             1,  
-                                             500,  
+                                             0.5,  
+                                             0.2,  
+                                             100,  
                                              True,  
                                              True,  
                                              chrono.ChMaterialSurfaceNSC())  
 wheel_rear_right.SetPos(chrono.ChVectorD(1.5, -1, 0.5))  
-sys.Add(wheel_rear_right)  
+wheel_rear_right.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-driver = chrono.ChIrrNode(sys,  
-                          vehicle,  
-                          chrono.ChVectorD(0, 0, 2))  
-sys.Add(driver)  
+revolute_joint_front_left = chrono.ChLinkRevolute()
+revolute_joint_front_left.Initialize(vehicle, wheel_front_left, chrono.ChFrameD(chrono.ChVectorD(-1.5, 1, 0.5)))
+sys.AddLink(revolute_joint_front_left)
+
+revolute_joint_front_right = chrono.ChLinkRevolute()
+revolute_joint_front_right.Initialize(vehicle, wheel_front_right, chrono.ChFrameD(chrono.ChVectorD(1.5, 1, 0.5)))
+sys.AddLink(revolute_joint_front_right)
+
+revolute_joint_rear_left = chrono.ChLinkRevolute()
+revolute_joint_rear_left.Initialize(vehicle, wheel_rear_left, chrono.ChFrameD(chrono.ChVectorD(-1.5, -1, 0.5)))
+sys.AddLink(revolute_joint_rear_left)
+
+revolute_joint_rear_right = chrono.ChLinkRevolute()
+revolute_joint_rear_right.Initialize(vehicle, wheel_rear_right, chrono.ChFrameD(chrono.ChVectorD(1.5, -1, 0.5)))
+sys.AddLink(revolute_joint_rear_right)
 
 
-app = chronoirr.ChIrrApp(sys,  
-                         'ARTcar Vehicle Simulation',  
-                         chronoirr.dimension2du(800, 600),  
-                         chronoirr.VerticalFlip,  
-                         False,  
-                         False)  
+driver = chrono.ChIrrNodeAsset()
+driver.SetChBody(vehicle)
+driver.SetMode(chrono.ChIrrNodeAsset.eMode Driving)
 
 
-app.AddCamera(chronoirr.vector3df(0, 0, 5),  
-              chronoirr.vector3df(0, 0, 0))  
+app = chronoirr.ChIrrApp(sys, 'ARTcar Simulation', chronoirr.dimension2du(800, 600))
+app.AddTypicalSky()
+app.AddTypicalCamera(chronoirr.vector3df(0, 0, 5))
+app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 10, 120)
 
 
-app.SetTimestep(0.02)  
-app.SetTryRealtime(True)  
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 
 while app.GetDevice().run():
-    
-    sys.DoStepDynamics(app.GetTimestep())
-
-    
-    app.BeginScene(True, True, chronoirr.SColor(255, 140, 140, 140))
+    time = sys.GetChTime()
+    app.BeginScene()
     app.DrawAll()
+    app.DoStep()
     app.EndScene()
+    sys.DoStepDynamics(0.02)  
+
+
+app.GetDevice().closeDevice()

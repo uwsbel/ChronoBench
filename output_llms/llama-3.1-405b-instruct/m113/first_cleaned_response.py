@@ -42,14 +42,14 @@ terrain.GetCollisionModel().SetRestitution(terrain_restitution)
 
 driver = chrono.ChIrrNodeAsset(my_system, vehicle)
 driver.SetSteering(0)
-driver.SetThrottle(0)
+driver.SetThrottle(1)
 driver.SetBraking(0)
 
 
 application = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
 application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 0, -5))
+application.AddCamera(chrono.ChVectorD(0, 0, -10))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
@@ -57,11 +57,18 @@ application.AssetUpdateAll()
 while application.GetDevice().run():
     
     my_system.DoStepDynamics(time_step)
+
+    
+    driver.Synchronize(time_step)
+
+    
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-    application.DoStep()
+
     
-    simulation_time -= time_step
-    if simulation_time <= 0:
+    if my_system.GetChTime() >= simulation_time:
         break
+
+
+application.GetDevice().closeDevice()

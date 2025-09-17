@@ -9,48 +9,54 @@ sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChMaterialSurfaceNSC())
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
+
+
+turtlebot = veh.TurtleBot()
+turtlebot.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+turtlebot.SetChassisRot(chrono.Q_from_AngX(0))
+
+
+sys.Add(turtlebot.GetChassisBody())
 sys.Add(ground)
-
-
-turtlebot = veh.TurtleBot(sys, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-sys.Add(turtlebot)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), 35)
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddCamera(chrono.ChVectorD(0, 5, 10))
+vis.AddTypicalLights()
+
+
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle("Turtlebot Simulation")
-vis.AddTypicalCameraMovements()
-
-
-time_step = 0.01
-duration = 10
 
 
 time = 0
-while time < duration:
+dt = 0.01
+while time < 10:
     
-    sys.DoStepDynamics(time_step)
+    sys.DoStepDynamics(dt)
 
     
     if time < 2:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(10, 10))
+        turtlebot.SetMotorTorque(10, 10)
     elif time < 4:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(-10, 10))
+        turtlebot.SetMotorTorque(-10, 10)
     elif time < 6:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(10, -10))
+        turtlebot.SetMotorTorque(10, -10)
     else:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(0, 0))
+        turtlebot.SetMotorTorque(0, 0)
 
     
     vis.DrawAll()
+    vis.EndDraw()
 
     
-    time += time_step
+    time += dt
 
     
-    chronoirr.ChSleep(1 / 60)
+    chrono.ChSleep(0.01)

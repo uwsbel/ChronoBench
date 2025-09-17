@@ -47,14 +47,14 @@ time_step = 2e-3
 
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(0.5, 0)  
+        robot.SetMotorSpeed(0.5, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)  
-        robot.SetMotorSpeed(-math.pi, 1)
+        robot.SetMotorSpeed(-0.5, 0)  
+        robot.SetMotorSpeed(0.5, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(0.5, 0)  
+        robot.SetMotorSpeed(-0.5, 1)
     else:
         raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
@@ -79,6 +79,4 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
-
-    
     time += time_step

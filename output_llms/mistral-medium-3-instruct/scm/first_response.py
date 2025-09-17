@@ -1,62 +1,58 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.scm as scm
 import numpy as np
 
-# 1. Initialize PyChrono environment
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
-vehicle_dir = "vehicle/data/hmmwv"
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path
+chrono.SetChronoOutputPath("output/")
 
-# Create the simulation system
-system = chrono.ChronoSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+# Create systems
+system = chrono.ChSystemSCM()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Create the vehicle system
-hmmwv = veh.HMMWV()
-hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+# 2. Create SCM deformable terrain
+terrain = scm.ChTerrainSCM()
+terrain.SetHeightField(chrono.GetChronoDataFile("terrain/height_maps/test64.bmp"),  # Example height map
+                       chrono.ChVectorD(20, 0, 20),  # Dimensions
+                       0.2)  # Height scale
+terrain.SetSoilParameters(2e6,  # Bekker Kphi
+                          0,    # Bekker Kc
+                          1.1,  # Bekker n exponent
+                          0.0,  # Mohr cohesive limit (Pa)
+                          30,   # Friction angle (degrees)
+                          0.01) # Soil density (kg/m3)
+
+# Enable moving patch and sinkage visualization
+terrain.EnableMovingPatch(True, 10.0)  # Moving patch size
+terrain.SetPlotType(scm.ChTerrainSCM::PLOT_SINKAGE, True)  # False color sinkage
+
+# Add terrain to system
+system.Add(terrain)
+
+# 3. Create HMMWV vehicle
+hmmwv = chrono.vehicle.ChWheeledVehicle(chrono.vehicle.GetDataFile("hmmwv/vehicle/HMMWV_vehicle.json"))
+hmmwv.SetChassisVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(chrono.vehicle.VisualizationType_MESH)
+
 hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChCoorD(0, 0, 0.5))
-hmmwv.SetInitFwdVel(5)
-hmmwv.Initialize()
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetInitFwdVel(10)  # Initial forward velocity
 
 # Set rigid tire model
-hmmwv.SetTireType(veh.RigidTire)
-hmmwv.SetTireStepSize(0.01)
-
-# Add vehicle to system
-hmmwv.GetSystem().Add(hmmwv.GetChassis())
-hmmwv.GetSystem().Add(hmmwv.GetPowertrain())
-hmmwv.GetSystem().Add(hmmwv.GetSteering())
-
 for axle in hmmwv.GetAxles():
-    system.Add(axle)
-    for wheel in axle.GetWheels():
-        system.Add(wheel)
+    for side in [chrono.vehicle.VehicleSide::LEFT, chrono.vehicle.VehicleSide::RIGHT]:
+        wheel = axle.GetWheel(side)
+        wheel.SetTireType(chrono.vehicle.TireType::RIGID)
+        wheel.SetTireVisualizationType(chrono.vehicle.VisualizationType_MESH)
 
-# 3. Create SCM deformable terrain
-terrain = veh.SCMDeformableTerrain(hmmwv.GetSystem())
-terrain.SetPlane(chrono.ChCoorD(0, 0, 0, chrono.QUNIT))
-terrain.SetLength(20)
-terrain.SetWidth(10)
-terrain.Initialize()
+# 4. Create interactive driver system
+driver = chrono.vehicle.ChDriver()
+hmmwv.SetDriver(driver)
 
-# Set soil parameters
-terrain.SetSoilParameters(
-    Bekker_Kphi=1e6,
-    Bekker_Kc=1e5,
-    Bekker_n=1.0,
-    Mohr_cohesion=1e3,
-    Mohr_friction=35,
-    Mohr_dilation=5,
-    Janosi_shear=0.01,
-    plastic_yield=0.01
-)
-
-# Enable moving patch
-terrain.EnableMovingPatch(True, 10, 5)
-terrain.SetMovingPatchReference(hmmwv.GetChassis())
-
-# 4. Set up visualization
+# 5. Create Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
@@ -64,28 +60,24 @@ vis.SetWindowTitle("HMMWV on SCM Terrain")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
+vis.AddCamera(chrono.ChVectorD(5, 3, 0), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 15, 1, 15, 40, 512)
-
-# Enable false color plotting for sinkage
-terrain.GetMesh().SetFalseColorRange(0, 0.2)
-terrain.GetMesh().SetFalseColorMode(chronoirr.FalseColorMode::Z_DISPLACEMENT)
-
-# Add vehicle visualization assets
-veh.ChVehicleVisualSystemIrrlicht::AddVisualModel(hmmwv, vis)
-
-# 5. Set up interactive driver
-driver = veh.ChDriverHMMWV(vis)
-driver.Initialize()
+vis.AddLightWithShadow(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 10, 1, 10, 40, 512)
 
 # 6. Simulation loop
 time_step = 0.02  # 50 FPS
 while vis.Run():
-    time = system.GetChTime()
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    # Update driver inputs (example - replace with your input system)
+    driver.SetSteering(0.1 * np.sin(chrono.ChTime.GetTime()))  # Simple steering input
+    driver.SetThrottle(0.3)  # Constant throttle
+    driver.SetBraking(0.0)   # No braking
+
+    # Update vehicle and terrain
     system.DoStepDynamics(time_step)
+
+    # Update moving patch to follow vehicle
+    terrain.UpdateMovingPatch(hmmwv.GetChassis().GetPos(), hmmwv.GetChassis().GetRot())

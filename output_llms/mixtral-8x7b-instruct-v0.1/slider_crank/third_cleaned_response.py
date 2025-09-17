@@ -35,9 +35,9 @@ mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))
 sys.Add(mrod)
 
 
-mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_X, 0.2, 0.3, 1000)
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
-mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
+mpiston.SetRot(chrono.Q_ROTATE_Z_TO_Y)
 sys.Add(mpiston)
 
 
@@ -53,22 +53,22 @@ sys.Add(my_motor)
 mjointA = chrono.ChLinkBallAndSocket()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 
 mjointB = chrono.ChLinkBallAndSocket()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 
-mjointC = chrono.ChLinkPlane2Plane()
+mjointC = chrono.ChLinkPlanar()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrame<double>(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                           chrono.Q_ROTATE_Z_TO_X)
+                   chrono.ChFrame(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.Q_ROTATE_Z_TO_X)
                    )
 sys.Add(mjointC)
 

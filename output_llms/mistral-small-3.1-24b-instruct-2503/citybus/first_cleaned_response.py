@@ -1,91 +1,101 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
+import math
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')  
+chrono.SetChronoDataPath('path_to_chrono_data')  
+
+
 system = chrono.ChSystemNSC()
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('CityBus Simulation')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddLightDirectional()
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetRestitution(0.2)
 
 
-terrain = chrono.ChRigidTerrain()
-terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 1000, 1000)
-terrain.SetMaterialProperties(0.9, 0.9, 0.5, 0.1, 10, 10, 10)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-system.Add(terrain)
+ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True, material)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
 
 vehicle = chrono.ChVehicle()
-vehicle.SetChassisBody(system.NewBody(chrono.ChMaterialSurfaceNSC(), 1500, True))
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(1, 1, 3, 1000, True, True, material))
 vehicle.Initialize()
 
 
-vehicle.GetChassis()->SetPos(chrono.ChVectorD(0, 0, 1))
-vehicle.GetChassis()->SetRot(chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.VECT_X))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-wheel_radius = 0.5
-wheel_width = 0.3
-for i in range(4):
-    wheel = vehicle.AddWheel(vehicle.GetChassis(), wheel_radius, wheel_width)
-    wheel.SetInitialPosition(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(chrono.CHR_PI / 2, chrono.VECT_X))
+vehicle.SetTireModelType(chrono.ChVehicleTireModelType.TMEE_FAYON)
+vehicle.SetTireStepSize(0.01)
 
 
-tire_model = chrono.ChTireModelTMeasy()
-tire_model.SetRoadFrictionCoeff(1.0)
-for wheel in vehicle.GetWheels():
-    wheel.SetTireModel(tire_model)
+system.Add(vehicle.GetVehicleBody())
+
+
+myapplication = chronoirr.ChIrrApp(chrono.GetDataFile('citybus/vehicle.irr'), 'CityBus Simulation', chronoirr.dimension2du(800, 600))
+myapplication.AddSystem(system)
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLogo(chrono.GetDataFile('logo_pychrono_small.png'))
+myapplication.AddTypicalCamera(chrono.ChVectorD(5, 3, -3), chrono.ChVectorD(0, 0, 0))
+
+
+camera = myapplication.GetSceneManager().getActiveCamera()
+camera.setTarget(vehicle.GetChassisBody().GetPos())
+camera.setFarValue(1000)
 
 
 driver = chrono.ChDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringDelta(0)
-driver.SetThrottle(0)
+driver.Initialize(vehicle, system)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottle(0.5)
 driver.SetBraking(0)
 
 
-camera = vis.AddCamera(chrono.ChVectorD(5, -5, 3), vehicle.GetChassis()->GetPos())
-camera.SetFPSMode(vehicle.GetChassis())
+system.SetTimestepperType(chrono.ChTimestepperType.BDF)
+system.SetStep(0.02)
 
 
-chrono.ChSystemNSC::SetMaxPenetrationRecoverySpeed(1.0)
-system.SetSolverType(chrono.ChSolverType.BARZILAIBORWEIN)
+duration = 10  
+frame_rate = 50  
 
 
-while vis.Run():
-    time = system.GetChTime()
-    system.DoStepDynamics(1.0 / 50.0)
+myapplication.SetTimestep(1.0 / frame_rate)
+myapplication.SetTryRealTime(True)
+myapplication.SetSymbolScale(2.0)
+
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()
 
     
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_W):
-        driver.SetThrottle(1.0)
-    else:
-        driver.SetThrottle(0.0)
+    camera.setTarget(vehicle.GetChassisBody().GetPos())
 
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_S):
+    
+    if myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_W):
+        driver.SetThrottle(1.0)
+    elif myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_S):
         driver.SetBraking(1.0)
     else:
+        driver.SetThrottle(0.0)
         driver.SetBraking(0.0)
 
-    if vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_A):
-        driver.SetSteeringDelta(-1.0)
-    elif vis.IsKeyPressed(chrono.irrlicht.KEY_KEY_D):
-        driver.SetSteeringDelta(1.0)
+    if myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_A):
+        driver.SetSteeringDelta(-0.04)
+    elif myapplication.GetDevice().isKeyDown(chrono.irrlicht.KEY_KEY_D):
+        driver.SetSteeringDelta(0.04)
     else:
         driver.SetSteeringDelta(0.0)
 
     
-    vis.Render()
-    vis.Update()
+    if system.GetChTime() > duration:
+        break
 
 
-vis.Close()
+myapplication.Close()

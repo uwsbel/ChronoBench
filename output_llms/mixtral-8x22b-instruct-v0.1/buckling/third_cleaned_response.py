@@ -1,5 +1,5 @@
 import math as m  
-import pychrono as chrono  
+import pychrono as chrno  
 import pychrono.fea as fea  
 import pychrono.pardisomkl as mklsolver  
 import pychrono.irrlicht as chronicls  
@@ -70,7 +70,7 @@ melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 
@@ -83,7 +83,7 @@ node_tip = builder_iga.GetLastBeamNodes()[65]
 node_mid = builder_iga.GetLastBeamNodes()[32]
 
 
-section2 = fea.ChBeamSectionEuler()
+section2 = fea.ChBeamSectionAdvancedEuler()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -110,7 +110,7 @@ sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
 constr_bb.AddVisualShape(sphereconstr2)
 
 
-section3 = fea.ChBeamSectionEuler()
+section3 = fea.ChBeamSectionEulerAdvanced()
 crankbeam_d = 0.06
 section3.SetDensity(2800)
 section3.SetYoungModulus(75.0e9)
@@ -177,7 +177,7 @@ vis.AddTypicalLights()
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 
-ts = chrono.ChTimestepperHHT()
+ts = chrono.ChTimestepperEulerExplicit(sys)
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 

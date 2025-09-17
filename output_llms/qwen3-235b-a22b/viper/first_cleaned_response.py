@@ -1,63 +1,59 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.SetCollide(True)
-ground.GetCollisionModel().ClearModel()
-ground.GetCollisionModel().AddBox(100, 1, 100)  
-ground.SetPos(chrono.ChVectorD(0, -1, 0))  
-system.Add(ground)
+terrain = vehicle.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), chrono.ChVectorD(200, 1, 200))
+patch.SetContactFrictionCoefficient(0.9)
+patch.SetContactRestitution(0.01)
+patch.SetContactMaterialProperties(2e7, 0.3)
+patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+terrain.Initialize()
 
 
-rover = veh.Viper(system)
-rover.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-rover.Initialize()
+viper = vehicle.Viper(system, terrain)
+viper.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+viper.Initialize()
+viper.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+viper.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
 
 
-driver = veh.ViperSimpleDriver(rover)
-driver.Initialize()
+driver = vehicle.ViperDriver(viper)
 
 
-application = irr.ChIrrApp(system, 'Viper Rover Simulation', irr.dimension2du(800, 600))
+application = irrlicht.ChIrrApp(system, 'Viper Simulation', irrlicht.dimension2du(1024, 768))
 application.AddTypicalLogo()
-application.AddTypicalCamera(chrono.ChVectorD(0, 2, -5), rover.GetChassis().GetPos())
+application.AddTypicalCamera(irrlicht.vector3df(0, 3, -6), irrlicht.vector3df(0, 0, 0))
 application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-time_step = 1e-3  
-end_time = 20.0  
+duration = 10.0  
+max_steering = 1.0  
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
 
 while application.GetDevice().run():
-    current_time = system.GetChTime()
-    if current_time > end_time:
-        break
-
     
-    if current_time < 10.0:
-        steering = 0.5 * (current_time / 10.0)
+    time = system.GetChTime()
+    if time < duration:
+        steering = (time / duration) * max_steering
     else:
-        steering = 0.5 * (1.0 - (current_time - 10.0) / 10.0)
-    steering = max(0.0, min(0.5, steering))  
+        steering = max_steering
     driver.SetSteering(steering)
-
     
-    driver.Synchronize(current_time)
-    rover.Synchronize(current_time, driver.GetInputs(), time_step)
-
     
-    system.DoStepDynamics(time_step)
-
+    viper.Update()
+    
     
     application.BeginScene()
     application.DrawAll()
+    application.Step()
     application.EndScene()

@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import random
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -22,11 +21,11 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0      
-terrainLength = 50.0   
-terrainWidth = 50.0    
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+trackPoint = chrono.ChVector3d(0, 0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -63,52 +62,49 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-
 patch1 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, -25, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch1.SetColor(chrono.ChColor(0.3, 0.6, 0.3))
+                         chrono.ChCoordsysd(chrono.ChVector3d(25, 25, 0), chrono.QUNIT),
+                         50, 50)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 patch2 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(25, -25, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+                         chrono.ChCoordsysd(chrono.ChVector3d(-25, 25, 0), chrono.QUNIT),
+                         50, 50)
+patch2.SetHeightfield(veh.GetDataFile("terrain/heightmaps/smallheightfield_dem.raw"), 
+                      50, 50, 10, 10, 10)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.4, 0.6, 0.4))
 
 
 patch3 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, 25, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/sand.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.9, 0.9, 0.5))
+                         chrono.ChCoordsysd(chrono.ChVector3d(25, -25, 0), chrono.QUNIT),
+                         50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/rocks.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
 
 
 patch4 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(25, 25, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/snow.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+                         chrono.ChCoordsysd(chrono.ChVector3d(-25, -25, 0), chrono.QUNIT),
+                         50, 50)
+patch4.SetHeightfield(veh.GetDataFile("terrain/heightmaps/bumpyterrain_dem.raw"),
+                      50, 50, 5, 5, 5)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.5, 0.4, 0.3))
 
 
-def height_map(x, y):
-    return math.sin(x / 10) * math.cos(y / 10) * 2
-
-patch1.SetHeightFunction(height_map)
-
-
-def bump(x, y):
-    dist = math.sqrt((x-10)**2 + (y-10)**2)
-    if dist < 5:
-        return 1 - (dist / 5)
-    else:
-        return 0
-
-patch2.SetHeightFunction(bump)
+bump = terrain.AddPatch(patch_mat,
+                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT),
+                       10, 10)
+bump.SetHeightfield(veh.GetDataFile("terrain/heightmaps/bump_dem.raw"),
+                    10, 10, 2, 2, 2)
+bump.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+bump.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
 
 terrain.Initialize()
 

@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
-import pychrono.utils as utils
+import pychrono.sensor as chronosensor
 import numpy as np
 
 
@@ -13,71 +12,74 @@ system = chrono.ChSystemNSC()
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
+vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('PyChrono LIDAR Simulation')
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
 
-mesh_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
-mesh_body.SetBodyFixed(True)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('path/to/your/mesh.obj', False, True)
+meshBody = chrono.ChBodyEasyBox(1, 1, 1, 1000, False, False)
+meshBody.SetPos(chrono.ChVectorD(0, 0, 0))
+meshBody.SetBodyFixed(True)
+meshBody.GetVisualShape(0).SetMesh(mesh)
+system.Add(meshBody)
 
 
-system.Add(mesh_body)
+lidar = chronosensor.ChSensorLidar()
+lidar.SetName("lidar_sensor")
+lidar.SetLidarType(chronosensor.ChSensorLidar::LIDAR_TYPE_RAY)
+lidar.SetLidarSize(chrono.ChVectorD(0.1, 0.1, 0.1))
+lidar.SetLidarRange(10)
+lidar.SetLidarFoV(chrono.ChVectorD(360, 360))
+lidar.SetLidarResolution(chrono.ChVectorD(1, 1))
+lidar.SetLidarNoise(0.01)
+lidar.SetLidarMaxPoints(10000)
 
 
-lidar_sensor = sensors.ChSensorLidar(mesh_body)
-lidar_sensor.SetName("lidar_sensor")
-lidar_sensor.SetPointCloudSize(360, 180)  
-lidar_sensor.SetRange(10)  
-lidar_sensor.SetAngleResolution(1)  
+sensor_mgr = chronosensor.ChSensorManager(system)
+sensor_mgr.AddSensor(lidar)
+lidar.AttachToBody(meshBody)
 
 
-noise_filter = sensors.ChSensorNoiseFilterGaussian()
-noise_filter.SetStandardDeviation(0.01)
-lidar_sensor.AddFilter(noise_filter)
+lidar.SetEnableVisualization(True)
+lidar.SetVisualizationMode(chronosensor.ChSensorLidar::VISUALIZATION_MODE_POINTS)
+lidar.SetVisualizationPointSize(5)
+lidar.SetVisualizationPointColor(chrono.ChColor(1, 0, 0))
 
 
-lidar_sensor.EnableVisualization(chrono.ChColorf(1, 0, 0), 0.01)
+lidar.SetEnableDataSaving(True)
+lidar.SetDataSavePath('path/to/save/lidar_data')
 
 
-lidar_sensor.EnableSaveData(True, "lidar_data.csv")
+step_size = 0.01
+total_time = 10
+num_steps = int(total_time / step_size)
 
 
-sensor_manager = sensors.ChSensorManager()
-sensor_manager.AddSensor(lidar_sensor)
-system.Add(sensor_manager)
-
-
-time_step = 0.01
-end_time = 10
-
-
-orbit_radius = 2
+orbit_radius = 5
 orbit_speed = 0.1
 
 
-current_time = 0
-while current_time < end_time:
+for step in range(num_steps):
     
-    angle = orbit_speed * current_time
-    lidar_sensor.GetBody().SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), 0, orbit_radius * np.sin(angle)))
-
-    
-    system.DoStepDynamics(time_step)
+    angle = orbit_speed * step * step_size
+    lidar_pos = chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 1)
+    lidar.SetPos(lidar_pos)
 
     
-    lidar_buffer = lidar_sensor.GetPointCloud()
-    print(f"Time: {current_time:.2f} - LIDAR Buffer Data: {lidar_buffer}")
+    system.DoStepDynamics(step_size)
 
     
-    vis.Run()
+    lidar_buffer = lidar.GetLidarBuffer()
+    print(f"Step {step}: LIDAR buffer data - {lidar_buffer}")
 
     
-    current_time += time_step
+    vis.Render()
 
 
-vis.Close()
+vis.Run()

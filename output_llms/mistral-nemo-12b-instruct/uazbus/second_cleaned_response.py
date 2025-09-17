@@ -134,13 +134,13 @@ while vis.Run():
     terrain.Advance(step_size)
 
     
-    if step_number < lane_change_time * render_steps:
+    if time < lane_change_time:
         
         driver_inputs.steering = 0.5
-    elif lane_change_time * render_steps <= step_number < (lane_change_time + braking_time) * render_steps:
+    elif time < lane_change_time * 2:
         
         driver_inputs.steering = -0.5
-    elif (lane_change_time + braking_time) * render_steps <= step_number < (lane_change_time + 2 * braking_time) * render_steps:
+    elif time < lane_change_time * 3:
         
         driver_inputs.throttle = 0
         driver_inputs.braking = 1
@@ -154,6 +154,5 @@ while vis.Run():
 
     
     step_number += 1
-
     
     realtime_timer.Spin(step_size)

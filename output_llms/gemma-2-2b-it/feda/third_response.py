@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Change to grass texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Replace with grass texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -82,6 +82,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -138,16 +139,13 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Add camera sensor to vehicle
-    sensor_manager = veh.ChSensorManager()
-    camera = veh.ChCameraSensor()
+    # Add camera sensor
+    camera = veh.ChCamera()
+    camera.SetPosition(chrono.ChVector3d(0, 0, 0))
+    camera.SetLookAt(chrono.ChVector3d(0, 0, 0))
     camera.SetResolution(1920, 1080)
-    camera.SetFieldOfView(60.0)
-    camera.SetFocalLength(50.0)
-    sensor_manager.AddSensor(camera)
+    camera.SetFieldOfView(45.0)
+    vis.AddCamera(camera)
 
-    # Add visualization filter for camera sensor
-    vis.AddCameraSensor(camera)
-
-    # Update camera sensor in the simulation loop
-    vis.UpdateSensor(time, sensor_manager)
+    # Update the camera sensor
+    vis.UpdateCameraSensor(time)

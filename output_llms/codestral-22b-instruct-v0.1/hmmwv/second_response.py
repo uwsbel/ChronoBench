@@ -38,10 +38,6 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Circular path parameters
-path_radius = 20.0
-path_center = chrono.ChVector3d(0, path_radius, 0)
-
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
@@ -50,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -81,36 +78,34 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+# Create the circular path
+path_radius = 10.0
+path_center = chrono.ChVector3d(0, 0, 0)
+
+# Create the sentinel and target points for visualization
+sentinel_sphere = chrono.ChSphereShape(0.2)
+target_sphere = chrono.ChSphereShape(0.2)
+sentinel_body = chrono.ChBodyEasySphere(0.2, 1000, False, True)
+target_body = chrono.ChBodyEasySphere(0.2, 1000, False, True)
+vehicle.GetSystem().Add(sentinel_body)
+vehicle.GetSystem().Add(target_body)
+
 # Create the path follower
-path_follower = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path_center, path_radius)
+path_follower = veh.ChPathFollower(vehicle.GetVehicle(), path_center, path_radius)
 path_follower.Initialize()
 
-# Set the throttle value and PID gains for steering control
+# Set the constant throttle value
 throttle_value = 0.3
+
+# Set the PID controller gains for steering control
 steering_gain = 0.5
 proportional_gain = 0.1
 integral_gain = 0.0
-derivative_gain = 0.0
-path_follower.SetSteeringGains(steering_gain, proportional_gain, integral_gain, derivative_gain)
+derivative_gain = 0.1
+path_follower.SetGains(steering_gain, proportional_gain, integral_gain, derivative_gain)
 
-# Create visualization for sentinel and target points
-sentinel_sphere = chrono.ChSphereShape(0.2)
-sentinel_body = chrono.ChBodyEasySphere(0.2, 1000, True, True, chrono.ChMaterialSurfaceNSC())
-sentinel_body.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
-sentinel_body.GetCollisionModel().ClearModel()
-sentinel_body.GetCollisionModel().AddSphere(0.2)
-sentinel_body.GetCollisionModel().BuildModel()
-sentinel_body.SetBodyFixed(True)
-vehicle.GetSystem().Add(sentinel_body)
-
-target_sphere = chrono.ChSphereShape(0.2)
-target_body = chrono.ChBodyEasySphere(0.2, 1000, True, True, chrono.ChMaterialSurfaceNSC())
-target_body.SetPos(path_center)
-target_body.GetCollisionModel().ClearModel()
-target_body.GetCollisionModel().AddSphere(0.2)
-target_body.GetCollisionModel().BuildModel()
-target_body.SetBodyFixed(True)
-vehicle.GetSystem().Add(target_body)
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -127,17 +122,31 @@ while vis.Run():
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
+
+        # Visualize the path using two balls
+        sentinel_pos = path_follower.GetSentinelPosition()
+        target_pos = path_follower.GetTargetPosition()
+        sentinel_body.SetPos(sentinel_pos)
+        target_body.SetPos(target_pos)
+
+        vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    # Update the path follower
+    path_follower.Advance()
+
+    # Get driver inputs
+    driver_inputs = veh.ChDriverInputs()
+    driver_inputs.m_throttle = throttle_value
+    driver_inputs.m_steering = path_follower.GetSteering()
+
     # Update modules (process inputs from other modules)
-    path_follower.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, path_follower.GetInputs(), terrain)
-    vis.Synchronize(time, path_follower.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

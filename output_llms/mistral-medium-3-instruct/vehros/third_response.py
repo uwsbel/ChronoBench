@@ -27,10 +27,8 @@ def main():
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
     # Create a visualization box
-    vis_box = ch.ChBodyEasyBox(1, 1, 1, 1000)
-    vis_box.SetPos(ch.ChVector3d(0, 0, 2))
-    vis_box.SetBodyFixed(True)
-    vis_box.GetVisualModel().SetColor(ch.ChColor(0.5, 0.5, 0.5))
+    vis_box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    vis_box.SetPos(ch.ChVector3d(5, 0, 1))
     hmmwv.GetSystem().Add(vis_box)
 
     # Create the terrain for the vehicle to interact with.
@@ -71,32 +69,27 @@ def main():
     # Create sensor manager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
 
-    # Create and configure a LIDAR sensor
-    lidar = sens.ChLidarSensor(vis_box)
-    lidar.SetName("LIDAR")
-    lidar.SetLidarType(sens.LidarType::SCANNER)
-    lidar.SetFrequency(20)  # Hz
-    lidar.SetVerticalResolution(1)  # Number of vertical channels
-    lidar.SetHorizontalResolution(360)  # Number of horizontal channels
-    lidar.SetVerticalRange(0.1)  # Vertical field of view (radians)
-    lidar.SetHorizontalRange(6.28)  # Horizontal field of view (radians)
-    lidar.SetMinRange(0.1)  # Minimum detection range
-    lidar.SetMaxRange(50)  # Maximum detection range
-    lidar.SetFilter(sens.ChLidarFilter::DEFAULT)
-    lidar.SetFilter(sens.ChLidarFilter::RING)
-    lidar.SetFilter(sens.ChLidarFilter::DISTANCE)
-    lidar.SetFilter(sens.ChLidarFilter::INTENSITY)
-    lidar.SetFilter(sens.ChLidarFilter::TIMESTAMP)
-    lidar.AddChannel(sens.ChLidarChannel::DISTANCE)
-    lidar.AddChannel(sens.ChLidarChannel::INTENSITY)
-    lidar.AddChannel(sens.ChLidarChannel::RING)
-    lidar.AddChannel(sens.ChLidarChannel::TIMESTAMP)
-    lidar.SetOffset(ch.ChVector3d(0, 0, 0.5))  # Position offset from the box
-    lidar.SetRotation(ch.ChQuaterniond(1, 0, 0, 0))  # Orientation
+    # Create a lidar sensor
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(),  # body to which the sensor is attached
+                               0.1,                     # update rate in Hz
+                               ch.ChVector3d(0, 0, 1),   # sensor position relative to body
+                               ch.ChVector3d(0, 0, 1),   # sensor pointing direction
+                               0,                       # horizontal field of view
+                               360,                     # vertical field of view
+                               0.1,                     # horizontal resolution
+                               0.1,                     # vertical resolution
+                               10.0)                    # max range
+
+    # Add filters to the lidar
+    lidar.AddFilter(sens.ChFilterPCfromLidar())
+    lidar.AddFilter(sens.ChFilterSaveToFile("lidar_data"))
+    lidar.AddFilter(sens.ChFilterVisualizePointCloud(vis))
+
+    # Add the lidar to the sensor manager
     sens_manager.AddSensor(lidar)
 
-    # Register LIDAR handler for ROS
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/points"))
+    # Register the lidar handler with ROS
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar_data"))
 
     # Start the simulation loop.
     time = 0
@@ -110,6 +103,7 @@ def main():
     render_step_size = 1.0 / 25  # FPS = 25
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+
     while vis.Run():  # Run the simulation loop.
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
         # Render the scene
@@ -117,6 +111,10 @@ def main():
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
+
+        # Update the sensor manager
+        sens_manager.Update()
+
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  # Synchronize the driver system.
@@ -128,12 +126,10 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Update sensor manager
-        sens_manager.Update()
-
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
+
         step_number += 1
 
 if __name__ == "__main__":

@@ -19,11 +19,14 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.ChVehicleVisualizationType_MESH)  
-    hmmwv.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType_MESH)  
-    hmmwv.SetSteeringVisualizationType(veh.ChVehicleVisualizationType_MESH)  
-    hmmwv.SetWheelVisualizationType(veh.ChVehicleVisualizationType_MESH)  
-    hmmwv.SetTireVisualizationType(veh.ChVehicleVisualizationType_MESH)  
+
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_VIS_VOLUME)  
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_VIS_LINE)  
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_VIS_LINE)  
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_VIS_SIMPLE)  
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_VIS_SIMPLE)  
+
     hmmwv.Initialize()  
 
     
@@ -31,8 +34,10 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
+
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+
     terrain.Initialize()  
 
     
@@ -50,12 +55,10 @@ def main():
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(veh.GetDataFile("logo_pychrono.png"))
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, -50, 0), ch.ChVector3d(0, 10, 0))
-    vis.SetCameraVertical(ChronoTypes.chcamera_VERTICAL_CENTERED)
+    vis.AddLogo(veh.GetDataFile('vehicle/logo_pychrono.png'))
+    vis.AddSkyBox(veh.GetDataFile('vehicle/skybox.png'), ch.CGALAXY_BOX)
 
     
     time = 0
@@ -63,6 +66,7 @@ def main():
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -82,10 +86,8 @@ def main():
             break  
 
         
-        vis.BeginScene()
         vis.Render()
-        vis.EndScene()
-        vis.Render()
+        vis.GetDevice().Yield()  
 
 if __name__ == "__main__":
     main()

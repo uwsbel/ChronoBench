@@ -60,7 +60,7 @@ vehicle1.SetTireVisualizationType(vis_type)
 vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-initLoc2 = chrono.ChVector3d(5, 0, 0.5)
+initLoc2 = chrono.ChVector3d(10, 0, 0.5)
 initRot2 = chrono.ChQuaterniond(1, 0, 0, 0)
 vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
@@ -107,6 +107,8 @@ vis.AttachVehicle(vehicle2.GetVehicle())
 
 
 driver1 = veh.ChInteractiveDriverIRR(vis)
+
+
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -129,6 +131,7 @@ driver2.Initialize()
 
 
 print("VEHICLE MASS: ", vehicle1.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle2.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -159,10 +162,6 @@ while vis.Run() :
     vehicle1.Synchronize(time, driver_inputs1, terrain)
     vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs1)
-
-    
-    driver_inputs1.m_steering = 0.5 * math.sin(time)
-    driver_inputs2.m_steering = 0.5 * math.sin(time)
 
     
     driver1.Advance(step_size)

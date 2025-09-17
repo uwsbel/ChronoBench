@@ -71,15 +71,22 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+box_body = chrono.ChBody()
+box_body.SetPos(chrono.ChVector3d(10, 0, 0.5))  
+box_body.SetFixed(True)
 box_mat = chrono.ChContactMaterialSMC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 
-box = chrono.ChBodyEasyBox(15, 1.0, 1.0, 2000, True, True, box_mat)  
-box.SetPos(chrono.ChVector3d(10, 0, 0.5))  
-box.SetFixed(True)
-box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-vehicle.GetSystem().Add(box)
+box_body.GetCollisionModel().ClearModel()
+box_body.GetCollisionModel().AddBox(box_mat, 5, 1, 0.5)  
+box_body.GetCollisionModel().BuildModel()
+box_body.EnableCollision(True)
+
+box_vis_shape = chrono.ChVisualShapeBox(10, 2, 1)  
+box_vis_shape.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+box_body.AddVisualShape(box_vis_shape)
+vehicle.GetSystem().AddBody(box_body)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -109,7 +116,7 @@ driver.Initialize()
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,10 +125,12 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run() :
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -131,7 +140,8 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     
     
-    driver_inputs.m_throttle = 0.8  
+    driver_inputs.m_throttle = 0.8
+    driver_inputs.m_braking = 0.0  
     
     
     driver.Synchronize(time)
@@ -139,9 +149,11 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    
     
     step_number += 1

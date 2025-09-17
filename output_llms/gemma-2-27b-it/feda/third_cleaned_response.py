@@ -48,7 +48,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -69,7 +68,7 @@ patch = terrain.AddPatch(patch_mat,
     terrainLength, terrainWidth)
 
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200) 
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -86,30 +85,28 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-vis.AddLightPoint(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1), 1000)
-vis.AddLightPoint(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1, 1, 1), 1000)
+vis.AddLightPoint(chrono.ChVector3d(0, 10, 10), chrono.ChColor(1, 1, 1), 500)
+vis.AddLightPoint(chrono.ChVector3d(10, 10, 0), chrono.ChColor(1, 1, 1), 500)
 
 
-sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
+sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
 
-camera = veh.ChCameraSensor(
-    "camera",
-    chrono.ChVector3d(0, 0, 2),  
-    chrono.ChVector3d(0, 0, -1), 
-    chrono.ChVector3d(0, 1, 0)   
-)
-camera.SetResolution(1920, 1080)
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody())
+camera.SetPos(chrono.ChVector3d(0, 1.5, 0.5)) 
+camera.SetDir(chrono.ChVector3d(0, 0, -1)) 
+camera.SetResolution(1280, 720)
 camera.SetFOV(90)
-camera.AttachToVehicle(vehicle.GetVehicle().GetChassisBody())
+camera.SetName("Camera")
 
 
-camera_filter = veh.ChVisualizationFilterCamera()
-camera_filter.SetCamera(camera)
+filter = chrono.ChVisualizationFilter()
+filter.SetFilterType(chrono.ChVisualizationFilter.Type_IMAGE)
+filter.SetImageSize(1280, 720)
+camera.AddFilter(filter)
 
 
 sensor_manager.AddSensor(camera)
-sensor_manager.AddFilter(camera_filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -153,14 +150,15 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time) 
+
+    
+    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size) 
 
     
     step_number += 1

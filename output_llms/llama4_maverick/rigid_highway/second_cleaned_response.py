@@ -4,7 +4,9 @@ import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')  
+chrono.SetChronoDataPath('/path/to/chrono/data')
+
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -21,9 +23,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0 
-terrainLength = 100.0 
-terrainWidth = 100.0 
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -37,7 +39,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50 
+render_step_size = 1.0 / 50  
 
 
 vehicle = veh.HMMWV_Full()
@@ -65,39 +67,39 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-                         chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), 
-                         True, 0.01, False)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                         chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), True, 0.01, False)
 
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 
-new_patch = terrain.AddPatch(patch_mat, 
-                             chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT), 
-                             chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), 
-                             True, 0.01, False)
+patch_bump = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+                              chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, 0.01, False)
 
 
-new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
-new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-new_tri_mesh_shape.SetMesh(new_vis_mesh)
-new_tri_mesh_shape.SetMutable(False)
+bump_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
+bump_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+bump_tri_mesh_shape.SetMesh(bump_mesh)
+bump_tri_mesh_shape.SetMutable(False)
 
 
-new_tri_mesh_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+mat = chrono.ChVisualMaterial()
+mat.SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.8))
+bump_tri_mesh_shape.AddMaterial(mat)
 
 
-texture = chrono.ChVisualMaterial()
-texture.SetKdTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
-texture.SetTextureScale(6.0, 6.0)
-new_tri_mesh_shape.AddMaterial(texture)
+mat = chrono.ChVisualMaterial()
+mat.SetKdTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'))
+mat.SetTextureScale(6.0, 6.0)
+bump_tri_mesh_shape.AddMaterial(mat)
 
-new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
+patch_bump.GetGroundBody().AddVisualShape(bump_tri_mesh_shape)
 
 terrain.Initialize()
 
@@ -116,9 +118,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0 
-throttle_time = 1.0 
-braking_time = 0.3 
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -130,11 +132,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -134,18 +134,18 @@ while vis.Run():
     terrain.Advance(step_size)
 
     # Logic for double lane change maneuver
-    if step_number < lane_change_time * render_steps:
-        # Steer left for lane change
+    if time < lane_change_time:
+        # Steering for first lane change
         driver_inputs.steering = 0.5
-    elif lane_change_time * render_steps <= step_number < (lane_change_time + braking_time) * render_steps:
-        # Steer right for lane change
+    elif time < lane_change_time * 2:
+        # Steering for second lane change
         driver_inputs.steering = -0.5
-    elif (lane_change_time + braking_time) * render_steps <= step_number < (lane_change_time + 2 * braking_time) * render_steps:
-        # Brake after lane change
+    elif time < lane_change_time * 3:
+        # Braking after lane changes
         driver_inputs.throttle = 0
         driver_inputs.braking = 1
     else:
-        # Normal driving after maneuver
+        # Normal driving after braking
         driver_inputs.steering = 0
         driver_inputs.throttle = 0.5
 
@@ -154,6 +154,5 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
-
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

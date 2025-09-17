@@ -8,52 +8,39 @@ ch.InitChroNode()
 sys = ch.ChSystem()
 
 
-ch.SetMaterial(1, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
-ch.SetMaterial(2, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
+sys.SetGravity(0, 0, -9.81)
 
 
-floor = ch.ChBody()
-floor.SetPos(ch.Vec3(0, 0, 0))
-floor.SetRot(ch.Vec3(0, 0, 0))
-floor.SetMass(0)
+mat = ch.ChMaterialTool.SetFromNameDefault("StainlessSteel")
+
+
+floor = ch.ChBodyEasyBox(10, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, mat)
 floor.SetBodyFixed(True)
-floor.SetMaterial(1)
 sys.Add(floor)
 
 
-box = ch.ChBody()
-box.SetPos(ch.Vec3(0, 1, 0))
-box.SetRot(ch.Vec3(0, 0, 0))
-box.SetMass(1)
-box.SetBodyFixed(False)
-box.SetMaterial(2)
+box = ch.ChBodyEasyBox(1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, mat)
+box.SetPos(0, 1, 0)
 sys.Add(box)
 
 
-class MyROSHandler(ROSHandler):
+class MyHandler(ROSHandler):
     def __init__(self):
         super().__init__()
         self.count = 0
 
-    def on_timer(self):
-        self.publish_message(self.count)
+    def publish(self):
+        self.publish_int("my_topic", self.count)
+
+    def update(self):
         self.count += 1
 
 
-ros_manager = ROSManager()
-ros_manager.set_clock_handler(ch.ChClockHandler())
-ros_manager.set_body_handler(ch.ChBodyHandler())
-ros_manager.set_transform_handler(ch.ChTransformHandler())
-ros_manager.register_handler(MyROSHandler())
+ros_manager = ROSManager(sys, 10)
+ros_manager.AddHandler(MyHandler())
 
 
-t = 0
-dt = 0.001
-while t < 10:
-    sys.DoStep(dt)
-    ros_manager.update()
-    t += dt
-
-
-sys.Destroy()
-ros_manager.shutdown()
+while True:
+    sys.DoStepDynamics(0.01)
+    ros_manager.Update()
+    ros_manager.Poll()

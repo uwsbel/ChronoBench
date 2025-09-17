@@ -2,58 +2,53 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.ChSystemNSC my_system
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('PyChrono Beam Elements Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 beam_material = chrono.ChMaterialBeam()
 beam_material.SetYoungModulus(210e9)  
-beam_material.SetG(80e9)              
-beam_material.SetDensity(7800)        
-
-beam1 = chrono.ChBeamSectionCircular()
-beam1.SetRadius(0.01)  
-beam1.SetMaterial(beam_material)
+beam_material.SetDensity(7800)  
+beam_material.SetDampingRatio(0.02)  
 
 
-node1 = chrono.ChNodeFEAbeam()
-node1.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(node1)
-
-node2 = chrono.ChNodeFEAbeam()
-node2.SetPos(chrono.ChVectorD(1, 0, 0))
-my_system.Add(node2)
-
-
-beam_element = chrono.ChElementBeam()
-beam_element.SetNodes(node1, node2)
-beam_element.SetBeamSection(beam1)
-beam_element.SetLength(1)  
-my_system.Add(beam_element)
+nodes = []
+for i in range(5):
+    node = chrono.ChNodeFEMbeam()
+    node.SetFrame_COG_to_REF(chrono.ChFrameD(chrono.ChVectorD(0, i, 0)))
+    node.SetMaterial(beam_material)
+    node.SetBeamRadius(0.01)  
+    system.Add(node)
+    nodes.append(node)
 
 
-vis_shape = chrono.ChVisualShapeSphere(0.02)
-vis_shape.GetMaterial().SetEmissivity(chrono.ChColorf(0.1, 0.1, 0.1))
-node1.AddVisualShape(vis_shape)
-
-vis_shape = chrono.ChVisualShapeSphere(0.02)
-vis_shape.GetMaterial().SetEmissivity(chrono.ChColorf(0.1, 0.1, 0.1))
-node2.AddVisualShape(vis_shape)
-
-
-while vis.Run():
-    my_system.DoStepDynamics(0.01)  
-    vis.Render()
+for i in range(len(nodes) - 1):
+    beam = chrono.ChElementBeam()
+    beam.SetNodes(nodes[i], nodes[i + 1])
+    beam.SetLength(1)  
+    beam.SetCrossArea(0.01)  
+    beam.SetYoungModulus(210e9)  
+    beam.SetDensity(7800)  
+    system.Add(beam)
 
 
-vis.Close()
+application = chronoirr.ChIrrApp(system, 'Beam FEM Simulation', chrono.ChVectorD(0.2, 0.2, 0.9))
+
+
+floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True, chrono.ChMaterialSurfaceNSC())
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(floor)
+application.AddVisualSystem(floor)
+
+
+application.SetTimestep(0.01)  
+application.SetTryRealTime(True)  
+application.SetWindowSize(800, 600)  
+application.SetShowInfoText(True)  
+application.SetShowStats(True)  
+
+application.Initialize()
+application.Run()

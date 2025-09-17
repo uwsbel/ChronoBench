@@ -5,180 +5,153 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script uses `veh.HMMWV_Full()` which internally creates and manages its own system. However, the script does **not explicitly create a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system** and assign it to a variable. Instead, it relies on the vehicle's internal system. This is acceptable in vehicle simulations since `veh.HMMWV_Full()` encapsulates the system creation.  
-  **No deduction here.**
+  The script uses `veh.HMMWV_Full()` which internally creates and manages its own system. However, the script never explicitly creates or initializes a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object. According to the API, vehicle models typically manage their own system internally, so this is acceptable.  
+  **No deduction.**
 
 - **Body Creation:**  
-  The vehicle is created via `veh.HMMWV_Full()`, which is the standard vehicle model. Terrain patches are created properly with materials and textures.  
-  **No deduction here.**
+  The vehicle model `veh.HMMWV_Full()` is used, which internally creates all vehicle bodies. No explicit body creation is needed here.  
+  **No deduction.**
 
 - **Visualization:**  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, with window size, title, camera, logo, lighting, skybox, and vehicle attachment. This is complete and follows best practices.  
-  **No deduction here.**
+  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is appropriate for vehicle simulations. The visualization is initialized, window size and title are set, and the vehicle is attached. Additional visual elements like logo, skybox, and directional light are added.  
+  **No deduction.**
+
+- **Terrain Setup:**  
+  The terrain is created using `veh.RigidTerrain`, with multiple patches added (flat patches, mesh, height map). Each patch has material properties, color, and texture set. Terrain is initialized properly.  
+  **No deduction.**
 
 - **Driver Setup:**  
-  The interactive driver is created and initialized properly.  
-  **No deduction here.**
+  An interactive driver `veh.ChInteractiveDriverIRR` is created and initialized with appropriate input deltas.  
+  **No deduction.**
 
 - **Simulation Loop:**  
-  The loop runs while `vis.Run()`, with proper calls to `BeginScene()`, `Render()`, `EndScene()`, synchronization, and advance steps for all components.  
-  **No deduction here.**
+  The loop runs while `vis.Run()` is true, and calls `BeginScene()`, `Render()`, `EndScene()`. Synchronization and advancement of driver, terrain, vehicle, and visualization are done in order.  
+  However, **`step_size` is used inside the loop before it is defined** (the global `step_size` is defined after the `main()` function). This is a critical omission that will cause a runtime error.  
+  **Deduct 15 points for missing essential component: proper step size definition before use.**
 
-- **Data Path Setup:**  
-  The data path for vehicle assets is set before `main()` is called, which is correct.  
-  **No deduction here.**
+- **Data Path Setting:**  
+  The line `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')` is placed after the `main()` function call, which means it will be executed after the simulation runs. This is incorrect because the vehicle data path should be set before vehicle initialization to ensure all data files are found correctly.  
+  **Deduct 15 points for missing essential component: proper data path setup before vehicle initialization.**
 
-- **Missing Initialization of Collision System Envelope/Margin:**  
-  The code sets the collision system type to Bullet via `hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)`. However, it does **not set the default collision envelope or margin**, which is recommended for Bullet collision stability and accuracy.  
-  **Deduct 5 points for minor omission.**
-
-- **Missing Explicit System Time Step Settings:**  
-  The script uses `step_size` and `tire_step_size` but does not explicitly set the system's solver timestep or integrator parameters. While the vehicle model may handle some of this internally, explicit setting is generally recommended for clarity and control.  
-  **Deduct 5 points for minor omission.**
-
-**Total Completeness deduction: 10 points**
+**Total Completeness Deduction: 30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `veh.HMMWV_Full()` and its methods:**  
-  The sequence of calls to set contact method, chassis fixed state, initial position, engine, transmission, driveline, tire type, tire step size, and then `Initialize()` is correct and follows API guidelines.
+- **Contact Method Setting:**  
+  The contact method is set on the vehicle via `hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)`, which is correct.
 
-- **Terrain patches:**  
-  The calls to `AddPatch()` with different parameters (flat patches, mesh, height map) are correct and consistent with the API.
+- **Collision System Type:**  
+  The collision system type is set to `chrono.ChCollisionSystem.Type_BULLET` on the vehicle's system, which is appropriate.
 
-- **Visualization:**  
-  Use of `veh.ChWheeledVehicleVisualSystemIrrlicht()` and its methods is correct.
+- **Material Setup:**  
+  Contact materials for terrain patches are created with friction and restitution set properly.
 
-- **Driver:**  
-  Use of `veh.ChInteractiveDriverIRR()` and its methods is correct.
+- **Visualization Types:**  
+  Visualization types for chassis, suspension, steering, wheels, and tires are all set to `veh.VisualizationType_MESH`, which is valid.
 
-- **Simulation loop:**  
-  The order of synchronization and advance calls is correct.
+- **Initialization Order:**  
+  The vehicle is initialized before setting visualization types, which is not ideal. According to best practices, visualization types should be set **before** calling `Initialize()`. Setting visualization types after initialization may have no effect or cause inconsistencies.  
+  **Deduct 10 points for incorrect configuration order.**
 
-- **Use of `veh.SetDataPath()` after imports but before `main()`:**  
-  This is correct.
-
-- **Use of `chrono.QUNIT` for identity quaternion:**  
-  Correct usage.
-
-- **Potential issue: `hmmwv.SetChassisFixed(False)` called before `Initialize()`:**  
-  This is correct; the chassis is not fixed, allowing dynamics.
-
-- **Use of `hmmwv.GetSystem().SetCollisionSystemType(...)` after vehicle initialization:**  
-  This is acceptable, but the collision system type is usually set before initialization to ensure proper setup. Setting it after `Initialize()` may not have the intended effect or may require reinitialization.  
-  **Deduct 10 points for logical error here.**
-
-- **Use of `driver.GetInputs()` before `driver.Synchronize(time)`:**  
-  The code calls `driver.GetInputs()` before `driver.Synchronize(time)`. According to best practices, inputs should be updated after synchronization to reflect the current time step. This is a minor logical sequencing issue.  
+- **Driver Synchronization:**  
+  The driver is synchronized with time, but the call to `driver.Synchronize(time)` is made **before** `driver_inputs = driver.GetInputs()`. According to typical usage, inputs should be fetched after synchronization or at least consistently. This is a minor logical inconsistency but unlikely to cause major issues.  
   **Deduct 5 points for minor logical error.**
 
-- **Use of `hmmwv.GetVehicle().EnableRealtime(True)`:**  
-  This is correct and enables real-time simulation.
+- **Advance Calls:**  
+  The calls to `Advance(step_size)` for driver, terrain, vehicle, and visualization are correct.
 
-**Total Correctness deduction: 15 points**
+- **Use of `veh.SetDataPath` after `main()`:**  
+  As noted above, this is incorrect and will cause data loading issues. This is a correctness issue. Already deducted under completeness.
+
+**Total Correctness Deduction: 15 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  The code is structured into a `main()` function, which is good practice. Variable names are meaningful (e.g., `hmmwv`, `terrain`, `patch1_mat`). Indentation and formatting are consistent.
+- **Readability and Structure:**  
+  The code is mostly readable with meaningful variable names. However, the global variables `step_size` and `tire_step_size` are defined after the `main()` function and used inside it, which is poor practice and can cause confusion or errors.  
+  Also, the code lacks consistent spacing and some comments are missing or minimal.
 
 - **Comments:**  
-  The code lacks comments explaining the purpose of blocks, parameters, or the overall flow. For example, no comments on why certain friction values are chosen or what the terrain patches represent.
+  There are no comments explaining the purpose of major blocks or parameters, which is not ideal for maintainability or clarity.
 
-- **Use of magic numbers:**  
-  Some parameters like friction (0.9), restitution (0.01), and patch sizes are hardcoded without explanation.
+- **Formatting:**  
+  The code formatting is acceptable but could be improved with consistent blank lines and indentation.
 
-- **Global variables `step_size` and `tire_step_size` are defined after `main()` but used inside it:**  
-  This works in Python but is not best practice. They should be defined before `main()` or passed as parameters.
-
-**Deduct 5 points for lack of comments and minor code organization issues.**
+**Deduct 5 points for insufficient comments and minor readability issues.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **No obvious redundant calculations or API calls.**
+- **Redundant or Unnecessary Calls:**  
+  The code sets visualization types after initialization, which may cause redundant internal updates.
 
-- **Potential optimization:**  
-  The terrain patches are created with similar friction and restitution values repeatedly. This could be optimized by reusing a single material instance or defining a helper function to reduce code duplication.
+- **Repeated Material Creation:**  
+  Each terrain patch creates a new `ChContactMaterialNSC` with identical friction and restitution values. This could be optimized by creating one material and reusing it, but this is minor.
 
-- **`driver.GetInputs()` is called but the result is stored in `driver_inputs` and immediately passed to `hmmwv.Synchronize()`. This is efficient.**
+- **Step Size Variables:**  
+  `tire_step_size` is set twice: once globally and once locally inside `main()`. The global one is unused. This is minor redundancy.
 
-- **No unnecessary calls to `vis.Render()` or similar.**
-
-- **No explicit setting of solver parameters or collision margins, which could improve efficiency and stability.**
-
-**Deduct 3 points for missing minor optimization opportunities (material reuse, parameter setting).**
+**Deduct 3 points for minor inefficiencies and redundant code.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling:**  
-  The script does not check for file existence (e.g., terrain mesh or texture files), nor does it handle exceptions that may arise during initialization or runtime.
+- The script lacks any error handling, try-except blocks, or checks for file existence (e.g., textures, meshes).
 
-- **No checks on driver inputs or system state.**
+- No checks are made to ensure that the visualization system or vehicle initialization succeeded.
 
-- **No handling of edge cases such as simulation termination conditions other than `vis.Run()`.**
+- No handling of edge cases such as invalid driver inputs or simulation termination conditions.
 
-**Deduct 5 points for lack of any error handling or robustness features.**
+**Deduct 5 points for lack of basic error handling and robustness.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Visualization setup is mostly complete:**  
-  Window title, size, chase camera, logo, directional light, skybox, and vehicle attachment are all present.
+- Visualization is set up with window size, title, chase camera, logo, directional light, and skybox.
 
-- **Minor issue:**  
-  The code uses `vis.AddLightDirectional()` but the API documentation suggests `vis.AddTypicalLights()` is a more standard approach for lighting, providing multiple light sources for better scene illumination.
+- However, the script uses `vis.AddLightDirectional()` instead of `vis.AddTypicalLights()`. The latter is recommended for standard lighting setups and ensures multiple light sources for better scene illumination.
 
-- **No camera addition other than chase camera; adding a fixed camera could improve visualization.**
+- The camera is set with `SetChaseCamera` but no additional cameras or controls are added.
 
-**Deduct 2 points for minor visualization suboptimality (lighting and camera setup).**
+- Minor visualization issue: no call to `vis.AddTypicalLights()` which is standard for good lighting.
 
----
-
-### Summary of deductions:
-
-| Criterion                  | Deduction Points | Reason                                                                                  |
-|----------------------------|------------------|-----------------------------------------------------------------------------------------|
-| Completeness               | 10               | Missing collision envelope/margin setup; no explicit system timestep settings          |
-| Correctness                | 15               | Setting collision system type after initialization; driver input synchronization order |
-| Code Quality               | 5                | Lack of comments; global vars after main; minor organization issues                     |
-| Efficiency                 | 3                | Repeated material creation; missing solver/collision parameter optimization             |
-| Error Handling & Robustness| 5                | No error handling or robustness features                                               |
-| Visualization              | 2                | Suboptimal lighting setup; no additional cameras                                        |
-| **Total Deductions**       | **40**           |                                                                                         |
+**Deduct 2 points for minor visualization setup issues.**
 
 ---
 
-### Final score:
+### Summary of Deductions
 
-40 points deducted from 100 total → **60 points**
+| Category                     | Deduction Points |
+|------------------------------|------------------|
+| Completeness                 | 30               |
+| Correctness                 | 15               |
+| Code Quality                | 5                |
+| Efficiency                  | 3                |
+| Error Handling and Robustness | 5                |
+| Visualization Tools         | 2                |
+| **Total Deduction**           | **60**           |
 
 ---
 
-**Final score:**  
-[[60]]
+### Final Score
+
+100 - 60 = **40**
 
 ---
 
-**Explanation:**  
-The script demonstrates a mostly complete and correct vehicle simulation setup using PyChrono's vehicle module and visualization tools. It properly initializes the vehicle, terrain, driver, and visualization, and runs a simulation loop with synchronization and advancement steps.
+### Explanation
 
-However, it has some notable issues:
+The script demonstrates a mostly correct and complete vehicle simulation setup using PyChrono's vehicle module and rigid terrain. However, critical issues such as the incorrect order of setting the data path (after vehicle initialization), use of `step_size` before definition, and setting visualization types after initialization significantly impact correctness and completeness. Minor issues in code quality, efficiency, error handling, and visualization setup further reduce the score.
 
-- Setting the collision system type after vehicle initialization is a logical error that could affect collision behavior.  
-- Minor sequencing issues with driver input synchronization.  
-- Lack of collision envelope/margin settings and explicit solver timestep configuration reduces simulation stability and clarity.  
-- Code quality suffers from lack of comments and minor structural issues.  
-- No error handling or robustness considerations are present.  
-- Visualization setup is good but could be improved with better lighting and camera options.  
-- Minor efficiency improvements are possible by reusing materials and setting solver parameters.
+---
 
-Addressing these points would significantly improve the simulation's robustness, correctness, and maintainability.
+**Final score:**
+
+[[40]]

@@ -42,7 +42,7 @@ log_step_size = 10
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -88,9 +88,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,25 +102,29 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
-                                 10,
-                                 offset_pose,
-                                 sens.ChNoiseNone())
+                                 10,        
+                                 offset_pose,          
+                                 sens.ChNoiseNone())   
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
+
 imu.PushFilter(sens.ChFilterAccelAccess())
+
 manager.AddSensor(imu)
 
 
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
-                       10,
-                       offset_pose,
-                       chrono.ChVector3d(-89.400, 43.070, 260.0),
-                       sens.ChNoiseNone())
+                       10,        
+                       offset_pose,          
+                       chrono.ChVector3d(-89.400, 43.070, 260.0),  
+                       sens.ChNoiseNone())   
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
+
 gps.PushFilter(sens.ChFilterGPSAccess())
+
 manager.AddSensor(gps)
 
 
@@ -153,10 +157,14 @@ while vis.Run():
         render_frame += 1
 
     
-    throttle = 0.5 * math.sin(time * 2 * math.pi)
-    steering = 0.5 * math.sin(time * 0.5 * math.pi)
-    braking = 0 if time < 6 else 1  
-    driver_inputs = (throttle, steering, braking)
+    throttle = 0.0
+    steering = 0.0
+    braking = 0.0
+    if time < 6:
+        throttle = 1.0
+    elif 6 <= time < 12:
+        braking = 1.0
+    driver_inputs = [steering, throttle, braking]
 
     
     driver.Synchronize(time)
@@ -175,7 +183,8 @@ while vis.Run():
 
     
     if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())  
+        gps_buffer = gps.GetMostRecentGPSBuffer()
+        gps_data.append(gps_buffer.GetGPSData())
 
     
     step_number += 1

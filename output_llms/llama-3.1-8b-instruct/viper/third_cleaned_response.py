@@ -14,19 +14,10 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain = veh.ChScmPlaneDeformable(chrono.ChVector3d(0, 0, 0),  
-                                   chrono.ChVector3d(0, 1, 0),  
-                                   10,  
-                                   10,  
-                                   10,  
-                                   100,  
-                                   1.0,  
-                                   0.3,  
-                                   0.0,  
-                                   0.0)  
-terrain.SetFixed(True)  
-
-terrain.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+terrain = veh.ChScmPlaneDeformable(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1), 1000, 1000, 100, 100, 0.5, 0.1, 0.1)
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetMaterial(chrono.ChMaterialSurfaceNSC().Type_ELASTIC)
+terrain.SetFriction(0.5)
 system.Add(terrain)
 
 

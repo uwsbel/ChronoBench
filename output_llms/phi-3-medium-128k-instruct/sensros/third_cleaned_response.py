@@ -40,6 +40,7 @@ def main():
     intensity = 1.0
     sens_manager.scene.AddPointLight(ch.ChVector3f(2, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
     sens_manager.scene.AddPointLight(ch.ChVector3f(9, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
+    sens_manager.scene.AddPointLight(ch.ChVector3f(16, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
     sens_manager.scene.AddPointLight(ch.ChVector3f(23, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
 
     
@@ -48,7 +49,7 @@ def main():
     cam.PushFilter(sens.ChFilterVisualize(1280, 720))  
     cam.PushFilter(sens.ChFilterRGBA8Access())  
     cam.SetName("camera")
-    sens_manager.AddSensor(cam)
+    sens_manager.scene.AddSensor(cam)
 
     
     lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
@@ -57,42 +58,40 @@ def main():
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
     lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  
     lidar.SetName("lidar")
-    sens_manager.AddSensor(lidar)
-
+    sens_manager.scene.AddSensor(lidar)
+    
     
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
-    sens_manager.AddSensor(lidar2d)
-
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  
+    sens_manager.scene.AddSensor(lidar2d)
+    
     
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
     gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none)
     gps.PushFilter(sens.ChFilterGPSAccess())  
     gps.SetName("gps")
-    sens_manager.AddSensor(gps)
+    sens_manager.scene.AddSensor(gps)
 
     
     acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
     acc.PushFilter(sens.ChFilterAccelAccess())  
     acc.SetName("accelerometer")
-    sens_manager.AddSensor(acc)
+    sens_manager.scene.AddSensor(acc)
 
     
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
     gyro.PushFilter(sens.ChFilterGyroAccess())  
     gyro.SetName("gyroscope")
-    sens_manager.AddSensor(gyro)
+    sens_manager.scene.AddSensor(gyro)
 
     
     mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
     mag.PushFilter(sens.ChFilterMagnetAccess())  
     mag.SetName("magnetometer")
-    sens_manager.AddSensor(mag)
+    sens_manager.scene.AddSensor(mag)
 
     
     sens_manager.Update()
@@ -102,9 +101,9 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
 
     
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -120,7 +119,8 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    ros_manager.Initialize()  
+    
+    ros_manager.Initialize()
 
     
     time = 0
@@ -134,8 +134,12 @@ def main():
         time = sys.GetChTime()  
 
         
-        if not ros_manager.Update():  
-            break  
+        sens_manager.Update()
+
+        
+        if not ros_manager.IsUpdateSuccessful():
+            print("ROS manager update failed.")
+            break
 
         sys.DoStepDynamics(time_step)  
 

@@ -1,103 +1,93 @@
 import chrono as ch
-from chrono import ChSystem, ChBody, ChVisualization, ChBodyLoadMesh, ChPointLight, ChCamera
+import numpy as np
 
 
-ch.InitChSystem()
+ch.InitData()
 
 
-gator_vehicle = ChSystem()
-gator_vehicle.Set_G(9.81)
+terrain = ch.RigidBodyDynamics()
+terrain.SetName('terrain')
+terrain.AddBody(ch.RigidBody(0, 0, 0, 1, 1, 1, 1))
+terrain.SetGravity(0, 0, -9.81)
+terrain.SetTimeStep(0.01)
+terrain.SetMaxSteps(1000)
 
 
-chassis = ChBody()
-chassis.SetPos(ch.Vec3(0, 0, 0))
-chassis.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(chassis)
+vehicle = ch.RigidBodyDynamics()
+vehicle.SetName('gator')
+vehicle.AddBody(ch.RigidBody(0, 0, 0, 1, 1, 1, 1))
+vehicle.SetGravity(0, 0, -9.81)
+vehicle.SetTimeStep(0.01)
+vehicle.SetMaxSteps(1000)
 
 
-wheel1 = ChBody()
-wheel1.SetPos(ch.Vec3(-1.5, -1.5, 0))
-wheel1.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(wheel1)
-
-wheel2 = ChBody()
-wheel2.SetPos(ch.Vec3(1.5, -1.5, 0))
-wheel2.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(wheel2)
-
-wheel3 = ChBody()
-wheel3.SetPos(ch.Vec3(-1.5, 1.5, 0))
-wheel3.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(wheel3)
-
-wheel4 = ChBody()
-wheel4.SetPos(ch.Vec3(1.5, 1.5, 0))
-wheel4.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(wheel4)
+ch_body_chassis = vehicle.AddBody(ch.RigidBody(0, 0, 0, 1, 1, 1, 1))
+ch_body_wheel1 = vehicle.AddBody(ch.RigidBody(0, 1, 0, 1, 1, 1, 1))
+ch_body_wheel2 = vehicle.AddBody(ch.RigidBody(0, -1, 0, 1, 1, 1, 1))
+ch_body_engine = vehicle.AddBody(ch.RigidBody(0, 0, 1, 1, 1, 1, 1))
 
 
-chassis.SetObjectVisualization(ChVisualization.SOLID)
-wheel1.SetObjectVisualization(ChVisualization.WIRE)
-wheel2.SetObjectVisualization(ChVisualization.WIRE)
-wheel3.SetObjectVisualization(ChVisualization.WIRE)
-wheel4.SetObjectVisualization(ChVisualization.WIRE)
+ch_body_chassis.SetVisualizationType(ch.VIZ_TYPE_WIREFRAME)
+ch_body_wheel1.SetVisualizationType(ch.VIZ_TYPE_WIREFRAME)
+ch_body_wheel2.SetVisualizationType(ch.VIZ_TYPE_WIREFRAME)
+ch_body_engine.SetVisualizationType(ch.VIZ_TYPE_WIREFRAME)
 
 
-terrain = ChBody()
-terrain.SetPos(ch.Vec3(0, 0, -5))
-terrain.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(terrain)
+ch_body_chassis.SetPosition(0, 0, 0)
+ch_body_wheel1.SetPosition(1, 1, 0)
+ch_body_wheel2.SetPosition(1, -1, 0)
+ch_body_engine.SetPosition(0, 0, 1)
 
 
-terrain.SetObjectVisualization(ChVisualization.SOLID)
+ch_body_chassis.AddForce(0, 0, -100)
+ch_body_wheel1.AddForce(0, 10, 0)
+ch_body_wheel2.AddForce(0, -10, 0)
+ch_body_engine.AddForce(0, 0, 100)
 
 
-driver = ChBody()
-driver.SetPos(ch.Vec3(0, 0, 2))
-driver.SetRot(ch.Vec3(0, 0, 0))
-gator_vehicle.AddBody(driver)
+ch_body_chassis.AddConstraint(ch.Contact(ch_body_wheel1))
+ch_body_chassis.AddConstraint(ch.Contact(ch_body_wheel2))
+ch_body_chassis.AddConstraint(ch.Contact(ch_body_engine))
 
 
-driver.SetObjectVisualization(ChVisualization.SOLID)
+sensor_manager = ch.SensorManager()
+sensor_manager.SetName('sensor_manager')
+sensor_manager.AddSensor(ch.PointLight(0, 0, 0, 1, 1, 1))
+sensor_manager.AddSensor(ch.Camera(0, 0, 0, 1, 1, 1))
 
 
-sensor_manager = ChSensorManager()
-gator_vehicle.AddSensorManager(sensor_manager)
+sensor_manager.SetPosition(0, 0, 1)
+sensor_manager.SetParent(ch_body_chassis)
 
 
-point_light1 = ChPointLight()
-point_light1.SetPos(ch.Vec3(0, 0, 3))
-point_light1.SetIntensity(1)
-sensor_manager.AddPointLight(point_light1)
-
-point_light2 = ChPointLight()
-point_light2.SetPos(ch.Vec3(0, 0, -3))
-point_light2.SetIntensity(1)
-sensor_manager.AddPointLight(point_light2)
-
-
-camera = ChCamera()
-camera.SetPos(ch.Vec3(0, 0, 2))
-camera.SetRot(ch.Vec3(0, 0, 0))
-chassis.AddCamera(camera)
+driver = ch.InteractiveDriver()
+driver.SetName('driver')
+driver.SetVehicle(vehicle)
 
 
 while True:
     
-    driver.SetForce(ch.Vec3(0, 0, 10))
+    driver.Update()
+
     
+    terrain.Update()
+
     
-    terrain.SetForce(ch.Vec3(0, 0, 0))
-    
-    
-    gator_vehicle.Update()
-    
+    vehicle.Update()
+
     
     sensor_manager.Update()
+
     
+    ch.Synchronize()
+    ch.Advance()
+
     
-    ch.SimSync()
-    ch.SimAdvance()
+    sensor_manager.Render()
+
     
-    
-    camera.Render()
+    if ch.GetSimulationStatus() == ch.STATUS_STOPPED:
+        break
+
+
+ch.FinalizeData()

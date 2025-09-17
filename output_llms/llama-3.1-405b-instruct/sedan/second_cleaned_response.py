@@ -61,6 +61,8 @@ vehicle1.SetSteeringVisualizationType(vis_type)
 vehicle1.SetWheelVisualizationType(vis_type)
 vehicle1.SetTireVisualizationType(vis_type)
 
+vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
 vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
@@ -76,7 +78,6 @@ vehicle2.SetSteeringVisualizationType(vis_type)
 vehicle2.SetWheelVisualizationType(vis_type)
 vehicle2.SetTireVisualizationType(vis_type)
 
-vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -95,7 +96,7 @@ terrain.Initialize()
 
 vis1 = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis1.SetWindowTitle('Sedan 1')
-vis1.SetWindowSize(640, 480)
+vis1.SetWindowSize(1280, 1024)
 vis1.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis1.Initialize()
 vis1.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
@@ -105,7 +106,7 @@ vis1.AttachVehicle(vehicle1.GetVehicle())
 
 vis2 = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis2.SetWindowTitle('Sedan 2')
-vis2.SetWindowSize(640, 480)
+vis2.SetWindowSize(1280, 1024)
 vis2.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis2.Initialize()
 vis2.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
@@ -136,8 +137,8 @@ driver2.Initialize()
 
 
 
-print( "VEHICLE 1 MASS: ",  vehicle1.GetVehicle().GetMass())
-print( "VEHICLE 2 MASS: ",  vehicle2.GetVehicle().GetMass())
+print( "VEHICLE MASS 1: ",  vehicle1.GetVehicle().GetMass())
+print( "VEHICLE MASS 2: ",  vehicle2.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -165,8 +166,8 @@ while vis1.Run() and vis2.Run() :
     driver_inputs2 = driver2.GetInputs()
 
     
-    driver_inputs1.m_steering = 0.1 * math.sin(2 * math.pi * 0.1 * time)
-    driver_inputs2.m_steering = -0.1 * math.sin(2 * math.pi * 0.1 * time)
+    driver_inputs1.m_steering = 0.2 * math.sin(2 * math.pi * 0.1 * time)
+    driver_inputs2.m_steering = 0.2 * math.sin(2 * math.pi * 0.1 * time + math.pi / 2)
 
     
     driver1.Synchronize(time)

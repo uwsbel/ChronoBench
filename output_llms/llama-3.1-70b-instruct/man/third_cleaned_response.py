@@ -1,9 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import math
 import pychrono.sensor as sens
 import numpy as np
-import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -42,7 +42,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -50,7 +49,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -74,7 +72,6 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -104,26 +101,36 @@ driver.Initialize()
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-
-
-lidar = sens.ChLidarSensor(chrono.ChVector3d(0, 0, 2), chrono.QUNIT, 1000, 10, 10)
-sensor_manager.AddSensor(lidar)
-
-
-for i in range(10):
-    box = chrono.ChBodyEasyBox(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5), 1, 1, 1, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
-    box.SetRot(chrono.Q_from_AngX(np.random.uniform(0, 2 * math.pi)))
-    vehicle.GetSystem().Add(box)
-
-
 render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+
+
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetName("LidarSensor")
+lidar_sensor.SetSensorType(sens.ChSensorType_LIDAR)
+lidar_sensor.SetNoiseType(sens.ChNoiseType_NONE)
+lidar_sensor.SetNoiseIntensity(0.0)
+lidar_sensor.SetRange(100.0)
+lidar_sensor.SetHorizontalFOV(math.pi / 2)
+lidar_sensor.SetVerticalFOV(math.pi / 2)
+lidar_sensor.SetFrequency(10.0)
+lidar_sensor.SetPosition(chrono.ChVector3d(0.0, 0.0, 1.5))
+lidar_sensor.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+sensor_manager.AddSensor(lidar_sensor)
+
+
+for i in range(10):
+    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1.0, 1.0, 1.0, 1000.0)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-10.0, 10.0), np.random.uniform(-10.0, 10.0), 0.5))
+    box.SetRot(chrono.ChQuaterniond(np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0), np.random.uniform(-1.0, 1.0)))
+    vehicle.GetSystem().Add(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

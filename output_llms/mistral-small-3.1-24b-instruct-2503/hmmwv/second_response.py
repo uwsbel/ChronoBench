@@ -21,10 +21,10 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # increased size in X direction
+terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -46,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -78,42 +79,39 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the circular path
-radius = 20.0
-center = chrono.ChVector3d(0, 0, 0)
+radius = 50.0
 path = chrono.ChPath()
 for angle in range(0, 360, 10):
-    x = center.x + radius * math.cos(math.radians(angle))
-    y = center.y + radius * math.sin(math.radians(angle))
-    path.AddPoint(chrono.ChVector3d(x, y, 0))
+    x = radius * math.cos(math.radians(angle))
+    y = radius * math.sin(math.radians(angle))
+    z = 0
+    path.AddPoint(chrono.ChVector3d(x, y, z))
+
+# Create the sentinel and target points
+sentinel_point = chrono.ChMarker()
+sentinel_point.SetPos(chrono.ChVector3d(0, 0, 0.5))
+sentinel_point.SetColor(chrono.ChColor(1, 0, 0))
+target_point = chrono.ChMarker()
+target_point.SetPos(chrono.ChVector3d(radius, 0, 0.5))
+target_point.SetColor(chrono.ChColor(0, 1, 0))
+vehicle.GetSystem().AddMarker(sentinel_point)
+vehicle.GetSystem().AddMarker(target_point)
+
+# Create the PID controller for steering
+pid_steering = chrono.ChFunction_PID()
+pid_steering.SetGains(0.1, 0.01, 0.001)
 
 # Create the path follower driver
-driver = veh.ChPathFollowerDriverFULL(vehicle.GetVehicle(), path, tire_step_size)
-driver.SetSteeringControllerGain(1.0)
-driver.SetSteeringControllerTimeConstant(0.3)
-driver.SetThrottleControllerGain(0.3)
-driver.SetThrottleControllerTimeConstant(0.5)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+driver.SetPath(path)
+driver.SetThrottle(0.3)
+driver.SetSteeringController(pid_steering)
+
+# Initialize the path follower driver
 driver.Initialize()
 
-# Visualization of controller points
-sentinel = chrono.ChSphereShape()
-sentinel.GetSphereGeometry().radius = 0.5
-sentinel.GetMaterialSurface().SetFriction(0.6)
-sentinel.GetMaterialSurface().SetRestitution(0.1)
-sentinel_body = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sentinel_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-sentinel_body.SetBodyFixed(True)
-sentinel_body.AddVisualShape(sentinel)
-vehicle.GetSystem().Add(sentinel_body)
-
-target = chrono.ChSphereShape()
-target.GetSphereGeometry().radius = 0.5
-target.GetMaterialSurface().SetFriction(0.6)
-target.GetMaterialSurface().SetRestitution(0.1)
-target_body = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-target_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-target_body.SetBodyFixed(True)
-target_body.AddVisualShape(target)
-vehicle.GetSystem().Add(target_body)
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -133,14 +131,11 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver, terrain)
+    vis.Synchronize(time, driver)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -149,8 +144,8 @@ while vis.Run():
     vis.Advance(step_size)
 
     # Update sentinel and target points
-    sentinel_body.SetPos(driver.GetSentinelPoint())
-    target_body.SetPos(driver.GetTargetPoint())
+    sentinel_point.SetPos(driver.GetSentinelLocation())
+    target_point.SetPos(driver.GetTargetLocation())
 
     # Increment frame number
     step_number += 1

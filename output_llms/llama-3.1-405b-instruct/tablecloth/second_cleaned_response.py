@@ -46,22 +46,31 @@ for iz in range(nsections_z + 1):
         mynodes.append(mnode)
 
 
-nodePlotA = []
-nodePlotB = []
-nodesLoad = []
-ref_X = chrono.ChFunctionPosition()
-ref_Y = chrono.ChFunctionPosition()
+nodePlotA = mynodes[10 * (nsections_x + 1) + 10]
+nodePlotB = mynodes[20 * (nsections_x + 1) + 20]
+nodesLoad = [mynodes[10 * (nsections_x + 1) + 10], mynodes[20 * (nsections_x + 1) + 20]]
+
+
+def ref_X(x):
+    return x
+
+def ref_Y(y):
+    return y
+
+
 load_force = chrono.ChVector3d(0, -10, 0)
-mnodemonitor = []
-melementmonitor = []
+
+
+mnodemonitor = nodePlotA
+melementmonitor = None
 
 
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
@@ -69,13 +78,13 @@ for iz in range(nsections_z):
         mesh.AddElement(melementA)
 
         
-        if iz == 0 and ix == 1:
-            melementmonitor.append(melementA)
+        if (iz == 0 and ix == 1):
+            melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
 
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)

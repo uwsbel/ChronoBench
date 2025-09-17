@@ -17,18 +17,15 @@ class ChFunctionMyFun(chrono.ChFunction):
 
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1 * m.sin(self.w * x)
+            return 0
         elif self.T1 <= x < self.T2:
-            return self.A1 * m.sin(self.w * self.T1) + self.A2 * (x - self.T1)
+            return self.A1 * m.sin(self.w * (x - self.T1))
         elif self.T2 <= x < self.T3:
-            return self.A1 * m.sin(self.w * self.T1) + self.A2 * (self.T2 - self.T1) + self.A1 * m.sin(self.w * (x - self.T2))
+            return self.A1 * m.sin(self.w * (self.T2 - self.T1)) + self.A2 * (x - self.T2)
         else:
-            return self.A1 * m.sin(self.w * self.T1) + self.A2 * (self.T2 - self.T1) + self.A1 * m.sin(self.w * (self.T3 - self.T2))
+            return self.A1 * m.sin(self.w * (self.T2 - self.T1)) + self.A2 * (self.T3 - self.T2)
 
 sys = chrono.ChSystemSMC()
-
-
-
 
 
 
@@ -79,14 +76,14 @@ builder.BuildBeam(mesh,
                   chrono.VECT_Y,  
                   1)  
 
-node_mid = builder.GetLastBeamNodes()[int(m.floor(builder.GetLastBeamNodes().size() / 2.0))]
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 
 
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+                       chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Z))
     
 )
 sys.Add(mbodyflywheel)
@@ -115,15 +112,14 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
                      truss,  
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                                     chrono.Q_from_AngAxis(CH_PI / 2.0, chrono.VECT_Y))
                      
                      )
 sys.Add(rotmotor1)
 
 
-custom_fun = ChFunctionMyFun(A1=10, A2=5, T1=2, T2=4, T3=6, w=2)
-rotmotor1.SetMotorFunction(custom_fun)
-
+motor_fun = ChFunctionMyFun(A1=20, A2=5, T1=0.5, T2=2.0, T3=3.0, w=5)
+rotmotor1.SetMotorFunction(motor_fun)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)

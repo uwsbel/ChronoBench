@@ -51,7 +51,7 @@ builder.BuildBeam(mesh,
                   chrono.VECT_Y,  
                   1)  
 
-node_mid = builder.GetLastBeamNodes()[int(m.floor(builder.GetLastBeamNodes().size() / 2.0))]
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 
 

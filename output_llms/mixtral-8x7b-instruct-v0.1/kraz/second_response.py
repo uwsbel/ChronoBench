@@ -8,7 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(0.707, 0, 0, -0.707)  # Adjusted initial rotation
+initRot = chrono.ChQuaterniond(0.707, 0, 0, -0.707)  # Adjusted rotation for (-15, 0, 0.5)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -26,7 +26,7 @@ terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
+trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -105,7 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-double_lane_change_time = 5.0  # Time for double lane change maneuver
+double_lane_change_time = 5  # Time for double lane change maneuver
 double_lane_change_completed = False
 
 while vis.Run() :
@@ -141,9 +141,9 @@ while vis.Run() :
 
     # Double lane change maneuver
     if not double_lane_change_completed and time > double_lane_change_time:
-        driver.SetSteering(1.0)  # Full right steering
+        driver.SetSteer(1.0)
         if time > double_lane_change_time * 2:
-            driver.SetSteering(-1.0)  # Full left steering
+            driver.SetSteer(-1.0)
             if time > double_lane_change_time * 3:
-                driver.SetSteering(0.0)  # No steering
+                driver.SetSteer(0.0)
                 double_lane_change_completed = True

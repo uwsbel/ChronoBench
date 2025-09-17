@@ -78,7 +78,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Custom driver class
+# Custom Driver Class
 class MyDriver(veh.ChDriver):
     def __init__(self, delay=0.5):
         super().__init__()
@@ -88,15 +88,17 @@ class MyDriver(veh.ChDriver):
         self.braking = 0.0
 
     def Synchronize(self, time):
-        # Apply throttle after delay
-        if time > self.delay:
-            self.throttle = min(0.7, (time - self.delay) / 0.2 * 0.7)
+        # Throttle control: gradually increase to 0.7 after 0.2 seconds
+        if time > self.delay and time <= self.delay + 0.2:
+            self.throttle = 0.7 * (time - self.delay) / 0.2
+        elif time > self.delay + 0.2:
+            self.throttle = 0.7
 
-        # Apply steering after 2 seconds
-        if time > 2.0:
-            self.steering = 0.5 * math.sin(2 * math.pi * (time - 2.0))
+        # Steering control: sinusoidal pattern starting at 2 seconds
+        if time > self.delay + 2.0:
+            self.steering = 0.5 * math.sin(2 * math.pi * (time - (self.delay + 2.0)) / 2.0)
 
-        # No braking in this example
+        # Braking is not used in this example
         self.braking = 0.0
 
     def GetInputs(self):
@@ -121,14 +123,12 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Simulation end condition
-end_time = 4.0
-
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # End simulation after 4 seconds
-    if time >= end_time:
+    # End simulation when time reaches 4 seconds
+    if time >= 4.0:
         break
 
     # Render scene and output POV-Ray data

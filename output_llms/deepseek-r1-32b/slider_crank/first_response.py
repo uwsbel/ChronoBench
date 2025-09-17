@@ -1,84 +1,115 @@
 importchrono
-importchrono.core as core
-importchrono.irrlicht as irr
-importchrono.postprocess as post
+importchrono.core as chrono
+importchrono irrlicht as chronoirr
+importchrono postprocess as chronop
+importchrono visualization as chronovis
 
 # Initialize Chrono system
-system = core.ChSystemNSC()
-system.Set_G_acc(core.ChVectorD(0, -9.81, 0))
+chrono.ChSystem.SetChronoVerbose(False)
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create Irrlicht application
-application = irr.ChIrrApp(system, "Crank-Slider Mechanism", irr.CHIRR_APP_OPTIONS_DEFAULT)
-application.SetWindowSize(core.ChVector2i(800, 600))
-application.SetCameraPosition(core.ChVectorD(0, 3, 3))
-application.SetCameraLookAt(core.ChVectorD(0, 0, 0))
-application.AddTypicalLights()
+vis = chronovis.ChVisualSystemIrrlicht()
+vis.SetWindowTitle('Crank-Slider Mechanism')
+vis.SetWindowSize(800, 600)
+vis.SetNumberOfFrames(60)
+vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
+vis.SetCameraRotation(chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(0, 5, 5), chrono.ChColor(1, 1, 1))
+vis.AddLight(chrono.ChVectorD(0, -5, 5), chrono.ChColor(1, 1, 1))
+vis.AddLight(chrono.ChVectorD(0, 0, 5), chrono.ChColor(1, 1, 1))
+vis.SetLightIntensity(1)
+vis.SetAmbientIntensity(0.5)
 
-# Create floor
-floor = core.ChBody()
+# Add floor
+floor = chrono.ChBody()
+floor.SetPos(chrono.ChVectorD(0, 0, 0))
 floor.SetBodyFixed(True)
-floor.SetPos(core.ChVectorD(0, 0, 0))
-floor_shape = core.ChTruss()
-floor_shape.SetPoints(core.ChVectorD(0, 0, 0), core.ChVectorD(2, 0, 0))
-floor_shape.SetPoints(core.ChVectorD(0, 0, 0), core.ChVectorD(0, 0, 2))
+floor_shape = chrono.ChTruss()
+floor_shape.GetPoints().push_back(chrono.ChVectorD(-5, 0, -5))
+floor_shape.GetPoints().push_back(chrono.ChVectorD(5, 0, -5))
+floor_shape.GetPoints().push_back(chrono.ChVectorD(5, 0, 5))
+floor_shape.GetPoints().push_back(chrono.ChVectorD(-5, 0, 5))
 floor.AddVisualShape(floor_shape)
-system.AddBody(floor)
+sys.AddBody(floor)
 
-# Create crankshaft
-crank = core.ChBody()
-crank.SetPos(core.ChVectorD(0, 0, 0))
-crank_shape = core.ChCylinder()
-crank_shape.SetRadius(0.1)
+# Add crankshaft
+crank = chrono.ChBody()
+crank.SetPos(chrono.ChVectorD(0, 0, 0))
+crank.SetMass(1)
+crank.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+crank_shape = chrono.ChCylinder()
 crank_shape.SetHeight(0.2)
+crank_shape.SetRadius(0.1)
+crank_shape.SetPos(chrono.ChVectorD(0, 0, 0))
+crank_shape.SetRotation(chrono.ChVectorD(0, 1, 0))
 crank.AddVisualShape(crank_shape)
-system.AddBody(crank)
+sys.AddBody(crank)
 
 # Add motor to crankshaft
-motor = core.ChMotorRotationAngular()
-motor.SetRotDir(core.ChVectorD(0, 1, 0))
-motor.SetVelocity(2)  # Angular speed in rad/s
+motor = chrono.ChMotorRotation()
+motor.SetName('crank_motor')
+motor.SetRotDir(chrono.ChVectorD(0, 1, 0))
+motor.SetSpeed(2)  # Angular speed in rad/s
 crank.AddForce(motor)
 
-# Create connecting rod
-rod = core.ChBody()
-rod.SetPos(core.ChVectorD(0.2, 0, 0))
-rod_shape = core.ChBox()
-rod_shape.SetDimensions(core.ChVectorD(0.1, 0.05, 0.05))
+# Add connecting rod
+rod = chrono.ChBody()
+rod.SetPos(chrono.ChVectorD(0.2, 0, 0))
+rod.SetMass(1)
+rod.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+rod_shape = chrono.ChBox()
+rod_shape.SetLengths(chrono.ChVectorD(0.2, 0.1, 0.1))
+rod_shape.SetPos(chrono.ChVectorD(0, 0, 0))
 rod.AddVisualShape(rod_shape)
-system.AddBody(rod)
+sys.AddBody(rod)
 
-# Create piston
-piston = core.ChBody()
-piston.SetPos(core.ChVectorD(0.4, 0, 0))
-piston_shape = core.ChCylinder()
-piston_shape.SetRadius(0.05)
+# Add revolute joint between crank and rod
+joint1 = chrono.ChLinkLockSpherical()
+joint1.Initialize(crank, rod, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.AddLink(joint1)
+
+# Add piston
+piston = chrono.ChBody()
+piston.SetPos(chrono.ChVectorD(0.4, 0, 0))
+piston.SetMass(1)
+piston.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+piston_shape = chrono.ChCylinder()
 piston_shape.SetHeight(0.2)
+piston_shape.SetRadius(0.1)
+piston_shape.SetPos(chrono.ChVectorD(0, 0, 0))
 piston.AddVisualShape(piston_shape)
-system.AddBody(piston)
+sys.AddBody(piston)
 
-# Add joints
-crank_joint = core.ChLinkRev()
-crank_joint.Initialize(crank, floor, core.ChCoordsysD(core.ChVectorD(0, 0, 0), core.ChQuaternionD(1, 0, 0, 0)))
-system.AddLink(crank_joint)
+# Add revolute joint between rod and piston
+joint2 = chrono.ChLinkLockSpherical()
+joint2.Initialize(rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.2, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+sys.AddLink(joint2)
 
-rod_joint1 = core.ChLinkRev()
-rod_joint1.Initialize(rod, crank, core.ChCoordsysD(core.ChVectorD(0.1, 0, 0), core.ChQuaternionD(1, 0, 0, 0)))
-system.AddLink(rod_joint1)
+# Add slider joint for piston
+slider = chrono.ChLinkLockRevolute()
+slider.Initialize(piston, floor, chrono.ChCoordsysD(chrono.ChVectorD(0.4, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+slider.SetRotationAxis(chrono.ChVectorD(1, 0, 0))
+sys.AddLink(slider)
 
-rod_joint2 = core.ChLinkRev()
-rod_joint2.Initialize(rod, piston, core.ChCoordsysD(core.ChVectorD(0.1, 0, 0), core.ChQuaternionD(1, 0, 0, 0)))
-system.AddLink(rod_joint2)
+# Add visual elements
+logo = chrono.ChBody()
+logo.SetPos(chrono.ChVectorD(0, 0.1, 0))
+logo.SetBodyFixed(True)
+logo_shape = chrono.ChTexture()
+logo_shape.SetTextureFilename("chrono_data/chrono.png")
+logo_shape.SetPos(chrono.ChVectorD(0, 0, 0))
+logo_shape.SetRotation(chrono.ChVectorD(0, 0, 90))
+logo.AddVisualShape(logo_shape)
+sys.AddBody(logo)
 
-piston_joint = core.ChLinkSlider()
-piston_joint.Initialize(piston, floor, core.ChCoordsysD(core.ChVectorD(0.4, 0, 0), core.ChQuaternionD(1, 0, 0, 0)))
-system.AddLink(piston_joint)
-
-# Compile and run simulation
-application.Compile()
-
-while application.GetDevice().Run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
-    core.ChSleep(0.001)
+# Run simulation
+vis.AttachSystem(sys)
+vis.SetRenderMode(chronovis.RM_OPENGL)
+vis.BeginAnimation()
+for i in range(1000):
+    sys.DoStepDynamics(0.001)
+    vis.Render()
+    vis.Wait()
+vis.EndAnimation()

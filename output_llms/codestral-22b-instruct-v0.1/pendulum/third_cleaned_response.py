@@ -90,8 +90,4 @@ while vis.Run():
         print("t = ", sys.GetChTime())
         print("Pendulum 1: ", pos_1.x, "  ", pos_1.y)
         print("Pendulum 2: ", pos_2.x, "  ", pos_2.y)
-        lin_vel_1 = pend_1.GetPosDt()  
-        lin_vel_2 = pend_2.GetPosDt()  
-        print("Pendulum 1 velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
-        print("Pendulum 2 velocity: ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False

@@ -1,33 +1,35 @@
 
-To create a simulation of a tablecloth folding using PyChrono with shell elements, follow this script. It sets up a Kirchhoff material, generates a mesh grid, uses the PardisoMKL solver, and includes Irrlicht visualization:
+Here's the PyChrono simulation script for modeling a tablecloth fold using shell elements:
 
 ```python
+#!/usr/bin/env python3
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
 
 def main():
-    # 1. Initialize system
+    # 1. Initialize the Chrono system
     system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    # 2. Create mesh container
+    # 2. Create the shell mesh
     mesh = fea.ChMesh()
     system.Add(mesh)
 
     # 3. Material properties (isotropic Kirchhoff)
-    rho = 1000  # Density (kg/m³)
-    E = 2e6     # Young's modulus (Pa)
-    nu = 0.3    # Poisson's ratio
-    material = fea.ChMaterialShellReissnerIsothropic(E, nu, rho)
+    rho = 1000    # Density [kg/m³]
+    E = 2e9       # Young's modulus [Pa]
+    nu = 0.3      # Poisson ratio
+    thickness = 0.002  # Shell thickness [m]
+    material = fea.ChMaterialShellKirchhoff(rho, E, nu)
 
-    # 4. Mesh parameters
-    length_x = 1.0  # Tablecloth length (x)
-    length_y = 1.0  # Tablecloth width (y)
-    num_div_x = 20  # Divisions along x
-    num_div_y = 20  # Divisions along y
+    # 4. Generate mesh grid
+    length_x = 1.0  # Tablecloth X dimension
+    length_y = 1.0  # Tablecloth Y dimension
+    num_div_x = 20  # Number of divisions along X
+    num_div_y = 20  # Number of divisions along Y
 
-    # 5. Create nodes
+    # Create nodes
     nodes = []
     for iy in range(num_div_y + 1):
         for ix in range(num_div_x + 1):
@@ -35,74 +37,88 @@ def main():
             y = iy * (length_y / num_div_y)
             node = fea.ChNodeFEAxyzD(
                 chrono.ChVectorD(x, 0.5, y),
-                chrono.ChVectorD(0, 1, 0)  # Initial normal (y-up)
+                chrono.ChVectorD(0, 1, 0)  # Initial normal direction (up)
             )
             mesh.AddNode(node)
             nodes.append(node)
 
-    # 6. Create shell elements (quadrilateral Reissner shells)
+    # 5. Create shell elements (CST triangle elements)
     for iy in range(num_div_y):
         for ix in range(num_div_x):
-            n0 = nodes[iy * (num_div_x + 1) + ix]
-            n1 = nodes[iy * (num_div_x + 1) + ix + 1]
-            n2 = nodes[(iy + 1) * (num_div_x + 1) + ix + 1]
-            n3 = nodes[(iy + 1) * (num_div_x + 1) + ix]
+            # Create quadrilateral as two triangles
+            n0 = iy * (num_div_x + 1) + ix
+            n1 = n0 + 1
+            n2 = n0 + num_div_x + 1
+            n3 = n2 + 1
 
-            element = fea.ChElementShellReissner4()
-            element.SetNodes(n0, n1, n2, n3)
-            element.SetMaterial(material)
-            mesh.AddElement(element)
+            # First triangle (n0-n1-n2)
+            element1 = fea.ChElementShellKirchhoff()
+            element1.SetNodes(nodes[n0], nodes[n1], nodes[n2])
+            element1.SetMaterial(material)
+            element1.SetThickness(thickness)
+            mesh.AddElement(element1)
 
-    # 7. Fix edge nodes (clamp one edge)
-    for ix in range(num_div_x + 1):
-        nodes[ix].SetFixed(True)  # First row (y=0)
+            # Second triangle (n1-n3-n2)
+            element2 = fea.ChElementShellKirchhoff()
+            element2.SetNodes(nodes[n1], nodes[n3], nodes[n2])
+            element2.SetMaterial(material)
+            element2.SetThickness(thickness)
+            mesh.AddElement(element2)
+
+    # 6. Fix corner nodes
+    nodes[0].SetFixed(True)                 # Bottom-left corner
+    nodes[num_div_x].SetFixed(True)         # Bottom-right corner
+    nodes[-num_div_x-1].SetFixed(True)      # Top-left corner
+    nodes[-1].SetFixed(True)                # Top-right corner
+
+    # 7. Setup Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Tablecloth Folding Simulation")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5), chrono.ChVectorD(0.5, 0, 0))
+    vis.AddTypicalLights()
+
+    # Visualize mesh
+    mvisual = fea.ChVisualizationFEAmesh(mesh)
+    mvisual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+    mvisual.SetShellResolution(2)
+    mvisual.SetColorscaleMinMax(-0.1, 0.1)
+    mesh.AddVisualizationFEA(mvisual)
 
     # 8. Setup PardisoMKL solver
     solver = chrono.ChSolverPardisoMKL()
     system.SetSolver(solver)
-    system.SetSolverForceTolerance(1e-8)
+    solver.SetSparsityPatternLock(True)
 
-    # 9. Setup Irrlicht visualization
-    vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("Tablecloth Folding")
-    vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.2))
-    vis.AddTypicalLights()
-
-    # Visualize mesh
-    vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-    vis_mesh.SetFEMdataType(fea.VisFEAmeshDataType_ELEM_SHELL)
-    vis_mesh.SetShellResolution(2)
-    vis_mesh.SetColorscaleMinMax(-0.5, 0.5)
-    mesh.AddVisualizationFEA(vis_mesh)
-
-    # 10. Simulation loop
-    time_step = 0.001
+    # 9. Simulation loop
+    timestep = 0.001
     while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        system.DoStepDynamics(time_step)
+        system.DoStepDynamics(timestep)
 
 if __name__ == "__main__":
     main()
 ```
 
-### Key Components Explained:
-1. **System Setup**: Creates the physical system with gravity.
-2. **Kirchhoff Material**: Uses `ChMaterialShellReissnerIsothropic` for isotropic elasticity.
-3. **Mesh Generation**:
-   - Creates a grid of nodes (21x21 for a 1m x 1m cloth)
-   - Uses quadrilateral Reissner shell elements (`ChElementShellReissner4`)
-4. **Boundary Conditions**: Clamps nodes along one edge (y=0) to simulate a fixed table edge.
-5. **Solver**: Configures `ChSolverPardisoMKL` for efficient sparse matrix solving.
-6. **Visualization**:
-   - Irrlicht for real-time 3D rendering
-   - Color-coded shell deformation visualization
-   - Camera positioned for optimal viewing
+Key features of this implementation:
+1. Uses Kirchhoff-Love shell theory for accurate bending behavior
+2. Implements PardisoMKL solver for efficient computation
+3. Creates a 1m x 1m tablecloth with 20x20 divisions
+4. Fixes all four corners to simulate folding
+5. Includes realistic material properties (cotton-like fabric)
+6. Uses triangle shell elements for stability
+7. Provides real-time visualization with Irrlicht
 
-The tablecloth will fold dynamically under gravity starting from a flat initial position, with one edge fixed. Adjust `num_div_x/num_div_y` for resolution, and material properties (`E`, `nu`, `rho`) for different cloth behaviors.
+The simulation will show a tablecloth suspended by its corners under gravity, demonstrating realistic folding behavior. You can modify:
+- `num_div_x`/`num_div_y` for resolution
+- `E` and `rho` for material properties
+- Gravity direction in `Set_G_acc`
+- Camera position for different views
+
+To run this, ensure you have PyChrono installed with FEA and PardisoMKL support. The simulation will show the cloth deforming under gravity with fixed corners.

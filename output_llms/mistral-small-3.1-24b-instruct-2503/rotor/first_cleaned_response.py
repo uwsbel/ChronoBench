@@ -1,81 +1,83 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fem as fem
-import pychrono.solver as solver
-import pychrono.engine as engine
+
+
+chrono.SetChronoDataPath('../data/')
 
 
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-
-ground = chrono.ChBody()
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetMass(1)
-system.AddBody(ground)
-
-
-beam_material = fem.ChContinuumMaterialElastic()
-beam_material.SetE(210e9)  
-beam_material.Setv(0.3)    
 
 beam = fem.ChElementBeamIGA()
-beam.SetMaterial(beam_material)
-beam.SetLength(1.0)  
-beam.SetCrossSectionArea(0.01)  
-beam.SetCrossSectionMoment(0.0001)  
+beam.SetN(10)  
+beam.SetP(3)   
+
+
+beam.SetYoungModulus(210e9)  
+beam.SetDensity(7800)        
+beam.SetCrossArea(0.01)      
+beam.SetAsymmetry(0.5)       
+
+
+beam.SetLength(1.0)          
+
 
 system.Add(beam)
 
 
-beam_fixed = chrono.ChLinkLock()
-beam_fixed.Initialize(ground, beam)
-system.AddLink(beam_fixed)
-
-
 flywheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 1000, True, True)
 flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))  
-system.AddBody(flywheel)
+system.Add(flywheel)
 
 
-flywheel_link = chrono.ChLinkLock()
-flywheel_link.Initialize(beam, flywheel)
-system.AddLink(flywheel_link)
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(beam.GetMarker('END'), flywheel.GetMarker('END'))
+motor.SetMotorFunction(chrono.ChFunction_Const(chrono.ChVectorD(10)))  
+system.Add(motor)
 
 
-rotational_motor = chrono.ChLinkMotorRotationSpeed()
-rotational_motor.Initialize(ground, beam, chrono.ChFrameD(beam.GetFrame_REF_to_abs()))
-rotational_motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.ChVectorD(0, 0, 1)))  
-system.AddLink(rotational_motor)
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('Jeffcott Rotor Simulation')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddTypicalLights()
+visualization.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Jeffcott Rotor Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+fem_visualization = fem.ChVisualizationFEMmesh()
+fem_visualization.SetMeshType(fem.ChVisualizationFEMmesh.E_LESS_LINES)
+fem_visualization.SetSmoothFaces(True)
+fem_visualization.SetWireframe(True)
+fem_visualization.SetDrawContacts(True)
+fem_visualization.SetDrawBeams(True)
+fem_visualization.SetDrawElements(True)
+fem_visualization.SetDrawNodes(True)
+fem_visualization.SetColorScaleMin(0)
+fem_visualization.SetColorScaleMax(1)
+beam.AddVisualization(fem_visualization)
 
 
-vis.AddElementFEMbeam(beam, 10, chrono.ChColor(1, 0, 0))
-vis.AddBodySystem(system)
+system.SetSolverType(chrono.ChSolver.MINRES)
+system.SetMaxPenetrationRecoverySpeed(1.0)
+system.SetTimestepperType(chrono.ChTimestepper.HHT)
+system.SetLcpSolverType(chrono.ChSolver.PARDISO)
+system.SetMaxIterationsLcp(100)
+system.SetMaxPenetrationRecoverySpeed(0.1)
+system.SetLcpSolverMaxIterations(100)
 
 
-system.SetSolverType(solver.ChSolverMINRES())
-system.SetSolverWarmStarting(False)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-10)
-
-run_time = 10.0  
-time_step = 0.01  
-
-current_time = 0.0
-while current_time < run_time:
-    system.DoStepDynamics(time_step)
-    vis.Render()
-    current_time += time_step
+step_size = 0.01
+total_time = 10.0
 
 
-vis.Close()
+while visualization.Run():
+    system.DoStepDynamics(step_size)
+    visualization.Render()
+
+
+visualization.Close()

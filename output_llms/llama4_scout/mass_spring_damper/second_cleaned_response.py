@@ -58,11 +58,14 @@ class MySpringForce(chrono.ForceFunctor):
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def evaluate(self, force, torque, body1, body2, rel_pos, rel_vel, t):
-        dist = rel_pos.Length()
-        force = -self.spring_coef * (dist - rest_length) * rel_pos.Normalize() - self.damping_coef * rel_vel
-        torque = chrono.ChVector3d(0, 0, 0)
-        return
+    def evaluate(self, force, torque, time, pos1, pos2, vel1, vel2, body1, body2):
+        dist = pos2 - pos1
+        length = dist.Length()
+        velocity = vel2 - vel1
+        force_local = -self.spring_coef * (length - rest_length) * dist / length - self.damping_coef * velocity
+        force = force_local
+        torque = chrono.ChVector3d(0, 0, 0)  
+        return force, torque
 
 
 spring_1 = chrono.ChLinkTSDA()
@@ -90,7 +93,7 @@ spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA demo')
+vis.SetWindowTitle('ChLinkTSDA demo with Custom Force Functor')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

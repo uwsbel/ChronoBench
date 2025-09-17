@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.soil as soil
+import pychrono.vehicle.scm as scm
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -17,10 +17,6 @@ vis_type = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Contact method
-contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
-
 # Simulation step sizes
 step_size = 5e-4
 tire_step_size = step_size
@@ -30,7 +26,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.M113()
-vehicle.SetContactMethod(contact_method)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
@@ -48,29 +44,20 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 # Create the SCM deformable terrain
-terrain = soil.ChDeformableTerrainSCM(vehicle.GetSystem())
-terrain.SetSize(100.0, 100.0)  # X and Y dimensions
-terrain.SetResolution(200, 200)  # Grid cells in X and Y directions
-terrain.SetHeightMap(lambda x, z: 0.05 * math.sin(x / 5) * math.sin(z / 5))  # Simple height map
+terrain = scm.ChScmDeformableTerrain(vehicle.GetSystem())
+terrain.SetYoungModulus(1e7)      # Young's modulus
+terrain.SetPoissonRatio(0.3)      # Poisson's ratio
+terrain.SetDensity(1500)          # Density (kg/m^3)
+terrain.SetFriction(0.6)         # Friction coefficient
 
-# Set soil parameters
-soil_params = soil.ChSoilParameters()
-soil_params.m_cohesion = 1000.0
-soil_params.m_friction = 0.6
-soil_params.m_density = 1500.0
-soil_params.m_shear_strength = 500.0
-terrain.SetSoilParameters(soil_params)
+# Initialize terrain with height map
+height_map = [[0.0 for _ in range(100)] for _ in range(100)]  # Flat terrain
+terrain.InitializeHeightMap(100, 100, 1.0, 1.0, height_map)
 
 # Set terrain texture
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'))
-terrain_texture.SetTextureScale(20.0, 20.0)
-terrain.SetTexture(terrain_texture)
-
-terrain.Initialize()
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -120,9 +107,9 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs and set hard-coded throttle
+    # Get driver inputs and hard-code throttle to 0.8
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  # Set constant throttle
+    driver_inputs.throttle = 0.8  # Force constant throttle
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

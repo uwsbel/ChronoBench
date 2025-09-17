@@ -49,41 +49,47 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
     
-    box = ch.ChBodyEasyBox(1, 0.5, 0.5, hmmwv.GetSystem(), 1000)
+    box = ch.ChBodyEasyBox(1, 0.5, 0.5, hmmwv.GetSystem(), True, 1)
     box.SetPos(ch.ChVectorD(0, 0, 0))
-    box.SetColor(ch.ChColor(0.8, 0.2, 0.2))
-
-    
-    sens_manager = sens.ChSensorManager()
-    sens_manager.Initialize(hmmwv.GetSystem())
-
-    
-    lidar = sens.ChLidarSensor()
-    lidar.SetRange(50)
-    lidar.SetResolution(0.1)
-    lidar.SetPosition(ch.ChVectorD(0, 0, 1.6))
-    lidar.SetOrientation(ch.ChQuaternionD(1, 0, 0, 0))
-    lidar.SetFrame(hmmwv.GetChassisBody().GetFrame_REF_to_abs())
-    lidar.AddFilter(sens.ChLidarFilterMedian())
-    lidar.AddFilter(sens.ChLidarFilterMean())
-    lidar.AddFilter(sens.ChLidarFilterGaussian())
-    lidar.Initialize(hmmwv.GetSystem())
-
-    
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar_data"))
-    ros_manager.Initialize()  
+    box.SetCollide(False)
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
 
     
+    sens_manager = sens.ChSensorManager()
+    lidar = sens.ChLidarSensor()
+    lidar.SetRange(10)
+    lidar.SetResolution(0.1)
+    lidar.SetPosition(ch.ChVectorD(0, 0.5, 1.6))
+    lidar.SetOrientation(ch.ChQuaternionD(1, 0, 0, 0))
+    lidar.SetFilter(sens.ChLidarSensor.ChLidarSensorFilter_MEDIAN)
+    lidar.SetFilter(sens.ChLidarSensor.ChLidarSensorFilter_BOX)
+    lidar.SetFilter(sens.ChLidarSensor.ChLidarSensorFilter_GAUSS)
+    lidar.Initialize(hmmwv.GetSystem())
+    sens_manager.Add(lidar)
+
+    
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+    
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/scan"))
+    
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()  
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
+    
+    
+    time_step = 1e-3
     step_number = 0
+    
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  
@@ -101,12 +107,12 @@ def main():
         hmmwv.Synchronize(time, driver_inputs, terrain)  
 
         
-        sens_manager.Update(time)
-
-        
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
+
+        
+        sens_manager.Update(time)
 
         
         if not ros_manager.Update(time, time_step):

@@ -1,6 +1,6 @@
 import pychrono as ch
+import pychrono.irrlicht as ch_irr
 import pychrono.ros as chros
-import pychrono.irrlicht as chirr
 
 import rclpy
 from rclpy.node import Node
@@ -11,7 +11,7 @@ class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
     def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  # Initialize the handler with the given publishing rate.
+        super().__init__(publish_rate)  # Initialize the handler with the specified publishing rate.
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -46,18 +46,16 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
+    floor.SetTexture(ch_irr.ChTextureInfo("path/to/floor_texture.png"))  # Set texture for the floor.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuatFromAngleAxis(0.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
+    box.SetTexture(ch_irr.ChTextureInfo("path/to/box_texture.png"))  # Set texture for the box.
     sys.Add(box)  # Add the box to the simulation system.
-
-    # Set textures for the floor and box.
-    floor.GetVisualShape(0).SetTexture(chirr.ChTexture("floor_texture.png"))
-    box.GetVisualShape(0).SetTexture(chirr.ChTexture("box_texture.png"))
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
@@ -82,17 +80,19 @@ def main():
     ros_manager.Initialize()
 
     # Create the Irrlicht visualization system.
-    vis = chirr.ChVisualSystemIrrlicht()
+    vis = ch_irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
-    vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle("Chrono::Engine example")
-    vis.Initialize()
-    vis.AddLight(chirr.ChLightPoint(ch.ChVector3d(2, 2, 2), ch.ChColorf(1, 1, 1), 50))
-    vis.AddCamera(chirr.ChCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0)))
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Chrono::Engine simulation with Irrlicht")
+    vis.AddTypicalSky()
+    vis.AddTypicalLogo()
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(ch_irr.ChLightPoint(0, 0, 2, ch_irr.ChColorf(1, 1, 1), 20))
+    vis.AddCamera(ch_irr.ChCamera(0.5, 0.5, 5))  # Set the camera position and target.
 
-    # Variables for controlling rendering frame rate.
+    # Set variables for controlling rendering frame rate.
     step_number = 0
-    render_step_size = 10
+    render_step_size = 100
     render_steps = 0
 
     # Run the simulation loop.
@@ -113,12 +113,10 @@ def main():
         # Conditional rendering.
         step_number += 1
         if step_number >= render_step_size:
+            vis.Render()
             step_number = 0
             render_steps += 1
-            vis.Render()
 
 # Entry point of the script.
 if __name__ == "__main__":
-    rclpy.init()
     main()
-    rclpy.shutdown()

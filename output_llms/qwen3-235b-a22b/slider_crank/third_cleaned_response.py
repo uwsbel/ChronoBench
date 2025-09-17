@@ -60,11 +60,11 @@ mjointB.Initialize(mpiston,
 sys.Add(mjointB)
 
 
-mjointC = chrono.ChLinkLockPlanar()
+mjointC = chrono.ChLinkLockPlane()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.QUNIT)  
+                                   chrono.QUNIT)
                    )
 sys.Add(mjointC)
 
@@ -98,7 +98,7 @@ while vis.Run():
     sys.DoStepDynamics(1e-3)
 
     
-    if sys.GetChTime() > 20:
+    if sys.GetChTime() > 2:
         vis.GetDevice().closeDevice()
 
 

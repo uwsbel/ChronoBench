@@ -15,11 +15,17 @@ def main():
     
     
     
+    side = 0.5  
+    height = 1.0  
     box_body = chrono.ChBody()
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetShape(chrono.ChVisualShapeBox(5, 5, 5, 1000))  
-    box_body.SetName("Box Object")
-    mphysicalSystem.Add(box_body)  
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    
+    
+    box_shape = chrono.ChVisualShapeBox()
+    box_shape.SetDimensions(side, side, height)
+    box_body.AddVisualShape(box_shape)
+    box_body.SetFixed(True)
+    mphysicalSystem.Add(box_body)
 
     
     
@@ -138,7 +144,7 @@ def main():
 noise_model = "CONST_NORMAL"  
 
 
-lens_model = None  
+
 
 
 update_rate = 30
@@ -174,6 +180,3 @@ vis = True
 
 
 out_dir = "SENSOR_OUTPUT/"
-
-
-main()

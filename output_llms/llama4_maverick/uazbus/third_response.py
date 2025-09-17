@@ -1,6 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import math
+
+# Set the data path
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -13,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed to RIGID
+tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
 terrainHeight = 0  # terrain height
@@ -43,39 +47,38 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
 terrain.Initialize()
 
 # Add a box obstacle
-obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle_mat.SetFriction(0.9)
-obstacle_mat.SetRestitution(0.01)
-obstacle_body = chrono.ChBody()
-obstacle_body.SetMass(100)  # arbitrary mass value
-obstacle_body.SetBodyFixed(True)  # Fix the obstacle in place
-obstacle_body.SetCollide(True)
-obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-obstacle_box = chrono.ChBoxShape()
-obstacle_box.GetBoxGeometry().Size = chrono.ChVector3d(0.25, 2.5, 0.1)  # half dimensions
-obstacle_body.AddVisualShape(obstacle_box)
-obstacle_body.GetCollisionModel().ClearModel()
-obstacle_body.GetCollisionModel().AddBox(obstacle_mat, 0.25, 2.5, 0.1, chrono.ChVector3d(0, 0, 0))
-obstacle_body.GetCollisionModel().BuildModel()
-vehicle.GetSystem().Add(obstacle_body)
+box_body = chrono.ChBody()
+box_body.SetMass(1000)
+box_body.SetBodyFixed(True)
+box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
+
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().Size = chrono.ChVector3d(0.5, 5, 0.2)
+box_body.AddVisualShape(box_shape)
+
+vehicle.GetSystem().Add(box_body)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,16 +98,18 @@ driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3  # time to go from 0 to +1
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = round(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -115,7 +120,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -123,7 +128,7 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.5  # Set constant throttle value
+    driver_inputs.throttle = 0.5  # Constant throttle
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -142,3 +147,5 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+# The corrected and modified script is provided above.

@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0      
-terrainLength = 200.0   
+terrainLength = 200.0  
 terrainWidth = 100.0   
 
 
@@ -84,20 +84,11 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.DoubleLaneChangePath()
-path.SetInitialLocation(chrono.ChVector3d(-50, 0, 0.5))
-path.SetInitialDirection(chrono.ChVector3d(1, 0, 0))
-path.SetLaneWidth(3.5)
-path.SetLaneChangeDistance(50)
-path.SetTargetSpeed(10.0)
-
-
-driver = veh.ChPathFollowerDriver()
-driver.SetVehicle(vehicle.GetVehicle())
-driver.SetPath(path)
-driver.SetTargetSpeed(10.0)
-driver.SetSteeringController(veh.ChSteeringControllerLookAhead(5))
-driver.SetSpeedController(veh.ChSpeedControllerPID(2, 0.5, 0))
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+driver.SetPath(veh.CreateISOdoubleLaneChangePath(10.0))  
+driver.SetLookAheadDistance(5.0)  
+driver.SetSteeringGains(0.5, 0.1, 0.1)  
+driver.SetSpeedGains(0.5, 0.1, 0.1)  
 driver.Initialize()
 
 

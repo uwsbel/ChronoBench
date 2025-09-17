@@ -97,13 +97,23 @@ print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
+    # Introduce a double lane change maneuver sequence controlled by the driver system
+    if time < 2:
+        driver.SetSteering(-1)  # Turn left
+    elif time < 4:
+        driver.SetSteering(1)  # Turn right
+    elif time < 6:
+        driver.SetSteering(-1)  # Turn left again
+    else:
+        driver.SetSteering(0)  # Straighten the steering
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -114,16 +124,6 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Introduce double lane change maneuver sequence controlled by the driver system
-    if time < 5:
-        driver_inputs.m_steering = 1  # Turn right
-    elif time < 10:
-        driver_inputs.m_steering = -1  # Turn left
-    elif time < 15:
-        driver_inputs.m_steering = 1  # Turn right
-    else:
-        driver_inputs.m_steering = 0  # Straight
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -242,13 +242,23 @@ print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
+    # Introduce a double lane change maneuver sequence controlled by the driver system
+    if time < 2:
+        driver.SetSteering(-1)  # Turn left
+    elif time < 4:
+        driver.SetSteering(1)  # Turn right
+    elif time < 6:
+        driver.SetSteering(-1)  # Turn left again
+    else:
+        driver.SetSteering(0)  # Straighten the steering
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -259,16 +269,6 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Introduce double lane change maneuver sequence controlled by the driver system
-    if time < 5:
-        driver_inputs.m_steering = 1  # Turn right
-    elif time < 10:
-        driver_inputs.m_steering = -1  # Turn left
-    elif time < 15:
-        driver_inputs.m_steering = 1  # Turn right
-    else:
-        driver_inputs.m_steering = 0  # Straight
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

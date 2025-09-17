@@ -1,60 +1,56 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.scm as scm
 import numpy as np
 
 
 chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
-vehicle_dir = "vehicle/data/hmmwv"
+chrono.SetChronoOutputPath("output/")
 
 
-system = chrono.ChronoSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system = chrono.ChSystemSCM()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-hmmwv = veh.HMMWV()
-hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+terrain = scm.ChTerrainSCM()
+terrain.SetHeightField(chrono.GetChronoDataFile("terrain/height_maps/test64.bmp"),  
+                       chrono.ChVectorD(20, 0, 20),  
+                       0.2)  
+terrain.SetSoilParameters(2e6,  
+                          0,    
+                          1.1,  
+                          0.0,  
+                          30,   
+                          0.01) 
+
+
+terrain.EnableMovingPatch(True, 10.0)  
+terrain.SetPlotType(scm.ChTerrainSCM::PLOT_SINKAGE, True)  
+
+
+system.Add(terrain)
+
+
+hmmwv = chrono.vehicle.ChWheeledVehicle(chrono.vehicle.GetDataFile("hmmwv/vehicle/HMMWV_vehicle.json"))
+hmmwv.SetChassisVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetSteeringVisualizationType(chrono.vehicle.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(chrono.vehicle.VisualizationType_MESH)
+
 hmmwv.SetChassisFixed(False)
-hmmwv.SetInitPosition(chrono.ChCoorD(0, 0, 0.5))
-hmmwv.SetInitFwdVel(5)
-hmmwv.Initialize()
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetInitFwdVel(10)  
 
-
-hmmwv.SetTireType(veh.RigidTire)
-hmmwv.SetTireStepSize(0.01)
-
-
-hmmwv.GetSystem().Add(hmmwv.GetChassis())
-hmmwv.GetSystem().Add(hmmwv.GetPowertrain())
-hmmwv.GetSystem().Add(hmmwv.GetSteering())
 
 for axle in hmmwv.GetAxles():
-    system.Add(axle)
-    for wheel in axle.GetWheels():
-        system.Add(wheel)
+    for side in [chrono.vehicle.VehicleSide::LEFT, chrono.vehicle.VehicleSide::RIGHT]:
+        wheel = axle.GetWheel(side)
+        wheel.SetTireType(chrono.vehicle.TireType::RIGID)
+        wheel.SetTireVisualizationType(chrono.vehicle.VisualizationType_MESH)
 
 
-terrain = veh.SCMDeformableTerrain(hmmwv.GetSystem())
-terrain.SetPlane(chrono.ChCoorD(0, 0, 0, chrono.QUNIT))
-terrain.SetLength(20)
-terrain.SetWidth(10)
-terrain.Initialize()
-
-
-terrain.SetSoilParameters(
-    Bekker_Kphi=1e6,
-    Bekker_Kc=1e5,
-    Bekker_n=1.0,
-    Mohr_cohesion=1e3,
-    Mohr_friction=35,
-    Mohr_dilation=5,
-    Janosi_shear=0.01,
-    plastic_yield=0.01
-)
-
-
-terrain.EnableMovingPatch(True, 10, 5)
-terrain.SetMovingPatchReference(hmmwv.GetChassis())
+driver = chrono.vehicle.ChDriver()
+hmmwv.SetDriver(driver)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -64,28 +60,24 @@ vis.SetWindowTitle("HMMWV on SCM Terrain")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
+vis.AddCamera(chrono.ChVectorD(5, 3, 0), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 15, 1, 15, 40, 512)
-
-
-terrain.GetMesh().SetFalseColorRange(0, 0.2)
-terrain.GetMesh().SetFalseColorMode(chronoirr.FalseColorMode::Z_DISPLACEMENT)
-
-
-veh.ChVehicleVisualSystemIrrlicht::AddVisualModel(hmmwv, vis)
-
-
-driver = veh.ChDriverHMMWV(vis)
-driver.Initialize()
+vis.AddLightWithShadow(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 10, 1, 10, 40, 512)
 
 
 time_step = 0.02  
 while vis.Run():
-    time = system.GetChTime()
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    
+    driver.SetSteering(0.1 * np.sin(chrono.ChTime.GetTime()))  
+    driver.SetThrottle(0.3)  
+    driver.SetBraking(0.0)   
+
+    
     system.DoStepDynamics(time_step)
+
+    
+    terrain.UpdateMovingPatch(hmmwv.GetChassis().GetPos(), hmmwv.GetChassis().GetRot())

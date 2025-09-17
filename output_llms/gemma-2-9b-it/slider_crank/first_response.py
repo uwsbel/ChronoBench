@@ -1,66 +1,58 @@
-from pychrono import ChSystem, ChBody, ChLink, ChMaterialSurface, ChMotor, ChContact
-from pychrono.irrlicht import IrrlichtVisualizer
-import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
-# Initialize PyChrono system
-system = ChSystem()
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("..")
+system = chrono.ChSystemNSC()
 
 # Create ground plane
-ground = ChBody(system)
-ground.SetPos(ChVectorD(0, 0, 0))
+ground = chrono.ChBodyEasyBox(10, 10, 0.1)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
 ground.SetBodyFixed(True)
+system.Add(ground)
 
 # Create crankshaft
-crankshaft = ChBody(system)
-crankshaft.SetPos(ChVectorD(0, 0, 0.5))
-crankshaft.SetRot(ChQuaternionD.from_euler(0, 0, 0))
-crankshaft.SetMass(1.0)
-crankshaft.SetInertiaXX(ChVectorD(0.1, 0.1, 0.1))
-crankshaft.SetCollide(True)
+crankshaft = chrono.ChBodyEasyCylinder(0.1, 0.5, 10)
+crankshaft.SetPos(chrono.ChVectorD(0, 0, 0.5))
+crankshaft.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
+system.Add(crankshaft)
 
 # Create connecting rod
-connecting_rod = ChBody(system)
-connecting_rod.SetPos(ChVectorD(0, 0, 1))
-connecting_rod.SetRot(ChQuaternionD.from_euler(0, 0, 0))
-connecting_rod.SetMass(0.5)
-connecting_rod.SetInertiaXX(ChVectorD(0.01, 0.01, 0.01))
-connecting_rod.SetCollide(True)
+connecting_rod = chrono.ChBodyEasyCylinder(0.05, 0.5, 1)
+connecting_rod.SetPos(chrono.ChVectorD(0.5, 0, 0.5))
+connecting_rod.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
+system.Add(connecting_rod)
 
 # Create piston
-piston = ChBody(system)
-piston.SetPos(ChVectorD(0, 0, 1.5))
-piston.SetRot(ChQuaternionD.from_euler(0, 0, 0))
-piston.SetMass(0.2)
-piston.SetInertiaXX(ChVectorD(0.001, 0.001, 0.001))
-piston.SetCollide(True)
+piston = chrono.ChBodyEasyBox(0.2, 0.2, 0.1)
+piston.SetPos(chrono.ChVectorD(1, 0, 0.5))
+piston.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0), chrono.CH_C_DEG2RAD(0)))
+system.Add(piston)
 
 # Create joints
-crankshaft_joint = ChLinkLockUniversal(crankshaft, connecting_rod, ChVectorD(0, 0, 0), ChVectorD(0, 0, 0))
-connecting_rod_joint = ChLinkSlider(connecting_rod, piston, ChVectorD(0, 0, 0), ChVectorD(0, 0, 1))
+crankshaft_joint = chrono.ChLinkLockUniversal(crankshaft, connecting_rod, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+connecting_rod_joint = chrono.ChLinkSlider(connecting_rod, piston, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+
+system.Add(crankshaft_joint)
+system.Add(connecting_rod_joint)
 
 # Create motor
-motor = ChMotor(system)
-motor.SetPos(crankshaft.GetPos())
-motor.SetRot(crankshaft.GetRot())
-motor.SetBody(crankshaft)
-motor.SetMode(ChMotor.Mode.TORQUE_CONTROL)
-motor.SetTorque(10)  # Set desired torque
+motor = chrono.ChMotorRotation(crankshaft, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+motor.SetMode(chrono.ChMotorMode.MODE_TORQUE_CONTROL)
+motor.SetTorque(10)
+system.Add(motor)
 
-# Visualizer setup
-vis = IrrlichtVisualizer(system)
-vis.SetCamera(
-    pos=ChVectorD(2, 2, 2),
-    target=ChVectorD(0, 0, 0),
-    up=ChVectorD(0, 1, 0),
-)
-vis.SetBackgroundColor(0.8, 0.8, 0.8)
-vis.SetAmbientLight(0.5, 0.5, 0.5)
-vis.SetDirectionalLight(0.8, 0.8, 0.8, ChVectorD(1, 1, 1))
+# Visualization setup
+vis = chronoirr.ChIrrApp(system, 'Crank-Slider Mechanism', chronoirr.dimension2du(1024, 768))
+
+# Customize camera settings
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+
+# Customize lighting
+vis.GetSceneManager().setAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
 
 # Add textures and logos
-# ... (implementation depends on specific assets and desired appearance)
+# ... (Add your desired visual elements here)
 
-# Simulation loop
-while vis.Run():
-    system.DoStepDynamics(0.01)
-    vis.Render()
+# Run the simulation
+vis. hini()

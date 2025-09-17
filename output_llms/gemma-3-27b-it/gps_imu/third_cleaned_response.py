@@ -97,8 +97,11 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(), 10, offset_pose, sens.ChNoiseNone())
+offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QUNIT)
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
+                                 10,
+                                 offset_pose,
+                                 sens.ChNoiseNone())
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -106,7 +109,11 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(), 10, offset_pose, chrono.ChVector3d(-89.400, 43.070, 260.0), sens.ChNoiseNone())
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
+                        10,
+                        offset_pose,
+                        chrono.ChVector3d(-89.400, 43.070, 260.0),
+                        sens.ChNoiseNone())
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
@@ -187,5 +194,3 @@ if gps_data:
     plt.show()
 else:
     print("No GPS data available to plot.")
-
-print("GPS Data: ", gps_data)

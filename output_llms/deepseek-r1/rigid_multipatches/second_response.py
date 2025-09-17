@@ -3,11 +3,14 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
+    # Simulation step sizes
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
     # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    # 1. Update initial position to (6, -70, 0.5)
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
@@ -24,33 +27,24 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single mesh-based patch
+    # Create simplified terrain with single mesh patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
     
-    # 2. Create unified contact material with thickness
-    contact_mat = chrono.ChContactMaterialNSC()
-    contact_mat.SetFriction(0.9)
-    contact_mat.SetRestitution(0.01)
-    contact_mat.SetThickness(0.01)  # Set contact material thickness
+    # Add collision mesh
+    patch = terrain.AddMesh(patch_mat, 
+                           veh.GetDataFile("terrain/meshes/Highway_col.obj"), 
+                           "", 0.01, False)
     
-    # 2/4. Replace multiple patches with single collision mesh
-    # 3. Add visual mesh separately
-    # 5. Remove original patch1/patch2/patch3/patch4 definitions
-    patch = terrain.AddPatch(contact_mat, 
-                            chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), 
-                            chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                            "",  # No name
-                            True, # Enable collision
-                            False) # Disable default visualization
-    
-    # 3. Add custom visual mesh
+    # Add visual mesh
     vis_mesh = chrono.ChTriangleMeshConnected()
     vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetMesh(vis_mesh)
-    patch.GetGroundBody().AddVisualShape(visual_shape)
-
+    vis_shape = chrono.ChVisualShapeTriangleMesh()
+    vis_shape.SetMesh(vis_mesh)
+    patch.GetGroundBody().AddVisualShape(vis_shape)
+    
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface
@@ -98,11 +92,5 @@ def main():
 
     return 0
 
-# Set vehicle data path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Simulation step sizes
-step_size = 2e-3
-tire_step_size = 1e-3
-
 main()

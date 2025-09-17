@@ -68,13 +68,14 @@ def main():
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
 
     
-    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 200, ch.ChCoordsysd(ch.ChVector3d(0.5, 0, 1.5), ch.ChQuaterniond(1, 0, 0, 0)), 100, ch.ChVector3d(0, 0, -1), 0.01, 100)
-    lidar.SetName("Lidar")
-    lidar.SetFilter(sens.ChSensorFilterOr(sens.ChSensorFilterBox(ch.ChVector3d(-10, -10, -10), ch.ChVector3d(10, 10, 10)), sens.ChSensorFilterSelf()))
+    lidar = sens.ChLidarSensor(hmmwv.GetSystem(), 200, ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.5), ch.ChQuaterniond(1, 0, 0, 0)), 100, 1.5, 3.14159265358979323846)
+    lidar.AddFilter(sens.ChSensorFilterBox(ch.ChVector3d(-5, -5, -5), ch.ChVector3d(5, 5, 5)))
+    lidar.AddFilter(sens.ChSensorFilterRays(32, 64))
+    lidar.AddFilter(sens.ChSensorFilterNoise(0.01))
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/points"))
 
     ros_manager.Initialize()  
 

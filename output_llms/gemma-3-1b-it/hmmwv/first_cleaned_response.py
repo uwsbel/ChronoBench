@@ -1,95 +1,75 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visual as v
+import pychrono.visuals as v
+import pychrono.utils as uc
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual import primitives
+from pychrono.visuals import RigidTerrain
 
 
 vehicle_id = 1
-vehicle_location = [0, 0, 0]  
-vehicle_orientation = [0, 0, 0]  
-contact_method = 'simple'  
-tmeasy_tire_model = 'tmeasy'
 terrain_width = 10
-terrain_height = 10
-terrain_depth = 10
-terrain_texture = 'terrain.png' 
-simulation_speed = 50
+terrain_height = 5
+terrain_texture = "grass_texture.jpg"  
+vehicle_speed = 0.5
+vehicle_acceleration = 0.2
+vehicle_deceleration = 0.1
+vehicle_torque = 0.05
+vehicle_radius = 0.2
+vehicle_mass = 100.0
+vehicle_center_x = 2.0
+vehicle_center_y = 2.0
+vehicle_center_z = 1.0
+vehicle_orientation = 0.0
+vehicle_contact_method = 'static' 
+vehicle_tire_model = 'IrrlichtTire' 
 
 
-vehicle_mass = 1500  
-vehicle_dynamic_mass = 1000 
-vehicle_radius = 0.5  
-vehicle_center_x = vehicle_location[0]
-vehicle_center_y = vehicle_location[1]
-vehicle_center_z = vehicle_location[2]
+chrono = pc.Chronos()
 
 
-terrain = primitives.Terrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    texture=terrain_texture,
-    
+rigid_terrain = RigidTerrain(width=terrain_width, height=terrain_height)
+rigid_terrain.texture = terrain_texture
+
+
+vehicle = pc.Vehicle(
+    vehicle_id,
+    vehicle_center_x,
+    vehicle_center_y,
+    vehicle_center_z,
+    vehicle_orientation,
+    vehicle_contact_method,
+    vehicle_tire_model,
+    vehicle_mass,
+    vehicle_radius,
+    vehicle_torque,
+    vehicle_acceleration,
+    vehicle_deceleration,
+    vehicle_speed,
 )
 
 
-rigid_terrain = primitives.RigidTerrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    texture=terrain_texture,
-    
-)
+chrono.start_simulation(vehicle)
 
 
-driver = pc.Driver(
-    
-    
-    
-    
-    steering_angle_min = 0,
-    steering_angle_max = 90,
-    throttle_range = 0,
-    brake_range = 0,
-    
-)
-
-
-def run_simulation():
-    print("Starting simulation...")
-    try:
+try:
+    while True:
         
-        chrono = pychrono.core.Chrono(
-            
-            
-            
-            
-            
-            
-            
-            None, None, None)
+        vehicle.update_dynamics()
 
         
-        chrono.set_simulation_parameters(
-            vehicle_id=vehicle_id,
-            vehicle_location=vehicle_location,
-            vehicle_orientation=vehicle_orientation,
-            contact_method=contact_method,
-            tmeasy_tire_model=tmeasy_tire_model,
-            terrain_width=terrain_width,
-            terrain_height=terrain_height,
-            terrain_depth=terrain_depth,
-            terrain_texture=terrain_texture,
-            simulation_speed=simulation_speed
-        )
+        rigid_terrain.update()
 
         
-        chrono.run()
+        v.render(rigid_terrain, vehicle)
 
-    except Exception as e:
-        print(f"Simulation error: {e}")
+        
+        print(f"Frame: {chrono.time_since_epoch}")
 
-if __name__ == "__main__":
-    run_simulation()
+        
+        chrono.wait(1)
+
+except KeyboardInterrupt:
+    print("Simulation stopped.")
+    chrono.stop_simulation(vehicle)
+    print("Simulation stopped.")

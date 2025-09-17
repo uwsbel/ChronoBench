@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 200.0  
 terrainWidth = 100.0   
@@ -62,8 +63,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -82,32 +83,41 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDriver(vehicle.GetVehicle())
-driver.SetDriverType(veh.ChDriverType_CRUISECONTROL)
-driver.SetTargetSpeed(10.0)  
-
-
-waypoints = [
-    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(-50, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, -1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT)
+path_points = [
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0.5), chrono.QUNIT),  
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 50, 0.5), chrono.QUNIT),  
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, 50, 0.5), chrono.QUNIT),  
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 50, 0.5), chrono.QUNIT),  
+    chrono.ChCoordsysd(chrono.ChVector3d(25, 50, 0.5), chrono.QUNIT),  
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0.5), chrono.QUNIT)   
 ]
-driver.GetPath().AddPathWaypoints(waypoints)
-driver.GetPath().SetLookaheadDistance(5.0)  
-driver.GetPath().SetPathWidth(1.5)  
+
+path_follower = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+cruise_control = veh.ChCruiseControlDriver(path_follower, vehicle.GetVehicle().GetSystem())
 
 
-steering_gain = 0.1
-speed_gain = 0.5
-driver.GetSteeringController().SetGain(steering_gain)
-driver.GetSpeedController().SetGain(speed_gain)
+path_follower.SetPath(path_points)
+path_follower.SetTargetSpeed(10.0)  
+path_follower.SetLookaheadDistance(5.0)  
+path_follower.SetSteeringGain(0.1)  
+path_follower.SetSpeedGain(1.0)  
+
+
+cruise_control.SetMaxSpeed(10.0)
+cruise_control.SetAccelerationGain(5.0)
+cruise_control.SetDecelerationGain(5.0)
+
+driver = veh.ChInteractiveDriverIRR(vis)  
+
+
+
+
+
 
 driver.Initialize()
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -128,10 +138,13 @@ while vis.Run():
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

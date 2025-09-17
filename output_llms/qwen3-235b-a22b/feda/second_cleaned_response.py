@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -11,22 +10,33 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
+
 vis_type = veh.VisualizationType_MESH
+
+
 chassis_collision_type = veh.CollisionType_NONE
+
+
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
+terrainHeight = 0      
 terrainLength = 200.0  
-terrainWidth = 100.0
+terrainWidth = 100.0   
+
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
+
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50
+
+
+render_step_size = 1.0 / 50  
 
 
 vehicle = veh.FEDA()
@@ -36,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -55,8 +66,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -72,15 +82,30 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.ChPathGen_ISO_double_lane_change(chrono.ChVector3d(0, 0, 0.5), 3.5, 100.0, 100)
-path.SetColor(chrono.ChColor(1, 0, 0))  
-vis.AddPath(path, 0.05, chrono.ChColor(1, 0, 0))  
+path = chrono.ChBezierCurve()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-40, 0, 0))
+path.AddPoint(chrono.ChVector3d(-30, 3.5, 0))
+path.AddPoint(chrono.ChVector3d(-15, 3.5, 0))
+path.AddPoint(chrono.ChVector3d(0, 0, 0))
+path.AddPoint(chrono.ChVector3d(15, -3.5, 0))
+path.AddPoint(chrono.ChVector3d(30, -3.5, 0))
+path.AddPoint(chrono.ChVector3d(40, 0, 0))
+path.AddPoint(chrono.ChVector3d(50, 0, 0))
 
 
-driver = veh.ChPathFollowerDriver(vehicle, path, "ISO_Double_Lane_Change", 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.8, 0.01, 0.2)  
-driver.GetSpeedController().SetGains(0.4, 0.01, 0.1)     
+driver = veh.ChPathFollowerDriver(vehicle, path, "my_path", 10.0)
+
+
+steering_pid = driver.GetSteeringPID()
+steering_pid.SetGains(0.8, 0.0, 0.02)  
+steering_pid.SetLookAheadDistance(5.0)
+
+
+speed_pid = driver.GetSpeedPID()
+speed_pid.SetGains(0.4, 0.0, 0.0)  
+speed_pid.SetTargetSpeed(10.0)
+
 driver.Initialize()
 
 
@@ -88,24 +113,32 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

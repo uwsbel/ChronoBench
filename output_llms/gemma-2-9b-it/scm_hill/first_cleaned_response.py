@@ -1,47 +1,56 @@
-from pychrono import ChSystem, ChBody, ChPointPoint, ChMaterialSurface, ChContactMethod
+from pychrono import ChSystem, ChBody, ChContactMaterial, ChLinkLock
 from pychrono.irrlicht import IrrlichtVisualizer
-from pychrono.vehicle import ChVehicleModel, ChDriver
+from pychrono.vehicle import ChVehicleModelHMMWV, ChDriverSteeringWheel
+import numpy as np
 
 
 system = ChSystem()
 
 
 
-vehicle = ChVehicleModel.CreateVehicle(system, "path/to/hmmwv_model.urdf")
-vehicle.SetPos(ChVectorD(0, 0, 0))  
-
-
-
-terrain = ChBody(system)
-terrain.SetPos(ChVectorD(0, 0, 0))
+terrain = ChBody(mass=1e6)
 terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(ChMaterialSurface(system))
-terrain.GetMaterialSurface().SetFriction(0.8)  
-terrain.GetMaterialSurface().SetRestitution(0.1)  
 terrain.SetCollide(True)
+terrain.SetMaterialSurface(ChContactMaterial())
+terrain.SetPos(ChVectorD(0, 0, 0))
 
 
-terrain.LoadHeightMap("path/to/heightmap.png")
+soil_parameters = {
+    'Youngs_modulus': 1e6,
+    'Poisson_ratio': 0.3,
+    'density': 1000,
+    'damping': 0.1,
+}
+
+
+height_map = np.random.rand(100, 100)  
+terrain.SetTerrain(height_map, soil_parameters)
 
 
 
-driver = ChDriver(vehicle)
+vehicle = ChVehicleModelHMMWV(system)
+vehicle.SetPos(ChVectorD(0, 0, 0.5))
+
+
+
+driver = ChDriverSteeringWheel(vehicle, 0.1)
 
 
 
 visualizer = IrrlichtVisualizer(system)
-visualizer.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))
-visualizer.SetCameraDistance(10)
-visualizer.SetAmbientLight(ChVectorD(0.2, 0.2, 0.2))
-visualizer.SetDirectionalLight(ChVectorD(0.8, 0.8, 0.8))
+visualizer.SetCamera(ChVectorD(10, 10, 10), ChVectorD(0, 0, 0))
+visualizer.SetLighting(True)
 
 
 while True:
     
-    driver.Update(0.01) 
-
-    
     system.DoStepDynamics(0.01)
 
     
+    driver.Update()
+
+    
     visualizer.Render()
+
+    
+    visualizer.Sync()

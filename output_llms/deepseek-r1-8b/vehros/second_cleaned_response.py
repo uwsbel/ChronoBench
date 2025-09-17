@@ -16,6 +16,12 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
+    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_VEHICLE_CHASSIS)  
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_VEHICLE_SUSPENSION)  
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_VEHICLE_STEERING)  
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_VEHICLE_WHEEL)  
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_VEHICLE_TIRE)  
     hmmwv.Initialize()  
 
     
@@ -41,18 +47,18 @@ def main():
     ros_manager.Initialize()  
 
     
+    vis_system = chronoirr.ChVisualSystemIrrlicht()  
+    renderer = vis_system.GetRenderer()  
+    renderer.SetWindowSize(1024, 768)  
+    renderer.SetFullscreen(ch.ChBool_T)  
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
-    vis_system = chronoirr.ChVisualSystemIrrlicht()  
-    renderer = vis_system.GetRenderer()  
-    renderer.SetWindow("PyChrono Visualization", 800, 600)  
-    renderer.SetCamera(ch.ChCameraPerspective(45.0, 0.0, 1000.0))  
-    renderer.SetLight(0, ch.ChLightDirection(0, 0, 1))  
-
-    while True:
+    while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
         
@@ -71,8 +77,9 @@ def main():
             break  
 
         
-        renderer.Update()
-        vis_system.RenderFrame()
+        vis_system.Render()
+        renderer.DrawFrame()
+        ch.Render.Update()
 
 if __name__ == "__main__":
     main()

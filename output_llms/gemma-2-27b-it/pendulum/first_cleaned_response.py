@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
+
 
 
 
@@ -8,15 +8,19 @@ import math
 
 
 mysystem = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(1, 1, 0.2, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.3)
+material.SetRestitution(0.2)
+
+
+ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 mysystem.Add(ground)
 
 
-bob = chrono.ChBodyEasySphere(0.2, 1000, True, True)
+bob = chrono.ChBodyEasySphere(0.5, 10, True, True, material)
 bob.SetPos(chrono.ChVectorD(0, 1, 0))
 mysystem.Add(bob)
 
@@ -30,29 +34,23 @@ mysystem.Add(joint)
 
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(mysystem)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Simple Pendulum")
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalCamera(chrono.ChVectorD(2, 2, 2))
-vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+
+myapplication = chronoirr.ChIrrApp(mysystem, 'Simple Pendulum', chronoirr.dimension2du(800, 600))
+
+
+myapplication.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+myapplication.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
 
 
 
 
 
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    mysystem.DoStepDynamics(0.01)
+while (myapplication.GetDevice().run()):
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()
 
     
-    if mysystem.GetChTime() % 0.1 == 0:
-        print("Time:", mysystem.GetChTime())
-        print("Position:", bob.GetPos())
-        print("Velocity:", bob.GetPos_dt())
+    print(f"Position: {bob.GetPos()}, Velocity: {bob.GetPos_dt()}")

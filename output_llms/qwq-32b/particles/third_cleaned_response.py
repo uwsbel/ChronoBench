@@ -24,22 +24,29 @@ sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
 
-msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody1.SetPos(chrono.ChVectorD(1, 1, 0))
-msphereBody1.SetPos_dt(chrono.ChVectorD(0.5, 0, 0.1))  
-sys.Add(msphereBody1)
+sphere1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere1.SetPos(chrono.ChVectorD(1, 1, 0))
+sphere1.SetPos_dt(chrono.ChVectorD(0.5, 0, 0.1))  
+sphere1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(sphere1)
+vis.BindItem(sphere1)
+coll.BindItem(sphere1)
 
 
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVectorD(-10, -10, 0))
-msphereBody2.SetPos_dt(chrono.ChVectorD(-0.5, 0, -0.1))  
-sys.Add(msphereBody2)
+sphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere2.SetPos(chrono.ChVectorD(-10, -10, 0))
+sphere2.SetPos_dt(chrono.ChVectorD(-0.5, 0, -0.1))  
+sys.Add(sphere2)
+vis.BindItem(sphere2)
+coll.BindItem(sphere2)
 
 
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVectorD(0, 20, 0))
-msphereBody3.SetPos_dt(chrono.ChVectorD(0, -0.5, 0.2))  
-sys.Add(msphereBody3)
+sphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere3.SetPos(chrono.ChVectorD(0, 20, 0))
+sphere3.SetPos_dt(chrono.ChVectorD(0, -0.5, 0.2))  
+sys.Add(sphere3)
+vis.BindItem(sphere3)
+coll.BindItem(sphere3)
 
 
 emitter = chrono.ChParticleEmitter()
@@ -47,8 +54,9 @@ emitter.SetParticlesPerSecond(2000)
 emitter.SetUseParticleReservoir(True)
 emitter.SetParticleReservoirAmount(200)
 
+
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
-emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())
 emitter.SetParticlePositioner(emitter_positions)
 
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
@@ -112,20 +120,21 @@ while vis.Run():
     for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 1e-6:  
+        if r_attract > 0:  
             potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     
     for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 1e-6:
+        if r_attract > 0:
             f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
             F_attract = (D_attract / r_attract) * f_attract
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+            abodyA.AddForce(F_attract)
+            abodyB.AddForce(-F_attract)
 
     total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
+    print(
+        f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
 
     sys.DoStepDynamics(stepsize)

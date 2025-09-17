@@ -6,130 +6,114 @@ import pychrono.vehicle as vehicle
 
 import pychrono.vehicle_vehicles as vehicle_vehicles
 
-import pychrono.vehicle_vehicle as vehicle_vehicle
+import pychrono.vehicle_terrain as vehicle_terrain
 
-import pychrono.vehicle_vehicle_vehicles as vehicle_vehicle_vehicles
+import pychrono.vehicle_driver as vehicle_driver
 
-import pychrono.vehicle_vehicle_driver as vehicle_vehicle_driver
+import pychrono.vehicle_visual as vehicle_visual
 
-import pychrono.vehicle_vehicle_vehicle as vehicle_vehicle_vehicle
+import pychrono.vehicle_sensor as vehicle_sensor
+
+import pychrono.irrlicht as irr
+
+import pychrono.vehicle_friction as vehicle_friction
 
 
 # Initialize PyChrono environment
 
-chrono = pychrono.ChNoSimulator()
+chrono = pychrono.ChNoEngine()
 
 
-# Set simulation parameters
+# Set up the Irrlicht visualization
 
-chrono.Set_Solver_Type(pychrono.ChSolverType.dDsSsfSM)
+chrono.SetUseIrrlicht(True)
 
-chrono.Set_Real_Time(True)
+chrono.SetIrrlichtOptions(
 
-chrono.Set_Real_Time_Step(1.0/60.0)
+    chrono.irrlicht.IrrlichtOptions_InfiniteLighting)
 
-
-# Create rigid terrain with specified friction and restitution
-
-terrain = pychrono.RigidTerrain("Terrain", 100.0, 100.0)
-
-terrain.Set_Friction_Coefficient(0.5)
-
-terrain.Set_Restitution(0.2)
-
-terrain.Add_Ramp(0.0, 0.0, 100.0, 100.0, 10.0)
+chrono.SetVisualizationCamera(chrono.irrlicht.ChIrrApp.Far())
 
 
-# Create UAZBUS vehicle with specified initial conditions
+# Define the terrain
 
-uazbus = vehicle.UAZBUS("UAZBUS", 10.0, 5.0, 10.0)
+terrain = vehicle_terrain.ChTerrain()
 
-uazbus.Set_RigidBody_Mass(1500.0)
+terrain.SetFriction(0.5)
 
-uazbus.Set_RigidBody_Inertia(pychrono.ChBoxInertia(1000.0, 1000.0, 1000.0))
-
-uazbus.Set_RigidBody_Pos(0.0, 0.0, 0.0)
-
-uazbus.Set_RigidBody_Vel(0.0, 0.0, 0.0)
-
-uazbus.Set_RigidBody_AngVel(0.0, 0.0, 0.0)
+terrain.SetRestitution(0.3)
 
 
-# Initialize driver system
+# Add the terrain to the simulation
 
-driver = vehicle_vehicle_driver.Driver("Driver")
-
-driver.Set_MaxSteerAngle(30.0)
-
-driver.Set_MaxBrake(1000.0)
-
-driver.Set_MaxAccel(10.0)
-
-driver.Set_MaxSteerRate(30.0)
+chrono.Add(terrain)
 
 
-# Attach driver to vehicle
+# Create a UAZBUS vehicle
 
-uazbus.Add_Driver(driver)
+vehicle_model = vehicle_vehicles.ChVehicleUAZBUS()
 
+vehicle_model.SetMass(1500.0)
 
-# Initialize visualization using Irrlicht
-
-chrono.Set_Screen_Width(800)
-
-chrono.Set_Screen_Height(600)
-
-chrono.Set_Screen_Title("UAZBUS Simulation")
-
-chrono.Set_Screen_Allow_Window_Resizing(False)
-
-chrono.Set_Screen_Allow_Fullscreen(False)
+vehicle_model.SetChassisType(vehicle_vehicles.ChVehicleChassis_RigidBody)
 
 
-# Create visualization system
+# Add the vehicle to the simulation
 
-irr = pychrono.irrlicht.ChIrrApp("UAZBUS Visualization", chrono.Get_Window_Width(), chrono.Get_Window_Height())
-
-chrono.Add_Irr_Options(irr)
-
-irr.Set_Sleep_Speed(0.001)
-
-irr.Set_Max_FPS(60)
-
-irr.Set_Window_Title("UAZBUS Simulation")
-
-irr.Set_Use_OpenGL(False)
+vehicle = chrono.Add(vehicle_model)
 
 
-# Add vehicle to visualization
+# Set the terrain for the vehicle
 
-irr.Add_Vehicle(uazbus, vehicle_vehicle.Vehicle_Vehicle_Visualization(uazbus, 100.0, 100.0, 100.0, 100.0)
-
-
-# Add terrain to visualization
-
-irr.Add_Terrain(terrain, 100.0, 100.0, 10.0)
+vehicle.SetTerrain(terrain)
 
 
-# Main simulation loop
+# Set the driver system
 
-while(chrono.Get_Time() < 100.0):
+driver = vehicle_driver.ChVehicleDriver_Track()
 
-    chrono.Do_Step()
-
-    # Update visualization
-
-    irr.BeginScene()
-
-    irr.Draw()
-
-    irr.EndScene()
-
-    chrono.Set_Real_Time_Step(1.0/60.0)
-
-    chrono.Step()
+vehicle.Add(driver)
 
 
-# Clean up
+# Define initial conditions
 
-chrono.Destroy()
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
+
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(0, 0, 0, 1))
+
+
+# Set the visualization for the vehicle
+
+visual = vehicle_visual.ChVehicleVisual(vehicle_model)
+
+visual.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+chrono.Add(visual)
+
+
+# Set the sensor for the vehicle
+
+sensor = vehicle_sensor.ChVehicleSensor(vehicle)
+
+sensor.SetFrequency(100)
+
+chrono.Add(sensor)
+
+
+# Create the simulation loop
+
+while chrono.GetChTime() < 10:
+
+    # Update the simulation
+
+    chrono.DoStepD(0.01)
+
+
+    # Render the visualization
+
+    chrono.Render()
+
+
+# Stop the simulation
+
+chrono.Stop()

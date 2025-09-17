@@ -63,19 +63,14 @@ patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(0.1,  
-                         0.01,  
-                         0.1,   
-                         0.01,  
-                         0.001, 
-                         0.001, 
-                         0.1,   
-                         0.01,  
-                         0.01,  
-                         0.01)  
-terrain.SetHeightMap(chrono.GetDataFile("terrain/height_maps/bumpy_1024.bmp"), 1024, 1024, 0.1)
-terrain.SetTexture(chrono.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.Initialize()
+terrain.SetSoilParameters(veh.SoilParameters(0.1, 0.01, 0.01, 0.01, 0.01))
+terrain.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                   terrainLength, terrainWidth, 
+                   veh.GetDataFile("terrain/meshes/height_map.bmp"))
+
+patch = terrain.GetPatch(0)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 

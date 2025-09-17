@@ -5,7 +5,7 @@ import numpy as np
 
 # chrono.SetChronoDataPath('path/to/data')
 
-sys = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()  # Changed variable name to avoid conflict
 
 # Some data shared in the following
 crank_center = chrono.ChVector3d(-1, 0.5, 0)
@@ -19,57 +19,58 @@ rod_length = 1.5
 mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
-sys.Add(mfloor)
+system.Add(mfloor)
+
 # Create the flywheel crank
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
-# Since ChBodyEasyCylinder creates a vertical (y up) cylinder, here rotate it:
-mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
-sys.Add(mcrank)
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)  # Rotate cylinder to horizontal position
+system.Add(mcrank)
 
 # Create a stylized rod
 mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
 mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))
-sys.Add(mrod)
+system.Add(mrod)
 
 # Create a stylized piston
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
-mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
-sys.Add(mpiston)
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  # Orient cylinder along X axis
+system.Add(mpiston)
 
 # Create crank-truss joint: a motor that spins the crank flywheel
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank,  # the first connected body
                     mfloor,  # the second connected body
-                    chrono.ChFrameD(crank_center))  # where to create the motor in abs.space
+                    chrono.ChFramed(crank_center))  # where to create the motor in abs.space
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
-sys.Add(my_motor)
+system.Add(my_motor)
 
-# Create crank-rod joint (spherical)
-mjointA = chrono.ChLinkLockSpherical()
+# Create crank-rod joint (SPHERICAL instead of revolute)
+mjointA = chrono.ChLinkLockSpherical()  # Changed to spherical joint
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
-sys.Add(mjointA)
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+system.Add(mjointA)
 
-# Create rod-piston joint (spherical)
-mjointB = chrono.ChLinkLockSpherical()
+# Create rod-piston joint (SPHERICAL instead of revolute)
+mjointB = chrono.ChLinkLockSpherical()  # Changed to spherical joint
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
-sys.Add(mjointB)
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+system.Add(mjointB)
 
-# Create piston-truss joint (plane-plane)
-mjointC = chrono.ChLinkLockPlanePlane()
+# Create piston-truss joint (PLANE-PLANE instead of prismatic)
+mjointC = chrono.ChLinkLockPlanePlane()  # Changed to plane-plane joint
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
-sys.Add(mjointC)
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.QUNIT))  # Identity rotation for XY plane constraint
+system.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
+vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Crank demo')
 vis.Initialize()
@@ -86,33 +87,32 @@ array_speed = []
 
 # Run the interactive simulation loop
 while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
     # for plotting, append instantaneous values:
-    array_time.append(sys.GetChTime())
+    array_time.append(system.GetChTime())
     array_angle.append(my_motor.GetMotorAngle())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
-    
-    sys.DoStepDynamics(1e-3)
+    # here happens the visualization and step time integration
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(1e-3)
 
     # stop simulation after 20 seconds
-    if sys.GetChTime() > 20:
+    if system.GetChTime() > 20:
         vis.GetDevice().closeDevice()
 
 # Use matplotlib to make two plots when simulation ended:
 fig, (ax1, ax2) = plt.subplots(2, sharex=True)
 
 ax1.plot(array_angle, array_pos)
-ax1.set(ylabel='Piston Position [m]')
+ax1.set(ylabel='position [m]')
 ax1.grid()
 
 ax2.plot(array_angle, array_speed, 'r--')
-ax2.set(ylabel='Piston Speed [m/s]', xlabel='Crank Angle [rad]')
+ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')  # Fixed unit label
 ax2.grid()
 
 # Format x-axis with pi labels
 plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
-plt.show()
+plt.show()  # Added to display plots

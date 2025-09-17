@@ -25,8 +25,8 @@ class Model1:
                 mesh,  
                 msection_cable2,  
                 i+10,  
-                chrono.ChVector3d(0, 0, -0.1),  
-                chrono.ChVector3d(0.5, 0, -0.1)  
+                chrono.ChVector3d(0, 0, -0.1 + i*0.1),  
+                chrono.ChVector3d(0.5, 0, -0.1 + i*0.1)  
             )
 
             
@@ -45,21 +45,20 @@ class Model1:
             
             body = chrono.ChBody()
             body.SetBodyFixed(False)
-            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1))
+            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1 + i*0.1))
             body.SetMass(1)
-            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+            body.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
             system.Add(body)
+            self.bodies.append(body)
 
             
-            constraint_hinge_box = fea.ChLinkLockPrismatic()
-            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), body)
-            system.Add(constraint_hinge_box)  
-
-            self.bodies.append(body)
+            constraint_ball = chrono.ChLinkLockBall()
+            constraint_ball.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint_ball)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):
-            print(f"Position of body {i}: {body.GetPos()}")
+            print(f"Chain {i+1} body position: {body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

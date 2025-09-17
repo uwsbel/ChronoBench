@@ -4,132 +4,156 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), no deduction.
-- **Body Creation:** Bodies are created using `ChBodyEasyBox` and `ChBodyEasyCylinder` with reasonable parameters. However:
-  - The `material` is created and assigned only to `gear1_body` and `gear2_body` **after** the bodies are created, but `ChBodyEasy*` constructors accept a material argument for proper initialization. This is a minor omission but not critical. (-5 points)
-- **Visualization Setup:** Uses `ChIrrApp` with typical sky, camera, and lights added. However:
-  - The API documentation recommends using `ChVisualSystemIrrlicht()` and attaching the system, setting window size, title, initializing, etc. The code uses `ChIrrApp` which is a higher-level helper class that internally manages these steps, so this is acceptable.
-  - The camera is added with `AddTypicalCamera(chronoirr.vector3df(0, 0, 1), chronoirr.vector3df(0, 0, 0))`. The API docs show `AddTypicalCamera(chrono.ChVector3d(...))` or `AddCamera()`. Using `vector3df` is consistent with Irrlicht's 3D vector type, so this is acceptable.
-- **Joints and Links:** A motor joint is created and initialized correctly between `bar_body` and `gear1_body`. However:
-  - The motor is initialized at `(0,0,0.5)` but the bodies are positioned such that `gear1_body` is at `(0.5, 0, 0.5)` and `bar_body` at `(0, 0, 0.5)`. The motor frame is at `(0,0,0.5)` which is on `bar_body` but not on `gear1_body` (which is offset by 0.5 in x). This may cause incorrect joint behavior or unexpected constraints. This is a **logical error**. (-10 points)
-- **Material Setup:** Uses `ChMaterialSurfaceNSC()` and sets friction and restitution. However:
-  - The API docs specify `ChContactMaterialNSC()` for NSC systems, but here `ChMaterialSurfaceNSC()` is used. According to PyChrono API, `ChMaterialSurfaceNSC` is the correct material class for NSC contact surfaces, so this is correct.
-  - Restitution is set, which is valid.
-- **Simulation Loop:** The loop uses `application.GetDevice().run()` which is correct for Irrlicht apps. The loop calls `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()`. However:
-  - The API docs recommend `DoStepDynamics(time_step)` on the system, but here `application.DoStep()` is used. `ChIrrApp.DoStep()` internally calls the system's `DoStepDynamics()` with a default timestep, so this is acceptable.
-- **Missing Components:**
-  - No explicit timestep setting or control (e.g., fixed timestep) is shown.
-  - No collision model or collision enabling calls on bodies. `ChBodyEasy*` constructors have collision enabled by default if the parameter is True, so this is acceptable.
-  - No comments or documentation in code. (-5 points)
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
+- **Chrono Data Path:** Set correctly with `chrono.SetChronoDataPath()`.  
+- **Body Creation:** Bodies are created using `ChBodyEasyBox` and `ChBodyEasyCylinder` with reasonable parameters.  
+- **Visualization:** Uses `ChIrrApp` with sky, camera, lights, and shadow light added.  
+- **Joints and Motors:** Revolute joints and a motor link are created and initialized.  
+- **Simulation Loop:** Present with rendering and stepping.
 
-**Total Completeness deduction: 5 (material assignment minor omission) + 10 (motor joint frame mismatch) + 5 (lack of comments) = 20 points deducted**
+**Issues:**
+
+- The motor joint is initialized between `gear1_body` and `gear2_body`, but the revolute joints are initialized between `bar_body` and `gear_motor.GetBody2()`, and between `gear_motor.GetBody2()` and `truss_body`. This is somewhat confusing and may indicate a misunderstanding of which bodies are connected by the motor and joints.  
+- The motor uses `SetSpindleConstraint(chrono.ChLinkMotorRotationSpeed.SpindleConstraint_SCREW)`, which is not documented in the provided API. The documentation shows `SetSpeedFunction()` but not `SetMotorFunction()` or `SetSpindleConstraint()`. This suggests a possible incorrect or outdated API usage.  
+- The motor speed function is set with `SetMotorFunction(chrono.ChFunction_Ramp(0, 10))`, but the API documentation shows `SetSpeedFunction()` as the method to set the speed function, not `SetMotorFunction()`.  
+- The bodies are created with only 5 parameters in `ChBodyEasyBox` and `ChBodyEasyCylinder`, but the API documentation shows 7 parameters (lengths, density, visualize, collision, material). The code uses 5 parameters, which likely corresponds to `(lengthX, lengthY, lengthZ, density, visualize)` but misses the collision and material parameters. This may cause collision to be disabled or defaulted incorrectly.  
+- The `SetRot()` calls use `chrono.Q_from_AngX()` but the API documentation uses `chrono.QuatFromAngleX()` (note the capitalization and naming). This may be a minor API mismatch or a typo.  
+- The visualization setup uses `ChIrrApp` and calls `AddTypicalSky()`, `AddTypicalCamera()`, `AddTypicalLights()`, and `AddLightWithShadow()`. The API documentation suggests using `ChVisualSystemIrrlicht()` and attaching the system, then calling `Initialize()`. The `ChIrrApp` is a higher-level wrapper, but the code does not call `application.Initialize()`, which is necessary to set up the Irrlicht application properly.  
+- The simulation loop uses `application.GetDevice().run()` which is correct for Irrlicht device, but the API documentation suggests using `vis.Run()` (for `ChVisualSystemIrrlicht`) and `BeginScene()`, `Render()`, `EndScene()`. The code calls `DrawAll()` instead of `Render()`. This is a minor deviation but notable.  
+- The simulation loop calls `application.DoStep()` but the API documentation suggests `sys.DoStepDynamics(time_step)` or `application.DoStep()` if supported. This is acceptable if `ChIrrApp` supports it, but no `application.Initialize()` call is present, which is essential.
+
+**Deductions:**
+
+- Missing `application.Initialize()` call: **-15 points** (essential for visualization setup).  
+- Incorrect or missing parameters in body creation (missing collision and material parameters): **-10 points** (important detail).  
+- Incorrect motor API usage (`SetMotorFunction` instead of `SetSpeedFunction`, and unknown `SetSpindleConstraint`): **-15 points** (significant API misuse).  
+- Minor deviation in rotation quaternion method naming (`Q_from_AngX` vs `QuatFromAngleX`): **-5 points** (minor but notable).  
+- Visualization loop uses `DrawAll()` instead of `Render()`: **-5 points** (minor deviation).  
+
+Total deductions for completeness: 15 + 10 + 15 + 5 + 5 = **50 points** (exceeds 40, so capped at 40).
+
+**Score for Completeness:** 0/40
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**
-  - `ChBodyEasyBox` and `ChBodyEasyCylinder` are used correctly.
-  - `ChLinkMotorRotationSpeed` is created and initialized properly, but the frame for initialization is likely incorrect due to mismatch in body positions. This is a **significant logical error**. (-15 points)
-- **Material assignment:**
-  - `AddMaterial()` is called on bodies, which is correct.
-- **Motor speed function:**
-  - Uses `SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 2))`. The API docs show `SetSpeedFunction()`, but `SetMotorFunction()` is also valid (alias or older name). This is a minor inconsistency but not incorrect. (-5 points)
-- **Visualization calls:**
-  - Uses `AddTypicalSky()`, `AddTypicalCamera()`, `AddTypicalLights()` which are valid.
-- **Body fixed:**
-  - `SetBodyFixed(True)` is called on `truss_body`, which is correct.
-- **Rotation:**
-  - `SetRot(chrono.ChQuaternionD(0,0,0,1))` is identity quaternion, acceptable.
-- **Minor issues:**
-  - `motor.SetMotorFunction()` should be `motor.SetSpeedFunction()` per API docs. This is a minor API misuse. (-5 points)
+- The motor joint is incorrectly initialized and configured: `SetSpindleConstraint` is not documented, and `SetMotorFunction` is not the correct method; should be `SetSpeedFunction`. This can cause the motor not to work as intended.  
+- The revolute joints are initialized between bodies that may not be logically connected as expected. For example, `gear_motor.GetBody2()` is used as a body reference, but this is not guaranteed to be the correct body to connect to.  
+- The rotation quaternion initialization uses a possibly incorrect function name, which may cause runtime errors.  
+- The bodies created with `ChBodyEasyBox` and `ChBodyEasyCylinder` have missing parameters for collision and material, which may cause collision detection to be disabled or defaulted incorrectly, affecting simulation behavior.  
+- The simulation loop uses `application.DoStep()` without prior `application.Initialize()`, which may cause runtime errors or undefined behavior.  
+- The visualization loop uses `DrawAll()` instead of `Render()`, which may not render the scene properly.
 
-**Total Correctness deduction: 15 (motor frame mismatch) + 5 (motor function method name) = 20 points deducted**
+**Deductions:**
+
+- Incorrect motor API usage: **-15 points**  
+- Logical errors in joint initialization (unclear body connections): **-10 points**  
+- Minor inaccuracies in rotation quaternion function: **-5 points**
+
+Total deductions for correctness: 15 + 10 + 5 = **30 points**
+
+**Score for Correctness:** 0/30
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**
-  - Variable names are meaningful (`truss_body`, `bar_body`, `gear1_body`, `gear2_body`, `motor`).
-  - Code is reasonably structured.
-- **Comments:**
-  - No comments at all explaining the purpose of bodies, joints, or simulation steps. (-5 points)
-- **Formatting:**
-  - Code is well formatted and uses consistent indentation.
-- **Imports:**
-  - Imports only necessary modules.
-- **Minor:**
-  - Could improve by adding comments and possibly grouping related code sections.
+- The code lacks comments explaining the purpose of bodies, joints, and the motor.  
+- Variable names are somewhat meaningful (`truss_body`, `bar_body`, `gear1_body`, `gear2_body`, `gear_motor`, `revolute_joint`), which is good.  
+- The code formatting is acceptable but could be improved by adding blank lines between logical blocks for readability.  
+- No docstrings or inline comments are present.  
+- The code uses magic numbers (e.g., dimensions, densities) without explanation.
 
-**Total Code Quality deduction: 5 points**
+**Deductions:**
+
+- Lack of comments/documentation: **-5 points**  
+- Minor readability issues (lack of spacing and explanation): **-3 points**
+
+Total deductions: 8 points
+
+**Score for Code Quality:** 2/10
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.
-- The motor speed function is constant, which is efficient.
-- The visualization setup is minimal but sufficient.
-- No explicit timestep control or optimization, but acceptable for a simple example.
-- No reuse of material objects for all bodies (material assigned only to gears), which is efficient.
-- No unnecessary recalculations or object creations inside the loop.
+- No obvious redundant code or unnecessary calculations.  
+- The motor speed function is a ramp from 0 to 10, which is reasonable.  
+- The visualization setup adds multiple lights, which is fine.  
+- The bodies are created with default collision and visualization flags (though missing parameters), so no inefficiency there.  
+- The simulation loop is standard.
 
-**No deductions.**
+**Deductions:**
+
+- Missing `application.Initialize()` means the visualization setup is incomplete, which could be considered inefficient since the simulation may not run properly. But this is already deducted under completeness.  
+- No other inefficiencies or redundancies found.
+
+**Score for Efficiency:** 10/10
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or try-except blocks.
-- No checks for device initialization or system state.
-- While not always necessary in simple scripts, best practice is to handle possible exceptions or at least check for device validity.
-- No handling of edge cases like zero timestep or invalid parameters.
+- No error handling is present (try-except blocks, checks for file paths, or validation of parameters).  
+- No handling of edge cases or invalid inputs.  
+- No checks for successful initialization of visualization or system.
 
-**Deduct 5 points for lack of basic error handling.**
+**Deductions:**
+
+- Lack of basic error handling: **-5 points**
+
+**Score for Error Handling:** 0/5
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Uses `ChIrrApp` which is a high-level visualization helper, acceptable.
-- Adds typical sky, camera, and lights.
-- Camera position is at `(0,0,1)` looking at `(0,0,0)`, which is very close and may not provide a good view of the scene (the gears are at x=±0.5, z=0.5). This is a minor visualization issue. (-2 points)
-- No logo or skybox added, but `AddTypicalSky()` is called which is acceptable.
-- The rendering loop uses `BeginScene()`, `DrawAll()`, `DoStep()`, `EndScene()` correctly.
+- Visualization system is set up using `ChIrrApp`, which is acceptable.  
+- Missing `application.Initialize()` call, which is essential to properly initialize the Irrlicht application.  
+- Uses `AddTypicalSky()`, `AddTypicalCamera()`, `AddTypicalLights()`, and `AddLightWithShadow()`, which is good.  
+- The simulation loop uses `DrawAll()` instead of `Render()`, which is not the recommended method.  
+- Camera position is set but not explained or adjusted dynamically.  
+- No logo or skybox added, but `AddTypicalSky()` is called, which should add a skybox.
 
-**Total Visualization deduction: 2 points**
+**Deductions:**
 
----
+- Missing `application.Initialize()`: **-3 points** (partial deduction since visualization is mostly set up)  
+- Using `DrawAll()` instead of `Render()`: **-2 points**
 
-### Summary of deductions:
+Total deductions: 5 points
 
-| Criterion                   | Points Deducted |
-|-----------------------------|----------------|
-| Completeness                | 20             |
-| Correctness                | 20             |
-| Code Quality               | 5              |
-| Efficiency                 | 0              |
-| Error Handling & Robustness| 5              |
-| Visualization Tools        | 2              |
-| **Total**                  | **52**         |
+**Score for Visualization:** 0/5
 
 ---
 
-### Final score:
+### **Summary of Scores**
 
-100 - 52 = 48
+| Criterion                  | Max Points | Deductions | Score |
+|----------------------------|------------|------------|-------|
+| Completeness               | 40         | 40         | 0     |
+| Correctness               | 30         | 30         | 0     |
+| Code Quality              | 10         | 8          | 2     |
+| Efficiency                | 10         | 0          | 10    |
+| Error Handling & Robustness | 5          | 5          | 0     |
+| Visualization             | 5          | 5          | 0     |
+| **Total**                 | **100**    | **88**     | **12**|
 
 ---
 
-**Final score:** [[48]]
+### Final Score: [[12]]
 
 ---
 
-**Explanation:**
+### Explanation of Deductions:
 
-- The script includes all major components but has a significant logical error in motor joint initialization frame, which affects simulation correctness.
-- Minor API misuse in motor function setting.
-- Lack of comments and error handling reduces code quality and robustness.
-- Visualization setup is mostly correct but camera placement is suboptimal.
-- Overall, the script is functional but needs corrections and improvements to be fully correct and robust.
+- **Completeness:** The script misses essential calls such as `application.Initialize()`, uses incomplete body creation parameters, and misuses motor API functions, leading to a failure to properly set up the simulation and visualization.  
+- **Correctness:** Incorrect motor joint initialization and API usage, questionable joint connections, and possible runtime errors due to wrong quaternion function calls.  
+- **Code Quality:** Lack of comments and minor readability issues reduce clarity and maintainability.  
+- **Efficiency:** No significant inefficiencies found.  
+- **Error Handling:** No error handling or robustness measures are implemented.  
+- **Visualization:** Missing initialization and use of non-standard rendering calls reduce visualization effectiveness.
+
+---
+
+**Overall, the script shows an attempt to set up a PyChrono simulation but contains critical API misuses and missing essential steps that would prevent it from running correctly or producing meaningful results.**

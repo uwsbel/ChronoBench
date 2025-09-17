@@ -80,40 +80,8 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 
-def add_random_boxes(system, num_boxes=10, vehicle_pos=initLoc, vehicle_size=chrono.ChVector3d(4, 2, 2)):
-    for i in range(num_boxes):
-        
-        while True:
-            x = random.uniform(-40, 40)
-            y = random.uniform(-40, 40)
-            z = random.uniform(0.5, 2.0)
-
-            
-            if (abs(x - vehicle_pos.x) > vehicle_size.x + 1 and
-                abs(y - vehicle_pos.y) > vehicle_size.y + 1):
-                break
-
-        
-        box = chrono.ChBodyEasyBox(1, 1, 1, 1000)  
-        box.SetPos(chrono.ChVector3d(x, y, z))
-        box.SetBodyFixed(False)
-        box.SetCollisionModel(chrono.ChCollisionModel())
-        box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  
-        box.GetCollisionModel().SetFamily(1)
-        box.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
-
-        
-        box_vis = chrono.ChBoxShape()
-        box_vis.GetBoxGeometry().SetLengths(chrono.ChVector3d(1, 1, 1))
-        box.GetAssets().push_back(box_vis)
-
-        system.Add(box)
-
-add_random_boxes(vehicle.GetSystem())
-
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo with Sensors')
+vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -121,10 +89,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-
-vis.AddLightWithShadow(chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(1, 1, 1), 20, 1, 10)
-vis.AddLightWithShadow(chrono.ChVector3d(-10, -10, 10), chrono.ChVector3d(1, 0.8, 0.6), 20, 1, 10)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -140,38 +104,71 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+
+
+system = vehicle.GetSystem()
+num_boxes = 10
+box_size = 0.5
+min_distance_from_vehicle = 5.0  
+
+for i in range(num_boxes):
+    while True:
+        
+        x = random.uniform(-20, 20)
+        y = random.uniform(-20, 20)
+        z = box_size / 2
+
+        
+        box_pos = chrono.ChVector3d(x, y, z)
+        vehicle_pos = vehicle.GetChassisBody().GetPos()
+        distance = (box_pos - vehicle_pos).Length()
+
+        if distance > min_distance_from_vehicle:
+            break
+
+    
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+    box.SetPos(box_pos)
+    box.SetBodyFixed(False)
+    box.GetVisualModel().SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
+    system.Add(box)
+
+
+
+
+
+sensor_manager = sensor.ChSensorManager(system)
+
+
+light_positions = [
+    chrono.ChVector3d(10, 10, 5),
+    chrono.ChVector3d(-10, 10, 5),
+    chrono.ChVector3d(10, -10, 5),
+    chrono.ChVector3d(-10, -10, 5)
+]
+
+for pos in light_positions:
+    light = sensor.ChPointLight(pos, chrono.ChColor(1, 1, 1), 10.0)
+    sensor_manager.AddSensor(light)
 
 
 camera = sensor.ChCameraSensor(
     vehicle.GetChassisBody(),  
-    10,                       
+    2.0,                      
     True,                     
-    "camera_sensor"           
+    chrono.ChVector3d(0, 0, 2.0),  
+    chrono.ChQuaterniond(1, 0, 0, 0)  
 )
 
 
-camera.SetCameraUp(chrono.ChVector3d(0, 0, 1))
-camera.SetCameraLocation(chrono.ChVector3d(0, 0, 2))
-camera.SetCameraAimPoint(chrono.ChVector3d(10, 0, 0))
-camera.SetFocalLength(0.05)  
-camera.SetImageWidth(640)
-camera.SetImageHeight(480)
-camera.SetRenderMode(sensor.RenderMode_CPU)
+camera.SetName("Vehicle Camera")
+camera.SetLensFocalLength(0.05)  
+camera.SetResolution(640, 480)   
+camera.SetFov(60)                
+camera.SetFilter(sensor.ChFilterRGBA8())  
 
 
 sensor_manager.AddSensor(camera)
-
-
-camera_filter = sensor.ChFilterVisualize(
-    640,  
-    480,  
-    "Camera Feed",  
-    sensor_manager
-)
-camera_filter.SetCameraSensor(camera)
-sensor_manager.AddFilter(camera_filter)
-
 
 
 

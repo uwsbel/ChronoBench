@@ -86,19 +86,20 @@ path_center = chrono.ChVector3d(0, 0, 0)
 path_points = []
 for i in range(360):
     angle = math.radians(i)
-    x = path_radius * math.cos(angle)
-    y = path_radius * math.sin(angle)
+    x = path_radius * math.cos(angle) + path_center.x
+    y = path_radius * math.sin(angle) + path_center.y
     path_points.append(chrono.ChVector3d(x, y, 0))
 
 # Create the path visualization
-path_vis = vis.AddPath(path_points, chrono.ChColor(1, 0, 0), 1)
+path_vis = vis.AddPathVisualization(chrono.ChColor(1, 0, 0), path_points)
+path_vis.SetWidth(2)
 
 # Create the sentinel and target points
-sentinel_point = vis.AddSphere(chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0)), 0.1, chrono.ChColor(0, 1, 0))
-target_point = vis.AddSphere(chrono.ChVector3d(path_center + chrono.ChVector3d(path_radius, 0, 0)), 0.1, chrono.ChColor(1, 0, 0))
+sentinel_point = vis.AddSphere(chrono.ChVector3d(path_center.x, path_center.y, 0), 1, chrono.ChColor(0, 1, 0))
+target_point = vis.AddSphere(chrono.ChVector3d(path_center.x + path_radius, path_center.y, 0), 1, chrono.ChColor(1, 0, 0))
 
 # Create the driver system
-driver = veh.ChPathFollower(vehicle, path_points, path_radius, 0.3)
+driver = veh.ChPathFollowerDriverIRR(vis, path_points, 0.3, 0.5, 0.5)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)

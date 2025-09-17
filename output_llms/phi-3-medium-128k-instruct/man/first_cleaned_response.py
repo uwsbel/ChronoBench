@@ -4,11 +4,19 @@ from pychron.systems import *
 
 from pychron.vehicle import Vehicle
 
+from pychron.physics import *
+
 from pychron.visualization import *
 
-from pychron.tire import TMEASY
+from pychron.vehicle.tire import TMEASY
 
-import numpy as np
+from pychron.vehicle.driver import Driver
+
+from pychron.physics.rigid import RigidBody
+
+import pychron.visualization as vis
+
+import pychron.collision as col
 
 
 
@@ -18,102 +26,111 @@ chrono = Chrono()
 
 
 
-terrain = RigidTerrain()
+ground = RigidBody(name='Ground')
+
+ground.add_box(pos=(0, 0, 0), size=(100, 100, 100))
 
 
 
 
-vehicle = Vehicle(name="MAN10t")
+vehicle = RigidBody(name='Truck')
 
-vehicle.add_tire(TMEASY())
-
-vehicle.add_visualization(
-
-    visualization=True,
-
-    collision=True,
-
-    visualization_model="vehicles/MAN10t.vrml",
-
-    visualization_scale=1.0
-
-)
+vehicle.add_box(pos=(0, 0, 0), size=(8, 3, 3))
 
 
 
 
-vehicle.set_position(np.array([0.0, 0.0, 0.0]))
+vehicle.add_collider(name='Chassis', size=(8, 3, 3))
 
-vehicle.set_orientation(np.array([0.0, 0.0, 0.0, 1.0]))
+vehicle.add_collider(name='Front', size=(2, 1, 1), pos=(4, 1.5, 0))
 
+vehicle.add_collider(name='Rear', size=(2, 1, 1), pos=(-4, 1.5, 0))
 
+vehicle.add_collider(name='Left', size=(1, 3, 1), pos=(0, 1.5, 0))
 
-
-system = System(chrono)
-
-system.add(vehicle)
-
-system.add(terrain)
+vehicle.add_collider(name='Right', size=(1, 3, 1), pos=(8, 1.5, 0))
 
 
 
 
-camera = ChaseCamera(
+vehicle.mass = 10000
 
-    camera_model="cameras/chase.vrml",
-
-    camera_scale=1.0
-
-)
-
-system.add(camera)
+vehicle.inertia = (1000, 1000, 1000)
 
 
 
 
-visualization = Visualization(
+vehicle.add_tire(name='FrontLeft', model=TMEASY, pos=(-4, 1.5, 0), size=(2, 1, 1))
 
-    visualization_model="vehicles/MAN10t.vrml",
+vehicle.add_tire(name='FrontRight', model=TMEASY, pos=(4, 1.5, 0), size=(2, 1, 1))
 
-    visualization_scale=1.0,
+vehicle.add_tire(name='RearLeft', model=TMEASY, pos=(-4, -1.5, 0), size=(2, 1, 1))
 
-    skybox=True,
-
-    skybox_texture="skyscapes/skybox.jpg",
-
-    directional_light=True,
-
-    directional_light_texture="lights/directional.jpg",
-
-    terrain_texture="terrains/rigid.jpg",
-
-    terrain_logo=True,
-
-    terrain_logo_texture="logos/MAN10t.png"
-
-)
-
-system.add(visualization)
+vehicle.add_tire(name='RearRight', model=TMEASY, pos=(4, -1.5, 0), size=(2, 1, 1))
 
 
 
 
-driver = Driver(
-
-    throttle_gain=1.0,
-
-    brake_gain=1.0,
-
-    steering_gain=1.0
-
-)
-
-system.add(driver)
+driver = Driver(name='Driver')
 
 
 
 
-system.set(chrono)
+driver.add_control('Steering', min_val=-0.5, max_val=0.5)
+
+driver.add_control('Throttle', min_val=0, max_val=1)
+
+driver.add_control('Brake', min_val=0, max_val=1)
+
+
+
+
+vehicle.set_position((0, 0, 0))
+
+vehicle.set_velocity((0, 0, 0))
+
+vehicle.set_orientation((0, 0, 0))
+
+
+
+
+system = System(name='TruckSystem')
+
+system.add_body(vehicle)
+
+system.add_driver(driver)
+
+
+
+
+system.set_gravity((0, -9.81, 0))
+
+
+
+
+vis = vis.IrrlichtVisualization(name='Visualization')
+
+vis.set_camera(name='ChaseCamera', pos=(0, 10, 50))
+
+vis.set_lighting(name='DirectionalLight', pos=(0, 10, 10), dir=(0, 0, -1))
+
+vis.set_skybox('skybox.bmp')
+
+vis.set_terrain_texture('terrain.bmp')
+
+vis.set_logo('logo.bmp')
+
+
+
+
+chrono.add_system(system)
+
+
+
+
+ground.set_collision(True)
+
+vehicle.set_collision(True)
 
 
 

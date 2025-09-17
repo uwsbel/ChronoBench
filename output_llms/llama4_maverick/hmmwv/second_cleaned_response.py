@@ -1,11 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
+import math
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+terrainLength = 200.0
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -20,10 +19,8 @@ chassis_collision_type = veh.CollisionType_NONE
 
 tire_model = veh.TireModelType_TMEASY
 
-
 terrainHeight = 0 
-terrainLength = 200.0 
-terrainWidth = 200.0 
+terrainWidth = 100.0 
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -60,7 +57,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -80,39 +77,31 @@ vis.AttachVehicle(vehicle.GetVehicle())
 path_radius = 30
 path_center = chrono.ChVector3d(0, 0, 0)
 num_path_points = 100
-path = []
+path = veh.Path()
 for i in range(num_path_points):
-    angle = 2 * np.pi * i / num_path_points
-    point = path_center + chrono.ChVector3d(path_radius * np.cos(angle), path_radius * np.sin(angle), 0)
-    path.append(point)
+    angle = 2 * math.pi * i / num_path_points
+    point = path_center + chrono.ChVector3d(path_radius * math.cos(angle), path_radius * math.sin(angle), 0.02)
+    path.AddPoint(point)
 
 
 ball1 = chrono.ChBodyEasySphere(1, 1000, True, False)
+ball1.SetPos(path.GetPoint(0))
 ball1.SetBodyFixed(True)
-ball1.SetPos(path[0])
-vis.GetSceneManager().getActiveCamera().addChild(ball1)
+vis.Add(ball1)
 
 ball2 = chrono.ChBodyEasySphere(1, 1000, True, False)
+ball2.SetPos(path.GetPoint(num_path_points//2))
 ball2.SetBodyFixed(True)
-ball2.SetPos(path[num_path_points//2])
-vis.GetSceneManager().getActiveCamera().addChild(ball2)
+vis.Add(ball2)
 
 
-Kp = 0.5
-Ki = 0.0
-Kd = 0.0
-
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 'my_path', 8.0, True, Kp, Ki, Kd)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottle(0.3)
+throttle_value = 0.3
+path_follower = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 30)
+path_follower.GetSteeringController().SetLookAheadDistance(5)
+path_follower.GetSteeringController().SetGains(0.5, 0, 0)
 
 
-print( "VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
-render_steps = int(render_step_size / step_size)
-
-
+render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -128,31 +117,34 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
+    driver_inputs = path_follower.GetInputs()
+    driver_inputs.throttle = throttle_value
 
     
-    driver.Synchronize(time)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
-    driver.Advance(step_size)
+    sentinel = path_follower.GetSteeringController().GetSentinelPoint()
+    target = path_follower.GetSteeringController().GetTargetPoint()
+    sentinel_vis = vis.GetSceneManager().getSceneNodeFromName("sentinel")
+    if sentinel_vis is None:
+        sentinel_vis = vis.GetSceneManager().addSphereSceneNode(0.1)
+        sentinel_vis.setName("sentinel")
+    sentinel_vis.setPosition(irr.vector3df(sentinel.x, sentinel.y, sentinel.z))
+    target_vis = vis.GetSceneManager().getSceneNodeFromName("target")
+    if target_vis is None:
+        target_vis = vis.GetSceneManager().addSphereSceneNode(0.1)
+        target_vis.setName("target")
+    target_vis.setPosition(irr.vector3df(target.x, target.y, target.z))
+
+    
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    sentinel = driver.GetSentinelLocation()
-    target = driver.GetTargetLocation()
-    sentinel_ball = chrono.ChBodyEasySphere(0.5, 1000, True, False)
-    sentinel_ball.SetBodyFixed(True)
-    sentinel_ball.SetPos(sentinel)
-    vis.GetSceneManager().getActiveCamera().addChild(sentinel_ball)
-    target_ball = chrono.ChBodyEasySphere(0.5, 1000, True, False)
-    target_ball.SetBodyFixed(True)
-    target_ball.SetPos(target)
-    vis.GetSceneManager().getActiveCamera().addChild(target_ball)
 
     
     step_number += 1

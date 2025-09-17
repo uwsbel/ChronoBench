@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.8)  
+initLoc = chrono.ChVector3d(0, 0, 1.0)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -33,19 +33,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 5e-4  
+step_size = 1e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 60  
-
-
-reference_speed = 10.0  
-
-
-Kp = 0.5  
-Ki = 0.1  
-Kd = 0.05 
+render_step_size = 1.0 / 100  
 
 
 
@@ -71,19 +63,22 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.AddPatch(chrono.ChContactMaterialNSC(),
-                chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
 
-terrain.GetPatch(0).SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
-terrain.GetPatch(0).SetColor(chrono.ChColor(0.4, 0.4, 0.4))  
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan with PID Speed Control')
+vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -106,8 +101,12 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-integral_error = 0
-prev_error = 0
+reference_speed = 10.0  
+
+
+pid_throttle = chrono.ChPIDController(0.5, 0.1, 0.01)  
+pid_throttle.SetMode(chrono.ChPIDController.MODE_POSITION)
+pid_throttle.SetSetpoint(reference_speed)
 
 
 
@@ -131,20 +130,13 @@ while vis.Run():
     current_speed = vehicle.GetVehicle().GetSpeed()
 
     
-    error = reference_speed - current_speed
-    integral_error += error * step_size
-    derivative_error = (error - prev_error) / step_size
-
-    
-    pid_output = Kp * error + Ki * integral_error + Kd * derivative_error
-    prev_error = error
-
-    
-    throttle = max(0, min(1, pid_output))
+    pid_throttle.SetSetpoint(reference_speed)
+    pid_throttle.SetProcessVariable(current_speed)
+    throttle_input = pid_throttle.GetOutput()
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle
+    driver_inputs.m_throttle = throttle_input
 
     
     if (step_number % render_steps == 0):
@@ -170,7 +162,3 @@ while vis.Run():
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if step_number % 100 == 0:
-        print(f"Time: {time:.2f}s | Current speed: {current_speed:.2f}m/s | Throttle: {throttle:.2f}")

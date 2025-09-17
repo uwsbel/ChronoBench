@@ -31,12 +31,11 @@ def main():
     contact_mat.SetRestitution(0.01)
 
     terrain.AddPatch(contact_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                     veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), True, 0.01)
+                     veh.GetDataFile("terrain/meshes/Highway_col.obj"), True, 0.01)
 
     
-    terrain_vis_mesh = chrono.ChTriangleMeshConnected()
-    terrain_vis_mesh.LoadMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    terrain.GetGroundBody().AddVisualShape(chrono.ChVisualShapeTriangleMesh(terrain_vis_mesh))
+    terrain.GetGroundBody().AddVisualShape(chrono.ChVisualShapeTriangleMesh(
+        chrono.GetChronoDataFile("terrain/meshes/Highway_vis.obj"), 1.0))
 
     terrain.Initialize()
 

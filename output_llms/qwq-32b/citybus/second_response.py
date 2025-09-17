@@ -7,8 +7,8 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVectorD(0, 0, 0.5)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_PRIMITIVES
@@ -24,32 +24,38 @@ terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
-trackPoint = chrono.ChVectorD(-15.0, 10.0, 5.8)
+# Camera tracking point
+trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
+# Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
+# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
 
-render_step_size = 1.0 / 50
+# Time interval between render frames
+render_step_size = 1.0 / 50  # FPS = 50
 
-# Create and initialize the vehicle
+# Create the citybus vehicle and initialize
 vehicle = veh.CityBus()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
+# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type_mesh)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
 
+# Set collision system to Bullet
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create terrain
@@ -58,7 +64,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        chrono.ChCoordsysd(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
                         terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -75,16 +81,16 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle)
 
-# Create data-driven driver system
-entries = veh.vector_DataDriverEntry()
-entries.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
-entries.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
-entries.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
+# Create data-driven driver with predefined entries
+entries = [
+    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
+    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
+    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
+]
 driver = veh.ChDataDriver(vehicle.GetVehicle(), entries)
 
-# Output vehicle mass
+# Simulation control variables
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
@@ -99,16 +105,15 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
-    driver.Synchronize(time)
+    # Synchronize modules
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation
-    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

@@ -3,61 +3,81 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pychrono.simulation import Simulation
 from pychrono.visual import Irrlicht
+import time
 
 
 simulation_name = "HMMWV_Simulation"
-initial_position = [0, 0, 0]
-initial_velocity = [0, 0, 0]
+initial_position = [0, 0, 0]  
+initial_velocity = [0, 0, 0]  
+initial_acceleration = [0, 0, 0]  
 terrain_heightmap = np.zeros((100, 100))  
-soil_parameters = {
-    "density": 0.8,
-    "friction": 0.01
-}
-driver_system_parameters = {
-    "acceleration": 1.0,
-    "steering_angle": 0.0
-}
-visual_settings = {
-    "camera_width": 600,
-    "camera_height": 400,
-    "camera_offset": [0, 0, 10],
-    "color": [1, 1, 1] 
-}
+soil_parameters = {'density': 0.8, 'friction': 0.1} 
+time_step = 0.1
+simulation_duration = 60  
 
 
-simulation = Simulation(simulation_name)
+vehicle_model = "HMMWV"
+vehicle_id = 1
+vehicle_speed = [0, 0, 0]
+vehicle_acceleration = [0, 0, 0]
+vehicle_height = [0, 0, 0] 
 
 
-vehicle = simulation.add_vehicle(
-    initial_position,
-    initial_velocity,
-    terrain_heightmap,
-    soil_parameters,
-    driver_system_parameters,
-    visual_settings
-)
+terrain_heightmap = np.zeros((100, 100))
+terrain_heightmap[10:90, 10:90] = 2  
 
 
-def update_simulation():
-    global vehicle
+driver_system = "Driver"
+driver_id = 1
+driver_speed = [0, 0, 0]
+driver_acceleration = [0, 0, 0]
+driver_height = [0, 0, 0]
+
+
+irrlicht_mode = "Irrlicht"
+irrlicht_camera_width = 600
+irrlicht_camera_height = 400
+irrlicht_camera_color = (1, 1, 1) 
+irrlicht_camera_fov = 60
+
+
+simulation = Simulation()
+simulation.start(initial_position, initial_velocity, initial_acceleration, vehicle_model, vehicle_id, vehicle_speed, vehicle_acceleration, vehicle_height, terrain_heightmap, driver_system, driver_speed, driver_acceleration, driver_height)
+
+
+while simulation.is_running:
+    
+    vehicle_speed = [vehicle_speed[i] + vehicle_acceleration[i] for i in range(len(vehicle_speed))]
+    vehicle_acceleration = [vehicle_acceleration[i] + vehicle_speed[i] for i in range(len(vehicle_acceleration))]
 
     
-    vehicle.update()
+    terrain_heightmap += terrain_heightmap[simulation.time_step]
 
     
-    terrain_heightmap += vehicle.get_position() * simulation_name 
+    driver_speed = [driver_speed[i] + driver_acceleration[i] for i in range(len(driver_speed))]
+    driver_acceleration = [driver_acceleration[i] + driver_speed[i] for i in range(len(driver_acceleration))]
 
     
-    vehicle.update_driver(driver_system_parameters)
-
-    
-    irrlicht.update_scene()
-    irrlicht.set_camera(visual_settings["camera_width"], visual_settings["camera_height"])
-    irrlicht.set_camera_offset(visual_settings["camera_offset"])
-    irrlicht.set_color(visual_settings["color"])
+    irrlicht.clear()
+    irrlicht.camera_set_fov(irrlicht_camera_fov)
+    irrlicht.camera_set_color(irrlicht_camera_color)
+    irrlicht.draw_polygon(terrain_heightmap, 10, 10, 10, 10) 
+    irrlicht.draw_line(0, 0, 0, 10) 
+    irrlicht.draw_line(10, 0, 10, 10) 
+    irrlicht.draw_line(10, 10, 0, 10) 
+    irrlicht.draw_line(0, 10, 0, 10) 
+    irrlicht.draw_line(10, 10, 10, 10) 
+    irrlicht.draw_line(10, 90, 10, 90) 
+    irrlicht.draw_line(90, 90, 10, 90) 
+    irrlicht.draw_line(90, 90, 10, 90) 
+    irrlicht.draw_line(90, 10, 90, 10) 
+    irrlicht.draw_line(90, 10, 90, 10) 
+    irrlicht.draw_line(90, 90, 90, 90) 
+    irrlicht.draw_line(90, 90, 90, 90) 
 
     
     irrlicht.display()
+    time.sleep(time_step) 
+    print(f"Time: {time.time()}")
 
-
-update_simulation()
+print("Simulation complete.")

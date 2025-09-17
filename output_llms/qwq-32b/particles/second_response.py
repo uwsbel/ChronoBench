@@ -19,12 +19,14 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create a sphere body
+# Corrected sphere creation with proper parameters
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
-msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))
-msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+msphereBody = chrono.ChBodyEasySphere(
+    2.1, 1800, 
+    chrono.ChVectorD(1, 1, 0), chrono.ChQuaternionD(1,0,0,0), 
+    sphere_mat
+)
 sys.Add(msphereBody)
 
 # Create a particle emitter
@@ -33,7 +35,7 @@ emitter.SetParticlesPerSecond(2000)
 emitter.SetUseParticleReservoir(True)
 emitter.SetParticleReservoirAmount(200)
 
-# Randomizers for particle properties
+# Corrected position randomizer using ChFrameD instead of ChFramed
 emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
 emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())
 emitter.SetParticlePositioner(emitter_positions)
@@ -49,7 +51,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace with spheres
+# Replace convex hulls with spheres for particle creation
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -70,12 +72,10 @@ vis.AddTypicalLights()
 mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
-# Simulation settings
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
 
-# Simulation loop
 stepsize = 1e-2
 
 while vis.Run():
@@ -88,28 +88,34 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    # Move G_constant inside the loop
+    # Move G_constant inside the loop before energy calculations
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Calculate kinetic energy
-    kinetic = 0.0
-    for body in sys.GetBodies():
-        kinetic += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
-
-    # Calculate potential energy and apply forces
-    potential_energy = 0.0
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 0:  # Avoid division by zero
-            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-            F_attract = (D_attract / r_attract) * f_attract
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    total_energy = kinetic + potential_energy
-    print(f"Kinetic: {kinetic}, Potential: {potential_energy}, Total: {total_energy}")
+        if r_attract < 1e-6:
+            continue
+        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
+
+    # Calculate and print energies
+    kinetic_energy = 0.0
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+
+    potential_energy = 0.0
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract < 1e-6:
+            continue
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")

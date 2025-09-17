@@ -36,12 +36,11 @@ contact_vis = False
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-
-# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
+vehicle = veh.HMMWV_Full()
+# veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -99,9 +98,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 # Create an IMU sensor and add it to the manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
-                                 10,  # Update rate in Hz
-                                 offset_pose,  # Offset pose
-                                 sens.ChNoiseNone())  # Noise model
+                                10,  # Update rate in Hz
+                                offset_pose,  # Offset pose
+                                sens.ChNoiseNone())  # Noise model
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)  # Provides the host access to the IMU data
@@ -154,18 +153,12 @@ while vis.Run():
     # Modified Driver Inputs
     if time < 6:
         driver_inputs = driver.GetInputs()
-        throttle = 0.5
-        steering = 0.1
+        driver_inputs.throttle = 0.5
+        driver_inputs.steering = 0.2
     else:
         driver_inputs = driver.GetInputs()
-        throttle = 0.0
-        steering = 0.0
-        driver_inputs.throttle = throttle
-        driver_inputs.steering = steering
         driver_inputs.braking = 1.0
 
-    driver_inputs.throttle = throttle
-    driver_inputs.steering = steering
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

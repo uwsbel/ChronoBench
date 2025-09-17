@@ -1,57 +1,59 @@
 import chrono as chrono
-from chrono import ChColor, ChVector
+from chrono import ChColor, ChLoadable
+from chrono import ChLoadableMesh, ChLoadableMeshWavefront
+import numpy as np
 
 
 chrono.Initialize()
-space = chrono.ChSpace()
-space.Set_G(0, 0, 0)
 
 
-mesh = chrono.ChTriangleMesh()
-mesh.Load('path_to_your_mesh.obj')
+m_world = chrono.ChWorld()
 
 
-body = chrono.ChBody()
-body.SetBodyFixed(True)
-body.SetCollisionShape(mesh)
-body.SetPos(ChVector(0, 0, 0))
-space.Add(body)
+m_mesh = ChLoadableMeshWavefront()
+m_mesh.Load('path_to_your_mesh.obj')
+m_mesh.SetName('Mesh')
 
 
-lidar = chrono.ChSensor()
-lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
-lidar.SetSensorType(chrono.ChSensor.SENSOR_TYPE_LIDAR)
-lidar.SetPos(ChVector(0, 0, 0))
-lidar.SetOrientation(ChVector(0, 0, 0))
-lidar.SetSamplingPeriod(0.01)
-lidar.SetBufferSize(1000)
-lidar.SetBufferSizeMax(1000)
-lidar.SetSaveToFile(True)
-lidar.SetSaveToCSV(True)
-lidar.SetSaveToCSVPeriod(1)
-lidar.SetSaveToCSVName('lidar_data.csv')
-lidar.SetFilterNoise(True)
-lidar.SetFilterNoiseValue(0.1)
-lidar.SetFilterVisual(True)
-lidar.SetFilterVisualValue(0.1)
-lidar.SetSensorManager(space)
+m_body = m_mesh.CreateBody()
+m_body.SetMass(0)  
+m_world.Add(m_body)
 
 
-body.AddSensor(lidar)
+m_lidar = chrono.ChSensor()
+m_lidar.SetName('Lidar')
+m_lidar.SetPosition([1, 0, 0])  
 
 
-lidar.SetPos(ChVector(1, 0, 0))
-lidar.SetOrientation(ChVector(0, 0, 0))
+m_sensor_manager = m_world.AddSensorManager()
+m_sensor_manager.AddSensor(m_lidar)
 
 
-t = 0
-dt = 0.01
-nsteps = 1000
-space.Set_TMax(nsteps * dt)
-space.Set_Dt(dt)
+m_lidar.SetNoiseFilter(0.1)  
 
 
-for i in range(nsteps):
-    space.DoStepDynamics(t)
-    t += dt
-    print(lidar.GetBufferData())
+m_lidar.SetVisualization(chrono.ChColor(1, 0, 0))  
+m_lidar.SetBufferSize(1000)  
+
+
+m_lidar.SetSaveData(True)  
+m_lidar.SetSaveFileName('lidar_data.txt')  
+
+
+def update_lidar_position(step):
+    angle = step * 0.1  
+    m_lidar.SetPosition([1 * np.cos(angle), 0, 1 * np.sin(angle)])  
+
+
+m_world.SetGravity(0, 0, 0)  
+m_world.SetTimestep(0.01)  
+m_world.SetMaxStep(1.0)  
+
+
+while m_world.GetStep() < 100:
+    update_lidar_position(m_world.GetStep())
+    m_world.DoStep()
+    print(m_lidar.GetBuffer())
+
+
+chrono_Finalize()

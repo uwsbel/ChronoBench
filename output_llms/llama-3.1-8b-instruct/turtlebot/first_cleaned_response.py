@@ -8,74 +8,70 @@ c.init_system()
 c.init_irrlicht()
 
 
+g = c.VECT3(0, 0, -9.81)
+sys = c.ChSystem()
+sys.Set_G(c.MAT3(c.VECT3(1, 0, 0), c.VECT3(0, 1, 0), c.VECT3(0, 0, 1)))
+
+
 ground = c.ChBody()
-ground.SetBodyType(c.CH_BODY_TYPE_BOX)
-ground.SetPosition(c.ve(0, 0, 0))
-ground.SetMass(0)
-ground.SetFriction(1)
-ground.SetRestitution(0)
-c.AddGround(ground)
+ground.SetBodyType(c.CH_BTS_STATIC)
+ground.SetDensity(0)
+ground.SetPos(c.VECT3(0, 0, 0))
+ground.SetRot(c.ROT3(c.PI/2, 0, 0))
+sys.Add(ground)
 
 
 robot = c.ChBody()
-robot.SetBodyType(c.CH_BODY_TYPE_BOX)
-robot.SetPosition(c.ve(0, 1, 0))
-robot.SetOrientation(c.ve(0, 0, 0))
-robot.SetMass(1)
-robot.SetFriction(1)
-robot.SetRestitution(0)
-c.AddBody(robot)
+robot.SetBodyType(c.CH_BTS_RIGID)
+robot.SetDensity(10)
+robot.SetPos(c.VECT3(0, 0, 1))
+robot.SetRot(c.ROT3(0, 0, 0))
+sys.Add(robot)
 
 
-motor1 = c.ChMotor()
-motor1.SetMaxForce(10)
-motor1.SetPosition(0)
-robot.AddMotor(motor1)
-
-motor2 = c.ChMotor()
-motor2.SetMaxForce(10)
-motor2.SetPosition(0)
-robot.AddMotor(motor2)
-
-
-robot.SetName("Turtlebot")
-ground.SetName("Ground")
+motor = c.ChMotor()
+motor.SetForce(10)
+motor.SetTorque(10)
+robot.AddMotor(motor)
+joint = c.ChJoint()
+joint.SetType(c.CH_JNT_REVOLUTE)
+joint.SetAnchor(c.VECT3(0, 0, 0))
+joint.SetAxis(c.VECT3(0, 0, 1))
+robot.AddJoint(joint)
 
 
-device = c.CreateIrrlichtDevice(irrlicht.VideoMode(800, 600), irrlicht.E_DRIVER_TYPE_OPENGL3)
-view = device.GetViewport(0)
-view.SetTargetFrameRate(60)
-view.SetAspectRatioConstraint(irrlicht.SCA_FIT)
+motor = c.ChMotor()
+motor.SetForce(10)
+motor.SetTorque(10)
+robot.AddMotor(motor)
+joint = c.ChJoint()
+joint.SetType(c.CH_JNT_REVOLUTE)
+joint.SetAnchor(c.VECT3(0, 0, 0))
+joint.SetAxis(c.VECT3(0, 0, 1))
+robot.AddJoint(joint)
 
 
-camera = device.GetCameraSceneNode()
-camera.SetPosition(c.ve(0, 10, 10))
-camera.SetTarget(c.ve(0, 0, 0))
-light = device.GetLightSceneNode()
-light.SetPosition(c.ve(0, 10, 10))
-light.SetDiffuseColor(c.ve(1, 1, 1))
-light.SetSpecularColor(c.ve(1, 1, 1))
-light.SetIntensity(1)
+device = c.ChIrrApp(sys, c.dimension2du(800, 600), c.EDS_COLOR_FLAG, c.EDS_BACK_FACE_COLOR_FLAG, True)
+device.SetTimestep(1.0/60.0)
+device.SetCameraRotation(c.VECT3(0, 0, 0))
+device.SetCameraPosition(c.VECT3(0, 0, 10))
+device.SetLightAmbient(c.VECT3(0.2, 0.2, 0.2))
+device.SetLightDiffuse(c.VECT3(0.8, 0.8, 0.8))
+device.SetLightSpecular(c.VECT3(1, 1, 1))
 
 
 t = 0
-while t < 10:
+while True:
     
-    if t >= 1 and t < 3:
-        motor1.SetTorque(10)
-        motor2.SetTorque(-10)
-    else:
-        motor1.SetTorque(0)
-        motor2.SetTorque(0)
-
+    sys.DoStep()
+    device.BeginScene()
+    device.DrawAll()
+    device.EndScene()
+    time.sleep(0.01)
     
-    c.Update()
-    c.Render()
-
+    if t > 10:
+        joint.SetAngle(c.PI/2)
     
-    t += 0.1
-    time.sleep(0.1)
-
-
-c.DeleteDevice(device)
-c.shutdown()
+    elif t > 20:
+        joint.SetAngle(-c.PI/2)
+    t += 1

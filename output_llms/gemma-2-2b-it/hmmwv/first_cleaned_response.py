@@ -1,70 +1,51 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.irrlicht import IrrlichtDevice
-from pychrono.irrlicht import IrrlichtScene
+import pychrono.irrlicht as irrlicht
 
 
 chrono.init()
 
 
-device = IrrlichtDevice()
-scene = IrrlichtScene(device)
+engine = irrlicht.IrrlichtEngine()
+engine.createWindow("HMMWV Simulation", 800, 600)
+engine.run()
 
 
-vehicle_mass = 2000.0  
-vehicle_length = 4.0  
-vehicle_width = 2.0  
-vehicle_height = 1.5  
-vehicle_center_mass = (vehicle_length / 2.0, vehicle_width / 2.0, vehicle_height / 2.0)
+terrain = chrono.RigidTerrain()
+terrain.setDimensions(10, 10, 0.1)
+terrain.setTexture("terrain.jpg")
+terrain.setFriction(0.5)
 
 
-vehicle = chrono.Vehicle(
-    chrono.Body(chrono.Point(vehicle_center_mass[0], vehicle_center_mass[1], vehicle_center_mass[2])),
-    chrono.Shape(chrono.ShapeType.Box),
-    chrono.ContactMethod.Static,
-    chrono.TMEASY(
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-    ),
-)
+vehicle = chrono.Vehicle()
+vehicle.setName("HMMWV")
+vehicle.setMass(1500)
+vehicle.setCenterOfMass(chrono.Vector3(0, 0, 0))
 
 
-terrain_width = 10.0  
-terrain_height = 0.5  
-terrain_texture = "terrain.png"
+vehicle.setTireModel(chrono.TireModel.TMEASY)
 
 
-terrain = chrono.RigidTerrain(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.Size(terrain_width, terrain_height),
-    chrono.Texture(terrain_texture),
-)
+vehicle.setWheelRadius(0.2)
+vehicle.setWheelBase(2.5)
+vehicle.setWheelCount(4)
+vehicle.setContactMethod(chrono.ContactMethod.CONTACT)
 
 
-driver = chrono.Driver(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.ControlMode.Steering,
-    chrono.ControlMode.Throttle,
-    chrono.ControlMode.Braking,
-)
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
+vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
 
 
-dt = 0.01  
-fps = 50
+driver = chrono.Driver()
+driver.setThrottle(0.5)
+driver.setBrake(0.2)
+driver.setSteering(0.1)
 
 
-while True:
-    
-    driver.update()
+engine.addTerrain(terrain)
+engine.addVehicle(vehicle)
 
-    
-    vehicle.update(dt)
 
-    
-    scene.render()
+engine.setUpdateRate(50)
 
-    
-    chrono.wait(1.0 / fps)
+
+engine.run()

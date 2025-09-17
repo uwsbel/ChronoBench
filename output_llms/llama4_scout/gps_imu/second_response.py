@@ -44,7 +44,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 log_step_size = 0.1  # seconds
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -102,9 +102,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 # Create an IMU sensor and add it to the manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
-                                  10,  # Update rate in Hz
-                                  offset_pose,  # Offset pose
-                                  sens.ChNoiseNone())  # Noise model
+                                 10,  # Update rate in Hz
+                                 offset_pose,  # Offset pose
+                                 sens.ChNoiseNone())  # Noise model
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -170,7 +170,7 @@ while vis.Run():
     else:
         driver_inputs.throttle = 0
         driver_inputs.steering = 0
-        driver_inputs.braking = 1.0
+        driver_inputs.brake = 1
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -187,7 +187,7 @@ while vis.Run():
     # Update sensor manager in each step
     manager.Update()
 
-    # GPS data logging
+    # Log GPS data at intervals defined by log_steps
     log_step_number += 1
     if log_step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()

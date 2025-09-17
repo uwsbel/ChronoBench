@@ -83,7 +83,7 @@ patch3.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
 patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Add a height map to one of the patches
-height_map = veh.ReadHeightMap("terrain/height_map.txt", terrainLength, terrainWidth)
+height_map = veh.ReadHeightMapFromFile("terrain/heightmaps/heightmap.txt")
 patch4 = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0), chrono.QUNIT),
     terrainLength, terrainWidth, height_map)
@@ -91,7 +91,7 @@ patch4.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Add a bump to the patches of terrain
-bump = veh.ReadHeightMap("terrain/bump.txt", terrainLength, terrainWidth)
+bump = veh.ReadHeightMapFromFile("terrain/heightmaps/bump.txt")
 patch1.SetHeightMap(bump)
 patch2.SetHeightMap(bump)
 patch3.SetHeightMap(bump)

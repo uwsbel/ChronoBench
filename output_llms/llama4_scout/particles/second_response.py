@@ -39,11 +39,9 @@ emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrame())
 emitter.SetParticlePositioner(emitter_positions)
 emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
 emitter.SetParticleAligner(emitter_rotations)
-
 mvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
 emitter.SetParticleVelocity(mvelo)
-
 mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
@@ -80,19 +78,28 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    
     emitter.EmitParticles(sys, stepsize)
-    
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-        
-    G_constant = 6.674e-3  # Gravitational constant defined inside the loop
-    
+
+    # Gravitational constant for attraction calculations
+    G_constant = 6.674e-3  
+
     # Calculate kinetic and potential energy
     kinetic_energy = 0
     potential_energy = 0
     mlist = list(combinations(sys.GetBodies(), 2))
-    
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPosDt().Length2()
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+
+    # Apply gravitational attraction between bodies
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
@@ -100,15 +107,5 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        
-        # Contribution to potential energy
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
-    for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetPosDt().Length2()
-    
-    total_energy = kinetic_energy + potential_energy
-    
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
-    
+
     sys.DoStepDynamics(stepsize)

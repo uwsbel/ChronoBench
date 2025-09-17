@@ -113,17 +113,24 @@ driver.Initialize()
 obstacles = []
 for _ in range(5):
     obstacle = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, chrono.ChMaterialSurfaceNSC())
-    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.25))
+    obstacle.SetPos(np.random.uniform(-50, 50, 3))
     vehicle.GetSystem().Add(obstacle)
     obstacles.append(obstacle)
 
 # Create sensor manager
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+sensor_manager = sensor.ChSensorManager(vehicle.GetVehicle())
 
 # Add lidar sensor to the vehicle
-lidar = sensor.ChLidarSensor(vehicle.GetChassisBody(), sensor.ChLidarSensor.POLAR, 10, 0.1, 0.05)
-lidar.SetFilters(sensor.ChLidarSensorFilterRange(1.0, 100.0), sensor.ChLidarSensorFilterAngular(0.0, 180.0))
+lidar = sensor.ChLidarSensor(vehicle.GetVehicle(), 360, 10, 0.1, 0.01, 10)
+lidar.SetPos(chrono.ChVectorD(0, 0, 1.5))
 sensor_manager.AddSensor(lidar)
+
+# Create filters for lidar visualization
+point_cloud_filter = sensor.ChPointCloudFilter(lidar.GetPointCloud())
+point_cloud_filter.SetMinPoints(10)
+point_cloud_filter.SetMaxDistance(50)
+
+vis.AddSensorManager(sensor_manager)
 
 # ---------------
 # Simulation loop
@@ -157,14 +164,14 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    sensor_manager.Update()  # Add this line to update the sensor manager
+    sensor_manager.Update(time, driver_inputs)  # Add sensor manager update
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    sensor_manager.Advance(step_size)  # Add this line to advance the sensor manager
+    sensor_manager.Advance(step_size)  # Add sensor manager advance
     vis.Advance(step_size)
 
     # Increment frame number

@@ -49,7 +49,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Create the sphere particle creator (replacing convex hulls)
+# Create the sphere particle creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -85,15 +85,21 @@ while vis.Run():
 
     emitter.EmitParticles(sys, stepsize)
 
-    # Calculate energies
-    kinetic_energy = 0.0
-    potential_energy = 0.0
-    G_constant = 6.674e-3  # Modified gravitational constant
-
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
+    G_constant = 6.674e-3  # Modified gravitational constant
+
+    # Energy calculations
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+
+    # Calculate kinetic energy
+    for body in sys.GetBodies():
+        vel = body.GetPos_dt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+
+    # Calculate potential energy and gravitational forces
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -102,15 +108,9 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-
-        # Calculate potential energy between pairs
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
     total_energy = kinetic_energy + potential_energy
-    print(f"Step: {sys.GetChTime()}")
-    print(f"Kinetic Energy: {kinetic_energy:.2f}")
-    print(f"Potential Energy: {potential_energy:.2f}")
-    print(f"Total Energy: {total_energy:.2f}")
-    print("---")
+    print(f"Kinetic Energy: {kinetic_energy:.2f}, Potential Energy: {potential_energy:.2f}, Total Energy: {total_energy:.2f}")
 
     sys.DoStepDynamics(stepsize)

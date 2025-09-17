@@ -1,104 +1,116 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
 import pychrono.sensor as sens
+import pychrono.irrlicht as irr
+import sys
 
 
-my_system = chrono.ChSystemMulticore()
+system = chrono.ChSystemMulticore()
+time_step = 0.01
 
 
-gator = veh.Gator(vehicle_system=my_system)
-gator.SetChassisVisualizationType(veh.VisualizationType.MESH)
-gator.SetWheelVisualizationType(veh.VisualizationType.MESH)
-gator.SetSuspensionVisualizationType(veh.VisualizationType.PRIMITIVES)
-gator.SetSteeringVisualizationType(veh.VisualizationType.PRIMITIVES)
-gator.SetPowertrainVisualizationType(veh.VisualizationType.NONE)
-gator.Initialize()
-
-
-ground = chrono.ChBodyEasyPlane(100, 100, True, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -1))
-my_system.Add(ground)
-
-
-irr_params = irr.ChIrrAppParams()
-irr_params.SetWindowSize(1280, 1024)
-irr_params.SetWindowTitle("Gator Simulation")
-irr_params.SetLightIntensity(0.8)
-irr_params.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-
-app = irr.ChIrrApp(my_system, irr_params)
-app.AddTypicalLogo()
-app.AddTypicalSky()
+app = irr.ChIrrApp(system, 'Gator Simulation', irr.dimension2du(800, 600))
 app.AddTypicalLights()
-app.AddTypicalCamera()
+app.SetCamera(chrono.ChVectorD(0, 5, 10))  
+app.AssetSetMode(chrono.ChVisualizationAsset.Mode_RGB)
+app.SetSymbolsScale(0.01)
+app.SetTimestep(time_step)
 
 
-app.Add(gator.GetChassis())
-app.Add(ground)
+gator = veh.Gator()
+gator.SetChassisVisualizationType(veh.VisualizationType.MESH)
+gator.SetWheelVisualizationType(veh.VisualizationType.SIMPLE)
+gator.SetSuspensionVisualizationType(veh.VisualizationType.PRIMITIVES)
+gator.SetPowertrain(veh.SimplePowertrain())  
+gator.SetTireModel(veh.TireModel.SIMPLE)     
 
 
-driver = irr.ChIrrGuiDriver()
-driver.SetVehicle(gator)
-driver.SetChaseCamera(gator.GetChassis(), 6.0, 0.5)
-app.SetDriver(driver)
+terrain = veh.RigidTerrain(system, veh.materials.Concrete())
+patch = veh.Patch()
+patch.m_length = 100
+patch.m_width = 100
+patch.m_friction = 0.9
+terrain.AddPatch(patch)
+terrain.Initialize()
+system.Add(terrain)
 
 
-sensor_mgr = sens.ChSensorManager(my_system)
-sensor_mgr.SetSceneType(sens.SENSOR_SCANTYPE_RGBD)
+gator.Initialize(terrain)
 
 
-cam = sens.ChCameraSensor()
-cam.SetName("chassis_camera")
-cam.SetFocalDistance(100)
-cam.SetFov(90)
-cam.SetImageWidth(640)
-cam.SetImageHeight(480)
-cam.SetPosition(chrono.ChVectorD(0, 0, 1))  
-cam.SetRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.VECT_X))  
-cam.SetAttachmentFrame(gator.GetChassis().GetFrame_REF_to_abs())
-sensor_mgr.AddSensor(cam)
+system.Add(gator.GetChassis())
 
 
-light1 = sens.ChLight()
-light1.SetPosition(chrono.ChVectorD(5, 5, 10))
-light1.SetIntensity(200)
-sensor_mgr.AddLight(light1)
-
-light2 = sens.ChLight()
-light2.SetPosition(chrono.ChVectorD(-5, -5, 10))
-light2.SetIntensity(200)
-sensor_mgr.AddLight(light2)
+driver = veh.Driver()
+driver.SetChassis(gator.GetChassis())
+gator.SetDriver(driver)
 
 
-app.Begin()
+sensor_mgr = sens.SensorManager(system)
+base_link = gator.GetChassis()
+sensor_mgr.SetBaseLink(base_link)
+
+
+light = sens.SensorLight()
+light.SetName('point_light')
+light.SetLightType(sens.SensorLightType.POINT)
+light.SetPosition(chrono.ChVectorD(0, 0, 2))  
+light.SetIntensity(1000)
+sensor_mgr.AddSensor(light)
+
+
+camera = sens.SensorCamera()
+camera.SetName('front_camera')
+camera.SetPosition(chrono.ChVectorD(0, 0, 1))  
+camera.SetOrientation(chrono.Q_from_Euler_123(chrono.ChVectorD(0, 0, 0)))  
+camera.SetFOV(90)
+camera.SetImageWidth(800)
+camera.SetImageHeight(600)
+camera.SetSensorRenderingType(sens.SensorRenderType.RGB)
+sensor_mgr.AddSensor(camera)
+
+sensor_mgr.Initialize()
+
+
+frame = 0
 while app.GetDevice().run():
-    time = my_system.GetChTime()
     
+    key = app.GetKeyboard()
+    steering = 0
+    throttle = 0
+    braking = 0
+
+    if key == irr.KEYKEY_LEFT:
+        steering = -1
+    elif key == irr.KEYKEY_RIGHT:
+        steering = 1
+    if key == irr.KEYKEY_UP:
+        throttle = 1
+    if key == irr.KEYKEY_DOWN:
+        braking = 1
+
+    driver.SetInputs(steering, throttle, braking)
+
     
-    driver.Synchronize(time)
-    driver.Update()
-    
-    
-    gator.Synchronize(time, driver)
-    gator.Update(time)
-    
-    
+    gator.Update()
     sensor_mgr.Update()
+
     
+    system.DoStepDynamics(time_step)
+
     
-    my_system.DoStepDynamics(0.005)
+    app.BeginScene()
+    app.DrawAll()
+    terrain.Draw(app)
+    app.EndScene()
+
     
+    filename = f'output/frame_{frame:05d}.jpg'
+    sensor_mgr.AddCameraImage(camera.GetName(), filename)
+    frame += 1
+
     
-    app.Render()
-    
-    
-    image = cam.GetLastRenderedImage()
-    if image:
-        print(f"Camera image dimensions: {image.GetWidth()}x{image.GetHeight()}")
-    
-    
-    if time > 10:
+    if app.GetDevice().getKey(irr.KEY_ESCAPE):
         break
 
-app.End()
+app.GetDevice().closeGraphicalWindow()

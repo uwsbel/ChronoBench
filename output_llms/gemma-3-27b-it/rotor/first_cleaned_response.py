@@ -3,103 +3,98 @@ import pychrono.irrlicht as chronoirr
 import pychrono.postprocess as postprocess
 
 
-chrono.SetChronoDataPath("./")  
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+
 
 
 
 beam_length = 1.0
 beam_radius = 0.02
-beam_segments = 20
-beam_order = 3  
+num_segments = 20
+beam_young = 2.0e11  
+beam_density = 7850  
 
 
-beam = chrono.ChBodyEasy.New()
+beam = chrono.ChBodyEasy.New(beam_length * 0.5, 0.0, 0.0,  
+                             beam_radius, beam_radius, beam_radius,  
+                             beam_density)
 beam.SetBodyFixed(False)
-beam.SetMass(1.0)
-beam.SetInertia(1.0)
-
-
-section = chrono.ChNurbsSection()
-section.SetShapeType(chrono.ChNurbsShape.CIRCLE)
-section.SetRadius(beam_radius)
-section.SetSegments(beam_segments)
-
-
-iga_beam = chrono.ChIGABeam.New()
-iga_beam.SetSection(section)
-iga_beam.SetLength(beam_length)
-iga_beam.SetOrder(beam_order)
-iga_beam.BuildMesh()
-
-
-beam.AddAsset(iga_beam)
 beam.SetCollide(True)
-beam.SetVisualizationType(chrono.ChVisualizationType.MESH)
+beam.SetMaterialWithProperties(chrono.ChMaterialSurfaceNSC(), beam_young, 0.3)
+beam.SetShapeType(chrono.ChShapeType.SHAPE_IGA_BEAM)
 
 
-system.Add(beam)
+beam.GetShape().Set_Length(beam_length)
+beam.GetShape().Set_Radius(beam_radius)
+beam.GetShape().Set_Segments(num_segments)
+beam.GetShape().Set_Section(chrono.ChIGASectionCircle(beam_radius))
+
+my_system.Add(beam)
+
+
+
 
 
 flywheel_radius = 0.05
-flywheel_mass = 0.5
-flywheel = chrono.ChBodyEasy.New()
+flywheel_mass = 0.1
+flywheel = chrono.ChBodyEasy.New(flywheel_radius, flywheel_radius, flywheel_radius,
+                                 flywheel_mass, True, True)
 flywheel.SetBodyFixed(False)
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertia(chrono.ChVectorD(flywheel_mass * flywheel_radius * flywheel_radius,
-                                     flywheel_mass * flywheel_radius * flywheel_radius,
-                                     flywheel_mass * flywheel_radius * flywheel_radius))
-flywheel.SetShape(chrono.ChSphereShape(flywheel_radius))
 flywheel.SetCollide(True)
-flywheel.SetVisualizationType(chrono.ChVisualizationType.MESH)
+flywheel.SetMaterialWithProperties(chrono.ChMaterialSurfaceNSC(), 2.0e11, 0.3)
+flywheel.SetShapeType(chrono.ChShapeType.SHAPE_SPHERE)
+flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
+my_system.Add(flywheel)
 
 
-flywheel_pos = chrono.ChVectorD(beam_length / 2.0, 0, 0)
-flywheel.SetPos(flywheel_pos)
+rev_joint = chrono.ChLink revolute_joint = chrono.ChLinkRevolute()
+rev_joint.Initialize(beam, flywheel, chrono.ChCoordsys(chrono.ChVectorD(beam_length / 2, 0, 0)))
+my_system.Add(rev_joint)
 
 
-system.Add(flywheel)
 
 
-joint = chrono.ChLinkRevolute.New()
-joint.Initialize(beam, flywheel, chrono.ChCoordsys(flywheel_pos))
-system.Add(joint)
 
 
-motor_torque = 1.0
-motor = chrono.ChMotorLinearSpring.New()
-motor.Set_SpringRestLength(0.0)
-motor.Set_SpringK(0.0)
-motor.Set_SpringR(0.0)
-motor.Set_Torque(motor_torque)
-motor.Set_Mode(chrono.ChMotorMode.TORQUE_CONTROL)
-
-
+motor = chrono.ChLinkMotorRotationSpeed()
 motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.Add(motor)
+motor.Set_RotationalSpeed(10)  
+motor.Set_Torque(1.0)
+my_system.Add(motor)
+
+
+
 
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Jeffcott Rotor with IGA Beam')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(2, 2, -2))
+vis.AddTypicalCamera(chrono.ChVectorD(0, 0, -2))
 vis.AddTypicalLights()
 
 
-time_step = 0.001
+
+
+
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+my_system.SetStepTime(0.001)
 time_end = 10.0
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    system.DoStepDynamics(time_step)
+    my_system.DoStepDynamics(0.001)
 
-    if system.GetChTime() > time_end:
-        vis.GetIrrlichtApplication().Close()
+    if my_system.GetChTime() > time_end:
+        break

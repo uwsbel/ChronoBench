@@ -1,84 +1,57 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fem as chronofem
-import pychrono.solver as chronosolver
-import pychrono.fea as chronofea
+import pychrono.fem as fem
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')  
-
-
+chrono.SetChronoDataPath('/path/to/chrono/data')  
 system = chrono.ChSystemNSC()
 
 
-time_step = 0.01
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-system.GetTimestepper().SetAlpha(-0.2)
-system.SetMaxPenetrationRecoverySpeed(1.0)
+beam_mesh = fem.ChElementBeamFEMigA()
+beam_mesh.SetLength(1.0)  
+beam_mesh.SetCrossSectionArea(0.01)  
+beam_mesh.SetYoungModulus(210e9)  
+beam_mesh.SetDensity(7800)  
 
 
-ground = chrono.ChBodyEasyBox(10, 1, 0.5, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
-ground.SetBodyFixed(True)
-system.Add(ground)
+beam_body = chrono.ChBody()
+beam_body.AddElement(beam_mesh)
+beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
+beam_body.SetMass(10)  
+beam_body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))  
+system.Add(beam_body)
 
 
-beam_length = 2.0
-beam_width = 0.1
-beam_height = 0.1
-beam_material = chronofem.ChMaterialShellFea()
-beam_material.SetYoungModulus(210e9)
-beam_material.SetPoissonRatio(0.3)
-beam_material.SetDensity(7800)
+def custom_motor_func(time):
+    return chrono.ChFunction_Const(0.1)  
 
-beam_mesh = chronofem.ChElementBeamFEM()
-beam_mesh.SetLength(beam_length)
-beam_mesh.SetCrossSectionArea(beam_width * beam_height)
-beam_mesh.SetYoungModulus(beam_material.GetYoungModulus())
-beam_mesh.SetDensity(beam_material.GetDensity())
-
-beam = chronofem.ChNodeFEAbeam()
-beam.AddElement(beam_mesh)
-beam.SetPos(chrono.ChVectorD(0, 0.5, 0))
-
-system.Add(beam)
+motor = chrono.ChFunction_Const(0.1)
+beam_body.AddForce(chrono.ChVectorD(0, 0, -9.81 * beam_body.GetMass()))  
 
 
-constraint = chrono.ChLinkLockLock()
-constraint.Initialize(ground, beam.GetVisualModel().GetBody())
+constraint = chrono.ChLinkLockRevolute()
+constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 system.Add(constraint)
 
 
-motor = chrono.ChFunction_Ramp(0, 10000)
-motor_function = chrono.ChFunction_Constant(10000)
-motor.SetStartPoint(0)
-motor.SetEndPoint(1)
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+system.SetTimestepperType(chrono.ChTimestepper.HBM)
 
 
-motor_force = chrono.ChForce()
-motor_force.SetMotionType(chrono.ChForce.MotionType_FORCE)
-motor_force.SetForce(chrono.ChVectorD(0, -1000, 0))
-beam.GetVisualModel().GetBody().AddForce(motor_force)
-
-
-visualization = chronoirr.ChIrrApp(system, 'Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_chrono_small.png')
-visualization.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0.5, 0.5, 0.5), 1000, 500, 500, 40, 512)
-
-
-visualization.Add(beam.GetVisualModel())
-
-
-visualization.SetTimestep(time_step)
-visualization.SetTryRealTime(True)
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('Beam Buckling Simulation')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddCamera(chrono.ChVectorD(1, -1, 1), chrono.ChVectorD(0, 0, 0))
 
 
 while visualization.Run():
-    visualization.BeginScene()
+    system.DoStepDynamics(0.01)  
     visualization.Render()
-    system.DoStepDynamics(time_step)
-    visualization.EndScene()
 
 
 visualization.Close()

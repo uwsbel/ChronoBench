@@ -1,51 +1,49 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visual as v
+import pychrono.visual as pv
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual import Visual
+from pychrono.visual import Camera
+from pychrono.core import force
+from pychrono.visual import Scene
+from pychrono.visual import Light
 
-def simulate_mass_spring_damper(dt=0.01):
-    
 
-    
-    chrono = pc.Chchrono()
-    chrono.set_environment(pc.Environment(
-        time_step=dt,
-        gravity=0.0,  
-        mass=1.0,
-        spring_constant=0.5,
-        damping_coefficient=0.1
-    ))
+mass = 1.0  
+spring_constant = 10.0  
+damping_coefficient = 0.01  
+distance_to_ground = 0.5  
+simulation_time = 10.0  
+gravity = 9.81  
 
-    
-    mass = pc.Mass(0.1, 1.0)  
-    spring = pc.Spring(0.2, 0.5)  
-    ground = pc.Ground(0.0, 1.0)  
 
-    
-    chrono.set_default_parameters(
-        mass=mass,
-        spring_constant=spring.constant,
-        damping_coefficient=damping_coefficient
-    )
+scene = Scene()
+scene.add_object(pc.Mass(mass, 'mass'))
+scene.add_object(pc.Spring(mass, spring_constant, damping_coefficient, distance_to_ground, gravity))
+scene.add_object(pc.Ground(mass, spring_constant, damping_coefficient, distance_to_ground, gravity))
 
-    
-    visual = v.Visual(
-        title="Mass-Spring-Damper Simulation",
-        camera_settings={"width": 640, "height": 480},
-        
-        lighting={"color": "white"}
-    )
 
-    
-    chrono.create_link(mass, ground)
+camera = Camera(scene, 0.0, 0.0, 1.0)
 
-    
-    chrono.run(visual)
 
-    
-    
+light = Light(camera, 0.0, 0.0, 1.0)
 
-if __name__ == '__main__':
-    simulate_mass_spring_damper()
+
+pv.set_options(
+    'title', 'Mass-Spring-Damper Simulation',
+    'width', 800,
+    'height', 600
+)
+
+
+camera.set_camera_settings(light)
+
+
+simulation = pc.Simulation(scene, camera)
+simulation.run(simulation_time)
+
+
+simulation.save_simulation()
+
+
+pv.show_simulation(scene)

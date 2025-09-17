@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.0)
+initLoc = chrono.ChVector3d(-15.0, 0.0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -17,11 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-scm_height = 10.0  
-scm_width = 100.0  
-scm_depth = 100.0  
-scm_res = 100       
-scm_texture = "dirt"
+soil_young_modulus = 2.0e9
+soil_poisson_ratio = 0.3
+soil_shear_strength = 1.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -60,15 +58,9 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-scm_mat = chrono.ChContactMaterialSCM()
-scm_mat.SetFriction(0.8)
-scm_mat.SetRestitution(0.3)
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.InitializeSCMTerrain(
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    scm_height, scm_width, scm_depth, scm_res,
-    scm_texture
-)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetTerrainType(veh.TerrainType_DEFORMABLE_SCM)
+terrain.InitializeDeformableTerrain(soil_young_modulus, soil_poisson_ratio, soil_shear_strength)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -96,7 +88,10 @@ driver.Initialize()
 
 
 
-vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_CGNS)
+vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,10 +100,10 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -117,6 +112,7 @@ while vis.Run() :
     
     driver_inputs = driver.GetInputs()
     
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
@@ -125,5 +121,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    
+    vehicle.GetVehicle().SetThrottle(0.8)
     
     step_number += 1

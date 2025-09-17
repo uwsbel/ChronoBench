@@ -7,60 +7,61 @@ import pychrono/ros.pyros as ros
 sys = chrono.ChSystemNSC()
 
 
-veh_hmmwv = veh.HMMWV()
-veh_hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
-veh_hmmwv.SetEngineType(veh.EngineType_INTERNAL_COMBUSTION)
-veh_hmmwv.SetTireModel(veh.TireModel_TMEASY)
+vehicle = veh.HMMWV()
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetEngineType(veh.EngineType_INTERNAL_COMBUSTION)
+vehicle.SetTireModel(veh.TireModel_TMEASY)
 
 
-sys.Add(veh_hmmwv)
+sys.Add(vehicle)
 
 
 terrain = chrono.ChBodyEasyBox(sys, 10, 10, 1, 1000, True, chrono.ChVectorD(0, -5, 0))
-terrain.SetFriction(0.7)
-terrain.SetRestitution(0.3)
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.5)
 sys.Add(terrain)
 
 
-driver = veh.ChDriversCallback()
-veh_hmmwv.AddDriver(driver)
+driver = veh.ChDriverHMMWV(vehicle)
 
 
-ros_manager = ros.ChROSManager(sys)
-ros_manager.RegisterHandler(ros.ChROSClockSyncHandler())
-ros_manager.RegisterHandler(ros.ChROSInputHandler(driver))
-ros_manager.RegisterHandler(ros.ChROSVehicleStateHandler(veh_hmmwv))
+ros_manager = ros.ChRosManager()
+ros_manager.RegisterHandler(ros.ChRosHandlerClockSync())
+ros_manager.RegisterHandler(ros.ChRosHandlerDriverInputs(driver))
+ros_manager.RegisterHandler(ros.ChRosHandlerVehicleState(vehicle))
 
 
-time_step = 0.01
-sim_duration = 10
+step_size = 0.01
+duration = 10
 
 
 time = 0
-while time < sim_duration:
+while time < duration:
     
-    sys.DoStepDynamics(time_step)
-    driver.Synchronize(time_step)
-    
-    
-    ros_manager.Publish()
+    vehicle.Synchronize(time)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
 
     
-    time += time_step
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    driver.Advance(step_size)
+
+    
+    ros_manager.Update()
+
+    
+    time += step_size
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
+vis = chronoirr.ChVisualSystem()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCamera(chrono.ChVectorD(0, 5, 10))
-vis.AddTypicalLights(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(-10, 10, -10))
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddTypicalLights()
 vis.SetWindowSize(1024, 768)
-vis.SetLogo("PyChrono")
-vis.SetCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-vis.AddSkyBox()
-vis.AddGrid(chrono.ChVectorD(0, 0, 0), 10, 1)
-vis.DrawAll()
+vis.SetLogo("")
+
 while vis.Run():
     vis.BeginScene()
     vis.DrawAll()

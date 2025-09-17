@@ -7,53 +7,40 @@ ch.InitChroNode()
 # Create a Chrono system with gravitational acceleration
 sys = ch.ChSystem()
 
-# Set physical material properties
-ch.SetMaterial(1, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
-ch.SetMaterial(2, ch.MAT_DEFAULT, 1e6, 0.3, 0.01, 0.01)
+# Set the gravitational acceleration
+sys.SetGravity(0, 0, -9.81)
 
-# Create a fixed floor
-floor = ch.ChBody()
-floor.SetPos(ch.Vec3(0, 0, 0))
-floor.SetRot(ch.Vec3(0, 0, 0))
-floor.SetMass(0)
+# Define a custom material with specific properties
+mat = ch.ChMaterialTool.SetFromNameDefault("StainlessSteel")
+
+# Create a fixed floor and add it to the system
+floor = ch.ChBodyEasyBox(10, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, mat)
 floor.SetBodyFixed(True)
-floor.SetMaterial(1)
 sys.Add(floor)
 
-# Create a movable box
-box = ch.ChBody()
-box.SetPos(ch.Vec3(0, 1, 0))
-box.SetRot(ch.Vec3(0, 0, 0))
-box.SetMass(1)
-box.SetBodyFixed(False)
-box.SetMaterial(2)
+# Create a movable box and add it to the system
+box = ch.ChBodyEasyBox(1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, mat)
+box.SetPos(0, 1, 0)
 sys.Add(box)
 
-# Create a custom ROS handler to publish integer messages
-class MyROSHandler(ROSHandler):
+# Define a custom ROS handler to publish integer messages
+class MyHandler(ROSHandler):
     def __init__(self):
         super().__init__()
         self.count = 0
 
-    def on_timer(self):
-        self.publish_message(self.count)
+    def publish(self):
+        self.publish_int("my_topic", self.count)
+
+    def update(self):
         self.count += 1
 
-# Configure the ROS manager
-ros_manager = ROSManager()
-ros_manager.set_clock_handler(ch.ChClockHandler())
-ros_manager.set_body_handler(ch.ChBodyHandler())
-ros_manager.set_transform_handler(ch.ChTransformHandler())
-ros_manager.register_handler(MyROSHandler())
+# Create a ROS manager and register the custom handler
+ros_manager = ROSManager(sys, 10)
+ros_manager.AddHandler(MyHandler())
 
-# Set up the simulation loop
-t = 0
-dt = 0.001
-while t < 10:
-    sys.DoStep(dt)
-    ros_manager.update()
-    t += dt
-
-# Clean up
-sys.Destroy()
-ros_manager.shutdown()
+# Run the simulation loop
+while True:
+    sys.DoStepDynamics(0.01)
+    ros_manager.Update()
+    ros_manager.Poll()

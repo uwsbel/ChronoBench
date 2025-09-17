@@ -6,82 +6,51 @@ import chrono.vehicle as veh
 ch.set_default_G_acc(9.81)
 
 
-system = ch.ChSystem_EulerImplicit()
+system = ch.ChSystemEulerImplicit()
 
 
-app = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.IrrlichtInfo())
+app = irr.IrrlichtApplication(system)
 
 
-terrain = veh.ChTerrain()
-terrain.SetSystem(system)
-terrain.SetType(veh.TerrainType.RIGID)
-terrain.SetRigidTerrainMeshFilename('terrain.obj')  
-terrain.Initialize()
+terrain = veh.RigidTerrain(system, 'data/terrain/granite.pcm')
+terrain.SetPos(ch.ChVector3d(0, 0, 0))
+terrain.SetCollisionMaterial(veh.RigidTerrain.CollisionMaterial.GRANITE)
 
 
-vehicle = veh.ChVehicle()
-vehicle.SetSystem(system)
+vehicle = veh.MAN_10t(system)
 
 
-chassis = veh.ChVehicleChassis()
-chassis.SetMass(10000)  
-chassis.SetInertiaMoments(1000, 1000, 1000)
-chassis.SetCOMOffset(0, 0, 0.5)
-vehicle.SetChassis(chassis)
+vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.PRIMITIVES)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType.PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.SHAFTS)
+vehicle.SetWheelCollisionType(veh.WheelCollisionType.SHAFTS)
 
 
-engine = veh.ChEngineSimple()
-engine.SetMaxPower(200)  
-engine.SetMaxTorque(500)  
-vehicle.SetEngine(engine)
+tire = veh.TMEasyTire(system)
+vehicle.SetTireModel(tire)
 
 
-transmission = veh.ChTransmissionSimple()
-transmission.SetGearRatio(10)
-vehicle.SetTransmission(transmission)
+vehicle.SetPosition(ch.ChVector3d(0, 0, 1))
+vehicle.SetHeading(0)
 
 
-driveline = veh.ChDrivelineRWD()
-driveline.SetFrictionCoefficient(0.9)
-vehicle.SetDriveline(driveline)
-
-
-for i in range(4):
-    wheel = veh.ChWheel()
-    wheel.SetRadius(0.5)  
-    wheel.SetWidth(0.2)  
-    vehicle.AddWheel(wheel)
-
-
-tire = veh.ChTireTM_easy()
-tire.SetTireMass(50)  
-tire.SetTireRadius(0.5)  
-for i in range(4):
-    vehicle.SetTire(tire, i)
-
-
-driver = veh.ChDriver()
+driver = veh.DriverWheeledVehicle(vehicle, system)
 driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-vehicle.SetDriver(driver)
+driver.SetThrottle(0.5)
+driver.SetBraking(0.0)
 
 
-vehicle.SetVisualization(enable_collision=True, enable_shadows=True)
+vis = irr.IrrlichtVis(app, system)
+vis.SetCameraDistance(10)
+vis.SetCameraPos(ch.ChVector3d(0, -10, 5))
+vis.SetChaseCamera(vehicle.GetChassisBody())
 
 
-app.SetTimestep(0.01)
-app.SetCollisionSystem(system.GetCollisionSystem())
-app.AddCamera(irr.ChVector3(0, -10, 5), irr.ChVector3(0, 0, 0))
+vis.AddDirectionalLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(-1, -1, -1), 1)
+vis.AddSkyBox('data/textures/skybox')
+vis.SetTerrainTexture('data/textures/granite.jpg')
+vis.AddLogo('data/textures/logo.png')
 
 
-app.AddLight(irr.ChVector3(10, 10, 10), irr.ChVector3(1, 1, 1), 100)
-app.AddSkyBox('skybox.jpg')  
-
-
-while app.Run():
-    system.DoStepDynamics(0.01)
-
-    
-    app.Synchronize('', 0)
-    app.PostStep()
+app.SetSimulationRate(1.0 / 60.0)
+app.Run()

@@ -160,26 +160,14 @@ while vis.Run():
 
     
     if time < 6:
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
-    elif time < 10:
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0
+        driver_inputs = veh.ChInput(throttle=0.5, steering=0.0)
+    elif time < 12:
+        driver_inputs = veh.ChInput(throttle=0.5, steering=0.2)
     else:
-        driver_inputs = driver.GetInputs()
-        driver_inputs.m_throttle = 0
-        driver_inputs.m_steering = 0
-        driver_inputs.m_braking = 1
+        driver_inputs = veh.ChInput(throttle=0.0, steering=0.0, braking=1.0)
 
     
-    
-    
-    
-
-    
-    if time % log_step_size == 0:
+    if step_number % math.ceil(log_step_size / step_size) == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     

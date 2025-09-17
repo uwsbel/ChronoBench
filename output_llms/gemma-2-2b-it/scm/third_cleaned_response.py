@@ -2,7 +2,7 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-
+import random
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -154,10 +154,12 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    for i in range(10):
-        box = veh.ChBodyEasyBox(chrono.ChVector3d(chrono.ChRandom.Uniform(-100, 100), 
-                                                    chrono.ChRandom.Uniform(-100, 100), 
-                                                    chrono.ChRandom.Uniform(-100, 100)),
-                                  chrono.ChVector3d(0, 0, 0), 
-                                  chrono.ChVector3d(1, 1, 1))
-        vehicle.GetSystem().AddBody(box)
+    for _ in range(10):
+        box = veh.ChBodyEasyBox(chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(-50, 50)))
+        terrain.AddBody(box)
+
+    
+    sensor_manager = veh.ChSensorManager()
+    sensor_manager.AddSensor(chrono.ChSensorType_CAMERA, chrono.ChSensorPosition(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0)))
+    sensor_manager.AddSensor(chrono.ChSensorType_POINT_LIGHT, chrono.ChSensorPosition(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0)))
+    vis.AddSensorManager(sensor_manager)

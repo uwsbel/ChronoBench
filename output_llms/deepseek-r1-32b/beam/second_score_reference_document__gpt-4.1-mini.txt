@@ -4,124 +4,177 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemSMC()`).
-- **Mesh Creation:** Present and correct (`mesh = fea.ChMesh()`).
-- **Beam Section Setup:** Present and mostly correct, but there is a critical issue with `SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)` (see correctness).
-- **Nodes and Elements:** Present and correct.
-- **Force and Torque Application:** Present and correct.
-- **Body Creation and Fixing:** Present (`mtruss` body fixed and added).
-- **Constraints:** Present and correctly added.
-- **Beam Builder Usage:** Present, but usage differs from reference (see correctness).
-- **Gravity Setting:** Present and correct.
-- **Adding Mesh to System:** Present.
-- **Visualization Setup:** Present and mostly correct.
+- **System Initialization:** Present and correct. (No deduction)
+- **Mesh and Beam Section:** Present and mostly correct. (No deduction)
+- **Nodes and Elements:** Present and correct. (No deduction)
+- **Force and Torque Application:** Present and correct. (No deduction)
+- **Body Creation (mtruss) and Fixing:** Present and correct. (No deduction)
+- **Constraints (constr_bc and constr_d):** Present but with an API difference:
+  - The reference uses `hnode3.Frame()` and `hnode1.Frame()` for initialization.
+  - The provided code uses `hnode3.GetFrame()` and `hnode1.GetFrame()`.
+  - According to PyChrono API, `Frame()` is the correct method for `ChNodeFEAxyzrot` to get the frame; `GetFrame()` is not standard or documented.
+  - This is an important detail affecting correctness, but completeness-wise, the constraints are present.
+- **BuilderBeamEuler Usage:**
+  - Reference uses `builder.BuildBeam(mesh, msection, 5, A, B, Y)` which adds nodes and elements directly to the mesh.
+  - Provided code calls `builder.SetNodesPerElement(5)`, `builder.SetSection(msection)`, then calls `builder.BuildBeam(A, B, Y)` without passing the mesh or number of elements.
+  - Then manually adds nodes and elements from builder to mesh.
+  - This is a deviation from the recommended usage and less clean.
+- **Fixing and Force on Builder Nodes:** Present and correct.
+- **Gravity Disabled:** Present and correct.
+- **Mesh Added to System:** Present and correct.
+- **Visualization Setup:** Present and correct.
+- **Irrlicht Visualization Setup:** Present and correct.
 - **Solver Setup:** Present and correct.
 - **Simulation Loop:** Present and correct.
 
-**Minor omissions or deviations:**
+**Deductions:**
 
-- The beam builder usage differs: the reference uses `builder.BuildBeam(mesh, msection, 5, start, end, up)`, while the provided code sets parameters via setters and then calls `builder.BuildBeam(mesh)`. This is a deviation from the documented API and reference usage.  
-- The force application on the first node of the built beam is done on `builder.GetFirstBeamNodes().back()` instead of `.front()` as in the reference. This is a minor deviation.
+- The builder usage is less optimal and deviates from the recommended API usage, which is an important detail. Deduct **10 points** for this.
 
-**Deduction:**  
-- 5 points for minor deviation in beam builder usage and force application on the wrong node.
+- The use of `GetFrame()` instead of `Frame()` for nodes in constraints is an incorrect API usage (see correctness below), but completeness-wise the constraints are present.
 
-**Score for Completeness:** 40 - 5 = **35**
+- Minor omission: The reference script has comments explaining the steps; the provided code lacks comments. Deduct **5 points** for minor omission in documentation (falls under code quality but also completeness of documentation).
+
+**Total Completeness deduction: 10 (builder usage) + 5 (comments) = 15 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **`SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)`**: This is incorrect. The reference and API expect rotation in radians, but `CH_RAD_TO_DEG` is a constant to convert radians to degrees (≈57.2958). Multiplying 45 by this constant results in a huge angle (~2578 degrees), which is incorrect. The reference uses `45 * chrono.CH_RAD_TO_DEG` as well, but this is likely a typo in the reference. The correct usage should be either `45 * chrono.CH_DEG_TO_RAD` or just `chrono.CH_C_PI / 4` for 45 degrees in radians. This is a significant API misuse that will affect simulation behavior.
+- **Use of `hnode3.GetFrame()` and `hnode1.GetFrame()` in constraint initialization:**
 
-- **Beam Builder Usage:** The reference uses `builder.BuildBeam(mesh, msection, 5, start, end, up)`. The provided code uses setters (`SetSection`, `SetNodes`, `SetStartPoint`, `SetEndPoint`, `SetUpY`) and then calls `builder.BuildBeam(mesh)`. According to the PyChrono API documentation and examples, the recommended and correct usage is the one in the reference. The provided code's approach may not build the beam correctly or as intended, leading to logical errors.
+  The PyChrono API for `ChNodeFEAxyzrot` provides the method `Frame()` to get the node's frame. `GetFrame()` is not documented and likely incorrect or deprecated.
 
-- **Force Application on Beam Nodes:** The provided code applies force to `builder.GetFirstBeamNodes().back()` instead of `.front()`. This is a logical error because the first node is the `.front()` node, not `.back()`. This could lead to applying force on the wrong node.
+  This could cause runtime errors or incorrect constraint setup.
 
-- **Constraint Initialization:** Correctly done.
+  Deduct **15 points** for incorrect API usage that could affect simulation behavior.
 
-- **Other API usages:** Correct.
+- **BuilderBeamEuler usage:**
 
-**Deduction:**  
-- 15 points for incorrect use of `SetSectionRotation` (significant impact).  
-- 10 points for incorrect beam builder usage (logical error).  
-- 5 points for applying force to the wrong node (minor logical error).
+  The reference uses `builder.BuildBeam(mesh, msection, 5, A, B, Y)` which internally adds nodes and elements to the mesh.
 
-**Score for Correctness:** 30 - (15 + 10 + 5) = **0**
+  The provided code uses `builder.SetNodesPerElement(5)`, `builder.SetSection(msection)`, then calls `builder.BuildBeam(A, B, Y)` without passing the mesh or number of elements, then manually adds nodes and elements.
+
+  This is not the recommended usage and could lead to errors or inconsistencies.
+
+  Deduct **10 points** for logical error / incorrect usage.
+
+- **Setting Section Rotation:**
+
+  The reference uses `msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)` which is incorrect because `CH_RAD_TO_DEG` converts radians to degrees, but the angle is given in degrees (45).
+
+  The provided code uses `msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)`, which is correct (converts degrees to radians).
+
+  This is a correctness improvement in the provided code.
+
+  No deduction here.
+
+- **Node Initialization:**
+
+  The reference initializes nodes as `fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(...)))`.
+
+  The provided code uses `fea.ChNodeFEAxyzrot()` then sets position with `SetPos()`.
+
+  Both are valid, but the reference's approach is more concise and idiomatic.
+
+  No deduction, minor difference.
+
+- **Force and Torque Application:**
+
+  Correct in both.
+
+- **Constraint Setup:**
+
+  Aside from the `GetFrame()` vs `Frame()` issue, the constraints are set correctly.
+
+- **Mesh Gravity:**
+
+  Correctly disabled.
+
+- **Solver Setup:**
+
+  Correct.
+
+- **Simulation Loop:**
+
+  Correct.
+
+**Total Correctness deduction: 15 (GetFrame vs Frame) + 10 (builder usage) = 25 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The provided code lacks comments explaining the steps, unlike the reference which has detailed comments.  
-- Variable names are reasonable and consistent.  
-- Formatting is mostly okay but lacks spacing and blank lines for readability.  
-- The print statement uses parentheses correctly (Python 3 style).  
-- Overall, the code is less readable due to lack of comments and explanations.
+- The provided code lacks comments explaining the steps, unlike the reference script which has detailed comments.
 
-**Deduction:**  
-- 7 points for insufficient comments and documentation.  
-- 2 points for minor formatting/readability issues.
+- Variable naming is acceptable but could be improved (e.g., `hnode1`, `belement1` are fine but no comments).
 
-**Score for Code Quality:** 10 - 9 = **1**
+- Formatting is mostly fine.
+
+- Deduct **5 points** for insufficient comments/documentation.
+
+- Deduct **3 points** for minor readability issues (lack of spacing, no blank lines between logical blocks).
+
+**Total Code Quality deduction: 8 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The provided code has some redundant calls: setting beam builder parameters individually instead of using the single `BuildBeam` call with all parameters. This is less efficient and less clear.  
-- No obvious unnecessary calculations or redundant code beyond this.
+- The provided code manually adds nodes and elements from the builder to the mesh, instead of using the builder's `BuildBeam(mesh, msection, ...)` method which adds them internally.
 
-**Deduction:**  
-- 5 points for inefficient use of beam builder API.
+- This is less efficient and more error-prone.
 
-**Score for Efficiency:** 10 - 5 = **5**
+- Deduct **5 points** for this inefficiency.
+
+- No other obvious inefficiencies.
+
+**Total Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- Neither the provided code nor the reference includes explicit error handling or robustness checks.  
-- No deduction here as the reference also lacks error handling.
+- Neither script includes explicit error handling, which is typical for example scripts.
 
-**Score for Error Handling:** **5**
+- The reference script does not handle errors explicitly either.
+
+- No deduction.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is complete and matches the reference.  
-- The camera, lights, skybox, and logo are added similarly.  
-- No missing or incorrect visualization setup.
+- Visualization setup is complete and matches the reference.
 
-**Score for Visualization:** **5**
+- Minor difference: The reference calls `constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())` while the provided code uses `GetFrame()`.
 
----
+- Visualization setup is otherwise correct.
 
-### **Summary of Deductions:**
-
-| Criterion                 | Max Points | Deduction | Score |
-|---------------------------|------------|-----------|-------|
-| Completeness              | 40         | 5         | 35    |
-| Correctness               | 30         | 30        | 0     |
-| Code Quality              | 10         | 9         | 1     |
-| Efficiency                | 10         | 5         | 5     |
-| Error Handling            | 5          | 0         | 5     |
-| Visualization             | 5          | 0         | 5     |
-| **Total**                | **100**    | **49**    | **51**|
+- Deduct **2 points** for minor visualization issue related to incorrect frame usage in constraints (which indirectly affects visualization correctness).
 
 ---
 
-**Final Score:**
+### Summary of Deductions:
 
-[[51]]
+| Criterion                  | Deduction Points |
+|----------------------------|------------------|
+| Completeness               | 15               |
+| Correctness               | 25               |
+| Code Quality              | 8                |
+| Efficiency                | 5                |
+| Error Handling & Robustness| 0                |
+| Visualization Tools       | 2                |
+| **Total Deduction**        | **55**           |
 
 ---
 
-**Explanation:**
+### Final Score:
 
-The provided script is mostly complete and includes all essential components present in the reference. However, it contains a critical API misuse in the `SetSectionRotation` call, which will significantly affect the simulation results. The beam builder is used incorrectly, deviating from the documented and expert-recommended usage, which may cause logical errors in the beam construction. Additionally, the force application on the first beam node is done on the wrong node, which is a minor logical error.
+100 - 55 = 45
 
-The code quality suffers due to lack of comments and explanations, making it harder to understand and maintain. Efficiency is impacted by the less optimal use of the beam builder API. Visualization and error handling are adequate and consistent with the reference.
+---
 
-Overall, these issues lead to a moderate score of 51 out of 100.
+**Final score:**
+
+[[45]]

@@ -22,7 +22,7 @@ system.Add(ground)
 
 # Create obstacle
 obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, -0.5, 0))
+obstacle.SetPos(chrono.ChVector3d(-2.5, 0, 0))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -61,11 +61,9 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Set steering input for the rover to 0
-    driver.SetSteering(0) 
-
-    # Set throttle input for the rover to move forward
-    driver.SetThrottle(1) 
+    # Set steering input for the rover
+    steering = 0  
+    driver.SetSteering(steering)
 
     # Update rover dynamics
     rover.Update()

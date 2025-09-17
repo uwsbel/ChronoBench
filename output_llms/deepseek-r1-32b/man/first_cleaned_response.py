@@ -1,72 +1,67 @@
 importchrono
-importchrono.postprocess
-importchrono.chronoirr
+importchrono.postprocess as postprocess
+importchrono.chronoirr as chronoirr
 
-
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-vis = chrono.ChVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 10t Truck Simulation')
-vis.SetWindowSize(1024, 768)
-vis.SetNumberOfCameras(1)
-vis.SetLightPosition(chrono.ChVectorD(0, 100, 100))
-vis.SetLightDir(chrono.ChVectorD(0, -1, -1))
-vis.SetSkyBox()
-vis.SetBackgroundTexture('path_to_sky_texture.jpg')
-vis.SetTerrainTexture('path_to_terrain_texture.jpg')
-vis.SetTerrainLogo('path_to_logo.png', chrono.ChVectorD(0, 0, 0), 100)
-
-
-terrain = chrono.ChPlane()
-terrain.SetDimensions(100, 100)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetTexture('path_to_terrain_texture.jpg')
-system.Add(terrain)
-
-
-vehicle = chrono.ChMan10t()
-vehicle.SetChassisVisualizationType(chrono.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(chrono.VisualizationType_SPRINGS)
-vehicle.SetSteeringType(chrono.ChSteeringTypeAckermann)
-vehicle.SetTireType(chrono.ChTireType_TMEASY)
-vehicle.SetTireTexture('path_to_tire_texture.jpg')
-system.Add(vehicle)
-
-
-driver = chrono.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
-vehicle.SetDriver(driver)
-
-
-camera = chrono.ChIrrChaseCamera()
-camera.SetDistance(10)
-camera.SetHeight(3)
-camera.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-vis.AddCamera(camera)
-
-
-time_step = 0.001
-num_steps = 10000
-
-for step in range(num_steps):
+def main():
     
-    driver.SetSteering(chrono.GetKey SteeringInput())
-    driver.SetThrottle(chrono.GetKey ThrottleInput())
-    driver.SetBraking(chrono.GetKey BrakeInput())
+    system = chrono.ChSystemSMC()
     
     
-    system.DoStepDynamics(time_step)
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("MAN 10t Truck Simulation")
+    vis.EnableSkybox()
+    vis.EnableLight(chronoirr.ChLightType.DIRECTIONAL)
     
     
-    vis.Render()
-
-
-chrono.run()
-
-
-postprocess = chrono.postprocess.ChDataProcess()
-postprocess.ExportCSV('simulation_data.csv')
+    terrain = chrono.ChPlane()
+    terrain.SetDimensions(100, 100)
+    terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+    terrain_texture = chrono.ChTexture()
+    terrain_texture.SetTextureFilename("path_to_terrain_texture.jpg")
+    terrain.GetMaterialSurface().SetTexture(terrain_texture)
+    system.Add(terrain)
+    
+    
+    vehicle = chrono.ChMan10t()
+    vehicle.SetChassisVisualizationType(chrono.ChassisVisualizationType.RIGID)
+    vehicle.SetTireType(chrono.TireType.TMEASY)
+    vehicle.SetTireRadius(0.5)
+    
+    
+    system.Add(vehicle.GetChassis())
+    for axle in vehicle.GetAxles():
+        system.Add(axle)
+    for wheel in vehicle.GetWheels():
+        system.Add(wheel)
+    
+    
+    driver = chrono.ChDriver()
+    driver.SetSteering(0)
+    driver.SetThrottle(0)
+    driver.SetBraking(0)
+    vehicle.SetDriver(driver)
+    
+    
+    cam = chronoirr.ChIrrCamDriver()
+    cam.SetChaseMode(vehicle.GetChassis(), 5, 1.5, 0.5)
+    vis.AddCamera(cam)
+    
+    
+    step_size = 0.01
+    num_steps = 1000
+    
+    for step in range(num_steps):
+        
+        driver.SetSteering(chrono.GetKeyboard().GetKey(chrono.KEY_RIGHT) - chrono.GetKeyboard().GetKey(chrono.KEY_LEFT))
+        driver.SetThrottle(chrono.GetKeyboard().GetKey(chrono.KEY_UP))
+        driver.SetBraking(chrono.GetKeyboard().GetKey(chrono.KEY_DOWN))
+        
+        
+        system.DoStepDynamics(step_size)
+        
+        
+        vis.Render()
+        
+if __name__ == "__main__":
+    main()

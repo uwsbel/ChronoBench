@@ -27,7 +27,7 @@ nu = 0.0
 thickness = 0.01
 
 
-melasticity = fea.ChElasticityKirchhoffIsotropic(E, nu)
+melasticity = fea.ChElasticityKirchhoffIsotropic(E, nu)  
 material = fea.ChMaterialShellKirchhoff(melasticity)
 material.SetDensity(density)
 
@@ -40,33 +40,33 @@ mynodes = []
 for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
         p = chrono.ChVectorD(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
-        mnode = fea.ChNodeFEAxyzD(p)
+        mnode = fea.ChNodeFEAxyzD(p)  
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
 
+nodePlotA = mynodes[0]  
+nodePlotB = mynodes[-1]  
+nodesLoad = []
+ref_X = lambda x: x  
+ref_Y = lambda y: y  
+load_force = chrono.ChVectorD(0, 0, 0)
+mnodemonitor = mynodes[0]  
+melementmonitor = None
+
+
 for j in range(30):
     for k in range(30):
-        idx = j * (nsections_x + 1) + k
-        mynodes[idx].SetFixed(True)
-
-
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = []
-ref_X = None  
-ref_Y = None  
-load_force = chrono.ChVectorD(0, 0, 0)
-mnodemonitor = None
-melementmonitor = None
+        node = mynodes[j * (nsections_x + 1) + k]
+        node.SetFixed(True)
 
 
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else mynodes[(iz + 1) * (nsections_x + 1) + ix]
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else mynodes[(iz + 1) * (nsections_x + 1) + ix]
 
         melementA = fea.ChElementShellBST()
         melementA.SetNodes(
@@ -78,37 +78,36 @@ for iz in range(nsections_z):
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA  
+
         
-        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+        boundary_1_b = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2_b = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else mynodes[iz * (nsections_x + 1) + ix + 1]
+        boundary_3_b = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else mynodes[(iz + 1) * (nsections_x + 1) + ix]
 
         melementB = fea.ChElementShellBST()
         melementB.SetNodes(
             mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
             mynodes[(iz + 1) * (nsections_x + 1) + ix],
             mynodes[iz * (nsections_x + 1) + ix + 1],
-            boundary_1, boundary_2, boundary_3
+            boundary_1_b, boundary_2_b, boundary_3_b
         )
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-        
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
-
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellA.SetShellResolution(2)
 mvisualizeshellA.SetSmoothFaces(True)
 mvisualizeshellA.SetWireframe(True)
 
+mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 
@@ -124,7 +123,7 @@ vis.AddTypicalLights()
 
 
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
+mkl_solver.LockSparsityPattern(True)  
 sys.SetSolver(mkl_solver)
 
 

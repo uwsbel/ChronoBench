@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(ch.GetChronoDataFile("concrete.jpg"))  
+    floor.SetTexture(ch.GetChronoDataFile("textures/concrete.jpg"))  
     sys.Add(floor)  
 
     
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(ch.GetChronoDataFile("wood.jpg"))  
+    box.SetTexture(ch.GetChronoDataFile("textures/wood.jpg"))  
     sys.Add(box)  
 
     
@@ -79,16 +79,14 @@ def main():
     ros_manager.Initialize()
 
     
-    my_application = chronoirr.ChIrrApp(sys, "PyChrono example", chronoirr.dimension2du(1024, 768))
-    my_application.AddTypicalLights()
-    my_application.AddCamera(chronoirr.vector3df(0, 10, -10))
-    my_application.AddTypicalLogo()
-    my_application.SetTimestep(1e-3)
-
-    
-    step_number = 0
-    render_step_size = int(1 / (1e-3 * publish_rate))
-    render_steps = 0
+    app = chronoirr.ChIrrApp(sys, "PyChrono ROS Simulation", chronoirr.dimension2du(1024, 768))
+    app.AddTypicalLights()
+    app.AddCamera(chronoirr.vector3df(0, 10, -10), chronoirr.vector3df(0, 0, 0))
+    app.AddSkyBox()
+    app.AddLogo()
+    app.AddLightWithShadow(chronoirr.vector3df(20, 20, 20), chronoirr.vector3df(0, 0, 0), 20, 2, 10, 40, 512,
+                           chronoirr.SColorf(0.8, 0.8, 1))
+    app.SetTimestep(1e-3)
 
     
     time = 0
@@ -96,6 +94,9 @@ def main():
     time_end = 30  
 
     realtime_timer = ch.ChRealtimeStepTimer()  
+    step_number = 0  
+    render_step_size = 10  
+
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
@@ -103,17 +104,15 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
+        if step_number % render_step_size == 0:  
+            app.BeginScene()
+            app.DrawAll()
+            app.DoStep()
+            app.EndScene()
+
+        step_number += 1  
+
         realtime_timer.Spin(time_step)  
-
-        
-        if step_number % render_step_size == 0:
-            render_steps += 1
-            my_application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
-            my_application.DrawAll()
-            my_application.DoStep()
-            my_application.EndScene()
-
-        step_number += 1
 
 
 if __name__ == "__main__":

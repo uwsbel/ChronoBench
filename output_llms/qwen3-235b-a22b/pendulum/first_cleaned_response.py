@@ -1,5 +1,5 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
@@ -10,43 +10,65 @@ ground.SetBodyFixed(True)
 system.Add(ground)
 
 
-pendulum = chrono.ChBodyEasyBox(0.1, 1.0, 0.1, 1000)  
-pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  
-pendulum.SetRot(chrono.ChQuaternionD(chrono.ChAngleAxisD(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1))))  
-system.Add(pendulum)
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
 
 
-joint = chrono.ChRevoluteJoint(
-    ground, pendulum,
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChVectorD(0, 0.5, 0)  
-)
-system.Add(joint)
+
+Ixx = (1.0 / 12.0) * (1.0**2 + 0.1**2)  
+Iyy = (1.0 / 12.0) * (0.1**2 + 0.1**2)
+Izz = Ixx  
+pendulum.SetInertiaXX(chrono.ChVectorD(Ixx, Iyy, Izz))
 
 
-application = chronoirr.ChIrrApp(system, 'PyChrono Pendulum Simulation', chronoirr.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, 0, 0))
+pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))
+
+
+box = chrono.ChBoxShape()
+box.GetBoxGeometry().Size = chrono.ChVectorD(0.05, 0.5, 0.05)  
+pendulum.AddAsset(box)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.6, 0, 0)))  
+
+
+ground_box = chrono.ChBoxShape()
+ground_box.GetBoxGeometry().Size = chrono.ChVectorD(0.1, 0.1, 0.1)
+ground.AddAsset(ground_box)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 0)))  
+
+
+joint = chrono.ChLinkRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+system.AddLink(joint)
+
+
+application = irrlicht.ChIrrApp(system, 'Pendulum Simulation', irrlicht.dimension2du(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irrlicht.vector3df(0, 0, 3), irrlicht.vector3df(0, 0, 0))
+application.AddTypicalLight()
+
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-step_size = 0.01
-log_interval = 0.5
-current_log_time = 0
-
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+step_size = 1e-3
+log_interval = 0.1
+current_log_time = 0.0
 
 while application.GetDevice().run():
+    time = system.GetChTime()
+    
+    
+    if time >= current_log_time:
+        angle = pendulum.GetRot().Q_to_Euler123().z  
+        ang_vel = pendulum.GetWvel_loc().z  
+        print(f"Time: {time:.3f}, Angle: {angle:.3f} rad, Angular velocity: {ang_vel:.3f} rad/s")
+        current_log_time += log_interval
+    
+    
+    system.DoStepDynamics(step_size)
+    
+    
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    system.DoStepDynamics(step_size)
-
-    current_log_time += step_size
-    if current_log_time >= log_interval:
-        pos = pendulum.GetPos()
-        ang_vel = pendulum.GetWvel_loc()
-        print(f"Time: {system.GetChTime():.2f}s | Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | Angular Velocity: ({ang_vel.x:.3f}, {ang_vel.y:.3f}, {ang_vel.z:.3f})")
-        current_log_time = 0

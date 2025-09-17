@@ -27,7 +27,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -42,8 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,14 +60,15 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain with a single patch
+# Create the rigid terrain patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT))
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/flat.bmp"), 0, 0, 10, 10, 0.02)
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/flat_terrain.bmp"), terrainLength, terrainWidth, terrainHeight, 0.02)
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -111,7 +111,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

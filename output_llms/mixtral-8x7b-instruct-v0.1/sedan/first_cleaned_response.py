@@ -1,76 +1,57 @@
 import chrono
-from chrono import ChVector, ChMatrix33, ChCoordsys
-from chrono.irrlicht import *
-from chrono.vehicle import *
-from pychrono.fea import *
-from pychrono.vehicle import *
+from chrono import ChVector, ChMatrix33, ChQuaternion
+from chrono.collision import ChCollisionModel
+from chrono.vehicle import ChVehicleModelData, ChTMeasyTire
+from chrono.irrlicht import ChIrrApp
+from chrono.irrlicht.ChIrrSimpleVisualization import ChIrrSimpleVisualization
 
 
-chrono.SetChronoDataPath('path/to/chrono/data/')
-chrono.SetChronoOutputPath('path/to/output/')
+chrono.ChSetChronoData(chrono.ChChronoOpenGL.ChGL_IRRLICHT)
+my_application = ChIrrApp(window_width=800, window_height=600)
+my_application.SetTimestep(1./240)
 
 
-my_vis = ChVisualSystemIrrlicht()
-device = my_vis.device
-device.setWindowCaption(u"BMW E90 Sedan Simulation")
-device.setResizable(True)
-driver = my_vis.driver
+
+my_application.Add(ChIrrSimpleVisualization(
+    asset='ground.obj',
+    Rgba=ChVector(1, 1, 1),
+    pos=ChVector(0, 0, 0),
+    scale=10))
 
 
-vehicle_body = ChBodyEasyBox(1.4, 0.5, 0.7, 5000, ChCoordsys(ChVector(0, 0, 0)))
-vehicle_body.SetName('vehicle_body')
-vehicle_body.SetCollide(False)
-my_system.AddBody(vehicle_body)
+vehicle_data = ChVehicleModelData()
+vehicle_data.SetChassisMass(1650)
+vehicle_data.SetChassisInertiaXX(ChMatrix33(1200, 0, 0, 0, 1200, 0, 0, 0, 1500))
+vehicle_data.SetChassisGeometryFilename('path/to/bmw_e90_chassis.obj')
+vehicle_data.SetNumTires(4)
+vehicle_data.SetTire(0, 'path/to/bmw_e90_tire.obj', 0.3, 0.3, 0.3, 0.3, 0.3, 0.3)
+
+vehicle = my_application.Add(vehicle_data.GetChassis(), ChVector(0, 0, 0.5))
+vehicle.AddTire(0, ChVector(1.2, 0, 0.5), ChQuaternion(0.866, 0, -0.5), ChVector(0, 0, 0))
+vehicle.AddTire(1, ChVector(-1.2, 0, 0.5), ChQuaternion(0.866, 0, 0.5), ChVector(0, 0, 0))
+vehicle.AddTire(2, ChVector(1.2, 0, -0.5), ChQuaternion(0.866, 0, 0.5), ChVector(0, 0, 0))
+vehicle.AddTire(3, ChVector(-1.2, 0, -0.5), ChQuaternion(0.866, 0, -0.5), ChVector(0, 0, 0))
+
+for i in range(4):
+    vehicle.GetTire(i).SetTireModel(ChTMeasyTire())
 
 
-chassis_shape = ChBoxShape(0.7, 0.5, 0.2)
-chassis = ChBodyEasyBox(0.7, 0.5, 0.2, 1500, ChCoordsys(ChVector(0, 0, 0.3)))
-chassis.AddShape(chassis_shape)
-chassis.SetName('chassis')
-chassis.SetCollide(True)
-vehicle_body.AddChild(chassis)
+my_application.GetDevice().getSceneManager().setAmbientLight(ChVector(0.2, 0.2, 0.2))
+my_application.GetDevice().getSceneManager().addLightSceneNode(0, ChVector(10, 10, -10), ChVector(0, -1, 0), 500, 0, 0, ChVector(1, 1, 1))
+my_application.GetDevice().getSceneManager().addSkyBoxSceneNode('path/to/skybox_texture.jpg')
 
 
-front_suspension = ChSuspensionEasy(chassis, 0.3, 0.3, 0.1, 0.15, 0.15, 0.15, 0.15, 1000, 1000, 1000, 1000, 1000)
-rear_suspension = ChSuspensionEasy(chassis, 0.3, 0.3, 0.1, 0.15, 0.15, 0.15, 0.15, 1000, 1000, 1000, 1000, 1000)
+driver = my_application.Add(chrono.ChInteractiveDriver(vehicle, my_application.GetDevice()))
+driver.SetSteerControl(-0.1, 0.1)
+driver.SetThrottleControl(-1, 1)
+driver.SetBrakeControl(-1, 0)
 
 
-front_tire = ChTMeasyTire(1)
-rear_tire = ChTMeasyTire(1)
+my_application.Add(ChIrrSimpleVisualization(vehicle.GetChassis(), ChVector(0, 0, 0), ChQuaternion(0, 0, 0), ChVector(1, 1, 1)))
+my_application.Add(ChIrrSimpleVisualization(vehicle.GetTire(0), ChVector(1.2, 0, 0.5), ChQuaternion(0.866, 0, -0.5), ChVector(1, 0, 0)))
+my_application.Add(ChIrrSimpleVisualization(vehicle.GetTire(1), ChVector(-1.2, 0, 0.5), ChQuaternion(0.866, 0, 0.5), ChVector(0, 1, 0)))
+my_application.Add(ChIrrSimpleVisualization(vehicle.GetTire(2), ChVector(1.2, 0, -0.5), ChQuaternion(0.866, 0, 0.5), ChVector(0, 0, 1)))
+my_application.Add(ChIrrSimpleVisualization(vehicle.GetTire(3), ChVector(-1.2, 0, -0.5), ChQuaternion(0.866, 0, -0.5), ChVector(1, 1, 1)))
 
 
-front_left_wheel = ChWheelEasy(chassis, front_suspension, front_tire, ChCoordsys(ChVector(-0.3, 0, 0)))
-front_right_wheel = ChWheelEasy(chassis, front_suspension, front_tire, ChCoordsys(ChVector(0.3, 0, 0)))
-rear_left_wheel = ChWheelEasy(chassis, rear_suspension, rear_tire, ChCoordsys(ChVector(-0.3, 0, 0.6)))
-rear_right_wheel = ChWheelEasy(chassis, rear_suspension, rear_tire, ChCoordsys(ChVector(0.3, 0, 0.6)))
-
-
-vehicle = ChVehicleNSKin(my_system, vehicle_body, front_left_wheel, front_right_wheel, rear_left_wheel, rear_right_wheel)
-
-
-terrain = ChBodyEasyBox(100, 0.1, 100, 100, ChCoordsys(ChVector(0, -0.05, 0)))
-terrain.SetName('terrain')
-terrain.SetCollide(True)
-terrain.SetPos(ChVector(0, -0.05, 0))
-my_system.AddBody(terrain)
-
-
-driver_module = ChDriver()
-driver_module.SetVehicle(vehicle)
-
-
-my_vis.AddLogo(chrono.GetChronoDataPath() + 'logo_python.png')
-my_vis.AddSkyBox()
-my_vis.AddCamera(ChVector(0, 5, 5), ChVector(0, 0, 0))
-my_vis.AddLight(ChVector(5, 5, 0), ChVector(1, 1, 1), 500)
-
-
-sim_time = 10  
-step_size = 1e-3  
-while device.run():
-    driver.sleep(step_size * 1000)
-    driver_module.Synchronize(step_size, 1)
-    my_system.DoStepDynamics(step_size)
-    my_vis.BeginScene()
-    my_vis.DrawAll()
-    my_vis.EndScene()
+my_application.Run()

@@ -1,5 +1,5 @@
 
-I'll analyze the given code and implement the requested modifications. Here's the corrected and modified script:
+I'll analyze the script and implement the requested changes. Here's the corrected and modified PyChrono script:
 
 ```python
 import pychrono.core as chrono
@@ -7,10 +7,10 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Set data paths
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location changed to (-15, 0, 0.0)
+# Initial vehicle location and orientation (changed to (-15, 0, 0.0))
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -21,9 +21,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Terrain dimensions
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -62,24 +62,27 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create SCM deformable terrain (replacing rigid terrain)
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-# Set SCM soil parameters
-Kphi = 2e6      # [Pa] 
-Kc = 0          # [Pa/m] 
-n = 1.1
-c = 20e3        # [Pa]
-phi = 30        # [deg]
-K = 4e7         # [Pa/m] 
-E_elastic = 2e7 # [Pa]
-damping = 0.0
-terrain.SetSoilParameters(Kphi, Kc, n, c, phi, K, E_elastic, damping)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 
-# Initialize using height map (flat terrain)
-terrain.Initialize(terrainLength, terrainWidth, 0.2)  # 0.2m grid spacing
-terrain.SetFlat(True, 0.0)  # Flat terrain at height 0.0
+# Set SCM soil parameters
+terrain.SetSoilParameters(
+    2e6,    # Bekker Kphi
+    0,      # Bekker Kc
+    1.2,    # Bekker n exponent
+    0.01,   # Mohr cohesive limit (Pa)
+    30,     # Mohr friction limit (degrees)
+    1e4,    # Janosi shear coefficient (m)
+    0.003,  # Elastic stiffness (Pa/m)
+    3e4     # Damping (Pa s/m)
+)
+
+# Initialize terrain using height map
+heightmap_path = chrono.GetChronoDataFile("terrain/height_maps/flat.png")
+terrain.Initialize(heightmap_path, terrainLength, terrainWidth, 0, 0)
 
 # Set terrain texture to dirt
-terrain.GetMesh().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
+texture_path = veh.GetDataFile("terrain/textures/dirt.jpg")
+terrain.GetMesh().SetTexture(texture_path, 100, 100)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -95,34 +98,31 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+# Set the time response for inputs
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# Solver and integrator settings
-# ------------------------------
+# Solver settings
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Number of simulation steps between miscellaneous events
+# Simulation loop setup
 render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize simulation frame counter s
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run() :
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    
+    # Render scene
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -132,28 +132,30 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
     
-    # Update modules (process inputs from other modules)
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
-    # Advance simulation for one timestep for all modules
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     
-    # Increment frame number
     step_number += 1
 ```
 
 Key changes made:
-1. Changed initial vehicle location to (-15, 0, 0.0)
+1. Changed initial location to `(-15, 0, 0.0)`
 2. Replaced rigid terrain with SCM deformable terrain
-3. Set soil parameters for deformable terrain
-4. Initialized terrain as flat using height map
+3. Configured soil parameters using Bekker and Mohr models
+4. Initialized terrain using a flat height map
 5. Set terrain texture to "dirt.jpg"
 6. Hard-coded throttle value to 0.8 in simulation loop
+7. Removed redundant `SetChronoDataPath()` call
+8. Added proper terrain synchronization and advancement
+9. Fixed texture path handling for SCM terrain
 
-The script now uses SCM deformable terrain with appropriate soil parameters, initializes a flat terrain at height 0, and forces the throttle to 80% during simulation.
+The script now features a tracked vehicle on deformable terrain with constant throttle input, starting at the specified position.

@@ -1,7 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.soil as soil
+import pychrono.vehicle.scm as scm
 import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -18,10 +18,6 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
-
-
 step_size = 5e-4
 tire_step_size = step_size
 
@@ -30,7 +26,7 @@ render_step_size = 1.0 / 50
 
 
 vehicle = veh.M113()
-vehicle.SetContactMethod(contact_method)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
@@ -48,29 +44,20 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+terrain = scm.ChScmDeformableTerrain(vehicle.GetSystem())
+terrain.SetYoungModulus(1e7)      
+terrain.SetPoissonRatio(0.3)      
+terrain.SetDensity(1500)          
+terrain.SetFriction(0.6)         
 
 
-terrain = soil.ChDeformableTerrainSCM(vehicle.GetSystem())
-terrain.SetSize(100.0, 100.0)  
-terrain.SetResolution(200, 200)  
-terrain.SetHeightMap(lambda x, z: 0.05 * math.sin(x / 5) * math.sin(z / 5))  
+height_map = [[0.0 for _ in range(100)] for _ in range(100)]  
+terrain.InitializeHeightMap(100, 100, 1.0, 1.0, height_map)
 
 
-soil_params = soil.ChSoilParameters()
-soil_params.m_cohesion = 1000.0
-soil_params.m_friction = 0.6
-soil_params.m_density = 1500.0
-soil_params.m_shear_strength = 500.0
-terrain.SetSoilParameters(soil_params)
-
-
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'))
-terrain_texture.SetTextureScale(20.0, 20.0)
-terrain.SetTexture(terrain_texture)
-
-terrain.Initialize()
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()

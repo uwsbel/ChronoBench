@@ -1,43 +1,41 @@
-import pychrono as chrono
-import pychrono.irrlicht as vis
+from pychrono import ChSystem, ChBody, ChLink, ChMaterialSurface, ChVectorD, ChQuaternionD, ChFrame
+from pychrono.irrlicht import ChIrrApp
 
 
-chrono.SetChronoDataPath("data/")  
+system = ChSystem()
 
 
-world = chrono.ChSystemNSC()
-
-
-ground = chrono.ChBodyEasySphere(1.0, 100.0)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-world.AddBody(ground)
+ground = ChBody(mass=1e6)
+ground.SetPos(ChVectorD(0, 0, 0))
+system.AddBody(ground)
 
 
 pendulum_mass = 1.0
-pendulum_radius = 0.1
-pendulum_inertia = chrono.ChVectorD(pendulum_mass * pendulum_radius**2, 0, 0)
-pendulum = chrono.ChBodyEasyCylinder(pendulum_mass, pendulum_radius, 0.5)
-pendulum.SetPos(chrono.ChVectorD(0, 0.5, 0))
-pendulum.SetInertiaXX(pendulum_inertia)
-world.AddBody(pendulum)
+pendulum_inertia = ChVectorD(0.1, 0.1, 0.1)  
+pendulum = ChBody(mass=pendulum_mass)
+pendulum.SetPos(ChVectorD(0, 1, 0))
+pendulum.SetInertia(pendulum_inertia)
+system.AddBody(pendulum)
 
 
-joint = chrono.ChLinkRevolute(ground, pendulum,
-                            chrono.ChVectorD(0, 0.5, 0),
-                            chrono.ChVectorD(0, 0, 1))
-world.AddLink(joint)
+joint = ChLink(ground, pendulum, ChFrame(ChVectorD(0, 0, 0), ChQuaternionD(1, 0, 0, 0)))
+joint.SetPos(ChVectorD(0, 0, 0))
+joint.SetAxis(ChVectorD(0, 0, 1))  
+system.AddLink(joint)
 
 
-vis.Initialize(chrono.GetChWorld(), "Simple Pendulum")
+app = ChIrrApp(system, 'Pendulum Simulation', windowSize=ChVectorD(800, 600))
+app.AddCamera(ChVectorD(5, 5, 5))
+app.SetChaseTarget(pendulum)
+app.AssetBindAll()
 
 
 dt = 0.01
-while True:
-    world.DoStepDynamics(dt)
+while app.GetTimer() < 10:
+    system.DoStepDynamics(dt)
     
     
-    pendulum_pos = pendulum.GetPos()
-    pendulum_vel = pendulum.GetRotVel()
-    print(f"Position: {pendulum_pos}, Velocity: {pendulum_vel}")
+    print(f"Time: {app.GetTimer()}, Pendulum Angle: {pendulum.GetPos().y}")
     
-    vis.Render()
+    app.DrawAll()
+    app.GetDevice().sleep()

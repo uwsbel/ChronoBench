@@ -124,7 +124,7 @@ manager = sens.ChSensorManager(gator.GetSystem())
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
-# Create a camera and add it to the sensor manager
+# Create two cameras and add them to the sensor manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
@@ -139,8 +139,8 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create a Lidar sensor and add it to the sensor manager
-lidar = sens.ChLidarSensor(
+# Add Lidar sensor to the system
+lidar_sensor = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     chrono.ChVector3d(0.0, 0, 2),  # Offset pose
@@ -150,17 +150,16 @@ lidar = sens.ChLidarSensor(
     chrono.CH_PI / 12,  # Maximum vertical field of view
     -chrono.CH_PI / 6,  # Minimum vertical field of view
     100.0,  # Maximum range
-    sens.LidarShape_RECTANGULAR,  # Rectangular beam shape
+    sens.LidarShape_Rectangular,  # Rectangular beam shape
     2,  # Sample radius
     0.003,  # Divergence angle
-    sens.LidarMode_STRONGEST,  # Strongest return mode
+    sens.LidarReturnMode_Strongest,  # Strongest return mode
 )
-lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterDepth())
-lidar.PushFilter(sens.ChFilterIntensity())
-lidar.PushFilter(sens.ChFilterXYZI())
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Sensor"))
-manager.AddSensor(lidar)
+lidar_sensor.PushFilter(sens.ChFilterDepth())
+lidar_sensor.PushFilter(sens.ChFilterIntensity())
+lidar_sensor.PushFilter(sens.ChFilterXYZI())
+lidar_sensor.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
+manager.AddSensor(lidar_sensor)
 
 # ---------------
 # Simulation loop
@@ -172,8 +171,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
-    driver.SetSteering(0.5)
-    driver.SetThrottle(0.2)
+    driver.SetSteering(0.5)  # Modified driver inputs
+    driver.SetThrottle(0.2)  # Modified driver inputs
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 

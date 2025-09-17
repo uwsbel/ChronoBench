@@ -46,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -78,42 +79,39 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-radius = 20.0
-center = chrono.ChVector3d(0, 0, 0)
+radius = 50.0
 path = chrono.ChPath()
 for angle in range(0, 360, 10):
-    x = center.x + radius * math.cos(math.radians(angle))
-    y = center.y + radius * math.sin(math.radians(angle))
-    path.AddPoint(chrono.ChVector3d(x, y, 0))
+    x = radius * math.cos(math.radians(angle))
+    y = radius * math.sin(math.radians(angle))
+    z = 0
+    path.AddPoint(chrono.ChVector3d(x, y, z))
 
 
-driver = veh.ChPathFollowerDriverFULL(vehicle.GetVehicle(), path, tire_step_size)
-driver.SetSteeringControllerGain(1.0)
-driver.SetSteeringControllerTimeConstant(0.3)
-driver.SetThrottleControllerGain(0.3)
-driver.SetThrottleControllerTimeConstant(0.5)
+sentinel_point = chrono.ChMarker()
+sentinel_point.SetPos(chrono.ChVector3d(0, 0, 0.5))
+sentinel_point.SetColor(chrono.ChColor(1, 0, 0))
+target_point = chrono.ChMarker()
+target_point.SetPos(chrono.ChVector3d(radius, 0, 0.5))
+target_point.SetColor(chrono.ChColor(0, 1, 0))
+vehicle.GetSystem().AddMarker(sentinel_point)
+vehicle.GetSystem().AddMarker(target_point)
+
+
+pid_steering = chrono.ChFunction_PID()
+pid_steering.SetGains(0.1, 0.01, 0.001)
+
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+driver.SetPath(path)
+driver.SetThrottle(0.3)
+driver.SetSteeringController(pid_steering)
+
+
 driver.Initialize()
 
 
-sentinel = chrono.ChSphereShape()
-sentinel.GetSphereGeometry().radius = 0.5
-sentinel.GetMaterialSurface().SetFriction(0.6)
-sentinel.GetMaterialSurface().SetRestitution(0.1)
-sentinel_body = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sentinel_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-sentinel_body.SetBodyFixed(True)
-sentinel_body.AddVisualShape(sentinel)
-vehicle.GetSystem().Add(sentinel_body)
-
-target = chrono.ChSphereShape()
-target.GetSphereGeometry().radius = 0.5
-target.GetMaterialSurface().SetFriction(0.6)
-target.GetMaterialSurface().SetRestitution(0.1)
-target_body = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-target_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-target_body.SetBodyFixed(True)
-target_body.AddVisualShape(target)
-vehicle.GetSystem().Add(target_body)
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -134,13 +132,10 @@ while vis.Run():
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver, terrain)
+    vis.Synchronize(time, driver)
 
     
     driver.Advance(step_size)
@@ -149,8 +144,8 @@ while vis.Run():
     vis.Advance(step_size)
 
     
-    sentinel_body.SetPos(driver.GetSentinelPoint())
-    target_body.SetPos(driver.GetTargetPoint())
+    sentinel_point.SetPos(driver.GetSentinelLocation())
+    target_point.SetPos(driver.GetTargetLocation())
 
     
     step_number += 1

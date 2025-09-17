@@ -51,11 +51,13 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -84,21 +86,19 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 
 
-sensor_manager = veh.ChSensorManagerIrrlicht(vis)
+sensor_manager = irr.SensorManager(vis)
 
 
-vis.AddLightPoint(chrono.ChVector3d(0, 0, 0), 10, chrono.ChColor(1, 1, 1))
-vis.AddLightPoint(chrono.ChVector3d(10, 0, 0), 10, chrono.ChColor(1, 1, 1))
-vis.AddLightPoint(chrono.ChVector3d(-10, 0, 0), 10, chrono.ChColor(1, 1, 1))
-vis.AddLightPoint(chrono.ChVector3d(0, 10, 0), 10, chrono.ChColor(1, 1, 1))
-vis.AddLightPoint(chrono.ChVector3d(0, -10, 0), 10, chrono.ChColor(1, 1, 1))
+camera_sensor = irr.CameraSensor(vis, 1280, 1024, 60)
+camera_sensor.SetFOV(math.radians(90))
+camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 0.5))
+camera_sensor.SetLookAt(chrono.ChVector3d(0, 0, 0))
+sensor_manager.AddSensor(camera_sensor)
 
 
-camera = veh.ChCameraSensor(vehicle.GetVehicle().GetChassisBody())
-camera.SetResolution(1024, 768)
-camera.SetFOV(math.radians(60))
-camera.SetFilter(veh.ChVisualizationFilter())
-sensor_manager.AddSensor(camera)
+filter = irr.VisualizationFilter(vis, camera_sensor)
+filter.SetResolution(1280, 1024)
+sensor_manager.AddFilter(filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -111,10 +111,17 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
+
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+light1 = irr.PointLight(vis, chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(1, 1, 1))
+light2 = irr.PointLight(vis, chrono.ChVector3d(-10, -10, -10), chrono.ChVector3d(1, 1, 1))
+vis.AddLight(light1)
+vis.AddLight(light2)
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -124,11 +131,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -142,7 +149,6 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    camera.Synchronize(time)
 
     
     driver.Advance(step_size)
@@ -155,3 +161,7 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
+
+    
+    camera_sensor.Update()
+    sensor_manager.Update()

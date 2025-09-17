@@ -3,13 +3,13 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
+import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens  
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
@@ -17,46 +17,46 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  
-ground.SetFixed(True)
+ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 
-init_pos = chrono.ChVector3d(0, 0.2, 0)
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)
-robot.Initialize()
+init_pos = chrono.ChVector3d(0, 0.2, 0)  
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  
+robot.Initialize()  
 
 
 sensor_manager = sens.ChSensorManager(system)
-robot.GetBody().AddSensor(sensor_manager)
+system.Add(sensor_manager)
 
 
-lidar = sens.ChLidar()
-lidar.SetName("lidar")
-lidar.SetPosition(chrono.ChVector3d(0, 0.15, 0.3))  
-lidar.SetRange(10.0)  
-lidar.SetHorizontalFOV(math.pi * 0.5)  
-lidar.SetVerticalFOV(math.pi * 0.25)  
-lidar.SetResolution(0.1)  
-lidar.SetCoordinateSystem(chrono.ChCoordsysD(chrono.ChVector3d(0,0,0), chrono.ChQuaterniond(1,0,0,0)))
-
-
-lidar.AddFilter(sens.ChLidarFilterMinRange(0.1))
-lidar.AddFilter(sens.ChLidarFilterMaxRange(10.0))
-lidar.AddFilter(sens.ChLidarFilterPointsBehindSensor())
-
+lidar = sens.ChLidarSensor()
+lidar.SetPosition(chrono.ChVector3d(0, 0.1, 0.5))  
+lidar.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))  
+lidar.SetNumberOfRays(360)
+lidar.SetFieldOfView(chrono.CH_C_PI / 2)
+lidar.SetRange(5.0)
+lidar.SetMinRange(0.1)
+lidar.SetMaxRange(10.0)
+lidar.SetNoiseFloor(0.01)
+lidar.SetResolution(0.01)
+lidar.SetVariance(0.001)
+lidar.SetRenderingType(sens.ChLidarSensor.RENDERING_TYPE_POINTS)
+lidar.SetUpdateRate(1.0 / 30.0)
+lidar.SetParent(robot.GetBody())
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(5):
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000)
-    box.SetPos(chrono.ChVector3d(
-        np.random.uniform(-8, 8),
-        np.random.uniform(-8, 8),
-        0.25
-    ))
-    box.SetMaterialSurface(ground_mat)
+    x = np.random.uniform(-5, 5)
+    y = np.random.uniform(-5, 5)
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
+    box.SetPos(chrono.ChVector3d(x, y, 0.25))
+    box.SetMaterialSurface(chrono.ChMaterialSurface())
+    box.GetMaterialSurface().SetFriction(0.5)
+    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/wood.jpg"))
     system.Add(box)
 
 
@@ -84,14 +84,14 @@ def move(mode):
     RIGHT_DRIVE_WHEEL = 1
     
     if mode == 'straight':
-        robot.SetMotorSpeed(2, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(2, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(2.0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(2.0, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(2, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(2.0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-2.0, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
-        robot.SetMotorSpeed(2, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-2.0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(2.0, RIGHT_DRIVE_WHEEL)
 
 
 time = 0
@@ -100,20 +100,8 @@ while vis.Run():
     sensor_manager.Update()
     
     
-    lidar_data = lidar.GetPoints()
+    move('straight')
     
-    
-    
-    if time < 10:
-        move('straight')
-    elif time < 15:
-        move('left')
-    else:
-        move('right')
-    
-    
-    time += time_step
-
     
     vis.BeginScene()
     vis.Render()
@@ -121,3 +109,6 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
+    
+    
+    time += time_step

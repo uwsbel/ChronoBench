@@ -17,13 +17,13 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType_MESH
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-terrain_model = veh.RigidTerrain.BOX
+terrain_model = veh.RigidTerrain.PLANE
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -61,8 +61,13 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain with a single patch
-terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model, terrainLength, terrainWidth, terrainHeight)
+# Create the rigid terrain patch
+terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model)
+terrain.SetLength(terrainLength)
+terrain.SetWidth(terrainWidth)
+terrain.SetHeight(terrainHeight)
+
+# Set the texture for the terrain
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface

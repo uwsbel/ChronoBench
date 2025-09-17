@@ -89,8 +89,15 @@ driver_inputs = [
     veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
 ]
 
-# Create the data-driven driver system
-driver = veh.ChDataDriver(driver_inputs)
+# Create the driver system
+driver = veh.ChDataDriver(vehicle.GetVehicle())
+driver.SetDriverInputs(driver_inputs)
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -101,7 +108,7 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -122,6 +129,3 @@ while vis.Run() :
     step_number += 1
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # output vehicle mass
-    print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

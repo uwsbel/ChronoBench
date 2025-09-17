@@ -68,18 +68,12 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.4)  # Updated friction
 patch_mat.SetRestitution(0.05)  # Updated restitution
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-# Updated position and orientation: position at (6, -70, 0) with -90° rotation about Z
-patch_pos = chrono.ChVector3d(6, -70, 0)
-patch_rot = chrono.QuatFromAngleZ(-1.57)  # -90 degrees in radians
+# Updated position and orientation (rotation of -90° about Z-axis)
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(patch_pos, patch_rot),
-    veh.GetDataFile("terrain/meshes/Highway_col.obj"),  # Fixed path
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-1.57)),
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
-
-# Load visual mesh with corrected path
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)

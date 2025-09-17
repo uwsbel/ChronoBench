@@ -1,102 +1,99 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system
+#  Create the simulation system and add items
 #
 # ---------------------------------------------------------------------
 
-mysystem = chrono.ChSystemNSC()
+# Create the physical system
+system = chrono.ChSystemNSC()
 
-# Set gravitational acceleration
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# ---------------------------------------------------------------------
-#
-# Create the terrain
-#
-# ---------------------------------------------------------------------
-
-terrain = chrono.ChRigidTerrain(mysystem, True, True)
-patch_size = 100
-terrain.AddHeightPatch(chrono.ChVectorD(-patch_size, -patch_size, 0),
-                       chrono.ChVectorD(patch_size, -patch_size, 0),
-                       chrono.ChVectorD(patch_size, patch_size, 0),
-                       chrono.ChVectorD(-patch_size, patch_size, 0),
-                       chrono.ChVectorD(0, 0, 0))
-terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png', 200, 200)
-
-# ---------------------------------------------------------------------
-#
-# Create the HMMWV vehicle
-#
-# ---------------------------------------------------------------------
-
-vehicle = chrono.ChVehicleModel()
-vehicle.SetSystem(mysystem)
-
-# Chassis
-chassis = chrono.ChBodyEasyBox(2.5, 1.2, 0.8, 1000)
-chassis.SetPos(chrono.ChVectorD(0, 1.2, 0))
-vehicle.AddChassis(chassis)
-
-# Suspension
-susp_pos = [chrono.ChVectorD(-1.2, -0.6, 0.5), chrono.ChVectorD(1.2, -0.6, 0.5),
-            chrono.ChVectorD(-1.2, -0.6, -0.5), chrono.ChVectorD(1.2, -0.6, -0.5)]
-for pos in susp_pos:
-    susp = chrono.ChDoubleWishbone(vehicle.GetChassisBody(), pos, chrono.ChVectorD(0, -1, 0),
-                                   chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(1, 0, 0),
-                                   chrono.ChVectorD(0, 0, 1), 100, 50, 0.2)
-    vehicle.AddSuspension(susp)
-
-# Wheels
-wheel_pos = [chrono.ChVectorD(-1.2, -0.6, 0.8), chrono.ChVectorD(1.2, -0.6, 0.8),
-             chrono.ChVectorD(-1.2, -0.6, -0.8), chrono.ChVectorD(1.2, -0.6, -0.8)]
-for pos in wheel_pos:
-    wheel = chrono.ChWheel(vehicle.GetChassisBody(), chrono.ChVectorD(0, -1, 0),
-                          chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(1, 0, 0),
-                          chrono.ChVectorD(0, 0, 1), pos, 0.3, 0.1, 100)
-    wheel.SetTMEasyTire(chrono.ChTMEasyTire(0.8, 0.8, 0.5, 0.5, 0.2, 0.1))
-    vehicle.AddWheel(wheel)
-
-# ---------------------------------------------------------------------
-#
-# Set up the driver system
-#
-# ---------------------------------------------------------------------
-
-driver = chrono.ChDriverSteering(vehicle)
-
-# ---------------------------------------------------------------------
-#
 # Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('HMMWV Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChCamera(chrono.ChVectorD(0, 2, -5)))
+
+# Create a ground body
+ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+system.AddBody(ground)
+
+# Create the HMMWV vehicle
+vehicle = chronovehicle.ChVehicle("HMMWV", system)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Add the HMMWV chassis
+vehicle.AddChassisRedundant(chrono.ChChassis.TYPE_SIMPLE, 
+                            chrono.ChVectorD(0, 0, 0),
+                            chrono.ChVectorD(0, 0, 0),
+                            chrono.ChVectorD(1, 1, 1))
+
+# Add wheels
+vehicle.AddWheel(chrono.ChWheelInfo.TYPE_TMEASY,
+                 chrono.ChVectorD(1.5, 0.5, 0),
+                 chrono.ChVectorD(0, -1, 0),
+                 chrono.ChVectorD(0, 0, 1))
+vehicle.AddWheel(chrono.ChWheelInfo.TYPE_TMEASY,
+                 chrono.ChVectorD(-1.5, 0.5, 0),
+                 chrono.ChVectorD(0, -1, 0),
+                 chrono.ChVectorD(0, 0, 1))
+vehicle.AddWheel(chrono.ChWheelInfo.TYPE_TMEASY,
+                 chrono.ChVectorD(1.5, -0.5, 0),
+                 chrono.ChVectorD(0, -1, 0),
+                 chrono.ChVectorD(0, 0, 1))
+vehicle.AddWheel(chrono.ChWheelInfo.TYPE_TMEASY,
+                 chrono.ChVectorD(-1.5, -0.5, 0),
+                 chrono.ChVectorD(0, -1, 0),
+                 chrono.ChVectorD(0, 0, 1))
+
+# Set contact method
+vehicle.SetContactMethod(chrono.ChContactMethod.NSC)
+
+# Set visualization
+vehicle.SetChassisVisualizationType(chrono.ChVisualizationType.PRIMITIVES)
+vehicle.SetWheelVisualizationType(chrono.ChVisualizationType.PRIMITIVES)
+
+# ---------------------------------------------------------------------
+#
+#  Set up the interactive driver system
 #
 # ---------------------------------------------------------------------
 
-vis = chronoirr.ChIrrApp(mysystem, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
-vis.SetCameraLookAt(chrono.ChVectorD(0, 1.2, 0))
+driver = chronovehicle.ChDriver(vehicle)
+driver.SetSteeringGain(0.5)
+driver.SetThrottleGain(0.5)
+driver.SetBrakingGain(0.5)
 
 # ---------------------------------------------------------------------
 #
-# Simulation loop
+#  Simulation loop
 #
 # ---------------------------------------------------------------------
 
-while vis.GetDevice().run():
-    vis.BeginScene()
+# Simulation settings
+timestep = 0.01
+simulation_time = 10
+
+while vis.Run() and system.GetChTime() < simulation_time:
+    # Get driver input
+    driver.Update(vis.GetKeyboardInput())
+
+    # Advance the simulation
+    system.DoStepDynamics(timestep)
+
+    # Render the scene
     vis.Render()
-    mysystem.DoStepDynamics(0.02)
 
-    # Handle driver input
-    driver.SetSteeringAngle(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_LEFT) -
-                           vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_RIGHT))
-    driver.SetThrottle(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_UP) -
-                      vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_DOWN))
-    driver.SetBraking(vis.GetDevice().GetKeyboard()->GetDirKeyState(chrono.ChIrrApp::KEY_SPACE))
+    # Update the frame rate
+    chrono.ChSystem.SetTargetTime(system, timestep)
 
-    vis.EndScene()
+vis.Deinitialize()

@@ -3,8 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the path to the Chrono data directory
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
+# Set this path before running the demo!
+chrono.SetChronoDataPath("../../data/")
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -20,17 +20,16 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
+# Rigid terrain
 terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
 
-# Point on chassis tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
@@ -64,7 +63,7 @@ patch_mat.SetRestitution(0.05)  # Updated restitution value
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi/2)), 
+                         chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngZ(-chrono.CH_C_PI / 2)), 
                          chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), 
                          True, 0.01, False)
 
@@ -82,7 +81,7 @@ vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-# vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Commented out to avoid potential issues
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -102,8 +101,6 @@ driver.Initialize()
 # ---------------
 # Simulation loop
 # ---------------
-
-# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -144,3 +141,4 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+

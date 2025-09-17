@@ -1,61 +1,83 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visual as cv
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.animation as animation
 
-def simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0)):
-    """
-    Simulates a beam composed of ANCF cable elements using PyChrono.
+# Define parameters
+beam_length = 1.0  # Length of the beam in meters
+cable_radius = 0.05  # Radius of the cable elements
+gravity = 9.81  # Acceleration due to gravity
+cable_strength = 1000.0  # Strength of the cable elements (adjust as needed)
+num_elements = 10  # Number of cable elements
+initial_position = [0.0, 0.0]  # Initial position of each cable element
+initial_velocity = 0.0  # Initial velocity of each cable element (for dynamic simulation)
+# Create PyChrono environment
+env = pc.Environment()
 
-    Args:
-        num_elements (int): The number of cable elements in the beam.
-        gravity (float): The acceleration due to gravity.
-        initial_position (tuple): The initial position of the beam's center.
-    """
+# Create the beam
+beam = env.create_beam(beam_length, cable_radius, cable_strength)
 
-    # 1. Initialize PyChrono environment
-    env = pc.Environment()
+# Set initial positions
+for i in range(num_elements):
+    beam[i].position = initial_position[i]
 
-    # 2. Define physical systems and objects
-    #   - Cable elements:  Each element is a point in 3D space.
-    elements = []
+# Set initial velocities (for dynamic simulation)
+for i in range(num_elements):
+    beam[i].velocity = initial_velocity[i]
+
+# Set the simulation parameters
+env.set_time_step(0.001)  # Time step for the simulation
+env.set_simulation_time(0, 100)  # Simulation duration (100 seconds)
+env.set_physics_parameters(
+    physics_type="static",
+    gravity=gravity,
+    cable_strength=cable_strength,
+    beam_length=beam_length
+)
+
+# Simulation loop
+def update(dt):
+    """Updates the simulation for one time step."""
     for i in range(num_elements):
-        # Create a point representing the cable element
-        x, y, z = initial_position
-        elements.append(pc.Point(x, y, z))
+        # Calculate forces and moments
+        force = np.array([0.0, 0.0, 0.0])
+        moment = np.array([0.0, 0.0, 0.0])
 
-    # 3. Set default parameters
-    env.set_physics_system(pc.System(elements))
-    env.set_gravity(gravity)
-    env.set_time(pc.Time(0)) # Start simulation at t=0
+        # Calculate forces due to cable elements
+        for j in range(num_elements):
+            if i != j:
+                force[i] += beam[i].velocity[j] * cable_strength * (beam[i].position[j] - beam[i].position[j])
+                moment[i] += beam[i].velocity[j] * cable_strength * (beam[i].position[j] - beam[i].position[j])
 
-    # 4. Simulation loop
-    for t in range(pc.Time(0), pc.Time(pc.Time(0) + 10)):  # Simulate for 10 time steps
-        # 5. Perform physics calculations
-        env.update_physics()
+        # Apply forces and moments to the beam
+        beam[i].velocity[i] += force[i] * dt
+        beam[i].moment[i] += force[i] * dt
 
-        # 6. Visualize the beam's deformation
-        #   - Create a 3D plot
-        fig = cv.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        # Update position
+        beam[i].position[i] += beam[i].velocity[i] * dt
 
-        # 7. Plot the beam's deformation
-        for element in elements:
-            # Calculate the deformation based on the cable element's position
-            deformation = np.array([element.x, element.y, element.z])
-            ax.plot(deformation, color='blue')  # Plot deformation
-        
-        # 8.  Set axis limits for better visualization
-        ax.set_xlim([-1.5, 1.5])
-        ax.set_ylim([-1.5, 1.5])
-        ax.set_zlim([-1.5, 1.5])
-        
-        # 9.  Display the plot
-        cv.show()
+    return beam
 
-    env.close()
+# Create the animation
+fig, ax = plt.subplots()
+ax.set_xlim(0, beam_length)
+ax.set_ylim(0, beam_length)
+ax.set_aspect('equal')
+ax.set_title("Beam Simulation")
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
 
-if __name__ == '__main__':
-    simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0))
+# Create the beam object
+beam_obj = pc.Beam(beam, cable_strength)
+
+# Animation function
+def animate(i):
+    """Updates the animation for each frame."""
+    beam_obj.update(dt)
+    return beam_obj
+
+# Create the animation
+ani = animation.FuncAnimation(fig, animate, frames=100, blit=True, interval=dt*1000/1000)  # Update every 100ms
+
+plt.show()

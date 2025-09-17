@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
 
@@ -42,6 +43,8 @@ def main():
     # Add point lights to the scene for illumination
     intensity = 1.0  # Set the light intensity
     manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
 
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
@@ -85,63 +88,4 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         # Update the sensor manager (render/save/filter data automatically)
-        manager.Update()
-
-        # Perform a step of dynamics simulation
-        mphysicalSystem.DoStepDynamics(step_size)
-
-        # Update the current simulation time
-        ch_time = mphysicalSystem.GetChTime()
-
-    print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-# -----------------
-# Camera parameters
-# -----------------
-
-# Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-
-# Camera lens model
-# lens_model = sens.PINHOLE  # Pinhole lens model (removed as it is not used)
-
-# Update rate in Hz
-update_rate = 30
-
-# Image width and height
-image_width = 960  # Changed from 1280 to 960
-image_height = 480  # Changed from 720 to 480
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
-
-# Lag (in seconds) between sensing and when data becomes accessible
-lag = 0
-
-# Exposure (in seconds) of each image
-exposure_time = 0
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 20.0
-
-# Save camera images
-save = True  # Changed from False to True to enable saving
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
-
-# Main function entry point
-main()
-
-# Unused lens model removed
-# lens_model = ...
+        manager, and 0

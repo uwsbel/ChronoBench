@@ -36,28 +36,34 @@ sens_manager = sens.ChSensorManager(system)
 
 
 lidar_update_rate = 10  
-lidar_horizontal_samples = 180
+lidar_horizontal_samples = 360
 lidar_vertical_samples = 1
-lidar_range = 5  
-lidar_fov = math.radians(180)
-lidar_noise = 0.001
-lidar_min_range = 0.1
+lidar_range = 10  
+lidar_fov = 3.14159265359  
+lidar_min_angle = -lidar_fov / 2
+lidar_max_angle = lidar_fov / 2
+lidar_noise = 0.001  
+lidar = sens.ChLidarSensor()
+lidar.SetUpdateRate(1 / lidar_update_rate)
+lidar.SetRange(lidar_range)
+lidar.SetHorizontalResolution(lidar_horizontal_samples)
+lidar.SetVerticalResolution(lidar_vertical_samples)
+lidar.SetMinAngle(lidar_min_angle)
+lidar.SetMaxAngle(lidar_max_angle)
+lidar.SetNoise(lidar_noise)
+lidar.Initialize(rover.GetChassisBody(), sens.ChLidarSensor.Types.LIDAR_TYPE_2D)
 
 
-lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetUpdateRate(lidar_update_rate)
-lidar_sensor.SetHorizontalSamples(lidar_horizontal_samples)
-lidar_sensor.SetVerticalSamples(lidar_vertical_samples)
-lidar_sensor.SetRange(lidar_range)
-lidar_sensor.SetFOV(lidar_fov)
-lidar_sensor.SetNoise(lidar_noise)
-lidar_sensor.SetMinRange(lidar_min_range)
+lidar_filter = sens.ChFilterRange(0, lidar_range)
+lidar_filter2 = sens.ChFilterMean()
+lidar.AddFilter(lidar_filter)
+lidar.AddFilter(lidar_filter2)
 
 
-lidar_sensor.Initialize(rover.GetChassisBody(), chrono.ChVector3d(0.5, 0.2, 0.5))
+lidar.AttachToBody(rover.GetChassisBody())
 
 
-sens_manager.Add(lidar_sensor)
+sens_manager.AddSensor(lidar)
 
 
 driver = robot.CuriosityDCMotorControl()

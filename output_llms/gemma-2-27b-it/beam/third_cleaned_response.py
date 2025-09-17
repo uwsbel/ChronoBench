@@ -95,13 +95,12 @@ builder.BuildBeam(mesh,
                     chrono.ChVector3d(0.2, 0, -0.1), 
                     chrono.ChVector3d(0, 1, 0))      
 
-
-builder.BuildBeam(mesh,
-                    msection,
-                    5,
-                    builder.GetLastBeamNodes().back().GetPos(),  
-                    chrono.ChVector3d(0.2, 0.1, -0.1),
-                    chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh,                   
+                    msection,                  
+                    5,                         
+                    builder.GetLastBeamNodes().back().GetPos(),   
+                    chrono.ChVector3d(0.2, 0.1, -0.1), 
+                    chrono.ChVector3d(0, 1, 0))      
 
 
 

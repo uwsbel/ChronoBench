@@ -22,9 +22,11 @@ coll = sys.GetCollisionSystem()
 
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
-msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))
-msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+msphereBody = chrono.ChBodyEasySphere(
+    2.1, 1800, 
+    chrono.ChVectorD(1, 1, 0), chrono.ChQuaternionD(1,0,0,0), 
+    sphere_mat
+)
 sys.Add(msphereBody)
 
 
@@ -70,11 +72,9 @@ vis.AddTypicalLights()
 mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
-
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
-
 
 stepsize = 1e-2
 
@@ -91,25 +91,31 @@ while vis.Run():
     
     G_constant = 6.674e-3  
 
-    
-    kinetic = 0.0
-    for body in sys.GetBodies():
-        kinetic += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
-
-    
-    potential_energy = 0.0
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract > 0:  
-            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-            F_attract = (D_attract / r_attract) * f_attract
-            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    total_energy = kinetic + potential_energy
-    print(f"Kinetic: {kinetic}, Potential: {potential_energy}, Total: {total_energy}")
+        if r_attract < 1e-6:
+            continue
+        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
+
+    
+    kinetic_energy = 0.0
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+
+    potential_energy = 0.0
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract < 1e-6:
+            continue
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic: {kinetic_energy:.2f}, Potential: {potential_energy:.2f}, Total: {total_energy:.2f}")

@@ -2,11 +2,12 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-def main():
-    # Set step sizes
-    step_size = 2e-3
-    tire_step_size = 1e-3
+# Set data path and simulation parameters first
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+step_size = 2e-3
+tire_step_size = 1e-3
 
+def main():
     # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
@@ -30,7 +31,6 @@ def main():
     # Create the terrain with multiple patches
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Modified patch positions
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
@@ -80,7 +80,6 @@ def main():
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    hmmwv.GetVehicle().GetSystem().SetSolverMaxIterations(100)
     hmmwv.GetVehicle().EnableRealtime(True)
 
     while vis.Run():
@@ -94,13 +93,13 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
 
-        # Update modules
+        # Update modules (process inputs from other modules)
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation
+        # Advance simulation for one timestep for all modules
         driver.Advance(step_size)
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)
@@ -108,5 +107,4 @@ def main():
 
     return 0
 
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 main()

@@ -1,74 +1,67 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
-# Initialize PyChrono system
+# Initialize the PyChrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create MAN 10t truck
-truck = veh.MAN10t(system)
-truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.2), chrono.QUNIT))
-truck.SetTireType(veh.TMEASY)  # Set TMEASY tire model
+# Create the MAN 10t truck vehicle
+truck = veh.MAN_10t(system)
+truck.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+truck.SetEngineType(veh.EngineModelType_SIMPLE_MAP)
+truck.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC)
 truck.Initialize()
 
-# Configure visualization settings
-truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
-truck.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-truck.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
+# Replace default tires with TMEASY models
+for axle in truck.GetAxles():
+    for wheel in axle.GetWheels():
+        tire = veh.ChTMEASYTire("TMEASY_Tire")
+        tire.Initialize(wheel, veh.WheelID())
+        tire.SetRadius(0.5)
+        tire.SetWidth(0.2)
+        tire.SetTMEASYParams()  # Use default TMEASY parameters
+        wheel.SetTire(tire)
 
-# Create rigid terrain
+# Create rigid terrain with textured visualization
 terrain = chrono.ChBody()
 terrain.SetBodyFixed(True)
 terrain.SetCollide(True)
-terrain.GetCollisionModel().AddPlane(chrono.ChCoordsysD(), 100, 100)
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain.GetCollisionModel().AddBox(100, 1, 100)  # X, Y, Z dimensions
+terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain_vis = chrono.ChBoxShape()
+terrain_vis.GetBoxGeometry().Size = chrono.ChVectorD(50, 0.5, 50)  # Half-dimensions
+terrain_vis.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+terrain.AddAsset(terrain_vis)
 system.Add(terrain)
 
-# Set terrain material properties
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground_mat.SetFriction(0.9)
-ground_mat.SetRestitution(0.01)
-terrain.SetMaterialSurface(ground_mat)
-
-# Initialize Irrlicht visualization
-application = irr.ChIrrApp(system, 'MAN 10t Truck Simulation', irr.dimension2d(1280, 720))
+# Set up Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'MAN 10t Truck Simulation', irrlicht.dimension2du(1280, 720))
 application.AddTypicalSky()
-application.AddTypicalLights(irr.vector3df(30, 100, 30), irr.vector3df(-30, -100, -30))
-
-# Configure terrain visualization with texture
-application.AddGround(chrono.GridPlane(20, 20, 1, 1), "textures/concrete.jpg")
-
-# Set up chase camera
-camera = irr.ChIrrChaseCamera(application.GetSceneManager(), truck.GetChassisBody(), 6.0, 0.5)
-application.GetSceneManager().setActiveCamera(camera)
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))  # Initial camera setup
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 # Initialize real-time driver controls
-driver = veh.ChIrrGuiDriver(truck)
+driver = veh.ChIrrGuiDriver(application.GetDevice(), truck.GetVehicle())
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 
 # Simulation loop
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-step_timer = chrono.ChRealtimeStepTimer()
 while application.GetDevice().run():
     time = system.GetChTime()
     
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-    
-    # Synchronize vehicle and driver
-    truck.Synchronize(time, driver_inputs)
+    # Synchronize driver inputs and vehicle dynamics
+    driver.Synchronize(time)
+    truck.Synchronize(time, driver.GetInputs())
     
     # Advance simulation
-    step_timer.Start()
-    system.DoStepDynamics(chrono.ChTimeStep(0.01))
-    step_timer.Spin()
+    system.DoStepDynamics(chrono.ChTimeStep(1e-3))
     
-    # Update visualization
+    # Render scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()

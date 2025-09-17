@@ -88,10 +88,17 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
-
-driver.SetThrottleDelta(render_step_size / throttle_time)
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+driver.SetThrottle(0.5)  
+
 driver.Initialize()
 
 
@@ -104,14 +111,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-box_obstacle = chrono.ChBox(chrono.ChVector3d(0.5, 5, 0.2))
-box_obstacle.SetPosition(chrono.ChVector3d(5, 0, 0.1))
-box_obstacle.SetFixed(True)  
-
-
-obstacle = vehicle.GetSystem().AddRigidBody(box_obstacle)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -132,6 +131,10 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
+    if driver_inputs.GetThrottle() == 0.5:
+        vehicle.GetSystem().SetThrottle(0.5)
+
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -141,3 +144,19 @@ while vis.Run() :
     step_number += 1
     
     realtime_timer.Spin(step_size)
+
+
+box_size = chrono.ChVector3d(0.5, 5, 0.2)  
+    box_position = chrono.ChVector3d(5, 0, 0.1)  
+    box = chrono.ChBody()
+    box.SetMass(1.0)
+    box.SetPos(box_position)
+    box.SetFixed(True)  
+    vehicle.GetSystem().AddBody(box)
+    vehicle.GetSystem().AddConstraint(chrono.ChLinkPointConstraint(vehicle.GetSystem().GetBody(0), box, chrono.ChVector3d(0, 0, 0))
+
+    
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)

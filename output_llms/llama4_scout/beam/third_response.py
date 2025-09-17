@@ -69,27 +69,27 @@ builder = fea.ChBuilderBeamEuler()
 
 # First beam segment
 builder.BuildBeam(mesh,  # the mesh where to put the created nodes and elements
-                  msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
-                  5,  # the number of ChElementBeamEuler to create
-                  chrono.ChVector3d(0, 0, -0.1),  # the 'A' point in space (beginning of beam)
-                  chrono.ChVector3d(0.2, 0, -0.1),  # the 'B' point in space (end of beam)
-                  chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
+                 msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                 5,  # the number of ChElementBeamEuler to create
+                 chrono.ChVector3d(0, 0, -0.1),  # the 'A' point in space (beginning of beam)
+                 chrono.ChVector3d(0.2, 0, -0.1),  # the 'B' point in space (end of beam)
+                 chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
 
 # Second beam segment
 builder.BuildBeam(mesh,  # the mesh where to put the created nodes and elements
-                  msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
-                  5,  # the number of ChElementBeamEuler to create
-                  builder.GetLastBeamNodes().back().GetPos(),  # 'A' point: last node of previous beam
-                  chrono.ChVector3d(0.2, 0.1, -0.1),  # the 'B' point in space (end of beam)
-                  chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
+                 msection,  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                 5,  # the number of ChElementBeamEuler to create
+                 builder.GetLastBeamNodes().back().GetPos(),  # the 'A' point in space (beginning of beam)
+                 chrono.ChVector3d(0.2, 0.1, -0.1),  # the 'B' point in space (end of beam)
+                 chrono.ChVector3d(0, 1, 0))  # the 'Y' up direction of the section for the beam
 
 # We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False)
 
-# Remember to add the mesh to the system!
+# Remember to add the mesh to the system
 sys.Add(mesh)
 
-# ==Asset== attach a visualization of the FEM mesh.
+# ==Asset== attach a visualization of the FEM mesh
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
@@ -116,7 +116,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Change the solver from the default SOR to the MKL Pardiso, more precise for fea.
+# Change the solver from the default SOR to the MKL Pardiso, more precise for fea
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 

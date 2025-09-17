@@ -15,14 +15,11 @@ def main():
     
     
     
-    side = 2  
-    box = chrono.ChBodyEasyBox(side, side, side, 1000)  
-    box.SetPos(chrono.ChVector3d(0, 0, 0))  
-    
-    
-    
-    box.SetFixed(True)  
-    mphysicalSystem.Add(box)  
+    side = 2
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    box.SetBodyFixed(True)
+    mphysicalSystem.Add(box)
 
     
     
@@ -120,4 +117,15 @@ def main():
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
-            print('First Pixel: {0}'.format(rgba8_data
+            print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
+
+        
+        manager.Update()
+
+        
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:",

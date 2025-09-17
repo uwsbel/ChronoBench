@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
-import matplotlib.pyplot as plt  
+import matplotlib.pyplot as plt
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -115,10 +115,10 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+gps_offset = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     
                        10,        
-                       offset_pose,          
+                       gps_offset,          
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  
                        sens.ChNoiseNone())   
 gps.SetName("GPS Sensor")
@@ -162,7 +162,6 @@ while vis.Run():
     
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
-    
     driver_inputs = driver.GetInputs()
     
     
@@ -189,16 +188,13 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-if gps_data:
-    lats, lons, alts = zip(*gps_data)
-    plt.figure(figsize=(10, 6))
-    plt.plot(lons, lats, '-b', label='Trajectory')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('Vehicle GPS Trajectory')
-    plt.grid(True)
-    plt.legend()
-    plt.axis('equal')
-    plt.show()
-else:
-    print("No GPS data collected.")
+plt.figure(figsize=(10, 6))
+plt.plot([x[1] for x in gps_data], [x[0] for x in gps_data], 'b-o', markersize=3, label='Vehicle Path')
+plt.xlabel('Longitude (degrees)')
+plt.ylabel('Latitude (degrees)')
+plt.title('Vehicle GPS Trajectory')
+plt.grid(True)
+plt.axis('equal')
+plt.legend()
+plt.tight_layout()
+plt.show()

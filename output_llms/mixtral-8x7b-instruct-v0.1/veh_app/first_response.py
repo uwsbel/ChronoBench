@@ -23,48 +23,36 @@ terrain.SetContactBreakingThreshold(10000)
 vehicle.GetChassis().SetName('chassis')
 vehicle.GetChassis().SetCollide(False)
 vehicle.GetChassis().SetBodyFixed(True)
-vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.GetChassis().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+vehicle.GetChassis().AddAsset('path/to/chassis/asset/file')
+vehicle.GetWheel(0).SetName('wheel_FL')
+vehicle.GetWheel(0).SetCollide(True)
+vehicle.GetWheel(0).AddAsset('path/to/wheel/asset/file')
+vehicle.GetWheel(1).SetName('wheel_FR')
+vehicle.GetWheel(1).SetCollide(True)
+vehicle.GetWheel(1).AddAsset('path/to/wheel/asset/file')
+vehicle.GetWheel(2).SetName('wheel_RL')
+vehicle.GetWheel(2).SetCollide(True)
+vehicle.GetWheel(2).AddAsset('path/to/wheel/asset/file')
+vehicle.GetWheel(3).SetName('wheel_RR')
+vehicle.GetWheel(3).SetCollide(True)
+vehicle.GetWheel(3).AddAsset('path/to/wheel/asset/file')
 
-vehicle.GetSuspension(0).SetVisualizationType(veh.VisualizationType.VT_SPHERE)
-vehicle.GetSuspension(1).SetVisualizationType(veh.VisualizationType.VT_SPHERE)
-vehicle.GetWheel(0).SetVisualizationType(veh.VisualizationType.VT_BOX)
-vehicle.GetWheel(1).SetVisualizationType(veh.VisualizationType.VT_BOX)
-
-# Add rigid terrain
-terrain_shape = col.ChBoxShape()
-terrain_shape.GetBoxGeometry().Size = chrono.ChVectorD(100, 100, 1)
-terrain.AddShape(terrain_shape)
-
-# Add interactive driver system
-driver.SetScriptFunction(lambda t: chrono.ChVectorD(10 * chrono.cos(t), 0, 10 * chrono.sin(t)))
-
-# Set up sensor manager
-camera = sens.ChCameraSensor()
-camera.SetPos(chrono.ChVectorD(0, 10, 15))
-camera.SetFocus(chrono.ChVectorD(0, 0, 0))
-camera.SetUp(chrono.ChVectorD(0, 1, 0))
-sensor_manager.AddSensor(camera)
-
-point_light = sens.ChPointLight()
-point_light.SetPos(chrono.ChVectorD(0, 10, 15))
-point_light.SetColor(chrono.ChColor(1, 1, 1))
-sensor_manager.AddSensor(point_light)
+# Add point lights and camera to sensor manager
+light_pos = [chrono.ChVectorD(-2, 5, 5), chrono.ChVectorD(2, 5, 5)]
+for pos in light_pos:
+    sensor_manager.AddSensor(sens.ChSensorPointLight(vehicle.GetChassis(), pos))
+camera_pos = chrono.ChVectorD(0, 5, 5)
+camera_dir = chrono.ChVectorD(0, -1, -1)
+sensor_manager.AddSensor(sens.ChSensorCamera(vehicle.GetChassis(), camera_pos, camera_dir))
 
 # Run simulation loop
-my_system.SetSolverType(chrono.ChSolver.Type.CS_CONTACT_FORCE)
-my_system.SetSolverMaxIterations(100)
-my_system.SetSolverMinIterations(10)
-my_system.SetSolverAccuracy(1e-6)
-my_system.SetSolverCollisionMargin(0.01)
+my_system.SetTimestep(1 / 60.0)
+my_system.SetupSolver()
 
 for i in range(1000):
-    my_system.DoStepDynamics(1.0 / 60.0)
-    sensor_manager.Update(my_system.GetChTime())
+    driver.SolveScript()
+    my_system.DoStepDynamics()
+    sensor_manager.Update()
+    sensor_manager.Render()
 
-# Synchronize and advance simulation modules
-my_system.DoFrameDynamics()
-my_system.DoSimulationAdvance()
-
-# Save camera images
-camera.SaveImages('camera_images', 1000)
+my_system.Clear()

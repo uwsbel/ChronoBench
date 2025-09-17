@@ -4,131 +4,212 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
-- **Body Creation:** Ground and two dynamic bodies are created with appropriate properties.  
-- **Visualization:** Visualization system is set up with Irrlicht, window size, title, camera, lights, skybox, and logo.  
-- **Spring Link Setup:** Two springs are created using `ChLinkTSDA`, one with default spring/damping coefficients, the other with a custom force functor.  
-- **Simulation Loop:** Present with correct calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`.  
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), with gravity set to zero. ✔️
+- **Body Creation:** Ground and two dynamic bodies are created, positioned, mass and inertia set, fixed flags set, and collision disabled. ✔️
+- **Visualization:** Uses Irrlicht visualization system, attaches system, sets window size and title, initializes, adds logo, skybox, camera, and lights. ✔️
+- **Joints/Links:** Two `ChLinkTSDA` springs created and initialized correctly, with rest length, spring and damping coefficients set. One uses default force, the other uses a custom force functor. ✔️
+- **Simulation Loop:** Present and correctly structured with `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. ✔️
 
-**Minor issues:**  
-- The `rest_length` is defined globally but used inside the functor without passing it explicitly; this is acceptable but not ideal for reusability.  
-- The visual shapes for the spheres on the ground are added to the ground body, which is fixed and non-colliding, which is fine for visualization but might be considered a minor omission if the spheres were meant to be separate bodies.  
-- The `spring_1` is initialized with `SetSpringCoefficient` and `SetDampingCoefficient`, but `spring_2` uses a custom functor without setting these coefficients. This is valid but inconsistent; no deduction here as both methods are acceptable.  
-- The `spring_1.Initialize()` call uses `True` for `pos_are_relative`, which is correct, but the frame points are given as `chrono.ChVectorD(0,0,0)` and `chrono.ChVectorD(-1,0,0)`. This is acceptable but might be confusing since the second point is relative to the second body (ground). Similarly for `spring_2`. No deduction since this is a valid usage.  
+**No essential components missing.**
 
-**No essential components missing.**  
-**No significant lack of important details.**
+**Minor omission:**  
+- The `MySpringForce` functor is defined and used, but the `Evaluate` method signature and usage may not fully align with PyChrono's expected interface for force functors (see correctness below).  
+- The visual shapes for the ground spheres are added, but the ground body itself is fixed and collision disabled, which is acceptable but could be clarified with comments.
 
-**Completeness score: 40/40**
+**No deduction for completeness.**
+
+**Score:** 40/40
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**  
-  - `ChLinkTSDA` initialization is done correctly with two bodies and two points.  
-  - `SetRestLength`, `SetSpringCoefficient`, `SetDampingCoefficient`, and `SetForceFunctor` are used correctly.  
-  - Visual shapes are added correctly with proper constructors and colors.  
-  - Visualization system setup and loop are correct.  
-  - Gravity is set to zero vector, which is intentional and acceptable.  
-- **Logical correctness:**  
-  - The custom functor `MySpringForce` inherits from `ChLinkTSDAFunctor` and overrides `Evaluate` correctly.  
-  - The force calculation uses the global `rest_length` inside the functor, which works but is not best practice (should be passed or stored inside the functor). This is a minor logical issue but does not affect correctness.  
-  - The `spring_1` uses both spring and damping coefficients set directly, while `spring_2` uses the functor. This is valid but inconsistent; no deduction.  
-- **Body properties:** Mass and inertia are set correctly.  
-- **Collision is disabled for all bodies, which is consistent with the simulation setup.**  
+- **Custom Force Functor:**
 
-**No incorrect API usage that would significantly change simulation behavior.**  
-**No logical errors in joint initialization or body properties.**  
+  - The class `MySpringForce` inherits from `chrono.ChForceFunctor`, which is correct.
 
-**Correctness score: 30/30**
+  - The `Evaluate` method signature is `Evaluate(self, link, time)`. According to PyChrono API and typical usage, the `Evaluate` method should accept the link and time, but the force calculation inside uses `link.GetSpringLength()`, `link.GetVelocity()`, and `link.GetRestLength()`.
+
+  - **Issue:** `link.GetVelocity()` is not a valid method for `ChLinkTSDA`. The API documentation does not mention such a method. The velocity of the spring is not directly accessible via `GetVelocity()`. Instead, one would typically compute the relative velocity between the two bodies at the anchor points or use the link's internal methods to get the velocity along the spring axis.
+
+  - This is a **significant API misuse** that could lead to incorrect force calculations or runtime errors.
+
+- **Spring Initialization:**
+
+  - `spring_1.Initialize(body_1, ground, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(-1, 0, 0))`
+
+    - The 3rd argument `True` indicates the spring is "modulated" (i.e., the spring force is applied along the line between the two points). This is correct.
+
+  - The anchor points for the springs are set at `(0,0,0)` on `body_1` and `(-1,0,0)` on `ground` for `spring_1`, and `(0,0,0)` on `body_2` and `(1,0,0)` on `ground` for `spring_2`. This is consistent with the visual spheres on the ground at (-1,0,0) and (1,0,0).
+
+- **Body Properties:**
+
+  - Mass and inertia are set to 1 and (1,1,1) respectively, which is acceptable for a simple demo.
+
+- **Visualization:**
+
+  - The camera is placed at `(0,0,6)`. Usually, a camera looking from above or at an angle is better (e.g., `(0,3,6)`), but this is not incorrect.
+
+- **Minor API misuse:**
+
+  - The `AddVisualShape` calls use `chrono.ChVisualShapeSphere(0.1)` and `chrono.ChVisualShapeBox(1,1,1)`. According to the documentation, `ChVisualShapeBox` expects a `ChVector3d` for size, not three separate floats. The code uses `chrono.ChVisualShapeBox(1,1,1)`, which is likely incorrect.
+
+  - Correct usage should be:
+
+    ```python
+    box_1 = chrono.ChVisualShapeBox(chrono.ChVectorD(1,1,1))
+    ```
+
+  - This is a **logical error** that could cause runtime errors or unexpected behavior.
+
+- **Ground Body:**
+
+  - The ground body is created with `chrono.ChBody()`, added to the system, fixed, and collision disabled. This is acceptable.
+
+- **Use of `AddVisualShape`:**
+
+  - The method `AddVisualShape` is used with a shape and a frame for the spheres on the ground, but for boxes on bodies, no frame is specified. This is acceptable since the default frame is identity.
+
+- **Summary of correctness deductions:**
+
+  - **-15 points** for incorrect use of `GetVelocity()` on `ChLinkTSDA` in the custom force functor, which is a significant API misuse.
+
+  - **-10 points** for incorrect instantiation of `ChVisualShapeBox` with three floats instead of a `ChVector3d`, a logical error.
+
+**Score:** 30 - 15 - 10 = 5/30
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are meaningful (`body_1`, `spring_1`, etc.), but could be more descriptive (e.g., `left_body`, `right_body`).  
-  - The code is structured in a straightforward manner.  
-  - No blank lines separating logical blocks (e.g., between body creation and spring creation) which would improve readability.  
-- **Comments:**  
-  - No comments at all in the code.  
-  - Lack of comments reduces understandability, especially for users unfamiliar with PyChrono.  
-- **Formatting:**  
-  - Indentation and spacing are consistent.  
-  - The `Evaluate` method is correctly indented.  
+- **Readability:**
 
-**Deductions:**  
-- Deduct 5 points for lack of comments/documentation.  
-- Deduct 3 points for minor readability issues (lack of blank lines, slightly generic variable names).  
+  - The code is mostly readable, with meaningful variable names (`body_1`, `spring_1`, etc.).
 
-**Code Quality score: 2/10**
+  - The code is logically structured: imports, constants, class definition, system setup, body creation, link creation, visualization, and simulation loop.
+
+- **Comments:**
+
+  - The code lacks comments explaining the purpose of sections, parameters, or the custom force functor.
+
+  - No docstrings or inline comments.
+
+- **Formatting:**
+
+  - Consistent indentation and spacing.
+
+- **Deductions:**
+
+  - **-5 points** for insufficient comments and lack of documentation.
+
+  - No deduction for readability or structure.
+
+**Score:** 5/10
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.  
-- The use of a custom functor for the spring force is appropriate and efficient for custom force definitions.  
-- The visualization loop is standard and efficient.  
-- The spheres added to the ground body for visualization could be replaced by separate bodies if interaction was needed, but since collision is disabled, this is acceptable.  
-- The global `rest_length` used inside the functor is a minor inefficiency in design (could be stored inside the functor), but negligible.  
+- No obvious redundant calculations or inefficient API usage.
 
-**No major inefficiencies or redundant code.**  
-**No obvious missed optimization opportunities.**
+- The custom force functor recalculates `rest_length` inside `Evaluate` but does not use the class attribute `self.spring` or `self.damping` incorrectly.
 
-**Efficiency score: 10/10**
+- The `rest_length` is fetched from the link each time, which is acceptable.
+
+- The visualization loop and simulation step are standard.
+
+- Minor optimization opportunity: The `rest_length` is stored as a global variable but also fetched from the link in the functor; consistency could be improved, but this is minor.
+
+- No major inefficiencies.
+
+**Score:** 10/10
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (e.g., try-except blocks).  
-- However, PyChrono scripts typically do not include explicit error handling unless dealing with file I/O or user input.  
-- The code assumes all API calls succeed.  
-- The functor uses a global variable which could cause issues if `rest_length` changes unexpectedly.  
-- No checks for valid initialization parameters or system state.  
+- No error handling is present.
 
-**Deduct 3 points for lack of robustness regarding the use of global variables and no error handling.**  
+- No checks for invalid inputs or exceptions.
 
-**Error Handling and Robustness score: 2/5**
+- However, PyChrono scripts typically do not include explicit error handling unless dealing with file I/O or user input.
+
+- The custom force functor does not check for zero-length springs or other edge cases.
+
+- **Deduction:**  
+  - **-3 points** for inadequate handling of edge cases in the custom force functor.
+
+**Score:** 2/5
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is correctly initialized and attached to the system.  
-- Window size and title are set.  
-- Logo, skybox, camera, and typical lights are added, which is comprehensive.  
-- Camera position is set at `(0, 0, 6)`, which is acceptable but might be suboptimal for viewing the scene (usually a slight elevation or offset in Y is better for 3D scenes).  
-- The visual shapes for the spring are added correctly.  
-- No explicit call to `vis.Update()` or `vis.Run()` outside the loop, but the loop uses `vis.Run()` correctly.  
-- Minor visualization issue: The camera is placed directly along the Z-axis at (0,0,6), looking presumably at origin, but no rotation or target is specified. This may limit the view.  
-- The spheres on the ground are added as visual shapes to the ground body, which is fixed and non-colliding, which is acceptable for visualization but might be less flexible.  
+- Visualization system is correctly initialized and attached.
 
-**Deduct 2 points for minor visualization suboptimal camera placement and minor visualization setup issues.**
+- Window size and title set.
 
-**Visualization score: 3/5**
+- Logo added.
+
+- Skybox added.
+
+- Camera added at `(0,0,6)` — this is a bit unusual as it looks straight along the Z-axis; typically, a camera is placed with some elevation and angle for better visualization (e.g., `(0,3,6)`).
+
+- Typical lights added.
+
+- Minor visualization issue: camera position could be improved for better viewing angle.
+
+- **Deduction:**  
+  - **-2 points** for suboptimal camera placement.
+
+**Score:** 3/5
 
 ---
 
 ### **Summary of deductions:**
 
-| Category                     | Points | Deductions | Score |
-|------------------------------|--------|------------|-------|
-| Completeness                 | 40     | 0          | 40    |
-| Correctness                 | 30     | 0          | 30    |
-| Code Quality                | 10     | 8 (5 + 3)  | 2     |
-| Efficiency                  | 10     | 0          | 10    |
-| Error Handling and Robustness| 5      | 3          | 2     |
-| Visualization               | 5      | 2          | 3     |
-| **Total**                   | **100**| **13**     | **87**|
+| Criterion                     | Points | Deduction Reason                                                                                   |
+|-------------------------------|--------|--------------------------------------------------------------------------------------------------|
+| Completeness                  | 40     | None                                                                                             |
+| Correctness                  | 30     | -15 (invalid `GetVelocity()` usage), -10 (incorrect `ChVisualShapeBox` constructor)              |
+| Code Quality                 | 10     | -5 (lack of comments)                                                                            |
+| Efficiency                  | 10     | None                                                                                             |
+| Error Handling and Robustness | 5      | -3 (no edge case handling in custom force functor)                                              |
+| Visualization Tools          | 5      | -2 (suboptimal camera position)                                                                  |
 
 ---
 
-**Final score: [[87]]**
+### **Final Score Calculation:**
+
+- Completeness: 40/40  
+- Correctness: 5/30  
+- Code Quality: 5/10  
+- Efficiency: 10/10  
+- Error Handling: 2/5  
+- Visualization: 3/5  
+
+**Total = 40 + 5 + 5 + 10 + 2 + 3 = 65/100**
 
 ---
 
-**Explanation:**  
-The script is complete and correct in terms of PyChrono API usage and simulation setup. The main deductions come from lack of comments/documentation, minor readability issues, lack of error handling or robustness considerations, and minor visualization setup suboptimalities. There are no major API misuse or logical errors, and the code is efficient and functional.
+### **Final Score:**
+
+[[65]]
+
+---
+
+### **Brief Explanation of Deductions:**
+
+- The script is complete and includes all essential components for a PyChrono simulation with visualization.
+
+- The main correctness issues are the misuse of `GetVelocity()` on the `ChLinkTSDA` object in the custom force functor, which is not supported and will cause errors or incorrect force calculations, and the incorrect instantiation of `ChVisualShapeBox` with three floats instead of a `ChVector3d`.
+
+- The code lacks comments and documentation, reducing clarity and maintainability.
+
+- Error handling is minimal, with no checks for edge cases in the custom force functor.
+
+- Visualization setup is mostly correct but the camera position is suboptimal for viewing the scene.
+
+- Efficiency is good with no redundant or unnecessary computations.
+
+Improving the force functor to correctly compute relative velocity along the spring axis, fixing the visual shape constructor, adding comments, and adjusting the camera would significantly improve the script.

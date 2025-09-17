@@ -1,50 +1,51 @@
-from pychrono import *
-from pychrono.irrlicht import *
+from pychrono import ChSystem, ChBody, ChMaterialSurface
+from pychrono.irrlicht import IrrlichtVisualizer
+import pychrono.core as chrono
 
 
-chrono.SetThreadStackSize(chrono.GetThreadId(), 1024 * 1024)  
-system = ChronoSystem()
+system = ChSystem()
+vis = IrrlichtVisualizer(system)
 
 
-terrain = RigidTerrain(system)
-terrain.SetTexture("path/to/terrain.jpg")  
-terrain.SetPos(ChVectorD(0, 0, 0))
-terrain.SetSize(ChVectorD(10, 10, 1))  
+terrain = chrono.ChBodyEasyBox(10, 10, 0.5, 1000)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
+terrain.SetMaterialSurface(ChMaterialSurface(0.9, 0.1, 0.1))  
+system.Add(terrain)
 
 
-bus = ChBodyEasyBox(system, 10, 2.5, 4, 1000)  
-bus.SetPos(ChVectorD(0, 0, 0.5))
-bus.SetRot(ChQuaternionD(1, 0, 0, 0))  
+bus = chrono.ChBodyEasyCylinder(0.5, 2, 1000)
+bus.SetPos(chrono.ChVectorD(0, 0, 0))
+bus.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEGREE, 0, 0))
+system.Add(bus)
 
 
 for i in range(4):
-    wheel = ChWheel(system, bus, ChVectorD(0, 0, 0), 0.5)  
-    wheel.SetPos(ChVectorD(i * 2.5, 0, 0))  
-    wheel.SetMaterial(ChMaterialSurfaceNSClass())  
+    wheel = chrono.ChBodyEasySphere(0.2, 1000)
+    wheel.SetPos(bus.GetPos() + chrono.ChVectorD(0, 0, -1))
+    system.Add(wheel)
 
 
-vis = IrrlichtVisualizer(system)
-vis.SetCameraPos(ChVectorD(10, 5, 5))  
-vis.SetCameraTarget(bus.GetPos())  
+vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
 
 
+steering_angle = 0
 throttle = 0
 brake = 0
-steering = 0
-
-def update_driver_input():
-    
-    global throttle, brake, steering
-    
 
 
 while True:
-    update_driver_input()
-    
-    
-    bus.AddTorque(ChVectorD(steering, 0, 0))  
-    bus.AddForce(ChVectorD(throttle, 0, 0))  
-    bus.AddForce(ChVectorD(0, 0, brake))  
+    vis.BeginScene()
 
-    system.DoStepDynamics(1/50.0)  
+    
+    
+
+    
+    bus.SetRot(chrono.Q_from_Euler(chrono.CH_C_DEGREE, steering_angle, 0))
+    
+
+    
+    system.DoStepDynamics(1/50)
+
+    
     vis.Render()
+    vis.EndScene()

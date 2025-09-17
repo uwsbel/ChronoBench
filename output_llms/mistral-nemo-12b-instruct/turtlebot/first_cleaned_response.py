@@ -1,71 +1,59 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import numpy as np
+import pychrono.irrlicht as irr
 
 
-chrono.setChronoDataPath("path/to/chrono_data")  
-chrono.init()
+chrono.Initialize()
 
 
 system = chrono.ChSystemNSC()
 system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
+ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True)
 ground.SetPos(chrono.ChVectorD(0, -5, 0))
 system.Add(ground)
 
 
-turtlebot = chrono.ChBodyEasyCylinder(0.1, 0.15, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
-turtlebot.SetPos(chrono.ChVectorD(0, 0.5, 0))
+turtlebot = chrono.ChBodyEasyCylinder(0.1, 0.15, 1000, True)
+turtlebot.SetPos(chrono.ChVectorD(0, 0.75, 0))
 turtlebot.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
 system.Add(turtlebot)
 
 
-wheel_radius = 0.05
-wheel_width = 0.1
-wheel_separation = 0.2
-left_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
-left_wheel.SetPos(chrono.ChVectorD(-wheel_separation / 2, 0, 0))
-left_wheel.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
-turtlebot.AddLink(left_wheel, chrono.ChFrameD(chrono.ChVectorD(-wheel_separation / 2, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
+left_wheel = chrono.ChLinkMotor()
+left_wheel.Initialize(turtlebot, ground, chrono.ChFrameD(chrono.ChVectorD(0.05, 0.1, 0.1), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
+left_wheel.SetSpdLimit(-5, 5)
+system.Add(left_wheel)
 
-right_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 1000, True, True, material=chrono.ChMaterialSurfaceNSC())
-right_wheel.SetPos(chrono.ChVectorD(wheel_separation / 2, 0, 0))
-right_wheel.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
-turtlebot.AddLink(right_wheel, chrono.ChFrameD(chrono.ChVectorD(wheel_separation / 2, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
+right_wheel = chrono.ChLinkMotor()
+right_wheel.Initialize(turtlebot, ground, chrono.ChFrameD(chrono.ChVectorD(-0.05, 0.1, 0.1), chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
+right_wheel.SetSpdLimit(-5, 5)
+system.Add(right_wheel)
 
 
-application = irrlicht.ChIrrApp(system, "Turtlebot Simulation", irrlicht.COGL_RENDERER, 800, 600)
-application.AddLight(chrono.ChVectorD(1, 1, 1), chrono.ChColor(1, 1, 1), 1000000)
-application.AddCamera(chrono.ChVectorD(1, 1, -5), chrono.ChVectorD(0, 0, 0))
+app = irr.ChIrrApp(system, 'Turtlebot Simulation')
+app.SetCamera(chrono.ChVectorD(1, 1, -5), chrono.ChVectorD(0, 0, 0))
+app.AddLightWithDir(chrono.ChVectorD(3, 3, -5), chrono.ChVectorD(0, 0, -1))
 
 
-turn_time = 2.0  
-turn_angle = chrono.CH_C_PI / 2  
-current_time = 0.0
-turn_start_time = 0.0
-
-while application.GetDevice().run():
-    application.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
-
-    
-    if current_time - turn_start_time > turn_time:
-        turn_start_time = current_time
-        left_wheel.SetW(0)
-        right_wheel.SetW(0)
-    else:
-        left_wheel.SetW(-np.sin((current_time - turn_start_time) / turn_time * turn_angle))
-        right_wheel.SetW(np.sin((current_time - turn_start_time) / turn_time * turn_angle))
-
+while app.GetDevice().run():
     
     system.DoStepDynamics(0.01)
-    application.DrawAll()
-    application.EndScene()
 
-    current_time += 0.01
+    
+    time = app.GetTime()
+    if time > 2 and time < 4:
+        left_wheel.SetTargetSpeed(1)
+        right_wheel.SetTargetSpeed(-1)
+    elif time > 6 and time < 8:
+        left_wheel.SetTargetSpeed(-1)
+        right_wheel.SetTargetSpeed(1)
+    else:
+        left_wheel.SetTargetSpeed(0)
+        right_wheel.SetTargetSpeed(0)
 
-    if application.GetDevice().isKeyPressed(irrlicht.VK_ESCAPE):
-        break
-
-application.GetDevice().drop()
+    
+    app.BeginScene(True, True, chrono.ChColor(0.3, 0.3, 0.3))
+    app.DrawAll()
+    app.EndScene()
+    app.GetDevice().display()

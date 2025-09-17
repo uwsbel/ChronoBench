@@ -52,7 +52,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -79,21 +78,21 @@ tri_mesh_shape.SetMutable(False)
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
-# Add a new terrain patch
-new_patch_mat = chrono.ChContactMaterialNSC()
-new_patch_mat.SetFriction(0.9)
-new_patch_mat.SetRestitution(0.01)
-new_patch = terrain.AddPatch(new_patch_mat, 
+# Additional terrain patch creation
+bump_mat = chrono.ChContactMaterialNSC()
+bump_mat.SetFriction(0.9)
+bump_mat.SetRestitution(0.01)
+bump_patch = terrain.AddPatch(bump_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-new_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
-new_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
-new_tri_mesh_shape.SetMesh(new_vis_mesh)
-new_tri_mesh_shape.SetColor(chrono.ChVectorD(0.5, 0.5, 0.8))
-new_tri_mesh_shape.SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
-new_tri_mesh_shape.SetMutable(False)
-new_patch.GetGroundBody().AddVisualShape(new_tri_mesh_shape)
+bump_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'), True, True)
+bump_tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
+bump_tri_mesh_shape.SetMesh(bump_vis_mesh)
+bump_tri_mesh_shape.SetColor(chrono.ChVectorD(0.5, 0.5, 0.8))
+bump_tri_mesh_shape.SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
+bump_tri_mesh_shape.SetMutable(False)
+bump_patch.GetGroundBody().AddVisualShape(bump_tri_mesh_shape)
 
 # Create the vehicle Irrlicht interface
 
@@ -106,7 +105,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -126,7 +124,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

@@ -5,7 +5,7 @@ import pychrono.sensor as sens
 import math
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+chrono.SetChronoDataPath('/path/to/chrono/data')  
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -22,8 +22,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0     
-terrainLength = 100.0 
+terrainHeight = 0  
+terrainLength = 100.0  
 terrainWidth = 100.0  
 
 
@@ -38,7 +38,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50 
+render_step_size = 1.0 / 50  
 
 
 log_step_size = 0.1
@@ -90,7 +90,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3   
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -108,7 +108,7 @@ imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-imu.PushFilter(sens.ChFilterAccelAccess())  
+imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
@@ -120,7 +120,7 @@ gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-gps.PushFilter(sens.ChFilterGPSAccess())  
+gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
@@ -147,18 +147,22 @@ while vis.Run():
         render_frame += 1
 
     
-    if time < 5:
+    if time < 2:
         driver_inputs = veh.Inputs()
         driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
+        driver_inputs.m_steering = 0.0
+    elif time < 4:
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_throttle = 0.7
+        driver_inputs.m_steering = 0.5
     elif time < 6:
         driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = -0.2
+        driver_inputs.m_throttle = 0.7
+        driver_inputs.m_steering = -0.5
     else:
         driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0
-        driver_inputs.m_braking = 1
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = 1.0
 
     
     driver.Synchronize(time)
@@ -178,7 +182,7 @@ while vis.Run():
     
     if step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer is not None:
+        if gps_buffer.HasData():
             gps_data.append(gps_buffer.GetGPSData())
 
     
@@ -189,12 +193,3 @@ while vis.Run():
 
 
 print("GPS Data: ", gps_data)
-
-
-*   **`log_step_size` is defined**: The frequency of data logging is controlled by `log_step_size`.
-*   **`gps_data` list is initialized**: To store GPS coordinates.
-*   **GPS data logging is implemented**: GPS data is logged at intervals defined by `log_steps` and stored in `gps_data`.
-*   **Driver inputs are modified**: Specific throttle and steering commands are applied based on simulation time, and braking is introduced after 6 seconds.
-*   **GPS data is printed**: The logged GPS data is printed at the end of the simulation.
-
-The modified code now meets the specified requirements. It includes data logging at a specified frequency and modified driver inputs. The GPS data is stored and printed at the end of the simulation.

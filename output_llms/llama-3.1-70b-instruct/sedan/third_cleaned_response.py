@@ -96,30 +96,17 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-class PIDController:
-    def __init__(self, kp, ki, kd, setpoint):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.setpoint = setpoint
-        self.error_prev = 0
-        self.error_sum = 0
-
-    def update(self, current_value):
-        error = self.setpoint - current_value
-        self.error_sum += error
-        error_diff = error - self.error_prev
-        self.error_prev = error
-        return self.kp * error + self.ki * self.error_sum + self.kd * error_diff
-
-pid_controller = PIDController(1.0, 0.1, 0.1, 10.0)  
+pid = veh.ChPIDController()
+pid.SetGains(1.0, 0.1, 0.1)
+pid.SetOutputLimits(-1.0, 1.0)
+pid.SetSetpoint(10.0)  
 
 
 
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -129,11 +116,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -149,13 +136,8 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    vehicle_speed = vehicle.GetVehicle().GetChassisBody().GetPos_dt().Length()
-    throttle_input = pid_controller.update(vehicle_speed)
-
-    
-    throttle_input = max(0.0, min(throttle_input, 1.0))
-
-    
+    speed_error = pid.GetSetpoint() - vehicle.GetVehicle().GetChassis().GetPos_dt().Length()
+    throttle_input = pid.GetOutput(speed_error)
     driver_inputs.m_throttle = throttle_input
 
     
@@ -163,7 +145,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
 

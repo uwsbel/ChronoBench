@@ -3,14 +3,14 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print ("Example: PyChrono using  beam finite elements")
+print("Example: PyChrono using beam finite elements")
 
 sys = chrono.ChSystemSMC()
 
-# Create a mesh
+# Create a mesh, that is a container for groups of elements and their referenced nodes.
 mesh = fea.ChMesh()
 
-# Create a section for beams
+# Create a section, i.e. thickness and material properties for beams. This will be shared among some beams.
 msection = fea.ChBeamSectionEulerAdvanced()
 
 beam_wy = 0.012
@@ -19,11 +19,11 @@ msection.SetAsRectangularSection(beam_wy, beam_wz)
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
-msection.SetCentroid(0,0.02)
-msection.SetShearCenter(0,0.1)
-msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
-# Add some EULER-BERNOULLI BEAMS
+# Add some EULER-BERNOULLI BEAMS:
 beam_L = 0.1
 
 hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
@@ -37,18 +37,20 @@ mesh.AddNode(hnode3)
 belement1 = fea.ChElementBeamEuler()
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
+
 mesh.AddElement(belement1)
 
 belement2 = fea.ChElementBeamEuler()
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
+
 mesh.AddElement(belement2)
 
-# Apply force or torque to nodes
+# Apply a force or a torque to a node:
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
-# Fix nodes to ground
+# Fix a node to ground:
 mtruss = chrono.ChBody()
 mtruss.SetFixed(True)
 sys.Add(mtruss)
@@ -63,24 +65,27 @@ constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
-# Add more beams using ChBuilderBeamEuler
+# Add some EULER-BERNOULLI BEAMS (the fast way!)
 builder = fea.ChBuilderBeamEuler()
 
+# Now, simply use BuildBeam to create a beam from a point to another:
 builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+
+# Add another beam segment using the last node created by the previous beam as its starting point ('A' node)
+# and the point (0.2, 0.1, -0.1) as its endpoint ('B' point), with the 'Y' up direction as (0, 1, 0)
+builder.BuildBeam(mesh, msection, 5, builder.GetLastBeamNodes().back().GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+
+# Fix the A end and apply a force to the B end of the new beam segment
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# Add another beam segment using the last node created by the previous beam as the starting point
-last_node = builder.GetLastBeamNodes().back()
-builder.BuildBeam(mesh, msection, 5, last_node.GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
-
-# Disable gravity for FEA elements
+# We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False)
 
-# Add the mesh to the system
+# Remember to add the mesh to the system!
 sys.Add(mesh)
 
-# Visualize the FEM mesh
+# Attach a visualization of the FEM mesh.
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
@@ -99,7 +104,7 @@ mesh.AddVisualShapeFEA(visualizebeamC)
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1024,768)
+vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
@@ -107,7 +112,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Change the solver to PardisoMKL
+# Change the solver from the default SOR to the MKL Pardiso, more precise for fea.
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 

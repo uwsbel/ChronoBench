@@ -79,8 +79,17 @@ constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
                               False, False,False)    # Rx, Ry, Rz
 
 
-# Add another beam segment using `builder.BuildBeam()`.
+# Add some EULER-BERNOULLI BEAMS (the fast way!)
+
+# Shortcut!
+# This ChBuilderBeamEuler helper object is very useful because it will
+# subdivide 'beams' into sequences of finite elements of beam type, ex.
+# one 'beam' could be made of 5 FEM elements of ChElementBeamEuler class.
+# If new nodes are needed, it will create them for you.
+
 builder = fea.ChBuilderBeamEuler()
+
+# Now, simply use BuildBeam to create a beam from a point to another:
 builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
                     msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
                     5,                         # the number of ChElementBeamEuler to create

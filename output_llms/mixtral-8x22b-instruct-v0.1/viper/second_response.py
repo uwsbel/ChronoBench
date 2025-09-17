@@ -89,7 +89,9 @@ while vis.Run():
     driver.SetSteering(steering)  # Set the steering for the rover
 
     rover.Update()  # Update the rover's state
-    manager.Update()  # Update the sensor manager
+
+    # Update the sensor manager
+    manager.Update()
 
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):

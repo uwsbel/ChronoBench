@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -33,6 +33,19 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper rover - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+
 manager = sens.ChSensorManager(system)
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -50,19 +63,6 @@ cam = sens.ChCameraSensor(
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Rigid terrain')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2.5, 1.5), chrono.ChVector3d(0, 0, 1))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 
 
@@ -96,7 +96,6 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-
     step_number += 1
 
     

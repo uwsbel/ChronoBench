@@ -1,60 +1,59 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as veh
+import pychrono.vehicle as chrono_vehicle
 
 
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('./data/')
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(mysystem, 10, 2, 10, 1000, True, False)
+ground.SetPos(chrono.ChVectorD(0, -3, 0))
 ground.SetBodyFixed(True)
 
 
-viper = veh.ViperRover(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+viper = chrono_vehicle.ChViper(mysystem, True, True)
+viper.SetPos(chrono.ChVectorD(0, 0, 0))
+viper.SetMass(1500)
+viper.SetEngineMaxTorque(500)
+viper.SetEngineMaxPower(10000)
 
 
-driver = veh.ChIrrlichtDriver(viper)
+driver = chrono_vehicle.ChIrrlichtDriver(viper, mysystem)
 
 
-driver.SetTrackSmoothSteering(True)
-driver.SetSteeringSmoothSpeed(chrono.CH_C_PI / 4)
-driver.SetSteeringMin(chrono.CH_C_PI / 4)
-driver.SetSteeringMax(chrono.CH_C_PI / 2)
+application = chronoirr.ChVisualSystemIrrlicht()
+application.SetWindowSize(1280, 720)
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 0, 3))
+application.AddCamera(chrono.ChVectorD(0, 0, 10))
+application.SetShowCollisionModels(True)
+application.SetShowFrames(True)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht(system)
-
-
-vis.SetCamera(chrono.ChVectorD(0, 1.5, -3), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
-
-
-vis.AddTypicalLights()
-
-
-time_end = 10
-tstep = 0.01
+steering_angle = 0
+target_steering_angle = chrono.CH_C_PI / 4
+steering_time = 5
+timestep = 0.01
 time = 0
 
-while time < time_end:
+while application.Run():
     
-    driver.SetSteering(chrono.CH_C_PI / 4 * chrono.ChMath.Cos(time))
-
-    
-    system.DoStepDynamics(tstep)
+    mysystem.DoStepDynamics(timestep)
 
     
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    if time < steering_time:
+        steering_angle += (target_steering_angle / steering_time) * timestep
+    viper.SetSteering(steering_angle)
 
     
-    time += tstep
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
 
-
-while vis.Run():
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
+    
+    time += timestep

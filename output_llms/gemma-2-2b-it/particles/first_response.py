@@ -1,44 +1,49 @@
-import pychrono as chrono
-import pychrono.core as core
-import pychrono.irrlicht as irrlicht
-import random
+import pychrono as pchrono
 import numpy as np
+from irrlicht import irrlicht
+from irrlicht import irrlichtEngine
 
-# Initialize PyChrono environment
-chrono.Init()
+# Initialize PyChrono
+pchrono.init()
 
-# Create the world
-world = chrono.World()
+# Create the Irrlicht engine
+engine = irrlichtEngine()
 
-# Create a particle emitter
-emitter = chrono.ParticleEmitter(world)
-emitter.SetGravity(chrono.Vector3(0, 0, -9.81))  # Gravity acceleration
-emitter.SetParticleCount(100)  # Number of particles to generate
+# Define particle emitter
+particle_emitter = pchrono.ParticleEmitter()
 
 # Define particle properties
-particle_radius = 0.1
-particle_mass = 1.0
+particle_properties = pchrono.ParticleProperties()
+particle_properties.shape = pchrono.Shape.sphere
+particle_properties.size = 0.1
+particle_properties.color = (1, 0, 0)  # Red
 
-# Generate random particle positions, velocities, and orientations
-for i in range(emitter.GetParticleCount()):
-    position = chrono.Vector3(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10))
-    velocity = chrono.Vector3(random.uniform(-5, 5), random.uniform(-5, 5), random.uniform(-5, 5))
-    orientation = chrono.Quaternion(random.uniform(0, 2*np.pi), random.uniform(0, 2*np.pi), random.uniform(0, 2*np.pi))
-    emitter.AddParticle(position, velocity, orientation)
+# Create a particle
+particle = pchrono.Particle()
+particle.properties = particle_properties
 
-# Create an Irrlicht scene
-irrlicht_scene = irrlicht.IrrlichtScene()
+# Set initial positions, velocities, and orientations
+particle.position = np.array([0, 0, 0])
+particle.velocity = np.array([0, 0, 0])
+particle.orientation = np.array([0, 0, 0])
 
-# Add the particles to the Irrlicht scene
-for particle in emitter.GetParticles():
-    irrlicht_scene.AddParticle(particle)
+# Add particle to emitter
+particle_emitter.add_particle(particle)
 
-# Define Irrlicht rendering properties
-irrlicht_scene.SetCameraPosition(chrono.Vector3(0, 0, 10))
-irrlicht_scene.SetCameraRotation(chrono.Quaternion(0, 0, 0, 1))
+# Set the simulation time step
+time_step = 0.01
 
-# Create the Irrlicht rendering system
-irrlicht_system = irrlicht_scene.CreateIrrlichtSystem()
+# Create a gravitational force
+gravity = pchrono.Force(pchrono.Vector3(0, -9.81, 0))
 
-# Run the simulation
-chrono.Run()
+# Create a visual scene
+scene = pchrono.Scene()
+
+# Add the particle emitter to the scene
+scene.add_component(particle_emitter)
+
+# Add the gravitational force to the scene
+scene.add_force(gravity)
+
+# Start the simulation
+engine.run()

@@ -15,8 +15,8 @@ ground.SetFixed(True)
 ground.EnableCollision(False)  
 
 
-sphere_1 = chrono.ChVisualShapeSphere(0.2)  
-ground.AddVisualShape(sphere_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+sph_1 = chrono.ChVisualShapeSphere(0.2)  
+ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 
 pend_1 = chrono.ChBody()
@@ -32,13 +32,13 @@ cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
-pend_1.SetAngularVelocity(chrono.ChVector3d(0, 0, 1))  
+pend_1.SetAngularVelocity(chrono.ChVector3d(0, 1, 0))  
 
 
 
-spher_1 = chrono.ChLinkLockSpherical()
-spher_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(spher_1)
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(sph_1)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

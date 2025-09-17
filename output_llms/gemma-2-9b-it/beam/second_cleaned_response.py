@@ -1,4 +1,3 @@
-```python
 import pychrono as chrono  
 import pychrono.fea as fea  
 import pychrono.pardisomkl as mkl  
@@ -42,40 +41,15 @@ mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
 
-belement1 = fea.ChElementBeamEuler()
-belement1.SetNodes(hnode1, hnode2)  
-belement1.SetSection(msection)  
-mesh.AddElement(belement1)  
-
-
-belement2 = fea.ChElementBeamEuler()
-belement2.SetNodes(hnode2, hnode3)  
-belement2.SetSection(msection)  
-mesh.AddElement(belement2)  
-
-
-hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
-
-
-hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
-
-
-mtruss = chrono.ChBody()
-mtruss.SetFixed(True)  
-sys.Add(mtruss)  
-
-
 
 builder = fea.ChBuilderBeamEuler()
 
-
-
 builder.BuildBeam(
-    start_node=chrono.ChVector3d(0, 0, -0.1),
-    end_node=chrono.ChVector3d(0.2, 0, -0.1),
+    start_node=hnode1,
+    end_node=hnode2,
     section=msection,
     num_elements=5,
-    y_up=True
+    y_up=chrono.ChVector3d(0, 1, 0)
 )
 
 
@@ -85,23 +59,8 @@ builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-mesh.AddBeam(builder.GetBeam())
-
-
-
-constr_a = chrono.ChLinkMateGeneric()
-constr_a.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
-sys.Add(constr_a)
-constr_a.SetConstrainedCoords(False, True, True,  
-                              False, False, False)  
-
-
-
-
-mesh.SetAutomaticGravity(False)
-
-
 sys.Add(mesh)
+
 
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -125,4 +84,19 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
 vis.SetWindowTitle('FEA beams')  
-vis.Initialize()
+vis.Initialize()  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddSkyBox()  
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))  
+vis.AddTypicalLights()  
+
+
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)  
+
+
+while vis.Run():
+    vis.BeginScene()  
+    vis.Render()  
+    vis.EndScene()  
+    sys.DoStepDynamics(0.001)

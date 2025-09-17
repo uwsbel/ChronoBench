@@ -1,140 +1,85 @@
-import PyChrono as pc
-from pychrono.objects import *
-from pychrono.visualization import *
+import pychrono as pc
+import Irrlicht
 
 # Initialize PyChrono simulation
 sim = pc.Simulation()
-sim.set_tolerance(1e-8)
 
-# Define system components
-# Floor/truss
-floor = Box2D(
-    name="Floor",
-    size=(2, 2, 0.2),
-    position=(0, 0, 0),
-    material=Material(
-        color=(0.8, 0.2, 0.2),
-        texture="floor",
-        double_sided=False
-    )
-)
-sim.add_object(floor)
+# Initialize Irrlicht visualization
+irr = pc.Visualization(sim, window_size=(800, 600), camera_pos=(5, 5, 5), camera_rot=(45, 0, 0))
 
-# Crankshaft
-crankshaft = Rod2D(
-    name="Crankshaft",
-    length=0.5,
-    cross_section=0.01,
-    position=(0, 0, 0),
-    orientation=(0, 0, 1),
-    material=Material(
-        color=(0.9, 0.9, 0.9),
-        texture="aluminum",
-        double_sided=False
-    )
-)
-sim.add_object(crankshaft)
+# Set up camera and lighting
+irr.set_camera_control(True)
+irr.add_light(pc.DirectionalLight(1, 1, 1, 0, 0, 0, 5, 5, 5))
+irr.add_light(pc.AmbientLight(0.5, 0.5, 0.5))
 
-# Connecting rod
-connecting_rod = Rod2D(
-    name="ConnectingRod",
-    length=0.4,
-    cross_section=0.01,
-    position=crankshaft.position + (crankshaft.length, 0, 0),
-    orientation=(0, 0, 1),
-    joints=Joint2D(
-        type=Joint2D.Pin,
-        first_body=crankshaft,
-        second_body=floor,
-        position=(0, 0, 0)
-    ),
-    joints=Joint2D(
-        type=Joint2D.Spherical,
-        first_body=crankshaft,
-        second_body=floor,
-        position=(0, 0, 0)
-    ),
-    material=Material(
-        color=(0.9, 0.9, 0.9),
-        texture="aluminum",
-        double_sided=False
-    )
-)
-sim.add_object(connecting_rod)
+# Create fixed frame
+fixed_frame = pc.Rigid()
+fixed_frame.set_mass(0)
+fixed_frame.set_size(10, 10, 10)
+fixed_frame.set_position(pc.Vec3(0, 0, 0))
+fixed_frame.add_joint(pc.RevoluteJoint(fixed_frame, fixed_frame, pc.Vec3(0, 0, 0), pc.Vec3(0, 0, 0)))
 
-# Piston
-piston = Cylinder2D(
-    name="Piston",
-    radius=0.05,
-    height=0.1,
-    position=connecting_rod.position + (0, 0, 0.1),
-    orientation=(0, 0, 1),
-    material=Material(
-        color=(0, 0, 0),
-        texture="piston",
-        double_sided=False
-    )
-)
-sim.add_object(piston)
+# Create floor truss
+truss = pc.Box(fixed_frame, pc.Vec3(0, 0, 0), pc.Vec3(1, 1, 1), 10, 10, 10, 10)
+truss.set_position(pc.Vec3(0, 0, 0))
+truss.add_joint(pc.RevoluteJoint(truss, truss, pc.Vec3(0, 0, 0), pc.Vec3(0, 0, 0)))
 
-# Piston to floor joint
-piston_to_floor = Joint2D(
-    type=Joint2D.Slider,
-    first_body=piston,
-    second_body=floor,
-    position=(0, 0, 0.1 - 0.05)
-)
+# Create crankshaft
+crankshaft = pc.Rigid()
+crankshaft.set_mass(0)
+crankshaft.set_size(2, 0.1, 0.1)
+crankshaft.set_position(pc.Vec3(0, 0, 0))
+crankshaft.add_joint(pc.RevoluteJoint(fixed_frame, crankshaft, pc.Vec3(0, 0, 0), pc.Vec3(0, 0, 0)))
 
-# Motor
-motor = RotationalMotor2D(
-    name="Motor",
-    angular_speed=60,  # Degrees per second
-    axis=(0, 0, 1),
-    connected_body=crankshaft,
-    connected_joint=crankshaft.joints[0]
-)
-sim.add_object(motor)
+# Create connecting rod
+connecting_rod = pc.Rigid()
+connecting_rod.set_mass(0)
+connecting_rod.set_size(2, 0.1, 0.1)
+connecting_rod.add_joint(pc.RevoluteJoint(crankshaft, connecting_rod, pc.Vec3(1, 0, 0), pc.Vec3(0, 0, 0)))
 
-# Visualization setup
-# Create visualization
-viz = Visualization(sim)
-viz.camera = Camera2D(
-    position=(5, 5, 5),
-    look_at=(0, 0, 0),
-    up=(0, 1, 0),
-    fov=60,
-    size=(800, 600)
-)
+# Create piston
+piston = pc.Rigid()
+piston.set_mass(0)
+piston.set_size(0.1, 0.1, 0.5)
+piston.add_joint(pc.PrismaticJoint(connecting_rod, piston, pc.Vec3(0, 0, 0), pc.Vec3(0, 0, 0)))
 
-# Add lighting
-viz.add_light(
-    position=(10, 10, 10),
-    color=(1, 1, 1)
-)
+# Create motor
+motor = pc.Motor()
+motor.set_type(pc.MotorType.ROTATION)
+motor.set/angular_speed(2 * pc.PI)  # 60 RPM
+motor.set/force(100)
+motor.set/axis(pc.Vec3(0, 0, 1))
+motor.set_position(pc.Vec3(0, 0, 0))
+motor.add_rigid_body(crankshaft)
 
-# Add textures
-viz.textures.add("floor", "pychrono/textures/floor")
-viz.textures.add("aluminum", "pychrono/textures/aluminum")
-viz.textures.add("piston", "pychrono/textures/piston")
+# Set constraints
+crankshaft.add_constraint(pc.ContactConstraint(crankshaft, truss, pc.Vec3(0, 0, 0), 0, 0, 0, 1e8, 0.1))
+connecting_rod.add_constraint(pc.ContactConstraint(connecting_rod, piston, pc.Vec3(0, 0, 0), 0, 0, 0, 1e8, 0.1))
+crankshaft.add_constraint(pc.DistanceConstraint(crankshaft, connecting_rod, pc.Vec3(1, 0, 0), 1, 0, 0, 1e8, 0.1))
 
-# Setup simulation
-sim.init()
+# Set materials and textures
+crankshaft.set_material(pc.Material())
+crankshaft.set_texture("crankshaft")
+connecting_rod.set_material(pc.Material())
+connecting_rod.set_texture("connecting_rod")
+piston.set_material(pc.Material())
+piston.set_texture("piston")
 
-# Simulation loop
+# Add visualization elements
+irr.add_mesh(crankshaft, 0.01, 0.01, 0.01)
+irr.add_mesh(connecting_rod, 0.01, 0.01, 0.01)
+irr.add_mesh(piston, 0.01, 0.01, 0.01)
+
+# Set camera position and rotation
+irr.camera_pos = pc.Vec3(5, 5, 5)
+irr.camera_rot = pc.Vec3(45, 0, 0)
+
+# Set simulation time step
+sim.set_time_step(0.001)
+
+# Main simulation loop
 while True:
-    # Update motor
-    motor.update()
-    
-    # Update simulation
     sim.update()
-    
-    # Check contacts and joints
-    sim.check_contacts()
-    sim.check_joints()
-    
-    # Visualize
-    viz.render()
-    
-    # Close loop when window is closed
-    if viz.window.closed:
-        break
+    irr.draw()
+    irr.camera_pos = pc.Vec3(5, 5, 5)
+    irr.camera_rot = pc.Vec3(45, 0, 0)

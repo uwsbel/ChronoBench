@@ -26,11 +26,11 @@ sys = chrono.ChSystemSMC()
 L = 1.2  # Updated length
 H = 0.3  # Updated height
 K = 0.07  # Updated crank length
-vA = chrono.ChVector3d(0, 0, 0)
-vC = chrono.ChVector3d(L, 0, 0)
-vB = chrono.ChVector3d(L, -H, 0)
-vG = chrono.ChVector3d(L - K, -H, 0)
-vd = chrono.ChVector3d(0, 0, 0.0001)
+vA = chrono.ChVector3d(0, 0, 0)  # Point A
+vC = chrono.ChVector3d(L, 0, 0)  # Point C
+vB = chrono.ChVector3d(L, -H, 0)  # Point B
+vG = chrono.ChVector3d(L - K, -H, 0)  # Point G
+vd = chrono.ChVector3d(0, 0, 0.0001)  # Small offset vector
 
 # Create a truss body, fixed in space:
 body_truss = chrono.ChBody()
@@ -81,7 +81,7 @@ builder_iga = fea.ChBuilderBeamIGA()
 builder_iga.BuildBeam(mesh, msection1, 32, vA, vC, chrono.VECT_Y, 3)
 
 # Fix the first node of the horizontal beam
-builder_iga.GetLastBeamNodes().front().SetFixed(True)
+builder_iga.GetLastBeamNodes()[0].SetFixed(True)
 node_tip = builder_iga.GetLastBeamNodes()[-1]
 node_mid = builder_iga.GetLastBeamNodes()[17]
 
@@ -94,7 +94,7 @@ section2.SetShearModulusFromPoisson(0.3)
 section2.SetRayleighDamping(0.000)
 section2.SetAsCircularSection(hbeam_d)
 
-# Build the vertical beam with Euler elements (updated element count)
+# Build the vertical beam with Euler elements (updated to 6 elements)
 builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
@@ -104,7 +104,7 @@ node_down = builderA.GetLastBeamNodes()[-1]
 
 # Create a constraint between the horizontal and vertical beams
 constr_bb = chrono.ChLinkMateGeneric()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
+constr_bb.Initialize(node_top.Frame(), node_tip.Frame(), False, chrono.ChFrameD(), chrono.ChFrameD())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 
@@ -121,7 +121,7 @@ section3.SetShearModulusFromPoisson(0.3)
 section3.SetRayleighDamping(0.000)
 section3.SetAsCircularSection(crankbeam_d)
 
-# Build the crank beam with Euler elements (updated element count)
+# Build the crank beam with Euler elements (updated to 5 elements)
 builderB = fea.ChBuilderBeamEuler()
 builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
 
@@ -130,14 +130,14 @@ node_crankG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
-constr_cbd = chrono.ChLinkMateGeneric()
-constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
+constr_cbd = chrono.ChLinkNodeFrame()
+constr_cbd.Initialize(node_crankG, body_crank)
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+constr_bc.Initialize(node_down.Frame(), node_crankB.Frame(), False, chrono.ChFrameD(), chrono.ChFrameD())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
@@ -191,6 +191,7 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
+                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.001)

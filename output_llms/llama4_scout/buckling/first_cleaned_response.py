@@ -1,83 +1,79 @@
-import chrono as ch
 import numpy as np
+from chrono import chrono_types
+from chrono.fea import *
+from chrono.irrlicht import *
+from chrono.core import *
 
 
-ch.ChEngine.Initialize()
+chrono_types.InitChrono()
 
 
-system = ch.ChSystemNSC()
+system = ChSystemSMC()
 
 
-contact_material = ch.ChContactMaterial()
-contact_material.SetFrictionCoefficient(0.5)
-contact_material.SetRestitutionCoefficient(0.5)
+application = ChIrrApp(system, "Beam Buckling Simulation")
+
+
+system.SetGravitationalAcceleration(ChVector3d(0, -9.81, 0))
 
 
 beam_length = 10.0
-beam_width = 0.1
 beam_height = 0.1
+beam_thickness = 0.01
 num_elements = 10
 
-beam_fea = ch.ChBeamSectionEuler()
-beam_fea.SetLength(beam_length / num_elements)
-beam_fea.SetWidth(beam_width)
-beam_fea.SetThickness(beam_height)
-beam_fea.SetMaterial(ch.ChMaterialBeamSectionEuler(200e9, 0.3))
+beam_mesh = ChMesh()
 
-beam_body = ch.ChBody()
-beam_body.SetPos([0, 0, 0])
-system.AddBody(beam_body)
+
+for i in range(num_elements + 1):
+    x = i / num_elements * beam_length
+    node = ChNodeFEA(ChVector3d(x, 0, 0))
+    beam_mesh.AddNode(node)
+
 
 for i in range(num_elements):
-    beam_element = ch.ChElementBeamEuler(beam_fea, beam_body, beam_body, 
-                                        [beam_length / num_elements * i, 0, 0], 
-                                        [beam_length / num_elements * (i + 1), 0, 0])
-    system.AddElement(beam_element)
+    nodeA = beam_mesh.GetNode(i)
+    nodeB = beam_mesh.GetNode(i + 1)
+    element = ChElementBeamTimoshenko()
+    element.SetNodes(nodeA, nodeB)
+    element.SetSection(ChBeamSectionTimoshenko(beam_height, beam_thickness, 0.1 * beam_height ** 4 / 12, 0.1 * beam_thickness ** 4 / 12))
+    beam_mesh.AddElement(element)
 
 
-class CustomMotorFunction(ch.ChFunction):
+system.Add(beam_mesh)
+
+
+fix_node = beam_mesh.GetNode(0)
+fix_node.SetFixed(True)
+
+
+load_node = beam_mesh.GetNode(num_elements)
+load_node.SetForce(ChVector3d(0, -100, 0))
+
+
+class CustomMotorFunction(ChFunction):
     def __init__(self):
-        super(CustomMotorFunction, self).__init__()
-        self.rot_angle = 0
+        super().__init__()
 
-    def Get_y(self, t):
-        self.rot_angle += 0.1 * ch.CH_C_fabs(ch.CH_C_cos(2 * np.pi * t))
-        return self.rot_angle
+    def GetVal(self, time):
+        return np.sin(time)
 
-
-motor_body = ch.ChBody()
-motor_body.SetPos([0, 0, 10])
-system.AddBody(motor_body)
 
 motor_function = CustomMotorFunction()
-motor_joint = ch.ChLinkMotorRotationAngle()
-motor_joint.SetMotorFunction(motor_function)
-motor_joint.Initialize(beam_body, motor_body, ch.ChFrame([0, 0, 0], [0, 0, 0]))
-system.AddLink(motor_joint)
+load_node.SetForceFunction(motor_function)
 
 
-fixed_constraint = ch.ChLinkFixed()
-fixed_constraint.Initialize(beam_body, motor_body)
-system.AddLink(fixed_constraint)
 
 
-system.SetSolverType(ch.ChSolverType_BARZETTI)
-system.SetTimestepperType(ch.ChTimestepperType.EULER_IMPLICIT_LINEARIZED)
+
+application.SetTimestep(0.01)
+application.SetVerbose(True)
 
 
-vis = ch.ChVisualization()
-vis.SetSymbolScale(0.1)
-beam_body.AddVisualizationShape(vis)
+system.SetSolver(ChSolverPSOR())
+system.SetTimestepper(ChTimestepperEulerImplicitLinear())
 
 
-app = ch.ChIrrApp(system, "Beam Buckling Simulation")
+application.Run()
 
-
-app.SetTimestep(0.01)
-app.SetTryRealtime(True)
-
-while app.GetShouldKeepRunning():
-    app.DoStep()
-    app.Render()
-
-app.EndSimulation()
+chrono_types.EndChrono()

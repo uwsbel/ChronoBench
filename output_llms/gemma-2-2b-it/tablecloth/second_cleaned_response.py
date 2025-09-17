@@ -41,7 +41,6 @@ for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
         p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
         mnode = fea.ChNodeFEAxyz(p)
-        mesh.AddNode(mnode)
         mynodes.append(mnode)
 
 
@@ -68,34 +67,13 @@ for iz in range(nsections_z):
         mesh.AddElement(melementB)
 
 
-
-nodePlotA = None
-nodePlotB = None
-nodesLoad = []
-
-
-ref_X = lambda x: x
-ref_Y = lambda y: y
-
-
-load_force = chrono.ChVector3d(0, 1000, 0)
-
-
-mnodemonitor = None
-ementmonitor = None
-
-
-for j in range(30):
-    for k in range(30):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
-
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 
@@ -111,7 +89,7 @@ vis.AddTypicalLights()
 
 
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
+mkl_solver.LockSparsityPattern(True)  
 sys.SetSolver(mkl_solver)
 
 

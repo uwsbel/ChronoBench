@@ -3,12 +3,24 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Change the initial vehicle location to (-15, 0, 0.0)
+# Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# SCM deformable terrain parameters
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -21,7 +33,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN vehicle, set parameters, and initialize
+# Create the M113 vehicle, set parameters, and initialize
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -40,29 +52,30 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-# Create the terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem(), 0.1, 0.5, 5, 5)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the SCM terrain patch
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain.SetContactMaterial(patch_mat)
 
-# Set SCM soil parameters
-terrain.SetSoilParameters(2e6,  # Bekker Kphi
-                           0,      # Bekker Kc
-                           1.1,    # Bekker n exponent
-                           0,      # Mohr-Coulomb cohesion (C)
-                           30,     # Mohr-Coulomb friction angle (phi)
-                           0,      # Janosi shear coefficient (j)
-                           4e7,    # Elastic stiffness (k)
-                           3e4     # Damping (d)
-                          )
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(
+    2e6,     # Bekker Kphi
+    0,       # Bekker Kc
+    1.1,     # Bekker n exponent
+    0,       # Mohr cohesive limit (Pa)
+    30,      # Mohr friction limit (degrees)
+    1e4,     # Janosi shear coefficient (Pa/m)
+    4e7,     # Elastic stiffness (Pa/m), before plastic yield
+    3e4      # Damping (Pa.s/m), proportional to negative vertical speed (added for stability)
+)
 
-# Initialize SCM terrain using a height map
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/test64.bmp"), 1.6, 0, 0.1, 3.5)
+# Load a height map
+terrain.Initialize(chrono.GetChronoDataFile("vehicle/terrain/height_maps/test64.bmp"), 16, 16, 0, 0.16)
 
-# Set the SCM terrain texture to dirt
-terrain.SetPlotType(veh.SCMTerrain::PLOT_PRESSURE, 0, 40000)
+# Set SCM terrain texture
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 20000)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -112,17 +125,14 @@ while vis.Run():
         render_frame += 1
 
     # Get driver inputs
-    # Hard-code the throttle value to 0.8 during the simulation loop.
-    driver_inputs = veh.Inputs()
-    driver_inputs.m_throttle = 0.8
-    driver_inputs.m_steering = driver.GetSteering()
-    driver_inputs.m_braking = driver.GetBraking()
+    driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = 0.8  # Hard-code throttle value to 0.8
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
-    vis.Synchronize("", driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -132,5 +142,3 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
-
-# The corrected and modified script is provided above.

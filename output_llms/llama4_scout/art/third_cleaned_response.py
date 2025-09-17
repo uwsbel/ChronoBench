@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0  
 terrainLength = 100.0  
 terrainWidth = 100.0  

@@ -108,12 +108,11 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return self.A1
 
-# Create an instance of the custom motor function with the specified parameters
-f_ramp = ChFunctionMyFun(0.0, 1.0, 10, 20, 30, 0.2)
+# Create an instance of the custom motor function with specific parameters
+f_ramp = ChFunctionMyFun(1, 2, 10, 20, 30, 40)
 rotmotor1.SetMotorFunction(f_ramp)
 
-# Attach a visualization of the FEM mesh.
-
+# Visualization and Additional Settings
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -138,13 +137,13 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
-# Uncomment the following line to use a more precise HHT timestepper
-# sys.SetSolver(mkl.ChSolverHHT())
-
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
 sys.DoStaticLinear()
+
+# Uncomment the following line to set up a more precise HHT timestepper
+# sys.SetSolver(msolver, chrono.ChSolverHHT())
 
 while vis.Run():
     vis.BeginScene()

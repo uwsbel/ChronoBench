@@ -1,8 +1,8 @@
 import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrono  # Import the main PyChrono library
-import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
-import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
+import chrono  # Import the main PyChrono library
+import chrono.fea as fea  # Import the finite element analysis module from PyChrono
+import chrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
+import chrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
 import os  # Import the OS library for file and directory operations
 
 # Custom function class for motor angle:
@@ -34,16 +34,16 @@ vd = chrono.ChVector3d(0, 0, 0.0001)
 # Create a truss body, fixed in space:
 body_trss = chrono.ChBody()
 body_trss.SetFixed(True)
-sys.Add(body_trss)
+sys.AddBody(body_trss)
 
 # Attach a visualization shape to the truss
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_trss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 # Create a crank body:
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.Add(body_crank)
+sys.AddBody(body_crank)
 
 # Attach a visualization shape to the crank
 boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
@@ -51,7 +51,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrame(chrono.ChVector3d(vG)))
+motor.Initialize(body_trss, body_crank, chrono.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -176,6 +176,7 @@ vis.AddTypicalLights()
 # Use a solver that can handle stiffness matrices
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
+
 # Use the HHT timestepper for less numerical damping and higher accuracy
 ts = chrono.ChTimestepperHHT(sys)
 ts.SetStepControl(True)

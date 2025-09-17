@@ -38,8 +38,8 @@ mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))
 
 link_revoluteTT = chrono.ChLinkLockRevolute()
 link_revoluteTT.Initialize(mbody_truss, mbody_train,
-                            chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
-                                            chrono.QUNIT))
+                           chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
+                                           chrono.QUNIT))
 sys.AddLink(link_revoluteTT)
 
 
@@ -58,13 +58,13 @@ mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)  
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),
-                                                        chrono.QuatFromAngleX(chrono.CH_PI_2)))
+                                                         chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
 
 link_motor = chrono.ChLinkMotorRotationSpeed()
 link_motor.Initialize(mbody_gearA, mbody_truss,
-                        chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
-                                        chrono.QUNIT))
+                      chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
+                                      chrono.QUNIT))
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))  
 sys.AddLink(link_motor)
 
@@ -85,9 +85,10 @@ mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 link_revolute = chrono.ChLinkLockRevolute()
 link_revolute.Initialize(mbody_gearB, mbody_train,
-                            chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0),
-                                            chrono.QUNIT))
+                         chrono.ChFramed(chrono.ChVector3d(interaxis12, 0, 0),
+                                         chrono.QUNIT))
 sys.AddLink(link_revolute)
+
 
 
 link_gearAB = chrono.ChLinkLockGear()
@@ -97,6 +98,7 @@ link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-
 link_gearAB.SetTransmissionRatio(radA / radB)
 link_gearAB.SetEnforcePhase(True)
 sys.AddLink(link_gearAB)
+
 
 
 radC = 2 * radB + radA

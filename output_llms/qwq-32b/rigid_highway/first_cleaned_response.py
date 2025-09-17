@@ -2,196 +2,75 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
-
-
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  
-    chassisPos=chrono.ChVectorD(0, 0, 1),
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',
-    use_mesh=True  
-)
-
-
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(chrono.ChTriangleMeshShape())
-terrain.GetVisualShape().SetMesh(visual_mesh)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(terrain)
-
-
-vehicle.SetTerrain(terrain)
-
-
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
-
-
-while app.GetDevice().run():
-    time = system.GetChTime()
+def main():
     
+    my_system = chrono.ChSystemMulticore()
+    my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
     
-    driver.Synchronize(time)
+    application = irr.ChIrrApp(my_system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
+    application.AddTypicalLights()
+    application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
+    application.SetSymbolscale(0.01)
+    application.SetTimestep(0.02)  
+    application.SetRealtimeFactor(1)  
+
     
+    terrain_body = chrono.ChBodyEasyStatic()
+    terrain_body.SetCollide(True)
+
     
-    system.DoStepDynamics(1/50)
+    collision_mesh = chrono.ChTriangleMeshShape()
+    collision_mesh.SetName("Highway_collision")
+    collision_mesh.SetMesh(chrono.ChTriangleMesh())
+    collision_mesh.GetMesh().LoadWavefrontMesh("Highway_col.obj")
+    terrain_body.GetCollisionModel().ClearModel()
+    terrain_body.GetCollisionModel().AddTriangleMesh(collision_mesh.GetMesh(), False, False)
+    terrain_body.GetCollisionModel().BuildModel()
+    terrain_body.SetCollide(True)
+
     
+    visual_mesh = chrono.ChTriangleMeshShape()
+    visual_mesh.SetName("Highway_visual")
+    visual_mesh.SetMesh(chrono.ChTriangleMesh())
+    visual_mesh.GetMesh().LoadWavefrontMesh("Highway_vis.obj")
+    visual_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    terrain_body.AddAsset(visual_mesh)
+
+    my_system.Add(terrain_body)
+    application.Add(terrain_body)  
+
     
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
+    init_position = chrono.ChVectorD(0, 0, 1)  
+    init_orientation = chrono.ChQuaternionD(1, 0, 0, 0)
+    vehicle = veh.ChHMMWV()
+    vehicle.Initialize(my_system, init_position, init_orientation, False, veh.ChTireModelType.TMEASY)
+
     
+    vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
+    vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.MESH)
+    vehicle.SetSuspensionVisualizationType(veh.SuspensionVisualizationType.MESH)
+    vehicle.SetSteeringVisualizationType(veh.SteeringVisualizationType.MESH)
+    vehicle.SetTireVisualizationType(veh.TireVisualizationType.MESH)
+
     
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
+    application.Add(vehicle.GetChassis())
 
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-
-
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
-
-
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  
-    chassisPos=chrono.ChVectorD(0, 0, 1),
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',
-    use_mesh=True  
-)
-
-
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
-
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(visual_shape)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(terrain)
-
-
-vehicle.SetTerrain(terrain)
-
-
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
-
-
-while app.GetDevice().run():
-    time = system.GetChTime()
     
+    driver = veh.ChIrrGuiDriver(application)
+    driver.SetSteeringDelta(0.01)
+    driver.SetThrottleDelta(0.01)
+    driver.SetBrakingDelta(0.01)
+
     
-    driver.Synchronize(time, 1/50)  
-    
-    
-    system.DoStepDynamics(1/50)
-    
-    
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
+    while application.GetDevice().run():
+        current_time = my_system.GetChTime()
+        driver.Synchronize(current_time, vehicle)
 
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+        application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
-
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
-
-
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  
-    chassisPos=chrono.ChVectorD(0, 0, 1),  
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',  
-    use_mesh=True  
-)
-
-
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
-
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(visual_shape)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))  
-system.Add(terrain)
-
-
-vehicle.SetTerrain(terrain)
-
-
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
-
-
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    
-    driver.Synchronize(time, 1/50)  
-    
-    
-    system.DoStepDynamics(1/50)  
-    
-    
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
+if __name__ == '__main__':
+    main()

@@ -14,33 +14,33 @@ sys.Add(ground)
 
 
 pend_1 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True)
-pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+pend_1.SetPos(chrono.ChVectorD(0, 2, 0))
 sys.Add(pend_1)
 
 
 rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngY(chrono.CH_PI_2)))
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.Q_from_AngY(0)))
 sys.AddLink(rev_1)
 
 
 pend_2 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True)
-pend_2.SetPos(chrono.ChVectorD(3, 0, 1))
+pend_2.SetPos(chrono.ChVectorD(0, 4, 0))
 sys.Add(pend_2)
 
 
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(2, 0, 1), chrono.Q_from_AngY(chrono.CH_PI_2)))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.Q_from_AngY(0)))
 sys.AddLink(rev_2)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('Double Pendulum Demo')  
+vis.SetWindowTitle('Double Pendulum Simulation')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVectorD(0, 3, 6))  
+vis.AddCamera(chrono.ChVectorD(0, 10, 10))  
 vis.AddTypicalLights()  
 
 

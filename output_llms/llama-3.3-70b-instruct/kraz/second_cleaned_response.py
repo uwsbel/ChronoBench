@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -37,6 +38,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
+
 
 
 vehicle = veh.Kraz()
@@ -102,11 +104,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-lane_change_start_time = 2.0  
-lane_change_duration = 4.0  
-lane_change_direction = 1.0  
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -121,10 +118,24 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        driver_inputs.steering = lane_change_direction * (time - lane_change_start_time) / lane_change_duration
-    elif time >= lane_change_start_time + lane_change_duration and time < lane_change_start_time + 2 * lane_change_duration:
-        driver_inputs.steering = -lane_change_direction * (time - lane_change_start_time - lane_change_duration) / lane_change_duration
+    if time < 2.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    elif time < 4.0:
+        driver_inputs.steering = -0.5
+        driver_inputs.throttle = 1.0
+    elif time < 6.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    elif time < 8.0:
+        driver_inputs.steering = 0.5
+        driver_inputs.throttle = 1.0
+    elif time < 10.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    else:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 0.0
 
     
     driver.Synchronize(time)

@@ -40,14 +40,9 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
-box_mat.SetFriction(0.6)
-box_mat.SetRestitution(0.01)
-box_shape = chrono.ChBoxShape(0.5, 5, 0.2)
-box_body = chrono.ChBodyEasyBox(0.5, 5, 0.2, box_mat, box_shape)
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_body.SetBodyFixed(True)
-vehicle.GetSystem().Add(box_body)
+box_obstacle = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000, True, True)
+box_obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box_obstacle.SetBodyFixed(True)
 
 
 vehicle = veh.UAZBUS()
@@ -57,6 +52,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+vehicle.Add(box_obstacle)
 
 vehicle.Initialize()
 

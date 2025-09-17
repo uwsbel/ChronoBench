@@ -1,8 +1,7 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.sensor as sensors
-import pychrono.ros as chronoros
-import numpy as np
+import pychrono.ros as ros
 import time
 
 
@@ -16,108 +15,92 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
 system.Add(ground)
 
 
-ground_visual = chrono.ChVisualizationEAE()
-ground_visual.SetMesh(chrono.ChMeshFileShape("PATH_TO_MESH.obj"))  
-ground.AddVisualization(ground_visual)
+ground_vis = chrono.ChVisualizationEA()
+ground_vis.SetMesh(chrono.GetChronoDataFile("models/ground.obj"))  
+ground.AddVisualShape(ground_vis)
 
+
+platform = chrono.ChBody()
+platform.SetPos(chrono.ChVectorD(0, 0, 0))
+platform.SetBodyFixed(False)
+system.Add(platform)
 
 
 sensor_manager = sensors.ChSensorManager(system)
 
 
-ros_manager = chronoros.ChRosManager()
-ros_manager.Initialize("chrono_sensor_simulation")
 
-
-
-camera = sensors.ChCameraSensor(ground,  
-                               50,       
-                               chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
-                               640,      
-                               480,      
-                               1.0472)   
-camera.SetName("camera_sensor")
+camera = sensors.ChCameraSensor(platform,  
+                               chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(0,1,0))),
+                               640, 480,  
+                               chrono.CH_C_PI/4)  
 sensor_manager.AddSensor(camera)
-ros_manager.AddSensor(camera, "/camera/image_raw", "sensor_msgs/Image")
 
 
-lidar = sensors.ChLidarSensor(ground,  
-                             20,       
-                             chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
-                             30,       
-                             0.1,      
-                             10.0,     
-                             50.0,     
-                             0.0)      
-lidar.SetName("lidar_sensor")
+lidar = sensors.ChLidarSensor(platform,
+                             chrono.ChFrameD(chrono.ChVectorD(0, 0.3, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(1,0,0))),
+                             360,  
+                             10,   
+                             10.0, 
+                             0.1)  
 sensor_manager.AddSensor(lidar)
-ros_manager.AddSensor(lidar, "/lidar/points", "sensor_msgs/PointCloud2")
 
 
-gps = sensors.ChGpsSensor(ground,  
-                         1,        
-                         chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-gps.SetName("gps_sensor")
+gps = sensors.ChGPSSensor(platform)
 sensor_manager.AddSensor(gps)
-ros_manager.AddSensor(gps, "/gps/fix", "sensor_msgs/NavSatFix")
 
 
+accelerometer = sensors.ChAccelerometerSensor(platform)
+sensor_manager.AddSensor(accelerometer)
 
-accel = sensors.ChAccelerometerSensor(ground,  
-                                     100,      
-                                     chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-accel.SetName("accelerometer_sensor")
-sensor_manager.AddSensor(accel)
-ros_manager.AddSensor(accel, "/imu/accel", "sensor_msgs/Imu")
+gyroscope = sensors.ChGyroscopeSensor(platform)
+sensor_manager.AddSensor(gyroscope)
 
-
-gyro = sensors.ChGyroscopeSensor(ground,  
-                                100,      
-                                chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-gyro.SetName("gyroscope_sensor")
-sensor_manager.AddSensor(gyro)
-ros_manager.AddSensor(gyro, "/imu/gyro", "sensor_msgs/Imu")
+magnetometer = sensors.ChMagnetometerSensor(platform)
+sensor_manager.AddSensor(magnetometer)
 
 
-magneto = sensors.ChMagnetometerSensor(ground,  
-                                      10,       
-                                      chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
-magneto.SetName("magnetometer_sensor")
-sensor_manager.AddSensor(magneto)
-ros_manager.AddSensor(magneto, "/imu/mag", "sensor_msgs/MagneticField")
+ros_manager = ros.ChRosManager()
+ros_manager.Initialize("chrono_simulation_node")
+
+
+ros_manager.RegisterSensor(camera, "/camera/image_raw")
+ros_manager.RegisterSensor(lidar, "/lidar/points")
+ros_manager.RegisterSensor(gps, "/gps/fix")
+ros_manager.RegisterSensor(accelerometer, "/imu/accel")
+ros_manager.RegisterSensor(gyroscope, "/imu/gyro")
+ros_manager.RegisterSensor(magnetometer, "/imu/mag")
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Chrono Sensor Simulation")
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("PyChrono Sensor Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 3, 2))
+vis.AddCamera(chrono.ChVectorD(2, 2, 2))
 vis.AddTypicalLights()
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(1, 1, 1), 10)
-
 
 
 time_step = 0.01
-sim_time = 0.0
-max_time = 10.0  
+max_time = 10.0
 
 
-while vis.Run() and sim_time < max_time:
-    start_time = time.time()
+while vis.Run():
+    time_start = time.time()
 
     
     sensor_manager.Update()
 
     
+    ros_manager.PublishSensorData()
+
+    
     system.DoStepDynamics(time_step)
-    sim_time += time_step
 
     
     vis.BeginScene()
@@ -125,9 +108,14 @@ while vis.Run() and sim_time < max_time:
     vis.EndScene()
 
     
-    elapsed_time = time.time() - start_time
-    sleep_time = max(0, time_step - elapsed_time)
-    time.sleep(sleep_time)
+    time_end = time.time()
+    elapsed = time_end - time_start
+    if elapsed < time_step:
+        time.sleep(time_step - elapsed)
+
+    
+    if system.GetChTime() > max_time:
+        break
 
 
 ros_manager.Shutdown()

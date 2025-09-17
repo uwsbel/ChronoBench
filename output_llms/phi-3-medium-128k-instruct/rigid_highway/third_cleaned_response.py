@@ -82,7 +82,6 @@ patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)

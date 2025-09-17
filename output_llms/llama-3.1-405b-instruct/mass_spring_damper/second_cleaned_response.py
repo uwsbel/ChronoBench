@@ -84,8 +84,7 @@ spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-my_force = MySpringForce(spring_coef, damping_coef)
-spring_2.RegisterForceFunctor(my_force)
+spring_2.RegisterForceFunctor(MySpringForce(spring_coef, damping_coef))
 sys.AddLink(spring_2)
 
 
@@ -101,6 +100,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
+
 
 while vis.Run():
     vis.BeginScene()

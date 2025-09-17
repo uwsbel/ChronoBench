@@ -8,51 +8,41 @@ import random
 
 
 num_boxes = 10
-box_size = 1
-min_box_pos = chrono.ChVector3d(-50, -50, -5)
-max_box_pos = chrono.ChVector3d(50, 50, 5)
-
+box_size = 1.0
 for i in range(num_boxes):
-    box_pos = chrono.ChVector3d(
-        random.uniform(min_box_pos.x, max_box_pos.x),
-        random.uniform(min_box_pos.y, max_box_pos.y),
-        random.uniform(min_box_pos.z, max_box_pos.z)
-    )
-
-    if not vehicle.GetSystem().IsBodyPresent(box_pos):
-        box = chrono.ChBodyEasyBox(box_size, 1, 1, vehicle.GetSystem())
-        box.SetPos(box_pos)
-        box.SetCollide(True)
-        box.SetBodyFixed(True)
+    x = random.uniform(-50, 50)
+    y = random.uniform(-50, 50)
+    z = random.uniform(terrainHeight, terrainHeight + 5)
+    box_body = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, chrono.ChVectorD(x, y, z))
+    vehicle.GetSystem().AddBody(box_body)
 
 
-smgr = irr.ChVisualSystemIrrlicht.GetSensorManager()
-light_positions = [
-    chrono.ChVector3d(-10, 20, 20),
-    chrono.ChVector3d(10, -20, 20),
-    chrono.ChVector3d(-20, 0, -20),
-]
+sensor_manager = chrono.ChSensorManager()
 
+
+num_lights = 5
+light_positions = [(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(terrainHeight, terrainHeight + 5)) for _ in range(num_lights)]
 for pos in light_positions:
-    light = irr.ChIrrLightSensor()
-    light.SetPos(pos)
-    light.SetRange(20)
-    light.SetColor(chrono.ChColor(1, 1, 1))
-    smgr.AddSensor(light)
+    light = irr.ChIrrLight()
+    light.SetPosition(irr.vector3df(pos[0], pos[1], pos[2]))
+    light.SetDiffuseColor(irr.SColor(255, 255, 255, 255))
+    light.SetSpecularColor(irr.SColor(255, 255, 255, 255))
+    sensor_manager.AddSensor(light)
 
 
-camera_sensor = irr.ChVisualSensor()
-camera_sensor.SetPos(trackPoint)
-camera_sensor.SetMode(irr.ChVisualSensor.MODE_CAMERA)
-camera_sensor.SetCameraType(irr.ChVisualSensor.CAMERA_TYPE_PERSPECTIVE)
-camera_sensor.SetResolution(1280, 720)
-camera_sensor.SetFieldOfView(60)
-camera_sensor.SetNearPlane(0.1)
-camera_sensor.SetFarPlane(1000)
-camera_sensor.SetActive(True)
+camera = irr.ChVisualSensor()
+camera.SetType(irr.CH_SENSOR_VISUAL_CAMERA)
+camera.SetPosition(irr.vector3df(trackPoint.x, trackPoint.y, trackPoint.z))
+camera.SetUp(irr.vector3df(0, 0, 1))
+camera.SetFarValue(500.0)
+camera.SetAspectRatio(1.33)
+camera.SetFOV(60.0)
+camera.SetResolution(800, 600)
+camera_feed = irr.ChCameraStream(camera)
+sensor_manager.AddSensor(camera_feed)
 
 
-smgr.AddSensor(camera_sensor)
+vis.AttachSensorManager(sensor_manager)
 
 
-vis.AddCamera(camera_sensor)
+vis.AddCameraStream(camera_feed)

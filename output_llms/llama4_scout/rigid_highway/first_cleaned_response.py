@@ -1,77 +1,57 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 
-ch.set_default_contact_material(ch.ContactMaterial())
+chrono.ChEngine.Initialize()
 
 
-app = irr.ChIrrApp()
+app = irr.IrrlichtApplication()
 
 
-vehicle = veh.ChHMMWV()
+vehicle = veh.HMMWV()
 
 
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisPos(ch.ChVectorD(0, 0, 1))
-vehicle.SetChassisRot(ch.ChQuaternionD(0, 0, 0, 1))
-
-
+vehicle.SetContactMethod(chrono.ChContactMethod_NECTAR)
 vehicle.SetTireModel(veh.TireModel_TMEASY)
 
 
-vehicle.SetVisualization(veh.VisualizationMode_MESH)
+vehicle.SetVisualization(chrono.ChVisualAssetLevel_MESH)
 
 
-terrain = veh.ChTerrain()
-terrain_file_col = "path/to/Highway_col.obj"  
-terrain_file_vis = "path/to/Highway_vis.obj"  
-terrain.AddCollisionShape(terrain_file_col, False)
-terrain.AddVisualShape(terrain_file_vis)
+terrain = veh.TerrainMesh()
+terrain.Initialize('Highway_col.obj', 'Highway_vis.obj')
 
 
-terrain.SetPos(ch.ChVectorD(0, 0, 0))
-
-
-driver = veh.ChInteractiveDriverIRR()
+driver = veh.DriverWheeled()
 driver.AttachVehicle(vehicle)
-driver.SetSteering(veh.DriverInputs_Float(0.0))
-driver.SetThrottle(veh.DriverInputs_Float(0.0))
-driver.SetBraking(veh.DriverInputs_Float(0.0))
+driver.SetSteering(chrono.ChFunction_Constant(0.0))
+driver.SetThrottle(chrono.ChFunction_Constant(0.5))
+driver.SetBraking(chrono.ChFunction_Constant(0.0))
 
 
-sim_frame_rate = 50  
+simulation = chrono.ChSimulation(vehicle)
+simulation.SetTimestep(0.02)  
+simulation.SetRealtime(true)
 
 
-def simulate():
-    time_step = 1.0 / sim_frame_rate
-    scene = irr.ChIrrSceneNode(app.GetDevice())
-
-    
-    scene.Add(vehicle.GetChassisBody())
-    for wheel in vehicle.GetWheels():
-        scene.Add(wheel)
-    scene.Add(terrain.GetCollisionShape())
-    scene.Add(terrain.GetVisualShape())
-
-    while app.Run():
-        
-        vehicle.Update(time_step)
-
-        
-        driver.Update(time_step)
-        steering_input = 0.1
-        throttle_input = 0.5
-        braking_input = 0.0
-        driver.SetSteering(veh.DriverInputs_Float(steering_input))
-        driver.SetThrottle(veh.DriverInputs_Float(throttle_input))
-        driver.SetBraking(veh.DriverInputs_Float(braking_input))
-
-        
-        scene.Update()
-
-        
-        app.GetDevice().sleep(time_step)
+vehicle.SetPos(chrono.ChVector3d(0, 0, 1))
+vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
 
-simulate()
+simulation.Add(terrain)
+
+
+simulation.Add(vehicle)
+
+
+simulation.Add(driver)
+
+
+while simulation.GetRealtimeTimestep() < 60.0 and app.Run():
+    simulation.Step(0.02)
+    app.Render()
+    simulation.Update()
+
+
+chrono.ChEngine.Finalize()

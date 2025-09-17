@@ -1,4 +1,5 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
@@ -69,9 +70,9 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-# Create the vehicle Irrlicht interface
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -82,17 +83,20 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
-driver = veh.ChDataDriver()  # Changed to ChDataDriver
+# Create the data-driven driver system
+driver = veh.ChDataDriver()
 
-# Define a sequence of driver inputs
-driver_inputs = veh.vector_Entry()  # Changed to vector_Entry
-driver_inputs.Add(chrono.ChVector3d(0.0, 0.0, 0.0))  # Initial inputs
-driver_inputs.Add(chrono.ChVector3d(1.0, 0.0, 0.0))  # Input at t=0.1s
-driver_inputs.Add(chrono.ChVector3d(1.0, 0.7, 0.0))  # Input at t=0.5s
+# Define sequence of driver inputs
+driver_inputs = veh.vector_Entry()
+driver_inputs.Add(chrono.ChDataDriverEntry(0.0, 0.0, 0.0))
+driver_inputs.Add(chrono.ChDataDriverEntry(0.1, 1.0, 0.0))
+driver_inputs.Add(chrono.ChDataDriverEntry(0.5, 1.0, 0.7))
 
-# Set the time response for steering and throttle keyboard inputs.
-# This section is removed as per the instructions
+# Set driver inputs
+driver.SetDriverInputs(driver_inputs)
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -127,6 +131,3 @@ while vis.Run() :
     step_number += 1
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

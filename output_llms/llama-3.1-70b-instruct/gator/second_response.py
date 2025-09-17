@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -65,43 +64,46 @@ patch_mat.SetRestitution(0.01)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Create 4 different patches of terrain with different textures
+# Create 4 patches of terrain with different textures
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-20, -20, 0), chrono.QUNIT), 
-    20, 20)
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(20, -20, 0), chrono.QUNIT), 
-    20, 20)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/tile5.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.4))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
 
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-20, 20, 0), chrono.QUNIT), 
-    20, 20)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile6.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.2, 0.2, 0.2))
 
-# Create a patch of terrain with a height map
+# Create a patch with a height map
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(20, 20, 0), chrono.QUNIT), 
-    20, 20)
-patch4.SetHeight(chrono.GetChronoDataFile("terrain/heightmaps/heightmap_1.png"))
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile7.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 
+    terrainLength, 50)
+patch4.SetHeight(chrono.ChVector3d(0, 0, 10))  # set height
+patch4.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
 
-# Add a bump to the patches of terrain
-bump = chrono.ChVector3d(0, 0, 0.1)
-patch1.AddBump(bump)
-patch2.AddBump(bump)
-patch3.AddBump(bump)
-patch4.AddBump(bump)
+# Add a bump to the patches
+bump1 = terrain.AddBump(patch1, chrono.ChVector3d(-25, 0, 0), 10, 5)
+bump2 = terrain.AddBump(patch2, chrono.ChVector3d(0, 0, 0), 10, 5)
+bump3 = terrain.AddBump(patch3, chrono.ChVector3d(25, 0, 0), 10, 5)
+bump4 = terrain.AddBump(patch4, chrono.ChVector3d(0, -25, 0), 10, 5)
 
 terrain.Initialize()
 
+# -------------------------------------
 # Create the vehicle Irrlicht interface
+# Create the driver system
+# -------------------------------------
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -125,10 +127,17 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
+# ---------------
 # Simulation loop
+# ---------------
+
+# output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -136,24 +145,30 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
 
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

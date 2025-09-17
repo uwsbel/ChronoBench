@@ -23,96 +23,75 @@ part = chrono.ChPart(ground)
 sys.Add(part)
 
 
-sensor_manager = sens.ChSensorManager(sys)
+manager = sens.ChSensorManager(sys)
 
 
 camera = sens.ChCameraSensor(
-    sensor_manager,
-    640,  
-    480,  
-    60,   
-    0.1,  
-    0.01  
+    width=640, height=480, fov=60,
+    update_rate=30, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(1.5, 0, 0.5))
 )
-camera.SetName("camera")
-camera.SetOffset(chrono.ChVector(0, 1, 0))
-camera.SetRotation(chrono.Q_from_AngZ(chrono.CH_C_PI / 2))
-sensor_manager.AddSensor(camera)
+manager.AddSensor(camera)
 
 
 lidar = sens.ChLidarSensor(
-    sensor_manager,
-    100,  
-    10,   
-    0.1,  
-    0.01  
+    horizontal_samples=100, vertical_samples=32,
+    horizontal_fov=360, vertical_fov=20, max_distance=100,
+    update_rate=10, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5))
 )
-lidar.SetName("lidar")
-lidar.SetOffset(chrono.ChVector(0, 1, 0))
-lidar.SetRotation(chrono.Q_from_AngZ(chrono.CH_C_PI / 2))
-sensor_manager.AddSensor(lidar)
+manager.AddSensor(lidar)
 
 
 gps = sens.ChGPSSensor(
-    sensor_manager,
-    1,  
-    0.1  
+    reference_frame=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=10, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0))
 )
-gps.SetName("gps")
-gps.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(gps)
+manager.AddSensor(gps)
 
 
 accelerometer = sens.ChAccelerometerSensor(
-    sensor_manager,
-    100,  
-    0.1   
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-accelerometer.SetName("accelerometer")
-accelerometer.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(accelerometer)
+manager.AddSensor(accelerometer)
 
 
 gyroscope = sens.ChGyroscopeSensor(
-    sensor_manager,
-    100,  
-    0.1   
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-gyroscope.SetName("gyroscope")
-gyroscope.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(gyroscope)
+manager.AddSensor(gyroscope)
 
 
 magnetometer = sens.ChMagnetometerSensor(
-    sensor_manager,
-    100,  
-    0.1   
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-magnetometer.SetName("magnetometer")
-magnetometer.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(magnetometer)
+manager.AddSensor(magnetometer)
 
 
-ros_manager = sens.ChROSManager()
-
-
-ros_manager.RegisterSensor(camera, "camera/image_raw", Image)
-ros_manager.RegisterSensor(lidar, "lidar/scan", LaserScan)
-ros_manager.RegisterSensor(gps, "gps/fix", NavSatFix)
-ros_manager.RegisterSensor(accelerometer, "accelerometer/data", Imu)
-ros_manager.RegisterSensor(gyroscope, "gyroscope/data", Imu)
-ros_manager.RegisterSensor(magnetometer, "magnetometer/data", MagneticField)
+rospy.init_node('pychrono_sensors')
+camera_pub = rospy.Publisher('/camera/image', Image, queue_size=10)
+lidar_pub = rospy.Publisher('/lidar/scan', LaserScan, queue_size=10)
+gps_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=10)
+accelerometer_pub = rospy.Publisher('/accelerometer/data', Imu, queue_size=10)
+gyroscope_pub = rospy.Publisher('/gyroscope/data', Imu, queue_size=10)
+magnetometer_pub = rospy.Publisher('/magnetometer/data', MagneticField, queue_size=10)
 
 
 while True:
     
-    sensor_manager.Update()
+    manager.Update()
 
     
-    sys.DoStepDynamics(chrono.GetSystemStep())
+    camera_pub.publish(Image(camera.GetMostRecentImage()))
+    lidar_pub.publish(LaserScan(lidar.GetMostRecentScan()))
+    gps_pub.publish(NavSatFix(gps.GetMostRecentFix()))
+    accelerometer_pub.publish(Imu(accelerometer.GetMostRecentData()))
+    gyroscope_pub.publish(Imu(gyroscope.GetMostRecentData()))
+    magnetometer_pub.publish(MagneticField(magnetometer.GetMostRecentData()))
 
     
-    ros_manager.PublishData()
+    sys.DoStepDynamics(chrono.ChTime(0.01))
 
     
-    rospy.sleep(chrono.GetSystemStep())
+    rospy.sleep(0.01)

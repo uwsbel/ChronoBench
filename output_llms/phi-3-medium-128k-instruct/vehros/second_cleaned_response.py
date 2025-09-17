@@ -19,22 +19,20 @@ def main():
     hmmwv.Initialize()  
 
     
-    hmmwv.SetChassisVisualizationType(veh.ChVehicleVisualizationType_ALL)
-    hmmwv.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType_ALL)
-    hmmwv.SetSteeringVisualizationType(veh.ChVehicleVisualizationType_ALL)
-    hmmwv.SetWheelVisualizationType(veh.ChVehicleVisualizationType_ALL)
-    hmmwv.SetTireVisualizationType(veh.ChVehicleVisualizationType_ALL)
+    hmmwv.SetChassisVisualizationType(veh.ChVehicleVisualizationType_WIRE)
+    hmmwv.SetSuspensionVisualizationType(veh.ChVehicleVisualizationType_WIRE)
+    hmmwv.SetSteeringVisualizationType(veh.ChVehicleVisualizationType_WIRE)
+    hmmwv.SetWheelVisualizationType(veh.ChVehicleVisualizationType_WIRE)
+    hmmwv.SetTireVisualizationType(veh.ChVehicleVisualizationType_WIRE)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.Initialize()  
-
-    
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -58,8 +56,10 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 30  
+    vis.SetUseCamera(True)  
+    vis.SetFrameRate(60)  
+    vis.SetRenderMode(chronoirr.ChVisualSystemIrrlicht_RenderMode_RENDER)  
 
-    hmmwv.GetVehicle().EnableRealtime(True)  
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 

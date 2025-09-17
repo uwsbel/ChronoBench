@@ -1,70 +1,59 @@
-import pychrono as chrono
-import pychrono.vehicle as veh
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import pychrono.tetgen as ctet
 
 
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
+vehicle = veh.HMMWV()
+vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType_PRIMITIVES)
+vehicle.SetChassisBodyCollisionType(veh.ChCollisionType_MESH)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))  
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))  
+vehicle.SetTireModelType(veh.ChTireModelType::TMEASY)  
 
 
-terrain = veh.RigidTerrain(my_system)
-terrain.SetContactMaterialProperties(0.8, 0.8, 0.01, 0.01, 6.0, 6.0, 0.001)
-terrain.SetTexture(chrono.GetChronoDataFile("textures/asphalt.jpg"), 200, 200)
-terrain.Initialize()
+system.Add(vehicle.GetVehicle())
 
 
+terrain = veh.RigidTerrain(system)
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_UNIT))
+terrain.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), True)
 
 
-vehicle = veh.HMMWV(my_system, veh.ParamsVehicleHMMWV())
-vehicle.SetChassisVisualizationType(veh.ChVisualizationType_PRIMITIVES)
-vehicle.SetChassisCollisionType(veh.ChCollisionType_MESH)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
-vehicle.SetTireModelType(veh.ChTireModelType::TMEASY)
-
-
-
-
-driver = veh.ChDriver(my_system)
-driver.SetVehicle(vehicle.GetVehicle())
-driver.Initialize()
-
-
+driver = veh.ChDriver()
+driver.Initialize(vehicle)
+driver.SetSteeringController(veh.ChDriver::STEERING_CONTROLLER_SIMPLE)
+driver.SetThrottleController(veh.ChDriver::THROTTLE_CONTROLLER_SIMPLE)
+driver.SetBrakingController(veh.ChDriver::BRAKING_CONTROLLER_SIMPLE)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle('HMMWV Simulation')
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+vis.SetCameraDistance(5)
+vis.SetSkyBox()
 vis.Initialize()
 vis.AddTypicalSky()
-vis.AddTypicalLights()
-vis.AddLogo()
-vis.EnableShadows()
+vis.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0, 0, 0), 1.0, 1.5)
 
 
+step_size = 1.0 / 50  
+myapplication = chronoirr.ChIrrApp(system, 'HMMWV Simulation', chronoirr.dimension2du(1280, 720))
+myapplication.AddVisualSystem(vis)
+myapplication.SetTimestep(step_size)
+myapplication.SetTryRealTimeRate(1.0 / step_size)
 
 
-my_system.SetMaxPenetrationRecoverySpeed(1.0)
-my_system.SetMaxPenetrationRecoverySpeed(1.0)
-
-
-time_step = 0.02
-simulation_time = 10.0
-current_time = 0.0
-
-
-while current_time < simulation_time:
-    my_system.DoStepDynamics(time_step)
-    vis.Run()
-    current_time += time_step
-
-    
-    driver.SynchronizeForces(time_step)
-
-
-vis.Close()
+myapplication.Run()

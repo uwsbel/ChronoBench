@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.ticker as ticker  
 
 
 sys = chrono.ChSystemNSC()
@@ -80,56 +79,41 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(1e-3)  
-
+    sys.DoStepDynamics(1e-3)
+    
     
     current_time = sys.GetChTime()
     array_time.append(current_time)
-    array_angle.append(my_motor.GetMotorAngle())  
-    array_pos.append(mpiston.GetPos().x)  
-    array_speed.append(mpiston.GetPos_dt().x)  
-
+    array_angle.append(my_motor.GetMotorAngle())
+    array_pos.append(mpiston.GetPos().x)
+    array_speed.append(mpiston.GetPos_dt().x)
     
-    if current_time > 20:
+    
+    if current_time >= 20.0:
         break
 
-
-def pi_formatter(x, pos):
-    if x == 0:
-        return "0"
-    elif x == np.pi:
-        return "π"
-    elif x == 2*np.pi:
-        return "2π"
-    elif x == np.pi/2:
-        return "π/2"
-    elif x == 3*np.pi/2:
-        return "3π/2"
-    else:
-        return f"{x/np.pi:.1f}π"
-
-formatter = ticker.FuncFormatter(pi_formatter)
+vis.Close()
 
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
 
-ax1.plot(array_angle, array_pos, 'b-', label='Piston Position')
+ax1.plot(array_angle, array_pos, 'b-')
 ax1.set_xlabel('Crank Angle [rad]')
 ax1.set_ylabel('Position [m]')
-ax1.xaxis.set_major_formatter(formatter)
-ax1.xaxis.set_major_locator(ticker.MultipleLocator(base=np.pi/2))
-ax1.grid(True)
-ax1.legend()
 
 
-ax2.plot(array_angle, array_speed, 'r-', label='Piston Speed')
+ax2.plot(array_angle, array_speed, 'r-')
 ax2.set_xlabel('Crank Angle [rad]')
 ax2.set_ylabel('Speed [m/s]')
-ax2.xaxis.set_major_formatter(formatter)
-ax2.xaxis.set_major_locator(ticker.MultipleLocator(base=np.pi/2))
-ax2.grid(True)
-ax2.legend()
+
+
+xticks = np.arange(0, max(array_angle) + np.pi/2, np.pi/2)
+for ax in [ax1, ax2]:
+    ax.set_xticks(xticks)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(
+        lambda x, pos: f'{x/np.pi:.1f}$\pi$' if x != 0 else '0'
+    ))
 
 plt.tight_layout()
 plt.show()

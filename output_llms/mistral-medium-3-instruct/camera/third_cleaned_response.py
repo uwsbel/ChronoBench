@@ -15,7 +15,8 @@ def main():
     
     
     side = 2.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
+    
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
     box_body.SetFixed(True)  
     mphysicalSystem.Add(box_body)  
@@ -42,12 +43,12 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        box_body,              
-        update_rate,           
-        offset_pose,           
-        image_width,           
-        image_height,          
-        fov                    
+        box_body,               
+        update_rate,            
+        offset_pose,            
+        image_width,            
+        image_height,           
+        fov                     
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  

@@ -31,40 +31,29 @@ terrain.SetBodyFixed(True)
 my_system.Add(terrain)
 
 # Create a HMMWV vehicle
-vehicle = chrono.ChHMMWV(my_system,  # Parent system
-                         chrono.ChVectorD(0, 0, 1.5),  # initial location
-                         chrono.ChQuaternionD(1, 0, 0, 0),  # initial orientation
-                         1500,  # mass
-                         chrono.ChMaterialSurfaceNSC(),  # material
-                         4,  # number of wheels
-                         0.8,  # wheel radius
-                         0.3,  # wheel width
-                         0.1,  # suspension stiffness
-                         0.1,  # suspension damping
-                         0.01,  # tire stiffness
-                         0.01,  # tire damping
-                         chrono.ChTMEasy())  # tire model
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle = chrono.ChPart_hmmwv(my_system)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1.5))
+vehicle.SetInitRotation(chrono.Q_from_AngZ(0))
+vehicle.SetContactMethod(chrono.ChMaterialSurface::NSC)
+vehicle.SetTireModel(chrono.ChPart_hmmwv::TMEASY)
+vehicle.SetTireStepSize(0.01)
+vehicle.SetTireFriction(0.8)
+vehicle.SetTireRestitution(0.4)
 my_system.Add(vehicle)
 
 # Create an interactive driver system
 driver = chrono.ChIrrNodeDriver(vehicle)
-driver.SetSteeringDelta(0.01)
-driver.SetThrottleDelta(0.01)
-driver.SetBrakingDelta(0.01)
+driver.SetSteeringIncrement(0.1)
+driver.SetThrottleIncrement(0.1)
+driver.SetBrakingIncrement(0.1)
 
 # Create an Irrlicht application
 myapplication = chronoirr.ChIrrApp(my_system, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
 
-# Add the vehicle's mesh visualization
-vehicle_mesh = chrono.ChIrrNodeAsset(vehicle, './HMMWV.obj')
-myapplication.AddAsset(vehicle_mesh)
-
-# Set up the simulation loop
+# Set the simulation loop to run in real time
+myapplication.SetStepManage(True)
 myapplication.SetTimestep(1e-3)
 myapplication.SetTryRealtime(True)
-myapplication.SetSolverType(chrono.ChSolver.Type_APGD)
-myapplication.SetSolverMaxIterations(100)
 
 # Run the simulation loop
 while myapplication.GetDevice().run():

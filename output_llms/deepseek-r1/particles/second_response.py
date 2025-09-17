@@ -86,42 +86,45 @@ while vis.Run():
     vis.EndScene()
 
     emitter.EmitParticles(sys, stepsize)
-
-    # Define gravitational constant inside loop (per instructions)
+    
+    # Moved inside loop per instructions
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Get current list of bodies
-    bodies = list(sys.GetBodies())
-    
-    # Calculate kinetic energy
-    kinetic_energy = 0.0
-    for body in bodies:
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
-    
-    # Calculate potential energy
-    potential_energy = 0.0
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
-    total_energy = kinetic_energy + potential_energy
-    
-    # Print energy values
-    print(f"Kinetic energy: {kinetic_energy}, Potential energy: {potential_energy}, Total energy: {total_energy}")
+    # Get all bodies and their combinations
+    bodies = sys.GetBodies()
+    body_pairs = list(combinations(bodies, 2))
 
-    # Reset force accumulators
+    # Clear force accumulators
     for body in bodies:
         body.EmptyAccumulators()
 
     # Calculate gravitational forces
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
+    for bodyA, bodyB in body_pairs:
+        D_attract = bodyB.GetPos() - bodyA.GetPos()
         r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        # Avoid division by zero for overlapping bodies
+        if r_attract > 1e-9:
+            f_attract = G_constant * (bodyA.GetMass() * bodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            bodyA.AccumulateForce(F_attract, bodyA.GetPos(), False)
+            bodyB.AccumulateForce(-F_attract, bodyB.GetPos(), False)
+
+    # Calculate kinetic energy
+    kinetic_energy = 0.0
+    for body in bodies:
+        vel = body.GetPosDt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+
+    # Calculate potential energy
+    potential_energy = 0.0
+    for bodyA, bodyB in body_pairs:
+        r = (bodyB.GetPos() - bodyA.GetPos()).Length()
+        # Avoid division by zero for overlapping bodies
+        if r > 1e-9:
+            potential_energy -= G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
+
+    # Calculate and print total energy
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
 
     sys.DoStepDynamics(stepsize)

@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -63,10 +63,10 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -106,26 +106,15 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_start_time = 5.0
-lane_change_duration = 3.0
-braking_start_time = 15.0
+lane_change_start_time = 1.0
+lane_change_duration = 4.0
+lane_change_end_time = lane_change_start_time + lane_change_duration
+braking_start_time = lane_change_end_time + 1.0
 braking_duration = 2.0
+braking_end_time = braking_start_time + braking_duration
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    
-    if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        steering = math.sin((time - lane_change_start_time) * math.pi / lane_change_duration)
-    else:
-        steering = 0
-
-    if time > braking_start_time and time < braking_start_time + braking_duration:
-        throttle = 0
-        braking = math.sin((time - braking_start_time) * math.pi / braking_duration)
-    else:
-        throttle = 1
-        braking = 0
 
     
     if step_number % render_steps == 0:
@@ -136,9 +125,17 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.SetSteering(steering)
-    driver_inputs.SetThrottle(throttle)
-    driver_inputs.SetBraking(braking)
+
+    
+    if time >= lane_change_start_time and time < lane_change_end_time:
+        steering_input = math.sin((time - lane_change_start_time) / lane_change_duration * math.pi)
+        driver_inputs.setSteering(steering_input)
+    elif time >= braking_start_time and time < braking_end_time:
+        braking_input = (time - braking_start_time) / braking_duration
+        driver_inputs.setBraking(braking_input)
+    else:
+        driver_inputs.setSteering(0)
+        driver_inputs.setBraking(0)
 
     
     driver.Synchronize(time)

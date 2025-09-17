@@ -73,7 +73,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted camera height
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated camera height
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -93,7 +93,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -104,9 +104,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Initialize time since last maneuver
-last_manever_time = 0.0
-lane_change_interval = 5.0  # Time between lane changes in seconds
+# Lane change parameters
+lane_change_speed = 0.5  # Max steering force for lane change
+lane_change_duration = 2.0  # Total time for lane change
+last_lane_change_time = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -133,44 +134,38 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Check if it's time for a lane change
+    if time - last_lane_change_time > lane_change_duration:
+        # Calculate current lane (0: left, 1: right)
+        current_lane = int((vehicle.GetTractor().GetPosition().y) / 1.5)  # Assuming 1.5 meters per lane
+        target_lane = (current_lane + 1) % 2  # Switch lanes
+
+        # Calculate time since last lane change
+        elapsed_time = time - last_lane_change_time
+        remaining_time = lane_change_duration - elapsed_time
+
+        # Calculate how much to steer
+        steer_force = lane_change_speed * (remaining_time / lane_change_duration)
+        driver.SetSteeringInput(steer_force)
+
+        # Calculate how much to accelerate
+        throttle_input = 0.5 * (remaining_time / lane_change_duration)
+        driver.SetThrottleInput(throttle_input)
+
+        # Update last lane change time
+        last_lane_change_time = time
+
+        # Reset inputs after lane change
+        driver.SetSteeringInput(0)
+        driver.SetThrottleInput(0)
+
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Check if it's time for a lane change
-    if time - last_manever_time > lane_change_interval:
-        # Perform a double lane change maneuver
-        print("Performing lane change at time:", time)
-        
-        # Brake to stop
-        vehicle.GetSteering().SetAngle(0.0)
-        vehicle.GetBraking().SetBrake(1.0)
-        while vehicle.GetVelocity().GetMagnitude() > 0.1:
-            vehicle.Advance(step_size)
-        
-        # Slightly wait for movement to stop
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.1))
-        
-        # Perform first lane change
-        vehicle.GetSteering().SetAngle(1.0)  # Max steering angle
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Return to original lane
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Perform second lane change
-        vehicle.GetSteering().SetAngle(1.0)  # Max steering angle
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Return to original lane
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Reset last maneuver time
-        last_manever_time = time
-
-        # Reset vehicle orientation
-        vehicle.GetTractor().GetChassis().SetOrientation(initRot)
+    # Print status updates
+    print(f"Current Lane: {current_lane}")
+    print(f"Time since last lane change: {time - last_lane_change_time}")
+    print(f"Remaining time for lane change: {remaining_time}")

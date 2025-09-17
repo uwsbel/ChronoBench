@@ -4,7 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')  
+chrono.SetChronoDataPath("../../data/")
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -30,7 +30,6 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 
 step_size = 1e-3
@@ -64,7 +63,7 @@ patch_mat.SetRestitution(0.05)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-math.pi/2)), 
+                         chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngZ(-chrono.CH_C_PI / 2)), 
                          chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), 
                          True, 0.01, False)
 
@@ -82,7 +81,7 @@ vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -98,8 +97,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
-
 
 
 

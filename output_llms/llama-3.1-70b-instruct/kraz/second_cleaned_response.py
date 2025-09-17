@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,13 +21,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3,0, 2.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -38,7 +38,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.Kraz()
@@ -81,7 +80,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -105,11 +103,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-lane_change_time = 2.0
-lane_change_distance = 10.0
-target_steering_angle = 0.5
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -130,12 +123,14 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if time < lane_change_time:
-        driver_inputs.m_steering = -target_steering_angle
-    elif time < 2 * lane_change_time:
-        driver_inputs.m_steering = target_steering_angle
-    else:
-        driver_inputs.m_steering = 0.0
+    if time > 2 and time < 4:
+        driver.SetSteeringInput(-0.5)
+    elif time > 4 and time < 6:
+        driver.SetSteeringInput(0.5)
+    elif time > 6 and time < 8:
+        driver.SetSteeringInput(-0.5)
+    elif time > 8 and time < 10:
+        driver.SetSteeringInput(0.5)
 
     
     driver.Advance(step_size)

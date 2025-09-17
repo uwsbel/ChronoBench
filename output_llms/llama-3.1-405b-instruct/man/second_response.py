@@ -65,10 +65,10 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 # Create a height map for the terrain
-height_map = veh.GetDataFile("terrain/height_maps/bumpy_128x128.bmp")
+height_map = veh.GetDataFile("terrain/height_maps/bumpy_1024.bmp")
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth, height_map)
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+                         terrainLength, terrainWidth, height_map)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -98,7 +98,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

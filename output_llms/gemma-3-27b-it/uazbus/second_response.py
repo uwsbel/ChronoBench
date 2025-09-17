@@ -102,9 +102,8 @@ render_frame = 0
 # Double lane change maneuver parameters
 lane_change_start_time = 5.0
 lane_change_end_time = 15.0
-steering_angle = 0.5  # Steering angle for lane change
-throttle_during_lane_change = 0.5
 braking_start_time = 20.0
+braking_end_time = 25.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -136,18 +135,19 @@ while vis.Run():
 
     # Double lane change maneuver
     if lane_change_start_time <= time < lane_change_end_time:
-        driver_inputs.m_steering = steering_angle
-        driver_inputs.m_throttle = throttle_during_lane_change
-        driver_inputs.m_braking = 0.0
-    elif time >= braking_start_time:
-        driver_inputs.m_braking = 1.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
+        # Steering input for lane change
+        steering_input = 0.5 * math.sin(2 * math.pi * (time - lane_change_start_time) / (lane_change_end_time - lane_change_start_time))
+        throttle_input = 0.5
+        driver.SetSteering(steering_input)
+        driver.SetThrottle(throttle_input)
+    elif braking_start_time <= time < braking_end_time:
+        # Braking input
+        braking_input = 1.0 * (time - braking_start_time) / (braking_end_time - braking_start_time)
+        driver.SetBraking(braking_input)
     else:
-        # Default: straight line with some throttle
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.2
-        driver_inputs.m_braking = 0.0
+        # Maintain straight line
+        driver.SetSteering(0.0)
+        driver.SetThrottle(0.2)
 
     # Spin in place for real time to catch up
     s.Spin(step_size)

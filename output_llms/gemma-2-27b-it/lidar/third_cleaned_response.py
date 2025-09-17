@@ -13,30 +13,6 @@ import math
 
 
 
-step_size = 1e-3
-
-
-end_time = 40.0
-
-
-save = False
-
-
-vis = True
-
-
-out_dir = "SENSOR_OUTPUT/"
-
-
-
-
-
-
-
-
-
-
-
 
 
 noise_model = "NONE"  
@@ -71,34 +47,47 @@ sample_radius = 2
 
 divergence_angle = 0.003
 
+
+
+
+
+
+step_size = 1e-3
+
+
+end_time = 40.0
+
+
+save = False
+
+
+vis = True
+
+
+out_dir = "SENSOR_OUTPUT/"
+
 def main():
     
     
     
     system = chrono.ChSystemNSC()
-    vehicle = veh.ARTcar(system)
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
 
     
-    
+    vehicle = veh.ARTcar("ARTcar", system)
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+
     
     driver = veh.ChDriver(vehicle.GetChassis())
-    vehicle.SetDriver(driver)
 
-    
-    
     
     terrain = chrono.ChRigidBody()
     terrain.SetBodyFixed(True)
     terrain.SetCollide(True)
-    terrain.GetCollisionModel().ClearModel()
-    terrain.GetCollisionModel().AddBox(chrono.ChVector3d(100, 100, 0.1), chrono.ChVector3d(0, 0, -0.05))
-    terrain.GetCollisionModel().BuildModel()
-    terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC.CreateDefault())
-    terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/grass.png"))
-    terrain.GetVisualModel().SetMaterialColor(chrono.ChColor(0.5, 0.5, 0.5))
+    terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
+    terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
+    terrain.GetVisualModel().AddPrimitive(chrono.ChBoxShape(chrono.ChVector3d(100, 100, 0.1)))
+    terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
+    terrain.GetVisualModel().SetColor(chrono.ChColor(0.8, 0.8, 0.8))
     system.Add(terrain)
 
     
@@ -113,7 +102,7 @@ def main():
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        vehicle.GetChassisBody(),              
+        vehicle.GetChassis(),              
         update_rate,            
         offset_pose,            
         horizontal_samples,     
@@ -148,3 +137,16 @@ def main():
     
     lidar.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
+        
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    
+    manager.AddSensor(lidar)
+
+    
+    lidar_2d =  sens.ChLidarSensor(
+        vehicle.GetChassis(),              
+        update_rate,            
+        offset_pose,            
+        horizontal_samples,

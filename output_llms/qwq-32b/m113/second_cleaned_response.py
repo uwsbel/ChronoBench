@@ -18,14 +18,15 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
-
-trackPoint = chrono.ChVectorD(0.0, 0.0, 0.1)
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
-contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
+soil_shear_modulus = 1e7  
+soil_friction_angle = 30  
+soil_cohesion = 0.0       
+soil_density = 1600       
+soil_damping_ratio = 0.1
 
 
 step_size = 5e-4
@@ -36,7 +37,7 @@ render_step_size = 1.0 / 50
 
 
 vehicle = veh.M113()
-vehicle.SetContactMethod(contact_method)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
 vehicle.SetDrivelineType(veh.DrivelineTypeTV_BDS)
 vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
@@ -55,53 +56,60 @@ vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
 
-soil = chrono.ChDeformableSoilSMC()
-soil.SetDensity(1500)
-soil.SetShearModulus(1e6)
-soil.SetBulkModulus(1e6)
-soil.SetRestitution(0.01)
-soil.SetFriction(0.9)
+from pychrono.vehicle import DeformableTerrainSCM
 
-terrain = chrono.ChDeformableTerrainSMC(vehicle.GetSystem(), soil)
-terrain.SetHeightMap(chrono.GetChronoDataFile('heightmaps/heightmap.png'), terrainLength, terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = DeformableTerrainSCM(vehicle.GetSystem())
+terrain.SetSoilParameters(
+    soil_shear_modulus,
+    soil_friction_angle * chrono.CH_C_DEG_TO_RAD,
+    soil_cohesion,
+    soil_density,
+    soil_damping_ratio
+)
+
+
+heightmap_file = veh.GetDataFile("terrain/heightmaps/sand_heightmap.png")
+terrain.AddHeightMap(heightmap_file, terrainLength, terrainWidth, terrainHeight, 1.0)
+
+
+terrain_texture_file = veh.GetDataFile("terrain/textures/dirt.jpg")
+terrain.SetTexture(terrain_texture_file, terrainLength, terrainWidth)
+terrain.SetColor(chrono.ChColor(0.4, 0.4, 0.3))  
+
 terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 9.0, 1.5)
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 0.1), 9.0, 1.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle)
+vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-driver.Initialize()
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+driver.Initialize()
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-
-print("VEHICLE MASS: ", vehicle.GetMass())
-
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
-vehicle.EnableRealtime(True)
+vehicle.GetVehicle().EnableRealtime(True)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -111,18 +119,18 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
+    
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  
-    
+    driver_inputs.m_throttle = 0.8  
     
     driver.Synchronize(time)
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
-    
     driver.Advance(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     

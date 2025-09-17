@@ -1,94 +1,79 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+from pychrono import vehicle as veh
 
-# Create the Chrono system
+# Initialize Chrono system
 sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create Irrlicht visualizer
-visualiz = irr.ChVisualSystemIrrlicht()
-visualiz.SetWindowSize(1024, 768)
-visualiz.SetWindowTitle('Gator Simulation')
-visualiz.Initialize()
-visualiz.AddLogo()
-visualiz.AddSky()
-visualiz.AddGrid()
-visualiz.SetCameraPosition(chrono.ChVectorD(0, 2, 10))
-visualiz.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0)))
-sys.SetVisualSystem(visualiz)
+# Setup visualization with Irrlicht
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gator on Rigid Terrain')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.SetCamera(chrono.ChVectorD(0, 2, 15), chrono.ChVectorD(0, 0, 0))
+vis.SetTumble(True)
 
-# Create Gator vehicle
-vehicle = veh.Gator(sys)
-vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetTireModel(veh.TireModelType.TMEASY)
-
-# Initialize vehicle position and orientation
-init_pos = chrono.ChVectorD(0, 0, 1)  # Above terrain
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
-
-# Create rigid terrain
+# Create rigid terrain with texture
 terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-terrain.SetClamping(True)
-terrain.SetPatch(veh.RigidTerrain.PatchData(100, 100, 1, patch_mat))
-terrain.Initialize()
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0), 200, 200)
+patch.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 200, 200)
+sys.Add(terrain.GetGroundBody())
+vis.Add(terrain.GetGroundBody())
 
-# Add terrain texture
-texture_path = 'textures/concrete.jpg'  # Ensure the texture file exists
-terrain.GetPlane().AddAsset(chrono.ChTexture(texture_path))
+# Initialize Gator vehicle
+vehicle = veh.Gator(sys)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+vehicle.SetChassisFixed(False)
+vehicle.SetContactMethod(chrono.ChContactMethod.NTCI)  # Set contact method
+vehicle.SetVisualizationType(veh.VisualizationType.MESH)  # Use mesh visualization
+vehicle.Initialize()
 
-# Add systems to the Chrono system
-sys.Add(vehicle.GetSystem())
-sys.Add(terrain.GetSystem())
+# Configure TMEasy tires for all wheels
+for axle in vehicle.GetAxles():
+    for wheel in axle.wheels:
+        tire = veh.TMeasyTire(vehicle.GetSystem(), wheel)
+        tire.SetType(veh.TMeasyTire.TMeasyType.METRIC)  # Set tire type
+        wheel.SetTire(tire)
 
-# Create driver
-driver = veh.UserDriver()
+# Setup driver controls
+driver = veh.ChDriver()
 vehicle.SetDriver(driver)
 
 # Simulation parameters
-time_step = 0.02  # 50 Hz
-time = 0
+step_size = 1.0 / 50.0  # 50 Hz simulation rate
 
 # Main simulation loop
-while visualiz.Run():
-    key = visualiz.GetKeyboard()
-    
+while vis.Run():
+    key = vis.GetKeyboard()
+
     # Update driver inputs based on keyboard
     steering = 0
     throttle = 0
-    brake = 0
-    
-    if key.KeyIsPressed(chronoirr.EDK_LEFT):
-        steering -= 1
-    if key.KeyIsPressed(chronoirr.EDK_RIGHT):
-        steering += 1
-    if key.KeyIsPressed(chronoirr.EDK_UP):
-        throttle = 1
-    if key.KeyIsPressed(chronoirr.EDK_DOWN):
-        brake = 1
-    
-    driver.SetSteering(steering * 0.5)  # Scale steering input
-    driver.SetThrottle(throttle)
-    driver.SetBraking(brake)
-    
-    # Update vehicle and system
-    vehicle.Synchronize(driver, time)
-    vehicle.Update(time)
-    sys.DoStepDynamics(time_step)
-    
-    # Render
-    visualiz.BeginScene()
-    visualiz.DrawAll()
-    visualiz.EndScene()
-    
-    time += time_step
-    
-    # Exit on ESC key
-    if key.KeyIsPressed(chronoirr.EDK_ESCAPE):
-        break
+    braking = 0
 
-# Cleanup
-visualiz.Close()
+    if key.IsKeyDown(irr.KEY_KEY_LEFT):
+        steering = -1
+    elif key.IsKeyDown(irr.KEY_KEY_RIGHT):
+        steering = 1
+
+    if key.IsKeyDown(irr.KEY_KEY_UP):
+        throttle = 1
+    elif key.IsKeyDown(irr.KEY_KEY_DOWN):
+        braking = 1
+
+    driver.SetSteering(steering)
+    driver.SetThrottle(throttle)
+    driver.SetBraking(braking)
+
+    # Update vehicle and system
+    vehicle.Synchronize(driver)
+    vehicle.Update(step_size)
+    sys.DoStepDynamics(step_size)
+
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

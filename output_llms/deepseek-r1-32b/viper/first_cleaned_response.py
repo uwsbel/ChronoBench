@@ -57,7 +57,7 @@ while app.Loop() and time < simulation_time:
     app.EndScene()
     
     
-    if app.GetDevice().KeyDown( irr.KEY_ESCAPE ):
+    if app.GetDevice().IsKeyDown( irr.KEY_ESCAPE ):
         break
 
 

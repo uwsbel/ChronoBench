@@ -100,11 +100,15 @@ driver.Initialize()
 # Initialize sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
-# Create an IMU sensor and add it to the manager (with modified offset)
-imu_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+# Create separate offset poses for IMU and GPS
+# Changed IMU offset to (0, 0, 1) per instructions
+imu_offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+gps_offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+# Create an IMU sensor and add it to the manager
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attached to
                                  10,                       # Update rate in Hz
-                                 imu_offset_pose,          # Modified offset pose
+                                 imu_offset_pose,          # Offset pose (changed to 0,0,1)
                                  sens.ChNoiseNone())       # Noise model
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
@@ -114,11 +118,10 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 # Add the IMU to the sensor manager
 manager.AddSensor(imu)
 
-# Create a GPS sensor and add it to the manager (original offset maintained)
-gps_offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+# Create a GPS sensor and add it to the manager
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),            # Body GPS is attached to
                        10,                                  # Update rate in Hz
-                       gps_offset_pose,                     # Original offset pose
+                       gps_offset_pose,                     # Offset pose
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  # GPS reference point
                        sens.ChNoiseNone())                  # Noise model
 gps.SetName("GPS Sensor")
@@ -155,14 +158,19 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    if step_number % log_steps == 0:
-        # get most recent GPS data
-        gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
-    # Set constant driver inputs as requested
-    driver.SetThrottle(0.5)  # Constant throttle
-    driver.SetSteering(0.6)  # Constant steering
+    # Collect GPS data at logging frequency
+    if step_number % log_steps == 0:
+        # Get most recent GPS data
+        buffer = gps.GetMostRecentGPSBuffer()
+        if buffer.HasData():
+            gps_coor = buffer.GetGPSData()
+            gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
+    
+    # Set constant driver inputs per instructions
+    driver.SetThrottle(0.5)   # Constant throttle
+    driver.SetSteering(0.6)   # Constant steering
+    driver.SetBraking(0.0)    # No braking
     
     driver_inputs = driver.GetInputs()
     
@@ -187,21 +195,25 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Plot GPS trajectory after simulation
+# Print collected GPS data
+print("GPS Data: ", gps_data)
+
+# Plot GPS trajectory using matplotlib
 if gps_data:
-    latitudes = [data[0] for data in gps_data]
-    longitudes = [data[1] for data in gps_data]
+    # Extract latitude and longitude
+    longitudes = [point[0] for point in gps_data]
+    latitudes = [point[1] for point in gps_data]
     
     plt.figure(figsize=(10, 6))
     plt.plot(longitudes, latitudes, 'b-', linewidth=2)
-    plt.scatter(longitudes[0], latitudes[0], color='green', marker='o', s=100, label='Start')
-    plt.scatter(longitudes[-1], latitudes[-1], color='red', marker='x', s=100, label='End')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
+    plt.plot(longitudes[0], latitudes[0], 'go', markersize=8, label='Start')
+    plt.plot(longitudes[-1], latitudes[-1], 'ro', markersize=8, label='End')
+    plt.xlabel('Longitude (degrees)')
+    plt.ylabel('Latitude (degrees)')
     plt.title('Vehicle GPS Trajectory')
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
     plt.show()
-
-print("GPS Data: ", gps_data)
+else:
+    print("No GPS data collected")

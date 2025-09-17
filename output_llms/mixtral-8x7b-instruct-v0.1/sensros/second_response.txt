@@ -52,15 +52,20 @@ def main():
     sens_manager.AddSensor(cam)
 
     # Create and configure a 2D Lidar sensor.
-    lidar_pose = ch.ChFrame<double>(ch.ChVectorD(0, 0, 0.2), ch.Q_from_AngX(ch.CH_PI / 2))
-    lidar = sens.ChLidarSensor2D(ground_body, 5., lidar_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
-    lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
-    lidar.PushFilter(sens.ChFilterVisualizeLidarScan(1280, 720, 1, "Lidar2D"))  # Visualize the Lidar scan.
-    lidar.SetName("lidar2d")
-    sens_manager.AddSensor(lidar)
+    lidar_pose = ch.ChFrame<double>(ch.ChVectorD(0.5, 0, 0.1), ch.Q_from_AngX(ch.CH_PI/2))
+    lidar_range = 5.0
+    lidar_fov = 90.0 * ch.CH_PI / 180.0
+    lidar_res = 300
+    lidar_min_angle = -ch.CH_PI / 2
+    lidar_max_angle = ch.CH_PI / 2
+    lidar_noise_model = sens.ChNoiseNone()
+    lidar_2d = sens.ChLidarSensor2D(ground_body, lidar_range, lidar_pose, lidar_fov, lidar_res, lidar_min_angle, lidar_max_angle, lidar_noise_model)
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
+    lidar_2d.SetName("lidar2d")
+    sens_manager.AddSensor(lidar_2d)
 
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
@@ -97,7 +102,7 @@ def main():
 
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar, "~/output/lidar2d/data/scan"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar_2d, "~/output/lidar2d/data/scan"))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)

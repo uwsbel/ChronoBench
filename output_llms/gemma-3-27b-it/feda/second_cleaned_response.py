@@ -77,27 +77,30 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = []
+waypoints = [
+    chrono.ChVector3d(-50, 0, 0.5),
+    chrono.ChVector3d(-20, -5, 0.5),
+    chrono.ChVector3d(-10, 5, 0.5),
+    chrono.ChVector3d(10, 5, 0.5),
+    chrono.ChVector3d(20, -5, 0.5),
+    chrono.ChVector3d(50, 0, 0.5)
+]
 
-path.append(chrono.ChVector3d(-50, 0, 0))
-path.append(chrono.ChVector3d(-30, 0, 0))
-path.append(chrono.ChVector3d(-10, 0, 0))
-path.append(chrono.ChVector3d(10, 0, 0))
-path.append(chrono.ChVector3d(30, 0, 0))
-path.append(chrono.ChVector3d(50, 0, 0))
+path = chrono.ChPath()
+for point in waypoints:
+    path.AddPoint(point)
+path.ComputePath()
 
 
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)
 
 
-driver.SetSteeringLookAheadDistance(5.0)
-driver.SetSteeringGain(1.0)
-driver.SetSteeringMaxAngle(chrono.CH_C_PI / 4.0)
+driver.GetSteeringController().SetLookAheadDistance(5.0)
+driver.GetSteeringController().SetGain(1.0)
 
 
-driver.SetSpeedGain(0.5)
-driver.SetSpeedMax(10.0)
-driver.SetSpeedMin(0.0)
+driver.GetSpeedController().SetGain(0.5)
+driver.GetSpeedController().SetTargetSpeed(10.0)
 
 driver.Initialize()
 

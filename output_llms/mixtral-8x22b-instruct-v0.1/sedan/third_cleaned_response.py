@@ -68,14 +68,21 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
-    current_speed = vehicle.GetVehicle().GetDriveline().GetActualGearRatio() * vehicle.GetVehicle().GetDriveline().GetMotorSpeed()
+    current_speed = vehicle.GetVehicle().GetDriveline().GetActualGearRatio() * vehicle.GetVehicle().GetDriveline().GetActualTransmissionRatio() * vehicle.GetVehicle().GetDriveline().GetActualWheelSpeed()
     speed_error = reference_speed - current_speed
 
     
     integral += speed_error * step_size
     derivative = (speed_error - last_error) / step_size
+
+    
     throttle = Kp * speed_error + Ki * integral + Kd * derivative
-    last_error = speed_error
+
+    
+    throttle = max(0, min(throttle, 1))
+
+    
+    driver_inputs.m_throttle = throttle
 
     
     driver.Synchronize(time)

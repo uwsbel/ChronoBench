@@ -1,171 +1,82 @@
-# Initialize PyChrono environment and core components
-import pychrono as pc
-pc.init()
+import pychrono as pychrono
+import pychrono.ophysics as physics
+import pychrono visualize as visualize
+import pychrono.gui as gui
+import pychrono.fea as fea
+import pychrono.mechanisms as mechanisms
+import pychrono.dynamics as dynamics
+import pychrono.math as math
+import pychrono.utils as utils
 
-# Create simulation and visualization
-simulation = pc.Simulation()
-viewer = pc.viewer.Viewer()
-viewer.init()
+# Initialize PyChrono environment
+pychrono.init()
 
+# Create simulation engine
+engine = pychrono.Engine()
+engine.set_solver(dynamics.SolverType.ODE, dynamics.ODEType.RK4, dynamics.RK4Order())
+engine.set_timestep(1e-5)  # Set time step
+
+# Initialize visualization
+renderer = visualize.IrrlichtRenderer()
+renderer.set_lighting(True)
+renderer.set_camera(position=(5, 5, 5), look_at=(0, 0, 0))
+renderer.set_render_window_size(800, 600)
+
+# Create beam elements
 # Define beam properties
-L = 5.0  # Length of the beam
-A = 0.1  # Cross-sectional area
-E = 20000  # Young's modulus
-nu = 0.2  # Poisson's ratio
-density = 8000  # Density of the material
+beam_length = 4.0  # Total length of the beam
+beam_diameter = 0.1  # Diameter of the beam cross-section
+young_modulus = 210e9  # Young's modulus
+poisson_ratio = 0.2  # Poisson ratio
+density = 8000  # Density
 
-# Create beam object
-beam = pc_beam.Beam()
-beam.set_length(L)
-beam.set_cross_section(A, E, nu)
-beam.set_density(density)
-beam.set_position(pc.Vec3(0, 0, 0))
-beam.set_orientation(pc.Vec3(1, 0, 0))
+# Create two rod elements for the beam
+beam1 = mechanisms.Rod(
+    name="beam1",
+    material=physics.Material(young_modulus=young_modulus, poisson_ratio=poisson_ratio, density=density),
+    cross_section=physics.Rectangle(diameter=beam_diameter, thickness=0.1),
+    mass_per_unit_length=0.1  # Mass per unit length
+)
+beam2 = mechanisms.Rod(
+    name="beam2",
+    material=physics.Material(young_modulus=young_modulus, poisson_ratio=poisson_ratio, density=density),
+    cross_section=physics.Rectangle(diameter=beam_diameter, thickness=0.1),
+    mass_per_unit_length=0.1
+)
 
-# Create weight object
-weight = pc.rigidbody.RigidBody()
-weight.set_mass(1)
-weight.set_position(pc.Vec3(L, -0.5, 0))
-weight.set_size(pc.Vec3(0.1, 0.1, 0.1))
-beam.set_restitution(0.5)
-beam.set_friction(0.5)
+# Create fixed constraint for the base of the beam
+fixed = mechanisms.Fixed()
+fixed.add(beam1)
+fixed.add(beam2)
 
-# Add a ground contact
-ground = pc.contact.ContactGround()
-beam.add_contact_ground(ground)
-weight.add_contact_ground(ground)
+# Create pin constraint between beam1 and beam2
+pin = mechanisms.Pin()
+pin.add(beam1, "end1")
+pin.add(beam2, "end2")
 
-# Create motor and attach it to the weight
-motor = pc.motor.Motor()
-motor.set_name("Buckling Motor")
-motor.set_type(pc.motor.MotorType.ROTARY)
-motor.set_position(weight.get_position())
-motor.set_force_func(lambda t: 1000 * (1 - (t / 50.0)))
-
-# Define custom motor force function
+# Create motor function for loading
 def motor_force(t):
-    return 1000 * (1 - (t / 50.0))
+    return 1000.0 * (1.0 - (t/10.0))  # Linear increase in force over 10 seconds
 
-# Add motor to the weight
-weight.add_constraint(motor)
+motor = mechanisms.Motor()
+motor.add(beam1, "end1", force_function=motor_force)
 
-# Define constraints
-constraint_beam = pc.constraint.Constraint()
-constraint_beam.set_type(pc.constraint.ConstraintType.HINGE)
-constraint_beam.set_parent1(beam)
-constraint_beam.set_parent2(pc.Vec3(0, 0, 0))
-beam.add_constraint(constraint_beam)
+# Add motor to the simulation
+engine.add_object(motor)
 
-constraint_weight = pc.constraint.Constraint()
-constraint_weight.set_type(pc.constraint.ConstraintType.RIGID)
-constraint_weight.set_parent1(weight)
-constraint_weight.set_parent2(beam)
-constraint_weight.set_axis(pc.Vec3(0, 1, 0))
-beam.add_constraint(constraint_weight)
+# Create visualization elements
+# Add the beams to the visualization
+beam1.add_visual(visualize.RodVisual(0, 0, 0, beam_diameter/2, 0.1, color=(1, 0, 0)))
+beam2.add_visual(visualize.RodVisual(beam_length, 0, 0, beam_diameter/2, 0.1, color=(1, 0, 0)))
 
-# Set up visualization
-viewer.set_camera_position(pc.Vec3(2, 2, 2))
-viewer.set_lookat(pc.Vec3(0, 0, 0))
-viewer.set_up(pc.Vec3(0, 0, 1))
-viewer.add_light(pc.Vec3(5, 5, 5), pc.Vec3(0, 0, 0))
-viewer.add_light(pc.Vec3(-5, 5, 5), pc.Vec3(0, 0, 0))
+# Add constraints to visualization
+fixed.add_visual(visualize.FixedVisual(position=(0, 0, 0)))
+pin.add_visual(visualize.PinVisual())
 
-# Set solver and timestepper
-simulation.set_solver(pc.solver.Solver())
-simulation.set_timestep(0.001)
-simulation.set_max_steps(100000)
+# Add the motor to visualization
+motor.add_visual(visualize.MotorVisual(position=beam1.position + (0, 0, 0)))
 
-# Define simulation parameters
-simulation.set_gravity(pc.Vec3(0, -9.81, 0))
-simulation.set_damping(0.1)
-simulation.set_record(True)
-simulation.set_record_path("results/")
+# Run the simulation
+engine.run()
 
-# Start simulation
-simulation.start()
-
-# Initialize PyChrono environment and core components
-import pychrono as pc
-pc.init()
-
-# Create simulation and visualization
-simulation = pc.Simulation()
-viewer = pc.viewer.Viewer()
-viewer.init()
-
-# Define beam properties
-L = 5.0  # Length of the beam
-A = 0.1  # Cross-sectional area
-E = 20000  # Young's modulus
-nu = 0.2  # Poisson's ratio
-density = 8000  # Density of the material
-
-# Create beam object
-beam = pc_beam.Beam()
-beam.set_length(L)
-beam.set_cross_section(A, E, nu)
-beam.set_density(density)
-beam.set_position(pc.Vec3(0, 0, 0))
-beam.set_orientation(pc.Vec3(1, 0, 0))
-
-# Create weight object
-weight = pc.rigidbody.RigidBody()
-weight.set_mass(1)
-weight.set_position(pc.Vec3(L, -0.5, 0))
-weight.set_size(pc.Vec3(0.1, 0.1, 0.1))
-beam.set_restitution(0.5)
-beam.set_friction(0.5)
-
-# Add a ground contact
-ground = pc.contact.ContactGround()
-beam.add_contact_ground(ground)
-weight.add_contact_ground(ground)
-
-# Create motor and attach it to the weight
-motor = pc.motor.Motor()
-motor.set_name("Buckling Motor")
-motor.set_type(pc.motor.MotorType.ROTARY)
-motor.set_position(weight.get_position())
-motor.set_force_func(lambda t: 1000 * (1 - (t / 50.0)))
-
-# Define custom motor force function
-def motor_force(t):
-    return 1000 * (1 - (t / 50.0))
-
-# Add motor to the weight
-weight.add_constraint(motor)
-
-# Define constraints
-constraint_beam = pc.constraint.Constraint()
-constraint_beam.set_type(pc.constraint.ConstraintType.HINGE)
-constraint_beam.set_parent1(beam)
-constraint_beam.set_parent2(pc.Vec3(0, 0, 0))
-beam.add_constraint(constraint_beam)
-
-constraint_weight = pc.constraint.Constraint()
-constraint_weight.set_type(pc.constraint.ConstraintType.RIGID)
-constraint_weight.set_parent1(weight)
-constraint_weight.set_parent2(beam)
-constraint_weight.set_axis(pc.Vec3(0, 1, 0))
-beam.add_constraint(constraint_weight)
-
-# Set up visualization
-viewer.set_camera_position(pc.Vec3(2, 2, 2))
-viewer.set_lookat(pc.Vec3(0, 0, 0))
-viewer.set_up(pc.Vec3(0, 0, 1))
-viewer.add_light(pc.Vec3(5, 5, 5), pc.Vec3(0, 0, 0))
-viewer.add_light(pc.Vec3(-5, 5, 5), pc.Vec3(0, 0, 0))
-
-# Set solver and timestepper
-simulation.set_solver(pc.solver.Solver())
-simulation.set_timestep(0.001)
-simulation.set_max_steps(100000)
-
-# Define simulation parameters
-simulation.set_gravity(pc.Vec3(0, -9.81, 0))
-simulation.set_damping(0.1)
-simulation.set_record(True)
-simulation.set_record_path("results/")
-
-# Start simulation
-simulation.start()
+# Note: The above code should be executed within the PyChrono environment. Ensure all necessary libraries are installed and dependencies are properly managed.

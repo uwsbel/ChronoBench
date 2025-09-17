@@ -1,58 +1,78 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+import math
 
-# Initialize the PyChrono environment and core components
-print("Copyright (c) 2023 ProjectChrono")
+# Initialize the PyChrono environment
+print("Copyright (c) 2023 projectchrono.org")
 
 # Create the vehicle system
-vehicle = veh.ChVehicle(veh.GetDataFile("vehicle/CityBus/CityBus.json"))
+init_file = "CityBus/vehicle/CityBus_Vehicle.json"
+vehicle = veh.WheeledVehicle(chrono.GetSystem(), init_file)
 
-# Set the simulation parameters
-step_size = 2e-3
-tire_step_size = 1e-3
+# Set the simulation and visualization parameters
+stepsize = 2e-3
+realtime = True
+output = False
 
-# Initialize the vehicle with parameters
-init_loc = chrono.ChVectorD(-5, 0, 1.0)
-init_orient = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle.Initialize(chrono.ChCoordsysD(init_loc, init_orient))
+# Initialize the vehicle at a specified location and orientation
+initLoc = chrono.ChVectorD(0, 0, 1.0)
+initRot = chrono.Q_from_AngZ(chrono.CH_C_PI / 2)
+vehicle.Initialize(chrono.ChCoordsysD(initLoc, initRot))
 
-# Set the tire model
-tire_model = veh.RigidTire(veh.GetDataFile("vehicle/CityBus/CityBus_Tire.json"))
+# Set the time response for steering and throttle inputs
+steering_time = 1.0
+driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
 
-# Add the tires to the vehicle
-vehicle.InitializeTire(tire_model, vehicle.GetChassis().GetBody(), True)
+# Set the camera to follow the vehicle
+cam_pos = chrono.ChVectorD(-8, -8, 3)
+cam_target = vehicle.GetChassis().GetPos()
+cam_up = chrono.ChVectorD(0, 0, 1)
+camera = irr.ChIrrCameraDriver(vehicle.GetVehicle(), cam_pos, cam_target, cam_up)
 
 # Create the terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), chrono.ChVectorD(100, 100, 0.1))
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngZ(0)), chrono.ChVectorD(100, 100, 1))
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
 patch.SetContactMaterialProperties(1.7e7, 0.3)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 100, 100)
 
 # Initialize the Irrlicht visualization
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis = irr.ChVisualSystemIrrlicht()
 vis.SetWindowTitle('CityBus Demo')
 vis.SetWindowSize(1280, 720)
-vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
-vis.AttachVehicle(vehicle)
-
-# Create the interactive driver system
-driver = veh.ChIrrGuiDriver(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     driver_inputs = driver.GetInputs()
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    vehicle.Advance(stepsize)
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
     vis.Render()
+    vis.EndScene()
+    driver.Synchronize(time)
+    driver.Advance(stepsize)
+    terrain.Synchronize(time)
+    if not vis.Run():
+        break
+    chrono.ChRealtimeStep(vehicle.GetSystem(), stepsize)
 
-# No code needs to be returned outside the script.
+# No specific output is required as the simulation will be visualized in real-time.
+
+# code here, simplified for the response format
+
+import pychrono as chrono
+# ... rest of the code ...
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# ... (code remains the same as above)

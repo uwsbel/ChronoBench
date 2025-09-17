@@ -1,62 +1,54 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
 
-def main():
-    # Create the main physical system
-    system = chrono.ChSystemMyChrono()
+# Create the FEA system
+sys = fea.ChSystemFEM()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
 
-    # Create the FEA system and add it to the main system
-    fea_system = chrono.fea.ChFESystem()
-    system.Add(fea_system)
+# Create nodes along the x-axis from (0,0,0) to (5,0,0) with 1m spacing
+nodes = []
+for i in range(6):
+    node = fea.ChNodeFEAxyz()
+    node.SetPos(chrono.ChVectorD(i, 0, 0))
+    sys.AddNode(node)
+    nodes.append(node)
 
-    # Create nodes and elements for a simple beam
-    nodeA = chrono.fea.ChNodeFEAxyzD()
-    nodeA.SetPos(chrono.ChVectorD(0, 0, 0))
-    nodeA.SetFixed(True)  # Fix the first node
+# Fix the first node to simulate a cantilever
+nodes[0].SetFixed(True)
 
-    nodeB = chrono.fea.ChNodeFEAxyzD()
-    nodeB.SetPos(chrono.ChVectorD(1, 0, 0))
+# Create beam elements between consecutive nodes
+for i in range(len(nodes) - 1):
+    beam = fea.ChLinkFEAbeam()
+    beam.Initialize(nodes[i], nodes[i+1])
+    
+    # Set beam properties
+    beam.Set_A(0.1)        # Cross-sectional area (m²)
+    beam.Set_Iy(0.01)      # Moment of inertia (y-axis)
+    beam.Set_Iz(0.01)      # Moment of inertia (z-axis)
+    beam.Set_E(2e11)       # Young's modulus (Pa)
+    beam.Set_nu(0.3)       # Poisson's ratio
+    
+    # Add visualization asset for the beam
+    vis = fea.ChVisualizationFEAbeam()
+    vis.SetRadius(0.1)     # Beam radius
+    beam.AddAsset(vis)
+    
+    sys.AddLink(beam)
 
-    fea_system.AddNode(nodeA)
-    fea_system.AddNode(nodeB)
+# Visualization setup using Irrlicht
+renderer = irr.ChIrrApp(sys, 'Beam FEA Simulation', irr.dimension2du(800, 600))
+renderer.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+renderer.SetCameraVertical(chrono.CH_VECT_Y)
+renderer.AllocateResources()
 
-    # Create a beam element between the nodes
-    beam_element = chrono.fea.ChElementBeam3D()
-    beam_element.SetNodes(nodeA, nodeB)
+# Add sphere visualization to nodes
+for node in nodes:
+    sphere = irr.ChSphereShape()
+    sphere.GetSphereGeometry().rad = 0.2  # Sphere radius
+    node.AddAsset(sphere)
 
-    # Define material properties for the beam
-    material = chrono.ChMaterialBeamANCF()
-    material.SetYoungModulus(2.1e5)  # Young's modulus (Pa)
-    material.SetPoissonRatio(0.3)     # Poisson's ratio
-    material.SetDensity(2700)         # Density (kg/m³)
-    material.SetSectionArea(0.01)     # Cross-sectional area (m²)
-    material.SetSectionIxx(0.0001)    # Moment of inertia around x-axis
-    material.SetSectionIyy(0.0001)    # Moment of inertia around y-axis
-    material.SetSectionIzz(0.0001)   # Moment of inertia around z-axis
-
-    beam_element.SetMaterial(material)
-    fea_system.AddElement(beam_element)
-
-    # Add visualization assets to the FEA system
-    fea_system.AddAsset(chrono.ChVisualizationFEAmesh())
-
-    # Initialize the Irrlicht visualization
-    application = chronoirr.ChIrrApp(system, "Beam FEA Simulation", chronoirr.dimension2du(1024, 768))
-    application.SetCameraPosition(chrono.ChVectorD(2, 1, 2))
-    application.SetCameraLookat(chrono.ChVectorD(0.5, 0, 0))
-    application.AddAll()
-    application.AssetBind()
-    application.AssetUpdate()
-
-    # Set simulation time step
-    system.SetTimestep(0.005)
-
-    # Simulation loop
-    while application.GetDevice().run():
-        application.BeginScene()
-        application.DrawAll()
-        application.DoStep()
-        application.EndScene()
-
-if __name__ == '__main__':
-    main()
+# Run the simulation
+renderer.SetTimestep(0.001)
+renderer.SetTryRealtime(True)
+renderer.Execute()

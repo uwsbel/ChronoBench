@@ -17,14 +17,18 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-soil_density = 1500.0  
-soil_friction = 0.8
-soil_restitution = 0.1
-soil_viscosity = 0.1
-soil_compression = 0.1
+scm_soil_density = 1000.0  
+scm_soil_friction = 0.8
+scm_soil_restitution = 0.01
+scm_soil_damping = 0.1
+scm_soil_shear_modulus = 10000.0  
 
 
-height_map_file = "terrain/heightmap.png"  
+terrainLength = 100.0
+terrainWidth = 100.0
+
+
+heightmap_file = "terrain/heightmap.png"
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -64,13 +68,9 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain_mat = chrono.ChContactMaterialSMC()
-terrain_mat.SetFriction(soil_friction)
-terrain_mat.SetRestitution(soil_restitution)
-terrain_mat.SetViscosity(soil_viscosity)
-terrain_mat.SetCompression(soil_compression)
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.Initialize(height_map_file, soil_density, terrain_mat)
+terrain.SetSoilParameters(scm_soil_density, scm_soil_friction, scm_soil_restitution, scm_soil_damping, scm_soil_shear_modulus)
+terrain.InitializeFromHeightmap(heightmap_file, terrainLength, terrainWidth)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 
 
@@ -136,6 +136,6 @@ while vis.Run() :
     vis.Advance(step_size)
     
     step_number += 1
-    
+
     
     driver_inputs.throttle = 0.8

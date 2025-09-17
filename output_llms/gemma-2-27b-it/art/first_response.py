@@ -10,70 +10,55 @@ import pychrono.vehicle as chronovehicle
 # Create the physical system
 system = chrono.ChSystemNSC()
 
-# Set the default simulation parameters
+# Set the gravitational acceleration
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetTimestep(0.01)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle("ARTcar Simulation")
 vis.Initialize()
-vis.AddTypicalSky()
-vis.AddCamera(chrono.ChVectorD(0, 1.5, 2))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddTypicalLights()
 
 # ---------------------------------------------------------------------
 #
-# Create the terrain
+# Create the ground
 #
 
 # Create a rigid terrain
-terrain = chrono.ChRigidBody()
-terrain.SetBodyFixed(True)
-ground_material = chrono.ChMaterialSurfaceNSC()
-ground_material.SetFriction(0.8)
-ground_material.SetRestitution(0.2)
-terrain.SetMaterialSurface(ground_material)
+ground = chrono.ChBodyEasyBox(
+    20, 20, 1, 1000, True, True, chrono.ChMaterialSurface.NSC
+)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
 
-# Set the terrain dimensions
-terrain_size = chrono.ChVectorD(100, 10, 100)
-terrain_shape = chrono.ChBoxShape()
-terrain_shape.SetSize(terrain_size)
-terrain.AddAsset(terrain_shape)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-
-# Add a custom texture to the terrain
-texture = chronoirr.ChTexture()
-texture.SetFile("path/to/your/texture.png")  # Replace with your texture file
-terrain.AddAsset(texture)
-
-system.Add(terrain)
+# Add a texture to the terrain
+vis.AddGroundTexture("textures/grass.jpg")
 
 # ---------------------------------------------------------------------
 #
 # Create the ARTcar vehicle
 #
 
+# Set vehicle parameters
+vehicle_pos = chrono.ChVectorD(0, 0.5, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+contact_method = chronovehicle.ChContactMethod.NSC
+vis_type = chronovehicle.ChVehicleVisualType.POVRAY
+
 # Create the ARTcar vehicle
-vehicle = chronovehicle.ChVehicle("ARTcar")
+vehicle = chronovehicle.ChVehicle("ARTcar", system, contact_method, vis_type)
 
-# Set the vehicle initial position and orientation
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
-
-# Set the contact method
-vehicle.SetChassisContactMethod(chronovehicle.ChVehicle.CONTACT_METHOD_NSC)
-
-# Set the visualization type
-vehicle.SetChassisVisualizationType(chronovehicle.ChVehicle.VisualizationType_MESH)
-
-# Add the vehicle to the system
-system.Add(vehicle)
+# Set vehicle position and orientation
+vehicle.SetChassisBodyInitialPosition(vehicle_pos)
+vehicle.SetChassisBodyInitialRotation(vehicle_rot)
 
 # ---------------------------------------------------------------------
 #
-# Create the driver system
+# Add driver system
 #
 
 # Create an interactive driver system
@@ -84,20 +69,17 @@ driver = chronovehicle.ChInteractiveDriver(vehicle)
 # Simulation loop
 #
 
-while vis.Run():
-    # Get the current time
-    time = system.GetChTime()
+# Set simulation parameters
+timestep = 0.01
+simulation_time = 10
 
-    # Update the driver input
-    driver.Update(time)
-
+# Run the simulation loop
+while vis.Run() and system.GetChTime() < simulation_time:
     # Update the vehicle dynamics
-    system.DoStepDynamics(0.01)
+    system.DoStepDynamics(timestep)
 
     # Update the visualization
-    vis.BeginScene()
     vis.Render()
-    vis.EndScene()
 
-    # Limit the simulation to 50 frames per second
-    chrono.ChSystem.WaitUntil(time + 0.02)
+# Cleanup
+vis.Deinitialize()

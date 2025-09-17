@@ -42,10 +42,21 @@ sph_joint_1.Initialize(ground, pend_1, chrono.ChVector3d(0, 0, 1), chrono.ChVect
 sys.AddLink(sph_joint_1)
 
 
-log_info = True  
-initial_angular_velocity = chrono.ChVector3d(0, 0.1, 0)  
-pend_1.SetVel(initial_angular_velocity)  
+pend_1.SetDofLinearVel(chrono.ChVector3d(0, 0, 1))  
 
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)  
+vis.SetWindowSize(1024, 768)  
+vis.SetWindowTitle('ChBodyAuxRef demo')  
+vis.Initialize()  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddSkyBox()  
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))  
+vis.AddTypicalLights()  
+
+
+log_info = True  
 while vis.Run():
     vis.BeginScene()  
     vis.Render()  
@@ -58,6 +69,6 @@ while vis.Run():
         print("t = ", sys.GetChTime())
         lin_vel_1 = pend_1.GetPosDt()  
         print("     ", pos_1.x, "  ", pos_1.y)
-        ang_vel_1 = pend_1.GetVel()  
+        ang_vel_1 = pend_1.GetAngVel()  
         print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
         log_info = False

@@ -1,231 +1,213 @@
 Okay, let's tackle this problem step by step. First, I need to go through the provided code and check for any existing errors before making the modifications. Let me start by looking at the original script.
 
-Hmm, looking at the ground's visual shape, there's a line where they add sph_1 to the ground. The code uses chrono.ChFramed, but I think the correct class is chrono.ChFrameD. That's a typo. So that's one error.
+Hmm, looking at the ground's visual shape for sph_1, there's a typo in the frame parameter. The code uses chrono.ChFramed instead of chrono.ChFrame. That's definitely a syntax error because ChFramed doesn't exist. So that needs fixing.
 
-Next, the body_1's position is set to (-1, -3, 0). Wait, but the ground has a sphere at (-1,0,0). Maybe that's intentional, but perhaps the user wants the body_1 to be positioned correctly. Not sure if that's an error though. 
+Next, the existing spring_1 is set up with spring and damping coefficients, which is correct. But the user wants to add a custom force functor for another spring. So I need to create a class MySpringForce that inherits from chrono.ChForceFunctor. Wait, the user mentioned chrono.ForceFunctor, but in PyChrono, the correct class is ChForceFunctor. So the class should be defined with that.
 
-The spring_1 is initialized with body_1 and ground. The anchor points are (0,0,0) for body_1 and (-1,0,0) for ground. Since the ground's sphere is at (-1,0,0), that makes sense. But maybe the rest length is 1.5, so the spring is stretched initially? Well, the code seems okay here.
+Now, the instructions say to add body_2 mirroring body_1. The original body_1 is at (-1, -3, 0). So body_2 should be placed symmetrically, maybe at (1, -3, 0). Also, its visual shape should be similar but perhaps a different color. Let me set the position and add a box with a different color, like blue.
 
-Now, moving to the instructions. First, adding a custom force functor. The user wants a MySpringForce class that extends ForceFunctor. The existing spring uses SetSpringCoefficient and SetDampingCoefficient, but the new spring should use the functor. 
+The ground's second sphere sph_2 should be at (1,0,0). The existing sph_1 is at (-1,0,0), so adding another sphere there makes sense. Need to create that and attach it to the ground.
 
-So I need to create the functor class. The ForceFunctor needs to have EvaluateFunction method. The parameters are the system, body, etc. Wait, the exact parameters depend on the base class. Let me recall. The ForceFunctor for a body would take the time, the body, and maybe other parameters. The method should return the force and torque. Wait, actually, for a force applied to a body, maybe it's a class that takes the time and returns the force vector. Or perhaps for a bilateral constraint like a spring, maybe the functor is used differently. Wait, maybe the spring can have a force function instead of the built-in parameters. Let me think. 
+For the springs: spring_2 connects body_2 to ground. Instead of using the TSDA's built-in spring parameters, we need to use the custom force functor. So, the spring_2 will be a ChLinkTSDA but instead of setting spring and damping coefficients, we'll set the force functor.
 
-Alternatively, the TSDA link has a method to set a force functor. Wait, the ChLinkTSDA has a method SetForceFunctor which takes a functor. The functor should implement EvaluateForce, returning the force value based on displacement and velocity. So the custom class should inherit from chrono.ChLinkTSDAFunctor. Wait, perhaps that's the correct base class. Wait, the user's instruction says to extend ForceFunctor, but maybe in Chrono, there's a specific functor for TSDA links. Let me check. 
+Wait, how does the force functor work? The ChLinkTSDA can have a force functor to compute forces. The MySpringForce class needs to override the Evaluate() method. The parameters for the spring and damping coefficients should be stored in the functor and used during evaluation.
 
-Looking up the documentation, ChLinkTSDA has a method SetForceFunctor which takes a ChLinkTSDAFunctor. So the custom class should inherit from that. The Evaluate function would take the current length and speed, and return the force. 
+So first, defining the MySpringForce class. Let me think about the structure. The ChForceFunctor needs to have Evaluate() which returns the force and torque. Since it's a spring between body and ground, the force is along the link's axis. The functor should calculate the spring force based on the current length and velocity.
 
-So the MySpringForce class should inherit from chrono.ChLinkTSDAFunctor. The constructor would take spring and damping coefficients. The Evaluate method would compute force = -spring*(current_length - rest_length) - damping*velocity. 
+Wait, the parameters for spring and damping coefficients are given as 50 and 1. So in the functor's constructor, we'll store these values. Then in Evaluate, compute the force using (rest_length - current length) and the velocity.
 
-Okay, that's the plan for part 1.
+Wait, but the TSDA link has a rest length. The functor should use that. Let me structure the Evaluate function correctly. The parameters passed to Evaluate are the link (which is the TSDA link), and the time. The functor can access the link's current length and velocity.
 
-Next, adding body_2. The user wants it to mirror body_1's configuration. So body_2 should have similar mass, inertia, position, but mirrored. Since body_1 is at (-1, -3, 0), maybe body_2 should be at (1, -3, 0) to mirror across the x-axis. Also, adding a box visual shape with same properties but different color, perhaps. 
+Alternatively, maybe the functor needs to calculate the force based on the link's state. Let me recall the ChForceFunctor documentation. The Evaluate function should return the force and torque, but for a TSDA link, maybe the force is along the axis. So the force would be spring_coef*(rest_length - current_length) plus damping_coef*(velocity). The direction depends on the link's orientation.
 
-Also, the ground needs another sphere at (1,0,0). So adding sph_2 with position (1,0,0).
+Alternatively, perhaps the functor can be designed to return the force as a scalar, and the TSDA link uses that. Wait, the ChLinkTSDA can have a force functor that returns the force in the direction of the link's axis. So the functor would need to return the scalar force value, and the link applies it along its axis.
 
-Then, for the springs: spring_1 remains as before, using direct parameters. Spring_2 connects body_2 to ground, using the custom functor. So create spring_2, initialize with body_2 and ground, set rest length, then set the functor with spring and damping coefficients.
+Wait, looking at the ChLinkTSDA documentation, the ForceFunctor should return a scalar force value. So the Evaluate function should return the force as a double. The functor would need to compute that based on the current state of the link.
 
-Wait, but the functor's parameters need to be set. So when creating the functor instance, pass the coefficients, then assign it to spring_2.
+So the MySpringForce class would look like this:
 
-Now, checking the original code for errors first. 
-
-Looking back:
-
-The line adding the visual shape to ground's first sphere uses chrono.ChFramed, which is a typo. The correct is chrono.ChFrameD (capital D). That's an error.
-
-Also, when adding the spring's visual shape, the call is spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15)). But the parameters for ChVisualShapeSpring might be radius, number of coils, length? Let me check. The constructor for ChVisualShapeSpring is ChVisualShapeSpring(double radius, int coils, double spring_length). The spring_length is the rest length? Or maybe the visual length. So perhaps that's okay, but maybe the parameters are correct. Alternatively, maybe the order is different. Wait, in the documentation, maybe the parameters are radius, coils, length. So 0.05 radius, 80 coils? That seems like a lot. Wait, maybe the coils and length are swapped. Let me think. For example, a spring with 15 coils and length 80 units? That might look too long. Maybe the parameters are radius, coils, length. So 0.05 radius, 80 coils would make a very tight spring. Hmm, perhaps the user intended something else, but the problem doesn't mention changing that, so maybe leave as is, but note that the original code's parameters might be okay.
-
-Other possible errors: the ground is not a collision shape, but that's okay since it's fixed. 
-
-Now, the main modifications:
-
-First, create the MySpringForce class. 
-
-class MySpringForce(chrono.ChLinkTSDAFunctor):
-    def __init__(self, spring, damping):
+class MySpringForce(chrono.ChForceFunctor):
+    def __init__(self, spring_coef, damping_coef, rest_length):
         super().__init__()
-        self.spring = spring
-        self.damping = damping
-    def Evaluate(self, current_length, current_speed):
-        return -self.spring * (current_length - rest_length) - self.damping * current_speed
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
+        self.rest_length = rest_length
 
-Wait, but rest_length is a global variable here. The rest_length is defined at the top as 1.5. But if the functor is created with its own rest length, perhaps better to pass it in. Wait, the problem says to use the same spring and damping coefficients as given (50 and 1). Since the existing spring uses those parameters, the functor should use them. So the rest_length is also the same. So the functor can use the global variables. But maybe better to pass them in the constructor. Alternatively, perhaps the rest length should be part of the functor's parameters. Wait, the problem says to use the same parameters as the existing spring, so using the global variables is okay here. 
+    def Evaluate(self, link, time):
+        # Get current length and velocity from the link
+        current_length = link.GetSpringLength()
+        velocity = link.GetVelocity()
+        # Compute force: F = -k*(current_length - rest_length) - damping*velocity
+        force = -self.spring_coef * (current_length - self.rest_length) - self.damping_coef * velocity
+        return force
 
-Next, adding body_2:
+Wait, but the parameters for rest_length might need to be passed when creating the functor. Since the spring's rest length is set in the TSDA link, perhaps the functor can access it via link.GetRestLength(), but maybe it's better to pass it through the constructor. Alternatively, if the rest_length is the same as the link's, then perhaps we can use link.GetRestLength() in the functor. But the user's instruction says to use the same spring and damping coefficients as the first spring (50 and 1), so maybe we can hardcode those into the functor, but better to pass them as parameters.
+
+Wait, the user's instruction says "custom parameters for spring and damping coefficients (spring_coef = 50, damping_coef = 1)". So the functor should use those values. Therefore, in the functor's constructor, we can store those values. The rest_length can be obtained from the link's rest length, so maybe we don't need to pass it. Alternatively, perhaps the rest_length is part of the functor's parameters, but since the link's rest length is already set, maybe it's okay.
+
+So the functor can be initialized with the coefficients, and when Evaluate is called, it uses the link's rest length.
+
+Wait, in the existing spring_1, the rest_length is set to 1.5. So the functor for spring_2 should also use that same rest length. Since spring_2 is connected to ground and body_2, perhaps its rest length is also set to 1.5. Therefore, the functor can access link.GetRestLength().
+
+Therefore, the functor can be written as:
+
+class MySpringForce(chrono.ChForceFunctor):
+    def __init__(self, spring_coef, damping_coef):
+        super().__init__()
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
+
+    def Evaluate(self, link, time):
+        current_length = link.GetSpringLength()
+        velocity = link.GetVelocity()
+        rest_length = link.GetRestLength()
+        force = -self.spring_coef * (current_length - rest_length) - self.damping_coef * velocity
+        return force
+
+Wait, but the user wants to use the same spring and damping coefficients as before (50 and 1). So when creating the functor for spring_2, we pass those values.
+
+Now, moving to the code modifications.
+
+First, fix the existing errors:
+
+In the ground's sph_1, the frame is written as chrono.ChFramed, which is incorrect. It should be chrono.ChFrameD (since Framed is not a class, probably a typo). The correct is ChFrame.
+
+Wait, the parameters for ChVisualShapeSphere are radius and then a frame. The line is:
+
+sph_1 = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
+
+The second argument to AddVisualShape is a ChFrame. So the correct is chrono.ChFrameD(chrono.ChVector3d(...)), so the typo was ChFramed instead of ChFrameD. So that's a syntax error.
+
+Similarly, when adding the second sphere for sph_2, we need to use ChFrameD.
+
+Now, adding body_2:
+
+Body_2 should be similar to body_1 but mirrored. Let's set its position to (1, -3, 0). Also, set mass and inertia similarly. Then add a visual shape, maybe a box with a different color, like blue.
+
+So code for body_2:
 
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
-body_2.SetPos(chrono.ChVectorD(1, -3, 0))  # mirrored x position
+body_2.SetPos(chrono.ChVectorD(1, -3, 0))  # Note using ChVectorD, since the original uses ChVector3d (but in PyChrono, it's ChVectorD)
 body_2.SetFixed(False)
 body_2.EnableCollision(False)
 body_2.SetMass(1)
-body_2.SetInertiaXX(chrono.ChVectorD(1,1,1)) 
+body_2.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
 
-Then add a visual shape, similar to body_1 but perhaps a different color:
+Then add a visual shape:
 
-box_2 = chrono.ChVisualShapeBox(1,1,1)
-box_2.SetColor(chrono.ChColor(0, 0.6, 0))  # green maybe?
+box_2 = chrono.ChVisualShapeBox(1, 1, 1)
+box_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Blue color
 body_2.AddVisualShape(box_2)
 
-Then, the ground's second sphere:
+Next, the ground's second sphere:
 
 sph_2 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_2, chrono.ChFrameD(chrono.ChVectorD(1,0,0)))
+ground.AddVisualShape(sph_2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
 
-Now, creating spring_2 between body_2 and ground. 
+Wait, the position is (1,0,0), so the frame's position is set to that.
+
+Now, creating spring_2 between body_2 and ground. The existing spring_1 uses Initialize with body_1 and ground, points (0,0,0) and (-1,0,0). For spring_2, the points would be body_2's local point (0,0,0) and ground's point (1,0,0). So:
 
 spring_2 = chrono.ChLinkTSDA()
-spring_2.Initialize(body_2, ground, True, chrono.ChVectorD(0,0,0), chrono.ChVectorD(1,0,0)) 
-# since the ground's new sphere is at (1,0,0), so the anchor on ground is (1,0,0), and body_2's anchor is (0,0,0) (its COM is at (1, -3,0), so the spring connects to (1, -3,0) + (0,0,0) = (1,-3,0), but the ground's anchor is (1,0,0). So the rest length would be the distance between those points. The rest_length is set to 1.5 again? Wait, the problem says to use the same parameters. So:
-
-spring_2.SetRestLength(rest_length)
-spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
+spring_2.Initialize(body_2, ground, True, chrono.ChVectorD(0,0,0), chrono.ChVectorD(1,0,0))
+spring_2.SetRestLength(rest_length)  # same as before, 1.5
 sys.AddLink(spring_2)
 
-Wait, but the rest length here might not be the same as the distance between the two points. Wait, the rest length is a parameter of the spring. So if the initial positions are such that the distance between the anchor points is different, the spring will be stretched. But the problem says to use the same parameters, so SetRestLength is okay.
+But instead of setting the spring and damping coefficients, we need to attach the force functor. So create an instance of MySpringForce with the coefficients, then set the functor to the link.
 
-Now, checking all steps.
+my_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force)
 
-Potential errors in original code:
+Wait, but the TSDA link's SetForceFunctor method is needed. Wait, in Chrono, the ChLinkTSDA has a method to set the force functor. Let me confirm: yes, the ChLinkTSDA has a method SetForceFunctor to replace the default spring model with a custom functor.
 
-- The ground's first sphere uses ChFramed instead of ChFrameD. So that's a typo. Need to correct to ChFrameD.
+Therefore, after creating spring_2, instead of setting the spring and damping coefficients, we set the functor.
 
-- The visual shape for the spring: the parameters for ChVisualShapeSpring might be okay, but perhaps the number of coils is too high. However, the problem doesn't require changing that, so leave as is.
+Wait, but the original spring_1 uses the standard parameters. So spring_1 remains as is, but spring_2 uses the functor.
 
-Now, implementing the changes step by step.
+Putting it all together:
 
-Putting it all together, the corrected and modified code would have:
+Now, the full code with corrections and modifications.
 
-- Fixed the ChFramed to ChFrameD for the ground's first sphere.
+Also, note that in the original code, the ChVector3d is used, but in PyChrono, the correct class is ChVectorD. Because in Python, the classes are named with D for double, like ChVectorD instead of ChVector3d. So need to replace all instances of ChVector3d with ChVectorD.
 
-- Added the custom functor class.
-
-- Created body_2 with mirrored position and visual.
-
-- Added the second sphere to ground.
-
-- Created spring_2 using the functor.
-
-Also, the initial code's body_1's position is (-1, -3,0). The ground's sphere is at (-1,0,0). The distance between those points is sqrt( (0)^2 + (3)^2 +0 )=3 units. The rest length is 1.5, so the spring is compressed? Or maybe that's intended. The problem doesn't mention changing that, so leave as is.
-
-Now, putting all this into code.
-
-Wait, in the original code, when adding the spring's visual shape, the line is:
-
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
-The parameters for ChVisualShapeSpring are radius, coils, length? Or is the order different? Let me check the Chrono documentation. According to the API, ChVisualShapeSpring's constructor is:
-
-ChVisualShapeSpring (double radius, int coils, double length)
-
-So the parameters are radius (0.05), coils (80), length (15). That would create a very long spring with many coils. Maybe that's okay, but perhaps the user intended different parameters. However, the problem doesn't mention changing that, so we can leave it as is.
-
-Now, compiling all corrections and modifications.
-
-Another possible error: when adding the visual shape to the spring, the spring's AddVisualShape is called with a new instance. That's okay.
-
-Another thing: in the original code, the system's gravity is set to zero. So the bodies won't fall. The bodies are placed at y=-3, so perhaps they are on a plane? Or maybe it's a 2D setup. Anyway, the problem doesn't mention changing that.
-
-Now, the custom functor class must be inside the code. So adding the class definition.
-
-Putting it all together, here's the corrected code:
-
-Wait, also, in the original code, the ground's first sphere is added with:
-
-ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
-
-The typo here is ChFramed vs ChFrameD. So changing to ChFrameD.
-
-Also, in the body_1's inertia, the code uses ChVector3d. Wait, in Chrono, the inertia tensor is set via SetInertiaXX which takes a ChVector<double> (ChVectorD). So perhaps in the original code, the parameters are using ChVector3d, which might be a typo. Wait, the correct type is ChVector<double>, so in PyChrono, it's ChVectorD. So in the original code, body_1.SetInertiaXX(chrono.ChVector3d(1,1,1)) is incorrect. The correct is ChVectorD. So that's an error.
-
-Ah, that's another mistake. The original code uses ChVector3d for inertia, but should be ChVectorD. Similarly, for positions, they use ChVector3d, but perhaps that's okay. Wait, in PyChrono, the classes are ChVectorD (double precision), so the correct class is ChVectorD. So in the original code, all instances of ChVector3d should be ChVectorD. 
-
-Wait, that's a big mistake. Let me check:
-
-Looking at the code:
-
-body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
-
-This should be chrono.ChVectorD(-1, -3, 0). Because ChVector3d is not a valid class. The correct class is ChVectorD (double-precision vector). So all instances of ChVector3d should be replaced with ChVectorD. 
-
-Oh wow, that's a major error. So the original code has several instances of ChVector3d which should be ChVectorD. 
-
-So in the original code:
-
-ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0))) → both ChFramed and ChVector3d are wrong. 
-
-The correct line would be:
-
-ground.AddVisualShape(sph_1, chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0)))
-
-Similarly, body_1's position:
+Wait, looking back at the original code:
 
 body_1.SetPos(chrono.ChVector3d(-1, -3, 0)) → should be ChVectorD.
 
-Same for the inertia: 
+Similarly, the frames for the visual shapes: the first argument to AddVisualShape for sph_1 is a ChFrameD with position ChVectorD(-1,0,0).
 
-body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1)) → ChVectorD.
+So correcting all instances of ChVector3d to ChVectorD.
 
-So that's a critical error. 
+Also, the visual shape for the spring: the line spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15)). The parameters for ChVisualShapeSpring are radius, number of coils, and length? Wait, the constructor for ChVisualShapeSpring is ChVisualShapeSpring(radius, coils, length?), but the parameters might need checking. Alternatively, perhaps it's radius, number of points, etc. But the original code may have that correct, but perhaps the parameters are okay as given.
 
-Also, in the spring initialization:
+Now, compiling all these changes.
 
-spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+So step by step:
 
-The vectors here should be ChVectorD. 
+First, correct the ChVector3d to ChVectorD in all instances.
 
-So all instances of ChVector3d must be replaced with ChVectorD, and ChFramed with ChFrameD.
+Then, fix the ChFramed typo to ChFrameD in the ground's visual shapes.
 
-That's a big oversight in the original code. So that's another correction needed.
+Add the MySpringForce class.
 
-Therefore, the first step is to fix all the ChVector3d to ChVectorD and ChFramed to ChFrameD.
+Add body_2 with its position and visual.
 
-Now, incorporating all these corrections into the code.
+Add the second sphere on the ground.
 
-So the corrected code will have:
+Create spring_2 with the functor.
 
-- All ChVector3d → ChVectorD
+Now, putting all together.
 
-- All ChFramed → ChFrameD
+Also, in the original code, the system's gravity was set to (0,0,0). So the bodies won't move unless there's some force. Wait, but the springs might provide forces. However, since the bodies are initially at (-1, -3, 0) and (1, -3, 0), perhaps they are placed below the ground points. The spring's rest length is 1.5. The distance between body_1 and the ground's point (-1,0,0) is sqrt( ( (-1 - (-1))^2 + ( -3 - 0 )^2 + (0)^2 ) → distance is 3 units. Since the rest length is 1.5, the spring will pull the body up. But with gravity off, the only force is the spring. So the simulation should work.
 
-Then, adding the custom functor, body_2, etc.
+Now, the final code:
 
-Putting all together, the final code should look like this.
+I need to structure all of this correctly. Let me write out the corrected and modified code step by step.
 </think>
 
 ```python
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as chronoirl
 
+# Constants
 rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
 
-# Custom force functor for the spring
-class MySpringForce(chrono.ChLinkTSDAFunctor):
+# Custom force functor
+class MySpringForce(chrono.ChForceFunctor):
     def __init__(self, spring, damping):
         super().__init__()
         self.spring = spring
         self.damping = damping
 
-    def Evaluate(self, current_length, current_speed):
-        return -self.spring * (current_length - rest_length) - self.damping * current_speed
+    def Evaluate(self, link, time):
+        current_length = link.GetSpringLength()
+        velocity = link.GetVelocity()
+        rest_length = link.GetRestLength()
+        force = -self.spring * (current_length - rest_length) - self.damping * velocity
+        return force
 
+# Create the physical system
 sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
 
+# Ground body
 ground = chrono.ChBody()
 sys.AddBody(ground)
 ground.SetFixed(True)
 ground.EnableCollision(False)
 
-# Add visual spheres to ground
+# Ground visual shapes
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0)))
 
 sph_2 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
 
-# Create body_1
+# Body 1 setup
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
 body_1.SetPos(chrono.ChVectorD(-1, -3, 0))
@@ -238,7 +220,7 @@ box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
 
-# Create body_2 (mirroring body_1)
+# Body 2 setup (mirroring body_1)
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVectorD(1, -3, 0))
@@ -248,10 +230,10 @@ body_2.SetMass(1)
 body_2.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
 
 box_2 = chrono.ChVisualShapeBox(1, 1, 1)
-box_2.SetColor(chrono.ChColor(0, 0.6, 0))
+box_2.SetColor(chrono.ChColor(0, 0, 0.6))
 body_2.AddVisualShape(box_2)
 
-# Create spring_1 (direct parameters)
+# Spring 1 (direct parameters)
 spring_1 = chrono.ChLinkTSDA()
 spring_1.Initialize(body_1, ground, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
@@ -260,27 +242,52 @@ spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# Create spring_2 (using custom force functor)
+# Spring 2 (custom force functor)
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
+my_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force)
 sys.AddLink(spring_2)
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-vis = chronoirr.ChVisualSystemIrrlicht()
+# Visualization setup
+vis = chronoirl.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA demo')
+vis.SetWindowTitle('ChLinkTSDA demo with Custom Forces')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVectorD(0, 0, 6))
 vis.AddTypicalLights()
 
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
+```
+
+Key changes and corrections:
+1. **Fixed typos**:
+   - Replaced `ChVector3d` with `ChVectorD` throughout.
+   - Corrected `ChFramed` to `ChFrameD` for ground visual frames.
+
+2. **Added MySpringForce**:
+   - Implemented the custom force functor with proper inheritance and evaluation logic.
+
+3. **Added body_2**:
+   - Mirrored body_1's configuration with position `(1, -3, 0)` and blue visual shape.
+
+4. **Ground visual elements**:
+   - Added second sphere at `(1, 0, 0)`.
+
+5. **Springs configuration**:
+   - Spring_1 uses direct parameters.
+   - Spring_2 uses the custom force functor with identical coefficients.
+
+6. **Visualization adjustments**:
+   - Updated window title to reflect the custom forces addition.
 ```

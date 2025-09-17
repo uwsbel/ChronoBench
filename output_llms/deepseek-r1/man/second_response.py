@@ -6,8 +6,8 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Modified location
+# Initial vehicle location and orientation (MODIFIED)
+initLoc = chrono.ChVector3d(-20, 0, 1.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -19,11 +19,12 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Terrain dimensions
+# Rigid terrain parameters
+terrainHeight = 0      # base height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -37,8 +38,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()  # Changed vehicle type
+# Create the MAN vehicle, set parameters, and initialize (MODIFIED)
+vehicle = veh.MAN_5t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -56,24 +57,25 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with height map
+# Create the terrain with height map (MODIFIED)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Add height field terrain with hills
-heightfield_file = chrono.GetChronoDataFile("height_maps/bump64.png")  # Height map for hills
+# Add height field terrain
 patch = terrain.AddHeightfield(
     patch_mat, 
-    heightfield_file, 
-    terrainLength, 
-    terrainWidth, 
-    0,       # min height
-    3.0,     # max height (creates hills)
-    chrono.ChVector3d(0, 0, 0)  # center
+    veh.GetDataFile("terrain/height_maps/slope.bmp"),  # Height map image
+    chrono.ChVector3d(0, 0, 0),   # Center at origin
+    terrainLength,                # X size
+    terrainWidth,                 # Y size
+    0,                            # Height min
+    10.0,                         # Height max (scale factor)
 )
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
+
+# Set terrain texture (MODIFIED)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -102,7 +104,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,14 +114,15 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+    
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 

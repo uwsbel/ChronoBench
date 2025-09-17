@@ -42,7 +42,7 @@ render_step_size = 1.0 / 50
 
 
 
-vehicle = veh.HMMWV_Full()  
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -67,8 +67,7 @@ patch_mat.SetRestitution(0.05)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0),  
-                         chrono.QuatFromAngleZ(-1.5708)),  
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-1.57)),  
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 

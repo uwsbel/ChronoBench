@@ -3,81 +3,94 @@ import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity
 
-# Create the fixed truss (ground)
+# Create the fixed truss
 truss = chrono.ChBody()
-truss.SetBodyFixed(True)
 system.Add(truss)
+truss.SetBodyFixed(True)
 
-# Add sun gear (connected to truss with revolute joint and motor)
-sun_gear = chrono.ChBody()
-sun_gear.SetMass(1)
-sun_gear.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
-sun_gear.GetCollisionModel().ClearModel()
-sun_gear.GetCollisionModel().AddCylinder(0.2, 0.2, 0.1)  # Radius 0.2, height 0.2
-sun_gear.SetCollide(False)
-system.Add(sun_gear)
+# Add visualization for truss (cylinder)
+truss_shape = chrono.ChCylinderShape()
+truss_shape.GetCylinderGeometry().rad = 0.05
+truss_shape.GetCylinderGeometry().p1 = chrono.ChVector(0, 0, 0)
+truss_shape.GetCylinderGeometry().p2 = chrono.ChVector(0, 0, 0.1)
+truss_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray
+truss.AddAsset(truss_shape)
 
-# Revolute joint for sun gear
-revolute_sun = chrono.ChLinkRevolute()
-revolute_sun.Initialize(truss, sun_gear, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-system.AddLink(revolute_sun)
+# Create sun gear
+sun = chrono.ChBody()
+sun.SetMass(1)
+sun.SetInertiaXX(chrono.ChVector(0.1, 0.1, 0.1))
+sun.SetPos(chrono.ChVector(0, 0, 0))
+system.Add(sun)
 
-# Motor to drive the sun gear
+# Sun gear visualization
+sun_shape = chrono.ChCylinderShape()
+sun_shape.GetCylinderGeometry().rad = 0.2
+sun_shape.GetCylinderGeometry().p1 = chrono.ChVector(0, 0, -0.1)
+sun_shape.GetCylinderGeometry().p2 = chrono.ChVector(0, 0, 0.1)
+sun_shape.SetColor(chrono.ChColor(1, 0.8, 0))  # Orange
+sun.AddAsset(sun_shape)
+
+# Motor to drive sun gear
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(sun_gear, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-motor.SetSpeedFunction(chrono.ChFunction_Const(2.0))  # Constant angular speed (rad/s)
-system.AddLink(motor)
+motor.Initialize(sun, truss, chrono.ChFrame(chrono.ChVector(0, 0, 0), chrono.QUNIT))
+speed_func = chrono.ChFunction_Const(10)  # 10 rad/s
+motor.SetSpeedFunction(speed_func)
+system.Add(motor)
 
-# Create the rotating bar (planet carrier)
-bar = chrono.ChBody()
-bar.SetMass(2)
-bar.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
-bar.SetPos(chrono.ChVectorD(0, 0, 0))
-bar.GetCollisionModel().ClearModel()
-bar.GetCollisionModel().AddBox(1, 0.1, 0.1)  # Length 2 along x-axis
-bar.SetCollide(False)
-system.Add(bar)
+# Create rotating bar (carrier)
+carrier = chrono.ChBody()
+carrier.SetMass(2)
+carrier.SetInertiaXX(chrono.ChVector(1, 1, 1))
+carrier.SetPos(chrono.ChVector(0, 0, 0))
+system.Add(carrier)
 
-# Revolute joint for the bar (connects to truss)
-revolute_bar = chrono.ChLinkRevolute()
-revolute_bar.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-system.AddLink(revolute_bar)
+# Carrier visualization
+carrier_shape = chrono.ChBoxShape()
+carrier_shape.GetBoxGeometry().Size = chrono.ChVector(0.4, 0.05, 0.05)
+carrier_shape.SetColor(chrono.ChColor(0, 0.8, 0.8))  # Cyan
+carrier.AddAsset(carrier_shape)
 
-# Create the planet gear (mounted on the bar)
-planet_gear = chrono.ChBody()
-planet_gear.SetMass(1)
-planet_gear.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-planet_gear.GetCollisionModel().ClearModel()
-planet_gear.GetCollisionModel().AddCylinder(0.2, 0.2, 0.1)
-planet_gear.SetCollide(False)
-system.Add(planet_gear)
+# Revolute joint between truss and carrier
+carrier_revolute = chrono.ChLinkRevolute()
+carrier_revolute.Initialize(truss, carrier, chrono.ChCoordsys(chrono.ChVector(0, 0, 0), chrono.QUNIT))
+system.Add(carrier_revolute)
 
-# Revolute joint for planet gear (connects to bar)
-revolute_planet = chrono.ChLinkRevolute()
-revolute_planet.Initialize(bar, planet_gear, chrono.ChCoordsysD(chrono.ChVectorD(0.4, 0, 0), chrono.QUNIT))
-system.AddLink(revolute_planet)
+# Create planet gear
+planet = chrono.ChBody()
+planet.SetMass(1)
+planet.SetInertiaXX(chrono.ChVector(0.1, 0.1, 0.1))
+planet.SetPos(chrono.ChVector(0.4, 0, 0))  # Initial position
+system.Add(planet)
 
-# Gear constraint between sun and planet gears
+# Planet gear visualization
+planet_shape = chrono.ChCylinderShape()
+planet_shape.GetCylinderGeometry().rad = 0.2
+planet_shape.GetCylinderGeometry().p1 = chrono.ChVector(0, 0, -0.1)
+planet_shape.GetCylinderGeometry().p2 = chrono.ChVector(0, 0, 0.1)
+planet_shape.SetColor(chrono.ChColor(0.8, 0, 0.8))  # Purple
+planet.AddAsset(planet_shape)
+
+# Revolute joint between carrier and planet
+planet_revolute = chrono.ChLinkRevolute()
+planet_revolute.Initialize(carrier, planet, chrono.ChCoordsys(chrono.ChVector(0.4, 0, 0), chrono.QUNIT))
+system.Add(planet_revolute)
+
+# Gear constraint between sun and planet
 gear_constraint = chrono.ChLinkGear()
-gear_constraint.Initialize(sun_gear, planet_gear, True, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 1))
-gear_constraint.SetRatio(-1.0)  # Equal and opposite rotation
-system.AddLink(gear_constraint)
+gear_constraint.Initialize(sun, planet, False, chrono.ChFrame(), chrono.ChFrame())
+gear_constraint.SetTransmissionRatio(-1.0)  # 1:1 ratio with opposite direction
+system.Add(gear_constraint)
 
 # Set up Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "Epicyclic Gears Simulation", chronoirr.dimension2du(1024, 768))
+application = chronoirr.ChIrrApp(system, 'Epicyclic Gears Simulation', chronoirr.dimension2du(1024, 768))
 application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 3, 3), chronoirr.vector3df(0, 0, 0))
-application.AddLightWithShadow(chronoirr.vector3df(2, 5, 2), chronoirr.vector3df(0, 0, 0), 10, 0.2, 10, 512, chrono.CH_C_PI / 6)
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1), chronoirr.vector3df(0, 0, 0))
 
-# Assign materials/colors to objects
-truss.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.8, 0.8)))  # Gray
-sun_gear.AddAsset(chrono.ChColorAsset(chrono.ChColor(1, 0, 0)))      # Red
-bar.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 1, 0)))          # Green
-planet_gear.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 1)))  # Blue
-
+# Bind and update assets
 application.AssetBindAll()
 application.AssetUpdateAll()
 
@@ -88,5 +101,5 @@ application.SetTryRealtime(True)
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+    application.DoStep()
     application.EndScene()
-    system.DoStepDynamics(application.GetTimestep())

@@ -86,6 +86,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
+
 # Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # Time to go from 0 to +1
@@ -167,9 +168,9 @@ while vis.Run():
     # Add the GPS to the sensor manager
     manager.AddSensor(gps)
 
-    # Update sensor managers in each step
+    # Update sensor manager in each step
     manager.Update()
-    
+
     # Increment frame number
     realtime_timer.Spin(step_size)
     
@@ -251,8 +252,8 @@ while vis.Run():
     # Add the GPS to the sensor manager
     manager.AddSensor(gps)
 
-    # Update sensor managers in each step
+    # Update sensor manager in each step
     manager.Update()
-    
+
     # Increment frame number
     realtime_timer.Spin(step_size)

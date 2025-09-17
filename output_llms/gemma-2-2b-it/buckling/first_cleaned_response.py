@@ -1,5 +1,5 @@
 import pychrono as chrono
-import pychrono.chrono as chrono
+import pychrono.chrono as chrono_chrono
 import pychrono.irrlicht as irrlicht
 import pychrono.FEA as FEA
 
@@ -7,49 +7,45 @@ import pychrono.FEA as FEA
 chrono.init()
 
 
-world = chrono.World()
+sim = chrono.Simulation()
 
 
-beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.05
-beam_material = chrono.Material("Steel", 1000.0)  
-
-beam_element = chrono.BeamElement(beam_length, beam_width, beam_height, beam_material)
+scene = chrono.Scene()
 
 
-motor = chrono.Motor(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.Vector(0.0, 1.0, 0.0),
-    chrono.Vector(0.0, 0.0, 1.0),
-    chrono.Vector(0.0, 0.0, 0.0),
-    chrono.Vector(1.0, 0.0, 0.0),
-)
+beam = chrono.Beam()
+beam.set_material("Steel")
+beam.set_length(1.0)
+beam.set_cross_section("Rectangle", width=0.1, height=0.05)
+beam.set_position(chrono.Vector3D(0.0, 0.0, 0.0))
 
 
-constraint = chrono.Constraint(beam_element, motor)
+motor = chrono.Motor()
+motor.set_position(chrono.Vector3D(0.5, 0.0, 0.0))
+motor.set_force(chrono.Vector3D(0.0, 10.0, 0.0))
 
 
-FEA_solver = chrono.FEA.FEA()
-FEA_solver.set_material(beam_material)
+beam.add_constraint(chrono.ConstraintType.Fixed, motor)
 
 
-timestepper = chrono.Timestepper(
-    FEA_solver,
-    world,
-    chrono.EulerIntegration(),
-    chrono.NewtonianIntegration(),
-)
+irr = irrlicht.Irrlicht()
 
 
-irrlicht_visualizer = irrlicht.IrrlichtVisualizer()
+irr.init()
 
 
-world.add_object(beam_element)
-world.add_object(motor)
+irr.set_visualisation(scene)
 
 
-chrono.run(timestepper, world)
+solver = chrono.Solver()
+timestepper = chrono.Timestepper()
 
 
-irrlicht_visualizer.run()
+sim.run(solver, timestepper)
+
+
+irr.visualize(sim)
+
+
+sim.finalize()
+irr.shutdown()

@@ -122,7 +122,7 @@ def main():
     ros_manager.Initialize()  
 
     
-    time = 0
+    time = 
     time_step = 1e-3  
     time_end = 100  
 

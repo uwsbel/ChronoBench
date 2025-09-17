@@ -1,79 +1,55 @@
-import chrono as ch
-import chrono.irrlicht as chirr
+import pychrono as chrono
+import pychrono.irrlicht as irr
 
 
-ch.ChEngine.Initialize()
+chrono.ChEngine.Initialize()
 
 
-app = chirr.ChIrrApp()
+app = irr.ChIrrApp()
 
 
-ground = ch.ChBodyEasyTerrain(
-    "ground",
-    1000,  
-    1000,  
-    10,    
-    20,    
-    20,    
-    ch.ChVector3d(0, 0, -5)  
-)
+system = chrono.ChSystem()
 
 
-ground.GetCollisionModel().SetContactMaterialProperties(0.9, 0.9, 0.9)
-ground.GetCollisionModel().SetContactShapeType(ch.ChContactShapeType.SPHERE)
-
-
-ground.SetPos(ch.ChVector3d(0, 0, -5))
-ground.SetFixed(True)
-
-system = ch.ChSystemNSC()
+ground = chrono.ChBodyEasyBox(chrono.Vector(100, 10, 100),  
+                              chrono.Vector(0, -5, 0),  
+                              True,  
+                              True)  
+ground.SetBodyFixed(True)
+ground.GetCollisionShape().SetFriction(0.8)
 system.Add(ground)
 
 
-rover = ch.ChBodyEasyMesh(
-    "path/to/curiosity_rover.obj",  
-    1000,  
-    False,  
-    True,   
-    ch.ChVector3d(0, 0, 0)  
-)
-
-
+rover = chrono.ChBodyEasyMesh('path/to/curiosity_rover.obj',  
+                              chrono.Vector(0, 0, 0),  
+                              True,  
+                              True)  
+rover.SetMass(1000)  
 system.Add(rover)
 
 
-steering_motor = ch.ChMotor(
-    ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)),
-    ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaterniond(0, 0, 0, 1))
-)
+steering_driver = chrono.ChSteeringDriver(rover)
+steering_driver.SetSteeringFunction(chrono.ChSteeringFunction_Sine(0.1,  
+                                                                0.5))  
+system.Add(steering_driver)
 
 
-steering_driver = ch.ChFunction_Const(0)  
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraPosition(chrono.Vector(10, 10, 10))
+vis.SetCameraTarget(chrono.Vector(0, 0, 0))
+vis.EnableShadows()
+vis.EnableSFX(irr.SOUND_FX_NONE)
+vis.EnableLights()
 
 
-system.Add(steering_motor)
-steering_motor.SetControlFunction(steering_driver)
+vis.AddLogo(irr.ChLogo('chronologo.png'))
+vis.AddTexture(irr.ChTexture('terrain.jpg'))
 
 
-irrlicht_renderer = chirr.ChIrrlichtRenderer(system)
-irrlicht_renderer.SetWindowSize(chirr.ChVector2di(800, 600))
-irrlicht_renderer.SetWindowTitle("Curiosity Rover Simulation")
-irrlicht_renderer.UseCameraSettings(chirr.ChCameraSettings())
+app.SetSystem(system)
+app.SetVisualSystem(vis)
+app.DoRun()
 
 
-camera = irrlicht_renderer.GetCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.LookAt(ch.ChVector3d(0, 0, 0))
-
-
-irrlicht_renderer.EnableSunlight(True)
-irrlicht_renderer.EnableShadows(True)
-
-
-irrlicht_renderer.EnableTextures(True)
-irrlicht_renderer.LoadTexture("path/to/texture.jpg")  
-irrlicht_renderer.SetLogo("path/to/logo.png")  
-
-
-while irrlicht_renderer.Run():
-    system.Update(1 / 60.0)
+chrono.ChEngine.Finalize()

@@ -1,104 +1,84 @@
 import pychrono as pychrono
-import pychrono.render as pyrender
-from pychrono import vehicle
-from pychrono import driver
-from pychrono import contact
-from pychrono import rigidbody
-from pychrono import materials
-from pychrono import meshes
+import pychrono.vehicles as vehicles
+import pychrono.input as input
+import pychrono.render as render
 
-# Initialize PyChrono environment
+# Initialize PyChrono and renderer
 pychrono.init()
-
-# Initialize renderer
-renderer = pyrender.IrrlichtRenderer()
-renderer.set_frame_rate(50)
-renderer.set_vsync(True)
-renderer.enable_shadows(True)
-
-# Initialize camera
-camera = renderer.camera
-camera.set_position([5, 0, 5])
-camera.set_lookat([0, 0, 0])
-camera.set_up([0, 1, 0])
+renderer = render.Renderer("Irrlicht")
+renderer.set_camera_position([0, 10, 10])
+renderer.set_look_at([0, 0, 0])
+renderer.set_field_of_view(45.0)
 
 # Initialize vehicle
-vehicle_body = vehicle.Body()
-vehicle_body.set_mass(1000)
-vehicle_body.set_contact_method(contact.ContactArea)
-vehicle_body.set_position([0, 0, 0])
-vehicle_body.set_orientation([0, 0, 1])
-vehicle_body.set_material(materials.Material(0.5, 0.2, 0.2, 0.8))
+vehicle = vehicles.FEDA_Vehicle(pychrono.get_core(), "FEDA Vehicle")
+vehicle.set_contact_method(pychrono.ContactMethod.CONTACT_POINT)
+vehicle.set_location([0, 0, 0])
+vehicle.set_orientation([0, 0, 1])
+vehicle.set_tire_model("soft")
+vehicle.set_mass(1000)
+vehicle.add_mesh("body", "cube", 1, 1, 1)
+vehicle.add_mesh("suspension", "cylinder", 0.5, 0.5, 0.5)
+vehicle.add_mesh("left_wheel", "sphere", 0.5, 0, 0)
+vehicle.add_mesh("right_wheel", "sphere", 0.5, 0, 0)
 
-# Initialize tires
-tire_radius = 0.3
-tire_mass = 5
-tire_friction = 0.1
-tires = []
-for i in range(4):
-    tire = vehicle.Tire()
-    tire.set_model("SoftTire")
-    tire.set_radius(tire_radius)
-    tire.set_mass(tire_mass)
-    tire.set_friction(tire_friction)
-    tire.set_position([0, 0, 0])
-    tire.set_contact_point([0, 0, 0])
-    tires.append(tire)
-
-# Attach tires to suspension points
-suspension_points = vehicle.Body()
-suspension_points.set_mass(0)
-suspension_points.set_position([0, -0.5, 0])
-suspension_points.set_orientation([0, 0, 1])
-for tire in tires:
-    tire.set_parent(suspension_points)
-
-# Create terrain
-terrain = rigidbody.RigidPlane()
+# Initialize terrain
+terrain = pychrono.objects.RigidTerrain(pychrono.get_core())
+terrain.set_texture("terrain texture.png")
 terrain.set_position([0, 0, 0])
-terrain.set_size(10, 10)
-terrain.set_material(materials.Material(1, 0.5, 0.5, 0.8))
-terrain.set_contact_method(contact.ContactArea)
-renderer.add_object(terrain)
 
-# Create vehicle mesh
-vehicle_mesh = meshes.Mesh("box")
-vehicle_mesh.set_position([0, 0, 0])
-vehicle_mesh.set_rotation([0, 0, 1])
-renderer.add_mesh(vehicle_mesh, vehicle_body)
+# Add vehicle to the world
+pychrono.get_core().add_object(terrain)
+pychrono.get_core().add_object(vehicle)
 
-# Initialize driver
-driver = pychrono.driver.Driver()
-driver.set_vehicle(vehicle_body)
-driver.set_controls(["steering", "throttle", "brake"])
-driver.set_camera(camera)
+# Set up camera
+camera = pychrono.render.Camera()
+camera.set_position([0, 10, 10])
+camera.set_look_at([0, 0, 0])
+renderer.set_camera(camera)
 
-# Simulation loop
-frame = 0
-while pychrono.get_time() < 1000:
-    # Handle driver input
-    speed = 5
-    if pychrono.input.keyboard.get_key('w'):
-        speed = 10
-    if pychrono.input.keyboard.get_key('s'):
-        speed = -10
-    if pychrono.input.keyboard.get_key('a'):
-        driver.set_steering(-0.5)
-    if pychrono.input.keyboard.get_key('d'):
-        driver.set_steering(0.5)
-    driver.set_throttle(0.5 if pychrono.input.keyboard.get_key(' ') else 0)
-    driver.set_brake(0.5 if pychrono.input.keyboard.get_key(' ') else 0)
+# Set up input
+input_handler = input.Input()
+input_handler.add_action("S", "toggle_brake")
+input_handler.add_action("A", "accelerate")
+input_handler.add_action("D", "brake")
+input_handler.add_action("W", "steer_left")
+input_handler.add_action("S", "steer_right")
+
+# Set up simulation
+simulation = pychrono.Simulation(pychrono.get_core(), 1/50)  # 50 FPS
+
+# Visualization settings
+renderer.set_mesh_visualization_type("mesh")
+
+# Main simulation loop
+running = True
+while running:
+    simulation.update()
+    renderer.update()
     
-    # Update vehicle dynamics
-    pychrono.update()
-    vehicle_body.update()
+    # Handle input
+    input_handler.update()
     
-    # Render scene
-    renderer.begin_frame()
-    renderer.render()
-    renderer.end_frame()
+    # Get vehicle speed
+    speed = vehicle.get_speed()
     
-    # Display info
-    print(f"Frame: {frame} | Speed: {speed} | Battery: 100%", end=' ')
-    frame += 1
-print()
+    # Draw text
+    renderer.draw_text([5, 10, 10], "Speed: %.2f" % speed, 2, 2, 0.0, 0.0, 0.0, 255, 255, 255)
+    
+    # Handle pause
+    if input_handler.is_pressed(input.Keyboard.SPACE):
+        renderer.pause()
+    else:
+        renderer.resume()
+    
+    # Handle camera toggle
+    if input_handler.is_pressed(input.Keyboard.TAB):
+        renderer.toggle_camera()
+    
+    # Handle exit
+    if input_handler.is_pressed(input.Keyboard.q):
+        running = False
+
+# Cleanup
+renderer.close()

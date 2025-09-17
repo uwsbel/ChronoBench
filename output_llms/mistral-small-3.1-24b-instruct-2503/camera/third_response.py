@@ -11,25 +11,17 @@ def main():
     # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------------------
+    # -----------------------
     # Add a box to be sensed by a camera
-    # -----------------------------------
-    side = 2.0  # Dimension of the box
+    # -----------------------
+    # Define the dimensions of the box
+    side = 1.0  # Example side length for the box
 
     # Create a box body
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
     box_body.SetFixed(True)  # Fix the box in space
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetLengths(chrono.ChVector3d(side, side, side))
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  # Set the shape to be immutable
-
-    # Attach the visual shape to the box body
-    box_body.AddVisualShape(box_shape)
 
     # -----------------------
     # Create a sensor manager
@@ -58,7 +50,7 @@ def main():
         offset_pose,           # Offset pose of the camera
         image_width,           # Image width in pixels
         image_height,          # Image height in pixels
-        fov                    # Camera's horizontal field of view in radians
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility

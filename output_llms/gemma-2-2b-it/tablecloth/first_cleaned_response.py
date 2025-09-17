@@ -1,63 +1,62 @@
 import pychrono as chrono
 import pychrono.core as core
 import pychrono.materials as materials
-import pychrono.dynamics as dynamics
-import pychrono.visualization as visualization
-import pychrono.solvers as solvers
+import pychrono.solver as solver
 
 
 chrono.init()
 
 
-app = chrono.Application()
+env = chrono.Environment()
 
 
-world = chrono.World()
+world = chrono.World(env)
 
 
 material = materials.IsotropicKirchhoff(
     density=1000.0,  
-    elasticity=100.0,  
+    YoungsModulus=1000000.0,  
     PoissonRatio=0.3,  
+    ElastModulus=1000000.0,  
+    viscosity=1.0  
 )
 
 
-mesh = chrono.MeshGenerator.create_triangle_mesh(
-    size=0.1,  
-    n_vertices=1000,  
-    n_elements=1000,  
-)
+mesh = chrono.Mesh(world)
+mesh.addMaterial(material)
+mesh.generateMesh(1000, 1000)  
 
 
-shell = chrono.ShellElement(
-    material=material,
-    mesh=mesh,
-    name="TableclothShell",
-)
+tablecloth = chrono.Shape(world)
+tablecloth.addMesh(mesh)
 
 
-nodes = chrono.NodeSet()
-nodes.add_node(mesh.get_vertices())
-
-
-elements = chrono.ElementSet()
-elements.add_element(shell)
-
-
-system = chrono.SimulationSystem(
-    world=world,
-    elements=elements,
-    nodes=nodes,
-    solver=solvers.PardisoMKL(),
-)
-
-
-vis = visualization.IrrlichtVisualization(app)
-vis.add_mesh(mesh)
-vis.add_system(system)
+tablecloth.setBoundaryConditions(chrono.BoundaryCondition.Fixed)
 
 
 
+force = chrono.Force(world)
+force.setDirection(chrono.Vector3(0, 1, 0))
+force.setMagnitude(100.0)
+force.applyTo(tablecloth)
 
 
-app.run()
+solver = solver.PardisoMKL(world)
+
+
+solver.setTolerance(1e-6)
+solver.setMaxIterations(1000)
+
+
+dt = 0.01  
+
+
+while world.isRunning():
+    
+    world.update(dt)
+
+    
+    env.render()
+
+
+env.destroy()

@@ -18,52 +18,52 @@ def create_particle(sys):
 
     
     if shape == 'Sphere':
-        particle = chrono.ChBodyEasySphere(sys, 0.1, 1.0, pos)
+        particle = chrono.ChBodyEasySphere(sys, 0.1, 1000, True, True)
     elif shape == 'Box':
-        particle = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 1.0, pos)
+        particle = chrono.ChBodyEasyBox(sys, 0.1, 0.1, 0.1, 1000, True, True)
     elif shape == 'Cylinder':
-        particle = chrono.ChBodyEasyCylinder(sys, 0.1, 0.1, 1.0, pos)
+        particle = chrono.ChBodyEasyCylinder(sys, 0.1, 0.1, 1000, True, True)
 
     
-    particle.SetPos(chrono.ChVectorD(pos))
-    particle.SetVel(chrono.ChVectorD(vel))
+    particle.SetPos(chrono.ChVectorD(*pos))
+    particle.SetVel(chrono.ChVectorD(*vel))
     particle.SetRot(rot)
 
     
-    sys.AddBody(particle)
+    sys.Add(particle)
 
 
 for _ in range(10):
     create_particle(sys)
 
 
-class GravitationalForce(chrono.ChForce):
-    def __init__(self, sys):
-        super().__init__()
-        self.sys = sys
-
-    def Update(self, time, dt):
-        for i in range(self.sys.GetNbodies()):
-            for j in range(i+1, self.sys.GetNbodies()):
-                body_i = self.sys.GetBody(i)
-                body_j = self.sys.GetBody(j)
-                pos_i = body_i.GetPos()
-                pos_j = body_j.GetPos()
-                dist = (pos_i - pos_j).Length()
-                force = 0.1 * (pos_j - pos_i) / dist**3
-                body_i.AddForce(force)
-                body_j.AddForce(-force)
+def gravitational_force(p1, p2):
+    G = 6.67430e-11  
+    m1 = p1.GetMass()
+    m2 = p2.GetMass()
+    r = (p2.GetPos() - p1.GetPos()).Length()
+    F = G * m1 * m2 / r**2
+    return chrono.ChVectorD(F * (p2.GetPos() - p1.GetPos()).Normalized())
 
 
-sys.AddForce(GravitationalForce(sys))
+for i in range(sys.GetNbodies()):
+    for j in range(i+1, sys.GetNbodies()):
+        p1 = sys.GetBody(i)
+        p2 = sys.GetBody(j)
+        force = gravitational_force(p1, p2)
+        p1.AddForce(force)
+        p2.AddForce(-force)
 
 
-app = chronoirr.ChIrrApp(sys, 'Gravitational Attraction', chronoirr.dimension2du(800, 600))
+app = chronoirr.ChIrrApp(sys, "PyChrono Simulation", chronoirr.dimension2du(800, 600))
 
 
 app.AddTypicalSky()
+app.AddTypicalLights()
 app.AddTypicalCamera(chronoirr.vector3df(0, 0, -3))
-app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512)
 
 
 app.GetDevice().run()
+
+
+app.GetDevice().closeDevice()

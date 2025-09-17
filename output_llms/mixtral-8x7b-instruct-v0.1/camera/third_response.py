@@ -15,15 +15,19 @@ def main():
     # Add a box to be sensed by a camera
     # -----------------------------------
     # Create a box shape
-    side = 2.0  # Set the side length of the box
+    side = 1.0  # Set the side length of the box
     box_shape = chrono.ChBox(side, side, side, 1000)
 
+    # Create a visual representation of the box
+    box_shape.SetTexture(chrono.GetChronoDataFile("textures/checkerboard.png"))
+    box_visual = chrono.ChVisualBox(box_shape)
+
     # Create a body to which the visual shape will be attached
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  # Set the box body with texture
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box body
-    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box body
-    box_body.SetFixed(True)  # Fix the box body in space
-    mphysicalSystem.Add(box_body)  # Add the box body to the physical system
+    box_body = chrono.ChBody()
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the body
+    box_body.AddVisualShape(box_visual)  # Attach the visual shape to the body
+    box_body.SetFixed(True)  # Fix the body in space
+    mphysicalSystem.Add(box_body)  # Add the body to the physical system
 
     # -----------------------
     # Create a sensor manager
@@ -42,7 +46,7 @@ def main():
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Define the camera offset pose relative to the box body
+    # Define the camera offset pose relative to the box it is attached to
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor

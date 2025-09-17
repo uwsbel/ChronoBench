@@ -18,28 +18,37 @@ msection = fea.ChBeamSectionEulerAdvanced()
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
+
+
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-
 msection.SetSectionRotation(45 * chrono.CH_C_DEG_TO_RAD)
+
 
 
 builder = fea.ChBuilderBeamEuler()
 
 
-pointA = chrono.ChVector3d(0, 0, -0.1)
-pointB = chrono.ChVector3d(0.2, 0, -0.1)
-num_elements = 5
-builder.BuildBeam(mesh, pointA, pointB, msection, num_elements, chrono.ChVector3d(0, 1, 0))
+builder.BuildBeam(mesh, 
+                  msection, 
+                  5, 
+                  chrono.ChVector3d(0, 0, -0.1), 
+                  chrono.ChVector3d(0.2, 0, -0.1), 
+                  chrono.ChVector3d(0, 1, 0))
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
 
 
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
+
+
+mesh.SetAutomaticGravity(False)
 
 
 sys.Add(mesh)
@@ -51,6 +60,7 @@ visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
 visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
+
 
 visualizebeamC = chrono.ChVisualShapeFEA(mesh)
 visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)

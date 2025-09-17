@@ -105,9 +105,15 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver sequence
-start_maneuver_time = 2  # seconds
-end_maneuver_time = 10  # seconds
-steering_angle = 0.5  # radians
+start_time = 0
+maneuver_sequence = [
+    (0, 0, 0),  # time, steering, throttle
+    (5, -0.5, 0.5),  # start turning left
+    (10, 0, 0.5),  # straighten out
+    (15, 0.5, 0.5),  # start turning right
+    (20, 0, 0.5),  # straighten out
+    (25, 0, 0)  # slow down
+]
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -119,17 +125,15 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Double lane change maneuver sequence
+    for i in range(len(maneuver_sequence) - 1):
+        if time >= start_time + maneuver_sequence[i][0] and time < start_time + maneuver_sequence[i+1][0]:
+            driver.SetSteering(maneuver_sequence[i][1])
+            driver.SetThrottle(maneuver_sequence[i][2])
+            break
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-
-    # Double lane change maneuver sequence
-    if start_maneuver_time <= time < end_maneuver_time:
-        if time < (start_maneuver_time + (end_maneuver_time - start_maneuver_time) / 2):
-            driver_inputs.m_steering = steering_angle
-        else:
-            driver_inputs.m_steering = -steering_angle
-    else:
-        driver_inputs.m_steering = 0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

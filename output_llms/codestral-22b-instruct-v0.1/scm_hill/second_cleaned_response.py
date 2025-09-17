@@ -23,7 +23,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -43,14 +42,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -109,22 +107,31 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+obstacles = []
+for i in range(5):
+    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
+    obstacle.SetBodyFixed(True)
+    vehicle.GetSystem().Add(obstacle)
+    obstacles.append(obstacle)
+
+
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = sens.ChLidarSensor(vehicle.GetSystem(), 100, 100, 10, 360, chrono.ChCoordsysd(chrono.ChVector3d(0.8, 0, 1.7), chrono.Q_from_AngZ(0)))
-lidar.SetFilter(sens.ChSensorFilterLidarPointCloudMinMax(0.0, 50.0))
-lidar.SetFilter(sens.ChSensorFilterLidarRaycast())
-lidar.SetVisualizePoints(True)
-lidar.SetVisualizeSensor(True)
-manager.AddSensor(lidar)
-
-
-for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
-    obstacle.SetBodyFixed(True)
-    vehicle.GetSystem().Add(obstacle)
+lidar_sensor = sens.ChLidarSensor(vehicle.GetChassisBody(), 100, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.Q_from_AngX(np.pi / 2)))
+lidar_sensor.SetName("Lidar")
+lidar_sensor.SetScanDirection(chrono.ChVectorD(0, 0, -1))
+lidar_sensor.SetScanAngles(-np.pi / 2, np.pi / 2)
+lidar_sensor.SetScanResolution(1.0)
+lidar_sensor.SetSamplesBufferSize(1000)
+lidar_sensor.SetVisualizePoints(True)
+lidar_sensor.SetVisualizeSensor(True)
+lidar_sensor.SetVisualizationLineWidth(2)
+lidar_sensor.SetVisualizationColor(chrono.ChColor(1, 0, 0))
+lidar_sensor.SetFilterDistMin(0.5)
+lidar_sensor.SetFilterDistMax(10.0)
+manager.AddSensor(lidar_sensor)
 
 
 
@@ -159,7 +166,9 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    manager.Update()  
+
+    
+    manager.Update()
 
     
     driver.Advance(step_size)

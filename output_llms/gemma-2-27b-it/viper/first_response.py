@@ -11,7 +11,7 @@ import math
 # Create the Chrono system
 system = chrono.ChSystemNSC()
 
-# Set gravitational acceleration
+# Set the gravitational acceleration
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the ground body
@@ -20,41 +20,47 @@ ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
 system.Add(ground)
 
-# Create the Viper rover
-rover = chrono.ChChassis(
-    "Viper", chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0),
-    chrono.ChChassis.Type_VEHICLES, 1000
-)
+# ---------------------------------------------------------------------
+#
+#  Create the Viper rover
+#
+# ---------------------------------------------------------------------
+
+# Load the Viper rover model (assuming you have the model file)
+rover = chrono.ChWheeledVehicle("viper_rover.obj")
 system.Add(rover)
 
-# Create the driver (placeholder for now)
-driver = chrono.ChBodyEasySphere(0.2, 1000)
-driver.SetPos(chrono.ChVectorD(0, 0.8, 0))
-driver.SetBodyFixed(True)
+# Set initial position and orientation
+rover.SetPos(chrono.ChVectorD(0, 1, 0))
+rover.SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
+
+# Configure the rover's wheels and suspension (details depend on the model)
+# ...
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver (optional)
+#
+# ---------------------------------------------------------------------
+
+# Create a driver object (if desired) to control the rover
+driver = chrono.ChDriver(rover)
 system.Add(driver)
 
-# Attach the driver to the rover
-rover.AddSensor(driver)
-
 # ---------------------------------------------------------------------
 #
-#  Set up visualization
+#  Set up Irrlicht visualization
 #
 # ---------------------------------------------------------------------
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Viper Rover Simulation")
-vis.Initialize()
+# Create the Irrlicht application
+vis = chronoirr.ChIrrApp(system, "Viper Rover Simulation", chronoirr.dimension2du(1280, 720))
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 1, 0))
 
-# Set camera position and look at point
-vis.GetCamera().SetTarget(chrono.ChVectorD(0, 0.5, 0))
-vis.GetCamera().SetPosition(chrono.ChVectorD(5, 2, 5))
-
-# Add some lighting
-vis.AddLightWithShadow(chrono.ChVectorD(2, 5, 2), chrono.ChVectorD(0.8, 0.8, 0.8), 10)
+# Set camera properties
+vis.GetCamera().SetNearClipPlane(0.1)
+vis.GetCamera().SetFarClipPlane(100)
 
 # ---------------------------------------------------------------------
 #
@@ -62,29 +68,35 @@ vis.AddLightWithShadow(chrono.ChVectorD(2, 5, 2), chrono.ChVectorD(0.8, 0.8, 0.8
 #
 # ---------------------------------------------------------------------
 
-# Simulation step size
-timestep = 0.01
+# Simulation time parameters
+t = 0
+dt = 0.01
+time_end = 10
 
-# Steering change parameters
-steering_start = 0
-steering_end = math.pi / 4
-steering_duration = 5
+# Steering angle change parameters
+initial_steering = 0
+final_steering = math.radians(30)
+steering_change_time = 5
 
-# Simulation loop
-while vis.Run():
-    # Calculate current steering angle
-    simulation_time = system.GetChTime()
-    steering_angle = chrono.ChInterp.Linear(
-        steering_start, steering_end, simulation_time / steering_duration
-    )
+while vis.GetDevice().run() and t < time_end:
+    t += dt
 
-    # Apply steering to the rover (implementation depends on rover model)
+    # Calculate steering angle based on time
+    if t < steering_change_time:
+        steering_angle = initial_steering + (final_steering - initial_steering) * (t / steering_change_time)
+    else:
+        steering_angle = final_steering
+
+    # Apply steering to the rover (details depend on the rover model)
     # ...
 
     # Advance the simulation
-    system.DoStepDynamics(timestep)
+    system.DoStepDynamics(dt)
 
-    # Update visualization
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+# Cleanup
+vis.GetDevice().closeDevice()

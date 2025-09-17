@@ -158,6 +158,11 @@ def main():
     camera.SetName("Camera")
     camera.LookAt(chrono.ChVectorD(0, 0, 0))
     camera.SetFOV(chrono.CH_C_DEG_TO_RAD(60))
+    camera.SetYFov(chrono.CH_C_DEG_TO_RAD(60))
+    camera.SetOrthoWindow(chrono.CH_C_DEG_TO_RAD(60))
+    camera.SetOrthoWindow(chrono.CH_C_DEG_TO_RAD(60))
+    camera.SetOrthoNear(0.1)
+    camera.SetOrthoFar(1000)
     mphysicalSystem.Add(camera)
 
     
@@ -171,11 +176,6 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        
-        artcar.Advance()
-        driver.Advance()
-        terrain.Advance()
-
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
@@ -203,6 +203,12 @@ def main():
 
         
         ch_time = mphysicalSystem.GetChTime()
+
+        
+        artcar.Synchronize()
+        artcar.Advance()
+        driver.Advance()
+        terrain.Advance()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
 

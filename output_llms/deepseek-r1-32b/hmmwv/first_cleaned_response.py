@@ -1,59 +1,62 @@
 importchrono
 import chronoirr
-fromchrono import vehicle
+fromchrono import ChVectorD
 fromchrono.vehicle import HMMWV
-fromchrono.vehicle import TireModelType, ContactMethod
+fromchrono.vehicle.tire import TMEASY
+fromchrono.visualization import ChIrrTools
 
 
-chrono.ChSetChrono_VERBOSE(False)
-vis = chronoirr.ChIrrApp(chrono.ChContactContainer(), "HMMWV Simulation", chronoirr.dimension2du(1024, 768))
+chrono.SetChronoVerbose(False)
+chrono.ChSystemSetDefaultType(chrono.ChSystemType_IRR)
 
 
-terrain = chronoirr.ChIrrTerrain()
-terrain.setUserHeightFunction(lambda x, z: 0)  
-terrain.setSize(100, 100)  
-terrain.setPos(chrono.ChVectorD(0, 0, 0))
-terrain.setRot(chrono.ChQuaternionD(1, 0, 0, 0))
-terrain.addTexture("path/to/terrain.texture")  
-vis.add(terrain)
+app = chronoirr.ChIrrApp()
+app.SetWindowSize(1024, 768)
+app.SetWindowTitle("HMMWV Simulation")
+app.Initialize()
+
+
+terrain = chronoirr.ChRigidTerrain()
+terrain.SetSize(100, 100)  
+terrain.SetTexture("textures/grass.jpg")
+terrain.SetPosition(ChVectorD(0, 0, 0))
+terrain.SetRotation(ChVectorD(0, 0, 0))
+app.AddTerrain(terrain)
 
 
 hmmwv = HMMWV()
-hmmwv.SetInitPosition(chrono.ChVectorD(0, 0.2, 1))  
-hmmwv.SetInitRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
-hmmwv.SetTireType(TireModelType.TMEASY)  
-hmmwv.SetContactMethod(ContactMethod.CHRONO)  
-hmmwv.SetVisualization(chrono.vehicle.VehicleVisualization.PRIMITIVES)  
-vis.add(hmmwv.GetVehicle())
+hmmwv.SetLocation(ChVectorD(0, 0.5, 0.5))  
+hmmwv.SetOrientation(ChVectorD(0, 0, 0))    
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSM)  
+hmmwv.SetTireType(TMEASY)  
+hmmwv.SetVisualization(chrono.ChVisualizationType_PRIMITIVES)  
 
 
-driver = vehicle.ChInteractiveDriverIRR(hmmwv.GetVehicle())
-driver.SetSteering(0)  
-driver.SetThrottle(0)  
-driver.SetBraking(0)  
-vis.add(driver)
+system = chrono.GetActiveSystem()
+system.Add(hmmwv)
 
 
-vis.SetTimestep(1/50)  
-vis.SetVsync(True)
+driver = chronoirr.ChIrrDriver()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+hmmwv.SetDriver(driver)
 
 
-vis.Initialize()
-vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))  
-vis.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
+app.BeginAnimation()
+while app.Run():
     
     driver.Update()
-    hmmwv.GetVehicle().Update()
     
     
-    if vis.GetKeyboard().IsKeyDown(chronoirr.KEY_ESCAPE):
+    system.DoStepDynamics(1/50.0)  
+    
+    
+    app.DrawAll()
+    
+    
+    if app.GetKeyboard().KeyDown(chrono.CH_KEY_ESCAPE):
         break
 
-vis.Close()
+app.EndAnimation()
+app.Close()

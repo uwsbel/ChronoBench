@@ -106,15 +106,15 @@ for angle in np.linspace(0, 2 * np.pi, 100):
 # Add visualization for the sentinel and target points using spheres
 sentinel_sphere = chrono.ChSphereShape()
 sentinel_sphere.GetSphereGeometry().rad = 1.0
-sentinel_sphere.Pos = path[0]
 sentinel_body = chrono.ChBody()
+sentinel_body.SetPos(path[0])
 sentinel_body.AddAsset(sentinel_sphere)
 vis.AddAsset(sentinel_body)
 
 target_sphere = chrono.ChSphereShape()
 target_sphere.GetSphereGeometry().rad = 1.0
-target_sphere.Pos = path[-1]
 target_body = chrono.ChBody()
+target_body.SetPos(path[-1])
 target_body.AddAsset(target_sphere)
 vis.AddAsset(target_body)
 
@@ -140,7 +140,7 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver.GetInputs(path)
+    driver_inputs = driver.GetInputs(path, vehicle.GetVehicle())
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

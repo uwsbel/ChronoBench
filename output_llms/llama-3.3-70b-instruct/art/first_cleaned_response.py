@@ -7,8 +7,6 @@ sys = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetTitle("ARTcar Simulation")
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
@@ -16,40 +14,39 @@ vis.AddTypicalLights()
 vehicle = veh.ChVehicle()
 
 
-vehicle_pos = chrono.ChVectorD(0, 0, 1.5)  
-vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  
-contact_material = chrono.ChMaterialSurfaceNSC()
-vehicle.SetContactMaterial(contact_material)
-vehicle.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetChassisFixed(False)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetCollide(True)
+vehicle.SetVisualization(chrono.ChVisualizationType_PRIMITIVES)
+
+
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisRotation(chrono.Q_from_AngX(0))
+
+
+terrain = veh.ChRigidTerrain()
+terrain.SetSize(100, 100, 1)
+terrain.SetTexture(veh.ChTexture("terrain_texture.jpg"))
+terrain.SetFriction(0.7)
+terrain.SetRestitution(0.1)
+
+
+sys.Add(terrain)
 
 
 sys.Add(vehicle)
 
 
-terrain = veh.ChRigidTerrain()
-terrain.SetPlane(chrono.ChVectorD(0, 1, 0), 0)  
-terrain.SetTexture(chrono.GetChronoDataFile("terrain.txt"), 10, 10)
-sys.Add(terrain)
-
-
 driver = veh.ChIrrlichtDriver()
 driver.SetVehicle(vehicle)
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-
-
-sys.Add(driver)
-
-
-time_step = 0.01
-vis.SetCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakingGain(0.1)
 
 
 while vis.Run():
     
-    sys.DoStepDynamics(time_step)
+    sys.DoStepDynamics(0.02)
     
     
     vis.BeginScene()
@@ -57,4 +54,7 @@ while vis.Run():
     vis.EndScene()
     
     
-    chrono.ChSleep(1 / 50)
+    chrono.ChSleep(0.02)
+
+
+vis.CloseWindow()

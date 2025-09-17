@@ -92,7 +92,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
-
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
@@ -106,6 +105,7 @@ driver.Initialize()
 
 num_obstacles = 5
 obstacle_size = chrono.ChVector3d(1, 1, 1)
+obstacles = []
 for i in range(num_obstacles):
     obstacle = chrono.ChBodyEasy()
     obstacle.SetBodyFixed(True)
@@ -113,21 +113,19 @@ for i in range(num_obstacles):
     obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), 1))
     obstacle.SetMass(100)
     vehicle.GetSystem().Add(obstacle)
+    obstacles.append(obstacle)
 
 
 
 
 manager = sensor.SensorManager(vehicle.GetSystem())
 lidar = sensor.Lidar()
-lidar.SetSensorMode(sensor.SensorMode.RANGE)
-lidar.SetScanAngleRange(-math.pi / 4, math.pi / 4)
-lidar.SetResolution(100)
-lidar.SetMaxRange(50)
-lidar.SetNoise(0.1)
-lidar.SetPos(chrono.ChVector3d(0, 0, 2))
-lidar.SetBody(vehicle.GetChassisBody())
+lidar.SetScanAngle(360)
+lidar.SetRange(50)
+lidar.SetResolution(0.1)
+lidar.SetSensorPos(chrono.ChVector3d(0, 0, 2))
+lidar.SetSensorRotation(chrono.ChQuaterniond(1, 0, 0, 0))
 manager.AddSensor(lidar)
-
 
 
 

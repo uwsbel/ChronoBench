@@ -6,60 +6,55 @@ import math
 # New class to manage SCM terrain parameters
 class SCMTerrainParameters:
     def __init__(self):
-        # Predefined terrain configurations
         self.presets = {
             "soft": {
-                "bekker_kphi": 1e6,
-                "bekker_kc": 0,
-                "bekker_n": 1.1,
-                "mohr_cohesion": 0,
-                "mohr_friction": 25,
-                "janosi_shear": 0.01,
-                "elastic_stiffness": 1e8,
-                "damping": 2e4
+                "Bekker_Kphi": 1e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.0,
+                "Mohr_cohesion": 0,
+                "Mohr_friction": 25,
+                "Janosi_shear": 0.01,
+                "Elastic_stiffness": 1e8,
+                "Damping": 2e4
             },
             "mid": {
-                "bekker_kphi": 2e6,
-                "bekker_kc": 0,
-                "bekker_n": 1.1,
-                "mohr_cohesion": 0,
-                "mohr_friction": 30,
-                "janosi_shear": 0.01,
-                "elastic_stiffness": 2e8,
-                "damping": 3e4
+                "Bekker_Kphi": 2e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.1,
+                "Mohr_cohesion": 0,
+                "Mohr_friction": 30,
+                "Janosi_shear": 0.01,
+                "Elastic_stiffness": 2e8,
+                "Damping": 3e4
             },
             "hard": {
-                "bekker_kphi": 3e6,
-                "bekker_kc": 0,
-                "bekker_n": 1.1,
-                "mohr_cohesion": 0,
-                "mohr_friction": 35,
-                "janosi_shear": 0.01,
-                "elastic_stiffness": 3e8,
-                "damping": 4e4
+                "Bekker_Kphi": 3e6,
+                "Bekker_Kc": 0,
+                "Bekker_n": 1.2,
+                "Mohr_cohesion": 0,
+                "Mohr_friction": 35,
+                "Janosi_shear": 0.01,
+                "Elastic_stiffness": 3e8,
+                "Damping": 4e4
             }
         }
-        self.current_params = None
 
     def set_preset(self, preset_name):
-        if preset_name in self.presets:
-            self.current_params = self.presets[preset_name]
-        else:
-            raise ValueError(f"Unknown preset: {preset_name}")
+        if preset_name not in self.presets:
+            raise ValueError(f"Unknown preset: {preset_name}. Available presets: {list(self.presets.keys())}")
+        self.current_preset = preset_name
 
     def apply_to_terrain(self, terrain):
-        if self.current_params is None:
-            raise ValueError("No parameters set. Call set_preset() first.")
-
+        params = self.presets[self.current_preset]
         terrain.SetSoilParameters(
-            self.current_params["bekker_kphi"],
-            self.current_params["bekker_kc"],
-            self.current_params["bekker_n"],
-            self.current_params["mohr_cohesion"],
-            self.current_params["mohr_friction"],
-            self.current_params["janosi_shear"],
-            self.current_params["elastic_stiffness"],
-            self.current_params["damping"]
+            params["Bekker_Kphi"],
+            params["Bekker_Kc"],
+            params["Bekker_n"],
+            params["Mohr_cohesion"],
+            params["Mohr_friction"],
+            params["Janosi_shear"],
+            params["Elastic_stiffness"],
+            params["Damping"]
         )
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -79,11 +74,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -119,9 +115,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 
-# Initialize and apply terrain parameters using the new class
+# Initialize terrain parameters with preset
 terrain_params = SCMTerrainParameters()
-terrain_params.set_preset("mid")  # Using the "mid" preset
+terrain_params.set_preset("mid")  # Choose from "soft", "mid", "hard"
 terrain_params.apply_to_terrain(terrain)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
@@ -167,7 +163,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

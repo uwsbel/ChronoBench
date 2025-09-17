@@ -61,9 +61,9 @@ def main():
     sens_manager.AddSensor(lidar)
 
     # Create and configure a 2D lidar sensor
-    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar2d.PushFilter(sens.ChFilterScanAccess())  # Access raw lidar data.
-    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))  # Visualize the point cloud.
+    lidar2d = sens.ChLidar2DSensor(ground_body, 5., ch.ChVector3d(0, 0, 0), 360, 100, 2*ch.CH_PI, ch.CH_PI / 12, 100.)
+    lidar2d.PushFilter(sens.ChFilterScanAccess())  # Access 2D lidar scan data.
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720))  # Visualize the 2D lidar scan.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 

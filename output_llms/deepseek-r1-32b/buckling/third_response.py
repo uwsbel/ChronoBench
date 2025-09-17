@@ -14,25 +14,25 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
 
-out_dir = os.path.join(chrono.GetChronoOutputPath(), "BEAM_FAILED")
+out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
 
 sys = chrono.ChSystemSMC()
 
 L = 1.2
 H = 0.4
 K = 0.07
-vA = chrono.ChVector3(0, 0, 0)
-vC = chrono.ChVector3(L, 0, 0)
-vB = chrono.ChVector3(L, -H, 0)
-vG = chrono.ChVector3(L - K, -H, 0)
-vd = chrono.ChVector3(0, 0, 0.0001)
+vA = chrono.ChVector3d(0, 0, 0)
+vC = chrono.ChVector3d(L, 0, 0)
+vB = chrono.ChVector3d(L, -H, 0)
+vG = chrono.ChVector3d(L - K, -H, 0)
+vd = chrono.ChVector3d(0, 0, 0.0001)
 
-body_truss = chrono.ChBody()
-body_truss.SetFixed(True)
-sys.Add(body_truss)
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.Add(body_trss)
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
@@ -42,7 +42,7 @@ boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
 body_crank.AddVisualShape(boxcrank)
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrame(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -62,7 +62,7 @@ msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 builder_iga = fea.ChBuilderBeamIGA()
-builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.ChVector3(1,0,0), 3)
+builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 builder_iga.GetLastBeamNodes()[0].SetFixed(True)
 node_tip = builder_iga.GetLastBeamNodes()[65]
@@ -77,13 +77,13 @@ section2.SetRayleighDamping(0.000)
 section2.SetAsCircularSection(hbeam_d)
 
 builderA = fea.ChBuilderBeamEuler()
-builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3(1, 0, 0))
+builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 node_top = builderA.GetLastBeamNodes()[1]
 node_down = builderA.GetLastBeamNodes()[-1]
 
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.GetFrame(), node_tip.GetFrame())
+constr_bb.Initialize(node_top, node_tip, False, chrono.ChFrame(), chrono.ChFrame())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -99,18 +99,18 @@ section3.SetRayleighDamping(0.000)
 section3.SetAsCircularSection(crankbeam_d)
 
 builderB = fea.ChBuilderBeamEuler()
-builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3(0, 1, 0))
+builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
 
 node_crnkG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 constr_cbd = chrono.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.GetFrame(), body_crank.GetFrame())
+constr_cbd.Initialize(node_crnkG, body_crank, False, chrono.ChFrame(), chrono.ChFrame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_down.GetFrame(), node_crankB.GetFrame())
+constr_bc.Initialize(node_down, node_crankB, False, chrono.ChFrame(), chrono.ChFrame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
@@ -142,18 +142,18 @@ vis.SetWindowTitle('Failed Beam Simulation')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.jpg'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3(0.0, 1.0, -1.5))
+vis.AddCamera(chrono.ChVector3d(0.0, 1.0, -1.5))
 vis.AddTypicalLights()
 
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
-ts = chrono.ChTimestepperHHT(sys)
+ts = chrono.ChTimestepperEulerExplicit(sys)
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsys(chrono.ChVector3(0, 0, 0), chrono.QUNIT))
+    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.002)

@@ -1,99 +1,128 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.feda as feda
-import numpy as np
+import pychrono.vehicle as veh
+import pychrono.vehicle.feda as feda
+import math
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-vehicle = feda.FedaVehicle(sys)
-vehicle.Initialize()
 
 
+step_size = 0.02
+
+
+render_step_size = 1.0 / 50  
+
+
+camera_location = chrono.ChVectorD(0, 0, 1.75)
+
+
+camera_distance = 6.0
+
+
+
+
+
+
+vehicle = veh.ChWheelVehicle(chrono.GetChronoVehicleDataPath())
 vehicle.SetChassisFixed(False)
-vehicle.SetChassisVisualizationType(chrono.ChVisualizationMesh())
-vehicle.SetChassisPos(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetVehicleMass(1500)
+vehicle.SetInertiaChassis(chrono.ChVectorD(1000, 1500, 2000))
+vehicle.SetTireType(veh.ChTire::FEDA)
+vehicle.SetTireStepSize(step_size)
 
 
-tire = feda.FedaTire("Pacejka2002")
-tire.SetTireType(feda.TireType::PACEJKA2002)
-vehicle.SetTire(tire)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
 
 
-vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
-
-
-terrain = feda.RigidTerrain(sys)
-terrain.SetContactFrictionCoefficient(0.8)
-terrain.SetContactRestitutionCoefficient(0.1)
-terrain.SetContactMaterialProperties(2e7, 0.3)
-
-
-texture = chrono.ChTexture()
-texture.SetTextureFilename(chrono.GetChronoDataPath() + "textures/terrain.jpg")
-terrain.GetGroundBody().AddAsset(texture)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("FEDA Vehicle Simulation")
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0))
-vis.AddTypicalLights()
-vis.SetCameraTracking(vehicle.GetChassisBody(), chrono.ChVectorD(0, 2, -5))
+vehicle.Initialize(chrono.ChCoordinatorSMC(), chrono.ChVectorD(0, 0, 0.5),
+                  chrono.ChQuaternionD(1, 0, 0, 0), False)
 
 
 vehicle.GetChassisBody().GetVisualModel().ClearModels()
-vehicle.GetChassisBody().GetVisualModel().AddMesh(chrono.GetChronoDataPath() + "vehicle/hmmwv/hmmwv_chassis.obj")
-
-for axle in vehicle.GetAxles():
-    for wheel in axle.GetWheels():
-        wheel.GetWheelBody().GetVisualModel().ClearModels()
-        wheel.GetWheelBody().GetVisualModel().AddMesh(chrono.GetChronoDataPath() + "vehicle/hmmwv/hmmwv_wheel.obj")
+vehicle.GetChassisBody().GetVisualModel().AddMeshModel(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"))
+vehicle.GetChassisBody().GetVisualModel().SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.5, 0.5, 0.5)))
 
 
-driver = feda.FedaDriver(sys, vehicle)
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetBrakingGain(0.5)
-driver.Initialize()
+tire_left = feda.ChFEDATire("left_tire")
+tire_right = feda.ChFEDATire("right_tire")
+tire_left.SetVisualizationType(chrono.ChVisualization::MESH)
+tire_right.SetVisualizationType(chrono.ChVisualization::MESH)
+tire_left.SetMeshFileName(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_tire.obj"))
+tire_right.SetMeshFileName(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_tire.obj"))
 
 
-time_step = 0.02  
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+vehicle.AddTire(tire_left)
+vehicle.AddTire(tire_right)
+
+
+
+
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactMaterialProperties(2e6, 0.8)
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMethod(chrono.ChContactMethod_NSC)
+
+
+terrain_mesh = chrono.ChTriangleMeshConnected()
+terrain_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("terrain/flat.obj"), False, True)
+
+
+terrain_visual = chrono.ChVisualModelTriangleMesh()
+terrain_visual.SetMesh(terrain_mesh)
+terrain_visual.SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.8, 0.8, 0.8)))
+terrain_visual.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+
+
+terrain.AddVisualModel(terrain_visual)
+terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
+
+
+
+
+
+
+driver = veh.ChInteractiveDriverIRR(vehicle)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
+
+
+
+
+
+
+app = chronoirr.ChIrrApp(vehicle.GetSystem(), "FEDA Vehicle Simulation", chrono.irr::dimension2d<int>(1280, 720))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddTypicalCamera(chrono.irr::core::vector3df(0, 0, 2))
+app.SetTimestep(step_size)
+
+
+app.SetChaseCamera(vehicle.GetChassisBody(), camera_location, camera_distance)
+
+
+
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
 
     
-    steering = 0.0
-    throttle = 0.0
-    braking = 0.0
+    driver.Synchronize(step_size)
+    driver.Advance(step_size)
 
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
+    vehicle.Synchronize(step_size)
+    vehicle.Update(step_size)
 
     
-    vehicle.Update()
+    app.DoStep()
 
-    
-    sys.DoStepDynamics(time_step)
+    app.EndScene()

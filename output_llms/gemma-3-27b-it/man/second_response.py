@@ -20,11 +20,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Terrain parameters
-terrain_height_map = veh.GetDataFile("terrain/height_maps/hills_heightmap.png")
-terrainLength = 200.0
-terrainWidth = 200.0
-terrain_min_height = -1.0
-terrain_max_height = 3.0
+terrain_model = veh.RigidTerrain.HILL
+terrainHeight = 10  # Adjust as needed
+terrainLength = 100.0
+terrainWidth = 100.0
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -41,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-vehicle = veh.MAN_5t()
+vehicle = veh.MAN_5t()  # Changed to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -56,21 +55,19 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain
+# Create the terrain patch
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture to grass.jpg
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.SetHeightDistribution(terrain_height_map, terrain_min_height, terrain_max_height)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')
+vis.SetWindowTitle('MAN 5t Demo')  # Updated title
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -83,9 +80,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3  # time to go from 0 to +1
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

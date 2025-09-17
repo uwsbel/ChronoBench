@@ -1,101 +1,83 @@
 import pychrono as pychrono
-from pychrono import (Vehicle, Driver, Terrain, Material, Scene, Renderer, Camera, Light)
-import numpy as np
+import pychrono.vehicles as vehicles
+from pychrono.vehicles import Vehicle
+from pychrono.objects import *
+from pychrono import contact
+from pychrono.utils import *
+from pychrono.vehicles.damages import *
+from pychrono.vehicles import Driver
 
-
-pychrono.init()
-
-
-scene = Scene()
-renderer = Renderer()
-camera = Camera()
-light = Light()
-
-
-vehicle = Vehicle()
-
-vehicle.name = "UAZBUS"
-vehicle.mass = 3500  
-vehicle.length = 5.0  
-vehicle.width = 2.5  
-vehicle.height = 3.0  
-vehicle.position = np.array([0.0, 0.0, 5.0])  
-vehicle.orientation = pychrono.Vector3d(0, 0, 1)  
-vehicle.velocity = np.array([0.0, 0.0, 0.0])  
-vehicle.angular_velocity = np.array([0.0, 0.0, 0.0])  
-
-
-terrain = Terrain()
-terrain.name = "RigidTerrain"
-terrain.position = np.array([0.0, 0.0, 0.0])  
-terrain.size = 100.0  
-terrain.material = Material()
-terrain.material.friction = 0.5  
-terrain.material.restitution = 0.3  
-
-
-driver = Driver()
-driver.name = "Driver"
-driver.position = np.array([0.0, 0.0, 5.0])  
-driver.control_input = 0.0  
-
-
-renderer = Scene()
-renderer.camera = camera
-camera.position = np.array([15.0, 15.0, 15.0])  
-camera.look_at = np.array([0.0, 0.0, 0.0])  
-renderer.width = 1024  
-renderer.height = 768  
-renderer.fov = 45.0  
-renderer.use_deprecated_light = True
-renderer.add_light(source=light, position=np.array([10.0, 10.0, 10.0]))
-
-
-scene.add_object(vehicle)
-scene.add_object(terrain)
-
-
-scene.add_driver(driver)
-
-
-timestep = 0.001  
-loop = pychrono.SimulationLoop()
-loop.start()
-
-while True:
+def main():
     
-    pychrono同步和推进所有组件
-    pychrono同步和推进所有组件
+    sim = pychrono.Sim()
+    sim.set_global.gravity(pychrono.Vec3(0, -9.81, 0))
+    sim.set_time_unit(1.0)  
 
     
-    vehicle_state = vehicle.get_state()
-    driver_input = driver.get_input()
+    vehicle = Vehicle("UAZBUS", mass=1000, inertia=pychrono.inertia.I(2000, 400, 400, 0, 0, 0, 0, 0, 0))  
+    vehicle.set_initial_position(Point3d(0, 1, 0))  
+    vehicle.set_initial_orientation(Rot3d(1, 0, 0))  
+    vehicle.set_friction(1000)  
+    vehicle.set_restitution(0.3)  
 
     
-    vehicle.apply_force(
-        force=pychrono.Vector3d(
-            0.0,
-            0.0,
-            driver_input * 1000.0  
-        ),
-        body_index=0
-    )
-    vehicle.apply_torque(
-        torque=pychrono.Vector3d(
-            0.0,
-            0.0,
-            driver_input * 100.0  
-        ),
-        body_index=0
-    )
+    terrain = pychrono.objects.Plane("ground", pychrono.Vec3(0, 0, 0), pychrono.Vec3(0, 0, 1), friction=1000, restitution=0.3)
 
     
-    pychrono.update(timestep)
+    driver = Driver("Driver", vehicle)
+    driver.set_name("AI Driver")
+    driver.set_path_following(True)
+    driver.set_max_speed(20)  
+    driver.set_acceleration_max(0.5)  
+    driver.set_steering_max(0.5)  
 
     
-    renderer.begin_frame()
-    renderer.draw_scene()
-    renderer.end_frame()
+    path = pychrono.path.Path("straight_path", pychrono.Vec3d(0, 0, 0), pychrono.Vec3d(100, 0, 0), 0)  
 
     
-    pychrono.sleep(timestep)
+    renderer = pychrono.renderers.IrrlichtRenderer()
+    renderer.set_camera_position(Point3d(10, 10, 10))
+    renderer.set_look_at(Point3d(0, 0, 0))
+    renderer.set_light_direction(Point3d(0, 0, 1))
+    renderer.set_light_color(Color(1, 1, 1))
+    renderer.set_update_rate(1000)  
+
+    
+    renderer.add_object(vehicle, "vehicle")
+    renderer.add_object(terrain, "terrain")
+
+    
+    contact = contact.Contact("vehicle_ground", vehicle, terrain)
+
+    
+    dt = 0.001  
+    while True:
+        
+        current_pos = vehicle.get_position()
+        current_speed = vehicle.get_linear_velocity().x
+        if current_speed < driver.get_max_speed():
+            target_pos = path.get_point_at_distance(current_pos.x, current_speed * dt)
+        else:
+            target_pos = path.get_end_point()
+
+        
+        driver.set_target_position(target_pos)
+        driver.set_desired_speed(driver.get_max_speed())
+
+        
+        state = sim.get_state()
+        vehicle_state = state.get_vehicle_state()
+        vehicle_state.set_linear_velocity(vehicle.get_linear_velocity())
+        vehicle_state.set_angular_velocity(vehicle.get_angular_velocity())
+
+        
+        renderer.update()
+
+        
+        sim.step(dt)
+
+        
+        contact.update()
+
+if __name__ == "__main__":
+    main()

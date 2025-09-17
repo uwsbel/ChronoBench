@@ -1,55 +1,49 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
-# 1. Initialize the PyChrono environment and core components
-chrono.ChEngine.Initialize()
+# 1. Initialize the PyChrono environment and core components.
+ch.ChEngine.Initialize()
 
-# 2. Set up the Irrlicht application for visualization
-vis = irr.ChIrrApp()
-vis.SetWindowSize(chrono.ChVector2i(800, 600))
-vis.SetWindowTitle("HMMWV on Rigid Terrain")
-vis.UseZoomBar(True)
-vis.ShowLogo(False)
+# 2. Create the Irrlicht application
+app = irr.ChIrrApp()
 
-# 3. Create the HMMWV vehicle
+# 3. Set up the HMMWV vehicle
 vehicle = veh.ChHMMWV()
 
-# 4. Set vehicle parameters
-vehicle.SetContactMethod(veh.ChContactMethod_TM)
+# Set location and orientation
+vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
+
+# Use TMEASY tire model
 vehicle.SetTireModel(veh.ChTireModel_TMEASY)
-vehicle.SetTireStepSize(0.01)
 
-# 5. Initialize the vehicle at a specified location and orientation
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisInitialPosition(chrono.ChVector3d(0, 0, 1))
-vehicle.SetChassisInitialRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+# Use primitive visualization for vehicle components
+vehicle.SetVisualization(veh.ChVehicleVisualizer_Vehicle)
 
-# 6. Create and set up the terrain
+# 4. Create the terrain
 terrain = veh.ChRigidTerrain(vehicle.GetSystem())
-terrain.SetTerrainDimensions(chrono.ChVector3d(10, 10, 0))
-terrain.SetTexture(chrono.ChVector2d(10, 10), "chrono_textures/checker1.jpg")
+terrain.SetTerrainHeight(0)
+terrain.SetTerrainSize(100, 100)
+terrain.SetTextureFile("chrono_vehicle/tire_test/texture.jpg")
 
-# 7. Add vehicle and terrain to the system
-vehicle.Initialize(terrain)
-system = vehicle.GetSystem()
+# 5. Create and set up the interactive driver system
+driver = veh.ChInteractiveDriverIRR(vehicle, app)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
-# 8. Set up the interactive driver system
-driver = veh.ChInteractiveDriverIRR(vis)
-driver.SetVehicle(vehicle)
-driver.SetChaseCamDistance(10)
-driver.SetChaseCamLag(0.5)
-driver.SetChaseCamHeight(2)
+# 6. Set simulation parameters
+vehicle.GetSystem().SetTimestep(0.02)
+vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
 
-# 9. Configure simulation parameters
-system.SetTimestep(0.02)
-system.SetCollisionSystem(chrono.ChCollisionSystemBruteForce())
+# 7. Initialize the simulation
+app.SetSimulationRate(1)
+app.SetFrameRate(50)
 
-# 10. Simulation loop
-while vis.Run() and not vis.WasKeyPressed(irr.KEY_ESCAPE):
-    vis.BeginScene()
-    vis.RenderItem(terrain)
-    vis.RenderItem(vehicle)
-    vis.EndScene()
-    system.DoStepDynamics(0.02)
-    driver.Update()
+while app.Run():
+    vehicle.Update(vehicle.GetSystem().GetTimestep())
+    app.Render()
+    vehicle.GetSystem().DoStepDynamics(vehicle.GetSystem().GetTimestep())
+
+# Clean up
+ch.ChEngine.Terminate()

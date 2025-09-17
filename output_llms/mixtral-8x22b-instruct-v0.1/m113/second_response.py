@@ -17,7 +17,6 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Deformable SCM terrain
-terrain_model = veh.Terrain.DEFORMABLE_SCM
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -60,16 +59,36 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM terrain
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.DeformableSCMTerrain(vehicle.GetSystem())
-terrain.SetPlotType(veh.DeformableSCMTerrain.PLOT_NONE)
-terrain.SetSoilParametersSCM(2000, 1000, 0.8, 2.0, 0.5, 0.01)
-terrain.SetPlasticThreshold(0.2)
-terrain.Initialize(terrainLength, terrainWidth)
-terrain.SetHeightfield(veh.GetDataFile("terrain/heightmap_257x257.raw"), 257, 257, 0, 1, True)
+terrain = veh.DeformableTerrainSCM(vehicle.GetSystem())
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), terrainHeight)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.SetSCMContactFriction(0.9)
+terrain.SetSCMDampingF(0.2)
+terrain.SetSCMDampingD(0.02)
+terrain.SetSCMCohesion(5000)
+terrain.SetSCMFriction(0.5)
+terrain.SetSCMCriticalFriction(0.8)
+terrain.SetSCMFrictionTension(1000)
+terrain.SetSCMFrictionCompression(3000)
+terrain.SetSCMFrictionViscosity(20)
+terrain.SetSCMFrictionRelaxation(0.5)
+terrain.SetSCMFrictionAngle(0.5)
+terrain.SetSCMFrictionDecay(0.5)
+terrain.SetSCMFrictionExpansion(0.5)
+terrain.SetSCMFrictionContraction(0.5)
+terrain.SetSCMFrictionRepose(0.5)
+terrain.SetSCMFrictionRolling(0.5)
+terrain.SetSCMFrictionSpinning(0.5)
+terrain.SetSCMFrictionSliding(0.5)
+terrain.SetSCMFrictionSlidingViscosity(0.5)
+terrain.SetSCMFrictionSlidingRelaxation(0.5)
+terrain.SetSCMFrictionSlidingExpansion(0.5)
+terrain.SetSCMFrictionSlidingContraction(0.5)
+terrain.SetSCMFrictionSlidingRepose(0.5)
+terrain.SetSCMFrictionSlidingRolling(0.5)
+terrain.SetSCMFrictionSlidingSpinning(0.5)
+terrain.SetSCMFrictionSlidingSliding(0.5)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
@@ -121,7 +140,7 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
+    driver_inputs.m_throttle = 0.8
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

@@ -72,10 +72,9 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False)
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False, chrono.ChVector3d(5, 0, 0.1))
 box.SetBodyFixed(True)
-vehicle.GetSystem().Add(box)
+vehicle.GetSystem().AddBody(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -102,7 +101,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,10 +111,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -125,13 +124,13 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    driver_inputs.m_throttle = 0.5
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    driver_inputs.m_throttle = 0.5
 
     
     driver.Advance(step_size)

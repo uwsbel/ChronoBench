@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Modified initial location
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -37,6 +37,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -71,13 +72,16 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a long box to test vehicle mobility
-box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 2, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, 1))
-box.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
-vehicle.GetSystem().Add(box)
+# Create a long box
+box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 2, 1, 1000, True, False)
+box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetMaterial(chrono.ChMaterialSurfaceSMC())
+box.SetFriction(0.9)
+box.SetRestitution(0.01)
+box.SetBodyFixed(True)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -126,7 +130,7 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
+    driver_inputs.m_throttle = 0.8  # hard-coded throttle value
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

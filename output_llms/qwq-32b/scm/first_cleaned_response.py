@@ -3,166 +3,96 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import sys
 
+def main():
+    
+    my_system = chrono.ChSystemNSC()
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
+    app.SetSymbolscale(0.01)
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
 
-
-app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
-app.SetSymbolscale(0.01)
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
-
-
-vehicle = veh.HMMWV()
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireType(veh.TireModelType.RIGID)
-vehicle.SetTireVisualType(veh.VisualizationType_MESH)
-
-
-init_position = chrono.ChVectorD(0, 0, 1)
-init_rotation = chrono.QUNIT
-vehicle.Initialize(chrono.ChCoordsysD(init_position, init_rotation))
-
-
-soil = veh.SoilModelSCM()
-soil.SetCohesion(1000)          
-soil.SetFrictionAngle(30 * chrono.CH_C_DEG_TO_RAD)
-soil.SetRelativeDensity(0.6)
-soil.SetThickness(0.5)          
-
-terrain = veh.DeformableTerrain(my_system, chrono.ChCoordsysD(), soil)
-terrain.SetSize(100, 100)       
-terrain.SetVisualizationType(veh.VisualizationType_MESH)
-terrain.SetVisualizationSinkage(True)
-
-
-initial_patch_pos = vehicle.GetChassis().GetPos()
-moving_patch = terrain.AddPatch(initial_patch_pos, 10, 10, 0, 0)
-moving_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-
-driver = veh.ChIrrGuiDriver(app)
-vehicle.SetDriver(driver)
-
-
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EXPLICIT)
-my_system.SetSolverMaxIterations(10)
-my_system.SetMaxPenetrationRecoverySpeed(5e3)
-my_system.SetTimeStep(0.02)  
-
-
-while app.GetDevice().run():
-    time = my_system.GetChTime()
+    
+    vehicle = veh.HMMWV()
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+    vehicle.SetTireType(veh.TireModelType.RIGID)
+    vehicle.SetVisualizationType(veh.VisualizationType.MESH)
     
     
-    driver.Synchronize(time)
+    vehicle_system = veh.ChWheeledVehicleSystem()
+    vehicle_system.Initialize(my_system, vehicle, None, False)  
+
     
+    soil = veh.SoilModelSCM()
+    soil.SetCohesion(0.1)
+    soil.SetFrictionAngle(chrono.CH_C_PI_4)  
+    soil.SetRelativeDensity(0.7)
+    soil.SetThickness(0.5)
+    soil.SetMoisture(0.0)
+
     
-    vehicle.Synchronize(time, driver)
+    terrain = veh.ChDeformableTerrain(my_system)
+    terrain.SetSoilModel(soil)
+    terrain.SetSize(20, 20)  
+    terrain.SetVisualizationType(veh.VisualizationType.GRID)
+    terrain.SetDrawSinkage(True)  
+
     
+    moving_patch = veh.ChTerrainPatch()
+    moving_patch.SetSize(5, 5)  
+    moving_patch.SetPosition(chrono.ChVectorD(0, 0, 0))  
+    terrain.AddPatch(moving_patch)
+
     
-    chassis_pos = vehicle.GetChassis().GetPos()
-    moving_patch.SetPos(chassis_pos)  
+    vehicle_system.SetTerrain(terrain)
+    vehicle_system.Initialize(my_system, vehicle, terrain, False)
+
     
+    app.Add(vehicle.GetVisualization())  
+    app.Add(terrain.GetVisualization())
+
     
-    my_system.DoStepDynamics()
+    driver = veh.ChDriver()
+    vehicle.SetDriver(driver)
+
     
+    app.SetTimestep(0.02)  
+    app.SetRealTimeFactor(1.0)
+
     
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    
-    app.DoStep()
+    while app.Run():
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
 
+        
+        key = app.GetKeyboard()
+        if key.keyIsPressed(irr.KEY_KEY_UP):
+            driver.SetThrottle(1.0)
+        elif key.keyIsPressed(irr.KEY_KEY_DOWN):
+            driver.SetThrottle(-1.0)
+        else:
+            driver.SetThrottle(0.0)
+        if key.keyIsPressed(irr.KEY_KEY_LEFT):
+            driver.SetSteering(-1.0)
+        elif key.keyIsPressed(irr.KEY_KEY_RIGHT):
+            driver.SetSteering(1.0)
+        else:
+            driver.SetSteering(0.0)
+        if key.keyIsPressed(irr.KEY_KEY_SPACE):
+            driver.SetBrake(1.0)
+        else:
+            driver.SetBrake(0.0)
 
-app.GetDevice().closeDevice()
+        
+        chassis_pos = vehicle.GetChassis().GetPos()
+        moving_patch.SetPosition(chrono.ChVectorD(chassis_pos.x, chassis_pos.y, 0))
 
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import sys
+        app.EndScene()
 
-
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
-app.SetSymbolscale(0.01)
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
-
-
-vehicle = veh.HMMWV()
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireType(veh.TireModelType.RIGID)
-vehicle.SetTireVisualType(veh.VisualizationType_MESH)
-
-
-init_position = chrono.ChVectorD(0, 0, 1)
-init_rotation = chrono.QUNIT
-vehicle.Initialize(chrono.ChCoordsysD(init_position, init_rotation))
-
-
-soil = veh.SoilModelSCM()
-soil.SetCohesion(1000)          
-soil.SetFrictionAngle(30 * chrono.CH_C_DEG_TO_RAD)
-soil.SetRelativeDensity(0.6)
-soil.SetThickness(0.5)          
-
-terrain = veh.DeformableTerrain(my_system, chrono.ChCoordsysD(), soil)
-terrain.SetSize(100, 100)       
-terrain.SetVisualizationType(veh.VisualizationType_MESH)
-terrain.SetVisualizationSinkage(True)
-
-
-initial_patch_pos = vehicle.GetChassis().GetPos()
-moving_patch = terrain.AddPatch(initial_patch_pos, 10, 10, 0, 0)
-moving_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-
-driver = veh.ChIrrGuiDriver(app)
-vehicle.SetDriver(driver)
-
-
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EXPLICIT)
-my_system.SetSolverMaxIterations(10)
-my_system.SetMaxPenetrationRecoverySpeed(5e3)
-my_system.SetTimeStep(0.02)  
-
-
-while app.GetDevice().run():
-    time = my_system.GetChTime()
-    
-    
-    driver.Synchronize(time)
-    
-    
-    vehicle.Synchronize(time, driver)
-    
-    
-    chassis_pos = vehicle.GetChassis().GetPos()
-    
-    moving_patch.SetPos(chassis_pos)
-    
-    
-    my_system.DoStepDynamics()
-    
-    
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    
-    app.DoStep()
-
-
-app.GetDevice().closeDevice()
+if __name__ == '__main__':
+    main()

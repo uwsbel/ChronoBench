@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0.5
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -62,15 +62,17 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+terrain_file = veh.GetDataFile("terrain/heightmaps/hill.hgt")
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.LoadHeightMap(terrain_file, terrainLength, terrainWidth)
+
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-heightmap = chrono.ChFileLoader.LoadHeightMap("terrain/heightmap.png")
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth, heightmap)
+    terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))

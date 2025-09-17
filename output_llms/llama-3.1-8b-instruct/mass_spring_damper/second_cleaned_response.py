@@ -4,37 +4,16 @@ import pychrono.irrlicht as chronoirr
 
 class MySpringForce(chrono.ForceFunctor):
     def __init__(self, spring_coef, damping_coef):
+        chrono.ForceFunctor.__init__(self)
         self.spring_coef = spring_coef
         self.damping_coef = damping_coef
 
-    def GetForce(self, body, pos, normal):
-        spring_force = self.spring_coef * (self.rest_length - self.length)
-        damping_force = -self.damping_coef * self.velocity
-        return chrono.ChVectorD(spring_force, 0, 0) + chrono.ChVectorD(0, damping_force, 0)
-
-    @property
-    def rest_length(self):
+    def GetForce(self, body_a, body_b):
         
-        
-        return 1.5
-
-    @property
-    def length(self):
-        
-        
-        return (pos - self.rest_pos).Length()
-
-    @property
-    def velocity(self):
-        
-        
-        return (pos - self.prev_pos).Length() / self.dt
-
-    @property
-    def dt(self):
-        
-        
-        return sys.GetTimestep()
+        rest_length = 1.5
+        displacement = body_b.GetPos() - body_a.GetPos()
+        force = self.spring_coef * (displacement - rest_length) + self.damping_coef * displacement
+        return force
 
 
 rest_length = 1.5
@@ -54,8 +33,6 @@ ground.EnableCollision(False)
 
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
-
-
 sph_2 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
 
@@ -96,18 +73,14 @@ spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
 
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
-
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
-my_spring_force = MySpringForce(spring_coef, damping_coef)
-spring_2.SetForceFunctor(my_spring_force)
-spring_2.SetRestLength(rest_length)
+my_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force)
 sys.AddLink(spring_2)
 
 
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -119,7 +92,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
-
 
 while vis.Run():
     vis.BeginScene()

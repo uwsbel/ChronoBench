@@ -1,103 +1,90 @@
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
 
-# Initialize the PyChrono environment
+# Initialize the Chrono::Engine system
 chrono.SetChronoDataPath('path/to/chrono/data')
 
-# Create the physical system
+# Create the simulation system and add a gravity field
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the vehicle system
-vehicle = veh.ChVehicleSystem()
-vehicle.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
-vehicle.Initialize()
+vehicle = veh.Gator()
 
-# Set up the Gator vehicle
-gator = veh.ChVehicleGator()
-gator.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
-gator.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-gator.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(0, 0, 1), chrono.CHRONO_PI / 2))
-gator.Initialize()
+# Set the initial position and orientation of the vehicle
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
 
 # Add the vehicle to the system
-vehicle.AddVehicle(gator)
+system.Add(vehicle.GetVehicle())
 
-# Create the terrain
-terrain = chrono.ChTerrain()
-terrain.CreateRectangularPatch(system, 20, 20, 100, 100, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurface().SetFriction(0.9)
-terrain.GetMaterialSurface().SetRestitution(0.1)
-terrain.GetMaterialSurface().SetCompliance(0.00001)
-terrain.GetMaterialSurface().SetComplianceT(0.00001)
+# Create a rigid terrain
+terrain = veh.RigidTerrain(system)
+terrain.Initialize(100, 100, 0.1, chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC(0.7, 0.3, 0.01))
 
 # Add the terrain to the system
-system.Add(terrain)
+system.Add(terrain.GetGroundBody())
 
-# Create the interactive driver system
+# Create an interactive driver system
 driver = veh.ChDriver()
-driver.Initialize(gator, system)
-driver.SetSteeringDelta(0.0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0.0)
+driver.SetVehicle(vehicle)
+driver.SetSteeringController(veh.ChSteeringControllerPID(0.5, 0.1, 0.01))
+driver.SetThrottleController(veh.ChThrottleControllerPID(0.2, 0.1, 0.01))
 
-# Create the sensor manager
-sensor_manager = veh.ChSensorManager()
-sensor_manager.Initialize(gator)
+# Create a sensor manager
+sensor_manager = veh.ChSensorManager(vehicle)
+sensor_manager.Initialize()
 
-# Add point lights
-light1 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
-sensor_manager.AddLight(light1)
+# Add a point light to the sensor manager
+point_light = chronoirr.ChIrrLightPoint()
+point_light.SetRadius(100)
+point_light.SetDiffuseColor(chrono.ChColorf(1.0, 1.0, 1.0))
+sensor_manager.AddPointLight(point_light)
 
-light2 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(-5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
-sensor_manager.AddLight(light2)
-
-# Add a camera attached to the vehicle's chassis
+# Add a camera to the sensor manager
 camera = chronoirr.ChIrrCamera()
-camera.SetPosition(chrono.ChVectorD(0, -5, 2))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-camera.SetNearClip(0.1)
-camera.SetFarClip(100)
-camera.SetFOV(chrono.CHRONO_PI / 4)
+camera.SetPosition(chrono.ChVectorD(0, 2, -5))
+camera.SetLookAtPoint(chrono.ChVectorD(0, 0, 0))
 sensor_manager.AddCamera(camera)
 
-# Initialize the visualization system
-application = chronoirr.ChIrrApp(system, 'Gator Vehicle Simulation', chronoirr.dimension2du(1280, 720))
-application.AddVisualSystem('Vehicle', sensor_manager.GetVisualSystem())
-application.AddVisualSystem('Terrain', terrain.GetVisualSystem())
-application.AddVisualSystem('Driver', driver.GetVisualSystem())
+# Create the visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Gator Vehicle Simulation')
 
-# Set up the simulation loop
+# Set up the visualization of the vehicle parts
+vehicle.SetChassisVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetWheelVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetTireVisualizationType(veh.ChVisualizationType::MESH)
+
+# Create a post-processor for rendering camera images
+postprocessor = postprocess.ChPostProcess()
+postprocessor.SetChronoDataPath('path/to/chrono/data')
+postprocessor.SetOutputDirectory('output')
+postprocessor.SetCamera(camera)
+postprocessor.SetSystem(system)
+
+# Run the simulation loop
 step_size = 0.01
-max_time = 10.0
-time = 0.0
+end_time = 10.0
+current_time = 0.0
 
-while time < max_time:
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+while current_time < end_time:
+    driver.Synchronize(system.GetChTime())
+    terrain.Synchronize(system.GetChTime())
+    vehicle.Synchronize(system.GetChTime(), driver, terrain)
+    sensor_manager.Synchronize(system.GetChTime())
 
     system.DoStepDynamics(step_size)
 
-    # Update the driver
-    driver.Synchronize(step_size)
-    driver.Advance(step_size)
+    vis.Render()
+    postprocessor.Render()
 
-    # Update the terrain
-    terrain.Synchronize(step_size)
-    terrain.Advance(step_size)
+    current_time += step_size
 
-    # Update the vehicle
-    vehicle.Synchronize(step_size)
-    vehicle.Advance(step_size)
-
-    # Update the sensor manager
-    sensor_manager.Synchronize(step_size)
-    sensor_manager.Advance(step_size)
-
-    time += step_size
-
-# Close the application
-application.Close()
+# Close the visualization
+vis.Close()

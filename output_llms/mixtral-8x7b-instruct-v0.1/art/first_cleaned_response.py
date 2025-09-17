@@ -1,64 +1,54 @@
 import chrono
-from chrono import chrono_irrlicht as irrl
-from chrono import chrono_vehicle as veh
+import irrlich
+from chrono.vehicle import VehicleModel, ChVehicleIrrlicht, ChCarART
+from chrono.collision import ChCollisionModel, ChBox, ChTriangleMeshShape
+from chrono.irrlicht import ChIrrApp
+from chrono.terrain import ChTerrain
+from chrono.utils import ChUtils
 
 
-chrono.Chrono::SetDefaultOptions(chrono.ChR_IRRLICHT_WITH_PYOPENGL)
-my_system = chrono.ChSystemSMC()
+chrono.SetChDir(chrono.ChDirChronoData())
 
 
-device = irrl.createDevice(irrl.video_mode(1280, 720), 16, false, false, false)
-driver = irrl.createIrrlichtDriver(device)
+my_vis = ChIrrApp(window_size=(800, 600))
+my_vis.AddLogo()
+my_vis.AddTypicalSky()
+my_vis.AddCamera(chrono.ChVectorD(0, 10, 0))
 
 
-vehicle = veh.ChVehicle()
-terrain = chrono.ChTerrain()
+location = chrono.ChVectorD(0, 0, 0)
+orientation = chrono.Q_from_AngX(chrono.CH_C_PI_2)
+contact_method = chrono.ChContactMethod.SMC
+visualization_type = ChVehicleIrrlicht.VisualizationType.SHOW_ALL
+
+vehicle = ChCarART(location, orientation, contact_method, visualization_type)
 
 
-location = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisBody(my_system.NewBody())
-vehicle.GetChassisBody().SetPos(location.pos)
-vehicle.GetChassisBody().SetRot(location.rot)
-vehicle.SetContactMethod(veh.ChVehicleContactMethod::SMC)
-vehicle.SetVisualizationType(veh.ChVehicleVisualizationType::MESH)
-
-
-tex_path = 'path/to/your/texture.bmp'
-terrain_texture = device.getVideoDriver().getTexture(tex_path)
-
-
-terrain_size = 50.0
-terrain.SetSize(chrono.ChVectorD(terrain_size, terrain_size, 0))
+terrain_size = (50, 50)
+terrain_file = 'path/to/your/custom_terrain.ter'
+terrain_texture = 'path/to/your/custom_terrain_texture.jpg'
+terrain = ChTerrain(terrain_size, terrain_file)
 terrain.SetTexture(terrain_texture)
-terrain.SetMaterial(chrono.ChMaterialSurface::BoxFriction, 0.5, 0.5)
-terrain.Update()
-my_system.Add(terrain)
 
 
-driver_params = veh.ChDriver::UserInputs()
-driver_params.throttle = 0.0
-driver_params.brake = 0.0
-driver_params.steer = 0.0
-vehicle.SetDriver(veh.ChVehicleDriver(driver_params))
+vehicle.AddTerrain(terrain)
 
 
-my_system.Add(vehicle)
+driver = ChVehicleDriver(vehicle)
 
 
-while device.run():
-    
-    my_system.DoStepDynamics(1.0 / 50.0)
+my_vis.AddModule(driver)
+my_vis.AddModule(vehicle.module)
+my_vis.AddRenderable(terrain, 0)
 
-    
-    vehicle.GetDriver().UpdateInputs(1.0 / 50.0)
+while my_vis.Run():
+    my_vis.BeginScene()
+    my_vis.Clear()
+    my_vis.Render()
+    my_vis.EndScene()
 
     
-    device.getVideoDriver().beginScene(True, True, chrono.SColor(255, 100, 149, 237))
-    my_system.GetCollisionSystem().ClearContactPoints()
-    my_system.GetCollisionSystem().VisualizeContactPoints(device.getVideoDriver(), chrono.SColor(255, 255, 0, 0))
-    vehicle.Visualize(device)
-    terrain.Visualize(device)
-    device.getVideoDriver().endScene()
+    vehicle.DoStepDynamics(my_vis.GetTimeStep())
 
-
-device.drop()
+    
+    chrono.sleep(int(1000 / 50))

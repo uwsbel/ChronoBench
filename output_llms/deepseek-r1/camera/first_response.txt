@@ -1,133 +1,146 @@
 
-Here's the PyChrono simulation script that meets your requirements. The script loads a mesh, attaches a moving camera sensor with noise and visualization, and prints camera data at each step:
+Here's a complete PyChrono simulation script that meets your requirements. The script loads a mesh from an OBJ file, attaches a moving camera sensor to it, and simulates an orbiting camera with noise filters and visualization.
 
 ```python
-#!/usr/bin/env python
-import pychrono as chrono
-import pychrono.sensor as sens
-import pychrono.irrlicht as irr
-import math
 import os
+import math
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.sensor as sens
 
 def main():
-    # 1. Initialize environment
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    # 1. Initialize simulation system
     system = chrono.ChSystemNSC()
-    system.SetGravity(chrono.ChVector3d(0, 0, 0))  # No gravity for static scene
+    system.SetGravity(chrono.ChVector3d(0, 0, 0))
 
-    # 2. Create fixed mesh body
-    mesh_body = chrono.ChBody()
-    mesh_body.SetFixed(True)
-    
-    # Load OBJ mesh (replace with your actual file path)
-    obj_path = chrono.GetChronoDataFile("models/cube.obj")
-    mesh = chrono.ChVisualShapeModelFile(obj_path)
-    mesh_body.AddVisualShape(mesh)
-    system.Add(mesh_body)
+    # 2. Create ground body and mesh
+    ground = chrono.ChBody()
+    ground.SetFixed(True)
+    system.Add(ground)
+
+    # Load mesh from OBJ file
+    obj_path = os.path.join(chrono.GetChronoDataPath(), "models", "cube.obj")
+    mesh = chrono.ChVisualShapeModelFile()
+    mesh.SetFilename(obj_path)
+    ground.AddVisualShape(mesh)
 
     # 3. Create sensor manager
     manager = sens.ChSensorManager(system)
     manager.scene.AddPointLight(chrono.ChVector3d(2, 2, 2), chrono.ChColor(1, 1, 1), 1000)
 
     # Camera parameters
-    lens_model = sens.PinholeLens()
-    lens_model.SetFocalLength(35)
-    lens_model.SetExposureTime(0.02)
-    
-    # Camera noise models
-    noise_model = sens.NoiseNormalDist(0, 0.1)  # Gaussian noise
-    filter_model = sens.PixelIntensityFilter(0.1, 1.0)  # Brightness filter
+    orbit_radius = 3.0
+    orbit_height = 1.0
+    orbit_speed = 0.1
+    camera_update_rate = 30
+    camera_resolution = (1280, 720)
+    camera_fov = 1.0  # Field of view (radians)
 
-    # 4. Create and configure camera
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+    # 4. Create camera sensor with noise and filters
     camera = sens.ChCameraSensor(
-        mesh_body,              # Parent body
-        30,                     # Update rate (Hz)
-        offset_pose,            # Offset pose
-        1920,                   # Image width
-        1080,                   # Image height
-        math.radians(70),       # Horizontal FOV
-        lens_model              # Lens model
+        ground,                     # Attached to ground body
+        camera_update_rate,         # Update rate
+        chrono.ChFramed(            # Initial pose (will be updated)
+            chrono.ChVector3d(orbit_radius, 0, orbit_height),
+            chrono.QuatFromAngleZ(0)
+        ),
+        camera_resolution[0],       # Image width
+        camera_resolution[1],       # Image height
+        camera_fov                  # Field of view
     )
     camera.SetName("Orbiting Camera")
-    camera.SetLag(0)
-    camera.SetCollectionWindow(0.02)
-    
-    # Add noise and filters
-    camera.PushFilter(filter_model)
-    camera.PushNoiseModel(noise_model)
-    
-    # Enable visualization
-    camera.PushFilter(sens.FilterVisualize(1920, 1080, "Camera Output"))
+    camera.SetLag(0.1)  # Simulate processing delay
+
+    # Add noise model
+    noise_model = sens.AddNoiseModel(sens.NoiseModelType.NORMAL, 0.0, 0.2)
+    camera.PushFilter(sens.ChFilterRGBA8Noise(noise_model))
+
+    # Add visualizations
+    camera.PushFilter(sens.ChFilterVisualize(camera_resolution[0], camera_resolution[1], "Camera Output"))
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+
+    # Add camera to manager
     manager.AddSensor(camera)
 
     # 5. Create Irrlicht visualization
-    vis = irr.ChVisualSystemIrrlicht()
+    vis = irrlicht.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("Mesh Camera Simulation")
+    vis.SetWindowTitle("Orbiting Camera Simulation")
     vis.Initialize()
     vis.AddLogo()
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVector3d(2, 2, 2), chrono.ChVector3d(0, 0, 0))
+    vis.AddCamera(chrono.ChVector3d(0, 4, 2), chrono.ChVector3d(0, 0, 0))
     vis.AddTypicalLights()
 
-    # 6. Simulation parameters
-    orbit_radius = 3.0
-    orbit_height = 1.0
-    angular_speed = 0.1  # rad/s
-    time_step = 0.01
-    total_time = 10.0
-
-    # 7. Main simulation loop
-    time = 0
-    while time < total_time:
-        # Update camera position in orbit
-        cam_x = orbit_radius * math.cos(angular_speed * time)
-        cam_y = orbit_radius * math.sin(angular_speed * time)
+    # 6. Simulation loop
+    time_step = 0.001
+    step = 0
+    while vis.Run():
+        # Update camera orbit position
+        angle = orbit_speed * system.GetChTime()
+        cam_pos = chrono.ChVector3d(
+            orbit_radius * math.cos(angle),
+            orbit_radius * math.sin(angle),
+            orbit_height
+        )
         camera.SetOffsetPose(chrono.ChFramed(
-            chrono.ChVector3d(cam_x, cam_y, orbit_height),
-            chrono.QuatFromAngleZ(angular_speed * time + math.pi)
+            cam_pos,
+            chrono.QuatFromAngleAxis(-angle, chrono.ChVector3d(0, 0, 1))
         ))
 
-        # Update sensors and visualization
+        # Update sensor manager
         manager.Update()
+
+        # Print camera buffer data every 100 steps
+        if step % 100 == 0:
+            buffer = camera.GetMostRecentRGBA8Buffer()
+            if buffer.HasData():
+                print(f"Time: {system.GetChTime():.3f}")
+                print(f"Camera position: {cam_pos}")
+                print(f"Buffer size: {buffer.GetWidth()}x{buffer.GetHeight()}")
+                print(f"First pixel RGBA: {buffer.GetRGBA8Data()[0][0]}")
+
+        # Render scene
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+
+        # Advance simulation
         system.DoStepDynamics(time_step)
-
-        # Print camera data (metadata only - pixel data is large)
-        print(f"Time: {time:.2f}s | Camera Pos: ({cam_x:.2f}, {cam_y:.2f}, {orbit_height:.2f})")
-        print(f"Camera Buffer: {camera.GetMostRecentBuffer()}")
-
-        time += time_step
+        step += 1
 
 if __name__ == "__main__":
     main()
 ```
 
-Key features of this script:
-1. Loads a mesh from OBJ file (default uses provided cube.obj - replace with your file)
-2. Creates fixed body with visual mesh representation
-3. Sets up camera sensor with:
-   - Pinhole lens model with adjustable parameters
-   - Gaussian noise model
-   - Intensity filter
-   - Real-time visualization window
-4. Implements orbital camera motion around the mesh
-5. Prints camera metadata at each timestep
-6. Includes Irrlicht visualization for the 3D scene
+Key features of this implementation:
+
+1. **Mesh Loading**: Loads a cube mesh from Chrono's data directory (replace with your OBJ path)
+2. **Camera Orbit**: 
+   - Camera moves in a circular path around the mesh
+   - Position updated dynamically each timestep
+   - Camera always points toward the mesh center
+3. **Sensor System**:
+   - Gaussian noise applied to images
+   - Visualized camera output in real-time
+   - RGBA8 data buffer accessible for processing
+4. **Simulation Output**:
+   - Prints camera position and buffer data periodically
+   - Real-time visualization of the 3D scene
+5. **Parameters**:
+   - Orbit radius, height, and speed adjustable
+   - Camera resolution and FOV configurable
+   - Noise parameters customizable
 
 To use your own OBJ file:
-1. Replace `"models/cube.obj"` with your file path
-2. Ensure the file is in Chrono's data path or use absolute path
-3. Adjust orbit parameters (`orbit_radius`, `orbit_height`) as needed
+1. Replace `"models/cube.obj"` with your relative path
+2. Ensure the mesh is scaled appropriately (Chrono uses meters)
 
-The camera will orbit around the mesh while:
-- Applying noise to the images
-- Showing real-time camera output in a separate window
-- Printing camera buffer metadata to console at each timestep
+The simulation will show:
+- Left window: 3D scene with mesh and camera frustum
+- Right window: Processed camera output with noise
+- Console output: Camera position and buffer data
 
-Note: The script prints camera buffer metadata instead of full pixel data to avoid console flooding. To access pixel data, use `buffer.GetRGBA8Data()` in the print statement.
+Note: Requires PyChrono with sensor module built. Adjust orbit parameters and noise settings as needed for your application.

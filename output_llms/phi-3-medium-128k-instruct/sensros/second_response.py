@@ -122,7 +122,7 @@ def main():
     ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Run the simulation loop.
-    time = 0
+    time = 
     time_step = 1e-3  # Define the simulation time step.
     time_end = 100  # Set the duration of the simulation.
 

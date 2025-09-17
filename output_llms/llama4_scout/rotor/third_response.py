@@ -7,21 +7,21 @@ import pychrono.irrlicht as chronoirr
 # Create the system
 sys = chrono.ChSystemSMC()
 
-# Create a mesh
+# Create a mesh and add it to the system
 mesh = fea.ChMesh()
 sys.Add(mesh)
 
-# Set gravity
+# Set gravity for the system and mesh
 mesh.SetAutomaticGravity(True, 2)  
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
-# Beam parameters
+# Beam properties
 beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
 CH_PI = 3.14159  # More precise value of PI
 
-# Create a section 
+# Create section properties
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -39,26 +39,32 @@ msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)
 
-# Use the ChBuilderBeamIGA tool for creating a straight rod
+# Create the beam using ChBuilderBeamIGA
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, 
-                 msection, 
-                 20, 
-                 chrono.ChVector3d(0, 0, 0), 
-                 chrono.ChVector3d(beam_L, 0, 0), 
-                 chrono.VECT_Y, 
-                 3)  # Using cubic IGA
+builder.BuildBeam(
+    mesh, 
+    msection, 
+    20,  
+    chrono.ChVector3d(0, 0, 0), 
+    chrono.ChVector3d(beam_L, 0, 0), 
+    chrono.VECT_Y, 
+    3  # Use cubic IGA
+)
 
+# Get the middle node of the beam
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 # Create the flywheel and attach it to the center of the beam
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800) 
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
 mbodyflywheel.SetCoordsys(
-    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), 
-                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+    chrono.ChCoordsysd(
+        node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
+        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)
+    )
 )
 sys.Add(mbodyflywheel)
 
+# Create a fixed joint between the flywheel and the beam
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
 sys.Add(myjoint)
@@ -70,8 +76,7 @@ sys.Add(truss)
 
 # Create the end bearing
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss, 
-                  chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 # Custom motor function class
@@ -95,20 +100,28 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return self.A2
 
-# Create the motor that rotates the beam
+# Create the motor with the custom function
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(), 
-                     truss, 
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), 
-                                    chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+rotmotor1.Initialize(
+    builder.GetLastBeamNodes().front(),  
+    truss,  
+    chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
 )
 sys.Add(rotmotor1)
 
+# Parameters for the custom motor function
+A1 = 0.0
+A2 = 100.0
+T1 = 0.0
+T2 = 1.0
+T3 = 2.0
+w = 50.0
+
 # Set the custom motor function
-f_ramp = ChFunctionMyFun(A1=0, A2=100, T1=0, T2=0.5, T3=1.0, w=50)
+f_ramp = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
 rotmotor1.SetMotorFunction(f_ramp)
 
-# Attach a visualization of the FEM mesh.
+# Visualization for the FEM mesh
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -122,7 +135,7 @@ mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
-# Create the Irrlicht visualization
+# Create the Irrlicht application
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -137,8 +150,8 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# For more precise HHT timestepper, uncomment the following line
-# sys.SetTimestepper(chrono.ChTimestepperHHT(), True)
+# For more precise time stepping, consider using HHT
+# sys.SetTimestepper(chrono.ChTimestepperHHT())
 
 # Run the simulation
 while vis.Run():

@@ -41,11 +41,10 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Added Logging Step Size
-log_step_size = 1.0  # Logging frequency in seconds
-log_steps = math.ceil(log_step_size / step_size)
+log_step_size = 1.0  # Log every 1 second
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -70,7 +69,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -130,7 +129,7 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# Initialize GPS Data List
+# Initialized GPS Data List
 gps_data = []
 
 # ---------------
@@ -142,6 +141,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+log_steps = math.ceil(log_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -160,14 +160,15 @@ while vis.Run():
         render_frame += 1
 
     # Modified Driver Inputs
-    driver_inputs = veh.ChDriverInputs()
+    driver_inputs = driver.GetInputs()
     if time < 6:
-        driver_inputs.m_throttle = 1.0
-        driver_inputs.m_steering = 0.5 * math.sin(time)
+        driver_inputs.SetThrottle(1.0)
+        driver_inputs.SetSteering(0.0)
+        driver_inputs.SetBraking(0.0)
     else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 1.0
-        driver_inputs.m_steering = 0.0
+        driver_inputs.SetThrottle(0.0)
+        driver_inputs.SetSteering(0.0)
+        driver_inputs.SetBraking(1.0)
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

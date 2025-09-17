@@ -1,6 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
 import rclpy.publisher
 from std_msgs.msg import Int64
@@ -9,7 +9,7 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic, publish_rate=10):
+    def __init__(self, topic, publish_rate):
         super().__init__(publish_rate)  
 
         self.topic = topic
@@ -20,7 +20,7 @@ class MyCustomHandler(chros.ChROSHandler):
         
         print(f"Creating publisher for topic {self.topic} ...")
         
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True  
 
     def Tick(self, time: float):
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(irr.IrrlichtTexture("path/to/floor_texture.png"))  
+    floor.SetTexture(irrlicht.IrrlichtTexture("floor_texture.png"))  
     sys.Add(floor)  
 
     
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(irr.IrrlichtTexture("path/to/box_texture.png"))  
+    box.SetTexture(irrlicht.IrrlichtTexture("box_texture.png"))  
     sys.Add(box)  
 
     
@@ -71,32 +71,27 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
+    custom_handler = MyCustomHandler("~/my_topic", 10)  
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
 
     
-    vis = irr.IrrlichtVisualizer(sys)
+    vis = irrlicht.IrrlichtVisualization(sys)
     vis.SetCameraPosition(ch.ChVector3d(5, 5, 10))
     vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
     vis.SetAmbientLight(ch.ChColor(0.5, 0.5, 0.5))
-    vis.SetLightDirection(ch.ChVector3d(1, 1, 1))
-    vis.SetWindowSize(800, 600)
-    vis.setWindowTitle("PyChrono Simulation")
-    vis.SetFullScreen(False)
-    vis.Show()
-
-    
-    step_number = 0
-    render_step_size = 10  
-    render_steps = 0
+    vis.SetDirectionalLight(ch.ChVector3d(1, 1, 1), ch.ChColor(1, 1, 1))
+    vis.setWindowSize(800, 600)
 
     
     time = 0
-    time_step = 1e-3  
-    time_end = 30  
+    time_step = 1e-3
+    time_end = 30
+    step_number = 0
+    render_step_size = 10
+    render_steps = 0
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
@@ -109,7 +104,7 @@ def main():
         step_number += 1
         render_steps += 1
         if render_steps >= render_step_size:
-            vis.Render()  
+            vis.render()  
             render_steps = 0
 
         realtime_timer.Spin(time_step)  

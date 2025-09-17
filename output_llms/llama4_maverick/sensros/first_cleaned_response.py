@@ -5,118 +5,108 @@ import pychrono.irrlicht as irr
 import numpy as np
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+print("Copyright (c) 2023 Project Chrono")
+
+
+step_size = 1e-3
+time_end = 100
 
 
 sys = chrono.ChSystemNSC()
 
 
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "sensor/offroad/mesh.obj")
-
-
 ground_body = chrono.ChBody()
 ground_body.SetBodyFixed(False)  
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-mesh_visual = chrono.ChVisualShapeTriangleMesh()
-mesh_visual.SetMesh(mesh)
-ground_body.AddVisualShape(mesh_visual)
-
-
 sys.Add(ground_body)
+
+
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/forklift/meshes/forklift_obj.obj"))
+mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
+mesh_asset = chrono.ChTriangleMeshShape()
+mesh_asset.SetMesh(mesh)
+ground_body.AddAsset(mesh_asset)
+
+
+ground_body.SetPos(chrono.ChVector3d(0, 0, 0))
+ground_body.SetPos_dt(chrono.ChVector3d(1, 0, 0))  
 
 
 manager = sens.ChSensorManager(sys)
 
 
-camera = sens.ChCameraSensor(
-    ground_body,  
-    30,  
-    chrono.ChFrameD(chrono.ChVectorD(-5, 0, 2), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),  
-    640,  
-    480,  
-    chrono.CH_C_PI / 3  
-)
+camera = sens.ChCameraSensor(ground_body,  
+                              10,  
+                              chrono.ChFrame(chrono.ChVector3d(-5, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                              640,  
+                              480,  
+                              90)  
+camera.SetName("Camera Sensor")
 manager.AddSensor(camera)
 
 
-lidar = sens.ChLidarSensor(
-    ground_body,
-    30,
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(chrono.CH_C_PI / 20, chrono.VECT_Y)),
-    1000,  
-    100,  
-    chrono.CH_C_PI,  
-    chrono.CH_C_PI / 8  
-)
+lidar = sens.ChLidarSensor(ground_body,
+                           10,  
+                           chrono.ChFrame(chrono.ChVector3d(-2, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                           1000,  
+                           100,  
+                           chrono.CH_C_PI,  
+                           chrono.CH_C_PI / 4)  
+lidar.SetName("Lidar Sensor")
 manager.AddSensor(lidar)
 
 
-gps = sens.ChGPSSensor(
-    ground_body,
-    10,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
-)
+gps = sens.ChGPSSensor(ground_body,
+                       10,  
+                       chrono.ChFrame(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                       chrono.ChVector3d(0, 0, 0))  
+gps.SetName("GPS Sensor")
 manager.AddSensor(gps)
 
 
-accel = sens.ChAccelerometerSensor(
-    ground_body,
-    100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
-)
+accel = sens.ChAccelerometerSensor(ground_body,
+                                   100,  
+                                   chrono.ChFrame(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                                   0,  
+                                   chrono.ChVector3d(0, 0, 0))  
+accel.SetName("Accelerometer Sensor")
 manager.AddSensor(accel)
 
 
-gyro = sens.ChGyroscopeSensor(
-    ground_body,
-    100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)  
-)
+gyro = sens.ChGyroscopeSensor(ground_body,
+                              100,  
+                              chrono.ChFrame(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                              0)  
+gyro.SetName("Gyroscope Sensor")
 manager.AddSensor(gyro)
 
 
-magnet = sens.ChMagnetometerSensor(
-    ground_body,
-    100,  
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  
-    chrono.ChVectorD(0, 0, 1)  
-)
+magnet = sens.ChMagnetometerSensor(ground_body,
+                                   100,  
+                                   chrono.ChFrame(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                                   0,  
+                                   chrono.ChVector3d(0, 0, 1))  
+magnet.SetName("Magnetometer Sensor")
 manager.AddSensor(magnet)
 
 
-ros_manager = sens.ChROSPackageManager(manager)
-ros_manager.AddCameraSensor(camera, "/camera")
-ros_manager.AddLidarSensor(lidar, "/lidar")
-ros_manager.AddGPSSensor(gps, "/gps")
-ros_manager.AddAccelerometerSensor(accel, "/accelerometer")
-ros_manager.AddGyroscopeSensor(gyro, "/gyroscope")
-ros_manager.AddMagnetometerSensor(magnet, "/magnetometer")
 
 
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Sensor Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, -8, 2), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+ros_manager = sens.ChROSOuputManager()
+for sensor in manager.GetSensors():
+    ros_manager.AddSensor(sensor)
 
-while vis.Run():
-    time = sys.GetChTime()
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+while sys.GetChTime() < time_end:
     
     manager.Update()
-    
     ros_manager.Update()
+
     
-    sys.DoStepDynamics(0.01)
+    sys.DoStepDynamics(step_size)
+
     
-    vis.Run()
-    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    vis.Render()
-    vis.EndScene()
+    realtime_timer.Spin(step_size)
+
+print("Simulation End")

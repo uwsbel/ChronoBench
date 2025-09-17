@@ -8,60 +8,47 @@ import pychrono.vehicle as chronovehicle
 
 
 
-system = chrono.ChSystemNSC()
+
+my_system = chrono.ChSystemNSC()
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-vehicle = chronovehicle.ChVehicle("BMW E90", system)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1200, 800)
+vis.SetWindowTitle('BMW E90 Simulation')
+vis.Initialize()
+vis.AddCamera(chronoirr.ChCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)))
+vis.AddSkyBox()
 
 
-vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
-vehicle.SetChassisCollide(True)
-vehicle.SetSuspensionVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(chronovehicle.VisualizationType_MESH)
+terrain_material = chrono.ChMaterialSurfaceNSC()
+terrain_material.SetFriction(0.8)
+terrain_material.SetRestitution(0.2)
 
 
-vehicle.SetVehicleModel(chronovehicle.VehicleModelData("E90.json"))
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0)))
+ground = chrono.ChBodyEasyBox(100, 100, 0.1, 1000, True, True, terrain_material)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+my_system.Add(ground)
 
 
-tire_model = chronovehicle.TMeasyTire()
-vehicle.SetTireModel(tire_model)
+vehicle = chronovehicle.ChVehicle("E90")
 
 
+vehicle.SetChassisMass(1500)
+vehicle.SetChassisInertia(chrono.ChVectorD(100, 100, 100))
 
 
+tire_model = chronovehicle.ChTMeasyTire()
+vehicle.AddWheel(chrono.ChVectorD(1.5, -0.8, 0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, -0.8, 0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(1.5, -0.8, -0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, -0.8, -0.5), chrono.ChVectorD(0, -1, 0), tire_model)
 
 
-
-terrain = chrono.ChRigidBody()
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetCollide(True)
-
-
-terrain.GetCollisionModel().ClearModel()
-terrain.GetCollisionModel().AddMesh(chrono.ChTriangleMeshSoup(), False, False)
-terrain.GetCollisionModel().BuildModel()
-
-
-terrain.AddAsset(chronoirr.ChIrrAssetType_TEXTURE, "ground_texture.jpg")
-terrain.AddAsset(chronoirr.ChIrrAssetType_LOGO, "logo.png")
-
-
-
-
-
-
-
-driver = chronovehicle.ChInteractiveDriver(vehicle)
-
-
-driver.SetSteeringControl(chrono.ChFunction_Const(0))
-driver.SetThrottleControl(chrono.ChFunction_Const(0))
-driver.SetBrakingControl(chrono.ChFunction_Const(0))
+my_system.Add(vehicle)
 
 
 
@@ -69,14 +56,8 @@ driver.SetBrakingControl(chrono.ChFunction_Const(0))
 
 
 
-vis = chronoirr.ChIrrApp(system, "BMW E90 Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalSky()
-vis.AddTypicalLights()
-vis.SetChaseCamera(chrono.ChVectorD(0, 2.0, 5.0), chrono.ChVectorD(0, 1.0, 0))
 
-
-vis.AddAsset(vehicle, True)
-vis.AddAsset(terrain, True)
+driver = chronovehicle.ChDriver(vehicle)
 
 
 
@@ -84,8 +65,16 @@ vis.AddAsset(terrain, True)
 
 
 
-while vis.GetDevice().run():
+
+
+while vis.Run():
+    
+    
+
+    
+    my_system.DoStepDynamics(0.01)
+
+    
     vis.BeginScene()
     vis.Render()
-    system.DoStepDynamics(0.01)
     vis.EndScene()

@@ -1,13 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
+import math
 
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -17,9 +18,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeight = 0 
-terrainLength = 100.0 
-terrainWidth = 100.0 
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -33,7 +34,7 @@ step_size = 5e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50 
+render_step_size = 1.0 / 50  
 
 
 vehicle = veh.M113()
@@ -71,6 +72,7 @@ terrain.Initialize()
 
 box_body = chrono.ChBody()
 box_body.SetMass(1000)
+box_body.SetInertiaXX(chrono.ChVector3d(100, 100, 100))
 box_body.SetPos(chrono.ChVector3d(5, 0, 0.5))
 box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
@@ -78,7 +80,7 @@ box_geom = chrono.ChBoxShape()
 box_geom.GetBoxGeometry().Size = chrono.ChVector3d(5, 1, 1)
 box_body.AddVisualShape(box_geom)
 
-vehicle.GetSystem().AddBody(box_body)
+vehicle.GetSystem().Add(box_body)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -95,12 +97,14 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0 
-throttle_time = 1.0 
-braking_time = 0.3 
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 
@@ -110,18 +114,19 @@ vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = int(np.ceil(render_step_size / step_size))
+render_steps = math.ceil(render_step_size / step_size)
 
 
 step_number = 0
 render_frame = 0
+
 vehicle.GetVehicle().EnableRealtime(True)
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -145,5 +150,3 @@ while vis.Run() :
 
     
     step_number += 1
-
-...

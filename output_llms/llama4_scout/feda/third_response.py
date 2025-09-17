@@ -48,20 +48,17 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Change to grass texture
@@ -77,12 +74,31 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 
 # Add point lights to the scene
-light1 = vis.AddLightPoint(chrono.ChVector3d(-10, -10, 5), chrono.ChColor(1, 1, 1), 100)
-light2 = vis.AddLightPoint(chrono.ChVector3d(10, 10, 5), chrono.ChColor(1, 1, 1), 100)
+light1 = vis.AddLightPoint(chrono.ChVector3d(-10, -10, 5), chrono.ChColor(1, 1, 1), 1000)
+light2 = vis.AddLightPoint(chrono.ChVector3d(10, 10, 5), chrono.ChColor(1, 1, 1), 1000)
 
-vis.AddSkyBox()
+# Create a sensor manager
+sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
 
-vis.AttachVehicle(vehicle.GetVehicle())
+# Add a camera sensor to the vehicle's chassis body
+camera_pos = chrono.ChVector3d(0, 0, 1.5)
+camera_dir = chrono.ChVector3d(0, 0, -1)
+camera_up = chrono.ChVector3d(0, 1, 0)
+camera_sensor = sensor_manager.AddCameraSensor(vehicle.GetChassisBody(),  # body
+                                                 camera_pos,  # position
+                                                 camera_dir,  # direction
+                                                 camera_up,  # up
+                                                 90,  # FOV
+                                                 1920,  # width
+                                                 1080,  # height
+                                                 1)  # sampling rate
+
+# Set a visualization filter to render the image
+vis_filter = veh.ChSensorVisualizationFilter()
+camera_sensor.SetVisualizationFilter(vis_filter)
+
+# Add the sensor to the sensor manager
+sensor_manager.AddSensor(camera_sensor)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -95,27 +111,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
-# Create a sensor manager
-sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
-
-# Add a camera sensor to the vehicle’s chassis body
-camera_pos = chrono.ChVector3d(0, 0, 1.5)
-camera_dir = chrono.ChVector3d(0, 0, -1)
-camera_up = chrono.ChVector3d(0, 1, 0)
-camera_sensor = sensor_manager.AddCameraSensor(
-    vehicle.GetChassisBody(),  # body
-    chrono.ChCoordsysd(camera_pos, chrono.QuaternionFromDir(camera_dir, camera_up)),  # offset pose
-    1920,  # width
-    1080,  # height
-    60  # FOV
-)
-
-# Create a visualization filter to render the image
-image_color = veh.ChCameraSensorImageColor()
-image_color.SetName("image")
-image_color.SetVerbose(True)
-camera_sensor.AddFilter(image_color)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -132,15 +127,15 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-        # Update and visualize sensor
+        # Update and visualize sensors
         sensor_manager.Update()
-        image_color.WriteImage(chrono.GetChronoDataPath() + "images/")
+        vis_filter.Update()
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
@@ -156,7 +151,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)  # Update sensor manager
 
     # Increment frame number
     step_number += 1

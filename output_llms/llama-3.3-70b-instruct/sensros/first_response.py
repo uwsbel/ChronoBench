@@ -1,95 +1,96 @@
 import pychrono.core as chrono
-import pychrono.sensor as sensor
-import pychrono.irrlicht as chronoirr
-import numpy as np
-import time
+import pychrono.sensor as chrono_sensor
+import pychrono.irrlicht as chrono_irr
 import rospy
+import numpy as np
 
-# Initialize the PyChrono environment and core components
+# Initialize the PyChrono environment
 sys = chrono.ChSystemNSC()
 
 # Set the default contact material properties
 contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
+contact_material.SetFriction(0.9)
 contact_material.SetDampingF(0.2)
-contact_material.SetCompliance(0.0001)
-contact_material.SetComplianceT(0.0001)
+contact_material.SetCompliance(1e-6)
+contact_material.SetComplianceT(1e-4)
+sys.SetDefaultContactMaterial(contact_material)
 
 # Create the ground body
 ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.SetMaterial(contact_material)
 ground.SetBodyFixed(True)
+sys.Add(ground)
 
 # Add a mesh object for visualization
-mesh = chrono.ChMesh()
-mesh.LoadWavefrontMesh("ground.obj")
-ground.AddAsset(mesh)
+mesh = chrono_irr.ChVisualShapeMesh(chrono_irr.GetMesh(..))
+ground.AddVisualShape(mesh)
 
-# Configure the ground body to move
+# Set the ground body to move
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetRot(chrono.Q_from_AngX(0))
 
 # Create a sensor manager
-sensor_manager = sensor.ChSensorManager()
+sensor_manager = chrono_sensor.ChSensorManager()
 
 # Create and add sensors to the sensor manager
-camera = sensor.ChCamera()
+camera = chrono_sensor.ChCamera()
 camera.SetName("camera")
 camera.SetPosition(chrono.ChVectorD(0, 1, 0))
-camera.SetLookAt(chrono.ChVectorD(0, 0, -1))
+camera.SetLookAt(chrono.ChVectorD(0, 0, 1))
 sensor_manager.AddSensor(camera)
 
-lidar = sensor.ChLidar()
+lidar = chrono_sensor.ChLidar()
 lidar.SetName("lidar")
 lidar.SetPosition(chrono.ChVectorD(0, 1, 0))
-lidar.SetLookAt(chrono.ChVectorD(0, 0, -1))
+lidar.SetLookAt(chrono.ChVectorD(0, 0, 1))
 sensor_manager.AddSensor(lidar)
 
-gps = sensor.ChGPS()
+gps = chrono_sensor.ChGPS()
 gps.SetName("gps")
 gps.SetPosition(chrono.ChVectorD(0, 1, 0))
 sensor_manager.AddSensor(gps)
 
-accelerometer = sensor.ChAccelerometer()
+accelerometer = chrono_sensor.ChAccelerometer()
 accelerometer.SetName("accelerometer")
 accelerometer.SetPosition(chrono.ChVectorD(0, 1, 0))
 sensor_manager.AddSensor(accelerometer)
 
-gyroscope = sensor.ChGyroscope()
+gyroscope = chrono_sensor.ChGyroscope()
 gyroscope.SetName("gyroscope")
 gyroscope.SetPosition(chrono.ChVectorD(0, 1, 0))
 sensor_manager.AddSensor(gyroscope)
 
-magnetometer = sensor.ChMagnetometer()
+magnetometer = chrono_sensor.ChMagnetometer()
 magnetometer.SetName("magnetometer")
 magnetometer.SetPosition(chrono.ChVectorD(0, 1, 0))
 sensor_manager.AddSensor(magnetometer)
 
 # Create a ROS manager
-ros_manager = sensor.ChROSManager()
+ros_manager = chrono_sensor.ChROSManager()
 
 # Register sensors with the ROS manager
-ros_manager.RegisterSensor(camera, "/camera/image_raw")
-ros_manager.RegisterSensor(lidar, "/lidar/points")
-ros_manager.RegisterSensor(gps, "/gps/fix")
-ros_manager.RegisterSensor(accelerometer, "/accelerometer/data")
-ros_manager.RegisterSensor(gyroscope, "/gyroscope/data")
-ros_manager.RegisterSensor(magnetometer, "/magnetometer/data")
+ros_manager.RegisterSensor(camera, "/camera_topic")
+ros_manager.RegisterSensor(lidar, "/lidar_topic")
+ros_manager.RegisterSensor(gps, "/gps_topic")
+ros_manager.RegisterSensor(accelerometer, "/accelerometer_topic")
+ros_manager.RegisterSensor(gyroscope, "/gyroscope_topic")
+ros_manager.RegisterSensor(magnetometer, "/magnetometer_topic")
 
-# Initialize the ROS node
-rospy.init_node("pychrono_simulation")
-
-# Simulation loop
-while True:
+# Initialize the simulation loop
+time = 0
+dt = 0.01
+while time < 10:
     # Update sensors
-    sensor_manager.Update()
+    sensor_manager.UpdateSensors(sys, time)
 
     # Advance the simulation
-    sys.DoStepDynamics(0.01)
+    sys.DoStepDynamics(dt)
 
-    # Publish sensor data to ROS topics
-    ros_manager.Publish()
+    # Publish data to ROS topics
+    ros_manager.PublishData()
 
     # Maintain real-time execution
-    time.sleep(0.01)
+    chrono.ChRealtimeStep(sys)
+
+    # Increment time
+    time += dt

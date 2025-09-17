@@ -1,86 +1,59 @@
 import PyChrono as pc
+import Irrlicht as irl
 import numpy as np
-import Irrlicht
 
 
 simulation = pc.Simulation()
-pc.set_physics_settings(simulation, gravity=0.001)  
+simulation.init()
 
 
-class ParticleEmitter:
-    def __init__(self, simulation):
-        self.simulation = simulation
-        self.particles = []
-        self.shape_options = ['circle', 'square', 'random_shape']
-        self.position_options = np.random.uniform(-10, 10, size=(100,))
-        self.velocity_options = np.random.uniform(-10, 10, size=(100,))
-        self.orientation_options = np.random.uniform(0, 2*np.pi, size=(100,))
-    
-    def emit(self):
-        for _ in range(100):
-            shape = np.random.choice(self.shape_options)
-            pos = np.random.choice(self.position_options)
-            vel = np.random.choice(self.velocity_options)
-            orient = np.random.choice(self.orientation_options)
-            
-            
-            particle = pc.Particle()
-            particle.position = pos
-            particle.velocity = vel
-            particle.orientation = orient
-            particle.shape = shape
-            self.simulation.add_particle(particle)
-            self.particles.append(particle)
+particle_system = pc.ParticleSystem()
+particle_system.position = np.array([0, 0, 0])
+particle_system.velocity = np.zeros(3)
+particle_system.force = np.zeros(3)
+simulation.add_system(particle_system)
 
 
-renderer = Irrlicht.Renderer(simulation, camera=pc.Camera())
-renderer.scene.clear()
-light = Irrlicht.Light()
-light.position = (10, 10, 10)
-renderer.add_light(light)
-renderer.camera.position = (50, 50, 50)
+particle_emitter = pc.ParticleEmitter()
+particle_emitter.position = np.array([0, 0, 0])
+particle_emitter.color = np.random.rand(3) * 255  
+particle_emitter.shape = pc.Sphere(0.5, 0.5, 0.5)  
+particle_emitter.emission_radius = 5.0  
+particle_emitter.emit = True
+simulation.add_emitter(particle_emitter)
 
 
-def gravity_force(particle1, particle2):
-    r = np.linalg.norm(particle1.position - particle2.position)
-    if r < 1e-10:
-        return 0
-    m1 = particle1.mass
-    m2 = particle2.mass
-    G = 0.001  
-    F = G * m1 * m2 / (r**2)
-    F_vector = (particle2.position - particle1.position) * F / (r**2) * particle1.mass
-    return F_vector
-
-simulation.add_particle_system(
-    particles=[particle for particle in simulation.particles],
-    force_func=gravity_force,
-    shape=particle.shape for particle in simulation.particles,
-    mass=1.0 for particle in simulation.particles
-)
+scene = irl.Scene()
+camera = scene.createCamera("camera", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 45, 0, 0, 0)
+light = scene.createLight("light", 0, 0, 0, 0, 0, 0, 100, 45, 0, 0, 0)
+particle_system.add_component(pc.VisualizationComponent(scene, camera, 1000))
 
 
-simulation.run(1000, 1000000)
+particle_system.position_component.position_enabled = True
+particle_system.velocity_component.velocity_enabled = True
+particle_system.force_component.force_enabled = True
 
 
-def key_event_handler(key):
-    if key.key_code == ord('W'):
-        renderer.camera.position[1] += 5
-    if key.key_code == ord('S'):
-        renderer.camera.position[1] -= 5
-    if key.key_code == ord('A'):
-        renderer.camera.position[0] -= 5
-    if key.key_code == ord('D'):
-        renderer.camera.position[0] += 5
-    if key.key_code == ord('R'):
-        renderer.camera.look_at = np.array([0, 0, 0])
+def gravitational_force(particle):
+    pos1 = particle.position
+    pos2 = particle_system.position
+    r = np.linalg.norm(pos1 - pos2)
+    if r > 1e-8:
+        force = 50.0 * (pos2 - pos1) / r**2
+        particle.force = force
 
-simulation.event_handler = key_event_handler
+particle_system.add_component(pc.CustomForceComponent(gravitational_force))
+
+
+def key_pressed(key):
+    if key == 32:  
+        particle_system.position = np.array([0, 0, 0])
+        particle_system.velocity = np.zeros(3)
+        particle_system.force = np.zeros(3)
+
+simulation.key_pressed.AddListener(key_pressed)
 
 
 while True:
     simulation.step()
-    renderer.render()
-    renderer.scene.clear()
-    for particle in simulation.particles:
-        renderer.draw_sphere(particle.position, particle.radius=0.1, color=(1,1,1))
+    scene.render()

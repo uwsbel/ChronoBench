@@ -13,35 +13,46 @@ ground = chrono.ChBodyEasyBox(sys,
                               100, 100, 2,  
                               1000,  
                               True,  
-                              True,  
-                              chrono.ChMaterialSurfaceNSC()  
-                              )
+                              True)  
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
 ground.SetBodyFixed(True)
 sys.Add(ground)
 
 
-vehicle = veh.ChPart(veh.ChKraz())
-vehicle.SetMass(2000)
-vehicle.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetPos(chrono.ChVectorD(0, 0, 1.5))
-vehicle.SetRot(chrono.Q_ROTATE_X_TO_Y)
-sys.Add(vehicle)
+kraz = veh.ChKraz()
+kraz.Initialize(sys, chrono.ChContactMethod_NSC)
+kraz.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+sys.Add(kraz)
 
 
-driver = veh.ChIrrNodeDriver(vehicle)
-driver.Initialize()
+driver = veh.ChIrrNodeDriver()
+driver.Initialize(kraz)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 
-app = irr.ChIrrApp(sys, "PyChrono Simulation", irr.dimension2du(800, 600))
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, 5))
-app.AssetBindAll()
-app.AssetUpdateAll()
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Kraz Vehicle Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(-10, 5, -10), chrono.ChVectorD(0, 1, 0))
+vis.SetCameraPosition(chrono.ChVectorD(-10, 5, -10))
 
 
-while app.GetDevice().run():
+while vis.Run():
     
-    sys.DoStepDynamics(0.01)
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.EndScene()
+    driver.Synchronize(chrono.ChTimeStep(0.01))
+    kraz.Synchronize(chrono.ChTimeStep(0.01))
+
+    
+    sys.DoStepDynamics(chrono.ChTimeStep(0.01))
+
+    
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

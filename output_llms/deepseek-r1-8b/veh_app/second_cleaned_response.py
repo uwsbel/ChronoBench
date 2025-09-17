@@ -60,7 +60,7 @@ vis = True
 gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_NSC)
 gator.SetChassisFixed(False)
-gator.SetInitPosition(initLoc)
+gator.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 gator.SetBrakeType(veh.BrakeType_SHAFTS)
 gator.SetTireType(veh.TireModelType_TMEASY)
 gator.SetTireStepSize(tire_step_size)
@@ -107,7 +107,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(0.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -117,32 +117,24 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
-
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-lidar = sens.ChLidarSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    chrono.ChVector3d(0.0, 0, 2),
-    800,  
-    300,  
-    2 * chrono.CH_PI,  
-    chrono.CH_PI / 12,  
-    chrono.CH_PI / 6,   
-    100.0,              
-    True,                
-    2,                  
-    math.radians(0.003), 
-    sens.LidarSensorReturnMode.STRONGEST_RETURN
-)
-lidar.SetFilters(
-    sens.LidarSensorFilter_DEPTH,
-    sens.LidarSensorFilter_INTENSITY,
-    sens.LidarSensorFilter_XYZI
-)
-lidar.SetName("Lidar Sensor")
+lidar = sens.ChLidar(gator.GetSystem())
+lidar.SetOffsetPose(chrono.ChVector3d(0.0, 0, 2))
+lidar.SetNumSamples(800)
+lidar.SetNumChannels(300)
+lidar.SetHorizontalFov(2 * chrono.CH_PI)  
+lidar.SetVerticalFov(chrono.CH_PI / 12)
+lidar.SetVerticalFovMin(-chrono.CH_PI / 6)
+lidar.SetMaxRange(100.0)
+lidar.SetBeamShape(sens.ChLidar.BeamShape_RECTANGULAR)
+lidar.SetSampleRadius(2)
+lidar.SetDivergenceAngle(0.003)
+lidar.SetStrongestReturnMode()
+lidar.SetFilter(sens.ChLidar.Filter_DEPTH | sens.ChLidar.Filter_INTENSITY | 
+               sens.ChLidar.Filter_XYZI | sens.ChLidar.Filter_VISUALIZATION)
 manager.AddSensor(lidar)
 
 

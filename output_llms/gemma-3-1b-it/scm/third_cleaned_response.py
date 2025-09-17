@@ -94,7 +94,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 

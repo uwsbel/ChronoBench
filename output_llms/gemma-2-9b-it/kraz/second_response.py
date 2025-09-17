@@ -8,8 +8,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
-# Adjust rotation to match the new location
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Adjust rotation as needed
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -22,12 +21,12 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -86,9 +85,9 @@ vis.AttachVehicle(vehicle.GetTractor())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -106,8 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver
-lane_change_time = 10.0  # Time for a single lane change
+lane_change_counter = 0
 lane_change_direction = 1  # 1 for right, -1 for left
 
 while vis.Run() :
@@ -123,21 +121,21 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Double lane change logic
-    if time > lane_change_time:
-        lane_change_direction *= -1
-        lane_change_time += 10.0  # Reset time for next lane change
-
-    if lane_change_direction == 1:
-        driver_inputs.steering = 0.8
-    elif lane_change_direction == -1:
-        driver_inputs.steering = -0.8
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    # Double lane change maneuver
+    if time > 10 and time < 20:
+        if lane_change_counter == 0:
+            lane_change_direction *= -1
+            lane_change_counter = 10
+        else:
+            lane_change_counter -= 1
+
+        driver_inputs.steering = lane_change_direction * 0.8  
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

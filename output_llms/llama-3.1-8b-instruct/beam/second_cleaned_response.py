@@ -86,25 +86,18 @@ sys.Add(mesh)
 
 builder = fea.ChBuilderBeamEuler()
 
-builder.SetBeamSection(msection)
-
-builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0, 0, -0.1)))
-builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1)))
-
-builder.SetBeamDirection(chrono.ChVector3d(0, 1, 0))
-
-builder.SetBeamNElements(5)
-
-builder.BuildBeam()
+builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, 'Y')
 
 
 last_node = builder.GetLastBeamNodes().back()
 
-
 last_node.SetFixed(True)
 
 
-builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetFirstBeamNodes().back().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
+mesh.AddElement(builder.GetBeam())
 
 
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)

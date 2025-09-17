@@ -14,12 +14,18 @@ def main():
     # -----------------------------------
     # Create a box object
     # -----------------------------------
-    # Create a box with specified dimensions and position
+    # Define box dimensions and set its position
+    side = 0.5  # Box side length
+    height = 1.0  # Box height
     box_body = chrono.ChBody()
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetShape(chrono.ChVisualShapeBox(5, 5, 5, 1000))  # Set the box shape
-    box_body.SetName("Box Object")
-    mphysicalSystem.Add(box_body)  # Add the box to the physical system
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    
+    # Add a box visual shape to the body
+    box_shape = chrono.ChVisualShapeBox()
+    box_shape.SetDimensions(side, side, height)
+    box_body.AddVisualShape(box_shape)
+    box_body.SetFixed(True)
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -38,7 +44,7 @@ def main():
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Define the camera offset pose relative to the box it is attached to
+    # Define the camera offset pose relative to the body it is attached to
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
@@ -138,7 +144,7 @@ def main():
 noise_model = "CONST_NORMAL"  # Constant normal noise model
 
 # Camera lens model (unused, removed variable)
-lens_model = None  # Removed unused variable
+# lens_model = sens.PINHOLE  # Pinhole lens model
 
 # Update rate in Hz
 update_rate = 30
@@ -174,6 +180,3 @@ vis = True
 
 # Output directory
 out_dir = "SENSOR_OUTPUT/"
-
-# Main function entry point
-main()

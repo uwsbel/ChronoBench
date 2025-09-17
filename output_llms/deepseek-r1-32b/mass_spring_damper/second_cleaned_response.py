@@ -80,8 +80,8 @@ spring_2.SetRestLength(rest_length)
 sys.AddLink(spring_2)
 
 
-force_functor = MySpringForce(spring_coef, damping_coef)
-spring_2.SetForceFunctor(force_functor)
+my_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)

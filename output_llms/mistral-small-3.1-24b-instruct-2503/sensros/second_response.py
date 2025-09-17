@@ -6,14 +6,10 @@ def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
 
-    # Create a material for the ground body.
-    ground_material = ch.ChMaterialSurfaceNSC()
-    ground_material.SetFriction(0.6)
-
     # Add a mesh object to the simulation for visual interest.
     mmesh = ch.ChTriangleMeshConnected()
     # Load and transform a 3D mesh of a vehicle chassis.
-    mmesh.LoadWavefrontMeshConnected(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
+    mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
 
     # Create a visual shape from the mesh.
@@ -31,7 +27,7 @@ def main():
     sys.Add(mesh_body)
 
     # Create a ground body to attach sensors.
-    ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False, ground_material)
+    ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
     ground_body.SetFixed(True)  # Make the body fixed.
     sys.Add(ground_body)
@@ -54,19 +50,21 @@ def main():
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a 3D lidar sensor.
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    # Create and configure a 3D Lidar sensor.
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
-    lidar.SetName("lidar")
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "lidar3d"))  # Visualize the point cloud with a name.
+    lidar.SetName("lidar3d")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D lidar sensor.
-    lidar2d = sens.ChLidarSensor2D(ground_body, 10.0, offset_pose, 180, 360, 2 * ch.CH_PI, ch.CH_PI / 180, -ch.CH_PI / 2, 100.0, 0.0)
+    # Create and configure a 2D Lidar sensor.
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, 0, 0, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar2D"))  # Visualize the point cloud.
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "lidar2d"))  # Visualize the point cloud with a name.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -105,8 +103,8 @@ def main():
 
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler2D(lidar2d, "~/output/lidar2d/data/scan"))  # Register 2D Lidar handler
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar3d/data/pointcloud"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan"))  # Register the 2D Lidar handler.
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)

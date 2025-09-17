@@ -4,56 +4,53 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 
-# --- Initialization ---
-chrono.SetChronoDataPath("./")  # Set the path to the Chrono data directory
-
-# Create a Chrono system
+# --- Create the simulation system ---
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Terrain ---
+# --- Create the terrain ---
 terrain = chrono.ChTerrain()
-terrain.Create(system, "terrain", 100, 100, 10, 10)
-terrain.SetTexture(chrono.GetChronoDataPath() + "textures/terrain/grass.png", 0)
-terrain.SetHeightFunction(chrono.ChFunctionToboggan())
+terrain.Create(system, "terrain", 100, 100, 1, 1)
+terrain.SetTexture(chrono.ChTexture("textures/terrain.png"))
+terrain.SetHeightDistribution(chrono.ChFunctionSinusoidal(1, 0.5))
+system.Add(terrain)
 
-# --- Vehicle Setup ---
+# --- Create the HMMWV vehicle ---
 hmmwv = veh.HMMWV(system)
 hmmwv.SetVehicleModel("hmmwv")
-hmmwv.SetTerrain(terrain)
-hmmwv.SetTireForceModel(veh.TireForceModelType.MTM)
-hmmwv.SetTireRadius(0.4)
-hmmwv.SetTireWidth(0.3)
-hmmwv.SetTirePressure(1.2)
 hmmwv.SetEngineType(veh.EngineModelType.SIMPLE)
-hmmwv.SetTransmissionType(veh.TransmissionModelType.SIMPLE)
-hmmwv.SetDifferentialType(veh.DifferentialModelType.SIMPLE)
-hmmwv.SetChassisHeight(0.7)
-hmmwv.SetInitialPosition(chrono.ChVectorD(0, 2, 0))
-hmmwv.SetInitialVelocity(chrono.ChVectorD(0, 0, 0))
+hmmwv.SetTransmissionModel(veh.TransmissionModelType.SIMPLE)
+hmmwv.SetDifferentialModel(veh.DifferentialModelType.SIMPLE)
+hmmwv.SetBrakeModel(veh.BrakeModelType.SIMPLE)
+hmmwv.SetSteeringModel(veh.SteeringModelType.SIMPLE)
+hmmwv.SetSuspensionModel(veh.SuspensionModelType.RAS)
+hmmwv.SetTireModel(veh.TireModelType.FTIRE)
 
-# --- Driver Input ---
-driver = veh.SimpleDriver(hmmwv)
-driver.SetInput(veh.DriverInputs())
-driver.SetTargetSpeed(20)
-driver.SetTargetDirection(0)
+# --- Set initial vehicle position ---
+hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
 
-# --- Sensors ---
-# IMU Sensor
-imu = sensor.ChIMUSensor()
-imu.Attach(hmmwv.GetChassis())
-imu.SetFrequency(60)  # Hz
-imu.SetPosition(chrono.ChVectorD(0, 0.5, 0))
-imu.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+# --- Add IMU sensor ---
+imu = sensor.ChIMUSensor(hmmwv.GetChassis())
+imu.SetFrequency(100)  # Hz
+imu.SetNoiseLevel(0.01)
+imu.Enable()
 
-# GPS Sensor
-gps = sensor.ChGPSSensor()
-gps.Attach(hmmwv.GetChassis())
-gps.SetFrequency(1)  # Hz
-gps.SetPosition(chrono.ChVectorD(0, 0.5, 0))
-gps.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+# --- Add GPS sensor ---
+gps = sensor.ChGPSSensor(hmmwv.GetChassis())
+gps.SetFrequency(10)  # Hz
+gps.SetNoiseLevel(0.1)
+gps.Enable()
 
-# --- Visual System ---
+# --- Create the driver ---
+driver = veh.ChDriver(hmmwv)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.SetThrottle(0.0)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
+
+# --- Create the Irrlicht visualizer ---
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
@@ -62,36 +59,32 @@ vis.Initialize()
 vis.AddCamera(chrono.ChVectorD(0, 10, -10))
 vis.AddTypicalLights()
 
-# --- Simulation Loop ---
-time_step = 0.01
-total_time = 60
+# --- Simulation loop ---
+time_step = 0.005
+total_time = 10
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Update driver input
-    driver.Update(time_step)
+    # --- Update driver inputs (example: constant speed) ---
+    driver.SetThrottle(0.5)
 
-    # Advance the system
+    # --- Advance the simulation ---
     system.DoStepDynamics(time_step)
 
-    # Update sensor data
-    imu.Update()
-    gps.Update()
+    # --- Process sensor data ---
+    imu_data = imu.GetSensorData()
+    gps_data = gps.GetSensorData()
 
-    # Output vehicle mass
-    vehicle_mass = hmmwv.GetVehicleMass()
-    print(f"Vehicle Mass: {vehicle_mass:.2f} kg")
+    # --- Output vehicle mass ---
+    print(f"Vehicle Mass: {hmmwv.GetVehicleMass()}")
 
-    # Process IMU data (example)
-    if imu.HasNewData():
-        imu_data = imu.GetLatestData()
-        #print(f"IMU Data: Acceleration={imu_data.acceleration}, Angular Velocity={imu_data.angular_velocity}")
+    # --- Output sensor data (example) ---
+    # print(f"IMU Data: {imu_data}")
+    # print(f"GPS Data: {gps_data}")
 
-    # Process GPS data (example)
-    if gps.HasNewData():
-        gps_data = gps.GetLatestData()
-        #print(f"GPS Data: Latitude={gps_data.latitude}, Longitude={gps_data.longitude}, Altitude={gps_data.altitude}")
+# --- Cleanup ---
+system.Clear()
 ```

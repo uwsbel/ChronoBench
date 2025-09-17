@@ -2,6 +2,13 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
+# Set data path before using GetDataFile
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Simulation step sizes
+step_size = 2e-3
+tire_step_size = 1e-3
+
 def main():
     # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
@@ -26,7 +33,6 @@ def main():
     # Create the terrain with multiple patches
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Patch 1 with updated position
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
@@ -34,7 +40,6 @@ def main():
     patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
 
-    # Patch 2 with updated position
     patch2_mat = chrono.ChContactMaterialNSC()
     patch2_mat.SetFriction(0.9)
     patch2_mat.SetRestitution(0.01)
@@ -42,7 +47,6 @@ def main():
     patch2.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
     patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
 
-    # Patch 3 with updated position
     patch3_mat = chrono.ChContactMaterialNSC()
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
@@ -51,7 +55,6 @@ def main():
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-    # Patch 4 with updated position
     patch4_mat = chrono.ChContactMaterialNSC()
     patch4_mat.SetFriction(0.9)
     patch4_mat.SetRestitution(0.01)
@@ -103,13 +106,5 @@ def main():
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)
         vis.Advance(step_size)
-
-    return 0
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Simulation step sizes (corrected to match tire step size)
-step_size = 1e-3
-tire_step_size = 1e-3
 
 main()

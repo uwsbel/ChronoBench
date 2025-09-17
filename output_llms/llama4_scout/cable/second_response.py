@@ -40,6 +40,17 @@ class Model1:
         constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
         system.Add(constraint_hinge)  # Add the constraint to the system
 
+        # Initialize the physical system and mesh container:
+        # sys = chrono.ChSystemSMC()
+        # mesh = fea.ChMesh()
+
+        # Create the model and add the mesh to the system
+        # model = Model1(sys, mesh)
+        system.Add(mesh)  # Remember to add the mesh to the physical system
+
+# Create the Irrlicht visualization for rendering
+vis = chronoirr.ChVisualSystemIrrlicht()
+
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
@@ -67,7 +78,6 @@ visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffe
 mesh.AddVisualShapeFEA(visualizebeamB)  # Add the node visualization to the mesh
 
 # Create the Irrlicht visualization for rendering
-vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach Irrlicht to the Chrono system
 vis.SetWindowSize(1024, 768)  # Set the size of the rendering window
 vis.SetWindowTitle('FEA cables')  # Set the title of the rendering window

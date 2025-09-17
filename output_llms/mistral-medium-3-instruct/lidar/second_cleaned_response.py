@@ -1,6 +1,6 @@
 import pychrono.core as chrono
 import pychrono.sensor as sens
-import pychrono.irrl as irrl
+import pychrono.irrlicht as irr
 
 import numpy as np
 import time
@@ -15,15 +15,15 @@ def main():
     
     
     
-    side = 5.0  
+    side = 2.0  
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetBodyFixed(True)
 
     
-    box_texture = chrono.ChVisualMaterial()
-    box_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    box_body.GetVisualModel().GetMaterialList().append(box_texture)
+    box_visual = chrono.ChVisualShapeBox(side, side, side)
+    box_visual.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    box_body.AddVisualShape(box_visual)
 
     mphysicalSystem.Add(box_body)
 
@@ -69,7 +69,7 @@ def main():
 
     if vis:
         
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 3D Lidar Depth Data"))
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
 
     
     lidar.PushFilter(sens.ChFilterDIAccess())
@@ -91,7 +91,7 @@ def main():
     
     
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(-12, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
         box_body,              
@@ -122,7 +122,7 @@ def main():
 
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
 
     
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -151,16 +151,13 @@ def main():
     t1 = time.time()
 
     
-    vis_system = irrl.ChVisualSystemIrrlicht()
-    vis_system.AttachSystem(mphysicalSystem)
-    vis_system.SetWindowSize(1024, 768)
-    vis_system.SetWindowTitle("Lidar Simulation")
-    vis_system.Initialize()
-    vis_system.AddCamera(chrono.ChVector3d(20, 0, 5), chrono.ChVector3d(0, 0, 0))
-    vis_system.AddTypicalLights()
-    vis_system.AddSkyBox()
-    vis_system.AddLogo()
-    vis_system.AddUserEventReceiver(manager)
+    app = irr.ChIrrApp(mphysicalSystem, 'Lidar Simulation', irr.dimension2du(800, 600))
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(irr.vector3df(0, -10, 2))
+    app.AssetBindAll()
+    app.AssetUpdateAll()
 
     while ch_time < end_time:
         
@@ -175,12 +172,13 @@ def main():
             )
         )
 
+        
         lidar_2d.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
-                    -orbit_radius * math.cos(ch_time * orbit_rate + math.pi/2),
-                    -orbit_radius * math.sin(ch_time * orbit_rate + math.pi/2),
-                    1
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    2
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
@@ -190,14 +188,14 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('3D XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('3D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
         
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('2D XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('2D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         
@@ -207,9 +205,10 @@ def main():
         mphysicalSystem.DoStepDynamics(step_size)
 
         
-        vis_system.BeginScene()
-        vis_system.Render()
-        vis_system.EndScene()
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
+        app.EndScene()
 
         
         ch_time = mphysicalSystem.GetChTime()

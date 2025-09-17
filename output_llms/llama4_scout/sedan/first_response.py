@@ -2,67 +2,54 @@ import chrono as ch
 import chrono.irrlicht as irr
 import chrono.vehicle as veh
 
-# Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components
 ch.set_default_G_acc(9.81)
 
-# Create the simulation system
-system = ch.ChSystemEulerImplicit()
+# 2. Create the simulation system
+system = ch.ChSystem_EulerImplicit()
 
-# Create the Irrlicht application
+# 3. Create the Irrlicht application
 app = irr.ChIrrApp(system, "BMW E90 Sedan Simulation", irr.IrrlichtInfo())
 
-# Create the terrain
+# 4. Create the terrain
 terrain = veh.ChTerrain()
 terrain.SetSystem(system)
-terrain.Initialize(0.0, 0.0, 0.0)
+terrain.Initialize(1000, 1000)
 
-# Set terrain visualization parameters
-terrain.SetVisualize(enable=True)
-terrain.SetCollide(enable=True)
-
-# Create the vehicle
+# 5. Create the vehicle
 vehicle = veh.ChBMW_E90()
-vehicle.Initialize(system, terrain.GetGroundBody(), ch.ChCoordsysD(0, 1.0, 0.5, ch.ChQuaternionD(0, 0, 0, 1)))
+vehicle.Initialize(terrain, ch.ChCoordsysD(0, 0, 1.1))
 
-# Set vehicle visualization and collision parameters
-vehicle.SetVisualize(enable=True)
-vehicle.SetCollide(enable=True)
+# 6. Set visualization and collision settings
+vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizer.VisualizationTypeEnum.NET)
+vehicle.SetTireVisualizationType(veh.ChVehicleVisualizer.VisualizationTypeEnum.SINGLE_TIRE)
+vehicle.SetTireCollisionType(veh.ChVehicleVisualizer.CollisionTypeEnum.SINGLE_TIRE)
 
-# Create and set TMEASY tire model
-tire_model = veh.ChTMEASY()
+# 7. Create and set the TMEASY tire model
+tire_model = veh.ChTMEasyTire(vehicle.GetTire(0))
 vehicle.SetTireModel(tire_model)
 
-# Create interactive driver system
+# 8. Create the interactive driver system
 driver = veh.ChInteractiveDriver()
 driver.Initialize(vehicle)
 
-# Set default driver inputs
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
-driver.SetBraking(0.0)
+# 9. Set default parameters
+vehicle.GetChassisBody().SetPos(ch.ChVectorD(0, 0, 1.1))
+vehicle.GetEngine().SetOutput(ch.ChVectorD(0, 0, 0))
 
-# Create Irrlicht scene node for the vehicle
-vehicle_node = app.AddChronoVehicle(vehicle, "vehicle")
+# 10. Add the skybox and directional lighting
+app.AddSkyBox()
+app.AddDirectionalLight(ch.ChVectorD(1, 1, 1), ch.ChVectorD(-1, -1, -1))
 
-# Create chase camera
-camera = irr.ChChaseCamera()
-camera.Initialize(vehicle_node, vehicle.GetChassisBody(), ch.ChVectorD(0, -10, 5))
+# 11. Set up the chase camera
+app.SetCameraMoveType(irr.ChCameraMoveType.CAMERA_CHASE)
 
-# Add directional lighting
-light = irr.ChDirectionalLight()
-light.SetDirection(ch.ChVectorD(1, -1, -1))
-app.AddLight(light)
+# 12. Create and customize textures and logos on the terrain surface
+terrain_mat = ch.ChMaterialSurface()
+terrain_mat.SetKfriction(0.8)
+terrain_mat.SetRestitution(0.3)
+terrain.GetTerrainBody().SetMaterial(terrain_mat)
 
-# Add skybox
-skybox = irr.ChSkyBox()
-app.AddSkyBox(skybox)
-
-# Customize terrain surface textures and logos
-terrain.SetTexture(irr.ChTexture("terrain.jpg"))
-terrain.SetLogo(irr.ChLogo("logo.png"))
-
-# Simulation loop
-while app.Run():
-    system.DoStepDynamics(1e-3)
-    app.Synchronize("", 1e-3)
-    app.Advance(1e-3)
+# 13. Run the simulation
+app.SetMaxFPS(60)
+app.Run()

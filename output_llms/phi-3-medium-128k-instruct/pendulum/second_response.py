@@ -36,16 +36,27 @@ pend_1.AddVisualShape(sphere_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAng
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around multiple axes
+# The spherical joint allows rotation around all axes
 sph_joint_1 = chrono.ChLinkSpherical()
 sph_joint_1.Initialize(ground, pend_1, chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 1))
 sys.AddLink(sph_joint_1)
 
+# Set the initial angular velocity for the pendulum
+pend_1.SetDofLinearVel(chrono.ChVector3d(0, 0, 1))  # Set the initial angular velocity (in m/s)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
+vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
+vis.SetWindowTitle('ChBodyAuxRef demo')  # Set the window title
+vis.Initialize()  # Initialize the visualization system
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
+vis.AddSkyBox()  # Add a skybox for better visual appearance
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
+vis.AddTypicalLights()  # Add typical lights for better visualization
+
 # Simulation loop
 log_info = True  # Flag to control logging
-initial_angular_velocity = chrono.ChVector3d(0, 0.1, 0)  # Set the initial angular velocity (rad/s)
-pend_1.SetVel(initial_angular_velocity)  # Set the initial angular velocity of the pendulum
-
 while vis.Run():
     vis.BeginScene()  # Begin the scene for rendering
     vis.Render()  # Render the scene
@@ -58,6 +69,6 @@ while vis.Run():
         print("t = ", sys.GetChTime())
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the pendulum
         print("     ", pos_1.x, "  ", pos_1.y)
-        ang_vel_1 = pend_1.GetVel()  # Get the angular velocity of the pendulum
+        ang_vel_1 = pend_1.GetAngVel()  # Get the angular velocity of the pendulum
         print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
         log_info = False  # Disable further logging

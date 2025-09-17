@@ -50,7 +50,7 @@ def main():
     
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVectorD(0, 0, 5))  
-    box.SetRot(ch.QuaternionD(.2, ch.ChVectorD(1, 0, 0)))  
+    box.SetRot(ch.QuaternionD(.2, 1, 0, 0))  
     box.SetName("box")  
     sys.Add(box)  
 
@@ -95,12 +95,20 @@ def main():
     vis.AddTypicalLights()
 
     
+    cam = chirr.ChCamera()
+    cam.SetPosition(ch.ChVectorD(0, 0, 10))
+    cam.SetLookAt(ch.ChVectorD(0, 0, 0))
+    vis.AddCamera(cam)
+
+    
+    step_number = 0
+    render_step_size = 1e-3  
+    render_steps = 10  
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    step_number = 0
-    render_step_size = 10
-    render_steps = 0
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
@@ -110,14 +118,13 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        step_number += 1
-        render_steps += 1
-
-        if render_steps >= render_step_size:
+        
+        if step_number % render_steps == 0:
             vis.BeginScene()
             vis.DrawAll()
             vis.EndScene()
-            render_steps = 0
+
+        step_number += 1
 
         realtime_timer.Spin(time_step)  
 

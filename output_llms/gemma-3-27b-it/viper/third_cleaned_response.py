@@ -15,23 +15,16 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0), 10)
-terrain.SetLength(20)
-terrain.SetWidth(20)
-terrain.SetMeshResolution(64)
-
-soil = chrono.ChMaterialSurfaceNSC()
-soil.SetFriction(0.5)
-soil.SetRestitution(0.1)
-terrain.SetSoilParameters(soil)
-system.Add(terrain)
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), chrono.ChVector3d(0, 0, 0), 50, 50)
+terrain.SetLengthWidth(20, 20)
+terrain.SetMeshResolution(20, 20)
+terrain.SetSoilParameters(0.5, 5000, 200, 0.8, 0.1)
+terrain.Initialize()
 
 
 rover = viper.Viper(system)
-driver = viper.ViperDCMotorControl()  
-rover.SetDriver(driver)  
-
-
+driver = viper.ViperDCMotorControl()
+rover.SetDriver(driver)
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
@@ -59,18 +52,9 @@ time = 0
 steering = 0.0  
 while vis.Run():
     time += time_step  
-    
-    
-    
-    
-    
     driver.SetSteering(steering)  
     rover.Update()  
-
-    
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
-    
     system.DoStepDynamics(time_step)

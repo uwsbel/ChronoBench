@@ -176,15 +176,15 @@ while vis.Run():
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
     sensor_manager.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
     sensor_manager.Advance(step_size)
+    vis.Advance(step_size)
 
     
     step_number += 1

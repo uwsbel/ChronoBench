@@ -4,9 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 
-chrono.SetChronoDataPath('/path/to/chrono/data')
-
-
+chrono.SetChronoDataPath('/path/to/chrono/data')  
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -32,6 +30,7 @@ trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 
 step_size = 1e-3
@@ -60,12 +59,16 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNITERNION))
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNITERNION), 
+                         chrono.ChVector3d(terrainLength, terrainWidth, 1))
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
 patch.SetContactMaterialProperties(1.7e7, 0.3)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-patch.SetVisualizationType(veh.VisualizationType_MESH)
+patch.SetVisible(True)
+
+
+
 
 terrain.Initialize()
 
@@ -93,7 +96,16 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+
+
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

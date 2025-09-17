@@ -75,10 +75,12 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create a box obstacle
-box = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000)
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box.SetBodyFixed(True)
-vehicle.GetSystem().Add(box)
+obstacle_mat = chrono.ChMaterialSurfaceNSC()
+obstacle_mat.SetFriction(0.8)
+obstacle_mat.SetRestitution(0.2)
+obstacle = chrono.ChBodyEasyBox(0.5, 5, 0.2, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
+vehicle.GetSystem().Add(obstacle)
 
 # Create the vehicle Irrlicht interface
 
@@ -116,7 +118,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Apply constant throttle
+# Set constant throttle value
 driver.SetThrottle(0.5)
 
 while vis.Run() :

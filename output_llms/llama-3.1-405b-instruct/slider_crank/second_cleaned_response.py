@@ -75,20 +75,22 @@ array_pos = []
 array_speed = []
 
 
-sim_time = 0
-while vis.Run() and sim_time < 20:
+t = 0
+while vis.Run() and t < 20:
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
     sys.DoStepDynamics(1e-3)  
-    sim_time += 1e-3  
     
     
-    array_time.append(sim_time)
-    array_angle.append(mcrank.GetRot().GetAngle())
+    array_time.append(t)
+    array_angle.append(my_motor.GetMotorRot())
     array_pos.append(mpiston.GetPos().x())
     array_speed.append(mpiston.GetPos_dt().x())
+    
+    
+    t += 1e-3
 
 
 plt.figure(figsize=(10, 5))
@@ -96,16 +98,16 @@ plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
-plt.ylabel('Piston Position [m]')
+plt.ylabel('Position [m]')
 plt.title('Position vs. Crank Angle')
-plt.xticks(np.arange(0, 2*np.pi+np.pi/2, np.pi/2), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.xticks(np.arange(0, 4*np.pi, np.pi/2), ['0', 'π/2', 'π', '3π/2', '2π', '5π/2', '3π', '7π/2', '4π'])
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
-plt.ylabel('Piston Speed [m/s]')
+plt.ylabel('Speed [m/s]')
 plt.title('Speed vs. Crank Angle')
-plt.xticks(np.arange(0, 2*np.pi+np.pi/2, np.pi/2), ['0', 'π/2', 'π', '3π/2', '2π'])
+plt.xticks(np.arange(0, 4*np.pi, np.pi/2), ['0', 'π/2', 'π', '3π/2', '2π', '5π/2', '3π', '7π/2', '4π'])
 
 plt.tight_layout()
 plt.show()

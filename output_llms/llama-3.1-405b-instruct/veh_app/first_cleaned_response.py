@@ -17,55 +17,58 @@ sys.Add(gator)
 
 chassis = veh.ChPart('chassis')
 chassis.SetVisualizationType(veh.VisualizationType_MESH)
-gator.Add(chassis)
+gator.AddAsset(chassis)
 
 wheel = veh.ChPart('wheel')
 wheel.SetVisualizationType(veh.VisualizationType_SPHERE)
-gator.Add(wheel)
+gator.AddAsset(wheel)
 
 
-terrain = veh.ChTerrain()
+terrain = veh.RigidTerrain(sys)
 sys.Add(terrain)
 
 
-driver = veh.ChDriver()
+driver = veh.ChIrrNodeApplication(gator)
 sys.Add(driver)
 
 
-manager = sens.ChSensorManager()
+manager = sens.ChSensorManager(sys)
 sys.Add(manager)
 
 
 light1 = sens.ChPointLight()
-light1.SetLocation(chrono.ChVectorD(1, 1, 1))
+light1.SetPosition(chrono.ChVectorD(1, 1, 1))
 manager.AddSensor(light1)
 
 light2 = sens.ChPointLight()
-light2.SetLocation(chrono.ChVectorD(-1, -1, -1))
+light2.SetPosition(chrono.ChVectorD(-1, -1, -1))
 manager.AddSensor(light2)
 
 
-camera = sens.ChCameraSensor()
-camera.SetLocation(chrono.ChVectorD(0, 0, 1))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+camera = sens.ChCameraSensor(gator)
+camera.SetPosition(chrono.ChVectorD(0, 0, 1))
 manager.AddSensor(camera)
 
 
 while sys.GetChTime() < 10:
     
-    driver.Update()
+    driver.Synchronize()
+    driver.Advance(0.01)
 
     
-    terrain.Update()
+    terrain.Synchronize()
+    terrain.Advance(0.01)
 
     
-    gator.Update()
+    gator.Synchronize()
+    gator.Advance(0.01)
 
     
-    manager.Update()
-
-    
-    sys.DoStepDynamics(0.01)
+    manager.Synchronize()
+    manager.Advance(0.01)
 
     
     camera.Render()
+
+    
+    sys.DoStepDynamics(0.01)

@@ -1,82 +1,72 @@
 import chrono
 import chrono.physics
+import chrono.vehicle
 import chrono.sensor
 import chrono.ros
+import time
 
 
 chrono.Initialize()
 
 
-system = chrono.physics.SystemNSC()
-system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.physics.System()
+system.SetSolverType(chrono.physics.SolverType.BARZILAIBORWEIN)
 
 
-ground = system.NewBodyFixed()
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+ground_body = system.AddBody(chrono.physics.Body())
+ground_body.SetPos(chrono.physics.Vect(0, 0, 0))
+ground_body.SetMaterialSurface(chrono.physics.MaterialSurfaceNSC())
 
 
-mesh_body = system.NewBody()
-mesh_body.SetPos(chrono.ChVectorD(0, 0.5, 0))
-mesh_body.SetMass(10)
-mesh_body.SetInertiaXX(chrono.ChVectorD(0.8, 0.8, 0.8))
-mesh_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/red.jpg"))
+mesh = chrono.physics.MeshBodyLoader().LoadMeshBody(ground_body, "path/to/your/mesh.obj")
+mesh.SetMaterialSurface(chrono.physics.MaterialSurfaceNSC())
+system.Add(mesh)
 
 
-ground_body = system.NewBody()
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_body.SetMass(1000)
-ground_body.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-ground_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/ground.jpg"))
+sensor_manager = chrono.sensor.SensorManager(system)
 
 
-sensor_manager = chrono.sensor.ChSensorManager(system)
+camera_sensor = chrono.sensor.CameraSensor()
+lidar_sensor = chrono.sensor.LidarSensor()
+gps_sensor = chrono.sensor.GPSSensor()
+accelerometer_sensor = chrono.sensor.AccelerometerSensor()
+gyroscope_sensor = chrono.sensor.GyroscopeSensor()
+magnetometer_sensor = chrono.sensor.MagnetometerSensor()
 
 
-camera = chrono.sensor.ChCameraSensor()
-camera.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(camera)
-
-lidar = chrono.sensor.ChLidarSensor()
-lidar.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(lidar)
-
-gps = chrono.sensor.ChGPSsensor()
-gps.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(gps)
-
-accelerometer = chrono.sensor.ChAccelerometerSensor()
-accelerometer.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(accelerometer)
-
-gyroscope = chrono.sensor.ChGyroscopeSensor()
-gyroscope.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(gyroscope)
-
-magnetometer = chrono.sensor.ChMagnetometerSensor()
-magnetometer.Initialize(ground_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-sensor_manager.AddSensor(magnetometer)
+sensor_manager.AddSensor(camera_sensor, ground_body)
+sensor_manager.AddSensor(lidar_sensor, ground_body)
+sensor_manager.AddSensor(gps_sensor, ground_body)
+sensor_manager.AddSensor(accelerometer_sensor, ground_body)
+sensor_manager.AddSensor(gyroscope_sensor, ground_body)
+sensor_manager.AddSensor(magnetometer_sensor, ground_body)
 
 
-ros_manager = chrono.ros.ChRosManager(system)
-ros_manager.AddSensor(camera, "camera_topic")
-ros_manager.AddSensor(lidar, "lidar_topic")
-ros_manager.AddSensor(gps, "gps_topic")
-ros_manager.AddSensor(accelerometer, "accelerometer_topic")
-ros_manager.AddSensor(gyroscope, "gyroscope_topic")
-ros_manager.AddSensor(magnetometer, "magnetometer_topic")
+ros_manager = chrono.ros.ROSManager()
+ros_manager.RegisterSensor(camera_sensor, "/camera_data")
+ros_manager.RegisterSensor(lidar_sensor, "/lidar_data")
+ros_manager.RegisterSensor(gps_sensor, "/gps_data")
+ros_manager.RegisterSensor(accelerometer_sensor, "/accelerometer_data")
+ros_manager.RegisterSensor(gyroscope_sensor, "/gyroscope_data")
+ros_manager.RegisterSensor(magnetometer_sensor, "/magnetometer_data")
 
 
-step_size = 0.01
-simulation_time = 10.0
-current_time = 0.0
+time_step = 0.01
 
 
-while current_time < simulation_time:
-    system.DoStepDynamics(step_size)
+start_time = time.time()
+while True:
+    
     sensor_manager.Update()
-    ros_manager.Update()
-    current_time += step_size
+
+    
+    system.DoStepDynamics(time_step)
+
+    
+    elapsed_time = time.time() - start_time
+    if elapsed_time < time_step:
+        time.sleep(time_step - elapsed_time)
+    start_time = time.time()
 
 
-chrono.Finalize()
+chrono.physics.Cleanup()

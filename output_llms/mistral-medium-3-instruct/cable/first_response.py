@@ -1,80 +1,78 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set the path to Chrono data directory
+# 1. Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
 
-# Create a Chrono physical system
+# 2. Create the physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Add the required physical systems and objects
-# Create the ANCF beam
-beam_length = 2.0
-num_elements = 10
-diameter = 0.1
+# 3. Create the beam using ANCF cable elements
+beam_length = 1.0  # meters
+num_elements = 10  # number of elements
+num_nodes = num_elements + 1  # number of nodes
 
-# Create the beam mesh
-beam = fea.ChBeamANCF()
-beam.SetNumElements(num_elements)
-beam.SetElementsFromFile("beam.txt")  # You'll need to create this file or use another method
+# Create nodes
+nodes = []
+for i in range(num_nodes):
+    # Position nodes along the x-axis
+    x = i * beam_length / num_elements
+    node = chrono.ChNodeFEAxyzD(x, 0, 0)
+    system.Add(node)
+    nodes.append(node)
 
-# Set material properties
-material = fea.ChMaterialShellANCF()
-material.SetYoungModulus(2.1e11)
-material.SetPoissonRatio(0.3)
-material.SetDensity(7800)
-beam.SetMaterial(material)
+# Create ANCF cable elements between nodes
+elements = []
+for i in range(num_elements):
+    element = chrono.ChElementCableANCF()
+    element.SetNodes(nodes[i], nodes[i+1])
 
-# Set beam cross-section properties
-beam.SetDiameter(diameter)
+    # Set material properties
+    element.SetDiameter(0.02)  # diameter in meters
+    element.SetYoungModulus(2.1e11)  # steel Young's modulus
+    element.SetDensity(7850)  # steel density
+    element.SetRayleighDamping(0.01)  # damping coefficient
 
-# Fix one end of the beam (hinged boundary condition)
-fixed_node = beam.GetNode(0)
-fixed_node.SetFixed(True)
+    system.Add(element)
+    elements.append(element)
 
-# Add the beam to the system
-system.Add(beam)
+# 4. Fix the first node (hinged to ground)
+constraint = chrono.ChLinkLockLock()
+constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(constraint)
 
-# 3. Set up visualization
-# Create the Irrlicht application
+# 5. Set up visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("ANCF Beam Simulation")
+vis.SetWindowTitle("ANCF Cable Beam Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
 vis.AddTypicalLights()
-vis.AttachSystem(system)
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, 5, 2), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
 
-# Create a visualization asset for the beam
-beam_asset = chronoirr.ChBeamVisualizationIrrlicht(beam)
-vis.AddVisualModel(beam_asset)
+# Visualize the beam elements
+for element in elements:
+    vis.AddFEAelement(element)
 
-# 4. Simulation loop
-time_step = 0.01
-sim_time = 5.0
-current_time = 0
+# 6. Simulation loop
+time_step = 0.001
+vis.SetSimulationStep(time_step)
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Advance simulation by one step
     system.DoStepDynamics(time_step)
-    current_time += time_step
 
-    # Print some information
-    if int(current_time % 1) == 0:
-        print("Time:", current_time)
-        print("Node 0 position:", beam.GetNode(0).GetPos())
-        print("Node -1 position:", beam.GetNode(-1).GetPos())
-
-    if current_time > sim_time:
-        break
-
-# Clean up
-vis.Close()
+    # Print some information (optional)
+    if system.GetChTime() > 0.1 and system.GetChTime() < 0.11:
+        print("Time:", system.GetChTime())
+        print("Node 0 position:", nodes[0].GetPos())
+        print("Node 5 position:", nodes[5].GetPos())

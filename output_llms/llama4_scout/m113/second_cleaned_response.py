@@ -17,29 +17,13 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrain_model = veh.TerrainType_SCM  
+terrain_model = veh.TerrainType_SCM
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
-soil_density = 1500
-soil_friction = 0.9
-soil_restitution = 0.01
-soil_adhesion = 0.0
-soil_cohesion = 1000.0
-soil_friction_angle = 30.0
-soil_dilation_angle = 0.0
-
-
-height_map = []
-for i in range(200):
-    row = []
-    for j in range(200):
-        row.append(0.0)  
-    height_map.append(row)
-
-
-terrain = veh.SCMTerrain(vehicle.GetSystem(), soil_density, soil_friction, soil_restitution, soil_adhesion, 
-                          soil_cohesion, soil_friction_angle, soil_dilation_angle, height_map)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 8, 8)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -72,7 +56,18 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(0.2, 200, 2e6, 0.3, 0.01, 0.1)
+height_map = []
+for x in range(terrainLength):
+    row = []
+    for y in range(terrainWidth):
+        row.append(0.0)
+    height_map.append(row)
+terrain.Initialize(height_map, terrainLength, terrainWidth)
+
+
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -96,6 +91,7 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
+
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)

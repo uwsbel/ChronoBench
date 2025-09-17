@@ -10,7 +10,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))
 
 
 ground = chrono.ChBody()
-sys.AddBody(ground)
+sys.Add(ground)
 ground.SetFixed(True)  
 ground.EnableCollision(False)  
 
@@ -33,8 +33,8 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 
 
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
-
-pend_1.SetAngVelBody(chrono.ChVector3d(0, 0, math.pi / 4))  
+pend_1.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))  
+pend_1.SetAngVelParent(chrono.ChVector3d(0, 0, math.pi / 4))  
 
 
 sph_1 = chrono.ChLinkLockSpherical()
@@ -42,14 +42,15 @@ sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chr
 sys.AddLink(sph_1)
 
 
-sph_visual = chrono.ChVisualShapeSphere(2)  
-sph_1.AddVisualShape(sph_visual)
+sph_shape = chrono.ChVisualShapeSphere(2)  
+sph_shape.SetColor(chrono.ChColor(1, 0, 0))  
+sph_1.AddVisualShape(sph_shape, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('ChBodyAuxRef demo')  
+vis.SetWindowTitle('Spherical Pendulum demo')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  

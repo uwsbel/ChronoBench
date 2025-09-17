@@ -17,45 +17,52 @@ max_speed = 5
 sys = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys, ground_length, ground_width, 0.1, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-sys.Add(ground)
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.7)
+ground_mat.SetRestitution(0.5)
+ground_body = chrono.ChBodyEasyBox(sys, ground_length, ground_width, 0.1, 1000, True, True, ground_mat)
+ground_body.SetBodyFixed(True)
+sys.AddBody(ground_body)
 
 # Create the rover body
-rover = chrono.ChBodyEasyBox(sys, rover_length, rover_width, rover_height, rover_mass, True, True)
-rover.SetPos(chrono.ChVectorD(0, rover_height/2, 0))
-sys.Add(rover)
+rover_mat = chrono.ChMaterialSurfaceNSC()
+rover_mat.SetFriction(0.7)
+rover_mat.SetRestitution(0.5)
+rover_body = chrono.ChBodyEasyBox(sys, rover_length, rover_width, rover_height, rover_mass, True, True, rover_mat)
+sys.AddBody(rover_body)
 
-# Create the motor control driver
-motor = chrono.ChPartMotor(sys)
-motor.SetMotorType(chrono.ChPartMotor.MOTOR_TYPE_TORQUE)
-motor.SetTorqueFunction(chrono.ChFunctionConst(motor_torque))
-motor.SetMotorDirection(chrono.ChPartMotor.MOTOR_DIR_X)
-motor.SetPartA(rover)
-motor.SetPartB(ground)
-sys.Add(motor)
+# Add motor control driver
+motor_driver = chrono.ChPartMotor(sys)
+motor_driver.SetMotorType(chrono.ChPartMotor.Type_TORQUE)
+motor_driver.SetMotorTorque(motor_torque)
+motor_driver.SetMaxSpeed(max_speed)
+sys.AddPart(motor_driver)
+
+# Add the motor to the rover body
+motor_driver.AddBody(rover_body)
 
 # Create the Irrlicht visualization system
-application = chronoirr.ChIrrApp(sys, 'Curiosity Rover Simulation', chronoirr.dimension2du(800, 600))
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.AddSkyBox()
+vis.AddLogo()
+vis.AddTypicalLights()
 
-# Set the camera settings
-application.AddTypicalCamera(chronoirr.vector3df(0, 2, -4), chronoirr.vector3df(0, 0, 0))
+# Add the ground and rover meshes to the visualization system
+vis.AddMesh(ground_body, "ground.obj", chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+vis.AddMesh(rover_body, "rover.obj", chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
 
-# Set the lighting settings
-application.AddTypicalLights()
+# Set the simulation time step and total time
+time_step = 0.01
+total_time = 100
 
-# Enable shadows
-application.EnableShadows(True)
-
-# Add textures and logos
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-# Set the simulation time step and run the simulation
-application.SetTimestep(0.01)
-application.GetSystem().Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+# Run the simulation
+while sys.GetChTime() < total_time:
+    sys.DoStepDynamics(time_step)
+    vis.AdvanceAnimation(time_step)
+    vis.Render()
+    vis.HandleInputs()
+    vis.Simulate(sys, time_step)

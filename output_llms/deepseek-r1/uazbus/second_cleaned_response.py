@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -18,7 +18,6 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
-
 
 
 terrainHeight = 0      
@@ -40,8 +39,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
-
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,8 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -76,7 +71,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -88,10 +82,20 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDriver()
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -101,55 +105,51 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+
+maneuver_start_time = 1.0
+maneuver_duration = 7.0
+brake_start_time = maneuver_start_time + maneuver_duration
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
     
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    if time < 2.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(0.0)
-        driver.SetBraking(0.0)
-    elif time < 4.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(0.5)
-        driver.SetBraking(0.0)
-    elif time < 6.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(-0.5)
-        driver.SetBraking(0.0)
-    elif time < 8.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(0.5)
-        driver.SetBraking(0.0)
-    elif time < 10.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(-0.5)
-        driver.SetBraking(0.0)
-    elif time < 12.0:
-        
-        driver.SetThrottle(0.5)
-        driver.SetSteering(0.0)
-        driver.SetBraking(0.0)
-    else:
-        
-        driver.SetThrottle(0.0)
-        driver.SetSteering(0.0)
-        driver.SetBraking(1.0)
-
-    
     driver_inputs = driver.GetInputs()
+    
+    
+    if time >= maneuver_start_time and time < brake_start_time:
+        
+        maneuver_time = time - maneuver_start_time
+        phase = 2.0 * chrono.CH_PI * maneuver_time / maneuver_duration
+        
+        
+        if maneuver_time < maneuver_duration / 4:
+            steering = -0.5 * math.sin(2 * phase)  
+        elif maneuver_time < maneuver_duration / 2:
+            steering = 0.5 * math.sin(2 * phase)   
+        elif maneuver_time < 3 * maneuver_duration / 4:
+            steering = 0.5 * math.sin(2 * phase)   
+        else:
+            steering = -0.5 * math.sin(2 * phase)  
+            
+        driver_inputs.m_steering = steering
+        driver_inputs.m_throttle = 0.5
+        driver_inputs.m_braking = 0.0
+    
+    
+    elif time >= brake_start_time:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.0
+        
+        brake_intensity = min(1.0, (time - brake_start_time) / 2.0)
+        driver_inputs.m_braking = brake_intensity
 
     
     driver.Synchronize(time)
@@ -165,5 +165,4 @@ while vis.Run() :
 
     
     step_number += 1
-    
     realtime_timer.Spin(step_size)

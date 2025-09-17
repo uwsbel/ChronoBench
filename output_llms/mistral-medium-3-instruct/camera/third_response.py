@@ -11,11 +11,12 @@ def main():
     # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------
-    # Create a box object
-    # -----------------------
+    # ----------------------------
+    # Add a box to be sensed by a camera
+    # ----------------------------
     side = 2.0  # Size of the box
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box with mass 1000
+    # Create a box body
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
     box_body.SetFixed(True)  # Fix the box in space
     mphysicalSystem.Add(box_body)  # Add the box to the physical system
@@ -42,12 +43,12 @@ def main():
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box_body,              # Body the camera is attached to (changed from mesh_body to box_body)
-        update_rate,           # Camera update rate in Hz
-        offset_pose,           # Offset pose of the camera (modified position)
-        image_width,           # Image width in pixels
-        image_height,          # Image height in pixels
-        fov                    # Camera's horizontal field of view in radians
+        box_body,               # Body the camera is attached to (changed from mesh_body to box_body)
+        update_rate,            # Camera update rate in Hz
+        offset_pose,            # Offset pose of the camera
+        image_width,            # Image width in pixels
+        image_height,           # Image height in pixels
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility

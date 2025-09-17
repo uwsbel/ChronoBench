@@ -21,17 +21,13 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      
+terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Circular path parameters
 path_radius = 50.0
 path_center = chrono.ChVector3d(0, 0, 0)
-
-# Path visualization spheres
-path_ball1 = chrono.ChBodyEasySphere(1.0)
-path_ball2 = chrono.ChBodyEasySphere(1.0)
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -47,12 +43,6 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# PID controller parameters
-kp = 1.0
-ki = 0.1
-kd = 0.01
-last_error = 0
-integral = 0
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
@@ -96,32 +86,32 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add path visualization spheres
-path_ball1.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
-path_ball2.SetPos(path_center + chrono.ChVector3d(-path_radius, 0, 0))
-vis.AddBody(path_ball1)
-vis.AddBody(path_ball2)
 
-# Create the driver system
-driver = veh.ChPathFollower()
+# PID Controller Parameters
+kp = 0.5
+ki = 0.1
+kd = 0.05
 
-# Set path for the driver
-driver.SetPath(path_center, path_radius)
-
-# Set throttle and steering controller parameters
-driver.SetThrottle(0.3)
-driver.SetPID(kp, ki, kd)
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+# Create a PID controller
+pid = chrono.ChPID()
+pid.SetParameters(kp, ki, kd)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# Create path visualization spheres
+sentinel_sphere = chrono.ChBodyEasySphere(0.1)
+sentinel_sphere.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
+sentinel_sphere.SetCollide(False)
+vehicle.GetSystem().Add(sentinel_sphere)
+
+target_sphere = chrono.ChBodyEasySphere(0.1)
+target_sphere.SetPos(path_center + chrono.ChVector3d(path_radius * 0.8, 0, 0))
+target_sphere.SetCollide(False)
+vehicle.GetSystem().Add(target_sphere)
+
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -133,18 +123,23 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    # (No need for user input here, as we're using a path follower)
+    # Get vehicle position and orientation
+    vehicle_pos = vehicle.GetVehicle().GetPos()
+    vehicle_rot = vehicle.GetVehicle().GetRot()
+
+    # Calculate steering angle based on PID controller
+    error = path_center - vehicle_pos
+    steering_angle = pid.Compute(error.x, time * step_size)
+
+    # Set throttle and steering values
+    vehicle.SetThrottle(0.3)
+    vehicle.SetSteering(steering_angle)
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetSteering(), terrain)
-    vis.Synchronize(time, driver.GetSteering(), driver.GetThrottle())
+    vehicle.Synchronize(time, None, terrain)
+    vis.Synchronize(time, None)
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

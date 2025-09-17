@@ -3,38 +3,45 @@ from pychrono.irrlicht import *
 
 # Initialize PyChrono environment and core components
 sim = chrono.ChSimulation()
-irr = IrrlichtInterface()
-sim.AddSystem(irr.GetSystem())
+irr = IrrlichtDirector(sim)
 
-# Set up the physical systems and objects
-ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True)
-ground.SetPos(chrono.ChVectorD(0, -5, 0))
-sim.Add(ground)
+# Set up the physical system
+sys = chrono.ChSystemSMC()
+sim.AddSystem(sys)
 
-pendulum = chrono.ChBody()
-pendulum.SetMass(1)
-pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.01))
+# Create a ground body
+ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+sys.Add(ground)
+
+# Create a pendulum body with appropriate mass and inertia
+pendulum = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1, True)
 pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
-pendulum.SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
-sim.Add(pendulum)
+sys.Add(pendulum)
 
+# Connect the pendulum to the ground with a revolute joint
 joint = chrono.ChLinkRevolute()
-joint.Initialize(ground, pendulum, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 1, 0))
-sim.Add(joint)
+joint.Initialize(ground, pendulum, chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 0, 1))
+sys.Add(joint)
 
-# Set necessary default parameters
-gravity = chrono.ChVectorD(0, -9.81, 0)
-sim.Set_Gravity(gravity)
+# Set up the visualization system
+irr.SetCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+irr.Add(ground)
+irr.Add(pendulum)
+irr.Add(joint)
 
-# Visualization and logging
-while sim.GetSystem().GetChTime() < 10:
-    sim.DoStepDynamics(0.01)
+# Periodically log the pendulum's position and velocity
+def log_pendulum_state():
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Pendulum position: {pos}, velocity: {vel}")
 
-    # Periodically log the pendulum's position and velocity
-    if sim.GetSystem().GetChTime() % 0.1 < 0.01:
-        pos = pendulum.GetPos()
-        vel = pendulum.GetPos_dt()
-        print(f"Time: {sim.GetSystem().GetChTime():.2f}, Position: {pos}, Velocity: {vel}")
+# Run the simulation
+for i in range(100):
+    sys.DoStepDynamics(0.01)
+    if i % 10 == 0:
+        log_pendulum_state()
+    irr.Render()
+    chrono.ChThreadSleep(0.01)
 
-    # Render the simulation
-    sim.GetSystem().Render()
+irr.Shutdown()

@@ -3,17 +3,13 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Create the simulation system and set the length of the time step
+# Create the simulation system
 mysystem = chrono.ChSystemNSC()
-mysystem.SetStep(0.01)
 
-# Create the Irrlicht visualization (open the Irrlicht window)
-myapplication = chronoirr.ChVisualSystemIrrlicht(mysystem)
-myapplication.SetWindowSize(800, 600)
-myapplication.SetWindowTitle("Gravitational Attraction")
-myapplication.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+# Set the global gravity
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a particle emitter
+# Create the particle emitter
 class ParticleEmitter:
     def __init__(self, system, num_particles):
         self.system = system
@@ -22,38 +18,82 @@ class ParticleEmitter:
 
     def emit_particles(self):
         for _ in range(self.num_particles):
-            # Create a particle with random shape, position, velocity, and orientation
-            particle = chrono.ChBodyEasySphere(self.system, 0.1, 1000, chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
-            particle.SetPos(chrono.ChVectorD(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)))
-            particle.SetVel(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
-            particle.SetRot(chrono.ChQuaternionD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
-            self.particles.append(particle)
+            # Random shape (sphere or box)
+            shape_type = np.random.choice(['sphere', 'box'])
+
+            if shape_type == 'sphere':
+                # Random radius
+                radius = np.random.uniform(0.1, 0.5)
+                # Create a sphere particle
+                particle = chrono.ChBodyEasySphere(self.system, radius, 1000, True)
+            else:
+                # Random box dimensions
+                length = np.random.uniform(0.1, 0.5)
+                width = np.random.uniform(0.1, 0.5)
+                height = np.random.uniform(0.1, 0.5)
+                # Create a box particle
+                particle = chrono.ChBodyEasyBox(self.system, length, width, height, 1000, True)
+
+            # Random position
+            position = chrono.ChVectorD(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5))
+            particle.SetPos(position)
+
+            # Random velocity
+            velocity = chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
+            particle.SetVel(velocity)
+
+            # Random orientation
+            orientation = chrono.Q_from_AngX(np.random.uniform(-np.pi, np.pi))
+            particle.SetRot(orientation)
+
+            # Add particle to the system
             self.system.Add(particle)
+            self.particles.append(particle)
 
-    def apply_gravitational_force(self):
-        for i in range(len(self.particles)):
-            for j in range(i + 1, len(self.particles)):
-                particle1 = self.particles[i]
-                particle2 = self.particles[j]
-                distance = (particle2.GetPos() - particle1.GetPos()).Length()
-                force = 0.1 / (distance ** 2)
-                direction = (particle2.GetPos() - particle1.GetPos()).GetNormalized()
-                particle1.ApplyForceToCOF(force * direction)
-                particle2.ApplyForceToCOF(-force * direction)
-
-emitter = ParticleEmitter(mysystem, 100)
+# Create the particle emitter and emit particles
+emitter = ParticleEmitter(mysystem, 10)
 emitter.emit_particles()
 
-# Simulation loop
-while myapplication.Run():
-    mysystem.DoStepDynamics(0.01)
-    emitter.apply_gravitational_force()
+# Create the custom gravitational force
+class CustomGravitationalForce(chrono.ChForce):
+    def __init__(self, particle1, particle2):
+        super().__init__()
+        self.particle1 = particle1
+        self.particle2 = particle2
+
+    def ComputeF(self, time):
+        # Calculate the distance between particles
+        distance = (self.particle2.GetPos() - self.particle1.GetPos()).Length()
+
+        # Calculate the gravitational force
+        force = 6.67430e-11 * self.particle1.GetMass() * self.particle2.GetMass() / (distance ** 2)
+
+        # Apply the force to the particles
+        self.particle1.ApplyForceToCOF(chrono.ChForce(chrono.ChVectorD(0, 0, force)))
+        self.particle2.ApplyForceToCOF(chrono.ChForce(chrono.ChVectorD(0, 0, -force)))
+
+# Add the custom gravitational force to the system
+for i in range(len(emitter.particles)):
+    for j in range(i + 1, len(emitter.particles)):
+        force = CustomGravitationalForce(emitter.particles[i], emitter.particles[j])
+        mysystem.AddForce(force)
+
+# Create the Irrlicht visualization
+myapplication = chronoirr.ChVisualSystemIrrlicht(mysystem)
+
+# Set the camera position and look-at point
+myapplication.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+
+# Set the simulation step and time
+mysystem.SetStep(0.01)
+mysystem.SetMaxTime(10)
+
+# Run the simulation
+while mysystem.GetChTime() < mysystem.GetMaxTime():
+    mysystem.DoStep()
     myapplication.BeginScene()
     myapplication.DrawAll()
     myapplication.EndScene()
-
-# Delete the visualization application when the simulation ends
-del myapplication
 ```
 
-This script creates a PyChrono simulation with a particle emitter that generates particles with random shapes, positions, velocities, and orientations. The simulation applies custom gravitational forces to simulate particle attraction dynamically. The simulation is visualized using Irrlicht.
+This script initializes the PyChrono environment and creates a simulation system with a particle emitter that generates particles with random shapes, positions, velocities, and orientations. It also applies a custom gravitational force to simulate particle attraction dynamically. The simulation is visualized using Irrlicht.

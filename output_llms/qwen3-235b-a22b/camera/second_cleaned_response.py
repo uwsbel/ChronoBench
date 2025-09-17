@@ -4,6 +4,46 @@ import pychrono.sensor as sens
 import math
 import time
 
+
+
+
+
+noise_model = "CONST_NORMAL"  
+
+
+update_rate = 30
+
+
+image_width = 960
+image_height = 480
+
+
+fov = 1.408  
+
+
+lag = 0
+
+
+exposure_time = 0
+
+
+
+
+
+step_size = 1e-3
+
+
+end_time = 20.0
+
+
+save = True
+
+
+vis = True
+
+
+out_dir = "SENSOR_OUTPUT/"
+
 def main():
     
     
@@ -138,48 +178,6 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-
-
-
-
-
-noise_model = "CONST_NORMAL"  
-
-
-update_rate = 30
-
-
-image_width = 960
-image_height = 480
-
-
-fov = 1.408  
-
-
-lag = 0
-
-
-exposure_time = 0
-
-
-
-
-
-
-step_size = 1e-3
-
-
-end_time = 20.0
-
-
-save = True
-
-
-vis = True
-
-
-out_dir = "SENSOR_OUTPUT/"
 
 
 main()

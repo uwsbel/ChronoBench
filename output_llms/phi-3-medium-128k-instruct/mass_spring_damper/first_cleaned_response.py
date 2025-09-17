@@ -1,89 +1,59 @@
-from pychrono import ChSystem, ChSystemNSC, ChLinkTSDA, ChBody, ChCoordsys, ChCoordSysD, ChVec3D, ChFrame, ChRigidBody, ChSphereShape, ChMaterialSurface, ChVisualStyle, ChVisuals
-import pychrono.pychrono as pch
+from pychron import *
+
+from pychron.physics import Mass, SpringDamper
+from pychron.irrlicht import IrrlichtVisualizer, IrrlichtPhysics
+from pychron.physics.visuals import Visual, SphereVisual, CylinderVisual
 
 
 
-system = ChSystemNSC()
+chrono = Chrono()
 
 
 
-ground = ChBody()
-ground.SetMass(0)
-ground.SetStatic()
-system.AddBody(ground)
+engine = IrrlichtPhysics(chrono)
 
 
 
-mass = ChBody()
-mass.SetMass(1.0)
-system.AddBody(mass)
+ground = ChronoSphere(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
 
 
 
-spring = ChLinkTSDA(mass, ground)
-spring.Initialize(ChCoordsysD(ChFrame(ChCoordSysD(ChBody(), ChVec3D(0, 0, 0)))
-spring.Initialize(ChCoordsysD(ground))
-spring.Initialize(ChCoordsysD(mass))
-spring.Initialize(ChCoordsysD(ground))
+mass = Mass(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
 
 
 
-spring.InitializeDamper(1.0)
-spring.InitializeSpring(1.0, 0.05)
+spring_damper = SpringDamper(chrono, 100.0, 0.1)
 
 
 
-massShape = ChSphereShape(0.1)
-mass.AddAsset(massShape)
+spring_damper.create_link(mass, ground, ChLinkTSDA(100.0, 0.1))
 
 
 
-visualStyle = ChVisualStyle()
-visualStyle.SetTexture("mass_texture.png")
-mass.AddAsset(visualStyle)
+mass_visual = SphereVisual(chrono, 0.2, mass.get_shape())
+
+spring_visual = CylinderVisual(chrono, 0.1, spring_damper.get_shape())
 
 
 
-mass.AddAsset(massShape)
+visualizer = IrrlichtVisualizer(chrono)
+
+visualizer.add_visual(mass_visual)
+
+visualizer.add_visual(spring_visual)
 
 
 
-system.SetVisuals(ChVisuals())
+visualizer.set_light_position(0, 10, 0)
+
+visualizer.set_camera_position(0, 10, 10)
+
+visualizer.set_camera_lookat(0, 0, 0)
 
 
 
-irrlicht_settings = system.GetIrrlichtSettings()
-irrlicht_settings.SetLighting(True)
-irrlicht_settings.SetCamera(ChCamera(ChCoordSys(ChFrame(ChVec3D(0, 0, 0), ChVec3D(0, 0, 0)))
+while True:
 
+    chrono.run()
 
-
-material = ChMaterialSurface()
-material.SetAmbientColor(ChColor(0.7, 0.7, 0.7))
-massShape.SetMaterial(material)
-
-
-
-mass.AddAsset(material)
-
-
-
-system.SetSolverIterations(10)
-system.SetSolverTolerance(1e-6)
-system.SetSolverIterationLimit(100)
-system.SetSolverMaxSpeed(100)
-
-system.SetGravity(ChVector3D(0, 0, -9.81))
-
-
-
-sim_time = 10
-dt = 0.01
-
-for t in pch.interval(0, sim_time, dt):
-
-    system.DoStepDynamics(dt)
-
-
-
-print(f"Time: {t:.2f}s, Position: {mass.p()}")
+    visualizer.render()

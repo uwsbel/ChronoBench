@@ -1,60 +1,56 @@
 import chrono as ch
-import chrono.vehicle as veh
 import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 # 1. Initialize the PyChrono environment and core components
-ch.ChEngine.Initialize()
+ch.set_default_data_file_path("./data")
 
-# 2. Create the simulation system
-system = ch.ChSystem_EulerImplicit()
+# 2. Create the simulation system and add physical systems
+system = ch.ChSystemSMC()
 
-# 3. Create the HMMWV vehicle
+# 3. Create HMMWV vehicle
 vehicle = veh.ChHMMWV(system)
 
 # Set initial conditions
-vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
-vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetChassisPos({0, 0, 1})
 
-# 4. Create the SCM deformable terrain
-terrain = veh.ChSCMTerrain(system)
+# 4. Create SCM deformable terrain
+terrain = veh.ChTerrainSCM(system)
 
 # Define soil parameters
 soil = terrain.GetSoilModel()
-soil.SetFriction(0.8)
-soil.SetRestitution(0.2)
-soil.SetDamping(0.5)
+soil.SetType(veh.ChSoilModel.Type.ROTHBERG)
+soil.SetParameters(100, 0.3, 1e6, 1e4)
 
-# Initialize terrain with a height map
-height_map = []
-for x in range(-100, 101):
+# Initialize terrain with height map
+heightMap = []
+for i in range(20):
     row = []
-    for y in range(-100, 101):
-        row.append(0.5)  # constant height for simplicity
-    height_map.append(row)
-terrain.Initialize(height_map)
+    for j in range(20):
+        row.append(0.1 * math.sin(i / 5.0) * math.cos(j / 5.0))
+    heightMap.append(row)
+terrain.Initialize(heightMap)
 
-# 5. Create a driver system for vehicle control
-driver = veh.ChDriver(system, vehicle.GetChassisBody())
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
+# 5. Create driver system for vehicle control
+driver = veh.ChDriver(system, vehicle.GetChassisBody(), vehicle.GetEngine(), vehicle.GetTransmission())
 
-# 6. Create a real-time visualization using Irrlicht
-vis = irr.ChIrrApp(system, 'HMMWV SCM Terrain Simulation', 800, 600)
+# 6. Create real-time visualization using Irrlicht
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVerticalAxis(-ch.Vector(0, 0, 1))
+vis.SetCameraPosition(ch.Vector(0, -10, 5))
+vis.SetLightDirection(ch.Vector(1, 1, 1))
 
-# Set camera settings and lighting
-vis.SetCameraPosition(ch.ChVector3d(0, -5, 1))
-vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
-vis.EnableSun()
-
-# 7. Simulation loop
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Synchronize and advance the vehicle, terrain, driver, and visual system
-    system.DoStepDynamics(0.01)  # 10ms timestep
-    driver.Update(0.01)
-    vis.Synchronize(0.01)
+    # Advance simulation
+    system.DoStepDynamics(1 / 60)
 
-vis.Exit()
+    # Synchronize vehicle, terrain, driver, and visual system
+    driver.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())
+    terrain.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())
+    vis.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())

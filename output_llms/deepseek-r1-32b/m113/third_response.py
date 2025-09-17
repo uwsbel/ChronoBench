@@ -21,7 +21,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Track point for camera
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 # Contact method
@@ -55,6 +55,8 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
 # Create the terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -68,12 +70,11 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add a long box to test vehicle mobility
-box = chrono.ChBody()
-box.SetPos(chrono.ChVector3d(5, 0, 0.5))  # Position in front of vehicle
-box.SetDimensions(chrono.ChVector3d(2, 1, 1))  # Length, width, height
-box.SetMaterialSurface(patch_mat)  # Use same material as terrain
-vehicle.GetSystem().AddBody(box)
+# Add a long box to the system to test vehicle mobility
+box = chrono.ChBodyEasyBox(10, 1, 1, 1000)
+box.SetPos(chrono.ChVector3d(5, 0, 0.5))  # Place box at (5,0,0.5)
+box.SetColor(chrono.ChColor(0.5, 0, 0))  # Red color for visibility
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -100,45 +101,41 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
+# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-    
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
+    # Get driver inputs and hard-code throttle to 0.8
     driver_inputs = driver.GetInputs()
-    # Force throttle to 0.8
-    driver_inputs.throttle = 0.8  # Hard-coded throttle value
+    driver_inputs.throttle = 0.8  # Force throttle to 0.8
     
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-    
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
     # Increment frame number
     step_number += 1

@@ -18,14 +18,14 @@ ground.EnableCollision(False)
 
 # Add visual shape to ground
 sph_1 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
+ground.AddVisualShape(sph_1, chrono.ChFrame(chrono.ChVector3d(-1, 0, 0)))
 
-# Create body 1
+# Create body_1
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
 body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
 body_1.SetFixed(False)
-body_1.EnableCollision(True)  # Enable collision for body_1
+body_1.EnableCollision(False)
 body_1.SetMass(1)
 body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
@@ -45,12 +45,12 @@ sys.AddLink(spring_1)
 # Add visual shape to spring_1
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# Create body 2
+# Create body_2
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVector3d(0, -3, 0))
 body_2.SetFixed(False)
-body_2.EnableCollision(True)  # Enable collision for body_2
+body_2.EnableCollision(False)
 body_2.SetMass(2)
 body_2.SetInertiaXX(chrono.ChVector3d(2, 2, 2))
 
@@ -70,12 +70,12 @@ sys.AddLink(spring_2)
 # Add visual shape to spring_2
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# Create body 3
+# Create body_3
 body_3 = chrono.ChBody()
 sys.AddBody(body_3)
 body_3.SetPos(chrono.ChVector3d(1, -3, 0))
 body_3.SetFixed(False)
-body_3.EnableCollision(True)  # Enable collision for body_3
+body_3.EnableCollision(False)
 body_3.SetMass(3)
 body_3.SetInertiaXX(chrono.ChVector3d(3, 3, 3))
 

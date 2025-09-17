@@ -53,7 +53,7 @@ vis.AddCamera(chrono.ChVector3d(0, 14, -20))
 vis.AddTypicalLights()
 
 mcreation_callback = MyCreatorForAll(vis, coll)
-# emitter.RegisterAddBodyCallback(mcreation_callback) # Commented out as we don't use the emitter
+# emitter.RegisterAddBodyCallback(mcreation_callback) # Comment out since we are not using emitter
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
@@ -67,7 +67,7 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
 
-    # emitter.EmitParticles(sys, stepsize) # Commented out as we don't use the emitter
+    # emitter.EmitParticles(sys, stepsize) # Comment out since we are not using emitter
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()

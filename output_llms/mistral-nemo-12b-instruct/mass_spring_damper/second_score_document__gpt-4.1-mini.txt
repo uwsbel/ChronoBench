@@ -4,12 +4,11 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set. (No deduction)
-- **Body Creation:** Ground and two dynamic bodies created with positions, masses, inertias, and fixed/collision states set. (No deduction)
-- **Visualization:** Visualization system created, attached, window size and title set, initialized, logo, skybox, camera, and lights added. (No deduction)
-- **Spring Link Setup:** Two springs created with `ChLinkTSDA`, initialized properly, rest length and coefficients set, visual shapes added. (No deduction)
-- **Custom Force Functor:** Defined and used for one spring, showing advanced usage. (No deduction)
-- **Simulation Loop:** Present with proper calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. (No deduction)
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set. **No deduction.**
+- **Body Creation:** Ground and two dynamic bodies created with positions, masses, inertias, and fixed/collision states set. Visual shapes added. **No deduction.**
+- **Spring Links:** Two springs created using `ChLinkTSDA`, one with default spring and damping coefficients, the other with a custom force functor. Both springs initialized and added to the system. Visual shapes for springs added. **No deduction.**
+- **Visualization:** Visualization system created, attached to system, window size and title set, initialized, logo, skybox, camera, and lights added. **No deduction.**
+- **Simulation Loop:** Present with proper calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. **No deduction.**
 
 **No essential components missing.**
 
@@ -19,196 +18,217 @@
 
 ### 2. Correctness (30 points)
 
-- **Use of `ChLinkTSDA.Initialize`:** The method signature is `Initialize(body1, body2, use_springs, pos1, pos2)` where `pos1` and `pos2` are the endpoints in the respective body frames. The code uses `chrono.ChVector3d(0,0,0)` and `chrono.ChVector3d(-1,0,0)` (and similarly for the other spring). This is acceptable if the points are correctly specified in the local frames.
+- **Use of `ChLinkTSDA.Initialize`:** The method signature used is:
 
-- **Custom ForceFunctor `Evaluate` method:**
+  ```python
+  spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+  ```
+
+  According to the PyChrono API, `Initialize` for `ChLinkTSDA` is:
+
+  ```python
+  Initialize(body1, body2, bool state, ChVector point1, ChVector point2)
+  ```
+
+  The points are the attachment points in the local coordinate systems of the two bodies. The code uses `chrono.ChVector3d(0,0,0)` for the first point on `body_1` and `chrono.ChVector3d(-1,0,0)` for the second point on `ground`. However, the ground is fixed at origin, and the visual spheres are at (-1,0,0) and (1,0,0) on the ground. The first spring connects `body_1` at local (0,0,0) to ground at (-1,0,0), which is consistent.
+
+  The second spring connects `body_2` at (0,0,0) to ground at (1,0,0), consistent as well.
+
+  **No deduction here.**
+
+- **Custom ForceFunctor Implementation:**
+
+  The `MySpringForce` class inherits from `chrono.ForceFunctor` and implements `Evaluate(self, myframe, F, Rel_pos, Rel_vel)`.
+
+  Inside `Evaluate`, it does:
+
+  ```python
+  F = -self.spring_coef * Rel_pos - self.damping_coef * Rel_vel
+  return F
+  ```
+
+  According to PyChrono API, the `Evaluate` method signature is:
 
   ```python
   def Evaluate(self, myframe, F, Rel_pos, Rel_vel):
-      F = -self.spring_coef * Rel_pos - self.damping_coef * Rel_vel
-      return F
+      # F is a ChVector passed by reference to be modified
   ```
 
-  - According to PyChrono API, the `Evaluate` method signature is:
+  The API expects `F` to be modified in place (i.e., `F.x = ...`, `F.y = ...`, `F.z = ...`) rather than reassigning `F` to a new vector and returning it.
 
-    ```python
-    def Evaluate(self, myframe, F, Rel_pos, Rel_vel):
-        # F is an output parameter (passed by reference)
-    ```
+  The current implementation reassigns `F` locally and returns it, which will **not** modify the force applied by the spring.
 
-  - The method should modify `F` in place (e.g., `F.Set(...)`) rather than reassigning `F` and returning it.
+  This is a **significant API misuse** that will cause the custom force functor to have no effect.
 
-  - The current code reassigns `F` locally and returns it, which will **not** affect the force applied by the spring. This is a significant API misuse and will cause the custom force to not work as intended.
+  **Deduct 15 points for incorrect use of PyChrono API that affects simulation behavior.**
 
-- **Body property setting:**
+- **Body Property Settings:**
 
-  - `SetBodyFixed(False)` is used, but the API uses `SetFixed(bool)`. The code uses `SetBodyFixed(True)` for ground, which is **incorrect**; it should be `SetFixed(True)`.
+  - `SetBodyFixed(False)` is used on dynamic bodies. The correct method name per API is `SetFixed(bool)`. The code uses `SetBodyFixed()`, which is **incorrect**.
 
-  - This is a significant API misuse and will cause the ground not to be fixed, affecting simulation behavior.
+  The API documentation shows:
 
-- **Visual shapes:**
+  ```python
+  body.SetFixed(True or False)
+  ```
 
-  - `chrono.ChVisualShapeBox(1,1,1)` is used, but the API expects a `ChVector3d` for size, e.g., `ChVisualShapeBox(chrono.ChVector3d(1,1,1))`.
+  The code uses:
 
-  - This is a minor API misuse that may cause errors or unexpected behavior.
+  ```python
+  body_1.SetBodyFixed(False)
+  body_2.SetBodyFixed(False)
+  ground.SetBodyFixed(True)
+  ```
 
-- **Adding visual shapes to bodies:**
+  This is an **incorrect method call** and will likely cause an AttributeError or no effect.
 
-  - The code uses `body.AddVisualShape(shape)`, which is correct.
+  **Deduct 15 points for incorrect API usage.**
 
-- **Collision enabling/disabling:**
+- **Visual Shape Creation:**
 
-  - `EnableCollision(False)` is used correctly.
+  The code uses:
 
-- **Gravity vector:**
+  ```python
+  sph_1 = chrono.ChVisualShapeSphere(0.1)
+  ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
+  ```
 
-  - Gravity is set as `(0,0,-9.81)`, which is standard.
+  According to the API, `ChVisualShapeSphere` constructor expects a `radius` argument, which is correctly given.
 
-- **Simulation time step:**
+  However, the API examples show that visual shapes are often added to bodies without specifying a frame, or with `chrono.ChFrame` (not `ChFramed`).
 
-  - `sys.DoStepDynamics(1e-3)` is reasonable.
+  The code uses `chrono.ChFramed`, which is **not a valid class** in the API documentation.
 
-**Deductions:**
+  The correct class is `chrono.ChFrame` or `chrono.ChCoordsys` (depending on version).
 
-- `SetBodyFixed` instead of `SetFixed`: -15 points (significant API misuse affecting simulation behavior)
+  This is a **minor API misuse** that may cause errors or unexpected behavior.
 
-- `Evaluate` method incorrectly implemented (reassigning `F` instead of modifying in place): -15 points (significant API misuse)
+  **Deduct 10 points for incorrect use of visual shape frame class.**
 
-- `ChVisualShapeBox` constructor used incorrectly (missing `ChVector3d`): -5 points (minor API misuse)
+- **Body Visual Shape Creation:**
 
-**Correctness score: 30 - 15 - 15 - 5 =  -5 (minimum 0)**
+  The code uses:
 
-So, **0/30**
+  ```python
+  box_1 = chrono.ChVisualShapeBox(1, 1, 1)
+  ```
+
+  The API documentation shows:
+
+  ```python
+  box_shape = chrono.ChVisualShapeBox(chrono.ChVector3d(1,1,1))
+  ```
+
+  The constructor expects a single `ChVector` argument, not three separate floats.
+
+  This is an **incorrect constructor usage**.
+
+  **Deduct 15 points for incorrect API usage.**
+
+- **Simulation Step Size:**
+
+  The simulation step size is `1e-3`, which is reasonable.
+
+  **No deduction.**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**
+- **Readability and Structure:**
 
   - Variable names are meaningful (`body_1`, `spring_1`, etc.).
-
   - Code is structured logically.
+  - However, no comments are present to explain the purpose of blocks or classes.
+  - The custom force functor class lacks docstrings or comments.
+  - Minor formatting inconsistencies (e.g., no blank lines between major sections).
 
-  - However, no comments are present to explain the purpose of blocks or the custom force functor.
+  **Deduct 5 points for insufficient comments and documentation.**
 
-- **Formatting:**
+- **Variable Naming:**
 
-  - Generally good, but some minor spacing issues (e.g., no blank lines between major sections).
+  Acceptable but could be improved for clarity (e.g., `spring_1` and `spring_2` could be more descriptive).
 
-- **Comments:**
-
-  - No comments at all.
-
-**Deductions:**
-
-- Lack of comments: -5 points
-
-- Minor readability issues (lack of blank lines, no docstring for class): -2 points
-
-**Code Quality score: 10 - 5 - 2 = 3/10**
+  No major deduction here.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations.
+- No obvious redundant calculations or unnecessary API calls.
+- The custom force functor is implemented but incorrectly, so no efficiency penalty.
+- The visual shapes for spheres are added to the ground body, which is fixed and non-colliding, which is fine.
+- No obvious optimization opportunities missed.
 
-- The custom force functor is defined but not used in the first spring (which uses built-in spring/damping coefficients). This is acceptable as a demonstration.
-
-- The visual shapes for spheres are added to the ground body at fixed positions, which is fine.
-
-- No unnecessary API calls detected.
-
-- Could use `ChBodyEasyBox` or `ChBodyEasySphere` for simpler body creation, but this is a design choice, not inefficiency.
-
-**Deductions:**
-
-- Missing minor optimization opportunity: use `SetFixed` instead of `SetBodyFixed` (already deducted under correctness).
-
-- No other inefficiencies.
-
-**Efficiency score: 10/10**
+**No deduction.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for initialization success.
+- No error handling is present (e.g., try-except blocks).
+- However, typical PyChrono scripts do not usually include explicit error handling unless dealing with file I/O or user input.
+- No checks for initialization success or invalid parameters.
+- The custom force functor does not validate inputs or handle edge cases.
 
-- No try-except blocks or validation.
-
-- This is common in simple simulation scripts, but best practice is to include minimal error handling or at least assertions.
-
-**Deductions:**
-
-- Lack of basic error handling: -5 points
-
-**Error Handling score: 0/5**
+**Deduct 3 points for inadequate handling of edge cases and lack of basic error handling.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached.
+- Visualization system is set up properly with window size, title, logo, skybox, camera, and lights.
+- The camera is positioned at `(0, 0, 6)`, which is acceptable but might be suboptimal for viewing the scene (usually some offset in y or x is added for better perspective).
+- The logo is added using `chrono.GetChronoDataFile('logo_pychrono_alpha.png')`, which is correct.
+- Minor issue: no comments explaining visualization setup.
+- The use of `AddVisualShape` for springs is correct.
 
-- Window size and title set.
-
-- Logo added using `chrono.GetChronoDataFile`.
-
-- Skybox, camera, and typical lights added.
-
-- Camera position is `(0,0,6)`, which is acceptable but might be better with some offset in Y for better view.
-
-- No obvious visualization errors.
-
-**Deductions:**
-
-- Minor suboptimal camera position (no Y offset): -2 points
-
-**Visualization score: 3/5**
+**Deduct 2 points for minor visualization issues (camera position could be improved, lack of comments).**
 
 ---
 
-### **Summary of deductions:**
+### Summary of Deductions:
 
-| Category                  | Points | Deduction Reason                                      |
-|---------------------------|--------|------------------------------------------------------|
-| Completeness              | 40     | None                                                 |
-| Correctness              | 30     | -15 for `SetBodyFixed` misuse                         |
-|                           |        | -15 for incorrect `Evaluate` method in force functor |
-|                           |        | -5 for `ChVisualShapeBox` constructor misuse          |
-|                           |        | Total: -35 (min 0)                                    |
-| Code Quality             | 10     | -5 no comments                                        |
-|                           |        | -2 minor readability                                  |
-|                           |        | Total: -7                                            |
-| Efficiency               | 10     | None                                                 |
-| Error Handling & Robustness | 5      | -5 no error handling                                  |
-| Visualization            | 5      | -2 minor camera position                              |
+| Category                  | Deduction | Reason                                                                                   |
+|---------------------------|-----------|------------------------------------------------------------------------------------------|
+| Completeness              | 0         | All essential components present                                                        |
+| Correctness              | 45        | - `SetBodyFixed` used instead of `SetFixed` (-15)                                       |
+|                           |           | - Custom force functor incorrectly modifies `F` (-15)                                  |
+|                           |           | - `ChVisualShapeBox` constructor used incorrectly (-15)                                |
+|                           |           | - Use of `chrono.ChFramed` instead of `chrono.ChFrame` (-10) (minor but API misuse)      |
+| Code Quality             | 5         | Lack of comments/documentation                                                          |
+| Efficiency               | 0         | No inefficiencies detected                                                               |
+| Error Handling & Robustness | 3         | No error handling or edge case checks                                                   |
+| Visualization            | 2         | Minor visualization issues (camera position, lack of comments)                          |
 
----
-
-### Final scores:
-
-- Completeness: 40/40  
-- Correctness: 0/30  
-- Code Quality: 3/10  
-- Efficiency: 10/10  
-- Error Handling: 0/5  
-- Visualization: 3/5  
-
-**Total = 40 + 0 + 3 + 10 + 0 + 3 = 56**
+**Total deductions: 45 + 5 + 3 + 2 = 55**
 
 ---
 
-### Additional notes:
+### Final Score Calculation:
 
-- The two most critical issues are the misuse of `SetBodyFixed` instead of `SetFixed` and the incorrect implementation of the custom force functor's `Evaluate` method, both of which will cause the simulation to behave incorrectly or not as intended.
-
-- Minor API misuses and lack of comments further reduce the score.
-
-- Visualization is mostly correct but could be improved with better camera positioning.
+- Total possible: 100
+- Deductions: 55
+- **Final score: 45**
 
 ---
 
-[[56]]
+### Final Output:
+
+[[45]]
+
+---
+
+### Explanation:
+
+The script includes all essential components and is logically structured, but it contains several significant API misuses that would prevent it from running correctly or producing the intended simulation behavior:
+
+- The incorrect method `SetBodyFixed` instead of `SetFixed` will cause errors or no effect on body fixation.
+- The custom force functor does not modify the force vector in place as required, so the custom spring force will not be applied.
+- The constructor for `ChVisualShapeBox` is used incorrectly, which will cause errors.
+- The use of a non-existent class `chrono.ChFramed` instead of `chrono.ChFrame` is a minor but important API misuse.
+- Lack of comments reduces code clarity and maintainability.
+- No error handling or input validation is present.
+- Minor visualization setup issues (camera position and lack of comments).
+
+These issues significantly impact correctness and code quality, leading to a final score of 45 out of 100.

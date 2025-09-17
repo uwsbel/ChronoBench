@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print("Example: PyChrono using  beam finite elements");
+print ("Example: PyChrono using  beam finite elements");
 
 sys = chrono.ChSystemSMC()
 
@@ -75,6 +75,10 @@ constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,     
                               False, False,False)    
+
+
+
+
 
 
 

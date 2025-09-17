@@ -1,0 +1,42 @@
+# Import necessary PyChrono modules
+from pychrono.core import ChSystem, ChFrameD, ChVector
+from pychrono.geometry import ChTriangleMesh, ChTriangleMeshShape
+from pychrono.irrlicht import ChronoIrrGui
+
+# Initialize the PyChrono environment
+chrono = ChSystem()
+chrono.Set_G_acc(ChVector<>(0, -9.81, 0))
+
+# Define the mesh for the beam elements
+mesh = ChTriangleMesh()
+mesh.LoadWavefrontMesh("path/to/your/mesh.obj")
+
+# Create a ChTriangleMeshShape with the loaded mesh
+mesh_shape = ChTriangleMeshShape()
+mesh_shape.SetMesh(mesh)
+mesh_shape.SetColor(ChColor(1, 1, 1))  # Set the color of the mesh
+
+# Add the mesh shape to the physical system
+chrono.Add(mesh_shape)
+
+# Define the beam properties
+beam_length = 1.0
+beam_cross_section = ChVector<>(0.1, 0.1, 0.01)
+
+# Create a beam element and add it to the system
+beam = chrono.NewBeamElement(
+    ChFrameD(ChVector<>(0, 0, 0)),  # Position of the first node
+    ChFrameD(ChVector<>(beam_length, 0, 0)),  # Position of the second node
+    beam_cross_section,  # Cross-section of the beam
+    1e3,  # Young's modulus
+    0.3  # Poisson's ratio
+)
+chrono.Add(beam)
+
+# Add visualization using Irrlicht engine
+gui = ChronoIrrGui()
+gui.Initialize(chrono)
+gui.AddSystem(chrono)
+gui.AddTypicalLights()
+gui.AddCamera(ChVector<>(0, 0, -10), ChVector<>(0, 0, 0))
+gui.StartAnimationLoop()

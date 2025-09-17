@@ -4,22 +4,6 @@ import pychrono.sensor as sens
 import math
 import time
 
-
-noise_model = "CONST_NORMAL"  
-update_rate = 30              
-image_width = 1280            
-image_height = 720            
-fov = 1.408                   
-lag = 0                       
-exposure_time = 0             
-
-
-step_size = 1e-3              
-end_time = 20.0               
-save = False                  
-vis = True                    
-out_dir = "SENSOR_OUTPUT/"    
-
 def main():
     
     
@@ -30,11 +14,14 @@ def main():
     
     
     
-    side = 2  
+    side = 1.0  
+    
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetFixed(True)                      
-    mphysicalSystem.Add(box_body)                
+    box_body.SetFixed(True)  
+    
+    box_body.AddVisualShape(chrono.ChVisualShape(chrono.ChMaterialSurface texture))
+    mphysicalSystem.Add(box_body)  
 
     
     
@@ -58,12 +45,12 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        box_body,             
-        update_rate,          
-        offset_pose,          
-        image_width,          
-        image_height,         
-        fov                   
+        box_body,              
+        update_rate,            
+        offset_pose,            
+        image_width,            
+        image_height,           
+        fov                     
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  
@@ -144,6 +131,48 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+
+
+
+
+noise_model = "CONST_NORMAL"  
+
+
+update_rate = 30
+
+
+image_width = 1280
+image_height = 720
+
+
+fov = 1.408  
+
+
+lag = 0
+
+
+exposure_time = 0
+
+
+
+
+
+
+step_size = 1e-3
+
+
+end_time = 20.0
+
+
+save = False
+
+
+vis = True
+
+
+out_dir = "SENSOR_OUTPUT/"
 
 
 main()

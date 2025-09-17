@@ -69,7 +69,8 @@ beam_wz = 0.012
 
 
 minertia = fea.ChInertiaCosseratSimple()
-minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)  
+minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(73.0e9)  

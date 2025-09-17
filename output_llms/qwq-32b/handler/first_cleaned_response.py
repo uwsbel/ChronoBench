@@ -43,12 +43,15 @@ def main():
     clock_handler.SetRealtimeFactor(1.0)  
     manager.AddHandler(clock_handler)
 
-    manager.AddHandler(chrono_ros.ChRosBodyLoader())  
-    manager.AddHandler(chrono_ros.ChRosTransformPublisher())  
-    manager.AddHandler(custom_handler)  
+    
+    manager.AddHandler(chrono_ros.ChRosBodyLoader())
+    manager.AddHandler(chrono_ros.ChRosTransformPublisher())
 
     
-    step_size = 0.001  
+    manager.AddHandler(custom_handler)
+
+    
+    step_size = 0.001
 
     while not rospy.is_shutdown():
         

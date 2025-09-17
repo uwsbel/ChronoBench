@@ -13,17 +13,21 @@ def main():
     
     
     
-    side = 1.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetMass(1000)
-    mphysicalSystem.Add(box_body)
+    side = 2.0
+    mbox = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mbox.SetPos(chrono.ChVector3d(0, 0, 0))
+    
 
     
-    box_shape = chrono.ChVisualShapeBox(side, side, side)
-    box_shape.SetBody(box_body)
-    box_shape.SetName("Box")
+    box_shape = chrono.ChVisualShapeBox(side)
+    box_shape.SetName("Box Visual")
+    box_shape.SetColor(chrono.ChColor(1, 0, 0))  
+    mphysicalSystem.Add(mbox)
+    mphysicalSystem.AddVisualShape(box_shape)
+    mphysicalSystem.AddBody(mbox)
 
+    
+    
     
     manager = sens.ChSensorManager(mphysicalSystem)
 
@@ -34,7 +38,7 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,              
+        mbox,              
         update_rate,            
         offset_pose,            
         horizontal_samples,     
@@ -54,6 +58,17 @@ def main():
     lidar.SetCollectionWindow(collection_time)
 
     
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        
+        pass
+
+    if vis:
+        
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+
+    
     lidar.PushFilter(sens.ChFilterDIAccess())
 
     
@@ -64,29 +79,24 @@ def main():
         lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 
     
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+
+    
     manager.AddSensor(lidar)
 
     
     
     
-    if noise_model == "CONST_NORMAL_XYZI":
-        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    elif noise_model == "NONE":
-        
-        pass
-
-    
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-
-    
     lidar_2d = sens.ChLidarSensor(
-        box_body,              
+        mbox,              
         update_rate,            
         offset_pose,            
         1,                     
         horizontal_fov,         
         max_vert_angle,         
         min_vert_angle,         
+        100.0,                  
+        sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,          
         divergence_angle,       
         divergence_angle,       
@@ -98,10 +108,22 @@ def main():
 
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Data"))
 
     
-    manager.AddSensor(lidar)
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    
     manager.AddSensor(lidar_2d)
 
     
@@ -139,6 +161,7 @@ def main():
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
             print('2D Lidar buffer received. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         
         manager.Update()
@@ -150,7 +173,6 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
 
 
 

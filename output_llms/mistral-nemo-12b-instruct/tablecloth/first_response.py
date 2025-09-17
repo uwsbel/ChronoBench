@@ -2,59 +2,52 @@ import pychrono as chrono
 import numpy as np
 
 # Initialize PyChrono environment
-chrono.Initialize()
+chrono.setChronoDataPath("path/to/chrono_data")  # Replace with the path to your Chrono data
+chrono.setChronoLogLevel(chrono.LOG_LEVEL_ERROR)
 
-# Create the simulation system
-simulation = chrono.ChSystemNSC()
-
-# Set up the PardisoMKL solver
+# Initialize core components
+simulation = chrono.ChSimulation()
+system = simulation.getSystem()
 solver = chrono.ChSolverPardisoMKL()
-solver.SetMaxIterations(1000)
-solver.SetTolerance(1e-6)
-simulation.SetSolver(solver)
+system.SetSolver(solver)
 
-# Create the tablecloth using shell elements
-tablecloth = chrono.ChShell()
-tablecloth.SetMaterial(chrono.ChMaterialSurfaceNSC())
-tablecloth.GetMaterial().SetYoungModulus(1e6)
-tablecloth.GetMaterial().SetPoissonRatio(0.3)
-tablecloth.GetMaterial().SetThickness(0.01)
+# Create a tablecloth using shell elements
+material = chrono.ChMaterialSurfaceNSC()
+material.SetYoungModulus(1e6)  # Young's modulus
+material.SetPoissonRatio(0.3)  # Poisson's ratio
+material.SetThickness(0.01)  # Thickness of the tablecloth
 
 # Generate a mesh grid for the tablecloth
-num_nodes_x = 10
-num_nodes_y = 10
+num_nodes_u = 10
+num_nodes_v = 10
 nodes = []
 elements = []
-for i in range(num_nodes_x):
-    for j in range(num_nodes_y):
+for u in range(num_nodes_u):
+    for v in range(num_nodes_v):
         node = chrono.ChNodeShell()
-        node.SetPos(chrono.ChVectorD(i * 0.1, j * 0.1, 0))
+        node.SetPos(chrono.ChVectorD(u * 0.1, v * 0.1, 0))  # Set positions
         nodes.append(node)
-        tablecloth.AddNode(node)
+        system.Add(node)
 
-        # Create elements
+        # Create shell elements
         element = chrono.ChElementShell()
-        element.SetNodes(nodes[i * num_nodes_y + j], nodes[(i + 1) * num_nodes_y + j], nodes[i * num_nodes_y + j + 1], nodes[(i + 1) * num_nodes_y + j + 1])
+        element.SetNodes(nodes[2 * u + v], nodes[2 * u + v + 1])
+        element.SetMaterial(material)
         elements.append(element)
-        tablecloth.AddElement(element)
+        system.Add(element)
 
-# Add the tablecloth to the simulation system
-simulation.Add(tablecloth)
+# Set up Irrlicht visualization system
+vis = chrono.ChVisualSystemIrrlicht()
+vis.Attach(system)
+vis.Initialize()
+vis.SetWindowTitle("Tablecloth Folding Simulation")
 
-# Set up the Irrlicht visualization system
-visualization = chrono.ChVisualSystemIrrlicht()
-visualization.Attach(simulation)
-visualization.Initialize()
-visualization.AddLogo(chrono.ChVectorD(0, 0, 0))
-visualization.AddSkyBox()
-visualization.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+# Set initial conditions and forces
+for node in nodes:
+    node.SetForce(chrono.ChVectorD(0, 0, -1))  # Gravity force
 
-# Set up the simulation loop
-while visualization.Run():
-    simulation.DoStepDynamics(0.01)
-    visualization.Render()
-    visualization.ApproveDriver()
-
-# Clean up
-visualization.Clear()
-chrono.Terminate()
+# Run the simulation
+while vis.Run():
+    simulation.DoStepDynamics(0.01)  # Time step size
+    vis.Render()
+    vis.WaitForFrameEnd()

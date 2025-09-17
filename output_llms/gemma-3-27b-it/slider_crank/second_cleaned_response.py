@@ -21,7 +21,7 @@ sys.Add(mfloor)
 
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)  
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))  
-mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)  
+
 sys.Add(mcrank)  
 
 
@@ -32,7 +32,7 @@ sys.Add(mrod)
 
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)  
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))  
-mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  
+
 sys.Add(mpiston)  
 
 
@@ -76,26 +76,33 @@ array_speed = []
 
 
 time = 0
-simulation_end_time = 20  
-while vis.Run() and time < simulation_end_time:
+stop_time = 20  
+
+while vis.Run():
     
-    angle = mcrank.GetAngle(chrono.ChAxis_Y)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    sys.DoStepDynamics(1e-3)
+    time += 1e-3
+
+    
+    angle = mcrank.GetAngle()
     pos = mpiston.GetPos().x()
-    speed = mcrank.GetWvel(chrono.ChAxis_Y)
+    speed = mcrank.GetWvel().y()
 
     array_time.append(time)
     array_angle.append(angle)
     array_pos.append(pos)
     array_speed.append(speed)
 
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-    sys.DoStepDynamics(1e-3)  
-    time += 1e-3
+    
+    if time >= stop_time:
+        break
 
 
-x_ticks = np.array([0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi])
+x_ticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
 x_tick_labels = [str(x) for x in x_ticks]
 
 plt.figure(figsize=(12, 6))
@@ -106,6 +113,7 @@ plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Piston Position [m]')
 plt.title('Piston Position vs. Crank Angle')
 plt.xticks(x_ticks, x_tick_labels)
+plt.grid(True)
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
@@ -113,6 +121,7 @@ plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Crank Speed [rad/s]')
 plt.title('Crank Speed vs. Crank Angle')
 plt.xticks(x_ticks, x_tick_labels)
+plt.grid(True)
 
 plt.tight_layout()
 plt.show()

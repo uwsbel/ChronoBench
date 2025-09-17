@@ -72,21 +72,16 @@ terrain.Initialize()
 
 
 box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.25))
-box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box_body.SetRot(chrono.QUNIT)
 box_body.SetBodyFixed(True)
-
-box_geometry = chrono.ChBoxShape()
-box_geometry.GetBoxGeometry().SetLengths(chrono.ChVector3d(10, 2, 0.5))  
-box_body.AddVisualShape(box_geometry)
-
-box_mat = chrono.ChContactMaterialSMC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box_body.GetCollisionModel().AddBox(box_mat, 5, 1, 0.25)  
+box_body.GetCollisionModel().ClearModel()
+box_body.GetCollisionModel().AddBox(5, 0.5, 0.5)
 box_body.GetCollisionModel().BuildModel()
-
-vehicle.GetSystem().AddBody(box_body)
+box_body.GetVisualModel().ClearModel()
+box_body.GetVisualModel().AddBox(5, 0.5, 0.5)
+box_body.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+vehicle.GetSystem().Add(box_body)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -138,7 +133,7 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  
+    driver_inputs.m_throttle = 0.8  
 
     
     driver.Synchronize(time)

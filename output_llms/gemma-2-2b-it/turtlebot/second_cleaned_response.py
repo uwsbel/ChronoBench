@@ -43,13 +43,16 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(0, 0)  
-        robot.SetMotorSpeed(0, 0)  
+        robot.SetMotorSpeed(0, 1)  
+        print(f"Robot is moving straight")
     elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, 0)
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(-math.pi, 0)  
+        robot.SetMotorSpeed(math.pi, 1)  
+        print(f"Robot is turning left")
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(math.pi, 0)  
+        robot.SetMotorSpeed(-math.pi, 1)  
+        print(f"Robot is turning right")
     else:
         raise ValueError("Invalid mode. Choose from 'straight', 'left', or 'right'.")
 
@@ -57,29 +60,31 @@ def move(mode):
 time = 0
 while vis.Run():
     print(f"Time: {time}")
+    move('straight')
+    time += 0.1
     
     
-    if time < 5.0:
-        move('straight')
-        time += 0.01
-    
-    
-    elif time < 10.0:
+    if abs(time - 5.0) < 1e-4:
         move('left')
-        time += 0.01
+        time += 0.1
     
     
-    elif time < 15.0:
+    if abs(time - 10.0) < 1e-4:
         move('right')
-        time += 0.01
+        time += 0.1
     
     
-    time += 0.01
+    if abs(time - 15.0) < 1e-4:
+        move('straight')
+        time += 0.1
+    
+    
+    time += 0.1
     
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     
     system.DoStepDynamics(0.001)

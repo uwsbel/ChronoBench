@@ -1,63 +1,66 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visual as visual
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+import time
+import random
+import math
 
 
-initial_position = [0, 0, 0]
-initial_velocity = [10, 0, 0]
-friction = 0.8
-restitution = 0.7
-terrain_height = 5
-terrain_scale = 10
-time_step = 0.1
-simulation_duration = 60  
+SIMULATION_TIME = 10  
+INITIAL_POSITION = (0, 0, 0)  
+INITIAL_FORCE = (10, 0, 0)  
+摩擦力 = 0.95  
+重复 = 1.0  
+速度 = 0.5  
+初始_速度 = 5  
+地形_斜率 = 0.01  
 
 
-vehicle = chrono.Vehicle(
-    initial_position,
-    initial_velocity,
-    friction=friction,
-    restitution=restitution,
-    mass=100, 
-    vehicle_type="UAZBUS"
-)
-
-
-terrain = chrono.Terrain(
-    height=terrain_height,
-    scale=terrain_scale,
-    friction=0.5,  
-    restitution=0.6, 
+env = pychrono.Environment(
+    time_step=1/100,  
+    initial_position=INITIAL_POSITION,
+    initial_force=INITIAL_FORCE,
+    friction=摩擦力,
+    restitution=重复,
+    speed=初始_速度,
+    terrain_slope=地形_斜率,
+    gravity=0.0, 
     
 )
 
 
-driver = chrono.Driver(
-    vehicle,
-    initial_position,
-    initial_velocity,
+terrain = env.terrain()
+
+
+terrain.set_friction(摩擦力)
+terrain.set_restitution(重复)
+
+
+driver = env.driver()
+driver.set_vehicle_state(env.vehicle_state())
+
+
+try:
+    import irrlicht
+    irrlicht.init(env)
     
-)
+    camera = irrlicht.Camera(env)
+    camera.set_position(0, 0, 0)
+    camera.set_zoom(1.0)
+    irrlicht.camera.add(camera)
 
-
-
-fig, ax = visual.figure(figsize=(8, 6))
-camera = visual.Camera(
-    center=(0, 0),
-    farce=0.5,
-    zoom=1.0,
-    alpha=0.5,
-    width=800,
-    height=600
-)
-
-def update(frame):
     
-    vehicle.position = np.array(vehicle.position)
-    vehicle.velocity = np.array(vehicle.velocity)
+    env.set_scene(irrlicht.Scene(camera))
+
+    
+    env.display()
+except ImportError:
+    print("Irrlicht not found.  Please install it (pip install irrlicht).")
+    print("Alternatively, you can use a different visualization library.")
+
+
+while True:
+    
+    vehicle_state = driver.vehicle_state()
+    vehicle_state.update()
 
     
     terrain.update()
@@ -66,15 +69,8 @@ def update(frame):
     driver.update()
 
     
-    camera.update()
+    env.update()
 
-    return fig, ax, camera
-
-
-ani = visual.FuncAnimation(fig, update, frames=simulation_duration, interval=10, blit=True)
-
-
-ani.save("simulation.mp4", fps=30, extra_args=['-movaprefetch'])
-
-
-plt.show()
+    
+    print(f"Time: {time.time()}")
+    time.sleep(1)

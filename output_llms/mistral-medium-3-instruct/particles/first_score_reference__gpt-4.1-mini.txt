@@ -4,108 +4,125 @@
 
 ### 1. Completeness (40 points)
 
-- **System initialization:**  
-  Both scripts initialize a `ChSystemNSC` system. The reference script explicitly sets the collision system type to BULLET and retrieves the collision system, which is missing in the provided code.  
-  **Deduction: 10 points** (present but lacks important details/configuration)
+- **System Initialization:**  
+  Both scripts initialize a `ChSystemNSC()` system. The reference script explicitly sets the collision system type to BULLET and retrieves the collision system (`coll = sys.GetCollisionSystem()`), which is not done in the provided code. This is an important detail for collision handling.  
+  **Deduction: 10 points** (present but lacks important detail)
 
-- **Body creation:**  
-  The reference script creates a large sphere body with material and texture, which acts as an environment or obstacle. The provided code creates a fixed container body but with no collision or visual model. This is a significant difference in scene setup.  
-  **Deduction: 15 points** (missing essential component)
+- **Body Creation:**  
+  The reference script creates a large sphere body explicitly and adds it to the system. The provided code does not create any static or large bodies; it only creates small particles emitted dynamically. This is a missing essential component.  
+  **Deduction: 15 points**
 
-- **Particle creation:**  
-  The provided code manually creates particles with random shapes and positions, while the reference uses a particle emitter with random shape creators and positioners. The emitter setup is more comprehensive and realistic. The provided code lacks a particle emitter and related setup.  
-  **Deduction: 15 points** (missing essential component)
+- **Particle Emitter:**  
+  The reference uses the built-in `ChParticleEmitter` with detailed configuration (positioner, aligner, velocity, angular velocity, shape creator, and callback). The provided code implements a custom `ParticleEmitter` class with manual particle creation and management. While this is a valid approach, it misses the use of Chrono's built-in emitter and related utilities, which are essential components in the reference.  
+  **Deduction: 15 points** (missing essential component as per reference)
 
-- **Force application:**  
-  The provided code implements a custom `ParticleGravitationalForce` class added individually to each particle, while the reference script applies gravitational forces pairwise in the main loop. The reference approach is more standard and efficient. The custom force class is not a typical PyChrono usage and might not be fully integrated.  
-  **Deduction: 10 points** (present but lacks important details or is incorrectly configured)
+- **Gravitational Force Application:**  
+  The reference script applies gravitational attraction between all pairs of bodies using `combinations` and accumulates forces symmetrically. The provided code uses a `ChBodyForceCallback` subclass and adds a force callback to each particle every timestep. This is a different approach but functionally similar. However, the provided code creates a new callback instance every timestep and adds it repeatedly to bodies without removing old callbacks, which is inefficient and potentially problematic. The reference code applies forces directly without callbacks.  
+  This is a deviation but not a missing component.  
+  **Deduction: 5 points** (minor deviation and inefficiency)
 
 - **Visualization:**  
-  Both scripts use Irrlicht visualization, but the reference script adds a skybox, logo, typical lights, and binds visual and collision items to the emitter callback. The provided code adds typical sky, logo, lights, and a light with shadow but does not bind items or use callbacks.  
+  Both scripts use Irrlicht visualization with similar window size and basic setup. The reference script adds a logo from Chrono data files, sets a different camera position, and adds typical lights. The provided code adds a logo (without specifying a file), skybox, camera, typical lights, and a light with shadow. The provided code's visualization is more elaborate in lighting but lacks texture bindings and body visual setup callbacks present in the reference.  
   **Deduction: 5 points** (minor omissions)
 
-**Total Completeness Deduction:** 10 + 15 + 15 + 10 + 5 = 55 points (capped at 40 max deduction)
+- **Simulation Loop:**  
+  Both scripts have a simulation loop with rendering and stepping. The reference script calls `emitter.EmitParticles(sys, stepsize)` directly, while the provided code calls `emitter.update(time_step)` which emits at a fixed rate. The reference script clears accumulators before force application; the provided code does not.  
+  **Deduction: 5 points** (minor omission)
+
+**Total Completeness Deduction: 10 + 15 + 15 + 5 + 5 + 5 = 55 points**  
+Since the maximum is 40, cap deduction at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API usage:**  
-  - The provided code uses `Set_G_acc` instead of `SetGravitationalAcceleration` (the reference uses the latter). This is a minor API inconsistency but could affect behavior.  
-  - The custom force class uses `Force_Accumulate` which is a lower-level API; the reference uses `AccumulateForce` with position and torque flags, which is more correct.  
-  - The provided code adds a force object to each particle, but PyChrono forces are usually managed differently; the reference applies forces explicitly in the loop.  
-  **Deduction: 15 points** (incorrect use of PyChrono API that could affect behavior)
+- **API Usage:**  
+  - The provided code uses `Set_G_acc` instead of `SetGravitationalAcceleration` (reference uses `sys.SetGravitationalAcceleration`). This is an incorrect API call and will likely have no effect or cause an error.  
+  **Deduction: 15 points**
 
-- **Logical errors:**  
-  - The provided code sets zero gravity but does not clear accumulators explicitly before force calculation, which can cause force accumulation errors. The reference script calls `EmptyAccumulators()` before force calculations.  
-  - The provided code does not handle force pairs symmetrically (Newton's third law), while the reference script applies equal and opposite forces to both bodies.  
-  **Deduction: 15 points** (logical errors)
+- **Force Calculation:**  
+  - The force direction in the provided code is `delta = body.GetPos() - other.GetPos()`, then `force_dir = delta.GetNormalized()`, and force is added in that direction. This means the force pushes bodies away from each other (repulsion), whereas gravity should be attractive (force towards the other body). The reference code uses `D_attract = abodyB.GetPos() - abodyA.GetPos()` which correctly points from A to B, applying attraction.  
+  This is a logical error that reverses the gravitational force direction.  
+  **Deduction: 15 points**
 
-- **Minor inaccuracies:**  
-  - The provided code sets rotations and angular velocities randomly but does not use PyChrono's random particle velocity classes, which is less standard but not incorrect per se.  
-  **Deduction: 0 points**
+- **Force Callback Usage:**  
+  - The provided code creates a new `GravitationalForceCallback` every timestep and adds it to every particle's force callbacks without removing old callbacks, leading to multiple callbacks stacking up and potential performance degradation or incorrect force accumulation. The reference code applies forces directly each timestep without callbacks.  
+  This is a logical error and inefficient usage.  
+  **Deduction: 10 points**
 
-**Total Correctness Deduction:** 15 + 15 = 30 points (max deduction)
+- **Particle Initialization:**  
+  - The provided code sets initial velocities with `SetPos_dt(vel)`, which is correct. However, the reference script uses built-in randomizers for velocity and angular velocity, which is more robust. The provided code sets rotation only for boxes around the x-axis, which is a minor limitation.  
+  **Deduction: 5 points** (minor inaccuracy)
+
+**Total Correctness Deduction: 15 + 15 + 10 + 5 = 45 points**  
+Cap at 30 points max.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The provided code lacks comments explaining the purpose of classes and key steps, while the reference script has some comments and a clear structure.  
-- Variable names like `particle`, `shape_type` are reasonable, but the code could be better structured (e.g., separating particle creation into functions).  
-- The custom force class is not documented.  
-**Deduction: 7 points** (poor documentation and structure)
+- The provided code is reasonably structured with classes and functions, but lacks comments explaining key parts, especially the gravitational force callback and particle emission logic.  
+- Variable names are meaningful.  
+- The reference code has better documentation and uses Chrono's built-in classes with clear naming.  
+- The provided code has inconsistent spacing (e.g., blank lines), and some comments are minimal or missing.  
+**Deduction: 5 points** (for insufficient comments and minor readability issues)
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The provided code calculates gravitational forces inside a custom force class per particle, iterating over all bodies each time, leading to O(N²) calls per particle per step, which is inefficient.  
-- The reference script calculates forces once per pair in the main loop, which is more efficient.  
-- The provided code does not clear accumulators before force calculation, which can cause redundant force accumulation.  
-**Deduction: 10 points** (inefficient force calculation and missing accumulator clearing)
+- The provided code creates a new `GravitationalForceCallback` every timestep and adds it to all particles without removing old callbacks, leading to redundant callbacks and inefficient force application.  
+- The reference code applies forces directly without callbacks, which is more efficient.  
+- The provided code also manually manages particles and their lists, which is less efficient than using Chrono's built-in emitter and particle reservoir.  
+**Deduction: 5 points**
+
+- The provided code calculates gravitational forces in an O(n²) loop inside the callback, which is unavoidable, but the reference uses `itertools.combinations` which is cleaner and possibly more efficient.  
+- Minor optimization opportunity missed.  
+**Deduction: 3 points**
+
+**Total Efficiency Deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- Neither script has explicit error handling (try-except blocks), but the reference script handles edge cases better by clearing accumulators and applying forces symmetrically.  
-- The provided code does not check for zero distances or handle division by zero explicitly, though it does check `distance > 0`.  
-**Deduction: 3 points** (inadequate handling of edge cases)
+- Neither script includes explicit error handling.  
+- The provided code does not check for zero distances robustly (only checks `distance > 0.1`), which is minimal.  
+- The reference code does not show explicit error handling either but uses more robust API calls and system setup.  
+- No major error handling differences.  
+**Deduction: 0 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- The provided code sets up Irrlicht visualization with camera, sky, logo, lights, and a shadow light, which is good.  
-- The reference script adds a skybox instead of typical sky, uses a different camera position, and binds visual and collision items to the emitter callback for better visualization integration.  
-- The provided code does not bind visual or collision items to the visualization system, which can cause missing visuals or interaction issues.  
+- The provided code sets up visualization with window size, title, skybox, camera, typical lights, and an additional light with shadow.  
+- The reference script adds a logo from Chrono data files, sets a different camera position, and binds bodies to the visualization via a callback.  
+- The provided code does not bind bodies to the visualization explicitly, which may affect rendering of particles.  
+- The provided code adds a logo but does not specify the file, which may cause it not to appear.  
 **Deduction: 3 points** (minor visualization issues)
 
 ---
 
 ### Summary of Deductions:
 
-| Criterion                      | Deduction |
-|-------------------------------|-----------|
-| Completeness                  | 40        |
-| Correctness                  | 30        |
-| Code Quality                 | 7         |
-| Efficiency                  | 10        |
-| Error Handling and Robustness | 3         |
-| Visualization Tools          | 3         |
-| **Total Deduction**            | **93**    |
+| Criterion                      | Max Points | Deduction | Points Awarded |
+|-------------------------------|------------|-----------|---------------|
+| Completeness                  | 40         | 40        | 0             |
+| Correctness                  | 30         | 30        | 0             |
+| Code Quality                 | 10         | 5         | 5             |
+| Efficiency                  | 10         | 8         | 2             |
+| Error Handling & Robustness | 5          | 0         | 5             |
+| Visualization Tools         | 5          | 3         | 2             |
+| **Total**                   | **100**    | **86**    | **14**        |
 
 ---
 
-### Final Score:
-
-Starting from 100 points, subtracting 93 points results in 7 points.
-
-[[7]]
+**Final score: [[14]]**
 
 ---
 
-**Brief Explanation:**
+**Explanation:**  
+The provided code is missing several essential components present in the reference, such as proper system collision setup, a large static body, and use of Chrono's built-in particle emitter and utilities. It incorrectly uses the API for setting gravity, reverses gravitational force direction, and inefficiently manages force callbacks. The code quality is acceptable but lacks sufficient comments and some readability improvements. Efficiency suffers due to redundant callback creation and manual particle management. Visualization is mostly adequate but lacks explicit binding of bodies and proper logo usage. No explicit error handling is present in either script.
 
-The provided code is a basic attempt at simulating gravitational attraction among particles in PyChrono but misses several essential components present in the expert reference script, such as proper particle emission, collision system setup, and force application methodology. It uses a custom force class inefficiently and incorrectly, lacks accumulator clearing, and does not apply forces symmetrically. Visualization is partially set up but lacks binding of visual and collision items. The code quality and documentation are poor compared to the reference. Overall, the script would not produce a physically accurate or efficient simulation as intended.
+Overall, the provided code demonstrates an attempt to implement a particle gravity simulation but falls short in completeness, correctness, and efficiency compared to the expert reference.

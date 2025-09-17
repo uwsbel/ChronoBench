@@ -40,21 +40,45 @@ mesh.AddNode(hnode1)
 mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
+# Create the first beam element and set its properties.
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)  # Connect the first beam between node 1 and node 2.
+belement1.SetSection(msection)  # Assign the section properties to this beam element.
+mesh.AddElement(belement1)  # Add the first beam element to the mesh.
+
+# Create the second beam element and set its properties.
+belement2 = fea.ChElementBeamEuler()
+belement2.SetNodes(hnode2, hnode3)  # Connect the second beam between node 2 and node 3.
+belement2.SetSection(msection)  # Assign the section properties to this beam element.
+mesh.AddElement(belement2)  # Add the second beam element to the mesh.
+
+# Apply a force to node 2: 4 N in the x-direction and 2 N in the y-direction.
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+
+# Apply a torque to node 3: -0.04 Nm in the y-direction.
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
 # Euler-Bernoulli beam setup
-# Create a helper object for beam creation.
 builder = fea.ChBuilderBeamEuler()
-
-# Set the section properties for the beam.
 builder.SetBeamSection(msection)
+builder.SetNumElements(5)
+builder.SetNodesSpacing(0.05)
+builder.SetNotchLength(0.0)
+builder.SetNotchWidth(0.0)
+builder.SetNotchDepth(0.0)
+builder.SetNotchOrient(chrono.ChVector<>(0, 1, 0))
+builder.SetNotchPosition(0.5)
+builder.SetNotchOffset(0.0)
+builder.SetNotchType(fea.ChBeamSectionEuler::NotchType_H)
 
-# Create a beam from point A to point B using BuildBeam.
-builder.BuildBeam(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), 5, False, True)
+# Create a beam from point A to point B using BuildBeam
+builder.BuildBeam(chrono.ChVector<>(0, 0, -0.1), chrono.ChVector<>(0.2, 0, -0.1), chrono.ChVector<>(0, 1, 0))
 
-# Fix the last node of the created beam using SetFixed.
+# Fix the last node of the created beam using SetFixed(True)
 builder.GetLastBeamNodes().back().SetFixed(True)
 
-# Apply a force of (0, -1, 0) to the first node of the created beam section.
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+# Apply a force of (0, -1, 0) to the first node of the created beam section
+builder.GetLastBeamNodes().front().SetForce(chrono.ChVector<>(0, -1, 0))
 
 # Create a fixed truss, which is a rigid body that won't move.
 mtruss = chrono.ChBody()

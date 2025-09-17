@@ -127,11 +127,13 @@ if (True):  # Block to execute the following setup
         for k in range(30):
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
-    # Enhance visualization features
+    # Enable smooth faces for visualization
+    mvisualizeshellA.SetSmoothFaces(True)  
+    # Add wireframe mode for visualization
+    mvisualizeshellA.SetWireframe(True) 
+    # Enable backface culling for visualization
+    mvisualizeshellA.SetBackfaceCull(True) 
+    
+    # Create visualizations for shell elements
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-    mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces
-    mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
-    mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
-    mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
-
-    mesh.AddVisualShapeFEA(mvisual
+    # mvisualizeshellA.SetSmoothFaces(True)

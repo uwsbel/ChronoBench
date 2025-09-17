@@ -1,67 +1,48 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.events as ce
 import pychrono.visuals as v
+import numpy as np
+import matplotlib.pyplot as plt
 
-# --- Simulation Parameters ---
-g = 9.81  # Acceleration due to gravity (m/s^2)
-mass = 1.0  # Mass of the pendulum bob (kg)
-length = 1.0  # Length of the pendulum (m)
-damping = 0.1  # Damping coefficient (optional, for more realistic motion)
-initial_angle = 0.2  # Initial angle of the pendulum (degrees)
-initial_angular_velocity = 0.0  # Initial angular velocity (rad/s)
-time_step = 0.01  # Time step for simulation (s)
-simulation_duration = 10.0  # Total simulation duration (s)
+# Simulation Parameters
+g = 9.81  # Acceleration due to gravity
+L = 1.0  # Length of the pendulum
+m = 1.0  # Mass of the pendulum bob
+theta_0 = 45.0  # Initial angle (degrees)
+omega_0 = 0.0  # Initial angular velocity (rad/s)
+dt = 0.01  # Time step (seconds)
+t_end = 10.0  # Simulation end time (seconds)
+num_steps = int(t_end / dt)
 
-# --- Initialize PyChrono Environment ---
-try:
-    chrono.init()
-    print("PyChrono environment initialized.")
-except Exception as e:
-    print(f"Error initializing PyChrono: {e}")
-    exit()
+# Create the pendulum
+pendulum = pc.Pendulum(L, m, theta_0, omega_0, dt)
 
+# Define the ground body
+ground_body = pc.GroundBody(L)
 
-# --- Physical Systems ---
-# Ground body (representing the earth)
-ground_body = pc.GroundBody()
-ground_body.mass = 1.0
-ground_body.position = (0, 0)  # Earth's position
-ground_body.rotation = pc.Rotation(0, 0, 0) # Earth's rotation
+# Create the revolute joint
+joint = pc.RevoluteJoint(pendulum, ground_body)
 
-# Pendulum
-pendulum = pc.Pendulum(mass, length, damping=damping)
-pendulum.position = (0, initial_angle)
-pendulum.velocity = (initial_angular_velocity, 0)  # Initial angular velocity
+# Initial state
+pendulum.set_state(np.array([0.0, 0.0, 0.0]))  # Initial position and velocity
 
-# --- Visualization ---
-# Create a visualizer
-visualizer = v.Visualizer()
+# Simulation Loop
+for i in range(num_steps):
+    # Update the pendulum's state
+    pendulum.set_state(np.array([0.0, 0.0, 0.0]))  # Reset for each step
 
-# Create a canvas
-canvas = visualizer.create_canvas(width=800, height=600)
+    # Calculate the angular acceleration
+    angular_acceleration = -g / L * pendulum.inertia.x
 
-# --- Simulation Loop ---
-try:
-    for t in range(simulation_duration):
-        # Calculate the new position and velocity
-        angle_change = pendulum.velocity[0] * t
-        pendulum.position = pendulum.position + angle_change
+    # Update the angular velocity
+    pendulum.set_velocity(pendulum.inertia.x * angular_acceleration)
 
-        # Update the pendulum's velocity
-        pendulum.velocity = pendulum.velocity + pendulum.velocity * (g / length) * t
+    # Log the state
+    v.log_state(pendulum, i, t=i)
 
-        # Render the simulation
-        visualizer.render(pendulum, canvas)
+    # Optional: Visualize the simulation
+    v.visualize(pendulum, ground_body, joint)
+    plt.pause(0.01)  # Pause for a short time to observe the simulation
 
-        # Log the pendulum's position and velocity
-        print(f"Time: {t:.2f}, Angle: {pendulum.angle:.2f}, Velocity: {pendulum.velocity}")
-
-except Exception as e:
-    print(f"Error during simulation: {e}")
-
-finally:
-    # Clean up
-    visualizer.destroy()
-    visualizer.close()
-    chrono.shutdown()
+# End of simulation
+print("Simulation complete.")

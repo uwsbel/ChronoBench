@@ -4,138 +4,149 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemSMC()` used). No deduction.
-- **Mesh and Beam Setup:** Properly created mesh, beam section, and builder. No deduction.
-- **Body Creation:** Flywheel body created with `ChBodyEasyCylinder`, truss body created and fixed. No deduction.
-- **Joints and Links:** Various joints (fixed, generic bearing, motor) are created and initialized. No deduction.
-- **Visualization:** Visualization system (`ChVisualSystemIrrlicht`) is set up with window size, title, camera, lights, skybox, and logo. Visual shapes for the mesh are added. No deduction.
-- **Simulation Loop:** Present and correctly structured with `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. No deduction.
-- **Gravity:** Gravity is set on the system explicitly. No deduction.
-- **Material Properties:** Beam section inertia and elasticity properties are set. No deduction.
+- **System Initialization:** Present and correctly uses `chrono.ChSystemSMC()`. ✔️  
+- **Mesh and Beam Setup:** The mesh is created and added to the system. The beam section is defined with inertia and elasticity properties. The beam is built using `ChBuilderBeamIGA`. ✔️  
+- **Body Creation:** The flywheel body is created using `ChBodyEasyCylinder` and added to the system. The truss body is created and fixed. ✔️  
+- **Joints:**  
+  - A fixed joint (`ChLinkMateFix`) connects the flywheel to the beam node.  
+  - A generic bearing joint (`ChLinkMateGeneric`) connects the beam end node to the truss.  
+  - A motor joint (`ChLinkMotorRotationSpeed`) is created and initialized. ✔️  
+- **Motor Function:** A custom speed function is defined and assigned to the motor. ✔️  
+- **Visualization:**  
+  - Visualization system (`ChVisualSystemIrrlicht`) is set up with window size, title, logo, skybox, camera, and lights.  
+  - Visual shapes for the beam mesh are added with appropriate data types and glyphs. ✔️  
+- **Solver:** Pardiso MKL solver is created and set for the system. ✔️  
+- **Simulation Loop:** A loop runs while visualization is active, performing rendering and stepping dynamics. ✔️  
+- **Gravity:** Gravity is set both on the mesh (automatic gravity) and on the system explicitly. ✔️  
 
-**Minor issue:**
+**Minor completeness issues:**  
+- The mesh gravity is set with `mesh.SetAutomaticGravity(True, 2)`. The second argument `2` is undocumented in the provided API and may be a misuse or unnecessary parameter (the API docs do not mention this method signature). This is a minor omission or deviation.  
+- The beam section uses `feainertia` and `feaelasticity` classes correctly, but the use of `SetIyy` and `SetIzz` on elasticity is unusual; typically, elasticity sets Young's modulus, shear modulus, and torsional constant `J`. The API example shows setting Young and shear modulus but not moments of inertia on elasticity. This is a minor detail but not critical.  
+- The `ChBuilderBeamIGA.BuildBeam` call uses `chrono.VECT_Y` as the up vector, which is consistent with the API. ✔️  
+- The motor joint is initialized with `builder.GetLastBeamNodes().front()` and `truss`, which is consistent with the API. ✔️  
+- The motor function is set with `SetMotorFunction`, but the API documentation shows `SetSpeedFunction`. This is a **significant API misuse** (see correctness below).  
+- The simulation calls `sys.DoStaticLinear()` before the dynamic loop, which is acceptable for static initialization but not mandatory. ✔️  
 
-- `mesh.SetAutomaticGravity(True, 2)` is called, but this method is not standard in PyChrono FEA mesh API according to the documentation. Gravity is usually set on the system, not on the mesh. This could be a minor deviation or misuse.
+**Deductions:**  
+- Minor omission/slight deviation for `mesh.SetAutomaticGravity(True, 2)` usage: **-5 points**  
+- Minor omission for elasticity moment of inertia settings: **-5 points**  
 
-**Deduction:** 5 points for minor deviation in gravity setting on mesh.
-
-**Completeness score:** 40 - 5 = 35
+**Subtotal Completeness:** 40 - 5 - 5 = **30 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `ChSystemSMC`:** Correct for smooth contact simulations.
-- **Beam Section Setup:** Correct use of `ChInertiaCosseratSimple` and `ChElasticityCosseratSimple`. The moments of inertia and area are correctly computed for a hollow circular cross-section.
-- **Builder:** `ChBuilderBeamIGA` is correctly used to build the beam with 20 elements.
-- **Body Creation:** `ChBodyEasyCylinder` is used with correct parameters. The coordinate system is set properly.
-- **Joint Initialization:**
-  - `ChLinkMateFix` initialized between a beam node and the flywheel body — correct.
-  - `ChLinkMateGeneric` bearing initialized between last beam node and truss with correct degrees of freedom.
-  - `ChLinkMotorRotationSpeed` initialized between first beam node and truss with proper frame.
-- **Custom Motor Function:** The custom `ChFunctionMyFun` correctly inherits from `chrono.ChFunction` and overrides `Get_y` method (correct method name).
-- **Motor Function Assignment:** `rotmotor1.SetMotorFunction(f_custom)` is called, but according to the documentation, the method is `SetSpeedFunction()`. This is a significant API misuse that will cause the motor not to behave as intended.
+- **System and mesh setup:** Correct. ✔️  
+- **Body creation:** `ChBodyEasyCylinder` is used correctly with axis, radius, length, and density. ✔️  
+- **Joint initialization:**  
+  - `ChLinkMateFix` initialized with `(node_mid, mbodyflywheel)` — the API expects two bodies, but `node_mid` is a node, not a body. This is a **logical error**. Nodes are not bodies and cannot be used directly in joint initialization. The joint should connect bodies, or if connecting a node, a different approach is needed.  
+  - Similarly, `bearing.Initialize(builder.GetLastBeamNodes().back(), truss, ...)` uses a node and a body. This is also a **logical error**.  
+  - The motor joint is initialized with `(builder.GetLastBeamNodes().front(), truss, ...)` — again node and body, which is incorrect.  
+- **Motor function:** The code uses `rotmotor1.SetMotorFunction(f_myfun)`, but the API specifies `SetSpeedFunction` for `ChLinkMotorRotationSpeed`. This is a **significant API misuse** that will cause the motor not to behave as intended.  
+- **Use of `math` vs `m`:** The code imports `math as m` but uses `math.pi` and `math.pow` instead of `m.pi` and `m.pow`. This is a minor inconsistency but does not affect correctness.  
+- **Gravity:** Setting gravity on both mesh and system is redundant but not incorrect.  
+- **Visualization:** Correct usage of visualization API. ✔️  
+- **Solver:** Correct usage of Pardiso MKL solver. ✔️  
+- **Simulation loop:** Correct usage of visualization and stepping. ✔️  
 
-- **Visualization:** Visual shapes are added correctly.
+**Deductions:**  
+- Incorrect joint initialization using nodes instead of bodies: **-15 points** (significant logical error)  
+- Incorrect motor function setter (`SetMotorFunction` instead of `SetSpeedFunction`): **-15 points** (significant API misuse)  
+- Minor inconsistency in math module usage: **-5 points**  
 
-- **Solver:** Pardiso MKL solver is set correctly.
-
-- **Simulation Step:** `sys.DoStaticLinear()` is called before the dynamic loop, which is acceptable.
-
-**Major issue:**
-
-- Incorrect method name `SetMotorFunction` instead of `SetSpeedFunction` on `rotmotor1`.
-
-**Deduction:** 15 points for incorrect API usage that affects simulation behavior.
-
-**Correctness score:** 30 - 15 = 15
+**Subtotal Correctness:** 30 - 15 - 15 - 5 = **-5 points** (minimum 0, so 0 points)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names are mostly meaningful (`mesh`, `msection`, `builder`, `mbodyflywheel`, `myjoint`, etc.).
-- **Formatting:** Code is well formatted and indented.
-- **Comments:** The code lacks comments explaining the purpose of major blocks or parameters.
-- **Imports:** `math` is imported as `m` but never used; instead, `pow` and `CH_PI` are used directly. This is inconsistent.
+- **Readability:**  
+  - Variable names are mostly meaningful (`beam_L`, `beam_ro`, `msection`, `mbodyflywheel`, etc.).  
+  - The code is somewhat dense and lacks blank lines between logical blocks, which reduces readability.  
+  - The import aliases are inconsistent (`import math as m` but uses `math.pi`), which is confusing.  
+- **Comments:**  
+  - The code has no comments explaining the purpose of blocks or variables.  
+  - No docstrings or inline comments are present.  
+- **Formatting:**  
+  - Some lines are long but generally acceptable.  
+  - The class `ChFunctionMyFun` is well structured.  
 
-**Deductions:**
+**Deductions:**  
+- Lack of comments/documentation: **-5 points**  
+- Moderate readability issues and inconsistent imports: **-5 points**  
 
-- 5 points for lack of comments/documentation.
-- 3 points for minor inconsistency in imports and unused alias.
-
-**Code Quality score:** 10 - 5 - 3 = 2
+**Subtotal Code Quality:** 10 - 5 - 5 = **0 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant calls:** `builder.GetLastBeamNodes()` is called twice in a row to get the middle node; this could be stored once to avoid repeated calls.
-- **`pow` used instead of `**`:** Minor stylistic inefficiency but negligible.
-- **`CH_PI` defined manually instead of using `math.pi`:** Minor inefficiency and potential for error.
-- **`mesh.SetAutomaticGravity(True, 2)` is likely unnecessary or incorrect; gravity is set on the system.**
+- The code recalculates `math.pi * (pow(beam_ro, 2) - pow(beam_ri, 2))` multiple times instead of storing it in a variable. This is a minor inefficiency.  
+- The motor function uses a custom class, which is fine, but the logic in `GetVal` is straightforward and efficient.  
+- The gravity is set twice (on mesh and system), which is redundant but minor.  
+- The visualization setup is standard and efficient.  
+- No obvious redundant or unnecessary API calls.  
 
-**Deductions:**
+**Deductions:**  
+- Minor inefficiency in repeated calculations: **-3 points**  
+- Redundant gravity setting: **-3 points**  
 
-- 5 points for redundant calls and minor inefficiencies.
-- 3 points for manual pi definition and unused import.
-
-**Efficiency score:** 10 - 5 - 3 = 2
+**Subtotal Efficiency:** 10 - 3 - 3 = **4 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks are present.
-- No try-except blocks or validation of inputs.
-- For simulation scripts, this is common, but best practice would include minimal checks or at least comments about assumptions.
+- No error handling is present (e.g., no try-except blocks or checks for node indices).  
+- The code assumes `builder.GetLastBeamNodes()` returns a non-empty list and uses indexing without checks.  
+- The motor function does not handle edge cases explicitly but is simple enough.  
+- No validation of inputs or parameters.  
 
-**Deduction:** 5 points for lack of any error handling or robustness considerations.
+**Deductions:**  
+- Lack of basic error handling: **-5 points**  
 
-**Error Handling score:** 0
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is correctly initialized and attached.
-- Window size and title are set.
-- Logo, skybox, camera, and typical lights are added.
-- Visual shapes for the mesh are added with appropriate data types and glyphs.
-- Minor issue: The camera is added with two arguments (position and look-at), which is correct, but the documentation example shows only position. This is acceptable and likely correct.
-- No color or material customization for the flywheel or truss bodies, which could improve visualization but is not essential.
+- Visualization system is properly created and attached to the system.  
+- Window size and title are set.  
+- Logo, skybox, camera, and typical lights are added.  
+- Beam visual shapes are added with appropriate data types and glyphs.  
+- Minor issue: The camera is set at `(0, 1, 4)` looking at `(beam_L / 2, 0, 0)`, which is reasonable but could be improved for better viewing angles. This is a minor visualization issue.  
 
-**Minor deduction:** 2 points for minor visualization improvements possible (e.g., coloring bodies, adding collision shapes for visualization).
+**Deductions:**  
+- Minor visualization issue (camera positioning could be better): **-2 points**  
 
-**Visualization score:** 5 - 2 = 3
-
----
-
-### **Summary of deductions:**
-
-| Criterion                  | Points | Deduction | Score |
-|----------------------------|--------|-----------|-------|
-| Completeness               | 40     | 5         | 35    |
-| Correctness                | 30     | 15        | 15    |
-| Code Quality               | 10     | 8         | 2     |
-| Efficiency                 | 10     | 8         | 2     |
-| Error Handling & Robustness| 5      | 5         | 0     |
-| Visualization              | 5      | 2         | 3     |
-| **Total**                 | 100    | 43        | 57    |
+**Subtotal Visualization:** 5 - 2 = **3 points**
 
 ---
 
-### **Final Score:**
+### **Final Score Calculation**
 
-[[57]]
+| Category                  | Points | Deductions | Score |
+|---------------------------|--------|------------|-------|
+| Completeness              | 40     | 10         | 30    |
+| Correctness               | 30     | 30         | 0     |
+| Code Quality              | 10     | 10         | 0     |
+| Efficiency                | 10     | 6          | 4     |
+| Error Handling & Robustness| 5      | 5          | 0     |
+| Visualization             | 5      | 2          | 3     |
+| **Total**                 | **100**| **63**     | **37**|
 
 ---
 
-### **Explanation:**
+### **Summary of Major Issues:**
 
-- The script is mostly complete and sets up a complex FEA beam with a flywheel and motor correctly.
-- The major correctness issue is the use of `SetMotorFunction` instead of `SetSpeedFunction` for the motor, which will cause the motor speed function not to be applied.
-- Minor deviations in gravity setting on the mesh and some inefficiencies in code usage.
-- Lack of comments and error handling reduces code quality and robustness.
-- Visualization is adequate but could be improved with colors or collision visualization.
-- Overall, the script is functional with some corrections needed to be fully correct and robust.
+- Incorrect joint initialization using nodes instead of bodies (major logical error).  
+- Incorrect motor function setter (`SetMotorFunction` instead of `SetSpeedFunction`).  
+- Lack of comments and documentation.  
+- Lack of error handling.  
+- Minor inefficiencies and minor visualization suboptimality.
+
+---
+
+[[37]]

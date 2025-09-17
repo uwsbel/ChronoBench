@@ -46,11 +46,11 @@ for i in range(num_x - 1):
 # Set up Irrlicht visualization
 application = chronoirr.ChIrrApp(my_system, 'Tablecloth Folding', chronoirr.dimension2du(800, 600))
 application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, 1.0))
-application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1.5))
+application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 40, 512)
 
-# Set up PardisoMKL solver
-solver = chrono.ChSolverPardisoMKL()
+# Set up the PardisoMKL solver
+solver = fea.ChSolverPardisoMKL()
 my_system.SetSolver(solver)
 
 # Simulate the folding of the tablecloth

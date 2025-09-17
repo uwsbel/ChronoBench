@@ -1,79 +1,79 @@
 importchrono
 import math
+import numpy as np
 
 # Initialize the Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-# Create a ground body
-ground = chrono.ChBody()
-ground.SetBodyType(chrono.CHBODY_TYPE_STATIC)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))
-system.Add(ground)
+# Create Irrlicht application for visualization
+application = chrono.ChIrrApp(system, "ANCF Cable Beam Simulation", chrono.CH.dimension(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
 
-# Beam parameters
-num_elements = 10
-length = 1.0
+# Simulation parameters
+num_elements = 20
+num_nodes = num_elements + 1
+length = 4.0
+young_modulus = 2.1e11
 area = 0.001
-density = 8000
-young_modulus = 2e11
-damping = 0.1
+density = 7800
+mass_per_length = density * area
 
-# Create beam body
-beam = chrono.ChBody()
-beam.SetMass(10.0)
-beam.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
-beam.AddAsset(chrono.ChColorAsset(0.8, 0.2, 0.2))
-beam.SetPos(chrono.ChVectorD(0, length/2, 0))
-system.Add(beam)
+# Create beam structure
+nodes = []
+elements = []
 
-# Add ANCF cable elements
-element_mass = (density * area * length) / num_elements
-for i in range(num_elements):
-    node_mass = element_mass / 3
-    element_length = length / num_elements
-    
-    # Create nodes
-    node1 = chrono.ChBody()
-    node1.SetMass(node_mass)
-    node1.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
-    node1.SetPos(chrono.ChVectorD(0, i*element_length, 0))
-    system.Add(node1)
-    
-    node2 = chrono.ChBody()
-    node2.SetMass(node_mass)
-    node2.SetBodyType(chrono.CHBODY_TYPE_FLEXIBLE)
-    node2.SetPos(chrono.ChVectorD(0, (i+1)*element_length, 0))
-    system.Add(node2)
-    
-    # Create cable element
-    cable = chrono.ChLinkANCF()
-    cable.Initialize(node1, node2, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-    cable.Set_CableK(young_modulus * area / element_length)
-    cable.Set_CableD(damping * young_modulus * area / element_length)
-    system.Add(cable)
+# Create nodes
+for i in range(num_nodes):
+    node = chrono.ChBody()
+    node.SetMass(1.0)  # Mass will be adjusted based on element length
+    node.SetPos(chrono.ChVectorD(0, length/num_elements * i, 0))
+    system.Add(node)
+    nodes.append(node)
 
-# Add constraints
-constraint = chrono.ChLinkPointPoint()
-constraint.Initialize(ground, beam, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+# Fix first node
+constraint = chrono.ChLinkLock()
+constraint.Initialize(nodes[0], chrono.ChBodyFrame(chrono.ChVectorD(0,0,0), chrono.ChQuaternionD(1,0,0,0)))
 system.Add(constraint)
 
-# Create Irrlicht application
-application = chrono.ChIrrApp(system, "Beam Simulation", chrono.CHIRR.dimension(800, 600))
-application.AddTypicalLights()
-application.AddTypicalCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+# Create cable elements
+for i in range(num_elements):
+    element_length = length / num_elements
+    stiffness = young_modulus * area / element_length
+    damping = 0.01 * stiffness  # Small damping for numerical stability
+    
+    cable = chrono.ChLinkANCF()
+    cable.Initialize(nodes[i], nodes[i+1], chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,0))
+    cable.SetProperties(stiffness, damping, mass_per_length * element_length, 0, 0)
+    system.Add(cable)
+    elements.append(cable)
+
+# Add visualization assets
+for node in nodes:
+    sphere = chrono.ChSphereShape()
+    sphere.SetRadius(0.05)
+    node.AddAsset(sphere)
+
+# Add coordinate system for reference
+coordsys = chrono.ChCoordsysD()
+coordsys.SetPos(chrono.ChVectorD(0,0,0))
+application.GetScene().AddAsset(coordsys)
 
 # Simulation loop
-while application.GetDevice().Run():
-    application.BeginScene()
-    application.DrawAll()
-    system.DoStepDynamics(0.001)
-    application.EndScene()
-    
-    # Exit on key press
-    if application.GetDevice().Key按下(chrono.CHKEY_ESCAPE):
+application.BeginRun()
+step_count = 0
+while step_count < 1000:
+    application.DoStep()
+    if application.GetDevice().keyPress(chrono.CH_KEY_ESCAPE):
         break
-
-# Keep application running
-application.GetDevice().WaitOnExit()
+    
+    # Update node positions and visualize
+    for i, node in enumerate(nodes):
+        pos = node.GetPos()
+        print(f"Node {i} position: ({pos.x}, {pos.y}, {pos.z})")
+    
+    step_count += 1
+application.EndRun()

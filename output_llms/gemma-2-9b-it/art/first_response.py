@@ -2,43 +2,40 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 import numpy as np
 
-# Initialize PyChrono environment
-chrono.SetChronoDataPath("path/to/your/chrono/data")  # Replace with your Chrono data path
-app = vis.Application()
-
-# Create the world
-world = chrono.World()
+# Initialize Chrono and Irrlicht
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+app = vis.Application(chrono.GetChronoDataPath())
+vis_scene = app.GetScene()
 
 # Create the rigid terrain
 terrain = chrono.RigidBody(chrono.BodyEasyBox(10, 10, 1))
 terrain.SetPos(chrono.Vec3(0, 0, 0))
 terrain.SetBodyFixed(True)
-world.Add(terrain)
+vis_scene.Add(terrain.GetVisualShape())
 
-# Load terrain texture (replace with your texture path)
-texture = vis.Texture(app, "path/to/your/terrain/texture.png")
+# Load a custom texture for the terrain
+texture = vis.Texture(chrono.GetChronoDataPath() + "textures/terrain.png")  # Replace with your texture path
 terrain.GetVisualShape().SetTexture(texture)
 
 # Create the ARTcar vehicle
-vehicle = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  # Adjust dimensions as needed
+vehicle = chrono.ChBodyEasyCylinder(0.5, 2, 1, 1000)  # Replace with your vehicle parameters
 vehicle.SetPos(chrono.Vec3(0, 0, 1))
 vehicle.SetBodyFixed(False)
-world.Add(vehicle)
+vis_scene.Add(vehicle.GetVisualShape())
 
 # Set contact method and visualization type
 vehicle.SetCollide(True)
-vehicle.GetVisualShape().SetMaterial(chrono.Material(chrono.Color(0.8, 0.2, 0.2)))  # Example color
+vehicle.SetMaterial(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  # Adjust friction coefficients
 
-# Add interactive driver system (placeholder)
-# ...
+# Interactive driver system (placeholder)
+def update_vehicle(dt):
+    # Implement steering, throttle, and braking logic here
+    # based on user input (keyboard, mouse, etc.)
+    pass
 
 # Simulation loop
-dt = 1/50
+app.SetTargetFPS(50)
 while app.Run():
-    world.Step(dt)
-    app.BeginScene()
-    app.DrawWorld(world)
+    app.BeginScene(True, True, chrono.Color(1, 1, 1))
+    update_vehicle(app.GetFrameTime())
     app.EndScene()
-
-# Cleanup
-app.Close()

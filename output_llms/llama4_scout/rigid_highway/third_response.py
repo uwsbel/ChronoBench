@@ -42,8 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
-# veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)

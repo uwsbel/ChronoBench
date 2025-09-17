@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
@@ -8,151 +8,86 @@ import numpy as np
 #
 
 # Create the simulation system
-system = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 # Set the simulation parameters
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1200, 800)
-vis.SetWindowTitle("CityBus Simulation")
+vis.SetWindowTitle('CityBus Simulation')
 vis.Initialize()
 
-# Set the camera position and orientation
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(0, 5, -10))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+# Set the camera position
+vis.GetCamera().SetLocation(chrono.ChVectorD(0, 5, -15))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 # ---------------------------------------------------------------------
 #
-#  Vehicle creation
-#
-
-# Create the vehicle chassis
-chassis = chrono.ChBody()
-chassis.SetBodyFixed(False)
-chassis.SetMass(1500)
-chassis.SetInertiaXX(chrono.ChVectorD(500, 1000, 500))
-chassis.SetPos(chrono.ChVectorD(0, 0.5, 0))
-
-# Create the vehicle tire model
-tire_model = chrono.ChTireModelNSC()
-
-# Create the vehicle wheels
-wheel_radius = 0.3
-wheel_width = 0.2
-wheel_mass = 50
-
-# Front left wheel
-fl_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(-1.5, -0.5, 1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(fl_wheel)
-
-# Front right wheel
-fr_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(1.5, -0.5, 1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(fr_wheel)
-
-# Rear left wheel
-rl_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(-1.5, -0.5, -1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(rl_wheel)
-
-# Rear right wheel
-rr_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(1.5, -0.5, -1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(rr_wheel)
-
-# Add the chassis to the system
-system.Add(chassis)
-
-# ---------------------------------------------------------------------
-#
-#  Terrain creation
+#  Create the terrain
 #
 
 # Create a rigid terrain with a custom texture
-terrain = chrono.ChRigidTerrain(
-    system,
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),
-    chrono.ChVectorD(50, 50, 1),  # Size
-    chrono.ChVectorD(0.5, 0.5, 0.01),  # Spacing
-    chrono.ChTexture(),
-)
-terrain.SetTexture(chrono.ChTexture("path/to/texture.jpg"))
+terrain = chrono.ChRigidTerrain(my_system)
+terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
+patch_size = chrono.ChVectorD(10, 10)
+terrain.SetPatchSize(patch_size)
 terrain.Initialize()
 
 # ---------------------------------------------------------------------
 #
-#  Driver system
+#  Create the CityBus vehicle
 #
 
-# Create a simple interactive driver system
-class Driver:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
-        self.steering = 0
-        self.throttle = 0
-        self.brake = 0
+# Create the vehicle system
+vehicle = chronovehicle.ChVehicle(my_system)
 
-    def update(self, dt):
-        # Implement your driver logic here
-        # For example, use keyboard input to control steering, throttle, and brake
+# Set the vehicle parameters
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisInitialRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
-        # Apply steering, throttle, and brake to the vehicle
+# Load the vehicle model
+vehicle.SetVehicleModel(chronovehicle.VehicleModelDataJson("citybus.json"))
 
-# Create a driver instance
-driver = Driver(chassis)
+# Set the tire model
+vehicle.SetTireModel(chronovehicle.ChTireModelNSC())
+
+# Add the vehicle to the simulation
+my_system.Add(vehicle)
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver system
+#
+
+# Create the driver system
+driver = chronovehicle.ChDriver(vehicle)
+
+# Set the driver parameters
+driver.SetSteeringGain(0.5)
+driver.SetThrottleGain(0.5)
+driver.SetBrakingGain(0.5)
 
 # ---------------------------------------------------------------------
 #
 #  Simulation loop
 #
 
+# Set the simulation time step
+dt = 1.0 / 50.0
+
 while vis.Run():
-    dt = 1 / 50  # Target simulation time step
+    # Update the driver inputs
+    driver.SetSteering(vis.GetKeyboard()->GetWKey() - vis.GetKeyboard()->GetSKey())
+    driver.SetThrottle(vis.GetKeyboard()->GetUpArrowKey() - vis.GetKeyboard()->GetDownArrowKey())
+    driver.SetBraking(vis.GetKeyboard()->GetSpaceKey())
 
-    # Update the driver
-    driver.update(dt)
-
-    # Update the vehicle dynamics
-    system.DoStepDynamics(dt)
+    # Update the simulation
+    my_system.DoStepDynamics(dt)
 
     # Render the scene
     vis.Render()
-
-# Clean up the simulation system
-system.Clear()
-vis.Shutdown()

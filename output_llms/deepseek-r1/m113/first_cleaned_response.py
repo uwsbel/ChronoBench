@@ -1,58 +1,60 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 
 def main():
     
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
     system = chrono.ChSystemNSC()
-    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-    system.SetSolverMaxIterations(50)
-    
+    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+
     
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
-                            200, 200)
+    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, -0.5), chrono.QUNIT), 
+                             200, 200)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
     terrain.Initialize()
 
     
-    vehicle = veh.M113()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisFixed(False)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
-    vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
-    vehicle.SetDrivelineType(veh.DrivelineType_SIMPLE)
-    vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
-    vehicle.Initialize()
+    m113 = veh.M113()
+    m113.SetContactMethod(chrono.ChContactMethod_NSC)
+    m113.SetChassisFixed(False)
+    m113.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+    m113.SetPowertrainType(veh.PowertrainModelType_SIMPLE)
+    m113.SetDriveType(veh.DrivelineTypeTV_BDS)
+    m113.Initialize()
 
     
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSprocketVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetIdlerVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetRoadWheelAssemblyVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetRoadWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetTrackShoeVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetSprocketVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetIdlerVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetRoadWheelAssemblyVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetRoadWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.SetTrackShoeVisualizationType(veh.VisualizationType_PRIMITIVES)
+    m113.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
     
-    driver = veh.ChInteractiveDriverIRR(vehicle)
+    driver = veh.ChInteractiveDriverIRR(m113.GetVehicle())
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
     
-    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('M113 Simulation')
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(8, 4, 1), chrono.ChVectorD(0, 0, 1))
+    vis.AddCamera(chrono.ChVectorD(2, 1.5, 1), chrono.ChVectorD(0, 0, 0))
     vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, 5), chrono.ChVectorD(0, 0, 0), 50, 2, 30, 50, 512)
+    vis.AddLightWithShadow(chrono.ChVectorD(-5, 8, 5), chrono.ChVectorD(0, 0, 0.5), 50, 2, 30, 180, 512)
+    vis.EnableShadows()
 
     
     step_size = 0.005
@@ -64,7 +66,7 @@ def main():
         driver.Synchronize(time)
         
         
-        vehicle.Synchronize(time, driver.GetInputs(), terrain)
+        m113.Synchronize(time, driver.GetInputs(), terrain)
         terrain.Synchronize(time)
         
         
@@ -74,7 +76,9 @@ def main():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        
+        
         realtime_timer.Spin(step_size)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

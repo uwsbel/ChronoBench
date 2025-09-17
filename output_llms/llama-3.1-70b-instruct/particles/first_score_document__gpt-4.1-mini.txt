@@ -4,141 +4,157 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  The system is correctly initialized with `chrono.ChSystemNSC()`.  
-  **No deduction.**
+- **System Initialization:** Present and correct (`mysystem = chrono.ChSystemNSC()`). ✔️  
+- **Gravity Setting:** Present and correctly set (`mysystem.Set_G_acc(...)`). ✔️  
+- **Body Creation:** Present via `ParticleEmitter` class using `ChBodyEasySphere` and `ChBodyEasyBox`. However, the constructors are called incorrectly (see correctness).  
+- **Visualization Setup:** Present but incomplete. The visualization system is created (`myapplication = chronoirr.ChVisualSystemIrrlicht(mysystem)`), but the system is not attached via `AttachSystem()`, nor is the visualization initialized (`Initialize()`), nor are typical lights, skybox, or camera added properly (see correctness).  
+- **Simulation Loop:** Present but uses incorrect methods (`mysystem.DoStep()` instead of `DoStepDynamics(time_step)`), and no check for visualization running loop (`myapplication.Run()`) is done.  
+- **Force Application:** Custom gravitational force class is defined and forces are added to the system, but the implementation is flawed (see correctness).  
 
-- **Body Creation:**  
-  Particles are created using `chrono.ChBodyEasySphere`. However, the constructor is incorrectly called:  
-  ```python
-  chrono.ChBodyEasySphere(self.system, 0.1, 1000, chrono.ChVectorD(...))
-  ```  
-  According to the API, the signature is:  
-  ```python
-  ChBodyEasySphere(radius, density, visualize=True, collision=True, material=None)
-  ```  
-  The first argument should be the radius (float), not the system. The system is not passed here. This is a **significant error** (see correctness below).  
-  Also, the `visualize` and `collision` flags are missing, which are important for visualization and collision detection.  
-  **Deduct 15 points for missing essential component (incorrect body creation).**
+**Deductions:**  
+- Missing essential visualization setup steps (AttachSystem, Initialize, AddTypicalLights, AddSkyBox, AddCamera): -15 points  
+- Simulation loop uses incorrect stepping method and lacks visualization run check: -10 points  
+- Body creation calls `ChBodyEasySphere(self.system, radius, 1000, True)` which is incorrect usage (see correctness), so body creation is incomplete/wrong: -10 points  
 
-- **Visualization Setup:**  
-  The visualization system is created with `chronoirr.ChVisualSystemIrrlicht(mysystem)`. According to the API, the visualization system should be created first, then attached to the system using `AttachSystem(mysystem)`. The constructor does not take the system as an argument.  
-  Also, the visualization system is missing calls to:  
-  - `Initialize()`  
-  - `AddTypicalLights()`  
-  - `AddSkyBox()`  
-  - `AddLogo()` (optional but recommended)  
-  - `AddCamera()` (instead of `SetCamera()`)  
-  These are important for proper visualization setup.  
-  **Deduct 15 points for missing essential visualization setup components.**
-
-- **Simulation Loop:**  
-  The loop uses `myapplication.Run()` correctly and calls `mysystem.DoStepDynamics(0.01)`. The visualization calls are `BeginScene()`, `DrawAll()`, and `EndScene()`. According to the API, the rendering call should be `Render()` instead of `DrawAll()`.  
-  **Deduct 10 points for incorrect visualization rendering call.**
-
-- **Force Application:**  
-  The gravitational force is applied manually between particles, which is acceptable for a custom force. However, no global gravity is set in the system (e.g., `mysystem.Set_G_acc(chrono.ChVectorD(0,0,-9.81))`). This is a minor omission but relevant.  
-  **Deduct 5 points for minor omission (missing global gravity setting).**
-
-**Total Completeness deduction: 15 + 15 + 10 + 5 = 45 points**  
-Since the maximum is 40, cap deduction at 40 points (cannot go below zero).
+**Subtotal Completeness:** 40 - 15 - 10 - 10 = 5 points
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect `ChBodyEasySphere` constructor usage:**  
-  Passing the system as the first argument is incorrect and will cause runtime errors or unexpected behavior.  
-  **Deduct 15 points.**
+- **Body Creation API misuse:**  
+  According to the documentation, `ChBodyEasySphere` and `ChBodyEasyBox` constructors have the signature:  
+  ```python
+  ChBodyEasySphere(radius, density, visualize=True, collision=True, material=None)  
+  ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize=True, collision=True, material=None)
+  ```  
+  The code calls:  
+  ```python
+  chrono.ChBodyEasySphere(self.system, radius, 1000, True)  
+  chrono.ChBodyEasyBox(self.system, length, width, height, 1000, True)
+  ```  
+  Passing `self.system` as the first argument is incorrect and will cause errors. This is a **significant API misuse**. -15 points
 
-- **Visualization system constructor misuse:**  
-  `ChVisualSystemIrrlicht` does not take the system as an argument; instead, `AttachSystem()` must be called. This will cause the visualization not to link properly.  
-  **Deduct 15 points.**
+- **CustomGravitationalForce implementation:**  
+  - The class inherits from `chrono.ChForce`, but `ChForce` is an abstract base class and requires specific methods to be overridden properly.  
+  - The method `ComputeF(self, time)` is defined, but the base class expects `ComputeForce` or similar (not documented here, but from experience).  
+  - The force calculation applies forces by calling `ApplyForceToCOF(chrono.ChForce(...))`, which is incorrect. `ApplyForceToCOF` expects a `ChVectorD` force vector, not a `ChForce` object.  
+  - The force direction is always along the Z-axis (`chrono.ChVectorD(0, 0, force)`), ignoring the actual vector between particles. This is a **logical error** in force direction.  
+  - No check for zero distance (division by zero) or minimum distance threshold to avoid singularities.  
+  - Forces are applied inside the force class, but forces should be computed and returned or applied properly via the system's force application mechanism.  
+  - The system does not support adding custom forces this way; `AddForce()` expects a `ChForce` object properly implemented or forces applied directly to bodies each step.  
+  - Overall, this is a **major logical and API misuse error**. -15 points
 
-- **Force calculation:**  
-  The gravitational force magnitude is set as `0.1 / (distance ** 2)`. This is a simplified gravitational force without considering masses or gravitational constant. While acceptable for a toy example, it is physically inaccurate. Also, no check for zero distance (division by zero) is done, which can cause runtime errors.  
-  **Deduct 10 points for logical errors and missing edge case handling.**
+- **Visualization setup:**  
+  - `ChVisualSystemIrrlicht` is instantiated with the system as an argument, but per documentation, it should be created empty and then attached to the system via `AttachSystem()`.  
+  - Camera is set via `SetCamera()`, which is not a documented method; the documented method is `AddCamera()`.  
+  - No call to `Initialize()`, `AddTypicalLights()`, or `AddSkyBox()`.  
+  - The rendering loop does not check `myapplication.Run()`.  
+  - These are **incorrect or missing API usages**. -15 points
 
-- **Quaternion initialization:**  
-  The quaternion is set with random values without normalization. Quaternions should be normalized to represent valid rotations.  
-  **Deduct 5 points for minor inaccuracy.**
+- **Simulation stepping:**  
+  - Uses `mysystem.DoStep()` without arguments, which is not a documented method. The correct method is `DoStepDynamics(time_step)`.  
+  - No time step passed, so simulation will not advance properly. -10 points
 
-**Total Correctness deduction: 15 + 15 + 10 + 5 = 45 points**  
-Maximum is 30, so cap deduction at 30 points.
+**Deductions:**  
+- Body creation misuse: -15  
+- Custom force implementation errors: -15  
+- Visualization API misuse: -15  
+- Simulation stepping misuse: -10  
+
+Since total correctness points are 30, and deductions sum to 55, cap deductions at 30 points (cannot go below zero). So full deduction here.
+
+**Subtotal Correctness:** 0 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  The code is mostly readable, but lacks comments explaining key steps (e.g., what the emitter does, why forces are applied manually).  
-  Variable names like `mysystem`, `myapplication` are generic but acceptable.  
-  The class `ParticleEmitter` is a good abstraction.  
-  **Deduct 5 points for insufficient comments/documentation.**
+- Code is reasonably structured with classes for emitter and force.  
+- Variable names are meaningful (`mysystem`, `emitter`, `particle`, etc.).  
+- However, there are no comments explaining the purpose of classes or methods.  
+- The force class lacks docstrings or comments explaining the physics or implementation.  
+- Minor formatting issues: inconsistent blank lines, no PEP8 adherence in some places.  
+- Use of `np.random` is appropriate but could be wrapped or explained.  
 
-- **Formatting:**  
-  The code formatting is acceptable.  
-  **No further deduction.**
+**Deductions:**  
+- Lack of comments/documentation: -5 points  
+- Minor formatting/readability issues: -2 points  
+
+**Subtotal Code Quality:** 10 - 5 - 2 = 3 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Force calculation double loop:**  
-  The nested loop applies forces between all pairs of particles, which is O(n²). For 100 particles, this is acceptable, but for larger numbers, it is inefficient. No spatial partitioning or optimization is used.  
-  **Deduct 3 points for missing optimization opportunity.**
+- The nested loop for applying gravitational forces is O(n²), which is expected for pairwise forces. No obvious optimization here.  
+- The force calculation is done once at initialization and forces are added once; no update per time step, so forces won't update dynamically. This is a **logical inefficiency**.  
+- The force class applies forces incorrectly, so the intended effect is lost.  
+- The emitter creates particles with random properties each time, which is acceptable.  
+- No caching or reuse of calculations.  
+- No vectorized operations where possible, but acceptable given the context.  
 
-- **Repeated calls to `GetPos()` and vector operations:**  
-  Positions are fetched multiple times per pair; caching could improve efficiency.  
-  **Deduct 3 points for minor inefficiency.**
+**Deductions:**  
+- Missing dynamic update of forces per time step (major inefficiency): -5 points  
+- Minor inefficiency in force direction calculation (not vectorized): -3 points  
 
-- **Quaternion randomization:**  
-  Generating random quaternions without normalization is inefficient and incorrect.  
-  **Deduct 2 points for unnecessary calculation.**
-
-**Total Efficiency deduction: 3 + 3 + 2 = 8 points**
+**Subtotal Efficiency:** 10 - 5 - 3 = 2 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present.  
-- No checks for division by zero in force calculation (distance could be zero if particles overlap).  
-- No validation of inputs or system state.  
-**Deduct 5 points for lack of error handling and robustness.**
+- No error handling for zero or near-zero distances in gravitational force calculation (division by zero risk).  
+- No checks for invalid parameters in particle emitter (e.g., negative sizes).  
+- No try-except blocks or validation of inputs.  
+- No handling of visualization initialization failure or system errors.  
+
+**Deductions:**  
+- Lack of basic error handling: -5 points  
+
+**Subtotal Error Handling:** 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created incorrectly (constructor misuse).  
-- Missing calls to `Initialize()`, `AddTypicalLights()`, `AddSkyBox()`, and `AddCamera()`.  
-- Using `SetCamera()` instead of `AddCamera()`.  
-- Using `DrawAll()` instead of `Render()`.  
-**Deduct 5 points for inadequate visualization setup.**
+- Visualization system is created but not attached to the system (`AttachSystem()` missing).  
+- No call to `Initialize()`.  
+- No addition of typical lights or skybox.  
+- Camera is set via non-documented method `SetCamera()`.  
+- Rendering loop does not check `Run()` method to keep window open properly.  
+- These omissions lead to inadequate visualization setup.  
+
+**Deductions:**  
+- Incorrect/incomplete visualization setup: -5 points  
+
+**Subtotal Visualization:** 0 points
 
 ---
 
-### Summary of deductions:
+### **Final Score Calculation**
 
-| Criterion                  | Max Points | Deduction | Points Awarded |
-|----------------------------|------------|-----------|---------------|
-| Completeness               | 40         | 40        | 0             |
-| Correctness                | 30         | 30        | 0             |
-| Code Quality               | 10         | 5         | 5             |
-| Efficiency                 | 10         | 8         | 2             |
-| Error Handling & Robustness| 5          | 5         | 0             |
-| Visualization Tools        | 5          | 5         | 0             |
-| **Total**                 | **100**    | **93**    | **7**         |
-
----
-
-### Final score: [[7]]
+| Category                 | Points | Deductions | Score |
+|--------------------------|--------|------------|-------|
+| Completeness             | 40     | 35         | 5     |
+| Correctness              | 30     | 30         | 0     |
+| Code Quality             | 10     | 7          | 3     |
+| Efficiency               | 10     | 8          | 2     |
+| Error Handling           | 5      | 5          | 0     |
+| Visualization            | 5      | 5          | 0     |
+| **Total**                | 100    | 90         | 10    |
 
 ---
 
-### Explanation:
+### Summary of Major Issues:
 
-The script demonstrates an attempt to set up a particle simulation with gravitational attraction and visualization using PyChrono. However, it contains critical errors in the use of the PyChrono API, particularly in body creation and visualization system setup, which would prevent the simulation from running correctly. The gravitational force application lacks robustness and physical correctness. Visualization is inadequately configured, missing essential initialization and lighting setup. The code lacks comments and error handling, and there are inefficiencies in force calculations and quaternion initialization.
+- **Incorrect use of `ChBodyEasySphere` and `ChBodyEasyBox` constructors.**  
+- **Custom gravitational force class misuses API and applies forces incorrectly.**  
+- **Visualization system is not properly initialized or attached.**  
+- **Simulation stepping uses a non-existent method and lacks proper loop control.**  
+- **No error handling for division by zero or invalid parameters.**  
+- **Lack of comments and documentation reduces code clarity.**  
 
-Overall, the script requires significant corrections and improvements to be functional and aligned with PyChrono best practices.
+---
+
+[[10]]

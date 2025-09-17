@@ -67,13 +67,15 @@ sys.Add(mtruss)
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
+constr_bc.SetConstrainedCoords(True, True, True, 
+                                True, True, True)
 
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True, False, False, False)
+constr_d.SetConstrainedCoords(False, True, True, 
+                              False, False, False)
 
 
 mesh.SetAutomaticGravity(False)
@@ -115,18 +117,20 @@ sys.SetSolver(msolver)
 
 
 builder = fea.ChBuilderBeamEuler()
-builder.SetSpans(5)
-builder.SetSection(msection)
-builder.SetYup(chrono.ChVector3d(0, 1, 0))
-builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
-builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
-builder.BuildBeam(sys, mesh)
 
 
-builder.GetLastBeamNodes().back().SetFixed(True)
+builder.BuildBeam(msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
-builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+last_node = builder.GetLastBeamNodes().back()
+last_node.SetFixed(True)
+
+
+first_node = builder.GetFirstBeamNodes().front()
+first_node.SetForce(chrono.ChVector3d(0, -1, 0))
+
+
+mesh.AddElements(builder.GetBeamElements())
 
 
 while vis.Run():

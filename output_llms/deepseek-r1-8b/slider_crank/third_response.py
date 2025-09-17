@@ -38,26 +38,27 @@ mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
 mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)
 sys.Add(mpiston)
 
-# Create crank-rod joint
+# Create crank-rod joint (spherical)
 mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
-# Create rod-piston joint
+# Create rod-piston joint (spherical)
 mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
-# Create piston-truss joint
+# Create piston-truss joint (planar)
 mjointC = chrono.ChLinkLockPlanar()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)),
-                   chrono.Q_ROTATE_Z_TO_X)
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.Q_ROTATE_Z_TO_X)
+                   )
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -80,7 +81,7 @@ array_speed = []
 while vis.Run():
     # for plotting, append instantaneous values:
     array_time.append(sys.GetChTime())
-    array_angle.append(my_motor.GetMotorAngle())
+    array_angle.append(mjointA.GetMotorAngle())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
     # here happens the visualization and step time integration

@@ -1,76 +1,60 @@
-import pychrono aschrono
+importchrono
 import rospy
 from std_msgs.msg import Int32
-fromchrono import ChSystemDFS, ChBody, ChBodyFixed, ChBoxShape, ChMaterialSurface, ChRosManager, ChRosSubscriber
 
-def main():
+
+rospy.init_node('chrono_simulation_node')
+
+
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+
+floor = chrono.ChCollisionModel()
+floor.SetBody(chrono.ChBody())
+floor.GetBody().SetPos(chrono.ChVectorD(0, 0, 0))
+floor.GetBody().SetBodyFixed(True)
+floor.GetBody().SetCollide(True)
+system.Add(floor)
+
+
+box = chrono.ChBody()
+box.SetMass(1.0)
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+box.SetCollide(True)
+box.GetCollisionModel().AddBox(chrono.ChVectorD(0.5, 0.5, 0.5))
+system.Add(box)
+
+
+class CustomRosHandler(chrono.ChRosHandler):
+    def __init__(self, node_name):
+        super().__init__(node_name)
+        self.publisher = rospy.Publisher('chrono_topic', Int32, queue_size=10)
     
-    rospy.init_node('chrono_ros_simulation', anonymous=True)
-    
-    
-    system = ChSystemDFS()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-    system.EnableCollisionDetection(True)
-    
-    
-    floor = ChBodyFixed(system)
-    floor.SetPos(chrono.ChVectorD(0, 0, 0))
-    floor_shape = ChBoxShape()
-    floor_shape.SetDimensions(chrono.ChVectorD(10, 1, 10))
-    floor.AddShape(floor_shape)
-    floor.SetMaterialSurface(ChMaterialSurface())
-    
-    
-    box = ChBody(system)
-    box.SetMass(1.0)
-    box.SetInertiaXX(chrono.ChVectorD(0.0833333, 0.1666667, 0.0833333))
-    box.SetPos(chrono.ChVectorD(0, 1, 0))
-    box_shape = ChBoxShape()
-    box_shape.SetDimensions(chrono.ChVectorD(0.5, 0.5, 0.5))
-    box.AddShape(box_shape)
-    box.SetMaterialSurface(ChMaterialSurface())
-    
-    
-    material = ChMaterialSurface()
-    material.SetFriction(0.5)
-    material.SetRestitution(0.3)
-    box.GetMaterialSurface().SetMaterial(material)
-    
-    
-    ros_manager = ChRosManager()
-    ros_manager.Initialize(system, "chrono_node", 0, 0.001)
-    ros_manager.SetClockHandler()
-    ros_manager.SetBodyHandler()
-    ros_manager.SetTransformHandler()
-    
-    
-    class CustomRosHandler(ChRosSubscriber):
-        def __init__(self):
-            super(CustomRosHandler, self).__init__()
-            self.counter = 0
-            self.publisher = rospy.Publisher('chrono_counter', Int32, queue_size=10)
-            
-        def OnStart(self):
-            super(CustomRosHandler, self).OnStart()
-            
-        def callback(self, data):
-            self.counter += 1
-            msg = Int32()
-            msg.data = self.counter
-            self.publisher.publish(msg)
-            
-    custom_handler = CustomRosHandler()
-    ros_manager.RegisterSubscriber(custom_handler)
-    
-    
-    try:
-        while not rospy.is_shutdown():
-            system.DoStepFrame()
-            ros_manager.Update()
-            if ros_manager.GetRealTimeFactor() > 0:
-                rospy.sleep(ros_manager.GetRealTimeFactor() * system.GetChTimeStep())
-    except KeyboardInterrupt:
-        pass
-    
-if __name__ == "__main__":
-    main()
+    def OnRosPublish(self):
+        msg = Int32()
+        msg.data = 42  
+        self.publisher.publish(msg)
+
+
+ros_manager = chrono.ChRosManager(system)
+ros_manager.SetVerbose(False)
+ros_manager.AddHandler(chrono.ChRosHandlerClock())
+ros_manager.AddHandler(chrono.ChRosHandlerBody('box', box))
+ros_manager.AddHandler(chrono.ChRosHandlerTransform('floor', floor.GetBody()))
+ros_manager.AddHandler(CustomRosHandler('custom_handler'))
+
+
+dt = 0.001
+time = 0
+rate = rospy.Rate(1000/dt)
+
+while not rospy.is_shutdown():
+    system.DoStepDynamics(dt)
+    ros_manager.OnStep()
+    time += dt
+    if time > 10:  
+        break
+    rate.sleep()
+
+rospy.spin()

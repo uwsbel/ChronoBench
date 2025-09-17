@@ -1,78 +1,75 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as chronoirr
 
 
-system = chrono.ChSystemNSC()
-application = irr.ChIrrApp(system, 'HMMWV on Complex Terrain', irr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10))
-application.SetSymbolscale(0.01)
-application.SetShowInfos(True)
-application.SetPaused(False)
+system = chrono.ChSystem()
+app = chronoirr.ChIrrApp(system, 'HMMWV on Complex Terrain', chronoirr.dimension2du(1024, 768))
+app.SetCamera(chronoirr.ChVectorD(0, 0, 5), chronoirr.ChVectorD(0, 0, 0))
+app.AssetBind()
+app.AssetUpdate()
+app.AddTypicalLights()
 
 
-terrain = veh.ChTerrain(system)
+terrain_system = chrono.ChTerrainSystem()
+system.Add(terrain_system)
 
 
-patch1 = veh.ChTerrainPatchPlane()
-patch1.SetName("flat_patch1")
-patch1.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
-patch1.SetFriction(0.9)
-terrain.AddPatch(patch1, chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1,0,0,0), 100, 100)
+hmmwv = vehicle.HMMWV_Vehicle()
+hmmwv.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+hmmwv.SetTireVisualizationType(vehicle.VisualizationType_MESH)
 
 
-patch2 = veh.ChTerrainPatchPlane()
-patch2.SetName("flat_patch2")
-patch2.SetTexture(veh.GetDataFile("terrain/textures/asphalt.jpg"), 20, 20)
-patch2.SetColor(chrono.ChColor(0.2, 0.2, 0.2))
-patch2.SetFriction(0.8)
-terrain.AddPatch(patch2, chrono.ChVectorD(20, 0, 0), chrono.ChQuaternionD(1,0,0,0), 100, 100)
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1)), False)
+hmmwv.SetTerrainSystem(terrain_system)
 
 
-bump_shape = chrono.ChBox()
-bump_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(2, 2, 0.5))
-bump_patch = veh.ChTerrainPatchMesh()
-bump_patch.SetName("bump_patch")
-bump_patch.SetMesh(bump_shape)
-bump_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-bump_patch.SetFriction(0.9)
-terrain.AddPatch(bump_patch, chrono.ChVectorD(10, 0, 0.25), chrono.ChQuaternionD(1,0,0,0), 1, 1)
+
+flat1 = vehicle.ChFlatTerrainPatch()
+flat1.SetTexture('concrete.jpg')  
+flat1.SetSize(20, 20)
+flat1.SetPosition(chrono.ChVectorD(-10, -10, 0))
+terrain_system.AddPatch(flat1)
 
 
-heightmap_patch = veh.ChTerrainPatchHeightmap()
-heightmap_patch.SetName("heightmap_patch")
-heightmap_patch.SetHeightmapFile(veh.GetDataFile("terrain/heightmaps/heightmap.png"))
-heightmap_patch.SetScale(1.0)
-heightmap_patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 20, 20)
-heightmap_patch.SetColor(chrono.ChColor(0.4, 0.2, 0.1))
-heightmap_patch.SetFriction(0.6)
-terrain.AddPatch(heightmap_patch, chrono.ChVectorD(-15, 0, 0), chrono.ChQuaternionD(1,0,0,0), 20, 20)
+flat2 = vehicle.ChFlatTerrainPatch()
+flat2.SetTexture('grass.jpg')  
+flat2.SetSize(20, 20)
+flat2.SetPosition(chrono.ChVectorD(10, 10, 0))
+terrain_system.AddPatch(flat2)
 
 
-vehicle = veh.HMMWV()
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))  
-vehicle.SetEngineType(veh.PowertrainModelType.SimpleMapPowertrain)  
-vehicle.SetDrivelineType(veh.HMMWV_DrivelineType_4WD)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.Initialize(system, terrain, True, True)  
+bump_patch = vehicle.ChMeshBasedTerrain()
+bump_patch.SetMeshFile('bump.obj')  
+bump_patch.SetPosition(chrono.ChVectorD(0, 0, 0))
+terrain_system.AddPatch(bump_patch)
 
 
-driver = veh.ChIrrGuiDriver(vehicle.GetVehicle(), application.GetEventReceiver())
-vehicle.SetDriver(driver)
+heightmap_patch = vehicle.ChHeightmapTerrain()
+heightmap_patch.SetHeightmapFile('heightmap.png')  
+heightmap_patch.SetHeightmapScale(10, 10, 1)  
+heightmap_patch.SetPosition(chrono.ChVectorD(-5, 5, 0))
+terrain_system.AddPatch(heightmap_patch)
 
 
-application.Add(terrain.GetChVisualSystem())
-application.Add(vehicle.GetChVisualization())
+driver = vehicle.ChKeyboardDriver(hmmwv.GetDriverInputs())
 
 
-application.SetTimestep(0.01)
-while application.GetDevice().run():
-    application.BeginScene()
-    application.GetSystem().DoStepDynamics(0.01)
-    application.OnFrameRender()
-    application.EndScene()
+step_size = 0.01
+while app.GetDevice().run():
+    
+    driver.Synchronize(system.GetChTime())
+    
+    
+    hmmwv.Synchronize(system.GetChTime(), driver)
+    
+    
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    
+    system.DoStepDynamics(step_size)
+    app.DoStep()

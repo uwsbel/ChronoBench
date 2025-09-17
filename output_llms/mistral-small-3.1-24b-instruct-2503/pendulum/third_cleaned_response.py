@@ -10,7 +10,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
 
 
 ground = chrono.ChBody()
-sys.Add(ground)
+sys.AddBody(ground)
 ground.SetFixed(True)  
 ground.EnableCollision(False)  
 
@@ -20,16 +20,16 @@ ground.AddVisualShape(cyl_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 
 pend_1 = chrono.ChBody()
-sys.Add(pend_1)
+sys.AddBody(pend_1)
 pend_1.SetFixed(False)  
 pend_1.EnableCollision(False)  
 pend_1.SetMass(1)  
 pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 
 
-cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+cyl_pend_1 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_pend_1.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_1.AddVisualShape(cyl_pend_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 
@@ -43,31 +43,31 @@ sys.AddLink(rev_1)
 
 
 pend_2 = chrono.ChBody()
-sys.Add(pend_2)
+sys.AddBody(pend_2)
 pend_2.SetFixed(False)  
 pend_2.EnableCollision(False)  
 pend_2.SetMass(1)  
 pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  
 
 
-cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  
-pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+cyl_pend_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
+cyl_pend_2.SetColor(chrono.ChColor(0, 0.6, 0))  
+pend_2.AddVisualShape(cyl_pend_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
-pend_2.SetPos(chrono.ChVector3d(1, 0, 3))
+pend_2.SetPos(chrono.ChVector3d(2, 0, 1))
 
 
 
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0)))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('Double Pendulum demo')  
+vis.SetWindowTitle('Double Pendulum Demo')  
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
@@ -91,6 +91,6 @@ while vis.Run():
         print("     Pendulum 2: ", pos_2.x, "  ", pos_2.y)
         lin_vel_1 = pend_1.GetPosDt()  
         lin_vel_2 = pend_2.GetPosDt()  
-        print("     Pendulum 1 velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
-        print("     Pendulum 2 velocity: ", lin_vel_2.x, "  ", lin_vel_2.y)
+        print("     Pendulum 1 Velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
+        print("     Pendulum 2 Velocity: ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False

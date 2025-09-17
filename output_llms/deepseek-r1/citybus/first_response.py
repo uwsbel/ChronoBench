@@ -1,59 +1,42 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+#!/usr/bin/env python3
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
-import math
+import pychrono.vehicle as veh
 
 def main():
-    # ==========================================================================
-    # Initialize simulation parameters
-    # ==========================================================================
-    step_size = 0.005
-    fps = 50
-    render_step = 1.0 / fps
-
-    # ==========================================================================
-    # Create Chrono system and collision handler
-    # ==========================================================================
+    # 1. Initialize PyChrono environment
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
     system = chrono.ChSystemNSC()
-    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
 
-    # ==========================================================================
-    # Create rigid terrain with texture
-    # ==========================================================================
+    # 2. Create and initialize the vehicle system
+    vehicle = veh.CityBus()
+    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+    vehicle.SetTireType(veh.TireModelType_TMEASY)
+    vehicle.SetTireStepSize(0.001)
+    vehicle.Initialize()
+
+    # Visualization settings
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    # 3. Create rigid terrain with texture
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceNSC()
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 100)
+    patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 100, 100)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     terrain.Initialize()
 
-    # ==========================================================================
-    # Create and initialize CityBus vehicle
-    # ==========================================================================
-    bus = veh.CityBus()
-    bus.SetContactMethod(chrono.ChContactMethod_NSC)
-    bus.SetChassisFixed(False)
-    bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.Q_from_AngY(0)))
-    bus.SetTireType(veh.TireModelType_TMEASY)
-    bus.SetTireStepSize(step_size)
-    bus.Initialize()
-
-    # Set visualization modes
-    bus.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    bus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    bus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    bus.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    bus.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-    # ==========================================================================
-    # Create Irrlicht visualization
-    # ==========================================================================
+    # 4. Create Irrlicht visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
@@ -61,23 +44,25 @@ def main():
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(10, 10, 2.0), chrono.ChVectorD(0, 0, 0.7))
+    vis.AddCamera(chrono.ChVectorD(6, 2, 6))
     vis.AddTypicalLights()
-    vis.EnableShadows()
+    vis.AddLightWithShadow(chrono.ChVectorD(-10, 20, -10), chrono.ChVectorD(0,0,0), 50, 10, 40, 60, 512)
 
-    # ==========================================================================
-    # Create interactive driver system
-    # ==========================================================================
+    # 5. Create interactive driver system
     driver = veh.ChIrrGuiDriver(vis)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    # ==========================================================================
-    # Simulation loop
-    # ==========================================================================
-    realtime_timer = chrono.ChRealtimeStepTimer()
+    # 6. Configure vehicle systems
+    vehicle.GetVehicle().EnableRealtime(True)
+    vehicle.GetVehicle().SetChassisVisualization(True)
+
+    # 7. Simulation loop
+    step_size = 0.002
+    frame_interval = 0.02  # 50 FPS (1/50 = 0.02)
+    time = 0
     frame_number = 0
 
     while vis.Run():
@@ -85,26 +70,24 @@ def main():
         
         # Update driver inputs
         driver_inputs = driver.GetInputs()
-        bus.Synchronize(time, driver_inputs, terrain)
+        vehicle.GetVehicle().Synchronize(time, driver_inputs, terrain)
         terrain.Synchronize(time)
         
         # Advance simulation
-        system.DoStepDynamics(step_size)
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        vehicle.Advance(step_size)
+        vis.Advance(step_size)
         
-        # Update visualization
-        if frame_number % int(render_step / step_size) == 0:
+        # Render at 50 FPS
+        if time >= frame_number * frame_interval:
             vis.BeginScene()
             vis.Render()
+            vis.RenderFrame(vehicle.GetVehicle().GetChassisBody())
             vis.EndScene()
+            frame_number += 1
         
-        # Follow vehicle with camera
-        cam_target = bus.GetChassis().GetPos()
-        vis.GetActiveCamera().setTarget(chronoirr.vector3df(cam_target.x, cam_target.y, cam_target.z))
-        cam_pos = bus.GetChassis().GetPos() + chrono.ChVectorD(-10, 0, 3)
-        vis.GetActiveCamera().setPosition(chronoirr.vector3df(cam_pos.x, cam_pos.y, cam_pos.z))
-        
-        frame_number += 1
-        realtime_timer.Spin(step_size)
+        system.DoStepDynamics(step_size)
 
 if __name__ == "__main__":
     main()

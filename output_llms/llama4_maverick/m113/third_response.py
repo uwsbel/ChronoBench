@@ -1,13 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import numpy as np
+import math
 
-# Set the data path
+# Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-5, 0, 0.5)
+initLoc = chrono.ChVector3d(-5, 0, 0.5)  # Changed from (0, 0, 1.1) to (-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -17,11 +18,11 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Rigid terrain
-terrainHeight = 0 
-terrainLength = 100.0 
-terrainWidth = 100.0 
+terrainHeight = 0  # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0  # size in Y direction
 
-# Point on chassis tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 # Contact method
@@ -33,7 +34,7 @@ step_size = 5e-4
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50 
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.M113()
@@ -71,6 +72,7 @@ terrain.Initialize()
 # Add a long box to the system
 box_body = chrono.ChBody()
 box_body.SetMass(1000)
+box_body.SetInertiaXX(chrono.ChVector3d(100, 100, 100))
 box_body.SetPos(chrono.ChVector3d(5, 0, 0.5))
 box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
@@ -78,7 +80,7 @@ box_geom = chrono.ChBoxShape()
 box_geom.GetBoxGeometry().Size = chrono.ChVector3d(5, 1, 1)
 box_body.AddVisualShape(box_geom)
 
-vehicle.GetSystem().AddBody(box_body)
+vehicle.GetSystem().Add(box_body)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -95,33 +97,36 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0 
-throttle_time = 1.0 
-braking_time = 0.3 
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 # Solver and integrator settings
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = int(np.ceil(render_step_size / step_size))
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
 step_number = 0
 render_frame = 0
+
 vehicle.GetVehicle().EnableRealtime(True)
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene 
-    if (step_number % render_steps == 0) :
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -129,9 +134,9 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  # Hard-coded throttle value
+    driver_inputs.throttle = 0.8  # Hard-code throttle value to 0.8
 
-    # Update modules 
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
@@ -146,4 +151,4 @@ while vis.Run() :
     # Increment frame number
     step_number += 1
 
-... # code here
+# The final modified code is provided above.

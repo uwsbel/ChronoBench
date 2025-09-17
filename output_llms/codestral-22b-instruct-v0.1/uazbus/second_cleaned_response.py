@@ -106,9 +106,9 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_times = [5, 10, 15]  
-steering_inputs = [0, 1, -1, 0]   
-throttle_inputs = [1, 1, 1, 0]   
+lane_change_times = [5.0, 10.0, 15.0]  
+steering_adjustments = [0.5, -0.5, 0.5]  
+throttle_adjustment = -0.5  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -123,19 +123,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < lane_change_times[0]:
-        driver_inputs.m_steering = steering_inputs[0]
-        driver_inputs.m_throttle = throttle_inputs[0]
-    elif time < lane_change_times[1]:
-        driver_inputs.m_steering = steering_inputs[1]
-        driver_inputs.m_throttle = throttle_inputs[1]
-    elif time < lane_change_times[2]:
-        driver_inputs.m_steering = steering_inputs[2]
-        driver_inputs.m_throttle = throttle_inputs[2]
-    else:
-        driver_inputs.m_steering = steering_inputs[3]
-        driver_inputs.m_throttle = throttle_inputs[3]
-        driver_inputs.m_braking = 1  
+    if time in lane_change_times:
+        driver_inputs.m_steering = steering_adjustments[lane_change_times.index(time)]
+    if time > lane_change_times[-1]:
+        driver_inputs.m_throttle = throttle_adjustment
 
     
     driver.Synchronize(time)

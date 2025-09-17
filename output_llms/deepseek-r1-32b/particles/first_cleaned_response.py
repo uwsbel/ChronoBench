@@ -105,8 +105,12 @@ while application.GetDevice().Run():
     
     
     system.DoStepDynamics(0.005)
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    
+    
+    application.GetDevice().Render()
+    
+    
+    if system.GetChTime() > 10:
+        break
 
 application.End()

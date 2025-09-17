@@ -25,7 +25,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.message} {self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  
         msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  

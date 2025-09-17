@@ -105,9 +105,15 @@ step_number = 0
 render_frame = 0
 
 
-start_maneuver_time = 2  
-end_maneuver_time = 10  
-steering_angle = 0.5  
+start_time = 0
+maneuver_sequence = [
+    (0, 0, 0),  
+    (5, -0.5, 0.5),  
+    (10, 0, 0.5),  
+    (15, 0.5, 0.5),  
+    (20, 0, 0.5),  
+    (25, 0, 0)  
+]
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -120,16 +126,14 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
+    for i in range(len(maneuver_sequence) - 1):
+        if time >= start_time + maneuver_sequence[i][0] and time < start_time + maneuver_sequence[i+1][0]:
+            driver.SetSteering(maneuver_sequence[i][1])
+            driver.SetThrottle(maneuver_sequence[i][2])
+            break
 
     
-    if start_maneuver_time <= time < end_maneuver_time:
-        if time < (start_maneuver_time + (end_maneuver_time - start_maneuver_time) / 2):
-            driver_inputs.m_steering = steering_angle
-        else:
-            driver_inputs.m_steering = -steering_angle
-    else:
-        driver_inputs.m_steering = 0
+    driver_inputs = driver.GetInputs()
 
     
     driver.Synchronize(time)

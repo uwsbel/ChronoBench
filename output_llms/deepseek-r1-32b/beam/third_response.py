@@ -95,13 +95,13 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
                  chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
                  chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
-# Add another beam segment using builder.BuildBeam()
-builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
-                 msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
-                 5,                         # the number of ChElementBeamEuler to create
-                 chrono.ChVector3d(0.2, 0, -0.1),   # the 'A' point in space (beginning of beam)
-                 chrono.ChVector3d(0.2, 0.1, -0.1), # the 'B' point in space (end of beam)
-                 chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
+# Add another beam segment using the last node from previous beam
+builder.BuildBeam(mesh,
+                 msection,
+                 5,
+                 builder.GetLastBeamNodes().back().GetPos(),  # Start from last node of previous beam
+                 chrono.ChVector3d(0.2, 0.1, -0.1),  # New endpoint
+                 chrono.ChVector3d(0, 1, 0))       # Same Y up direction
 
 ## After having used BuildBeam(), you can retrieve the nodes used for the beam,
 ## For example say you want to fix the A end and apply a force to the B end:
@@ -111,7 +111,7 @@ builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
 # We do not want gravity effect on FEA elements in this demo
-mesh.SetAutomaticGravity(False);
+mesh.SetAutomaticGravity(False)
 
 # Remember to add the mesh to the system!
 sys.Add(mesh)

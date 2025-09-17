@@ -1,87 +1,102 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
 import math
 
-# Initialize the Chrono system
+# Initialize the Chrono system and Irrlicht visualization
 system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, 0, 0))
-
-# Load the triangular mesh from a Wavefront .obj file
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("path/to/your/mesh.obj", False, True)  # Update with actual path
-mesh_body = chrono.ChBody()
-mesh_body.SetMesh(mesh)
-mesh_body.SetBodyFixed(True)  # Fix the mesh in the scene
-system.Add(mesh_body)
-
-# Create Irrlicht visualization
-application = chronoirr.ChIrrApp(system, "PyChrono Mesh with Lidar Simulation", chronoirr.dimension2du(800, 600))
+application = chronoirr.ChIrrApp(system, 'PyChrono Lidar Simulation', chronoirr.dimension2du(1024, 768))
 application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0, 10, 20), chronoirr.vector3df(0, 0, 0))
+application.AddCamera(chronoirr.vector3df(0, 3, 6), chronoirr.vector3df(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
-application.SetTimestep(1e-3)
-application.SetStepManage(True)
 
-# Create a dummy body for lidar orbit (kinematic)
-dummy_body = chrono.ChBody()
-dummy_body.SetMass(0.1)  # Small mass for kinematic control
-dummy_body.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
-dummy_body.SetPos(chrono.ChVectorD(5, 2, 0))  # Initial position
-system.Add(dummy_body)
+# Load the triangular mesh from .obj file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('path_to_mesh.obj', True, True)  # Replace with actual mesh path
 
-# Initialize sensor manager
+# Create a fixed body for the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.GetCollisionModel().ClearModel()
+body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1), 0.001)
+body.SetCollide(False)
+
+# Add visualization for the mesh
+vis_shape = chrono.ChVisualShapeTriangleMesh()
+vis_shape.SetMesh(mesh)
+vis_shape.SetOpacity(1.0)
+body.AddVisualShape(vis_shape)
+
+system.Add(body)
+
+# Create sensor manager and lidar sensor
 manager = sens.ChSensorManager(system)
 
-# Create and configure lidar sensor
 lidar = sens.ChLidarSensor(
-    dummy_body,           # Attach to dummy body
-    10,                   # Update rate in Hz
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  # Offset pose
-    800,                  # Horizontal samples
-    30,                   # Vertical samples
-    chrono.CH_C_PI,       # Horizontal FOV
-    chrono.CH_C_PI / 4,   # Vertical FOV
-    100.0                 # Max distance
+    body,                    # Parent body
+    100,                   # Update rate in Hz
+    chrono.ChFrameD(),     # Initial offset (will be updated dynamically)
+    360,                   # Horizontal samples
+    30,                    # Vertical samples
+    chrono.CH_C_PI,        # Horizontal field of view (180 degrees)
+    chrono.CH_C_PI / 4,    # Vertical field of view (45 degrees)
+    100,                   # Maximum distance
+    sens.LidarBeamShape_RECTANGULAR,
+    2,                     # Sample radius
+    0.003,                 # Divergence angle (horizontal)
+    0.003                  # Divergence angle (vertical)
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(0)
-lidar.SetCollectionWindow(0.01)
+lidar.SetCollectionWindow(1 / 100)
 
-# Add Gaussian noise to lidar data
-noise = sens.ChNoiseGaussian(0.01)
-lidar.AddNoise(noise)
+# Add filters to the lidar
+lidar.AddFilter(sens.ChFilterNoiseLidarNormal(0.01))  # Add Gaussian noise
+lidar.AddFilter(sens.ChFilterVisual())               # Enable visualization
+lidar.AddFilter(sens.ChFilterPCwrite())              # Enable point cloud saving
 
-# Add visualization filter for lidar data
-lidar.PushFilter(sens.ChFilterVisualize(800, 30, "Lidar Visualization"))
-
-# Add lidar to sensor manager
 manager.AddSensor(lidar)
 
-# Simulation loop
+# Simulation loop parameters
+time_step = 0.01
+time = 0
+orbit_radius = 5
+orbit_height = 2
+omega = 0.5  # Angular velocity (rad/s)
+
+# Run the simulation loop
 while application.GetDevice().run():
-    application.BeginScene()
+    # Calculate new lidar position in orbit
+    theta = omega * time
+    x = orbit_radius * math.cos(theta)
+    z = orbit_radius * math.sin(theta)
+    y = orbit_height
+    lidar_pos = chrono.ChVectorD(x, y, z)
     
-    # Update lidar position in orbit around the mesh
-    time = system.GetChTime()
-    radius = 5.0
-    height = 2.0
-    theta = 0.1 * time  # Angular velocity factor
-    x = radius * math.cos(theta)
-    z = radius * math.sin(theta)
-    dummy_body.SetPos(chrono.ChVectorD(x, height, z))
+    # Compute rotation to look at the origin
+    dir_to_origin = -lidar_pos.GetNormalized()
+    rot = chrono.ChQuaternionFromTwoVectors(chrono.ChVectorD(1, 0, 0), dir_to_origin)
     
-    # Perform simulation step
-    application.DoStep()
+    # Update lidar's offset pose
+    lidar.SetOffsetPose(chrono.ChFrameD(lidar_pos, rot))
     
-    # Update sensor manager and retrieve lidar data
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
     manager.Update()
-    buffer = lidar.GetMostRecentBuffer()
     
-    # Print lidar buffer data if available
-    if buffer.HasData():
-        point_cloud = buffer.GetAsPointCloud()
-        print(f"Time: {time:.3f}s, Lidar Points: {point_cloud.shape[0]} points")
+    # Print lidar data if available
+    if lidar.HasData():
+        data = lidar.GetMostRecentData()
+        point_cloud = data.GetPointcloud()
+        print(f"Time: {time:.2f}, Point cloud size: {point_cloud.size()}")
+        if point_cloud.size() > 0:
+            first_point = point_cloud[0]
+            print(f"  First point: ({first_point.x:.2f}, {first_point.y:.2f}, {first_point.z:.2f})")
     
+    # Update Irrlicht visualization
+    application.BeginScene()
+    application.DrawAll()
     application.EndScene()
+    
+    time += time_step

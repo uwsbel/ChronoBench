@@ -72,15 +72,10 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a long box obstacle
-box = chrono.ChBody()
-box.SetPos(chrono.ChVector3d(20, 0, 0.5))
-box.SetBodyFixed(True)
-box.SetCollide(True)
-box_shape = chrono.ChBoxShape()
-box_shape.SetLengths(chrono.ChVector3d(10, 2, 1))
-box.AddShape(box_shape)
-vehicle.GetSystem().AddBody(box)
+# Add a long box to the system
+box = chrono.ChBodyEasyBox(10, 1, 1, 1000, True, True)
+box.SetPos(chrono.ChVector3d(0, -5, 0))
+vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 
@@ -142,8 +137,8 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
     # Hard-coded throttle value
     vehicle.GetVehicle().SetThrottle(0.8)
+    vis.Advance(step_size)
     # Increment frame number
     step_number += 1

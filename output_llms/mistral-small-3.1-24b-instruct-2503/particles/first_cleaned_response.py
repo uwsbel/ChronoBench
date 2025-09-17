@@ -1,88 +1,83 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import random
-import math
 
 
-chrono.SetChronoDataPath('path_to_chrono_data')
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 visualization = chronoirr.ChVisualSystemIrrlicht()
 visualization.AttachSystem(system)
-visualization.SetWindowSize(1280, 720)
-visualization.SetWindowTitle('PyChrono Particle Simulation')
+visualization.SetWindowSize(1024, 768)
+visualization.SetWindowTitle('Gravitational Attraction Simulation')
 visualization.Initialize()
 visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
-visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 50, 50, 50)
-visualization.SetCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+visualization.AddTypicalLogo()
+visualization.AddLightWithShadow(chrono.ChCoordsysD(chrono.ChVectorD(2, 2, 5)), chrono.ChVectorD(1, 1, -1), 50, 50, 10, 50, 50)
 
 
-class ParticleEmitter:
-    def __init__(self, system):
-        self.system = system
+def create_random_particle(system):
+    mass = random.uniform(0.1, 1.0)
+    radius = random.uniform(0.05, 0.1)
 
-    def emit_particle(self):
-        
-        pos = chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(0, 2))
+    
+    sphere_shape = chrono.ChSphereShape()
+    sphere_shape.GetSphereGeometry().rad = radius
 
-        
-        vel = chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))
+    
+    body = chrono.ChBodyEasySphere(mass, radius, material=chrono.ChMaterialSurfaceNSC())
+    body.SetPos(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(0, 2), random.uniform(-1, 1)))
+    body.SetRot(chrono.ChQuaternionD(1, 0, 0, random.uniform(0, 2 * 3.141592653589793)))
+    body.SetVel(chrono.ChVectorD(random.uniform(-0.5, 0.5), random.uniform(-0.5, 0.5), random.uniform(-0.5, 0.5)))
+    body.SetAngVel(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)))
 
-        
-        quat = chrono.ChQuaternionD(random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
-        quat.Normalize()
+    
+    system.Add(body)
 
-        
-        particle = chrono.ChParticle()
-        particle.SetPos(pos)
-        particle.SetMass(1)
-        particle.SetPos_dt(vel)
-        particle.SetRot(quat)
-
-        
-        system.Add(particle)
-
-        
-        shape = chrono.ChSphereShape()
-        shape.GetRadius() = random.uniform(0.1, 0.5)
-        visual = chrono.ChVisualShapeSphere()
-        visual.GetSphereGeometry().rad = shape.GetRadius()
-        visual.SetColor(chrono.ChColor(1, 0, 0))
-        particle.AddAsset(visual)
+    
+    visualization.Add(body, sphere_shape)
 
 
-emitter = ParticleEmitter(system)
+def emit_particles(system, num_particles):
+    for _ in range(num_particles):
+        create_random_particle(system)
 
 
-for _ in range(100):
-    emitter.emit_particle()
+emit_particles(system, 50)
 
 
-def custom_gravity(particle, system):
-    force = chrono.ChVectorD(0, 0, 0)
-    for other in system.Get_physics_items():
-        if isinstance(other, chrono.ChParticle) and other != particle:
-            distance = (other.GetPos() - particle.GetPos()).Length()
-            if distance > 0:
-                direction = (other.GetPos() - particle.GetPos()).Normalize()
-                force += direction * (1 / distance ** 2)  
-    particle.ApplyForce(force)
+def gravitational_force(body1, body2, G=6.67430e-11):
+    r = body2.GetPos() - body1.GetPos()
+    distance = r.Length()
+    if distance == 0:
+        return chrono.ChVectorD(0, 0, 0)
+
+    force_magnitude = G * (body1.GetMass() * body2.GetMass()) / (distance ** 2)
+    force_direction = r.Normalize()
+    force = force_direction * force_magnitude
+    return force
 
 
-def apply_custom_forces(system):
-    for item in system.Get_physics_items():
-        if isinstance(item, chrono.ChParticle):
-            custom_gravity(item, system)
+def apply_gravitational_forces(system):
+    bodies = system.Get_bodylist()
+    for i in range(len(bodies)):
+        for j in range(i + 1, len(bodies)):
+            body1 = bodies[i]
+            body2 = bodies[j]
+            force = gravitational_force(body1, body2)
+            body1.AddForce(force)
+            body2.AddForce(-force)
 
 
-while visualization.Run():
-    system.DoStepDynamics(0.01)  
-    apply_custom_forces(system)
-    visualization.Render()
+def run_simulation(system, visualization):
+    while visualization.Run():
+        system.DoStepDynamics(0.01)  
+        apply_gravitational_forces(system)
+        visualization.Render()
 
 
-visualization.Close()
+run_simulation(system, visualization)

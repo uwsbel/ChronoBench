@@ -1,125 +1,127 @@
 import pychrono as chrono
-import pychrono.sensor as sens
-import pychrono.irrlicht as cr
+import pychrono_sensor as sensors
+import pychrono_irrlicht as irr
+import pychrono_ros as ros
 
 # Initialize Chrono system
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystem()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverMaxIterations(10)
+system.SetTolerance(1e-6)
+
+# Initialize Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Sensor Simulation')
+vis.SetSymbolsScale(0.01)
+vis.SetCameraPosition(chrono.ChVectorD(0, 1, 5))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+system.SetVisualSystem(vis)
+vis.Initialize()
 
 # Create ground body (dynamic)
-ground_body = chrono.ChBody()
-ground_body.SetIdentifier(1)
-ground_body.SetBodyFixed(False)  # Allow movement
-ground_body.SetMass(100)  # Mass in kg
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_body.SetInertiaXX(chrono.ChMatrix33D(1, 0, 0, 0, 1, 0, 0, 0, 1))
-sys.Add(ground_body)
+ground = chrono.ChBodyEasyBox(2, 0.2, 2, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetBodyFixed(False)
+ground.AddForce(chrono.ChVectorD(100, 0, 0))  # Apply force for movement
+system.Add(ground)
 
-# Add visualization mesh to ground
-ground_shape = chrono.ChBox(2, 0.5, 2)
-ground_body.AddAsset(chrono.ChTriangleMeshShape())
-ground_body.GetAsset(0).SetMesh(ground_shape)
-ground_body.GetAsset(0).SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+# Add a mesh object for visualization (static cube)
+mesh_object = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+mesh_object.SetPos(chrono.ChVectorD(2, 1, 0))
+mesh_object.SetBodyFixed(True)
+system.Add(mesh_object)
 
 # Initialize sensor manager
-sensor_mgr = sens.ChSensorManager(sys)
+sensor_mgr = sensors.ChSensorManager(system)
+sensor_mgr.SetFacesIntersect()  # Enable ray casting for sensors
 
 # Configure sensors
 # Camera
-camera = sens.ChCameraSensor()
+camera = sensors.ChCameraSensor()
 camera.SetName("camera")
-camera.SetPosition(chrono.ChVectorD(0, 0.5, 0))  # Relative to ground
-camera.SetRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
-camera.SetImageWidth(640)
-camera.SetImageHeight(480)
-camera.SetFOV(60)
-camera.SetPositionRelative(True)
-camera.SetBody(ground_body)
+camera.SetRange(0.1, 100)
+camera.SetResolution(640, 480)
+camera.SetBody(ground)
+camera.SetPosition(chrono.ChVectorD(0, 1, 2))
+camera.SetRotation(chrono.Q_from_Euler123(chrono.ChVectorD(0, 0, 0)))
 sensor_mgr.AddSensor(camera)
 
 # Lidar
-lidar = sens.ChLidarSensor()
+lidar = sensors.ChLidarSensor()
 lidar.SetName("lidar")
+lidar.SetRange(0.1, 50)
+lidar.SetHorizontalResolution(360)
+lidar.SetVerticalResolution(1)
+lidar.SetBody(ground)
 lidar.SetPosition(chrono.ChVectorD(0, 0.5, 0))
-lidar.SetRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
-lidar.SetRange(50)
-lidar.SetHorizontalResolution(0.5)
-lidar.SetVerticalResolution(0.5)
-lidar.SetPointsPerSecond(100000)
-lidar.SetBody(ground_body)
+lidar.SetRotation(chrono.Q_from_Euler123(chrono.ChVectorD(0, 0, 0)))
 sensor_mgr.AddSensor(lidar)
 
-# GPS
-gps = sens.ChGPSSensor()
+# GPS (position sensor)
+gps = sensors.ChPositionSensor()
 gps.SetName("gps")
-gps.SetBody(ground_body)
+gps.SetBody(ground)
 sensor_mgr.AddSensor(gps)
 
 # Accelerometer
-accelerometer = sens.ChAccelerometerSensor()
+accelerometer = sensors.ChAccelerometerSensor()
 accelerometer.SetName("accelerometer")
-accelerometer.SetBody(ground_body)
+accelerometer.SetBody(ground)
 sensor_mgr.AddSensor(accelerometer)
 
 # Gyroscope
-gyroscope = sens.ChGyroscopeSensor()
+gyroscope = sensors.ChGyroscopeSensor()
 gyroscope.SetName("gyroscope")
-gyroscope.SetBody(ground_body)
+gyroscope.SetBody(ground)
 sensor_mgr.AddSensor(gyroscope)
 
 # Magnetometer
-magnetometer = sens.ChMagnetometerSensor()
+magnetometer = sensors.ChMagnetometerSensor()
 magnetometer.SetName("magnetometer")
-magnetometer.SetBody(ground_body)
+magnetometer.SetBody(ground)
 sensor_mgr.AddSensor(magnetometer)
 
-# Initialize ROS manager and register sensors
-ros_mgr = sens.ChROSManager()
-ros_mgr.SetSensorManager(sensor_mgr)
-ros_mgr.RegisterSensor(camera, "/camera/data")
+# Initialize ROS manager
+ros_mgr = ros.ChRosManager(system)
+ros_mgr.Initialize()
+ros_mgr.RegisterSensor(camera, "/camera/image")
 ros_mgr.RegisterSensor(lidar, "/lidar/scan")
-ros_mgr.RegisterSensor(gps, "/gps/fix")
+ros_mgr.RegisterSensor(gps, "/gps/position")
 ros_mgr.RegisterSensor(accelerometer, "/imu/accel")
 ros_mgr.RegisterSensor(gyroscope, "/imu/gyro")
 ros_mgr.RegisterSensor(magnetometer, "/imu/mag")
-ros_mgr.InitNode("chrono_sensor_publisher")
 
-# Setup visualization
-vis = cr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Sensor Simulation")
-vis.SetSymbolscale(0.01)
-vis.SetShadows(True)
-vis.SetLightIntensity(0.8)
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-vis.SetRenderMode(cr.RENDER_NORMAL)
-sys.SetVisualSystem(vis)
-vis.AttachBodyFrame(ground_body)
-vis.Initialize()
-
-# Simulation parameters
+# Simulation loop parameters
 time_step = 0.001
-real_time_factor = 1.0
-max_time = 10.0
+end_time = 10.0
 
-# Simulation loop
-while sys.GetChTime() < max_time:
-    # Update sensors
+# Main loop
+while vis.Run():
+    current_time = system.GetChTime()
+    
+    # Update sensors and ROS topics
     sensor_mgr.Update()
-    
-    # Apply force to ground body to induce motion
-    ground_body.AddForce(chrono.ChVectorD(100, 0, 0))  # Example force
-    
-    # Advance simulation
-    sys.DoStepDynamics(time_step)
-    
-    # Publish sensor data via ROS
     ros_mgr.Update()
     
-    # Visualization
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    
+    # Adjust time step for real-time
+    rtf = system.GetTimer().GetRTF()
+    if rtf < 0.9:
+        time_step *= 1.1
+    elif rtf > 1.1:
+        time_step *= 0.9
+    system.SetTimestep(time_step)
+    
+    # Render visualization
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     
-    # Maintain real-time
-    chrono.ChSleepTime(sys.GetChTimeStep() * real_time_factor)
+    if current_time >= end_time:
+        break
+
+# Cleanup
+vis.End()

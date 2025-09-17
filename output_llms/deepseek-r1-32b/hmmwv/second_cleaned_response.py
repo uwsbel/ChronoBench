@@ -3,102 +3,151 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
+
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+
+vis_type = veh.VisualizationType_PRIMITIVES
+
+
+chassis_collision_type = veh.CollisionType_NONE
+
+
+tire_model = veh.TireModelType_TMEASY
+
+
+terrainHeight = 0      
 terrainLength = 200.0  
-
-class PathFollower:
-    def __init__(self, radius=20.0, speed=5.0):
-        self.radius = radius
-        self.speed = speed
-        self.angle = 0.0
-        self.sentinel = None
-        self.target = None
-
-    def get_desired_state(self, time):
-        angle = self.angle + (self.speed / self.radius) * time
-        x = self.radius * math.cos(angle)
-        y = self.radius * math.sin(angle)
-        heading = angle + math.pi/2  
-        return (x, y, heading)
-
-    def update_spheres(self, system, time):
-        if self.sentinel is None:
-            self.sentinel = chrono.ChSphereShape()
-            self.sentinel.SetRadius(0.5)
-            self.sentinel.SetPos(chrono.ChVector3d(self.radius, 0, 1))
-            self.sentinel.SetColor(chrono.ChColor(1, 0, 0))
-            system.GetVisualSystem().AddShape(self.sentinel)
-            
-            self.target = chrono.ChSphereShape()
-            self.target.SetRadius(0.5)
-            self.target.SetPos(chrono.ChVector3d(self.radius, 0, 1))
-            self.target.SetColor(chrono.ChColor(0, 1, 0))
-            system.GetVisualSystem().AddShape(self.target)
-        
-        x, y, _ = self.get_desired_state(time)
-        self.sentinel.SetPos(chrono.ChVector3d(x, y, 1))
-        self.target.SetPos(chrono.ChVector3d(x + self.radius/2, y, 1))
+terrainWidth = 100.0   
 
 
-path_follower = PathFollower()
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
-kp = 1.0
-ki = 0.1
-kd = 0.5
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+
+step_size = 1e-3
+tire_step_size = step_size
+
+
+render_step_size = 1.0 / 50  
+
+
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+
+Kp = 0.5
+Ki = 0.05
+Kd = 0.1
 integral = 0.0
 prev_error = 0.0
 
 
-vehicle = veh.HMMWV_Full()
+radius = 20.0  
+center = chrono.ChVector3d(50.0, 0.0, 0.0)  
 
 
+sphere1 = irr.ChSphere()
+sphere1.SetPos(center + chrono.ChVector3d(radius, 0, 0))
+sphere1.SetRadius(0.5)
+sphere1.SetColor(chrono.ChColor(1, 0, 0))
+vis.GetSceneManager().AddLightSphere(sphere1)
 
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+sphere2 = irr.ChSphere()
+sphere2.SetPos(center + chrono.ChVector3d(radius * math.cos(math.pi/2), radius * math.sin(math.pi/2), 0))
+sphere2.SetRadius(0.5)
+sphere2.SetColor(chrono.ChColor(0, 1, 0))
+vis.GetSceneManager().AddLightSphere(sphere2)
+
+def get_desired_position(time):
+    
+    angle = time * 0.1  
+    x = center.x + radius * math.cos(angle)
+    y = center.y + radius * math.sin(angle)
+    return chrono.ChVector3d(x, y, 0)
 
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+throttle = 0.3
 
 
-
-
-
-
-
-system = vehicle.GetSystem()
-path_follower.update_spheres(system, 0)
-
+render_steps = math.ceil(render_step_size / step_size)
+step_number = 0
+render_frame = 0
+realtime_timer = chrono.ChRealtimeStepTimer()
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
     
-    desired_x, desired_y, desired_heading = path_follower.get_desired_state(time)
+    current_pos = vehicle.GetVehicle().GetChassis().GetPos()
     
     
-    current_pos = vehicle.GetChassis().GetPos()
-    current_heading = vehicle.GetChassis().GetRot().Q_toAngleZ()
+    desired_pos = get_desired_position(time)
     
     
-    error = math.atan2(desired_y - current_pos.y, desired_x - current_pos.x) - current_heading
-    error = math.atan2(math.sin(error), math.cos(error))  
-    
-    
+    error = math.sqrt((current_pos.x - desired_pos.x)**2 + (current_pos.y - desired_pos.y)**2)
     integral += error * step_size
     derivative = (error - prev_error) / step_size
-    steering = kp * error + ki * integral + kd * derivative
+    steering = Kp * error + Ki * integral + Kd * derivative
     steering = max(min(steering, 1.0), -1.0)  
     
     
-    throttle = 0.3
-    
-    
-    path_follower.update_spheres(system, time)
-    
-    
-    driver_inputs = veh.DriverInputs()
+    driver_inputs = veh.ChDriverInputs()
     driver_inputs.m_throttle = throttle
     driver_inputs.m_steering = steering
+    
+    
+    angle = time * 0.1
+    sphere1.SetPos(center + chrono.ChVector3d(radius * math.cos(angle), radius * math.sin(angle), 0))
+    sphere2.SetPos(center + chrono.ChVector3d(radius * math.cos(angle + math.pi/2), radius * math.sin(angle + math.pi/2), 0))
+    
+    
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
     
     
     terrain.Synchronize(time)
@@ -112,13 +161,5 @@ while vis.Run():
     
     
     prev_error = error
-    
-    
-    if step_number % render_steps == 0:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-        render_frame += 1
-    
     step_number += 1
     realtime_timer.Spin(step_size)

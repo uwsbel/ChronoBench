@@ -2,51 +2,57 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize the Chrono system with NSC contact method
+# Create the Chrono system with NSC contact method
 sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Gravity
 
-# Create the Irrlicht visualization application
-vis = irr.ChIrrApp(sys, 'HMMWV Simulation', irr.CHIRR旗RESIZABLE)
-vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+# Initialize Irrlicht visualization
+vis = irr.ChIrrApp(sys, 'HMMWV Simulation', irr.CHIRRRESIZABLE)
+vis.SetCameraPosition(chrono.ChVectorD(15, 15, 15))
+vis.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
 
-# Create rigid terrain with texture
-material = chrono.ChMaterialSurface()
-material.SetTexture(chrono.GetChronoDataFile('textures/grass.jpg'), 100, 100)
-patch = veh.ChTerrainPatch(
-    chrono.ChVectorD(20, 20, 0.1),  # Terrain dimensions (20m x 20m)
-    chrono.ChVectorD(0, 0, 0),
-    False,  # Flat terrain
-    material
-)
+# Create and initialize rigid terrain
 terrain = veh.ChRigidTerrain(sys)
-terrain.Initialize(patch)
-vis.AddAsset(terrain.GetCollisionModel().GetAssets()[0])
+patch = veh.ChTerrainPatchRectangle(
+    chrono.ChVectorD(20, 20, 0.1),  # Dimensions (length, width, resolution)
+    chrono.ChVectorD(0, 0, 0),       # Position
+    chrono.ChVectorD(0, 0, 0),       # Rotation axis (no rotation)
+    chrono.ChMaterialSurface(),      # Material
+    'textures/grass.jpg'             # Texture (adjust path as needed)
+)
+terrain.Initialize(patch, True)  # Add collision model to the system
+vis.AddAsset(patch.GetVisualShape())  # Add terrain visual asset
 
-# Create HMMWV vehicle with TMEASY tires and primitive visualization
+# Create and initialize HMMWV vehicle
 hmmwv = veh.HMMWV_Vehicle()
 hmmwv.Initialize(
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT),  # Position (0,0,1), default orientation
-    veh.ChTireModelType.TMEASY,
-    veh.ChVisualSystemType_PRIMITIVES
+    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT),
+    veh.ChTireModelType.TMEASY,      # TMEASY tire model
+    veh.ChVisualSystemType_PRIMITIVES  # Primitive visualization
 )
-sys.Add(hmmwv.GetSystem())  # Add vehicle system to main simulation
+sys.Add(hmmwv.GetSystem())  # Add vehicle system to the Chrono system
 
 # Create interactive driver
 driver = irr.ChIrrGuiDriver()
 driver.Initialize(vis, hmmwv.GetDriverInputs())
 
-# Add vehicle to visualization
+# Add vehicle visualization to Irrlicht app
 vis.Add(hmmwv.GetVehicle())
 
-# Simulation loop parameters
+# Simulation settings
 vis.SetTimestep(0.02)  # 50 Hz
 vis.SetTryRealtime(True)
 
 # Main simulation loop
 while vis.Run():
-    driver.Synchronize(sys.GetChTime())  # Update driver inputs
-    hmmwv.Synchronize()  # Update vehicle state
-    hmmwv.Advance()     # Advance simulation step
+    # Update driver inputs based on user input
+    driver.Synchronize(sys.GetChTime())
+    
+    # Advance simulation step
+    hmmwv.Synchronize()
+    hmmwv.Advance()
+    
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()

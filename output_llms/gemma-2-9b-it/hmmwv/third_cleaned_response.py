@@ -84,7 +84,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-driver = MyDriver(vis, 0.5)  
+driver = MyDriver(vis, delay=0.5)
 
 
 steering_time = 1.0  
@@ -144,18 +144,29 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < end_time:
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, vis, delay):
+    def __init__(self, vis, delay=0.5):
         super().__init__(vis)
         self.delay = delay
         self.throttle = 0.0
         self.steering = 0.0
-        self.time_start = 0.0
+        self.last_time = chrono.ChTime(0.0)
 
     def Synchronize(self, time):
-        if time > self.delay and self.time_start == 0.0:
-            self.time_start = time
+        
+        elapsed_time = time - self.last_time
+        self.last_time = time
 
-        if time > self.delay:
-            elapsed_time = time - self.time_start
-            self.throttle = min(0.7, elapsed_time / 0.2)  
+        if time < self.delay:
+            self.throttle = 0.0
+            self.steering = 0.0
+        else:
+            
+            self.throttle = min(0.7, self.throttle + elapsed_time / 0.2)
+
+            
             self.steering = math.sin(time * 2 * math.pi / 2)
+
+        
+        self.SetThrottle(self.throttle)
+        self.SetSteering(self.steering)
+        self.SetBraking(0.0)

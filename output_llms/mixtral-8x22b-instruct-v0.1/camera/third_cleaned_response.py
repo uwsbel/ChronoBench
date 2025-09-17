@@ -17,9 +17,15 @@ def main():
     
     side = 1
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box.SetBodyFixed(True)  
-    mphysicalSystem.Add(box)  
+    
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    
+    box_shape = chrono.ChVisualShape()
+    box_shape.SetTexture(chrono.GetChronoDataFile("bluwhite.png"))
+    box.AddVisualShape(box_shape)
+    
+    box.SetFixed(True)
+    mphysicalSystem.Add(box)
 
     
     
@@ -136,9 +142,6 @@ def main():
 
 
 noise_model = "CONST_NORMAL"  
-
-
-
 
 
 update_rate = 30

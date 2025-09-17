@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import ChSensorManager, ChLidarSensor
+from pychrono.sensor import ChSensorManager, ChLidarSensor, ChSensor
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -52,21 +52,27 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
-
 # Sensor manager
-sens = ChSensorManager(system)
+manager = ChSensorManager(system)
 
-# Lidar sensor
+# Create lidar sensor
 lidar_sensor = ChLidarSensor(
     update_rate=10,  # Update rate in Hz
-    horizontal_samples=1024,  # Horizontal samples
-    vertical_samples=512,  # Vertical samples
-    fov=50.0  # Field of view in degrees
+    horizontal_samples=1024,  # Number of horizontal samples
+    vertical_samples=512,  # Number of vertical samples
+    field_of_view=30,  # Field of view in degrees
+    min_distance=0.1,  # Minimum distance to objects
 )
 lidar_sensor.AttachToChassis(rover)  # Attach the lidar sensor to the rover's chassis
-sens.AddSensor(lidar_sensor)
+
+# Filter the lidar data
+# (Add your own filtering logic here)
+
+# Add the lidar sensor to the sensor manager
+manager.AddSensor(lidar_sensor)
+
+# Update the sensor manager in the simulation loop
+manager.Update()
 
 # Set the simulation time step
 time_step = 1e-3
@@ -89,6 +95,3 @@ while vis.Run():
 
     # Advance simulation by one time step
     system.DoStepDynamics(time_step)
-
-    # Update sensor manager
-    sens.Update()

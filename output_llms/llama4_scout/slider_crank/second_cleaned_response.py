@@ -58,6 +58,12 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -69,12 +75,6 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
 t = 0
 while vis.Run() and t < 20:  
     vis.BeginScene()  
@@ -82,33 +82,48 @@ while vis.Run() and t < 20:
     vis.EndScene()  
 
     
-    array_time.append(t)
-    array_angle.append(mcrank.GetRot().GetAngleZ())
-    array_pos.append(mpiston.GetPos().x())
-    array_speed.append(mpiston.GetPos().x() - (array_pos[-2] if len(array_pos) > 1 else 0))
+    crank_angle = my_motor.GetMotorAngle()
 
-    sys.DoStepDynamics(1e-3)  
+    
+    piston_pos = mpiston.GetPos().x()
+
+    
+    piston_speed = mpiston.GetPos_dt().x()
+
+    
+    array_time.append(t)
+    array_angle.append(crank_angle)
+    array_pos.append(piston_pos)
+    array_speed.append(piston_speed)
+
+    
+    sys.DoStepDynamics(1e-3)
     t += 1e-3
 
 
-fig, axs = plt.subplots(2, figsize=(10, 6))
+vis.Close()
 
 
-axs[0].plot(np.array(array_angle), np.array(array_pos))
+fig, axs = plt.subplots(2)
+
+
+axs[0].plot(array_angle, array_pos)
 axs[0].set_title('Position vs Crank Angle')
 axs[0].set_xlabel('Crank Angle [rad]')
 axs[0].set_ylabel('Position [m]')
-ticks = np.linspace(0, 2 * np.pi, 5)
-axs[0].set_xticks(ticks)
-axs[0].set_xticklabels([f'{tick:.1f}π' if tick != 0 else '0' for tick in ticks / np.pi])
+xticks = np.linspace(0, 2 * np.pi, 5)
+axs[0].set_xticks(xticks)
+axs[0].set_xticklabels([f'{i:.1f}π' for i in np.linspace(0, 2, 5)])
 
 
-axs[1].plot(np.array(array_angle), np.array(array_speed))
+axs[1].plot(array_angle, array_speed)
 axs[1].set_title('Speed vs Crank Angle')
 axs[1].set_xlabel('Crank Angle [rad]')
 axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_xticks(ticks)
-axs[1].set_xticklabels([f'{tick:.1f}π' if tick != 0 else '0' for tick in ticks / np.pi])
+axs[1].set_xticks(xticks)
+axs[1].set_xticklabels([f'{i:.1f}π' for i in np.linspace(0, 2, 5)])
 
-plt.tight_layout()
+
+fig.tight_layout()
+
 plt.show()

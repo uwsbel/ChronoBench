@@ -89,6 +89,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -105,33 +106,37 @@ driver.Initialize()
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
+sensor_manager = sens.ChSensorManager()
+
+
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetName("LidarSensor")
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 2))
+lidar_sensor.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar_sensor.SetRange(10)
+lidar_sensor.SetFrequency(10)
+sensor_manager.AddSensor(lidar_sensor)
+
+
+np.random.seed(0)
+for _ in range(10):
+    box_mass = np.random.uniform(100, 500)
+    box_size = chrono.ChVector3d(np.random.uniform(1, 5), np.random.uniform(1, 5), np.random.uniform(1, 5))
+    box_position = chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(1, 5))
+    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), box_size, 1000, True)
+    box.SetMass(box_mass)
+    box.SetPos(box_position)
+    box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    box.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    vehicle.GetSystem().Add(box)
+
+
 render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-sensor_manager = sens.ChSensorManager()
-
-
-lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetName("LidarSensor")
-lidar_sensor.SetFrequency(10)
-lidar_sensor.SetRange(100)
-lidar_sensor.SetResolution(360)
-sensor_manager.AddSensor(lidar_sensor)
-
-
-vehicle.AddSensor(sensor_manager)
-
-
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
-    box.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    vehicle.GetSystem().Add(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -149,9 +154,7 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    sensor_manager.Synchronize(time)
+    sensor_manager.Update(time)
 
     
     driver.Advance(step_size)

@@ -91,7 +91,9 @@ def main():
     sens_manager.AddSensor(gyro)
 
     
-    mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
+    
+    local_mag_field = ch.ChVector3d(0.0, 0.0, 0.5)  
+    mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, local_mag_field)
     mag.PushFilter(sens.ChFilterMagnetAccess())  
     mag.SetName("magnetometer")
     sens_manager.AddSensor(mag)
@@ -137,8 +139,11 @@ def main():
 
         
         sens_manager.Update()
-        if not ros_manager.Update():  
+
+        
+        if not ros_manager.Update(time, time_step):
             break
+
         sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":

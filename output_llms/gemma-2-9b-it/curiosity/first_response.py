@@ -1,40 +1,45 @@
-from pychrono import ChSystem, ChBody, ChCollisionShape, ChMaterialSurface, ChVectorD, ChQuaternionD, ChContact
-from pychrono.irrlicht import IrrlichtVisualizer
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
-# Initialize PyChrono system
-system = ChSystem()
+# Initialize PyChrono
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+system = chrono.ChSystemNSC()
 
-# Define ground
-ground = ChBody(system)
-ground.SetPos(ChVectorD(0, 0, 0))
-ground_shape = ChCollisionShape()
-ground_shape.SetBox(ChVectorD(10, 10, 1))  # Adjust dimensions as needed
-ground.AddCollisionShape(ground_shape)
+# Create the ground
+ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)  # Size: 10x10x0.1, density: 1000
+ground.SetPos(chrono.ChVectorD(0, 0, -0.05))  # Slightly below the origin
 ground.SetBodyFixed(True)
+system.AddBody(ground)
 
-# Define rover
-rover = ChBody(system)
-rover.SetPos(ChVectorD(0, 0, 1))
-rover_shape = ChCollisionShape()
-rover_shape.SetSphere(0.5)  # Adjust rover size as needed
-rover.AddCollisionShape(rover_shape)
+# Create the Curiosity rover
+rover = chrono.ChBodyEasySphere(0.5, 10)  # Radius: 0.5, density: 10
+rover.SetPos(chrono.ChVectorD(0, 0, 0))
+rover.SetBodyFixed(False)
+system.AddBody(rover)
 
-# Add motor control driver (placeholder)
-# In a real simulation, you'd connect a motor driver to the rover's wheels
-# and use it to apply torque based on user input
+# Add motor control driver
+motor_driver = chrono.ChMotorRotation(rover, chrono.ChVectorD(0, 0, 1), 
+                                       chrono.ChVectorD(0, 0, 0), 
+                                       chrono.ChVectorD(0, 0, 1), 
+                                       chrono.ChCoordsys<>(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+motor_driver.SetMotorType(chrono.ChMotorRotation.TypeMotorRotation)
+motor_driver.SetTorqueSpeedRatio(100)  # Adjust for desired torque
+system.AddBody(motor_driver)
 
-# Visualize the simulation using Irrlicht
-visualizer = IrrlichtVisualizer(system)
-visualizer.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))  # Adjust camera position
-visualizer.SetAmbientLight(ChVectorD(0.5, 0.5, 0.5))
-visualizer.SetDirectionalLight(ChVectorD(1, 1, 1), ChVectorD(0, 0, -1))
-visualizer.SetShadowMapEnabled(True)
+# Visualization setup
+vis = chronoirr.ChIrrApp(system, 'Curiosity Rover Simulation')
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))  # Initial camera position
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))  # Set camera orientation
+vis.SetSceneAmbientLight(chrono.ChColor(0.3, 0.3, 0.3))  # Set ambient light
+vis.SetShadowFlag(True)  # Enable shadows
 
-# Add textures and logos (placeholder)
-# You can load textures and apply them to the rover and ground surfaces
-# using the visualizer's API
+# Add textures and logos (customize as desired)
+# ...
 
-# Run the simulation
-while True:
+# Simulation loop
+vis.Start()
+while vis.GetTimer() < 10:  # Simulate for 10 seconds
     system.DoStepDynamics(0.01)
-    visualizer.Render()
+    vis.Render()
+
+vis.Close()

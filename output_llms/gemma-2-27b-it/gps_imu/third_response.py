@@ -165,7 +165,7 @@ while vis.Run():
     
     driver_inputs = driver.GetInputs()
     
+    
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle

@@ -75,6 +75,7 @@ vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot2))
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
 
+
 vehicle2.Initialize()
 
 vehicle2.SetChassisVisualizationType(vis_type)
@@ -111,8 +112,9 @@ vis.AttachVehicle(vehicle1.GetVehicle())
 vis.AttachVehicle(vehicle2.GetVehicle())
 
 
-
 driver1 = veh.ChInteractiveDriverIRR(vis)
+
+
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -136,6 +138,7 @@ driver2.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle1.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle2.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -166,6 +169,10 @@ while vis.Run() :
     vehicle1.Synchronize(time, driver1_inputs, terrain)
     vehicle2.Synchronize(time, driver2_inputs, terrain)
     vis.Synchronize(time, driver1_inputs, driver2_inputs)
+
+    
+    driver1_inputs.steering = math.sin(time * 2.0)
+    driver2_inputs.steering = -math.sin(time * 2.0)
 
     
     driver1.Advance(step_size)

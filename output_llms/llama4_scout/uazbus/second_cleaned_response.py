@@ -103,9 +103,10 @@ step_number = 0
 render_frame = 0
 
 
+maneuver_time = 10.0  
 lane_change_1_time = 2.0  
 lane_change_2_time = 5.0  
-brake_time = 8.0  
+brake_time = 7.0  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -121,19 +122,19 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
+    if time >= lane_change_1_time and time < lane_change_1_time + 1.0:
+        driver_inputs.steering = 0.5
+    elif time >= lane_change_2_time and time < lane_change_2_time + 1.0:
+        driver_inputs.steering = -0.5
+    elif time >= brake_time:
+        driver_inputs.throttle = 0.0
+        driver_inputs.braking = 1.0
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    if time >= lane_change_1_time and time < lane_change_1_time + 1.0:
-        driver_inputs.steering = 0.5  
-    elif time >= lane_change_2_time and time < lane_change_2_time + 1.0:
-        driver_inputs.steering = -0.5  
-    elif time >= brake_time:
-        driver_inputs.throttle = 0.0  
-        driver_inputs.braking = 1.0  
 
     
     driver.Advance(step_size)

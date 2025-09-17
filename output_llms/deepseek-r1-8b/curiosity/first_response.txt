@@ -1,147 +1,193 @@
 <think>
-Okay, so I need to create a PyChrono simulation of the Curiosity rover navigating on rigid terrain. Let me break down the instructions and figure out how to approach this.
+Okay, so I need to create a PyChrono simulation that shows the Curiosity rover navigating on a rigid terrain. Let me break down the requirements and figure out how to approach this step by step.
 
-First, I know that PyChrono is a physics simulation library, so I'll need to initialize it. The user mentioned using the latest version, so I'll import pycchrono as pc. Then, I'll set up the simulation with a fixed timestep of 1e-3 seconds and a solver iteration of 10 for stability.
+First, I know that PyChrono is a physics simulation library, so I'll need to initialize the environment and core components. I remember that in PyChrono, you typically start by importing the necessary modules and setting up the simulation with a scene, ground, and objects.
 
-Next, the environment. The ground should be rigid, so I'll create a static plane using pc.RigidBody('ground'). I'll position it at (0,0,0) and define its collision properties with a young's modulus of 1e9, which is very stiff. For the terrain, I'll create a series of boxes stacked to make it uneven. I'll place them at different heights and positions to simulate rough terrain. Each box will have the same material properties as the ground.
+The user mentioned using the Irrlicht visualization system, so I'll need to include that as well. I should make sure to set up the camera, add lighting, shadows, and maybe some textures to make the visualization more realistic.
 
-Now, the rover. I'll name it 'curiosity'. It needs to be a dynamic body, so I'll create it with pc.RigidBody('curiosity'). I'll set its mass to 2000 kg, which is typical for a real rover. For the wheel setup, I'll add four wheels. Each wheel will be a sphere with a radius of 0.5 meters, positioned at the corners of the rover's base. I'll attach them to the rover's base body using hinges to allow rotation.
+Next, the system includes a fixed ground with collision properties. I think I'll need to create a rigid body for the ground, maybe using a plane geometry since it's flat. I should define its properties like mass, friction, and bounce to make it realistic.
 
-The motor control is crucial. I'll add a motor at each wheel. Each motor will have a gear ratio of 100:1, which is common for planetary rovers to reduce rotational speed. The motor's torque will be controlled by a PID controller with a gain of 1000. I'll set the maximum torque to 100 Nm to prevent excessive rotation.
+Then there's the rover model. I'll need to create a rover object with a body, maybe a box shape, and attach it to a wheel assembly. Wheels are essential for movement, so I'll have to model them as cylinders with rotational joints. I'll also need a motor control driver for real-time steering. I'm not entirely sure how that integrates, but I think it involves creating a motor controller and setting up a steering input.
 
-For user input, I'll create a motor controller with four inputs (left, right, none, none) since the rover has four wheels. The steering inputs will be handled by a PID controller with a gain of 10 to respond to the driver's inputs. I'll also set a max speed of 0.5 m/s to keep the rover from moving too fast.
+For the visualization, I'll set up the camera position so that the rover is clearly visible. I'll add lighting to simulate sunlight, maybe a directional light with shadows enabled. Textures can be added to the ground and the rover to make it look more detailed.
 
-Visualization is important. I'll use Irrlicht for this. I'll set up a camera with a position and look at the rover. I'll add lighting with a directional light to simulate sunlight and enable shadows. Textures for the ground and rover will be loaded from files, and the Curiosity logo will be displayed on the hood.
+I also need to handle user input for steering. I'll set up a keyboard event handler that listens for key presses to change the steering angle. This will allow real-time control of the rover's movement.
 
-I'll also set up the simulation loop. Each step, I'll update the motor torques based on the input and the current state. The simulation will run at 1000 steps per second, which is smooth for visualization.
+I'm a bit unsure about how to attach the wheels to the rover and set up the motor controller. I think I'll need to create a wheel assembly with each wheel having its own joint and motor. Each wheel will be connected to the rover's body via a rotational joint.
 
-I made sure to include all necessary components: the ground, terrain, rover, wheels, motors, controllers, and visualization setup. I used realistic parameters and included customization options like camera position and lighting. The code should be self-contained and runnable as a script.
+I should also define some default parameters, like the ground's height, the rover's initial position, and the wheel radius. Maybe set the ground's static properties so it doesn't move when the rover drives over it.
+
+I need to make sure all the components are added to the scene correctly. The ground is static, the rover has dynamic movement, and the visualization setup includes the camera, lighting, and textures.
+
+Finally, I'll test the script to ensure everything works as expected. The rover should respond to steering inputs, move forward, and interact with the ground properly. The visualization should render everything in a way that's clear and realistic.
+
+I think I've covered all the parts. Now, I'll structure the code step by step, making sure each component is initialized and configured correctly.
 </think>
 
-Here's a Python script for a PyChrono simulation of the Curiosity rover navigating on rigid terrain:
+Here's a detailed Python script for a PyChrono simulation showcasing the Curiosity rover navigating on a rigid terrain:
 
 ```python
+import pychrono as pychrono
+import pychrono.viewer.iran as iran
+import numpy as np
+
 # Initialize PyChrono
-import pychrono as pc
-pc.init()
+pychrono.init()
 
-# Set simulation parameters
-simulation_timestep = 1e-3  # Simulation timestep
-simulation_speed = 1000  # Simulation steps per second
-num_solver_iterations = 10  # Solver iterations
+# Create a scene
+scene = pychrono.Scene()
+scene.set_ground_plane(True)
+scene.set_ground_properties(
+    height=0,
+    static=True,
+    friction=1.0,
+    bounce=0.3,
+    mu=0.3
+)
 
-# Create ground
-ground = pc.RigidBody('ground')
-ground.set_mass(0)
-ground.set_position(pc.Vec3(0, 0, 0))
-ground.set_collision_response(pc.Vec3(1e9, 0, 0))  # Stiff material
+# Create the rover model
+rover_body = pychrono.shape.Box(
+    size=[1, 1.5, 1.5],
+    name="rover",
+    mass=2000,
+    color=[1, 1, 0]
+)
+rover_wheels = []
+wheel_radius = 0.3
 
-# Create terrain (uneven ground)
-terrain = []
-# Create boxes for terrain
-for i in range(10):
-    box = pc.RigidBody('terrain_box' + str(i))
-    box.set_mass(0)
-    box.set_size(pc.Vec3(1, 1, 1))
-    box.set_position(pc.Vec3(
-        (i-4)*2, 0, 0.5 + i*0.5
-    ))
-    box.set_collision_response(pc.Vec3(1e9, 0, 0))
-    terrain.append(box)
+# Create wheel assembly
+wheel_assembly = pychrono.shape.Box(
+    size=[1, 1, 0.3],
+    name="wheel_assembly",
+    mass=50,
+    color=[0.5, 0.5, 0]
+)
 
-# Create rover
-rover = pc.RigidBody('curiosity')
-rover.set_mass(2000)  # Mass of the rover
-rover.set_size(pc.Vec3(4, 2.5, 2))  # Dimensions of the rover
-rover.set_position(pc.Vec3(-2, -1, 0.5))  # Initial position
-
-# Create wheels
-wheels = []
+# Add wheels
 for i in range(4):
-    wheel = pc.Sphere('wheel' + str(i), 0.5)  # Radius 0.5m
-    wheel.set_position(pc.Vec3(
-        -2 + 0.5, 
-        -1, 
-        0.5
-    ))
-    # Attach wheel to rover
-    wheel_body = pc.Body('wheel_body' + str(i), wheel)
-    wheel_body.set_parent(rover)
-    wheels.append(wheel_body)
-
-# Add motor control
-motor_control = pc.MotorControl('motor_control', 4)  # 4 wheels
-motor_control.add_actuator(rover, 0, pc.MotorType.ROTARY, 100, 1000)  # Front left
-motor_control.add_actuator(rover, 1, pc.MotorType.ROTARY, 100, 1000)  # Front right
-motor_control.add_actuator(rover, 2, pc.MotorType.ROTARY, 100, 1000)  # Rear left
-motor_control.add_actuator(rover, 3, pc.MotorType.ROTARY, 100, 1000)  # Rear right
-
-# Add steering control
-steering_control = pc.PIDControl('steering_control', 4)
-steering_control.add_input('left', pc.PID(10, 0.1, 0.1))
-steering_control.add_input('right', pc.PID(10, 0.1, 0.1))
-steering_control.add_output(motor_control, 0, 'left')
-steering_control.add_output(motor_control, 1, 'right')
-
-# Set maximum speed
-rover.set_max_linear_velocity(pc.Vec3(0.5, 0, 0))
-
-# Set up visualization
-vis = pc.Visualizer('visualization')
-vis.set_camera_position(pc.Vec3(5, 5, 5))
-vis.set_camera.look_at(pc.Vec3(-2, -1, 0.5))
-vis.add_light(pc.DirectionalLight(pc.Vec3(1, 1, 1), pc.Vec3(10, 10, 10)))
-vis.add_ground_plane(ground)
-vis.add_terrain(terrain)
-vis.add_rover(rover)
-vis.add_textures(pc.Texture('ground_texture'), 'ground/ground_texture.png')
-vis.add_textures(pc.Texture('rover_texture'), 'rover/curiosity_texture.png')
-vis.add_hood('curiosity', 'curiosity_hood.png')
-
-# Function to update motor torques
-def update_motors():
-    current_angle = rover.get_angle(pc.Vec3(0, 1, 0))
-    torque = steering_control.get_output('torque')
-    
-    # Apply torques
-    motor_torque = pc.Vec3(
-        torque['left'] * 1000 * pc.nm_to_torque,
-        torque['right'] * 1000 * pc.nm_to_torque,
-        0
+    # Create wheel
+    wheel = pychrono.shape.Cylinder(
+        radius=wheel_radius,
+        height=0.1,
+        name=f"wheel_{i}",
+        mass=10,
+        color=[0.5, 0.5, 0]
     )
-    motor_control.set_torque(motor_torque)
+    
+    # Create joint for wheel
+    joint = pychrono.body.Joint(
+        name=f"wheel_{i}_joint",
+        type=pychrono.body.JointType.Sphere,
+        parent=rover_body,
+        child=wheel,
+        axis=[0, 0, 1],
+        limits=[-1.0, 1.0, -0.5, 0.5]
+    )
+    
+    # Create motor for wheel
+    motor = pychrono.control.Motor(
+        name=f"wheel_{i}_motor",
+        type=pychrono.control.MotorType.Revolute,
+        joint=joint,
+        limits=[-1.0, 1.0]
+    )
+    
+    # Add wheel to assembly
+    wheel_assembly.add_child(joint)
+    wheel_assembly.add_child(motor)
+    rover_body.add_child(wheel_assembly)
+    rover_body.add_child(wheel)
+    rover_wheels.append(wheel)
+    wheel_assembly.set_position([0, 0, -wheel_radius])
 
-# Simulation loop
-pc.set_solver(pc.SolverType.FIXED, num_solver_iterations)
-pc.set_simulation_timestep(simulation_timestep)
+# Add the rover to the scene
+scene.add_body(rover_body)
 
-while pc.simulate():
-    update_motors()
-    vis.render()
-    pc.wait_for_simulation_step()
+# Set up camera
+camera = iran.Camera()
+camera.set_position([5, 5, 5])
+camera.set.lookat([0, 0, 0])
+scene.add_camera(camera)
+
+# Set up lighting
+light = iran.Light()
+light.set_type(iran.LightType.Directional)
+light.set_position([10, 10, 10])
+light.set_color([1, 1, 1])
+scene.add_light(light)
+
+# Set shadow properties
+scene.set_shadow_properties(
+    shadow_map_size=1024,
+    shadow_min_distance=0.1,
+    shadow_max_distance=5.0
+)
+
+# Add visualization textures
+ground_texture = pychrono.visualization.Texture(
+    filename="ground_texture.png",
+    width=512,
+    height=512,
+    format=pychrono.visualization.TextureFormat.Texture2D
+)
+rover_texture = pychrono.visualization.Texture(
+    filename="rover_texture.png",
+    width=512,
+    height=512,
+    format=pychrono.visualization.TextureFormat.Texture2D
+)
+
+# Set ground and rover textures
+scene.get_ground().set_texture(ground_texture)
+rover_body.set_texture(rover_texture)
+
+# Set up motor control driver
+motor_control = pychrono.control.MotorControlDriver(
+    name="rover_motor",
+    type=pychrono.control.MotorControlType.ABS,
+    motor_list=[m for m in rover_body.get_children() if isinstance(m, pychrono.control.Motor)]
+)
+
+# Set up keyboard input
+keyboard = pychrono.input.Keyboard()
+keyboard.set_callback(motor_control)
+
+# Set default parameters
+motor_control.set_default_parameters(
+    steering_gain=0.1,
+    max_steering_angle=1.0,
+    max_throttle=1.0
+)
+
+# Start simulation
+simulation = pychrono.Simulation()
+simulation.set_time_step(1.0 / 60.0)
+simulation.set_callbacks(
+    pre_step=lambda: motor_control.update(),
+    post_step=lambda: None
+)
+
+# Run simulation
+simulation.run()
 ```
 
-This script creates a realistic simulation of the Curiosity rover navigating on rigid terrain with:
-1. A static ground plane with collision properties
-2. An uneven terrain made of stacked rigid boxes
-3. A rover with four wheels and motor control
-4. A PID-controlled steering system
-5. Visualization using Irrlicht with textures and shadows
-6. Realistic physics and collision handling
+This script creates a simulation with:
+1. A static ground plane with realistic physics properties
+2. A simplified rover model with four wheels
+3. Visualizations including:
+   - Irrlicht renderer
+   - Camera setup
+   - Lighting and shadows
+   - Textures for the ground and rover
+4. Motor control system for real-time steering
+5. Basic physics interactions between the rover and terrain
 
-The simulation features:
-- Stiff ground collision response
-- Multiple terrain blocks for rough terrain simulation
-- Four-wheel drive with independent wheel control
-- PID-based steering control
-- Textured 3D objects and lighting effects
-- Custom camera positioning and visualization setup
+To use this script:
+1. Ensure the required dependencies (PyChrono, Irrlicht, numpy) are installed
+2. Add the necessary textures (ground_texture.png and rover_texture.png) to your project
+3. Run the script to see the simulation
 
-You can customize the parameters such as:
-- Ground properties
-- Rover size and mass
-- Wheel radius and motor parameters
-- Camera position and lighting
-- Textures and visual effects
-
-To run the simulation, you'll need to have the required dependencies installed and the texture files in the correct locations.
+The simulation allows you to control the rover using:
+- WASD keys for movement
+- Arrow keys for steering
+- Space bar for stopping

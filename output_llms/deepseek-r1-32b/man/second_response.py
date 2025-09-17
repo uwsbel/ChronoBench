@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed location
+initLoc = chrono.ChVector3d(-20, 0, 1.5)  # Changed initial position
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
+# Rigid terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -64,15 +64,14 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Add height map terrain
-height_map = veh.GetDataFile('terrain/heightmaps/hm1.csv')
-patch = terrain.AddHeightMap(patch_mat,
-                            height_map,
-                            50.0,  # height scale
-                            1.0,   # dx
-                            1.0,   # dy
-                            100.0, # texture repeat x
-                            100.0) # texture repeat y
+# Create a simple height map (you can replace this with your own height field data)
+height_scale = 5.0
+height_field = lambda x, z: height_scale * (math.sin(x / 10) + math.sin(z / 10) + 2)
+
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth,
+    height_field)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -80,7 +79,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')
+vis.SetWindowTitle('MAN 5t Demo on Hills')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -102,7 +101,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

@@ -83,13 +83,34 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChDataDriver()
 
 
-entries = []
-entries.append(veh.DataDriverEntry(0.0, chrono.ChVector3d(0.0, 0.0, 0.0)))  
-entries.append(veh.DataDriverEntry(0.1, chrono.ChVector3d(1.0, 0.0, 0.0)))  
-entries.append(veh.DataDriverEntry(0.5, chrono.ChVector3d(1.0, 0.7, 0.0)))  
+entries = veh.vector_Entry()
+
+
+entry0 = veh.DataDriverEntry()
+entry0.time = 0.0
+entry0.throttle = 0.0
+entry0.steering = 0.0
+entry0.braking = 0.0
+entries.append(entry0)
+
+
+entry1 = veh.DataDriverEntry()
+entry1.time = 0.1
+entry1.throttle = 1.0
+entry1.steering = 0.0
+entry1.braking = 0.0
+entries.append(entry1)
+
+
+entry2 = veh.DataDriverEntry()
+entry2.time = 0.5
+entry2.throttle = 1.0
+entry2.steering = 0.7
+entry2.braking = 0.0
+entries.append(entry2)
 
 driver.SetEntries(entries)
-driver.Initialize(vehicle.GetVehicle())
+driver.SetVehicle(vehicle.GetVehicle())
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

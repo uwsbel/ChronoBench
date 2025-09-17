@@ -48,6 +48,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+# Adjust initial vehicle location and orientation
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -67,12 +70,12 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway_mesh.jpg"), 200, 200)  # highway mesh
+# Initialize terrain with a highway mesh
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
@@ -96,10 +99,10 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Reference speed input
-reference_speed = 10.0  # m/s
+# Reference speed input for controlling the vehicle's speed
+ref_speed = 10.0  # m/s
 
-# PID controller for throttle control
+# PID controller for throttle control based on speed error
 kp = 0.1
 ki = 0.01
 kd = 0.001
@@ -142,10 +145,10 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
+    speed = vehicle.GetVehicle().GetSpeed()
+    error = ref_speed - speed
 
-    # PID controller
+    # PID controller for throttle control
     integral += error * step_size
     derivative = (error - prev_error) / step_size
     throttle = kp * error + ki * integral + kd * derivative

@@ -22,7 +22,7 @@ def main():
     # Register a new ROS handler for the 2D lidar sensor.
     ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))
 
-    # ... (other code remains the same)
+    # ... (rest of the code remains the same)
 
 if __name__ == "__main__":
     main()

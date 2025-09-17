@@ -59,10 +59,10 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar_2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 1, 360, 2*ch.CH_PI, ch.CH_PI / 180, 0, 10., 0)
+    lidar_2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 1, 360, 0, ch.CH_PI / 180, 0, 100., 0)
     lidar_2d.PushFilter(sens.ChFilterDIAccess())  
-    lidar_2d.PushFilter(sens.ChFilterScanlines())  
-    lidar_2d.PushFilter(sens.ChFilterVisualizeScanlines(1280, 720, 1, "Lidar 2D Scan"))  
+    lidar_2d.PushFilter(sens.ChFilterScanfromDepth())  
+    lidar_2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "Lidar 2D Scan"))  
     lidar_2d.SetName("lidar_2d")
     sens_manager.AddSensor(lidar_2d)
 

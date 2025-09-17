@@ -128,10 +128,11 @@ if (True):
             mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
     
-    mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  
-    mvisualizeshellA.SetWireframe(True)  
-    mvisualizeshellA.SetShellResolution(2)  
-    mvisualizeshellA.SetBackfaceCull(True)  
-
-    mesh.AddVisualShapeFEA(mvisual
+    
+    mvisualizeshellA.SetWireframe(True) 
+    
+    mvisualizeshellA.SetBackfaceCull(True) 
+    
+    
+    mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)

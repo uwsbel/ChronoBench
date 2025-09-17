@@ -55,9 +55,6 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
 
-
-vehicle.SetTirePacejkaFile("Pacejka89.tir")
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 

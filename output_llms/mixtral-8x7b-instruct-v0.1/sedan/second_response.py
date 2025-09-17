@@ -21,16 +21,16 @@ tire_model = veh.TireModelType_TMEASY
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
+
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
+
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
+
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50
 
-# --------------
-# Create systems
-# --------------
+render_step_size = 1.0 / 50
 
 vehicle1 = veh.BMW_E90()
 vehicle1.SetContactMethod(contact_method)
@@ -107,37 +107,26 @@ driver2.SetBrakingDelta(render_step_size / braking_time)
 driver1.Initialize()
 driver2.Initialize()
 
-# ---------------
-# Simulation loop
-# ---------------
-
-print( "VEHICLE 1 MASS: ",  vehicle1.GetVehicle().GetMass())
-print( "VEHICLE 2 MASS: ",  vehicle2.GetVehicle().GetMass())
+print("VEHICLE 1 MASS: ",  vehicle1.GetVehicle().GetMass())
+print("VEHICLE 2 MASS: ",  vehicle2.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
 
-realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-steer_angle1 = 0
-steer_angle2 = 0
 
 while vis.Run() :
     time = vehicle1.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
     driver_inputs1 = driver1.GetInputs()
     driver_inputs2 = driver2.GetInputs()
 
-    # Update modules (process inputs from other modules)
     driver1.Synchronize(time)
     driver2.Synchronize(time)
     terrain.Synchronize(time)
@@ -145,7 +134,6 @@ while vis.Run() :
     vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs1, driver_inputs2)
 
-    # Advance simulation for one timestep for all modules
     driver1.Advance(step_size)
     driver2.Advance(step_size)
     terrain.Advance(step_size)
@@ -153,16 +141,10 @@ while vis.Run() :
     vehicle2.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update steering angles
-    steer_angle1 = math.sin(time)
-    steer_angle2 = math.sin(time + 2)
-
-    # Update vehicle steering
-    vehicle1.GetVehicle().SetSteerAngle(steer_angle1)
-    vehicle2.GetVehicle().SetSteerAngle(steer_angle2)
-
-    # Increment frame number
     step_number += 1
 
-    # Spin in place for real time to catch up
+    # Sinusoidal steering input for both vehicles
+    driver_inputs1.steer = math.sin(time)
+    driver_inputs2.steer = math.sin(time)
+
     realtime_timer.Spin(step_size)

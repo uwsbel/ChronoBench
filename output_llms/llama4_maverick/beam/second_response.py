@@ -5,46 +5,55 @@ import pychrono.irrlicht as chronoirr
 
 print("Example: PyChrono using beam finite elements")
 
-# Create the physical system
+# Create the physical system that will be simulated.
 sys = chrono.ChSystemSMC()
 
-# Create a mesh
+# Create a mesh, which is a container for elements and their referenced nodes.
 mesh = fea.ChMesh()
 
-# Create a section object for beam properties
+# Create a section object for beam properties.
 msection = fea.ChBeamSectionEulerAdvanced()
 
-# Set beam section properties
+# Set the width and height of the rectangular section of the beam.
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
+
+# Set the material properties of the beam.
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-# Correct conversion: degrees to radians
 msection.SetSectionRotation(45 * chrono.CH_C_DEG_TO_RAD)
 
-# Create a builder for Euler-Bernoulli beams
+# ---------------------------------------------------------------------
+# Create an Euler-Bernoulli beam using the ChBuilderBeamEuler helper.
 builder = fea.ChBuilderBeamEuler()
 
-# Build a beam from point A to point B with 5 elements
-pointA = chrono.ChVector3d(0, 0, -0.1)
-pointB = chrono.ChVector3d(0.2, 0, -0.1)
-num_elements = 5
-builder.BuildBeam(mesh, pointA, pointB, msection, num_elements, chrono.ChVector3d(0, 1, 0))
+# Use the builder to create a beam from point A to point B.
+builder.BuildBeam(mesh, 
+                  msection, 
+                  5, 
+                  chrono.ChVector3d(0, 0, -0.1), 
+                  chrono.ChVector3d(0.2, 0, -0.1), 
+                  chrono.ChVector3d(0, 1, 0))
 
-# Fix the last node of the created beam
+# Fix the last node of the created beam.
 builder.GetLastBeamNodes().back().SetFixed(True)
 
-# Apply a force to the first node of the created beam
+# Apply a force to the first node of the created beam.
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# Add the mesh to the physical system
+# ---------------------------------------------------------------------
+
+# Disable the automatic gravity for FEA elements in this demonstration.
+mesh.SetAutomaticGravity(False)
+
+# Add the mesh to the physical system.
 sys.Add(mesh)
 
-# Visualization settings for the beams and nodes
+# Add visualization for the beams in the mesh.
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)
 visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
 visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
@@ -52,6 +61,7 @@ visualizebeamA.SetSmoothFaces(True)
 visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
 
+# Add visualization for the nodes in the mesh.
 visualizebeamC = chrono.ChVisualShapeFEA(mesh)
 visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
 visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
@@ -60,7 +70,7 @@ visualizebeamC.SetSymbolsScale(0.01)
 visualizebeamC.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamC)
 
-# Create an Irrlicht visualization window
+# Create an Irrlicht visualization window.
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -71,15 +81,13 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Set the MKL Pardiso solver
+# Change the default solver to the MKL Pardiso solver.
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Simulation loop
+# Simulation loop.
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     sys.DoStepDynamics(0.001)
-
-# The final code is provided above.

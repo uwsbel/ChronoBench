@@ -4,52 +4,41 @@ import pychrono.vehicle as veh
 import pychrono.engine as engine
 
 
-chrono.SetChronoDataPath('../../data/')  
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-ground_body = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-ground_body.SetPos(chrono.ChVectorD(0, -0.05, 0))
-ground_body.SetBodyFixed(True)
-system.Add(ground_body)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-turtlebot = veh.ChTurtlebot()
-turtlebot.Init()
-turtlebot.SetChassisBodyPos(chrono.ChVectorD(0, 0.5, 0))
-turtlebot.SetChassisBodyRot(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
-system.Add(turtlebot.GetVehicle())
+ground = chrono.ChBodyEasyBox(10, 10, 0.5, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+system.Add(ground)
 
 
-visualization = chronoirr.ChIrrApp()
-visualization.AddSystem(system)
-visualization.AddLogo()
-visualization.AddSkyBox()
-visualization.AddTypicalLights()
-visualization.AddTypicalCamera(chrono.ChVectorD(0, 0.5, -1.5), chrono.ChVectorD(0, 0.5, 0))
+turtlebot = veh.ChTankVehicleSystem()
+turtlebot.Initialize(system, chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-step_size = 0.01  
-end_time = 10  
+system.Add(turtlebot)
 
 
-start_time = system.GetChTime()
-while system.GetChTime() - start_time < end_time:
+visualization = chronoirr.ChIrrApp(system, 'Turtlebot Simulation', chronoirr.dimension2du(800, 600))
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_opengl.png'))
+visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 10, 40, 50)
+
+
+camera = visualization.GetSceneManager().getActiveCamera()
+camera.setPosition(chrono.ChVectorD(0, -5, 5))
+camera.setTarget(chrono.ChVectorD(0, 0, 0.5))
+
+
+def simulation_step():
     
-    if system.GetChTime() < 2:
-        turtlebot.SetMotorSpeed(1, 1)  
-    elif system.GetChTime() < 4:
-        turtlebot.SetMotorSpeed(1, -1)  
-    elif system.GetChTime() < 6:
-        turtlebot.SetMotorSpeed(-1, 1)  
-    else:
-        turtlebot.SetMotorSpeed(1, 1)  
-
-    
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(0.01)
 
     
     visualization.BeginScene()
@@ -57,4 +46,19 @@ while system.GetChTime() - start_time < end_time:
     visualization.EndScene()
 
 
-visualization.Close()
+def control_turtlebot(time):
+    if time < 5:
+        turtlebot.SetMotorSpeed(1, 1)  
+    elif time < 10:
+        turtlebot.SetMotorSpeed(1, -1)  
+    elif time < 15:
+        turtlebot.SetMotorSpeed(-1, 1)  
+    else:
+        turtlebot.SetMotorSpeed(0, 0)  
+
+
+time = 0
+while visualization.Run():
+    control_turtlebot(time)
+    simulation_step()
+    time += 0.01

@@ -1,137 +1,117 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.vehicle.wheel as wheel
-import pychrono.vehicle.driveline as driveline
-import pychrono.vehicle.terrain as terrain
-from pychrono.vehicle.utils import *
+import pychrono.irrlicht as irr
+import pychrono.driver as driver
+import pychrono.fea as fea
 
 
 
 
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-vehicle = veh.Vehicle()
-vehicle.SetChassisFixed(False)
-vehicle.SetInitializeFwdVel(10)  
-
-
-
-
-
-
-wheel_radius = 0.35
-wheel_width = 0.25
-wheel_mass = 20
-wheel_inertia = 0.5 * wheel_mass * wheel_radius * wheel_radius
-
-
-chassis_mass = 1500
-chassis_inertia = veh.ChassisInertia(chassis_mass, 1.0, 1.0, 1.0)
-
-
-
-
-
-
-chassis = veh.Chassis("BMW_E90", chassis_mass, chassis_inertia)
-vehicle.SetChassis(chassis)
-
-
-powertrain = veh.SimplePowertrain("Powertrain")
-vehicle.SetPowertrain(powertrain)
-
-
-steering = veh.PinBallSteering("Steering")
-vehicle.SetSteering(steering)
-
-
-brake = veh.SimpleBrake("Brake")
-vehicle.SetBrake(brake)
-
-
-
-
-
-
-wheel_positions = [
-    veh.ChVectorD(1.0, 0.8, 0.4),   
-    veh.ChVectorD(1.0, -0.8, 0.4),  
-    veh.ChVectorD(-1.0, 0.8, 0.4),  
-    veh.ChVectorD(-1.0, -0.8, 0.4)  
-]
-
-
-for i in range(4):
-    wheel_body = veh.Wheel("Wheel_" + str(i), wheel_radius, wheel_width, wheel_mass, wheel_inertia)
-    wheel_body.SetPos(wheel_positions[i])
-    vehicle.AddWheel(wheel_body)
-
-
-
-
-
-
-tire_radius = 0.35
-tire_width = 0.25
-tire_mass = 20
-
-
-tire_model = veh.TMeasyTire("Tire")
-tire_model.SetTireType(veh.TMeasyTire::TMeasyTireType::TMET_PAC2002)
-tire_model.SetTireParam("tire_radius", str(tire_radius))
-tire_model.SetTireParam("tire_width", str(tire_width))
-tire_model.SetTireParam("tire_mass", str(tire_mass))
-
-for i in range(4):
-    vehicle.GetWheel(i).SetTire(tire_model.CreateTire())
-
-
-
-
-
-
-terrain = terrain.RigidTerrain(vehicle.GetSystem())
-terrain.SetContactMaterialProperties(1e6, 0.4)
+terrain = veh.Terrain(system)
 terrain.SetContactFrictionCoefficient(0.8)
 terrain.SetContactRestitutionCoefficient(0.1)
-terrain.Initialize(100, 100, 0.5, 0.5)  
+terrain.SetContactMaterialProperties(2e7, 0.3)
 
 
-terrain_textures = terrain.Texture(terrain)
-terrain_textures.SetTexture("PATH_TO_TEXTURE", 100, 100)
+patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(chrono.CH_PI, chrono.ChVectorD(0, 0, 1))),
+                         100, 100)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
+vehicle = veh.WheelVehicle(system)
+vehicle.SetContactFrictionCoefficient(0.9)
+vehicle.SetContactRestitutionCoefficient(0.1)
+vehicle.SetContactMaterialProperties(2e7, 0.3)
 
 
+vehicle.Init(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngAxis(chrono.CH_PI_2, chrono.ChVectorD(0, 1, 0))))
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(vehicle.GetSystem())
-vis.SetWindowSize(1280, 720)
+chassis = veh.Chassis(vehicle)
+chassis.SetMass(1500)
+chassis.SetInertiaXX(chrono.ChVectorD(800, 1200, 2000))
+chassis.SetCOG(chrono.ChVectorD(0, 0.5, 0))
+chassis.SetVisualizationType(veh.VisualizationType_MESH)
+chassis.SetMeshFileName(veh.GetDataFile("vehicle/BMW_E90/chassis.obj"))
+chassis.SetTextureFileName(veh.GetDataFile("vehicle/BMW_E90/chassis.png"))
+vehicle.AddChassis(chassis)
+
+
+front_susp = veh.DoubleWishbone(vehicle, "front")
+front_susp.SetSubchassisMass(40)
+front_susp.SetSpindleMass(2)
+front_susp.SetSpringRestLength(0.3)
+front_susp.SetSpringCoefficient(20000)
+front_susp.SetShockAbsorberCoefficient(2000)
+front_susp.SetSpringPreload(0)
+front_susp.SetSuspensionMass(10)
+front_susp.SetSteeringLinkMass(5)
+front_susp.SetAckermannSteeringAngle(chrono.CH_C_PI/180 * 30)
+front_susp.SetSubchassisVisualizationType(veh.VisualizationType_MESH)
+front_susp.SetSubchassisMeshFileName(veh.GetDataFile("vehicle/BMW_E90/suspension_front.obj"))
+front_susp.SetSubchassisTextureFileName(veh.GetDataFile("vehicle/BMW_E90/suspension_front.png"))
+vehicle.AddAxle(front_susp)
+
+rear_susp = veh.MultiLink(vehicle, "rear")
+rear_susp.SetSubchassisMass(40)
+rear_susp.SetSpindleMass(2)
+rear_susp.SetSpringRestLength(0.3)
+rear_susp.SetSpringCoefficient(20000)
+rear_susp.SetShockAbsorberCoefficient(2000)
+rear_susp.SetSpringPreload(0)
+rear_susp.SetSuspensionMass(10)
+rear_susp.SetSubchassisVisualizationType(veh.VisualizationType_MESH)
+rear_susp.SetSubchassisMeshFileName(veh.GetDataFile("vehicle/BMW_E90/suspension_rear.obj"))
+rear_susp.SetSubchassisTextureFileName(veh.GetDataFile("vehicle/BMW_E90/suspension_rear.png"))
+vehicle.AddAxle(rear_susp)
+
+
+wheel = veh.Wheel(vehicle)
+wheel.SetMass(20)
+wheel.SetInertiaXX(chrono.ChVectorD(1.2, 2.1, 1.2))
+wheel.SetRadius(0.35)
+wheel.SetWidth(0.25)
+wheel.SetVisualizationType(veh.VisualizationType_MESH)
+wheel.SetMeshFileName(veh.GetDataFile("vehicle/BMW_E90/wheel.obj"))
+wheel.SetTextureFileName(veh.GetDataFile("vehicle/BMW_E90/wheel.png"))
+vehicle.AddWheel(wheel)
+
+
+tire = veh.TMeasyTire("tire")
+tire.SetVisualizationType(veh.VisualizationType_MESH)
+tire.SetMeshFileName(veh.GetDataFile("vehicle/BMW_E90/tire.obj"))
+tire.SetTextureFileName(veh.GetDataFile("vehicle/BMW_E90/tire.png"))
+vehicle.AddTire(tire)
+
+
+driver = driver.ChInteractiveDriverIRR(vehicle)
+driver.SetSteeringDelta(0.03)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
+driver.SetSteeringWheelAngleRange(360)
+driver.SetThrottlePedalRange(100)
+driver.SetBrakingPedalRange(100)
+driver.Initialize()
+
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
 vis.SetWindowTitle("BMW E90 Sedan Simulation")
-vis.Initialize()
-vis.AddLogo("PATH_TO_LOGO")
-vis.AddSkyBox()
-vis.AddLightDirectional(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(1, 1, 1))
-
-
-camera = chronoirr.ChChaseCamera(vis.GetSceneManager(), vis.GetVideoDriver(), chassis.GetBody(), 5.0)
-vis.SetCamera(camera)
-
-
-
-
-
-
-driver = veh.ChInteractiveDriverIRR(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
-vehicle.SetDriver(driver)
+vis.SetWindowSize(1280, 720)
+vis.SetCameraVertical(chrono.CameraVertical_DIRTYZ)
+vis.SetUseSkyBox(True)
+vis.AddSkyBox(veh.GetDataFile("skybox/skybox_")
+vis.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddTypicalLights()
+vis.AddTypicalCamera(irr.vector3df(0, 3, 5), irr.vector3df(0, 0, 0))
+vis.SetChaseCamera(vehicle.GetChassisBody(), chrono.ChVectorD(0, 2, 5), 5)
 
 
 
@@ -139,36 +119,28 @@ vehicle.SetDriver(driver)
 
 
 time_step = 0.01
-sim_time = 10.0
-output_freq = 10
-
-
-vehicle.Initialize()
+sim_time = 100.0
 
 
 while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
+    time = system.GetChTime()
+    if time > sim_time:
+        break
 
     
-    driver.Synchronize(time)
+    steering = driver.GetSteering()
+    throttle = driver.GetThrottle()
+    braking = driver.GetBraking()
 
     
-    vehicle.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
-
-    
-    vehicle.GetSystem().DoStepDynamics(time_step)
+    vehicle.SetSteering(steering)
+    vehicle.SetThrottle(throttle)
+    vehicle.SetBraking(braking)
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+    system.DoStepDynamics(time_step)
 
-    
-    if time > sim_time:
-        break
-
-
-
-
-
-vis.Delete()
+print("Simulation completed")

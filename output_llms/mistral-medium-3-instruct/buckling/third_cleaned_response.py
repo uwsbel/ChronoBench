@@ -32,13 +32,13 @@ vG = chrono.ChVector3d(L - K, -H, 0)
 vd = chrono.ChVector3d(0, 0, 0.0001)
 
 
-body_truss = chrono.ChBody()
-body_truss.SetFixed(True)
-sys.Add(body_truss)
+body_trss = chrono.ChBody()
+body_trss.SetFixed(True)
+sys.Add(body_trss)
 
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_truss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))  
+body_trss.AddVisualShape(boxtruss, chrono.ChFrameD(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))  
 
 
 body_crank = chrono.ChBody()
@@ -51,9 +51,9 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_truss, body_crank, chrono.ChFrameD(vG))  
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))  
 myfun = ChFunctionMyFun()
-motor.SetSpeedFunction(myfun)  
+motor.SetTorqueFunction(myfun)
 sys.Add(motor)
 
 
@@ -79,8 +79,8 @@ builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
-node_tip = builder_iga.GetLastBeamNodes()[29]  
-node_mid = builder_iga.GetLastBeamNodes()[15]  
+node_tip = builder_iga.GetLastBeamNodes()[65]  
+node_mid = builder_iga.GetLastBeamNodes()[32]  
 
 
 section2 = fea.ChBeamSectionAdvancedEuler()
@@ -96,12 +96,12 @@ builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 
-node_top = builderA.GetLastBeamNodes()[0]  
+node_top = builderA.GetLastBeamNodes()[1]
 node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_tip, node_top, False, node_top.Frame(), node_top.Frame())  
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -155,8 +155,8 @@ mvisualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(mvisualizebeamA)
 
 mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
-mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NODE_SPEED)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_VECTORS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_FULL)
 mvisualizebeamC.SetSymbolsThickness(0.005)
 mvisualizebeamC.SetSymbolsScale(0.01)
 mvisualizebeamC.SetZbufferHide(True)
@@ -185,6 +185,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.1, 0.1, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
+    chronoirr.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))  
     vis.EndScene()
-    sys.DoStepDynamics(0.001)
+    sys.DoStepDynamics(0.002)

@@ -17,10 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0.0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -63,7 +62,7 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain = veh.DeformableTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
@@ -87,9 +86,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
-driver.SetThrottle(0.8)
 
 
 steering_time = 1.0  

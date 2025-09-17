@@ -1,65 +1,86 @@
+Here's a Python script that adheres to the provided instructions and simulates a FEDA vehicle on a rigid terrain using PyChrono and Irrlicht for visualization.
+
 ```python
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
 
 # Initialize the PyChrono environment and core components
-print("Copyright (c) 2023 projectchrono.org")
+def main():
+    # Create a ChronoENGINE physical system
+    chrono.SetChronoDataPath("/path/to/chrono/data/")  # Set the path to the Chrono data files
+    sys = chrono.ChSystemSMC()
 
-# Create a Chrono::Engine physical system
-chrono.SetChronoDataPath("/path/to/chrono/data/")
-veh.SetDataPath("/path/to/chrono/vehicle/data/")
+    # Create the FEDA vehicle
+    init_loc = chrono.ChVector3d(0, 0, 1.0)
+    init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+    vehicle = veh.FEDA_Vehicle(sys, init_loc, init_rot)
 
-# Create the FEDA vehicle
-init_loc = chrono.ChVectorD(0, 0.5, 0.6)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle = veh.FEDA_Vehicle("FEDA", veh.ContactMethod_SMC, veh.FEDA_TireModel_TMEasy)
+    # Set the contact method and tire model
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetTireType(veh.TireModelType_TMEasy)
 
-# Initialize the vehicle at the specified location and orientation
-vehicle.Initialize(init_loc, init_rot)
+    # Initialize the vehicle
+    vehicle.Initialize()
 
-# Set the vehicle parameters
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    # Set the camera to follow the vehicle
+    cam_pos = chrono.ChVector3d(10, 10, 5)
+    cam_target = vehicle.GetChassis().GetPos()
+    cam = chronoirr.ChIrrCamera(1, cam_pos, cam_target)
 
-# Create the terrain
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), "data/terrain/heightmaps/test64.bmp", 128, 128, 0, 0.1)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
-patch.SetContactFrictionCoefficient(0.9)
-patch.SetContactRestitutionCoefficient(0.01)
-patch.SetContactMaterial(0.8, 0.01, 2e8)
-terrain.Initialize()
+    # Create the terrain
+    terrain = veh.RigidTerrain(sys)
+    terrain.SetContactFrictionCoefficient(0.9)
+    terrain.SetContactRestitutionCoefficient(0.1)
+    terrain.SetContactMaterial(chrono.ChMaterialSurfaceSMC())
+    mesh_file = chrono.GetChronoDataFile("terrain/height_maps/my_terrain.obj")
+    mesh = chrono.ChTriangleMeshConnected()
+    mesh.LoadWavefrontMesh(mesh_file)
+    mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
+    mesh_asset = chrono.ChTriangleMeshShape()
+    mesh_asset.SetMesh(mesh)
+    terrain.AddMesh(mesh_asset, chrono.ChVector3d(0, 0, 0))
+    terrain.Initialize()
 
-# Create the Irrlicht application
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(vehicle.GetSystem())
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("FEDA Vehicle Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + "chrono_logo_white.png")
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 5, -5), init_loc)
-vis.AddTypicalLights()
+    # Set visualization type for vehicle parts
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# Create the interactive driver system
-driver = veh.ChIrrGuiDriver(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
-driver.Initialize()
+    # Create the Irrlicht application
+    vis = chronoirr.ChIrrApp(sys, "FEDA Vehicle Simulation", chronoirr.dimension2du(1280, 720))
+    vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    vis.AddSkyBox()
+    vis.AddCamera(cam)
+    vis.AddTypicalLights()
+    vis.AttachVehicle(vehicle)
 
-# Simulation loop
-while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
-    driver_inputs = driver.GetInputs()
-    vehicle.Advance(time, driver_inputs)
-    vis.Run()
-    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    vis.Render()
-    vis.EndScene()
-    chrono.ChThreestepper_RungeKutta_Explicit(vehicle.GetSystem()).Advance(1 / 50.0)
+    # Create the interactive driver system
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    # Simulation loop
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    while vis.Run():
+        time = sys.GetChTime()
+        driver_inputs = driver.GetInputs()
+        vehicle.Advance(time, driver_inputs)
+        sys.DoStepDynamics(1e-3)
+        vis.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+        vis.Render()
+        vis.EndScene()
+        realtime_timer.Spin(1.0 / 50.0)
+
+if __name__ == "__main__":
+    main()
 ```
+
+```python
+# No code should be outside the triple backticks.
+# The above Python code is a PyChrono simulation script based on the instructions.
 ```

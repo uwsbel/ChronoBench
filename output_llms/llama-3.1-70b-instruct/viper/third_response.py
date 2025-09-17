@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
 from pychrono import irrlicht as chronoirr
+import pychrono.vehicle as veh  # Added import statement
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -15,11 +15,11 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
-terrain.SetLength(20)
-terrain.SetWidth(20)
-terrain.SetMeshResolution(20)
-terrain.SetSoilParameters(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))  # Set the plane for the terrain
+terrain.SetLength(20)  # Set the length of the terrain
+terrain.SetWidth(20)  # Set the width of the terrain
+terrain.SetMeshResolution(0.1)  # Set the mesh resolution of the terrain
+terrain.SetSoilParameters(1000, 0.1, 0.1, 0.1, 0.1, 0.1)  # Set the soil parameters
 system.Add(terrain)
 
 # Create Viper rover

@@ -17,29 +17,13 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrain_model = veh.TerrainType_SCM  # Implicitly set to SCM
+terrain_model = veh.TerrainType_SCM
+terrainHeight = 0  # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0  # size in Y direction
 
-# SCM soil parameters
-soil_density = 1500
-soil_friction = 0.9
-soil_restitution = 0.01
-soil_adhesion = 0.0
-soil_cohesion = 1000.0
-soil_friction_angle = 30.0
-soil_dilation_angle = 0.0
-
-# SCM terrain using a height map
-height_map = []
-for i in range(200):
-    row = []
-    for j in range(200):
-        row.append(0.0)  # Initial height values (modify if needed)
-    height_map.append(row)
-
-# Initialize SCM terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem(), soil_density, soil_friction, soil_restitution, soil_adhesion, 
-                          soil_cohesion, soil_friction_angle, soil_dilation_angle, height_map)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 8, 8)
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
@@ -71,8 +55,19 @@ vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+# Create the SCM terrain
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(0.2, 200, 2e6, 0.3, 0.01, 0.1)
+height_map = []
+for x in range(terrainLength):
+    row = []
+    for y in range(terrainWidth):
+        row.append(0.0)
+    height_map.append(row)
+terrain.Initialize(height_map, terrainLength, terrainWidth)
+
+# Set SCM terrain texture to dirt
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -98,9 +93,10 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
+# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

@@ -1,24 +1,24 @@
 import pychrono as chrono
 import pychrono.sensor as sens
-import pychrono.ros as chros
+import pychrono.ros as ros
 import math
 
 
 system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVector3d(0, 0, -9.81))
 
 
 ground = chrono.ChBody()
-ground.SetPos(chrono.ChVector3d(0, 0, 0))
-ground.SetBodyFixed(False)
 ground.SetMass(1000)
-ground.SetInertiaXX(chrono.ChVector3d(1e3, 1e3, 1e3))
-ground.SetLinearVel(chrono.ChVector3d(1, 0, 0))  
+ground.SetInertiaXX(chrono.ChVector(100, 100, 100))
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetLinearVel(chrono.ChVectorD(1, 0, 0))  
+ground.SetBodyFixed(False)
 system.Add(ground)
 
 
-ground_shape = chrono.ChBox(chrono.ChVector3d(5, 5, 0.05))  
-ground.AddVisualShape(ground_shape, chrono.ChFramed())
+box = chrono.ChBoxShape()
+box.GetBoxGeometry().Size = chrono.ChVector(5, 1, 5)
+ground.AddAsset(box)
 
 
 manager = sens.ChSensorManager(system)
@@ -27,106 +27,67 @@ manager = sens.ChSensorManager(system)
 
 camera = sens.ChCameraSensor(
     ground,
-    30,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 1, 0.5), chrono.Q_from_AngAxis(math.pi/2, chrono.ChVector3d(0, 1, 0))),
-    1280,  
-    720,   
-    math.radians(60)  
+    60.0,
+    chrono.ChFrameD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT),
+    1280,
+    720,
+    chrono.CH_C_PI / 3
 )
-camera.SetName("camera")
 manager.AddSensor(camera)
 
 
 lidar = sens.ChLidarSensor(
     ground,
-    10,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0.5, 0.3)),
-    1,  
-    1,  
-    math.radians(360),  
-    math.radians(40),   
-    100  
+    10.0,
+    chrono.ChFrameD(chrono.ChVectorD(0, 1.5, 0), chrono.QUNIT),
+    1000,
+    32,
+    chrono.CH_C_PI,
+    chrono.CH_C_PI / 12,
+    100
 )
-lidar.SetName("lidar")
 manager.AddSensor(lidar)
 
 
 gps = sens.ChGPSSensor(
     ground,
-    10,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)),  
-    chrono.ChVector3d(0, 0, 0)  
+    10.0,
+    chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.QUNIT),
+    chrono.ChVectorD(0, 0, 0),
+    0.1
 )
-gps.SetName("gps")
 manager.AddSensor(gps)
 
 
-accel = sens.ChAccelerometerSensor(
+imu = sens.ChImuSensor(
     ground,
-    100,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
+    100.0,
+    chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT)
 )
-accel.SetName("accelerometer")
-manager.AddSensor(accel)
+manager.AddSensor(imu)
 
 
-gyro = sens.ChGyroscopeSensor(
-    ground,
-    100,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
-)
-gyro.SetName("gyroscope")
-manager.AddSensor(gyro)
-
-
-mag = sens.ChMagnetometerSensor(
-    ground,
-    10,  
-    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5))  
-)
-mag.SetName("magnetometer")
-manager.AddSensor(mag)
-
-
-ros_publisher = chros.ChROSPublisherManager()
-
-
-camera_pub = chros.ChROSPublisherCamera(camera, "/chrono/camera/image")
-lidar_pub = chros.ChROSPublisherLidar(lidar, "/chrono/lidar/scan")
-gps_pub = chros.ChROSPublisherGPS(gps, "/chrono/gps/data")
-accel_pub = chros.ChROSPublisherAccelerometer(accel, "/chrono/imu/accel")
-gyro_pub = chros.ChROSPublisherGyroscope(gyro, "/chrono/imu/gyro")
-mag_pub = chros.ChROSPublisherMagnetometer(mag, "/chrono/imu/mag")
-
-
-ros_publisher.AddPublisher(camera_pub)
-ros_publisher.AddPublisher(lidar_pub)
-ros_publisher.AddPublisher(gps_pub)
-ros_publisher.AddPublisher(accel_pub)
-ros_publisher.AddPublisher(gyro_pub)
-ros_publisher.AddPublisher(mag_pub)
-
-
-ros_publisher.Initialize(system, manager)
+ros_manager = ros.ChROSManager()
+ros_manager.Initialize()
+ros_manager.RegisterSensor(camera, "/camera/image_raw")
+ros_manager.RegisterSensor(lidar, "/laser/scan")
+ros_manager.RegisterSensor(gps, "/gps/fix")
+ros_manager.RegisterSensor(imu, "/imu/data")
 
 
 step_size = 1e-3  
-sim_duration = 10  
-rt_timer = chrono.ChRealtimeStepTimer()
+time_step = chrono.ChRealtimeStepTimer()
 
-
-time = 0
-while time < sim_duration:
-    
-    current_time = system.GetChTime()
-
-    
-    system.DoStepDynamics(step_size)
-    time += step_size
-
+while system.GetChTime() < 20.0:  
     
     manager.Update()
-    ros_publisher.Update(current_time)
-
+    ros_manager.Update()
     
-    rt_timer.Spin(step_size)
+    
+    system.DoStepDynamics(step_size)
+    
+    
+    time_step.Sleep()
+
+
+ros_manager.Shutdown()

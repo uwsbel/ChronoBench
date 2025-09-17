@@ -153,8 +153,6 @@ def main():
     
     
     noise_model = "CONST_NORMAL"  
-    
-    
 
     
     update_rate = 30

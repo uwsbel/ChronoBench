@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
@@ -48,16 +49,16 @@ class Model1:
 
             # Create a box body to connect the beam's endpoint to
             mbox = chrono.ChBody()
-            mbox.SetBodyFixed(True)  # Fix the box body
+            mbox.SetBodyFixed(True)
             mbox.SetBodyPosition(end_nodes.GetPosition())
             self.system.Add(mbox)
 
-            # Establish constraints between the beam's endpoint and the box
+            # Add constraints between the beam's endpoint and the box
             constraint_box = fea.ChLinkFrame()
             constraint_box.Initialize(end_nodes, mbox)
             self.system.Add(constraint_box)
 
-            # Add visualization for the FEM mesh and the connected box
+            # Add visualization for the FEM mesh
             visualizebeamA = chrono.ChVisualShapeFEA(mesh)
             visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Display moments along the beam
             visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
@@ -65,79 +66,78 @@ class Model1:
             visualizebeamA.SetWireframe(False)  # Set to non-wireframe mode
             mesh.AddVisualShapeFEA(visualizebeamA)  # Add the visualization shape to the mesh
 
-            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Display nodes as dots
-            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
-            visualizebeamB.SetSymbolsThickness(0.006)  # Set thickness of symbols
-            visualizebeamB.SetSymbolsScale(0.01)  # Set scale of symbols
-            visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
-            mesh.AddVisualShapeFEA(visualizebeamB)  # Add the node visualization to the mesh
+            # Create and initialize visualization objects for the chain
+            visualizechain = chrono.ChVisualShapeFEA(mesh)
+            visualizechain.SetGlyphType(self.body)
+        self.body.SetPosition(self.body.GetPosition() + self.body.GetForward() * self.body.GetLength())
 
-            # Create the Irrlicht visualization for rendering
-            vis = chronoirr.ChVisualSystemIrrlicht()
-            vis.AttachSystem(self.system)  # Attach Irrlicht to the Chrono system
-            vis.SetWindowSize(1024, 768)  # Set the size of the rendering window
-            vis.SetWindowTitle('FEA cables')  # Set the title of the rendering window
-            vis.Initialize()  # Initialize the visualization
-            vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
-            vis.AddSkyBox()  # Add a skybox for better aesthetics
-            vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific position
-            vis.AddTypicalLights()  # Add typical lights for better illumination
+    def GetBody(self):
+        return self.body
 
-            # Add visualization for the connected box
-            visualizebox = chrono.ChVisualShapeFEA(mesh)
-            visualizebox.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BOX_MZ)  # Display moments along the box
-            visualizebox.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
-            visualizebox.SetSmoothFaces(True)  # Enable smooth faces for better visualization
-            visualizebox.SetWireframe(False)  # Set to non-wireframe mode
-            mesh.AddVisualShapeFEA(visualizebox)  # Add the visualization shape to the mesh
+    def SetBody(self, body):
+        self.body = body
 
-            # Add visualization for node positions
-            visualizenode = chrono.ChVisualShapeFEA(mesh)
-            visualizenode.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Display nodes as dots
-            visualizenode.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
-            visualizenode.SetSymbolsThickness(0.006)  # Set thickness of symbols
-            visualizenode.SetSymbolsScale(0.01)  # Set scale of symbols
-            visualizenode.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
-            mesh.AddVisualShapeFEA(visualizenode)  # Add the node visualization to the mesh
+    def SetBodyPosition(self, position):
+        self.body.SetPosition(position)
 
-            # Print body positions function
-            def PrintBodyPositions():
-                for chain in self.chains:
-                    print(f"Chain {chain.index}: Box position = {chain.box.GetBodyPosition()}, Truss position = {chain.truss.GetBodyPosition()}")
+    def SetBodyOrientation(self, orientation):
+        self.body.SetOrientation(orientation)
 
-        # Add the PrintBodyPositions function to the system
-        self.system.Add(self.PrintBodyPositions)
+    def SetBodyVelocity(self, velocity):
+        self.body.SetLinearVelocity(velocity)
 
-# Initialize the physical system and mesh container:
-sys = chrono.ChSystemSMC()
-mesh = fea.ChMesh()
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
 
-# Create the model and add the mesh to the system
-model = Model1(sys, mesh)
-sys.Add(mesh)  # Remember to add the mesh to the physical system
+    def SetBodyForce(self, force):
+        self.body.SetLinearForce(force)
 
-# Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Choose SparseQR solver
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")
-    sys.SetSolver(solver)
-    solver.SetMaxIterations(200)
-    solver.SetTolerance(1e-10)
-    solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
-    solver.SetVerbose(False)
-# Set the timestepper for the simulation
-ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
-sys.SetTimestepper(ts)
+    def SetBodyTorque(self, torque):
+        self.body.SetAngularForce(torque)
 
-# Simulation loop
-while vis.Run():
-    vis.BeginScene()  # Begin scene rendering
-    vis.Render()  # Render the scene
-    vis.EndScene()  # End scene rendering
-    sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    model.PrintBodyPositions()  # Print body positions at each step
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
 
-# Test the PrintBodyPositions function
-model.PrintBodyPositions()
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
+
+    def SetBodyLinearAcceleration(self, linear_acceleration):
+        self.body.SetLinearAcceleration(linear_acceleration)
+
+    def SetBodyAngularAcceleration(self, angular_acceleration):
+        self.body.SetAngularAcceleration(angular_acceleration)
+
+    def SetBodyLinearPosition(self, linear_position):
+        self.body.SetLinearPosition(linear_position)
+
+    def SetBodyAngularPosition(self, angular_position):
+        self.body.SetAngularPosition(angular_position)
+
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
+
+    def SetBodyLinearAcceleration(self, linear_acceleration):
+        self.body.SetLinearAcceleration(linear_acceleration)
+
+    def SetBodyAngularAcceleration(self, angular_acceleration):
+        self.body.SetAngularAcceleration(angular_acceleration)
+
+    def SetBodyLinearPosition(self, linear_position):
+        self.body.SetLinearPosition(linear_position)
+
+    def SetBodyAngularPosition(self, angular_position):
+        self.body.SetAngularPosition(angular_position)
+
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngarys):
+
+
+
+
+selfs

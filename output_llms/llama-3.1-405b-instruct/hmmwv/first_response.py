@@ -17,7 +17,7 @@ vehicle.SetWheelVisualizationType(chrono.ChVisualizationType::PRIMITIVES)
 vehicle.SetTireModel(chrono.ChTireModel::TMEASY)
 
 # Set vehicle parameters
-vehicle.SetLocation(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetLocation(chrono.ChVectorD(0, 1.5, 0))
 vehicle.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 vehicle.SetMass(2500)
 vehicle.SetInertiaXX(500)
@@ -26,33 +26,32 @@ vehicle.SetInertiaZZ(500)
 
 # Create the terrain
 terrain = chrono.ChRigidTerrain()
-terrain.SetSize(100, 100)
-terrain.SetTexture(chrono.ChVectorD(0.1, 0.1, 0.1))
-terrain.SetFriction(0.7)
+terrain.SetBoxGeometry(chrono.ChVectorD(100, 1, 100))
+terrain.SetTexture(chrono.ChTexture('terrain_texture.png'))
 sys.Add(terrain)
 
 # Create the driver system
 driver = chrono.ChIrrNodeDriver()
 driver.Initialize()
-driver.SetSteeringDelta(0.01)
-driver.SetThrottleDelta(0.01)
-driver.SetBrakingDelta(0.01)
+driver.SetSteeringIncrement(0.01)
+driver.SetThrottleIncrement(0.01)
+driver.SetBrakingIncrement(0.01)
 sys.Add(driver)
 
 # Create the Irrlicht application
 app = chronoirr.ChIrrApp(sys, 'HMMWV Simulation', chronoirr.dimension2du(800, 600))
 app.AddTypicalSky()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0.5, -5))
-app.AddTypicalLights()
-app.SetSymbolscale(0.02)
-app.SetShowInfos(True)
+app.AddTypicalCamera(chronoirr.vector3df(0, 2, -5))
+app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 30, 64)
 
-# Simulation loop
+# Set simulation loop parameters
 app.SetTimestep(0.02)
 app.SetTryRealtime(True)
+app.SetVideoframe(50)
+
+# Run the simulation loop
 while app.GetDevice().run():
-    sys.DoStepDynamics(0.02)
-    app.BeginScene()
+    app.BeginScene(True, True, chronoirr.SColor(255, 140, 140, 140))
     app.DrawAll()
     app.EndScene()
-    app.Run Irrlicht Loop()
+    sys.DoStepDynamics(app.GetTimestep())

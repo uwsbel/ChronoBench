@@ -1,40 +1,53 @@
 import chrono as chrono
-import chrono.irrlicht as irrl
-import chrono.collision as collision
-import chrono.vehicle as vehicle
+import irrlicht as irr
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')
-my_system = chrono.ChSystemSolverSH()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+chrono.Chrono.SetDefaultOptions(irr.IrrAppOptions())
+system = chrono.ChSystem()
+system.Set_G_acc(chrono.ChVector(0, -9.81, 0))  
 
 
-ground = collision.ChBodyEasyBox(100, 0.1, 100, 1000, my_system, chrono.ChFrameD(chrono.ChVectorD(0, -0.5, 0)))
-my_system.AddBody(ground)
+ground = system.AddRigidBody(chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True))
+ground.SetPos(chrono.ChVector(0, 0, 0))
+ground.SetBodyFixed(True)
 
 
-turtlebot = vehicle.ChVehicleNVIDIA(my_system)
-turtlebot.SetChassisPos(chrono.ChVectorD(0, 0, 0))
-turtlebot.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+turtlebot = system.Add(chrono.ChTurtlebot(system))
+turtlebot.SetPos(chrono.ChVector(0, 0.5, 0))
+turtlebot.SetRot(chrono.ChQuaternion(1, 0, 0, 0))
 
 
-vis = irrl.ChVisualSystemIrrlicht()
-vis.Initialize(my_system, 'Turtlebot Simulation', chrono.irrlicht.ChWindowFlags_TASKBAR)
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(10, 5, 10), chrono.ChVectorD(0, 0, 0))
-vis.SetBackgroundColor(chrono.ChColor(0.7f, 0.7f, 0.7f))
-vis.SetLightPos(chrono.ChVectorD(5, 5, 0), 0.5, 0.5, 0.5)
-vis.SetLightPos(chrono.ChVectorD(-5, 5, 0), 0.5, 0.5, 0.5)
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetUpSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowCaption("Turtlebot Simulation")
+vis.SetCameraPos(chrono.ChVector(0, 10, -15))
+vis.SetCameraTarget(chrono.ChVector(0, 0.5, 0))
+vis.SetChaseCamera(True, 1.5)
+vis.SetShowInfos(True)
+vis.SetShowAxes(True)
+vis.SetShowCoordinateSystem(True)
+vis.SetLightingEnabled(True)
+vis.SetAmbientLight(chrono.ChColor(0.3f, 0.3f, 0.3f))
+vis.SetDiffuseLight(chrono.ChColor(0.7f, 0.7f, 0.7f))
+vis.SetSpecularLight(chrono.ChColor(0.1f, 0.1f, 0.1f))
 
 
-for i in range(1000):
-    turtlebot.SetMotorTorque(0, 5)  
-    turtlebot.SetMotorTorque(1, 5)  
-    my_system.DoStepDynamics(1.0 / 60.0)
+t = 0
+dt = 1.0 / 60.0
+while vis.Run():
+    system.DoStepDynamics(dt)
+    t += dt
+
+    if t > 2 and t < 4:
+        turtlebot.SetMotorSpeeds(1, 0)  
+    elif t > 6 and t < 8:
+        turtlebot.SetMotorSpeeds(0, 1)  
+    else:
+        turtlebot.SetMotorSpeeds(0, 0)
+
     vis.BeginScene()
-    vis.DrawAll()
+    vis.Render()
     vis.EndScene()
-    vis.Sleep(1e-3)
 
 vis.Close()

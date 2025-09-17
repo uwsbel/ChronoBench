@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  
 
 
 system = chrono.ChSystemNSC()
@@ -12,9 +12,6 @@ system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-
-manager = sens.ChSensorManager(system)  
 
 
 ground_mat = chrono.ChContactMaterialNSC()
@@ -31,6 +28,7 @@ box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
+
 rover = robot.Curiosity(system)
 
 
@@ -43,24 +41,27 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
+manager = sens.ChSensorManager(system)  
+
+
 lidar_params = sens.ChLidarSensorParams()
 lidar_params.m_update_rate = 10.0  
-lidar_params.m_horizontal_samples = 360  
-lidar_params.m_vertical_samples = 1  
-lidar_params.m_horizontal_fov = chrono.CH_C_PI * 0.75  
-lidar_params.m_vertical_fov = chrono.CH_C_PI  
+lidar_params.m_h_samples = 360  
+lidar_params.m_v_samples = 1  
+lidar_params.m_h_field_of_view = chrono.CH_C_PI  
+lidar_params.m_v_field_of_view = 0.1745  
 lidar_params.m_max_range = 10.0  
-lidar_params.m_resolution = 0.01  
+lidar_params.m_resolution = 0.001  
 
 lidar = sens.ChLidarSensor(lidar_params)
-lidar.SetName("rover_lidar")
-lidar.SetParentFrame(rover.GetChassis().GetFrame())  
-lidar.SetPose(chrono.ChPose(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  
+lidar.SetName("lidar")
+lidar.SetPos(chrono.ChVector3d(0, 0, 0.5))  
+lidar.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))  
+lidar.AttachTo(rover.GetChassis().GetFrame_REF_to_abs())  
 
 
-box_filter = sens.ChBoxFilter()
-box_filter.SetExtents(chrono.ChVector3d(5, 5, 5))  
-lidar.AddFilter(box_filter)
+filter = sens.ChLidarSensorFilter()
+lidar.AddFilter(filter)
 
 
 manager.AddSensor(lidar)

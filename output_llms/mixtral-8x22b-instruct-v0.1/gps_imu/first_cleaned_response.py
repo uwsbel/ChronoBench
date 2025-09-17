@@ -48,35 +48,30 @@ driver.SetMaxAcceleration(10)
 driver.SetMaxBraking(10)
 
 
-driver.SetSteering(0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0)
+visual_system = chronoirr.ChIrrApp(physics_system, "HMMWV Simulation", chronoirr.Dimensions(800, 600))
+visual_system.AddTypicalSky()
+visual_system.AddTypicalLights()
+visual_system.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+visual_system.AddCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
+visual_system.AddShadowAll()
 
 
-
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
-application.AddCamera(chrono.ChVectorD(0, -30, 1.5))
-application.AddShadowAll()
 
 vehicle_mass = vehicle.GetChassis().GetMass()
-print("Vehicle mass:", vehicle_mass)
+print(f"Vehicle mass: {vehicle_mass}")
 
-while application.GetDevice().run():
-    
-    driver.Update(0.01)
+while visual_system.Run():
+    physics_system.DoStepDynamics(0.01)
 
     
     imu.Update()
     gps.Update()
 
     
-    physics_system.DoStepDynamics(0.01)
-    application.DoStep()
+    print(f"IMU: {imu.GetW()}")
+    print(f"GPS: {gps.GetPos()}")
 
     
-    print("Vehicle mass:", vehicle.GetChassis().GetMass())
-
-
-application.Close()
+    visual_system.BeginScene()
+    visual_system.DrawAll()
+    visual_system.EndScene()

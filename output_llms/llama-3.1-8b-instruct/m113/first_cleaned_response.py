@@ -23,52 +23,37 @@ vehicle.SetName("M113")
 vehicle.SetPosition(cpy.Vec3(0, 0, 0))
 vehicle.SetRotation(cpy.Vec3(0, 0, 0))
 vehicle.SetMass(5000)  
-vehicle.SetInertia(cpy.MomentOfInertia(1000, 1000, 1000))  
+vehicle.SetInertia(cpy.Mat3(1000, 0, 0, 0, 1000, 0, 0, 0, 1000))  
 
 
 driver = cpy.Driver(world)
-driver.SetName("Driver")
-driver.SetPosition(cpy.Vec3(0, 0, 0))
-driver.SetRotation(cpy.Vec3(0, 0, 0))
-driver.SetMass(50)  
-driver.SetInertia(cpy.MomentOfInertia(10, 10, 10))  
+driver.SetVehicle(vehicle)
+driver.SetSpeed(5)  
+driver.SetAcceleration(1)  
 
 
 visual = cpy.Visual(world)
-visual.SetName("Visual")
-visual.SetPosition(cpy.Vec3(0, 0, 0))
-visual.SetRotation(cpy.Vec3(0, 0, 0))
+visual.SetCameraPosition(cpy.Vec3(0, 10, 0))
+visual.SetCameraTarget(cpy.Vec3(0, 0, 0))
+visual.SetLightPosition(cpy.Vec3(0, 10, 0))
+visual.SetLightIntensity(1)
+visual.SetLightColor(cpy.Vec3(1, 1, 1))
 
 
-camera = cpy.Camera(visual)
-camera.SetPosition(cpy.Vec3(0, 0, 0))
-camera.SetRotation(cpy.Vec3(0, 0, 0))
-camera.SetFov(60)  
-
-
-light = cpy.Light(visual)
-light.SetPosition(cpy.Vec3(0, 0, 0))
-light.SetRotation(cpy.Vec3(0, 0, 0))
-light.SetIntensity(10)  
-
-
-def simulate():
-    
-    world.Step(1e-3)  
-
-    
-    vehicle.Synchronize()
-    terrain.Synchronize()
-    driver.Synchronize()
-    visual.Synchronize()
-
-    
-    camera.Update()
-    light.Update()
-
-
+timestep = 0.01  
 while True:
-    simulate()
+    
+    world.Synchronize()
+
+    
+    world.Step(timestep)
+
+    
+    visual.Render()
+
+    
+    if world.GetTime() > 10:
+        break
 
 
 chrono.Destroy()

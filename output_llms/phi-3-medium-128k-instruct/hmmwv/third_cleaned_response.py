@@ -99,11 +99,21 @@ class MyDriver(veh.ChDriver):
             self.braking_delta = 0 if time < self.braking_time else 0
 
 
-driver = MyDriver(0.5)
-driver.SetSteeringDelta(render_step_size / driver.steering_time)
-driver.SetThrottleDelta(render_step_size / driver.throttle_time)
-driver.SetBrakingDelta(render_step_size / driver.braking_time)
+custom_driver = MyDriver(0.5)
+
+
+driver = custom_driver
+
+
 driver.Initialize()
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -117,7 +127,7 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < simulation_end_time:
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -143,3 +153,5 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < simulation_end_time:
 
     
     realtime_timer.Spin(step_size)
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

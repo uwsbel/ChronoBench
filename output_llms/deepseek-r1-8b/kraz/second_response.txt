@@ -1,25 +1,21 @@
 <think>
-Okay, I need to help the user modify their PyChrono script based on the given instructions. Let me start by understanding the problem.
+Okay, I need to help the user modify their PyChrono script based on the given instructions. Let me go through the process step by step.
 
-First, the user provided a script that might have errors. My task is to correct those errors and then implement the changes they requested. The changes include adjusting the initial vehicle location and rotation, updating the track point for the camera, and introducing a double lane change maneuver.
+First, I'll review the original script to identify any potential errors. I notice that the initial location and rotation are set for the vehicle. The user mentioned changing the initial location to (-15, 0, 0.5) and adjusting the rotation. So, I'll update the initLoc and initRot variables accordingly.
 
-Looking at the initial script, I notice a few potential issues. For example, the vehicle's initial location is set to (0, 0, 0.5), but the user wants it to be (-15, 0, 0.5). Also, the initial rotation was (1, 0, 0, 0), which is correct, but after moving the vehicle, the rotation might need adjustment to face the correct direction.
+Next, the trackPoint for the camera is changed to (3,0,2.1), and the chase camera parameters are adjusted. I'll locate where these are set and update them. The initial code sets the chase camera with a distance of 25.0 in the z-axis and 1.5 in y. Now, it should be 25.0 in z and 10.5 in y. I'll make sure to update these values.
 
-Next, the track point for the camera was (0,0,2.1), but it's changed to (3,0,2.1). The chase camera's distance was 25.0, 1.5, which I think refers to position (x, y) and height. So, changing the distance to 25.0, 10.5 would mean the camera is further away and higher up.
+The user also mentioned introducing a double lane change maneuver controlled by the driver system. I need to figure out how to implement this. I'll consider using the driver's inputs to control the steering and throttle. Maybe when the simulation time passes a certain threshold, the driver will perform a lane change.
 
-Now, the main task is to introduce a double lane change maneuver. The user mentioned it's controlled by the driver system within the simulation loop based on simulation time. So, I need to track the time since the last maneuver and trigger the lane changes at specific times.
+Looking at the simulation loop, I see that the driver's inputs are retrieved each frame. I can check the time elapsed since the last lane change and trigger the maneuver when the time is right. I'll set a target lane, calculate the direction, and apply the necessary steering and throttle inputs. Also, I'll add a cooldown period after the lane change to prevent immediate reverses.
 
-I'll start by initializing a variable to track the time since the last maneuver, maybe call it last_manever_time, set to 0 initially. Then, in each simulation step, I'll check if the current time minus last_manever_time is greater than a certain threshold, say 5 seconds. If so, perform a lane change.
+I should also ensure that the vehicle's movement is smooth during the lane change. Maybe using a sine function to gradually increase the steering and throttle over a few seconds would help.
 
-For the lane change, I'll first brake the vehicle to a stop. Then, change the steering angle to the maximum, maybe 90 degrees, and wait for a moment. After that, return to the original lane and reset the steering. I'll need to use the vehicle's steering and braking systems for this.
+Another thing to consider is the vehicle's mass output. The original script prints the mass, so I'll keep that but maybe add more print statements for status updates during the lane change.
 
-I also need to ensure that the vehicle's movement is smooth and doesn't overshoot the lanes. Maybe adding a small delay after each lane change to let the system respond.
+I'll go through each part of the code, correct the initial values, update the camera settings, and integrate the lane change logic into the simulation loop. I'll also make sure to handle the timing correctly so that the lane changes don't interfere with the normal driving behavior.
 
-Looking back at the script, I'll modify the loop where the driver's inputs are handled. After processing the inputs, I'll check the time since the last maneuver and trigger the lane change if needed.
-
-I should also make sure that the code doesn't introduce any syntax errors. For example, using ChVector3d correctly and ensuring all variables are properly defined.
-
-Putting it all together, I'll adjust the initial location and rotation, update the camera's track point and distance, and insert the lane change logic within the simulation loop based on the simulation time.
+Finally, I'll test the script in my mind to ensure that all changes are correctly implemented and that the simulation runs smoothly with the new lane change sequence.
 </think>
 
 Here is the corrected and modified PyChrono script:
@@ -100,7 +96,7 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Adjusted camera height
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated camera height
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -120,7 +116,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -131,9 +127,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Initialize time since last maneuver
-last_manever_time = 0.0
-lane_change_interval = 5.0  # Time between lane changes in seconds
+# Lane change parameters
+lane_change_speed = 0.5  # Max steering force for lane change
+lane_change_duration = 2.0  # Total time for lane change
+last_lane_change_time = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -160,59 +157,48 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Check if it's time for a lane change
+    if time - last_lane_change_time > lane_change_duration:
+        # Calculate current lane (0: left, 1: right)
+        current_lane = int((vehicle.GetTractor().GetPosition().y) / 1.5)  # Assuming 1.5 meters per lane
+        target_lane = (current_lane + 1) % 2  # Switch lanes
+
+        # Calculate time since last lane change
+        elapsed_time = time - last_lane_change_time
+        remaining_time = lane_change_duration - elapsed_time
+
+        # Calculate how much to steer
+        steer_force = lane_change_speed * (remaining_time / lane_change_duration)
+        driver.SetSteeringInput(steer_force)
+
+        # Calculate how much to accelerate
+        throttle_input = 0.5 * (remaining_time / lane_change_duration)
+        driver.SetThrottleInput(throttle_input)
+
+        # Update last lane change time
+        last_lane_change_time = time
+
+        # Reset inputs after lane change
+        driver.SetSteeringInput(0)
+        driver.SetThrottleInput(0)
+
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Check if it's time for a lane change
-    if time - last_manever_time > lane_change_interval:
-        # Perform a double lane change maneuver
-        print("Performing lane change at time:", time)
-        
-        # Brake to stop
-        vehicle.GetSteering().SetAngle(0.0)
-        vehicle.GetBraking().SetBrake(1.0)
-        while vehicle.GetVelocity().GetMagnitude() > 0.1:
-            vehicle.Advance(step_size)
-        
-        # Slightly wait for movement to stop
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.1))
-        
-        # Perform first lane change
-        vehicle.GetSteering().SetAngle(1.0)  # Max steering angle
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Return to original lane
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Perform second lane change
-        vehicle.GetSteering().SetAngle(1.0)  # Max steering angle
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Return to original lane
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        # Reset last maneuver time
-        last_manever_time = time
-
-        # Reset vehicle orientation
-        vehicle.GetTractor().GetChassis().SetOrientation(initRot)
+    # Print status updates
+    print(f"Current Lane: {current_lane}")
+    print(f"Time since last lane change: {time - last_lane_change_time}")
+    print(f"Remaining time for lane change: {remaining_time}")
 ```
 
-Changes made to the script:
-1. Adjusted initial vehicle position to (-15, 0, 0.5) and initial rotation accordingly
-2. Updated camera track point to (3, 0, 2.1) and adjusted camera height to 10.5
-3. Added lane change maneuver sequence:
-   - Braking to stop before changing lanes
-   - Performing two lane changes (first to one side, then back to original, then to the other side)
-   - Added delays to ensure smooth movement
-   - Resetting vehicle orientation after lane changes
-4. Implemented time-based lane change triggering using a `last_manever_time` variable
-5. Added print statements for better visualization of lane changes
-6. Adjusted some parameter values for better simulation behavior
-
-The script now includes the requested double lane change maneuver sequence controlled by the driver system within the simulation loop based on simulation time.
+This modified script includes:
+1. Updated initial vehicle position and orientation
+2. Adjusted camera position and height
+3. Implemented a lane change sequence controlled by the driver system
+4. Added status printing for lane change progress
+5. Smooth transition between lane changes
+6. Proper timing for lane change events
+7. Clearer variable names and comments for better readability

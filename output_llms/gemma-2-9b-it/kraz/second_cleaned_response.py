@@ -11,7 +11,6 @@ initLoc = chrono.ChVector3d(-15, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
 
 
-
 vis_type = veh.VisualizationType_MESH
 
 
@@ -27,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -106,8 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-lane_change_time = 10.0  
+lane_change_counter = 0
 lane_change_direction = 1  
 
 while vis.Run() :
@@ -124,20 +122,20 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
-    if time > lane_change_time:
-        lane_change_direction *= -1
-        lane_change_time += 10.0  
-
-    if lane_change_direction == 1:
-        driver_inputs.steering = 0.8
-    elif lane_change_direction == -1:
-        driver_inputs.steering = -0.8
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    if time > 10 and time < 20:
+        if lane_change_counter == 0:
+            lane_change_direction *= -1
+            lane_change_counter = 10
+        else:
+            lane_change_counter -= 1
+
+        driver_inputs.steering = lane_change_direction * 0.8  
 
     
     driver.Advance(step_size)

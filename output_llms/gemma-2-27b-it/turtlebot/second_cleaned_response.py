@@ -39,8 +39,7 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-
-vis.EnableShadows()
+vis.EnableShadows()  
 
 
 time_step = 2e-3
@@ -75,7 +74,6 @@ while vis.Run():
         move('right')
         print("Turning right")
 
-    
     time += time_step
 
     

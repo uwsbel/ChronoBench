@@ -7,168 +7,72 @@ from pychrono.IrrIterator import IrrIterator
 
 # Initialize the PyChrono environment
 
-chrono = pychrono.ChLink_Denge()
-
-chrono.Init()
+chrono = pychrono.ChSystemNSC()
 
 
-# Create the physical system
+# Create beam finite elements
 
-system = pychrono.ChSystemNSC()
+beam1 = pychrono.ChBeamNSC()
 
+beam1.SetBeamRadius(0.05)
 
-# Add the Irrlicht visualization engine
+beam1.SetNode(pychrono.ChNodeCosSFD(pychrono.ChCoastingODE(chrono)))
 
-visualization = pychrono.irrlicht.ChIrrApp("Beam Finite Elements Simulation", 1280, 720)
+beam1.SetNode(pychrono.ChNodeCosSFD(pychrono.ChCoastingODE(chrono)))
 
-visualization.AddTypicalLogo()
+beam1.SetNode(pychrono.ChNodeCosSFD(pychrono.ChCoastingODE(chrono)))
 
-visualization.AddTypicalConfiguration()
+beam1.SetNode(pychrono.ChNodeCosSFD(pychrono.ChCoastingODE(chrono)))
 
-visualization.AddPlane(pychrono.irrlicht.EbBox(0, 0, 0, 0, 100, 100, 100, 100), 1)
+beam1.SetBeamLength(1.0)
 
-visualization.AddLight(pychrono.irrlicht.EbBox(0, 0, 0, 0, 100, 100, 100, 100), 1)
+beam1.SetMass(1.0)
 
+beam1.SetDensity(1000.0)
 
-# Create a beam and a node
+beam1.SetElasticModulus(2.1e11)
 
-beam = pychrono.ChBeamNSC()
-
-node1 = pychrono.ChBodyNSC()
-
-node2 = pychrono.ChBodyNSC()
+beam1.SetShearModulus(0.8e11)
 
 
-# Set beam properties
+# Add the beam to the system
 
-beam.SetMaterial(pychrono.ChMaterialNSC())
-
-beam.SetWireframe(True)
-
-beam.SetColor(pychrono.irrlicht.EColor(255, 0, 0, 255))
+chrono.AddBody(beam1)
 
 
-# Set node properties
+# Set up visualization
 
-node1.SetMaterial(pychrono.ChMaterialNSC())
-
-node1.SetWireframe(True)
-
-node1.SetColor(pychrono.irrlicht.EColor(255, 0, 255, 255))
+irr = pychrono.irrlicht.ChIrrApp()
 
 
-node2.SetMaterial(pychrono.ChMaterialNSC())
+# Set the visualization options
 
-node2.SetWireframe(True)
+irr.SetUsePhongLighting(True)
 
-node2.SetColor(pychrono.irrlicht.EColor(0, 255, 0, 255))
-
-
-# Create the beam and connect the nodes
-
-beam.AddBeam(node1.GetPos(), node1.GetPos() + pychrono.ChVectorD(10, 0, 0), 1, 1, 1, 1)
-
-beam.AddBeam(node1.GetPos() + pychrono.ChVectorD(10, 0, 0), node2.GetPos(), 1, 1, 1, 1)
+irr.SetBeamsColor(pychrono.irrlicht.E_BTDF_AMBIENT_AND_DIFFUSE, 0.6, 0.6, 0.6, 1.0)
 
 
-# Add the beam and nodes to the system
+# Create the beam visualization
 
-system.Add(beam)
+beam_visual = pychrono.irrlicht.ChBeamVisual(irr)
 
-system.Add(node1)
+beam_visual.SetBeamRadius(beam1.GetBeamRadius())
 
-system.Add(node2)
+beam_visual.SetBeamLength(beam1.GetBeamLength())
 
+beam_visual.SetColor(0.6, 0.6, 0.6)
 
-# Set the gravity
-
-system.SetGravity(pychrono.ChVectorD(0, -9.81, 0))
-
-
-# Set the beam connectivity
-
-beam.SetNode1(node1)
-
-beam.SetNode2(node2)
-
-
-# Set the beam connectivity in the system
-
-system.AddConstraint(pychrono.ChLinkNSC())
-
-
-# Set the initial positions of the nodes
-
-node1.SetPos(pychrono.ChVectorD(0, 0, 0))
-
-node2.SetPos(pychrono.ChVectorD(10, 0, 0))
-
-
-# Add the visualization to the system
-
-visualization.AddIterator(IrrIterator(beam, visualization))
-
-visualization.AddIterator(IrrIterator(node1, visualization))
-
-visualization.AddIterator(IrrIterator(node2, visualization))
+irr.AddBeamVisual(beam_visual)
 
 
 # Run the simulation loop
 
-while(visualization.GetDevice().run()):
+while(irr.GetDevice().run()):
 
-    system.DoStepDynamics(0.01)
+    chrono.DoStepDynamics(0.01)
 
-    visualization.BeginScene()
+    irr.BeginScene()
 
-    visualization.DoCollision(system)
+    beam_visual.Draw(irr)
 
-
-
-# Set the beam finite element properties
-
-beam.SetName("Beam")
-
-beam.SetPos(pychrono.ChBody(node1)
-
-node1.SetName("Node1")
-
-node2.SetName("Node2")
-
-
-
-# Set the initial positions
-
-node1.SetPos(pychrono.ChBody(node1)
-
-node2.SetPos(node2)
-
-
-
-# Set the visualization
-
-node1.SetPos(node1)
-
-node2.SetPos(node2)
-
-
-
-# Set the initial positions
-
-node1.SetPos(node1)
-
-node2.SetPos(node2)
-
-
-
-# Run the simulation loop
-
-while(visualization.GetDevice().SetPos(node1)
-
-node2.SetPos(node2)
-
-
-
-# Set the visualization
-
-visualization.DoFrame()
+    irr.EndScene()

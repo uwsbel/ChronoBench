@@ -80,6 +80,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -101,27 +103,35 @@ render_frame = 0
 
 
 sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+
+
 lidar = sensor.ChLidarSensor()
-lidar.SetScanAngleRange(-math.pi/4, math.pi/4)
-lidar.SetScanResolution(0.1)
-lidar.SetMaxDistance(50)
-lidar.SetSensorLocation(chrono.ChVector3d(0, 0, 2))
-lidar.SetSensorRotation(chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+lidar.SetSensorMode(sensor.ChLidarSensor.SCAN_MODE_FULL)
+lidar.SetScanAngleRange(-math.pi / 4, math.pi / 4)
+lidar.SetResolution(64)
+lidar.SetMaxDistance(50.0)
+lidar.SetNoise(0.01)
+lidar.SetSensorLocation(chrono.ChVector3d(0, 0, 2.0))
+lidar.SetSensorRotation(chrono.QUNIT)
 sensor_manager.AddSensor(lidar)
 
 
 num_boxes = 10
+box_size = 1.0
 for i in range(num_boxes):
     box = chrono.ChBodyEasy()
-    box.SetBodyFixed(False)
-    box.SetMass(1)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), np.random.uniform(0, 5)))
-    box.SetShape(chrono.ChBoxShape())
-    box.SetCollide(True)
+    box.SetBodyType(chrono.ChBody.Type_DYNAMIC)
+    box.SetShapeType(chrono.ChShape.Type_BOX)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-40, 40), np.random.uniform(-40, 40), box_size / 2))
+    box.SetSize(chrono.ChVector3d(box_size, box_size, box_size))
+    box.SetMass(1.0)
     vehicle.GetSystem().Add(box)
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+
+    
+    sensor_manager.Update()
 
     
     if (step_number % render_steps == 0):
@@ -144,9 +154,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    sensor_manager.Update(time, step_size)
 
     
     step_number += 1

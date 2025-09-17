@@ -168,20 +168,19 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Create Depth Camera
+# Create depth camera
 depth_cam_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChCameraSensor(
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
     depth_cam_offset_pose,
     image_width,
     image_height,
-    fov
+    fov,
+    30.0  # Maximum depth
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.SetLag(lag)
-depth_cam.SetCollectionWindow(1 / update_rate)
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Camera"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
 depth_cam.PushFilter(sens.ChFilterDepthAccess())
 manager.AddSensor(depth_cam)
 
@@ -191,8 +190,6 @@ manager.AddSensor(depth_cam)
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
-vehicle_states = []
-
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -209,12 +206,9 @@ while time < end_time:
     manager.Update()
 
     # Log vehicle state
-    vehicle_state = {
-        "time": time,
-        "position": gator.GetVehicle().GetChassisBody().GetPos(),
-        "heading": gator.GetVehicle().GetChassisBody().GetRot().GetEulerAngles()[2]
-    }
-    vehicle_states.append(vehicle_state)
+    vehicle_pos = gator.GetChassisBody().GetPos()
+    vehicle_heading = gator.GetChassisBody().GetRot().GetEulerAngles().z()
+    print(f"Time: {time}, Position (X, Y, Z): ({vehicle_pos.x()}, {vehicle_pos.y()}, {vehicle_pos.z()}), Heading: {vehicle_heading}")
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -223,7 +217,3 @@ while time < end_time:
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Print logged vehicle states
-for state in vehicle_states:
-    print(f"Time: {state['time']}, Position: {state['position']}, Heading: {state['heading']}")

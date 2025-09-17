@@ -1,136 +1,158 @@
-Here's a PyChrono simulation script that models gravitational attraction between particles with random shapes, positions, velocities, and orientations, visualized using Irrlicht:
+Here's a PyChrono simulation script that models gravitational attraction between particles with a particle emitter and Irrlicht visualization:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import random
-import numpy as np
+import math
 
 # 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set the path to Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path here
 
-# Create a Chrono physical system
+# Create the physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
 
 # 2. Add the required physical systems and objects
-# Create a container for the particles
-container = chrono.ChBody()
-container.SetBodyFixed(True)
-container.SetCollide(False)
-system.Add(container)
+# Create a material for the particles
+particle_material = chrono.ChMaterialSurfaceNSC()
+particle_material.SetFriction(0.3)
+particle_material.SetRestitution(0.5)
 
-# Particle emitter settings
-num_particles = 50
-particle_mass = 0.1
-particle_radius = 0.1
-emission_radius = 5.0
+# Particle emitter class
+class ParticleEmitter:
+    def __init__(self, system, emission_rate=5, max_particles=100):
+        self.system = system
+        self.emission_rate = emission_rate
+        self.max_particles = max_particles
+        self.particles = []
+        self.time_since_emission = 0
 
-# Custom gravitational force callback
-class ParticleGravitationalForce(chrono.ChForce):
-    def __init__(self, G=1.0):
+    def emit_particle(self):
+        if len(self.particles) >= self.max_particles:
+            return
+
+        # Random position in a sphere
+        radius = 2.0
+        theta = random.uniform(0, 2 * math.pi)
+        phi = random.uniform(0, math.pi)
+        x = radius * math.sin(phi) * math.cos(theta)
+        y = radius * math.sin(phi) * math.sin(theta)
+        z = radius * math.cos(phi)
+        pos = chrono.ChVectorD(x, y, z)
+
+        # Random velocity
+        vel = chrono.ChVectorD(
+            random.uniform(-0.5, 0.5),
+            random.uniform(-0.5, 0.5),
+            random.uniform(-0.5, 0.5)
+        )
+
+        # Random shape (sphere or box)
+        if random.random() > 0.5:
+            # Create a sphere
+            radius = 0.1
+            sphere = chrono.ChBodyEasySphere(radius, 1.0, True, True, particle_material)
+            sphere.SetPos(pos)
+            sphere.SetPos_dt(vel)
+            self.system.Add(sphere)
+            self.particles.append(sphere)
+        else:
+            # Create a box
+            size = 0.1
+            box = chrono.ChBodyEasyBox(size, size, size, 1.0, True, True, particle_material)
+            box.SetPos(pos)
+            box.SetPos_dt(vel)
+            # Random orientation
+            rot = chrono.ChQuaternionD()
+            rot.Q_from_AngAxis(random.uniform(0, 2*math.pi), chrono.ChVectorD(1, 0, 0))
+            box.SetRot(rot)
+            self.system.Add(box)
+            self.particles.append(box)
+
+    def update(self, time_step):
+        self.time_since_emission += time_step
+        if self.time_since_emission >= 1.0/self.emission_rate:
+            self.emit_particle()
+            self.time_since_emission = 0
+
+# Create the emitter
+emitter = ParticleEmitter(system, emission_rate=10, max_particles=50)
+
+# 3. Set necessary default parameters and custom gravitational forces
+class GravitationalForceCallback(chrono.ChBodyForceCallback):
+    def __init__(self, particles):
         super().__init__()
-        self.G = G  # Gravitational constant
+        self.particles = particles
+        self.G = 0.1  # Gravitational constant
 
-    def ComputeForce(self, body, time):
-        force = chrono.ChVectorD(0, 0, 0)
-        for other_body in system.Get_bodylist():
-            if other_body != body and other_body.GetIdentifier() > 0:  # Skip container and itself
-                # Calculate distance between particles
-                delta = other_body.GetPos() - body.GetPos()
-                distance = delta.Length()
+    def ForceCallback(self, body, time, force, torque, mode):
+        if body in self.particles:
+            for other in self.particles:
+                if other != body:
+                    # Calculate distance vector
+                    delta = body.GetPos() - other.GetPos()
+                    distance = delta.Length()
 
-                if distance > 0:
-                    # Calculate gravitational force (F = G * m1 * m2 / r^2)
-                    force_direction = delta / distance
-                    force_magnitude = self.G * body.GetMass() * other_body.GetMass() / (distance * distance)
-                    force += force_direction * force_magnitude
+                    # Avoid division by zero and very close particles
+                    if distance > 0.1:
+                        # Calculate gravitational force
+                        force_dir = delta.GetNormalized()
+                        force_magnitude = self.G * body.GetMass() * other.GetMass() / (distance * distance)
+                        force += force_dir * force_magnitude
 
-        body.Force_Accumulate(force)
-
-# Add particles with random properties
-for i in range(num_particles):
-    # Random shape selection
-    shape_type = random.choice(['sphere', 'box', 'ellipsoid'])
-
-    # Create particle body
-    particle = chrono.ChBody()
-    particle.SetMass(particle_mass)
-
-    # Set random position within emission radius
-    angle1 = random.uniform(0, 2*np.pi)
-    angle2 = random.uniform(0, np.pi)
-    r = random.uniform(0, emission_radius)
-    x = r * np.sin(angle2) * np.cos(angle1)
-    y = r * np.sin(angle2) * np.sin(angle1)
-    z = r * np.cos(angle2)
-    particle.SetPos(chrono.ChVectorD(x, y, z))
-
-    # Set random velocity
-    particle.SetPos_dt(chrono.ChVectorD(
-        random.uniform(-0.5, 0.5),
-        random.uniform(-0.5, 0.5),
-        random.uniform(-0.5, 0.5)
-    ))
-
-    # Set random orientation
-    particle.SetRot(chrono.Q_from_AngAxis(random.uniform(0, 2*np.pi), chrono.ChVectorD(1, 0, 0)))
-    particle.SetRot_dt(chrono.ChVectorD(
-        random.uniform(-0.1, 0.1),
-        random.uniform(-0.1, 0.1),
-        random.uniform(-0.1, 0.1)
-    ))
-
-    # Add visual and collision geometry based on shape
-    if shape_type == 'sphere':
-        particle.GetVisualModel().AddSphere(particle_radius)
-        particle.GetCollisionModel().AddSphere(particle_radius)
-    elif shape_type == 'box':
-        size = chrono.ChVectorD(particle_radius, particle_radius, particle_radius)
-        particle.GetVisualModel().AddBox(size)
-        particle.GetCollisionModel().AddBox(size)
-    else:  # ellipsoid
-        size = chrono.ChVectorD(particle_radius*1.5, particle_radius, particle_radius*0.7)
-        particle.GetVisualModel().AddEllipsoid(size)
-        particle.GetCollisionModel().AddEllipsoid(size)
-
-    # Add gravitational force to the particle
-    grav_force = ParticleGravitationalForce(G=0.1)
-    particle.AddForce(grav_force)
-
-    system.Add(particle)
-
-# 3. Set up visualization
+# 4. Visualization setup
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle Gravitational Attraction')
+vis.SetWindowTitle("Particle Gravity Simulation")
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalSky()
-vis.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.AddLightWithShadow(chrono.ChVectorD(5, 10, 5), chrono.ChVectorD(0, 0, 0), 10, 1, 10, 40, 512, 512)
 
-# Simulation loop
-while vis.Run():
+# Simulation parameters
+time_step = 0.01
+simulation_time = 20.0
+current_time = 0
+
+# Main simulation loop
+while vis.Run() and current_time < simulation_time:
+    # Update the emitter
+    emitter.update(time_step)
+
+    # Update the gravitational forces
+    force_callback = GravitationalForceCallback(emitter.particles)
+    for body in emitter.particles:
+        body.AddForceCallback(force_callback)
+
+    # Advance the simulation
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Advance simulation by 0.01 seconds
-    system.DoStepDynamics(0.01)
+    system.DoStepDynamics(time_step)
+    current_time += time_step
+
+    # Print simulation time
+    print(f"Simulation time: {current_time:.2f}s", end='\r')
 ```
 
-Note: Make sure to replace `'PATH_TO_CHRONO_DATA'` with the actual path to your Chrono data directory. This script creates:
+This script creates a simulation with:
+1. A particle emitter that generates random particles (spheres or boxes) with random positions, velocities, and orientations
+2. Custom gravitational forces between all particles
+3. Irrlicht visualization with lighting and camera setup
+4. Physics parameters for realistic interactions
 
-1. A physical system with custom gravitational forces between particles
-2. A particle emitter that creates particles with random:
-   - Shapes (spheres, boxes, or ellipsoids)
-   - Positions within an emission radius
-   - Velocities
-   - Orientations
-3. Irrlicht visualization with camera, lighting, and shadows
-4. A custom gravitational force implementation that calculates attraction between all particles
+To run this script:
+1. Make sure you have PyChrono installed
+2. Set the correct path to your Chrono data directory
+3. The simulation will run for 20 seconds, showing particles attracting each other gravitationally
 
-The simulation will show particles moving under their mutual gravitational attraction, with different shapes and initial conditions.
+You can adjust parameters like:
+- `emission_rate` and `max_particles` in the ParticleEmitter
+- The gravitational constant `G` in the GravitationalForceCallback
+- Particle sizes and masses
+- Simulation time and time step

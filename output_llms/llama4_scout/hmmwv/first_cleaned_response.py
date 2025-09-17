@@ -1,55 +1,49 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
-vis = irr.ChIrrApp()
-vis.SetWindowSize(chrono.ChVector2i(800, 600))
-vis.SetWindowTitle("HMMWV on Rigid Terrain")
-vis.UseZoomBar(True)
-vis.ShowLogo(False)
+app = irr.ChIrrApp()
 
 
 vehicle = veh.ChHMMWV()
 
 
-vehicle.SetContactMethod(veh.ChContactMethod_TM)
+vehicle.SetChassisBodyPos(ch.ChVector3d(0, 0, 1))
+
+
 vehicle.SetTireModel(veh.ChTireModel_TMEASY)
-vehicle.SetTireStepSize(0.01)
 
 
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisInitialPosition(chrono.ChVector3d(0, 0, 1))
-vehicle.SetChassisInitialRotation(chrono.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetVisualization(veh.ChVehicleVisualizer_Vehicle)
 
 
 terrain = veh.ChRigidTerrain(vehicle.GetSystem())
-terrain.SetTerrainDimensions(chrono.ChVector3d(10, 10, 0))
-terrain.SetTexture(chrono.ChVector2d(10, 10), "chrono_textures/checker1.jpg")
+terrain.SetTerrainHeight(0)
+terrain.SetTerrainSize(100, 100)
+terrain.SetTextureFile("chrono_vehicle/tire_test/texture.jpg")
 
 
-vehicle.Initialize(terrain)
-system = vehicle.GetSystem()
+driver = veh.ChInteractiveDriverIRR(vehicle, app)
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
 
-driver = veh.ChInteractiveDriverIRR(vis)
-driver.SetVehicle(vehicle)
-driver.SetChaseCamDistance(10)
-driver.SetChaseCamLag(0.5)
-driver.SetChaseCamHeight(2)
+vehicle.GetSystem().SetTimestep(0.02)
+vehicle.GetSystem().SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
 
 
-system.SetTimestep(0.02)
-system.SetCollisionSystem(chrono.ChCollisionSystemBruteForce())
+app.SetSimulationRate(1)
+app.SetFrameRate(50)
+
+while app.Run():
+    vehicle.Update(vehicle.GetSystem().GetTimestep())
+    app.Render()
+    vehicle.GetSystem().DoStepDynamics(vehicle.GetSystem().GetTimestep())
 
 
-while vis.Run() and not vis.WasKeyPressed(irr.KEY_ESCAPE):
-    vis.BeginScene()
-    vis.RenderItem(terrain)
-    vis.RenderItem(vehicle)
-    vis.EndScene()
-    system.DoStepDynamics(0.02)
-    driver.Update()
+ch.ChEngine.Terminate()

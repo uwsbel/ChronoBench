@@ -33,9 +33,10 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 
 # Set the initial position of the first pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(0, 0, 1))
 
-# Create the first revolute joint to connect the first pendulum to the ground
+# Create a revolute joint to connect the first pendulum to the ground
+# The revolute joint allows rotation around a single axis (the Z-axis in this case)
 rev_1 = chrono.ChLinkLockRevolute()
 rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_1)
@@ -50,14 +51,11 @@ pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in 
 
 # Add a visualization cylinder to the second pendulum
 cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
-cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # Set the color of the cylinder (RGB)
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-# Set the initial position of the second pendulum (center of mass) in the absolute frame
-# The second pendulum is initially horizontal, pointing towards the positive X direction but attached to the first pendulum
-pend_2.SetPos(chrono.ChVector3d(0, -1, 1))
-
-# Create the second revolute joint to connect the second pendulum to the first pendulum
+# Create a revolute joint to connect the second pendulum to the first pendulum
+# The revolute joint allows rotation around a single axis (the Z-axis in this case)
 rev_2 = chrono.ChLinkLockRevolute()
 rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
@@ -88,6 +86,7 @@ while vis.Run():
         print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        
         pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
         print("     ", pos_2.x, "  ", pos_2.y)
         lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum

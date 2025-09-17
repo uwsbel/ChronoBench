@@ -2,7 +2,7 @@ import pychrono as ch
 import pychrono.ros as chros
 
 import rclpy.publisher
-from std_msgs.msg import String  # Changed from Int64 to String
+from std_msgs.msg import String
 
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
@@ -20,14 +20,14 @@ class MyCustomHandler(chros.ChROSHandler):
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)  # Changed to String
+        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
         print(f"Publishing {self.message}{self.ticker} ...")
-        msg = String()  # Create a message object of type String
-        msg.data = self.message + str(self.ticker)  # Set the message data to concatenated string
+        msg = String()  # Create a message object of type String.
+        msg.data = self.message + str(self.ticker)  # Set the message data to the concatenated string.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 

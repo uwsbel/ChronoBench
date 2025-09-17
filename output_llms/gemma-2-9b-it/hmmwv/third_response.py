@@ -84,7 +84,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 # Create the custom driver
-driver = MyDriver(vis, 0.5)  # Initialize with delay of 0.5
+driver = MyDriver(vis, delay=0.5)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -144,18 +144,29 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < end_time:
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, vis, delay):
+    def __init__(self, vis, delay=0.5):
         super().__init__(vis)
         self.delay = delay
         self.throttle = 0.0
         self.steering = 0.0
-        self.time_start = 0.0
+        self.last_time = chrono.ChTime(0.0)
 
     def Synchronize(self, time):
-        if time > self.delay and self.time_start == 0.0:
-            self.time_start = time
+        # Implement delay in driver inputs
+        elapsed_time = time - self.last_time
+        self.last_time = time
 
-        if time > self.delay:
-            elapsed_time = time - self.time_start
-            self.throttle = min(0.7, elapsed_time / 0.2)  # Throttle increases to 0.7 after 0.2 seconds
-            self.steering = math.sin(time * 2 * math.pi / 2) # Sinusoidal steering starting at 2 seconds
+        if time < self.delay:
+            self.throttle = 0.0
+            self.steering = 0.0
+        else:
+            # Throttle gradually increasing
+            self.throttle = min(0.7, self.throttle + elapsed_time / 0.2)
+
+            # Steering using a sinusoidal pattern
+            self.steering = math.sin(time * 2 * math.pi / 2)
+
+        # Set throttle, steering, and braking
+        self.SetThrottle(self.throttle)
+        self.SetSteering(self.steering)
+        self.SetBraking(0.0)

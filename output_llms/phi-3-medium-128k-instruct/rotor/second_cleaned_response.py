@@ -115,10 +115,10 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
-vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8))  
+vis.AddCamera(chrono.ChVector3d(0, 2, 8),  
+                     chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()

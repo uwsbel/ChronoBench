@@ -63,10 +63,10 @@ def main():
     # Create 2d lidar
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  # Visualize the point cloud
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  # Visualize the point cloud.
     sens_manager.AddSensor(lidar2d)
 
     # Create and configure a GPS sensor.
@@ -136,7 +136,10 @@ def main():
 
         # Update sensors and ROS data.
         sens_manager.Update()
-        if not ros_manager.Update():  # Added check for ROS manager update status
+
+        # Check ROS manager update status
+        if not ros_manager.Update():
+            print("ROS manager update failed. Exiting simulation.")
             break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.

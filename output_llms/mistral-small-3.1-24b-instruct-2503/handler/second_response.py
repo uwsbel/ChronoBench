@@ -1,5 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -14,7 +15,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Message to be published.
+        self.message = "Hello, world! At time: "  # Add a message attribute.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -25,7 +26,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.message}{self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  # Create a message object of type String.
         msg.data = self.message + str(self.ticker)  # Set the message data.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
@@ -50,7 +51,7 @@ def main():
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuatFromAngleAxis(0.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
+    box.SetRot(ch.Quaternion(ch.Vector3d(1, 0, 0), 0.2))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
@@ -92,6 +93,4 @@ def main():
 
 # Entry point of the script.
 if __name__ == "__main__":
-    rclpy.init()
     main()
-    rclpy.shutdown()

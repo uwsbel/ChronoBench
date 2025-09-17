@@ -1,61 +1,68 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.terrain as terrain
+import pychrono.driver as driver
+import pychrono.irrlicht as irr
 
 
 system = chrono.ChSystemNSC()
 
 
-vehicle = veh.WheeledVehicle(system, chrono.GetChronoDataFile("vehicle/UAZBUS/vehicle.json"))
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+uazbus = veh.UAZBUS_Full(system)
+uazbus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+uazbus.Initialize()
 
 
-terrain = veh.RigidTerrain(system)
-patch_material = chrono.ChMaterialSurfaceNSC()
-patch_material.SetFriction(0.9)
-patch_material.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_material, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 200, 1))
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain_mat = chrono.ChMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+terrain = terrain.RigidTerrain(system)
+patch = terrain.AddPatch(terrain_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 200, 1))
 terrain.Initialize()
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("UAZBUS Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 3, 6), chrono.ChVectorD(0, 0, 1))
-vis.AddTypicalLights()
-
-
-driver = veh.ChIrrGuiDriver(vehicle, vis)
+driver = driver.InteractiveDriver(uazbus.GetVehicle())
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
+driver.Initialize()
 
 
-step_size = 1e-3
-rt_timer = chrono.ChRealtimeStepTimer()
+application = irr.ChIrrApp(system, 'UAZBUS Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, -5, 2), chrono.ChVectorD(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
-while vis.Run():
+time_step = 1e-3
+step_timer = chrono.ChRealtimeStepTimer()
+
+
+while application.GetDevice().run():
     time = system.GetChTime()
 
     
     driver.Synchronize(time)
-    vehicle_inputs = driver.GetInputs()
-    vehicle.Synchronize(time, vehicle_inputs, terrain)
+    driver_inputs = driver.GetInputs()
+    uazbus.Synchronize(time, driver_inputs, terrain)
     terrain.Synchronize(time)
+    application.Synchronize("UAZBUS Simulation", driver_inputs)
 
     
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(time_step)
 
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    driver.Advance(time_step)
+    uazbus.Advance(time_step)
+    terrain.Advance(time_step)
+    application.Advance(time_step)
 
     
-    rt_timer.Spin(time)
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    
+    step_timer.Spin(time_step)

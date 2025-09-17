@@ -96,7 +96,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

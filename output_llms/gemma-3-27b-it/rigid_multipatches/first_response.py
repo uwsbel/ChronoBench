@@ -1,78 +1,94 @@
-import chrono
-import chrono.irrlicht as chronoirr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
 
-# --- Create the simulation system ---
+# --- Simulation setup ---
+chrono.SetChronoDataPath("./chrono_data/")  # Replace with your chrono data path
+
+# Create a Chrono physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the terrain ---
-terrain = chrono.ChTerrain()
-terrain.SetTexture(chrono.ChTexture("textures/grass.png"))  # Example texture
-terrain.Initialize(50, 50, 10, 10)  # x size, y size, x segments, y segments
-terrain.SetHeightDistribution(chrono.ChFunctionSmooth(), 0, 0.1)
-system.Add(terrain)
+# --- Terrain creation ---
+# Create a flat terrain patch
+terrain1 = chrono.ChTerrain()
+terrain1.CreatePatch(0, 0, 10, 10, 1, 1)  # x, y, width, depth, nx, ny
+terrain1.SetTexture(chrono.ChTexture("textures/terrain/grass.png"), 0, chrono.ChVectorD(1, 1, 1))
+terrain1.SetCollisionMargin(0.001)
+system.Add(terrain1)
 
-# Add a bump terrain patch
-bump_mesh = chrono.ChTriangleMeshConnected()
-bump_mesh.LoadFromFile("bump.obj") # Replace with your bump mesh file
-bump_body = chrono.ChBodyEasy()
-bump_body.SetBodyFixed(True)
-bump_body.SetShape(chrono.ChShapeFilletBox(0.5, 0.5, 0.2))
-bump_body.SetPos(chrono.ChVectorD(2, 0, 0))
-bump_body.SetCollide(True)
-bump_body.SetVisualization(bump_mesh)
-system.Add(bump_body)
+# Create another flat terrain patch with a different texture
+terrain2 = chrono.ChTerrain()
+terrain2.CreatePatch(10, 0, 10, 10, 1, 1)
+terrain2.SetTexture(chrono.ChTexture("textures/terrain/dirt.png"), 0, chrono.ChVectorD(1, 1, 1))
+terrain2.SetCollisionMargin(0.001)
+system.Add(terrain2)
 
-# Add a heightmap terrain patch
+# Create a mesh-based terrain patch (bump)
+mesh_terrain = chrono.ChTerrain()
+mesh_terrain.LoadQuadMesh(chrono.ChVectorD(20, 0, 0), chrono.ChQuaternionD(0, 0, 0),
+                           "./chrono_data/terrain/bump.obj", 1, 1)
+mesh_terrain.SetCollisionMargin(0.001)
+system.Add(mesh_terrain)
+
+# Create a heightmap-based terrain patch
 heightmap_terrain = chrono.ChTerrain()
-heightmap_terrain.SetTexture(chrono.ChTexture("textures/dirt.png"))  # Example texture
-heightmap_terrain.Initialize(50, 50, 10, 10)  # x size, y size, x segments, y segments
-heightmap_terrain.LoadHeightMap("heightmap.png") # Replace with your heightmap file
-heightmap_terrain.SetHeightDistribution(chrono.ChFunctionSmooth(), 0, 0.1)
+heightmap_terrain.LoadHeightMap(chrono.ChVectorD(0, 10, 0), chrono.ChQuaternionD(0, 0, 0),
+                               "./chrono_data/terrain/heightmap.png", 10, 10, 1, 1)
+heightmap_terrain.SetCollisionMargin(0.001)
 system.Add(heightmap_terrain)
 
 
-# --- Create the HMMWV vehicle ---
-hmmwv = veh.HMMWV()
-hmmwv.SetVehicleMass(1800.0)
-hmmwv.SetEngineType(veh.HMMWV.EngineType.FOUR_STROKE)
-hmmwv.SetDrivetrainType(veh.HMMWV.DrivetrainType.AWD)
-hmmwv.SetPos(chrono.ChVectorD(-5, 0, 0))
-hmmwv.SetForwardAxis(chrono.ChVectorD(1, 0, 0))
+# --- HMMWV Vehicle Creation ---
+# Create the vehicle
+hmmwv = chrono.HMMWV()
+
+# Set initial position and orientation
+hmmwv.SetPos(chrono.ChVectorD(5, 2, 5))
+hmmwv.SetTransform(chrono.ChQuaternionD(0, 0, 0))
+
+# Set engine parameters
+hmmwv.SetEngineType(chrono.HMMWV.EngineType.FOUR_STROKE)
+hmmwv.SetDrivetrainType(chrono.HMMWV.DrivetrainType.AWD)
+
+# Enable visualization for all components
+hmmwv.SetVisualize(True)
+hmmwv.SetChassisVisualizationType(chrono.HMMWV.VisualizationType.MESH)
+hmmwv.SetWheelVisualizationType(chrono.HMMWV.VisualizationType.MESH)
+
+# Add the vehicle to the system
 system.Add(hmmwv)
 
-# Enable visualization for all vehicle components
-for i in range(hmmwv.GetNumWheels()):
-    wheel = hmmwv.GetWheel(i)
-    wheel.SetVisualize(True)
-hmmwv.SetVisualize(True)
-hmmwv.GetChassis().SetVisualize(True)
-hmmwv.GetEngine().SetVisualize(True)
+# --- Interactive Driver System ---
+# Create an interactive driver
+driver = chrono.ChWheeledVehicleSimpleDriver(hmmwv)
+driver.SetSteeringDelta(0.01)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
-# --- Create the interactive driver ---
-driver = veh.ChIrrDriver(hmmwv)
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.05)
-
-# --- Create the Irrlicht application ---
+# --- Visualization ---
+# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('HMMWV on Complex Terrain')
 vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 10, -15))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
 vis.AddTypicalLights()
 
-# --- Simulation loop ---
+# --- Simulation Loop ---
 timestep = 0.005
+time = 0.0
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Update the driver with user input
     driver.Synchronize(timestep)
+
+    # Update the system
     system.DoStepDynamics(timestep)
+
+    time += timestep

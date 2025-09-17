@@ -4,188 +4,134 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), with gravity set to zero.  
-  **No deduction.**
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
+- **Body Creation:** Two dynamic bodies (`body_1`, `body_2`) and one fixed ground body are created and added to the system. Visual shapes are added to all bodies. No deduction.
+- **Visualization:** Visualization system is properly created, attached, and configured with window size, title, logo, skybox, camera, and lights. No deduction.
+- **Spring Links:** Two springs (`ChLinkTSDA`) are created and added. One uses built-in spring and damping coefficients, the other uses a custom force functor. Both are initialized and added to the system. No deduction.
+- **Simulation Loop:** Present and correctly implemented with visualization rendering and `sys.DoStepDynamics()` call. No deduction.
 
-- **Body Creation:**  
-  - Ground body created, fixed, no collision, with two visual spheres added.  
-  - Two dynamic bodies created with position, mass, inertia, collision disabled, and visual boxes added.  
-  **No deduction.**
+**Minor issue:**  
+- The `rest_length` is used inside the `MySpringForce` class but is a global variable, not passed or encapsulated. This is a minor design issue but does not prevent functionality.  
+- The visual shapes for the spheres on the ground are added using `ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))`. According to the API, `ChVisualShapeSphere` constructor expects a radius, but the example in the doc shows `chrono.ChVisualShapeSphere(1.0)`. This is correct, but the use of `chrono.ChFramed` is deprecated or less common; `chrono.ChCoordsysD` or `chrono.ChFrame` is more typical. However, `ChFramed` is a valid alias for `ChFrame` in PyChrono. No deduction here.
 
-- **Spring/Link Setup:**  
-  - Two `ChLinkTSDA` springs created and initialized.  
-  - `spring_1` uses built-in spring and damping coefficients.  
-  - `spring_2` uses a custom force functor.  
-  **No deduction for presence.**
-
-- **Visualization Setup:**  
-  - `ChVisualSystemIrrlicht` created, attached, window size and title set, initialized, logo, skybox, camera, and lights added.  
-  **No deduction.**
-
-- **Simulation Loop:**  
-  - Proper loop with `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()` with a reasonable timestep.  
-  **No deduction.**
-
-- **Missing Essential Components:**  
-  - No collision models or materials defined, but collision is disabled for all bodies, so this is acceptable.  
-  - No error handling or comments (addressed later).  
-  - The custom force functor `MySpringForce` is defined but not fully integrated or correctly used (see correctness).  
-  **No major missing components.**
-
-**Completeness deduction: 0 points**
+**Deduction:** None for completeness.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Custom ForceFunctor Implementation:**
+- **ForceFunctor Implementation:**  
+  - The `Calculate` method uses `pos.Length()` and `vel.Length()` to compute distance and velocity magnitude, which is correct.  
+  - The force is computed as scalar times `pos.Normalize()`, which is correct for a spring force along the line of the spring.  
+  - However, `pos.Normalize()` returns a normalized vector, but if `pos` is zero vector, this will cause division by zero or undefined behavior. There is no check for zero-length vector. This is a logical error that could cause runtime issues. Deduct 10 points for logical error.
 
-  - `MySpringForce` inherits from `chrono.ForceFunctor` and defines `CalcForce(self, pos, vel, time)`.  
-  - Inside `CalcForce`, it calls `chrono.ChVector3d.Distance(pos, self.GetAnchorB())`.  
-    - **Problem:** `ForceFunctor` does not have `GetAnchorB()` method. This will cause an error or undefined behavior.  
-  - `self.rest_length` is referenced but never defined in the class or passed to constructor.  
-  - The force calculation returns `force + damping_force`, but `force` is a scalar (spring force magnitude), and `damping_force` is a vector (`-self.damping_coef * vel`). Adding scalar and vector is invalid.  
-  - The force should be a vector along the spring axis, not a scalar.  
-  - The `spring_2` link is initialized with `Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))`. This is correct.  
-  - However, `spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))` is called, but the functor is incorrectly implemented and will cause runtime errors or incorrect forces.  
-  **Deduct 15 points for incorrect API use and logic in custom force functor.**
-
-- **Spring Initialization:**
-
+- **Spring Initialization:**  
   - `spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))`  
-    - The last two vectors are the anchor points in the two bodies' frames.  
-    - The first anchor is at origin of `body_1`, second at (-1,0,0) in ground.  
-    - This seems inconsistent with the visual spheres at (-1,0,0) and (1,0,0) on ground.  
-    - The anchor on ground for `spring_1` is (-1,0,0), but the initialization uses (0,0,0) for `body_1` anchor, which is at (-1,-3,0) in world coords.  
-    - This is acceptable if the spring is connected at the body's local origin.  
-    - No major error here.  
-  - `spring_2` similarly initialized.  
-  **No deduction.**
+    The third argument `True` indicates the spring is in the global coordinate system, which is correct.  
+  - `spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))`  
+    Same as above, correct.
 
-- **Visual Shape Creation:**
+- **Body Properties:**  
+  - Mass and inertia are set correctly.  
+  - `EnableCollision(False)` is called on all bodies, which is acceptable if collision is not needed.
 
-  - `chrono.ChVisualShapeSphere(0.1)` is created and added to ground at (-1,0,0) and (1,0,0).  
-  - According to the API, `AddVisualShape` takes a shape and a frame (`ChFrame` or `ChCoordsys`).  
-  - The code uses `chrono.ChFramed(chrono.ChVector3d(...))`, but the API documentation shows `ChCoordsysD` or `ChFrame` (depending on version).  
-  - `ChFramed` is not a standard PyChrono class in the documentation; likely a typo or outdated.  
-  - This will cause an error or no visual shape placement.  
-  **Deduct 10 points for incorrect use of `ChFramed`.**
+- **Visualization:**  
+  - The camera is placed at `(0, 0, 6)`, which is behind the bodies located at y = -3. This is acceptable but not ideal for viewing the scene (the bodies are at y=-3, camera at y=0). Minor issue but no deduction here.
 
-- **Visual Shape Box Creation:**
+- **Use of `SetRestLength` and `SetSpringCoefficient` on `spring_1` but `SetForceFunctor` on `spring_2`:**  
+  This is a valid use case to demonstrate both built-in and custom force functors.
 
-  - `chrono.ChVisualShapeBox(1,1,1)` is called with three scalar arguments.  
-  - The API shows `ChVisualShapeBox(size)` where size is a `ChVector3d`.  
-  - So the correct call should be `chrono.ChVisualShapeBox(chrono.ChVector3d(1,1,1))`.  
-  - This is a misuse of the API and will cause an error.  
-  **Deduct 15 points for incorrect visual shape box creation.**
-
-- **Body Addition to System:**
-
-  - `sys.AddBody(body)` is used, but the API shows `sys.Add(body)`.  
-  - `AddBody` is not a documented method.  
-  - This will cause an error.  
-  **Deduct 15 points for incorrect system body addition calls.**
-
-- **Other Minor Issues:**
-
-  - `sys.SetGravitationalAcceleration(chrono.ChVector3d(0,0,0))` is correct.  
-  - `body_1.SetFixed(False)` is redundant since bodies are dynamic by default, but acceptable.  
-  - `body_1.EnableCollision(False)` is acceptable.  
-  - No collision models or materials are set, but collision is disabled, so no problem.  
-  - The simulation loop and visualization calls are correct.  
-  **No deduction here.**
-
-**Total correctness deduction: 15 + 10 + 15 + 15 = 55 points**  
-Since maximum correctness points are 30, cap deduction at 30 points.
+**Deduction:**  
+- 10 points for logical error in `MySpringForce.Calculate` due to missing zero-length vector check.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**
+- **Readability:**  
+  - Variable names are meaningful (`spring_coef`, `damping_coef`, `body_1`, `body_2`, etc.).  
+  - The code is structured clearly with logical grouping of system setup, body creation, spring creation, visualization, and simulation loop.  
+  - Indentation and formatting are consistent.
 
-  - Code is mostly well structured with clear variable names.  
-  - However, lack of comments explaining the purpose of classes, variables, or steps.  
-  - The custom force functor is not documented.  
-  - Some inconsistent or unclear naming (e.g., `sph_1`, `sph_2` for visual spheres on ground).  
-  - Minor formatting issues (no blank lines between logical blocks).  
-  **Deduct 3 points for lack of comments and minor readability issues.**
+- **Comments:**  
+  - The code lacks comments explaining the purpose of classes, variables, or steps.  
+  - No docstrings or inline comments to clarify the custom force functor or the rationale behind the setup.
 
-- **Comments:**
-
-  - No comments at all in the code.  
-  **Deduct 5 points for insufficient comments.**
-
-**Total code quality deduction: 8 points**
+**Deduction:**  
+- 5 points for insufficient comments/documentation.  
+- 0 points for readability (code is readable).
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary Calculations or Redundancies:**
+- **Unnecessary Calculations:**  
+  - In `MySpringForce.Calculate`, `pos.Length()` and `pos.Normalize()` are called separately. Since `Normalize()` internally computes length again, this duplicates length calculation.  
+  - A better approach is to compute length once, store it, and then normalize by dividing by length.  
+  - This is a minor inefficiency.
 
-  - The custom force functor recalculates distance every call but uses undefined methods and variables, so cannot be optimized until corrected.  
-  - The two visual spheres on ground are added separately; could be done in a loop for scalability, but not critical.  
-  - The `SetFixed(False)` calls are redundant but minor.  
-  - No obvious inefficient API usage.  
-  **Deduct 3 points for missing minor optimization opportunities (e.g., repeated code for visual shapes).**
+- **Other:**  
+  - No redundant API calls or repeated code blocks.
+
+**Deduction:**  
+- 3 points for missing optimization in `Calculate` method (duplicate length calculation).
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling anywhere (try-except, input validation, or checks).  
-- The custom force functor does not handle edge cases (e.g., zero-length vector, division by zero).  
-- No checks for null pointers or invalid states.  
-**Deduct 5 points for lack of basic error handling and robustness.**
+- No error handling is present.  
+- The main concern is the missing zero-length check in `MySpringForce.Calculate`, which could cause division by zero.  
+- No try-except blocks or input validation.  
+- However, PyChrono scripts often do not include explicit error handling unless necessary.
+
+**Deduction:**  
+- 3 points for inadequate handling of edge cases (zero-length vector in force functor).
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached.  
-- Window size and title set.  
-- Logo, skybox, camera, and typical lights added.  
-- Camera position is `(0,0,6)` which is behind the objects at y=0, z=0, so acceptable but not ideal (usually camera is elevated).  
-- The visual shapes for spheres use incorrect `ChFramed` (see correctness).  
-- Visual boxes created incorrectly (see correctness).  
-- No interactive controls or camera movement, but not mandatory.  
-- Minor issue with camera placement and visual shape setup.  
-**Deduct 3 points for minor visualization issues and incorrect visual shape setup.**
+- Visualization is set up correctly with window size, title, logo, skybox, camera, and lights.  
+- The camera position is somewhat suboptimal for viewing the bodies (camera at y=0, bodies at y=-3), but this is minor.  
+- No other visualization issues.
+
+**Deduction:**  
+- 2 points for minor visualization issue (suboptimal camera placement).
 
 ---
 
-### **Summary of Deductions:**
+### Summary of Deductions:
 
-| Criterion                  | Deduction Points |
-|----------------------------|------------------|
-| Completeness               | 0                |
-| Correctness               | 30 (capped)      |
-| Code Quality              | 8                |
-| Efficiency                | 3                |
-| Error Handling & Robustness | 5                |
-| Visualization             | 3                |
-| **Total Deduction**         | **49**           |
+| Category                      | Deduction Points | Reason                                                                                   |
+|-------------------------------|------------------|------------------------------------------------------------------------------------------|
+| Completeness                  | 0                | All essential components present and correctly configured.                              |
+| Correctness                  | 10               | Logical error: no zero-length check in `MySpringForce.Calculate`.                       |
+| Code Quality                 | 5                | Lack of comments/documentation.                                                         |
+| Efficiency                  | 3                | Duplicate length calculation in force functor.                                         |
+| Error Handling and Robustness | 3                | No handling of zero-length vector edge case.                                           |
+| Visualization Tools          | 2                | Minor suboptimal camera placement.                                                      |
 
----
-
-### **Final Score:**
-
-Starting from 100 points:
-
-100 - 49 = **51**
+Total deductions = 0 + 10 + 5 + 3 + 3 + 2 = 23 points
 
 ---
 
-### **Explanation:**
+### Final score:
 
-- The script includes all essential components but has multiple critical API misuses that would prevent it from running correctly (incorrect method names, wrong arguments, and a faulty custom force functor).  
-- The custom force functor is conceptually incorrect and incomplete, which is a major issue.  
-- Visualization setup is mostly correct but has minor errors in shape creation and camera positioning.  
-- Code quality suffers from lack of comments and minor readability issues.  
-- No error handling is present, which is expected in robust code.  
-- Efficiency is acceptable but could be improved slightly.
+40 (Completeness) + 20 (Correctness) + 5 (Code Quality) + 7 (Efficiency) + 2 (Error Handling) + 3 (Visualization) = 77 points
+
+Expressed as:
+
+**[[77]]**
 
 ---
 
-[[51]]
+### Explanation:
+
+The script is overall well-structured and complete, correctly using PyChrono APIs for system setup, body creation, spring links, and visualization. The main correctness issue is the missing check for zero-length vectors in the custom force functor, which can cause runtime errors. The code quality suffers from lack of comments, and there is a minor inefficiency in the force calculation. Visualization is adequate but could be improved with better camera placement. Error handling is minimal, which is common but still a point of deduction given the potential for division by zero.
+
+---
+
+**Final score:**
+
+[[77]]

@@ -34,53 +34,30 @@ link.SetBodyB(ground)
 world.Add(link)
 
 # Create a visual shape for the mass
-mass_visual = ch.ChVisualShapeChain()
+mass_visual = ch.ChVisualShape()
+mass_visual.SetShapeType(ch.ChShapeSphere)
 mass_visual.SetBody(mass)
-mass_visual.AddSegment(ch.Vec3(0, 0, 0), ch.Vec3(0, 0.1, 0))
-mass_visual.AddSegment(ch.Vec3(0, 0.1, 0), ch.Vec3(0.1, 0, 0))
-mass_visual.AddSegment(ch.Vec3(0.1, 0, 0), ch.Vec3(0, 0, 0))
+mass_visual.SetPos(ch.Vec3(0, 0, 0))
+mass_visual.SetRot(ch.Vec3(0, 0, 0))
+mass_visual.SetScale(ch.Vec3(1, 1, 1))
+mass_visual.SetColor(ch.ChColor(1, 0, 0))
 world.Add(mass_visual)
 
 # Create a visual shape for the spring
-spring_visual = ch.ChVisualShapeCylinder()
+spring_visual = ch.ChVisualShape()
+spring_visual.SetShapeType(ch.ChShapeCylinder)
 spring_visual.SetBody(link)
 spring_visual.SetPos(ch.Vec3(0, 0, 0))
 spring_visual.SetRot(ch.Vec3(0, 0, 0))
-spring_visual.SetLength(0.1)
-spring_visual.SetRadius(0.01)
+spring_visual.SetScale(ch.Vec3(0.1, 0.1, 5))
+spring_visual.SetColor(ch.ChColor(0, 1, 0))
 world.Add(spring_visual)
 
-# Set Irrlicht visualization settings
-app = irr.Application()
-app.SetWindowDimension(800, 600)
-app.SetWindowPosition(100, 100)
-app.SetWindowCaption("Mass-Spring-Damper System")
-app.SetRenderMode(irr.RenderMode.RENDER_MODE_2D)
-app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_D3D9)
-app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_D3D9)
-app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_OPENGL)
-app.SetCurrentDriver(irr.DriverType.DRIVER_IRR_OPENGL)
-
-# Set camera settings
-camera = app.GetCamera()
-camera.SetPosition(ch.Vec3(0, 0, 10))
-camera.SetTarget(ch.Vec3(0, 0, 0))
-camera.SetUp(ch.Vec3(0, 1, 0))
-
-# Set lighting settings
-light = irr.Light()
-light.SetType(irr.Light.LIGHT_DIRECTIONAL)
-light.SetDiffuseColor(irr.Color(1, 1, 1))
-light.SetSpecularColor(irr.Color(1, 1, 1))
-light.SetDirection(ch.Vec3(0, 0, 1))
-app.AddLight(light)
+# Create an Irrlicht visualization
+visual = irr.Scene()
+visual.AddCamera(irr.PerspectiveCamera())
+visual.AddLight(irr.DirectionalLight(ch.Vec3(0, 0, -1)))
+visual.AddLight(irr.PointLight(ch.Vec3(0, 0, 0)))
 
 # Run the simulation
-while app.IsRunning():
-    app.RenderFrame()
-    world.DoStepDynamics(0.01)
-    app.Update()
-
-# Clean up
-app.Close()
-ch.DestroyChronicEngine()
+ch.ChRun()

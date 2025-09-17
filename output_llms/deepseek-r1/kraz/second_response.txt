@@ -1,10 +1,5 @@
 
-Here's the corrected and modified PyChrono simulation script based on your instructions. The changes include:
-1. Updated initial vehicle position to (-15, 0, 0.5)
-2. Adjusted camera track point to (3, 0, 2.1) and chase camera parameters
-3. Replaced interactive driver with automated double lane change maneuver
-4. Fixed terrain initialization issue
-5. Corrected visualization attachment
+Based on the instructions, I've modified the PyChrono script to implement the requested changes. Here's the corrected and updated code:
 
 ```python
 import pychrono.core as chrono
@@ -12,30 +7,30 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Updated initial position
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+# Initial vehicle location and orientation (modified)
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed from (0,0,0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Rotation remains unchanged
 
-# Visualization type for vehicle parts
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Updated track point
+# Poon chassis tracked by the camera (modified)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed from (0,0,2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -45,63 +40,77 @@ contact_vis = False
 step_size = 1e-3
 tire_step_size = step_size
 
-# Time interval between render frames
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create and initialize Kraz vehicle
+# Create the kraz vehicle, set parameters, and initialize
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)
-vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle.SetWheelVisualizationType(vis_type, vis_type)
+vehicle.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create vehicle Irrlicht interface
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Kraz Double Lane Change Demo')
+vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Updated camera parameters
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Changed height from 1.5 to 10.5
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())  # Corrected attachment method
+vis.AttachVehicle(vehicle.GetTractor())
 
-# Create driver system for automated control
-driver = veh.ChDriver(vehicle.GetVehicle())
+# Create and initialize the path-follower driver (modified)
+# Define waypoints for double lane change maneuver
+points = [
+    chrono.ChVector3d(-15, 0, 0.5),
+    chrono.ChVector3d(0, 0, 0.5),
+    chrono.ChVector3d(20, 3.5, 0.5),
+    chrono.ChVector3d(40, 0, 0.5),
+    chrono.ChVector3d(60, -3.5, 0.5),
+    chrono.ChVector3d(80, 0, 0.5),
+    chrono.ChVector3d(100, 0, 0.5)
+]
+path = chrono.ChBezierCurve(points)
+driver = veh.ChPathFollowerDriver(vehicle.GetTractor(), path, "DoubleLaneChange", 10.0)
+driver.GetSteeringController().SetGains(0.5, 0, 0)
+driver.GetSpeedController().SetGains(0.4, 0, 0)
+driver.Initialize()
 
 # Output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
-# Simulation timing parameters
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Main simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -112,61 +121,39 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Define double lane change maneuver based on simulation time
-    steering = 0.0
-    throttle = 0.5
-    braking = 0.0
-    
-    # Lane change sequence:
-    if 2.0 <= time < 3.0:       # First left turn
-        steering = 0.5
-    elif 3.0 <= time < 4.0:     # First right turn
-        steering = -0.5
-    elif 4.0 <= time < 5.0:     # Second left turn
-        steering = 0.5
-    elif 5.0 <= time < 6.0:     # Second right turn
-        steering = -0.5
-    elif time >= 6.0:           # Straight after maneuver
-        steering = 0.0
-
-    # Set driver inputs
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment step counter
+    # Increment frame number
     step_number += 1
 
-    # Maintain real-time synchronization
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 ```
 
-Key modifications made:
-1. Fixed terrain initialization by adding missing height parameter
-2. Corrected vehicle attachment to visual system using `GetVehicle()` instead of `GetTractor()`
-3. Added required tire model setup (`SetTireType` and `SetTireStepSize`)
-4. Implemented automated double lane change sequence with:
-   - 0.5 throttle throughout
-   - Steering sequence: 
-     * 2-3s: Left turn (0.5)
-     * 3-4s: Right turn (-0.5)
-     * 4-5s: Left turn (0.5)
-     * 5-6s: Right turn (-0.5)
-     * After 6s: Straight (0.0)
-5. Updated window title to reflect new maneuver
-6. Fixed material setup for terrain patch
+Key changes made:
+1. Changed initial vehicle position from (0,0,0.5) to (-15,0,0.5)
+2. Modified camera track point from (0,0,2.1) to (3,0,2.1) and chase camera height from 1.5 to 10.5
+3. Replaced interactive driver with path-follower driver for automated double lane change
+4. Created a Bezier curve path with waypoints defining the double lane change maneuver
+5. Configured PID controllers for steering and speed control
+6. Removed unused interactive driver parameters (steering/throttle/braking times)
 
-The simulation now starts the vehicle at (-15, 0, 0.5), follows the specified camera parameters, and performs a double lane change maneuver automatically based on simulation time.
+The simulation will now:
+- Start the vehicle at X=-15 position
+- Follow a predefined path performing left-right lane changes
+- Maintain a target speed of 10 m/s
+- Use a higher camera position for better visibility
+- Automatically execute the maneuver without keyboard input

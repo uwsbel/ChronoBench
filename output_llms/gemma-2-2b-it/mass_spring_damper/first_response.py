@@ -1,50 +1,48 @@
-from pychrono import *
-from pychrono.irrlicht import *
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht_utils as irrutils
 
 # Initialize PyChrono
-init_chrono()
+chrono.init()
 
-# Create the scene
-scene = Scene()
+# Create the Irrlicht engine
+engine = irrlicht.IrrlichtEngine()
+
+# Create the world
+world = chrono.World()
+world.setCamera(chrono.Camera(chrono.Vector3(0, 0, 10), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 1, 0)))
 
 # Create the ground
-ground = ChBody(ChBodyType.GROUND)
-ground.setPosition(0, 0, 0)
-ground.setInertiaTensor(ChVector3(0.0, 0.0, 0.0))
-scene.addBody(ground)
+ground = chrono.Body(chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0))
+ground.setMass(1000)
+ground.setCollisionShape(chrono.SphereShape(1))
+world.addBody(ground)
 
 # Create the mass
-mass = ChBody(ChBodyType.SOLID)
-mass.setPosition(0, 1, 0)
-mass.setInertiaTensor(ChVector3(1.0, 1.0, 1.0))
-mass.setMass(1.0)
+mass = chrono.Body(chrono.Vector3(1, 0, 0), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0))
+mass.setMass(1)
+mass.setCollisionShape(chrono.SphereShape(0.1))
+world.addBody(mass)
 
-# Create the spring
-spring = ChLinkTSDA(mass, ground, ChLinkTSDA.LINEAR, 10.0, 10.0)
+# Create the spring-damper connection
+link = chrono.LinkTSDA(mass, ground, chrono.Vector3(0, 0, 0))
+link.setLinearDamping(0.01)
+link.setStiffness(1000)
+world.addLink(link)
 
-# Set initial positions and velocities
-mass.setPosition(0, 1, 0)
-ground.setPosition(0, 0, 0)
-spring.setPosition(0, 0, 0)
+# Add visual shapes
+mass_shape = irrlicht.IrrlichtShape(irrlicht.IrrlichtShape.Sphere)
+mass_shape.setColor(chrono.Color(1, 0, 0, 1))
+mass.addVisualShape(mass_shape)
 
-# Set default parameters for the spring
-spring.setLinearStiffness(1000.0)
-spring.setDamping(0.1)
+spring_shape = irrlicht.IrrlichtShape(irrlicht.IrrlichtShape.Cylinder)
+spring_shape.setColor(chrono.Color(0, 1, 0, 1))
+world.addVisualShape(spring_shape)
 
-# Set up Irrlicht visualization
-irrlicht_scene = IrrlichtScene()
-irrlicht_scene.setCameraPosition(ChVector3(0, 0, 5))
-irrlicht_scene.setCameraRotation(ChVector3(0, 0, 0))
-irrlicht_scene.setAmbientLight(ChVector3(0.2, 0.2, 0.2))
-irrlicht_scene.setDirectionalLight(ChVector3(1, 1, 1), ChVector3(0, 0, 1))
-
-# Add the scene to Irrlicht
-irrlicht_scene.addBody(ground)
-irrlicht_scene.addBody(mass)
-irrlicht_scene.addBody(spring)
-
-# Render the scene
-irrlicht_scene.render()
+# Set the Irrlicht rendering parameters
+engine.setCameraPosition(chrono.Vector3(0, 0, 10))
+engine.setCameraTarget(chrono.Vector3(0, 0, 0))
+engine.setCameraLookAt(chrono.Vector3(0, 0, 0))
 
 # Run the simulation
-run_chrono()
+engine.run()

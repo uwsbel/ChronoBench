@@ -83,8 +83,8 @@ def main():
     lidar_sensor.SetVerticalResolution(10)
     lidar_sensor.SetMinRange(0.1)
     lidar_sensor.SetMaxRange(100)
-    lidar_sensor.EnableFilters(True, True, True)  
-
+    lidar_sensor.EnableFilter(sens.ChLidarFilterType_NEAR)
+    lidar_sensor.EnableFilter(sens.ChLidarFilterType_FAR)
     sens_manager.AddSensor(lidar_sensor)
 
     
@@ -96,10 +96,9 @@ def main():
     time_end = 30  
 
     
-    
     render_step_size = 1.0 / 25  
-    render_steps = math.ceil(render_step_size / time_step)
     step_number = 0
+    render_steps = math.ceil(render_step_size / time_step)
 
     hmmwv.GetVehicle().EnableRealtime(True)  
 

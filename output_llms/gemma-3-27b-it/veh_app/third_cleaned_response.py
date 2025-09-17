@@ -124,6 +124,7 @@ cam = sens.ChCameraSensor(
     gator.GetChassisBody(), update_rate, offset_pose, image_width, image_height, fov
 )
 cam.SetName("Third Person POV")
+
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
@@ -149,9 +150,9 @@ lidar = sens.ChLidarSensor(
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
-lidar.SetCollectionWindow(1 / update_rate)
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.SetCollectionWindow(1 / update_rate)  
+lidar.PushFilter(sens.ChFilterDIAccess())  
+lidar.PushFilter(sens.ChFilterPCfromDepth())  
 lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)
@@ -168,7 +169,7 @@ depth_cam = sens.ChDepthCameraSensor(
     30.0  
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap("Depth Map"))
 manager.AddSensor(depth_cam)
 
 

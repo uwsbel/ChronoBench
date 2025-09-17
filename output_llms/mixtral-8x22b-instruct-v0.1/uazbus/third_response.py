@@ -72,10 +72,9 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the box obstacle
-box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False)
-box.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box = chrono.ChBodyEasyBox(5, 0.5, 0.2, 1000, False, False, chrono.ChVector3d(5, 0, 0.1))
 box.SetBodyFixed(True)
-vehicle.GetSystem().Add(box)
+vehicle.GetSystem().AddBody(box)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -102,7 +101,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,10 +111,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -124,14 +123,14 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Set constant throttle value
+    driver_inputs.m_throttle = 0.5
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Added logic to move the vehicle forward by setting a constant throttle value of 0.5
-    driver_inputs.m_throttle = 0.5
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

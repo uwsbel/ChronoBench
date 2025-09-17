@@ -3,16 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-print(veh)
 
-
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
-initLoc = chrono.ChVector3d(0, 0, 1.0)  
+initLoc = chrono.ChVector3d(0, 0, 1.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -25,7 +17,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrain_model = veh.RigidTerrain.HIGHWAY  
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -38,7 +29,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 1e-4  
+step_size = 5e-4  
 tire_step_size = step_size
 
 
@@ -78,7 +69,7 @@ patch = terrain.AddPatch(patch_mat,
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize(terrain_model)  
+terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -106,20 +97,22 @@ driver.Initialize()
 
 
 class PIDController:
-    def __init__(self, kp, ki, kd, target_speed):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
+    def __init__(self, Kp, Ki, Kd, target_speed):
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
         self.target_speed = target_speed
-        self.error_sum = 0
-        self.prev_error = 0
+        self.error_integral = 0
+        self.error_derivative = 0
+        self.previous_error = 0
 
     def update(self, current_speed):
         error = self.target_speed - current_speed
-        self.error_sum += error * step_size
-        derivative = (error - self.prev_error) / step_size
-        self.prev_error = error
-        return self.kp * error + self.ki * self.error_sum + self.kd * derivative
+        self.error_integral += error * step_size
+        self.error_derivative = (error - self.previous_error) / step_size
+        self.previous_error = error
+        throttle = self.Kp * error + self.Ki * self.error_integral + self.Kd * self.error_derivative
+        return throttle
 
 pid_controller = PIDController(1.0, 0.1, 0.0, 10.0)  
 
@@ -128,7 +121,7 @@ pid_controller = PIDController(1.0, 0.1, 0.0, 10.0)
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -138,11 +131,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -158,19 +151,15 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    reference_speed = 10.0  
-
-    
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    throttle_input = pid_controller.update(current_speed)
-    driver_inputs.throttle = throttle_input
+    current_speed = vehicle.GetVehicle().GetContactPointSpeed().Length()
+    throttle = pid_controller.update(current_speed)
+    driver_inputs.m_throttle = throttle
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
 

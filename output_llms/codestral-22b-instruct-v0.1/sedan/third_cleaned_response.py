@@ -87,14 +87,20 @@ driver = veh.ChDriver(vehicle.GetVehicle())
 
 
 steering_time = 5.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
 
 
-throttle_PID = veh.ChPIDController(0.2, 0.0, 0.0)
-throttle_PID.SetOutputLimits(-1.0, 1.0)
+reference_speed = 20.0  
 
 
-reference_speed = 50.0  
+pid = veh.ChPIDController(0.5, 0.0, 0.0, reference_speed, -1.0, 1.0)
+
+
+driver.Initialize()
 
 
 
@@ -122,16 +128,11 @@ while vis.Run():
         render_frame += 1
 
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
+    driver_inputs = driver.GetInputs()
 
     
-    speed_error = reference_speed - current_speed
-
-    
-    throttle_input = throttle_PID.Update(speed_error, render_step_size)
-
-    
-    driver_inputs = veh.ChDriverInputs()
+    current_speed = vehicle.GetSpeed()
+    throttle_input = pid.Update(current_speed, time)
     driver_inputs.m_throttle = throttle_input
 
     
@@ -145,7 +146,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
 

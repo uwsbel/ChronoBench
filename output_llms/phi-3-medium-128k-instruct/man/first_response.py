@@ -4,116 +4,133 @@ from pychron.systems import *
 
 from pychron.vehicle import Vehicle
 
+from pychron.physics import *
+
 from pychron.visualization import *
 
-from pychron.tire import TMEASY
+from pychron.vehicle.tire import TMEASY
 
-import numpy as np
+from pychron.vehicle.driver import Driver
+
+from pychron.physics.rigid import RigidBody
+
+import pychron.visualization as vis
+
+import pychron.collision as col
 
 
-# Initialize PyChrono environment
+# Initialize PyChrono
 
 chrono = Chrono()
 
 
-# Add a rigid terrain
+# Create the ground body
 
-terrain = RigidTerrain()
+ground = RigidBody(name='Ground')
 
-
-# Create a MAN 10t truck vehicle model
-
-vehicle = Vehicle(name="MAN10t")
-
-vehicle.add_tire(TMEASY())
-
-vehicle.add_visualization(
-
-    visualization=True,
-
-    collision=True,
-
-    visualization_model="vehicles/MAN10t.vrml",
-
-    visualization_scale=1.0
-
-)
+ground.add_box(pos=(0, 0, 0), size=(100, 100, 100))
 
 
-# Set the vehicle position and orientation
+# Create the vehicle body
 
-vehicle.set_position(np.array([0.0, 0.0, 0.0]))
+vehicle = RigidBody(name='Truck')
 
-vehicle.set_orientation(np.array([0.0, 0.0, 0.0, 1.0]))
+vehicle.add_box(pos=(0, 0, 0), size=(8, 3, 3))
+
+
+# Set the physical properties of the vehicle
+
+vehicle.add_collider(name='Chassis', size=(8, 3, 3))
+
+vehicle.add_collider(name='Front', size=(2, 1, 1), pos=(4, 1.5, 0))
+
+vehicle.add_collider(name='Rear', size=(2, 1, 1), pos=(-4, 1.5, 0))
+
+vehicle.add_collider(name='Left', size=(1, 3, 1), pos=(0, 1.5, 0))
+
+vehicle.add_collider(name='Right', size=(1, 3, 1), pos=(8, 1.5, 0))
+
+
+# Set the vehicle mass and inertia
+
+vehicle.mass = 10000
+
+vehicle.inertia = (1000, 1000, 1000)
+
+
+# Add TMEASY tire model
+
+vehicle.add_tire(name='FrontLeft', model=TMEASY, pos=(-4, 1.5, 0), size=(2, 1, 1))
+
+vehicle.add_tire(name='FrontRight', model=TMEASY, pos=(4, 1.5, 0), size=(2, 1, 1))
+
+vehicle.add_tire(name='RearLeft', model=TMEASY, pos=(-4, -1.5, 0), size=(2, 1, 1))
+
+vehicle.add_tire(name='RearRight', model=TMEASY, pos=(4, -1.5, 0), size=(2, 1, 1))
+
+
+# Add a driver
+
+driver = Driver(name='Driver')
+
+
+# Set driver controls
+
+driver.add_control('Steering', min_val=-0.5, max_val=0.5)
+
+driver.add_control('Throttle', min_val=0, max_val=1)
+
+driver.add_control('Brake', min_val=0, max_val=1)
+
+
+# Set the vehicle's initial state
+
+vehicle.set_position((0, 0, 0))
+
+vehicle.set_velocity((0, 0, 0))
+
+vehicle.set_orientation((0, 0, 0))
 
 
 # Add the vehicle to the system
 
-system = System(chrono)
+system = System(name='TruckSystem')
 
-system.add(vehicle)
+system.add_body(vehicle)
 
-system.add(terrain)
-
-
-# Add a chase camera
-
-camera = ChaseCamera(
-
-    camera_model="cameras/chase.vrml",
-
-    camera_scale=1.0
-
-)
-
-system.add(camera)
+system.add_driver(driver)
 
 
-# Set visualization settings
+# Set the gravity
 
-visualization = Visualization(
-
-    visualization_model="vehicles/MAN10t.vrml",
-
-    visualization_scale=1.0,
-
-    skybox=True,
-
-    skybox_texture="skyscapes/skybox.jpg",
-
-    directional_light=True,
-
-    directional_light_texture="lights/directional.jpg",
-
-    terrain_texture="terrains/rigid.jpg",
-
-    terrain_logo=True,
-
-    terrain_logo_texture="logos/MAN10t.png"
-
-)
-
-system.add(visualization)
+system.set_gravity((0, -9.81, 0))
 
 
-# Set real-time driver controls for steering, throttle, and braking
+# Set the visualization
 
-driver = Driver(
+vis = vis.IrrlichtVisualization(name='Visualization')
 
-    throttle_gain=1.0,
+vis.set_camera(name='ChaseCamera', pos=(0, 10, 50))
 
-    brake_gain=1.0,
+vis.set_lighting(name='DirectionalLight', pos=(0, 10, 10), dir=(0, 0, -1))
 
-    steering_gain=1.0
+vis.set_skybox('skybox.bmp')
 
-)
+vis.set_terrain_texture('terrain.bmp')
 
-system.add(driver)
+vis.set_logo('logo.bmp')
 
 
-# Set the system
+# Add the system to the simulation
 
-system.set(chrono)
+chrono.add_system(system)
+
+
+# Set the terrain
+
+ground.set_collision(True)
+
+vehicle.set_collision(True)
 
 
 # Run the simulation

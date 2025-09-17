@@ -59,12 +59,6 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -76,8 +70,15 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 start_time = chrono.ChTime()
-while vis.Run() and chrono.ChTime() - start_time < 20:  
+end_time = start_time + chrono.ChTime(20)  
+while vis.Run() and sys.GetChTime() < end_time:
     
     vis.BeginScene()  
     vis.Render()  
@@ -85,8 +86,8 @@ while vis.Run() and chrono.ChTime() - start_time < 20:
     sys.DoStepDynamics(1e-3)  
 
     
-    array_time.append(chrono.ChTime() - start_time)
-    array_angle.append(mcrank.GetRot().GetAngle())
+    array_time.append(sys.GetChTime())
+    array_angle.append(mcrank.GetRot().GetAngleRad())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos().v.x)
 
@@ -99,4 +100,4 @@ plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.title('Piston Position vs. Crank Angle')
-plt.xticks(np.arange(0, 2
+plt.

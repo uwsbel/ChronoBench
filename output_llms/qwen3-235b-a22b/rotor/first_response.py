@@ -1,97 +1,102 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
-# Initialize the PyChrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))
+# Initialize the Chrono system
+sys = chrono.ChSystemNSC()
 
-# Beam parameters
-length = 1.0
-radius = 0.05
-num_elements = 4
-
-# Create beam nodes with rotational DOFs
-nodes = []
-for i in range(num_elements + 1):
-    x = length * i / num_elements
-    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, 0, 0)))
-    nodes.append(node)
-    system.Add(node)
-
-# Create beam mesh and elements
+# Create the IGA beam mesh
 mesh = fea.ChMesh()
-section = fea.ChBeamSectionIGA()
-section.SetYoungModulus(2e11)
-section.SetPoissonRatio(0.3)
-section.SetDensity(7800)
-section.SetArea(chrono.CH_C_PI * radius**2)
-section.SetIyy(radius**4 * chrono.CH_C_PI / 4)
-section.SetIzz(radius**4 * chrono.CH_C_PI / 4)
-section.SetJ(radius**4 * chrono.CH_C_PI / 2)
 
-elements = []
-for i in range(num_elements):
-    element = fea.ChElementBeamIGA()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetSection(section)
-    elements.append(element)
-    mesh.AddElement(element)
+# Material properties for the beam
+material = fea.ChIgaMaterialLinearElastic()
+material.E = 210e9  # Young's modulus (Pa)
+material.nu = 0.3    # Poisson's ratio
+material.rho = 7800  # Density (kg/m^3)
 
-for node in nodes:
-    mesh.AddNode(node)
+# Beam cross-section parameters (circular cross-section)
+radius = 0.01  # 1 cm radius
+area = chrono.CH_C_PI * radius**2
+Iyy = 0.25 * chrono.CH_C_PI * radius**4  # Area moment of inertia (y-axis)
+Izz = Iyy  # Symmetric cross-section
+J = 0.5 * chrono.CH_C_PI * radius**4     # Polar moment of inertia
 
-system.Add(mesh)
+# Create beam nodes (0, 0.5, and 1 meter along x-axis)
+nodeA = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+nodeC = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0)))
+nodeB = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
 
-# Attach flywheel at the center node
-flywheel_node = nodes[len(nodes)//2]
+mesh.AddNode(nodeA)
+mesh.AddNode(nodeC)
+mesh.AddNode(nodeB)
+
+# Create IGA beam elements (two elements: A-C and C-B)
+element1 = fea.ChIgaElement1D()
+element1.SetNodes(nodeA, nodeC)
+element1.SetMaterial(material)
+element1.SetArea(area)
+element1.SetIyy(Iyy)
+element1.SetIzz(Izz)
+element1.SetJ(J)
+mesh.AddElement(element1)
+
+element2 = fea.ChIgaElement1D()
+element2.SetNodes(nodeC, nodeB)
+element2.SetMaterial(material)
+element2.SetArea(area)
+element2.SetIyy(Iyy)
+element2.SetIzz(Izz)
+element2.SetJ(J)
+mesh.AddElement(element2)
+
+# Add mesh to the system
+sys.Add(mesh)
+
+# Create the flywheel (mass and inertia)
 flywheel = chrono.ChBody()
-flywheel.SetMass(10)
-flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-flywheel.SetPos(flywheel_node.GetPos())
-flywheel.AddAsset(chrono.ChColorAsset(1, 0, 0))
-system.Add(flywheel)
+flywheel.SetMass(10)  # kg
+flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.2))  # Arbitrary inertia
+flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))  # Centered at nodeC
+sys.Add(flywheel)
 
-fix_link = chrono.ChLinkMateFix()
-fix_link.Initialize(flywheel, flywheel_node)
-system.AddLink(fix_link)
+# Link flywheel to the center node (nodeC)
+link = fea.ChLinkNodeBody()
+link.Initialize(nodeC, flywheel)
+sys.Add(link)
 
-# Create motor and connect to beam's end node
-motor_body = chrono.ChBody()
-motor_body.SetMass(0.1)
-motor_body.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
-motor_body.SetPos(nodes[0].GetPos())
-system.Add(motor_body)
+# Create rotational motor at nodeA (driving end)
+motor = chrono.ChLinkMotorRotationAngle()
+# Align motor's rotation axis with global x-axis
+motor_frame = chrono.ChFrameD(
+    chrono.ChVectorD(0, 0, 0),
+    chrono.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))
+)
+motor.Initialize(sys.GetGround(), motor_frame, nodeA, chrono.ChFrameD())
 
-fix_motor_node = chrono.ChLinkMateFix()
-fix_motor_node.Initialize(motor_body, nodes[0])
-system.AddLink(fix_motor_node)
-
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(system.GetGroundBody(), motor_body, chrono.ChFrameD(nodes[0].GetPos()))
+# Set angular velocity (10 rad/s constant speed)
 omega = 10.0
-motor.SetSpeedFunction(chrono.ChFunction_Const(omega))
-system.AddLink(motor)
+ramp = chrono.ChFunction_Ramp(0, omega)
+motor.SetAngleFunction(ramp)
+sys.Add(motor)
 
-# Set up Irrlicht visualization
-vis = irrlicht.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Jeffcott Rotor IGA Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 0.5, 2), chrono.ChVectorD(0, 0, 0))
+# Initialize Irrlicht visualization
+vis = irr.ChIrrApp(sys, 'Jeffcott Rotor IGA Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalLogo()
+vis.AddTypicalCamera(irr.vector3df(0, 2, -3))  # Camera position
+vis.AddTypicalLights()
 
-# FEM visualization for beam
-mesh_vis = fea.ChVisualizationFEAmesh(mesh)
-mesh_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_FEM_DATATYPE_ELEM_STRAIN_ENERGY)
-mesh_vis.SetColorscaleMinMax(0.0, 1e4)
-mesh.AddAsset(mesh_vis)
-mesh.AddAsset(chrono.ChColorAsset(0.6, 0.6, 0.6))
+# Add beam mesh to visualization with FEM displacement data
+vis.AddMesh(mesh, 'Beam')
+vis.GetMeshSceneNode(mesh).SetFEMdataType(chrono.ChIrrApp.FEM_DATA_DISPLACEMENT)
+vis.GetMeshSceneNode(mesh).SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+
+# Finalize visualization setup
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 # Simulation loop
-while vis.Run():
+while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
-    irrlicht.ChIrrTools.drawAll(vis)
     vis.EndScene()
-    system.DoStepDynamics(0.001)
+    sys.DoStepDynamics(1e-3)  # Time step of 0.001 seconds

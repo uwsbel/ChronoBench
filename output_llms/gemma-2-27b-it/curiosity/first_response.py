@@ -1,61 +1,87 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import math
 
-# 1. Initialize PyChrono environment and core components
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system
+#
+# ---------------------------------------------------------------------
+
 my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 2. Add physical systems and objects
-# a. Fixed ground
-ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+# Set the gravitational acceleration
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# ---------------------------------------------------------------------
+#
+# Create the ground
+#
+# ---------------------------------------------------------------------
+
+ground_material = chrono.ChMaterialSurfaceNSC()
+ground_material.SetFriction(0.8)
+ground_material.SetRestitution(0.2)
+
+ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True, ground_material)
 ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
 my_system.Add(ground)
 
-# b. Curiosity rover
-rover = chrono.ChWheeledVehicle()
-rover.SetSystem(my_system)
+# ---------------------------------------------------------------------
+#
+# Create the rover
+#
+# ---------------------------------------------------------------------
 
-# Add rover chassis
-chassis = chrono.ChBodyEasyBox(2, 1, 3, 1000, True, True)
-chassis.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.AddChassis(chassis)
+# Load the rover model from a file (replace with your actual file path)
+rover_model = chrono.ChBody(chrono.ReadBodyFile('rover.obj'))
 
-# Add rover wheels
-wheel_radius = 0.3
-wheel_width = 0.2
-for i in range(6):
-    wheel = chrono.ChWheel(chrono.ChVectorD(0, 0, 0), wheel_radius, wheel_width)
-    wheel.SetFrictionCoefficient(0.8)
-    wheel.SetSuspensionForce(1000)
-    wheel.SetSpringCoefficient(1000)
-    wheel.SetDampingCoefficient(100)
-    rover.AddWheel(wheel)
+# Set the rover's initial position and orientation
+rover_model.SetPos(chrono.ChVectorD(0, 1, 0))
 
-# 3. Set default parameters
+# Add a motor control driver for steering (replace with your specific driver)
+motor_driver = chrono.ChMotorControlDriver()
+rover_model.AddDriver(motor_driver)
 
-# Motor control driver for steering
-motor_driver = chrono.ChMotorDriver()
-motor_driver.SetTargetSpeed(1)
-rover.SetMotorDriver(motor_driver)
+# Add the rover to the system
+my_system.Add(rover_model)
 
-# 4. Visualization with Irrlicht
-vis = chronoirr.ChIrrApp(my_system, 'Curiosity Rover Simulation')
+# ---------------------------------------------------------------------
+#
+# Create the Irrlicht visualization system
+#
+# ---------------------------------------------------------------------
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1280, 720)
-vis.AddTypicalSky()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.SetWindowTitle('Curiosity Rover Simulation')
+vis.Initialize()
 
-# Customize camera settings, lighting, shadows, textures, logos, etc.
+# Customize camera settings
+camera = vis.GetCamera()
+camera.SetLocation(chrono.ChVectorD(5, 5, 5))
+camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
 
-vis.AssetBindAll()
-vis.SetShowInfos(True)
-vis.SetPaused(False)
+# Enable shadows and lighting
+vis.SetShadowLighting(True)
+vis.AddLight(chrono.ChLightPoint(chrono.ChVectorD(0, 5, 0)))
 
+# Add textures and logos (replace with your actual file paths)
+ground.AddAsset(chrono.ChTexture(chrono.GetChronoDataPath() + 'textures/ground.png'))
+rover_model.AddAsset(chrono.ChTexture(chrono.GetChronoDataPath() + 'textures/rover.png'))
+
+# ---------------------------------------------------------------------
+#
 # Run the simulation
+#
+# ---------------------------------------------------------------------
+
 while vis.Run():
-    vis.BeginScene()
+    # Apply steering inputs to the rover's motor driver
+    motor_driver.SetSteeringAngle(math.sin(chrono.GetChTime()))
+
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
     vis.Render()
-    vis.DoStep()
-    vis.EndScene()

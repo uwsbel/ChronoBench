@@ -1,157 +1,125 @@
 importchrono
 import rospy
 from sensor_msgs.msg import Image, LaserScan, NavSatFix, Imu, MagneticField
-import numpy as np
 
 # Initialize ROS node
-rospy.init_node('chrono_sensor_simulation', anonymous=True)
+rospy.init_node('chrono_sensor_node')
 
 # Create a Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetCollisionEnable(True)
+system = chrono.ChSystem()
+system.SetCollisionDetection(chrono.ChCollisionSystem())
 
-# Create a ground body
+# Create ground body
 ground = chrono.ChBody()
 ground.SetMass(0)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(True)
-ground.GetCollisionModel().SetFamily(1)
-ground.GetCollisionModel().AddBox(chrono.ChCollisionBox(chrono.ChVectorD(10, 10, 10)))
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(10, 10, 10))
-ground.GetAssets().push_back(ground_shape)
+ground.SetDimensions(chrono.ChVectorD(10, 10, 1))
+ground.GetCollisionModel().AddBox(chrono.ChVectorD(5, 5, 0.5))
+ground.GetVisualizationAsset().SetObject(chrono.ChBox(5, 5, 0.5))
+system.AddBody(ground)
 
-# Create a sensor manager
-sensor_manager = chrono.ChSensorManager()
+# Create sensor manager
+sensor_manager = chrono.ChSensorManager(system)
 
-# Create and add sensors to the ground body
+# Create and add sensors
 camera = chrono.ChSensorCamera()
-camera.SetName("camera_sensor")
-camera.SetPosition(chrono.ChVectorD(0, 1, 0))
+camera.SetPosition(chrono.ChVectorD(0, 0, 2))
 camera.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(camera, ground)
+sensor_manager.AddSensor(camera)
 
 lidar = chrono.ChSensorLidar()
-lidar.SetName("lidar_sensor")
-lidar.SetPosition(chrono.ChVectorD(0, 1, 0))
+lidar.SetPosition(chrono.ChVectorD(0, 0, 2))
 lidar.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-lidar.SetRange(50)
-lidar.SetHorizontalResolution(0.1)
-lidar.SetVerticalResolution(0.1)
-lidar.SetVerticalAngleRange(chrono.ChRange<double>(-45, 45))
-sensor_manager.AddSensor(lidar, ground)
+lidar.SetHorizontalAngleRange(chrono.ChRange<double>(-1.5708, 1.5708))
+lidar.SetVerticalAngleRange(chrono.ChRange<double>(-0.7854, 0.7854))
+lidar.SetRange(chrono.ChRange<double>(0.1, 10))
+sensor_manager.AddSensor(lidar)
 
 gps = chrono.ChSensorGPS()
-gps.SetName("gps_sensor")
-gps.SetPosition(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(gps, ground)
+gps.SetPosition(chrono.ChVectorD(0, 0, 2))
+sensor_manager.AddSensor(gps)
 
 accelerometer = chrono.ChSensorAccelerometer()
-accelerometer.SetName("accelerometer_sensor")
-accelerometer.SetPosition(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(accelerometer, ground)
+accelerometer.SetPosition(chrono.ChVectorD(0, 0, 2))
+sensor_manager.AddSensor(accelerometer)
 
 gyroscope = chrono.ChSensorGyroscope()
-gyroscope.SetName("gyroscope_sensor")
-gyroscope.SetPosition(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(gyroscope, ground)
+gyroscope.SetPosition(chrono.ChVectorD(0, 0, 2))
+sensor_manager.AddSensor(gyroscope)
 
 magnetometer = chrono.ChSensorMagnetometer()
-magnetometer.SetName("magnetometer_sensor")
-magnetometer.SetPosition(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(magnetometer, ground)
+magnetometer.SetPosition(chrono.ChVectorD(0, 0, 2))
+sensor_manager.AddSensor(magnetometer)
 
-# Create ROS publishers
-camera_pub = rospy.Publisher('/camera/image_raw', Image, queue_size=1)
-lidar_pub = rospy.Publisher('/lidar/scan', LaserScan, queue_size=1)
-gps_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=1)
-accel_pub = rospy.Publisher('/accel', Imu, queue_size=1)
-gyro_pub = rospy.Publisher('/gyro', Imu, queue_size=1)
-mag_pub = rospy.Publisher('/mag', MagneticField, queue_size=1)
+# ROS publishers
+camera_pub = rospy.Publisher('camera/image', Image, queue_size=1)
+lidar_pub = rospy.Publisher('lidar/scan', LaserScan, queue_size=1)
+gps_pub = rospy.Publisher('gps/fix', NavSatFix, queue_size=1)
+imu_pub = rospy.Publisher('imu/data', Imu, queue_size=1)
+mag_pub = rospy.Publisher('mag/data', MagneticField, queue_size=1)
 
-# Register sensor callbacks
+# Callback functions
 def publish_camera(data):
     msg = Image()
-    msg.header.stamp = rospy.Time.now()
     msg.width = data.width
     msg.height = data.height
-    msg.encoding = "rgb8"
+    msg.encoding = 'rgb8'
     msg.data = data.GetPixels()
     camera_pub.publish(msg)
 
 def publish_lidar(data):
     msg = LaserScan()
-    msg.header.stamp = rospy.Time.now()
-    msg.angle_min = -np.pi/2
-    msg.angle_max = np.pi/2
-    msg.angle_increment = 0.1
-    msg.range_min = 0.0
-    msg.range_max = 50.0
+    msg.angle_min = -1.5708
+    msg.angle_max = 1.5708
+    msg.angle_increment = 0.01745
+    msg.range_min = 0.1
+    msg.range_max = 10.0
     msg.ranges = data.GetRanges()
     lidar_pub.publish(msg)
 
 def publish_gps(data):
     msg = NavSatFix()
-    msg.header.stamp = rospy.Time.now()
-    msg.latitude = data.GetLatitude()
-    msg.longitude = data.GetLongitude()
-    msg.altitude = data.GetAltitude()
+    msg.latitude = data.latitude
+    msg.longitude = data.longitude
+    msg.altitude = data.altitude
     gps_pub.publish(msg)
 
-def publish_accel(data):
+def publish_imu(data):
     msg = Imu()
-    msg.header.stamp = rospy.Time.now()
-    msg.linear_acceleration.x = data.GetAcceleration().x
-    msg.linear_acceleration.y = data.GetAcceleration().y
-    msg.linear_acceleration.z = data.GetAcceleration().z
-    accel_pub.publish(msg)
-
-def publish_gyro(data):
-    msg = Imu()
-    msg.header.stamp = rospy.Time.now()
-    msg.angular_velocity.x = data.GetAngularVelocity().x
-    msg.angular_velocity.y = data.GetAngularVelocity().y
-    msg.angular_velocity.z = data.GetAngularVelocity().z
-    gyro_pub.publish(msg)
+    msg.linear_acceleration = data.acceleration
+    msg.angular_velocity = data.angular_velocity
+    msg.orientation = data.orientation
+    imu_pub.publish(msg)
 
 def publish_mag(data):
     msg = MagneticField()
-    msg.header.stamp = rospy.Time.now()
-    msg.magnetic_field.x = data.GetMagneticField().x
-    msg.magnetic_field.y = data.GetMagneticField().y
-    msg.magnetic_field.z = data.GetMagneticField().z
+    msg.magnetic_field = data.magnetic_field
     mag_pub.publish(msg)
 
-sensor_manager.RegisterSensorCallback(camera.GetName(), publish_camera)
-sensor_manager.RegisterSensorCallback(lidar.GetName(), publish_lidar)
-sensor_manager.RegisterSensorCallback(gps.GetName(), publish_gps)
-sensor_manager.RegisterSensorCallback(accelerometer.GetName(), publish_accel)
-sensor_manager.RegisterSensorCallback(gyroscope.GetName(), publish_gyro)
-sensor_manager.RegisterSensorCallback(magnetometer.GetName(), publish_mag)
+# Register callbacks
+sensor_manager.RegisterCallback(camera, publish_camera)
+sensor_manager.RegisterCallback(lidar, publish_lidar)
+sensor_manager.RegisterCallback(gps, publish_gps)
+sensor_manager.RegisterCallback(accelerometer, publish_imu)
+sensor_manager.RegisterCallback(gyroscope, publish_imu)
+sensor_manager.RegisterCallback(magnetometer, publish_mag)
 
 # Simulation loop
-simulation_time = 0
-real_time = 0
-step_size = 0.01
-
+prev_time = rospy.Time.now().to_sec()
 while not rospy.is_shutdown():
     # Update sensors
     sensor_manager.Update()
 
     # Advance simulation
-    system.DoStepDynamics(step_size)
-    simulation_time += step_size
+    system.DoStepDynamics(chrono.ChRealtimeStep())
 
-    # Maintain real-time execution
-    real_time = rospy.Time.now().to_sec()
-    if real_time - simulation_time > step_size:
-        simulation_time = real_time
+    # Maintain real-time
+    curr_time = rospy.Time.now().to_sec()
+    elapsed = curr_time - prev_time
+    if elapsed < 0.016:  # Approximately 60 FPS
+        rospy.sleep(0.016 - elapsed)
+    prev_time = curr_time
 
-    # Check for exit condition
-    if keyboard.is_pressed('q'):
+    # Check for exit
+    if chrono.GetKeyboard().KeyIsDown(chrono.KEY_Q):
         break
-
-# Cleanup
-sensor_manager.RemoveAllSensors()
-system.Clear()

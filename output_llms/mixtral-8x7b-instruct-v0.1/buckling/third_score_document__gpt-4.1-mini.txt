@@ -5,152 +5,210 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:** Present and correct (`sys = chrno.ChSystemSMC()`). No deduction.
-- **Body Creation:** Multiple bodies created (`body_truss`, `body_crank`), with positions and fixed states set. No deduction.
-- **Mesh and Beam Setup:** Uses both IGA and Euler beam builders properly, with sections and nodes defined. No deduction.
-- **Joints and Links:** Multiple links initialized and added (`ChLinkMotorRotationSpeed`, `ChLinkMateParallel`, `ChLinkMatePrismatic`, `ChLinkMateGeneric`). Proper initialization frames used. No deduction.
-- **Visualization:** Visualization system created and configured with window size, title, logo, skybox, camera, and lights. Visual shapes added to mesh and constraints. No deduction.
-- **Simulation Loop:** Present with proper calls to `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`. No deduction.
-- **Torque Function for Motor:** Custom function `ChFunctionMyFun` defined and used. Present and correct. No deduction.
-- **Output Directory:** Defined but never used. Minor omission.
+- **Body Creation:** Multiple bodies are created (`body_truss`, `body_crank`), properly added to the system. No deduction.
+- **Visualization Setup:** Visualization system created and attached, with window size, title, logo, skybox, camera, and lights added. No deduction.
+- **Mesh and FEA Setup:** Mesh and beam sections are created, beams built, nodes fixed or constrained, and mesh added to system. No deduction.
+- **Joints and Constraints:** Various joints and constraints are created and initialized properly. No deduction.
+- **Motor Setup:** Motor created and initialized, but **motor.Initialize() is missing** (only `motor.SetTorqueFunction()` is called). According to the API, `ChLinkMotorRotationSpeed` requires `Initialize(body1, body2, frame)` before setting functions and adding to system. This is a **significant omission**.
   
-**Minor omission:** The `out_dir` variable is defined but never used or created (e.g., no `os.makedirs(out_dir, exist_ok=True)` or file output). This is a minor omission related to completeness.
+  **Deduction:** 15 points for missing motor initialization.
 
-**Deduction:** 5 points for minor omission (unused output directory).
+- **Use of `SetTorqueFunction` on `ChLinkMotorRotationSpeed`:** The API documentation shows `SetSpeedFunction()` for `ChLinkMotorRotationSpeed`, not `SetTorqueFunction()`. This is an **incorrect API usage** (see correctness section).
 
-**Completeness score:** 40 - 5 = **35**
+- **Output directory `out_dir` is defined but never used.** Minor omission.
+
+  **Deduction:** 5 points for minor omission.
+
+**Total Completeness deduction: 15 + 5 = 20 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Imports:** The aliasing of `pychrono` as `chrno` and `pychrono.irrlicht` as `chronicls` is unusual but not incorrect. No deduction.
-- **Custom Function:** Inherits from `chrno.ChFunction` and overrides `GetVal(x)`. Correct usage.
-- **Motor Initialization:** `motor.Initialize(body_truss, body_crank, chrno.ChFrame(vG))` is correct.
-- **Motor Control:** Uses `SetTorqueFunction(myfun)` which is **incorrect** according to the API documentation. The motor `ChLinkMotorRotationSpeed` expects a speed function set via `SetSpeedFunction()`, not a torque function. This is a significant API misuse that will affect simulation behavior.
+- **Incorrect use of `motor.SetTorqueFunction(myfun)` on a `ChLinkMotorRotationSpeed` object:**
 
-- **Beam Builders:** `fea.ChBuilderBeamIGA` and `fea.ChBuilderBeamEuler` used correctly with proper parameters.
-- **Node Fixing:** `builder_iga.GetLastBeamNodes()[0].SetFixed(True)` is correct.
-- **Link Initialization:** For `ChLinkMateParallel`, `ChLinkMatePrismatic`, and `ChLinkMateGeneric`, the `Initialize()` calls use nodes and bodies as expected, with frames set to identity. This is acceptable.
-- **Solver Setup:** Uses `mklsolver.ChSolverPardisoMKL()` and sets it via `sys.SetSolver(custom_solver)`. Correct.
-- **Timestepper:** Uses `ChTimestepperEulerExplicit` with step control enabled. Correct.
-- **Visualization Loop:** Uses `vis.Run()` and rendering calls properly.
-- **Use of `chrno.Vect3` vs `chrno.ChVector3d`:** There is inconsistency: sometimes `chrno.ChVector3d` is used, sometimes `chrno.Vect3`. The API documentation shows `ChVector3d` as the standard vector class. `Vect3` is not documented and likely incorrect or undefined, which can cause runtime errors.
+  The API specifies `SetSpeedFunction()` for speed control motors, not `SetTorqueFunction()`. Using `SetTorqueFunction()` here is incorrect and will likely cause the motor to not behave as intended or raise an error.
 
-- **`chronicls.drawGrid(...)`** is used, but `drawGrid` is not a documented function in `pychrono.irrlicht`. This may be a custom or deprecated function. This is a minor correctness issue.
+  **Deduction:** 15 points for incorrect API usage.
 
-**Major correctness issues:**
+- **Motor not initialized with `Initialize()`:**
 
-- Using `motor.SetTorqueFunction(myfun)` instead of `SetSpeedFunction()` (15 points).
-- Use of `chrno.Vect3` instead of `chrno.ChVector3d` (15 points).
+  This is a logical error that will prevent the motor from functioning properly.
 
-**Minor correctness issues:**
+  **Deduction:** 10 points for logical error.
 
-- Use of `chronicls.drawGrid()` which is not documented (5 points).
+- **Use of `builder_iga.GetLastBeamNodes()[65]` and `[32]`:**
 
-**Total correctness deduction:** 15 + 15 + 5 = 35 points, but max deduction is 30 points.
+  The beam is built with 30 elements, so the number of nodes is `30 + degree` (degree=3), so nodes count is 33. Accessing index 65 is out of range and will cause an error.
 
-**Correctness score:** 0 (full deduction of 30 points).
+  **Deduction:** 15 points for logical error (index out of range).
+
+- **Use of `builder_iga.GetLastBeamNodes().front()`**
+
+  Python lists do not have `.front()` method; this is a C++ style. This will cause an AttributeError.
+
+  **Deduction:** 10 points for logical error.
+
+- **Use of `constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())`:**
+
+  The API documentation shows joints initialized with `Initialize(body1, body2, frame)`. Here, nodes are passed instead of bodies, and frames are passed as `node_top.Frame()`. This is likely incorrect because `ChLinkMateParallel` expects bodies or frames, not nodes directly.
+
+  **Deduction:** 10 points for logical error.
+
+- **Similarly, `constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())`:**
+
+  Mixing node and body in joint initialization is suspicious and likely incorrect.
+
+  **Deduction:** 10 points for logical error.
+
+- **Use of `sys.Add(motor)` instead of `sys.AddLink(motor)` or `sys.Add(motor)` is acceptable as `sys.Add()` can add links. No deduction.**
+
+- **Use of `chrno.ChTimestepperEulerExplicit(sys)` and setting it as timestepper:**
+
+  This is acceptable, but explicit Euler is rarely used due to stability issues. No deduction, but could be noted under efficiency.
+
+- **Use of `chronicls.drawGrid()`**
+
+  The API documentation does not mention `drawGrid()`. This may be a helper function or user-defined. No error but undocumented.
+
+- **Use of `chrno.GetChronoOutputPath()`**
+
+  This is not documented in the provided API. Possibly valid but no usage in code.
+
+**Total Correctness deduction: 15 + 10 + 15 + 10 + 10 + 10 = 70 points**
+
+Since the maximum correctness points are 30, the deduction is capped at 30.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names like `vA`, `vB`, `vC`, `vd` are short but meaningful in context. Some variables like `builderA`, `builderB` could be more descriptive.
-- **Imports:** Aliasing `pychrono` as `chrno` and `pychrono.irrlicht` as `chronicls` is confusing and non-standard.
-- **Comments:** No comments explaining the purpose of code blocks or variables.
-- **Formatting:** Generally consistent indentation and spacing.
-- **Class Definition:** The custom function class is minimal but acceptable.
+- **Imports:**
 
-**Deductions:**
+  - `import math as m` is acceptable.
+  - `import pychrono as chrno` is inconsistent with the documentation which uses `chrono`. This is minor but can cause confusion.
+  - `import pychrono.irrlicht as chronicls` is inconsistent naming; better to use `chronoirr` or `irrlicht` for clarity.
+  
+  **Deduction:** 2 points for inconsistent naming.
 
-- Lack of comments and documentation: 5 points.
-- Aliasing imports in a confusing way and minor readability issues: 5 points.
+- **Lack of comments:**
 
-**Code Quality score:** 10 - 10 = **0**
+  The code has no comments explaining the purpose of sections, variables, or logic.
+
+  **Deduction:** 5 points for insufficient comments.
+
+- **Variable names:**
+
+  Some variables are cryptic (`vd`, `K`, `H`, `L`), but mostly acceptable.
+
+- **Formatting:**
+
+  Generally okay, but some lines are long and could be split.
+
+**Total Code Quality deduction: 7 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or repeated code.
-- The `out_dir` is defined but unused, which is a minor inefficiency.
-- The timestepper is set explicitly, which is good.
-- The visualization loop is standard.
-- The use of `chrno.Vect3` instead of `ChVector3d` could cause inefficiencies or errors.
-- The `motor.SetTorqueFunction()` call is incorrect and could cause simulation inefficiency or failure.
+- **Redundant calculation:**
 
-**Deductions:**
+  - `vA`, `vB`, `vC`, `vG` are defined as `ChVector3d` objects and used repeatedly. No obvious redundancy.
+  
+- **Use of explicit Euler timestepper:**
 
-- Minor inefficiency due to unused `out_dir`: 3 points.
-- Inefficient or incorrect API usage with motor function (already counted under correctness, so not double-counted here).
+  Explicit Euler is less stable and less efficient for stiff systems like beams. Using a more stable integrator (e.g., HHT or implicit Euler) would be better.
 
-**Efficiency score:** 10 - 3 = **7**
+  **Deduction:** 3 points for missing optimization opportunity.
+
+- **`out_dir` is defined but unused.**
+
+  Minor inefficiency.
+
+  **Deduction:** 2 points.
+
+- **No reuse of visual shapes:**
+
+  Visual shapes are created multiple times; this is acceptable.
+
+**Total Efficiency deduction: 5 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling (try-except) anywhere in the code.
-- No checks for directory existence or file I/O.
-- No validation of inputs or parameters.
-- This is typical for many simulation scripts but still a best practice to include minimal error handling.
+- No error handling or try-except blocks.
 
-**Deductions:**
+- No checks for node indices before accessing.
 
-- Lack of basic error handling: 5 points.
+- No validation of motor initialization or joint initialization.
 
-**Error Handling score:** 0
+- No handling of potential runtime errors.
+
+**Deduction:** 5 points for lack of basic error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
 - Visualization system is properly created and attached.
+
 - Window size and title set.
-- Logo, skybox, camera, and lights added.
-- Visual shapes added to mesh and constraints.
-- Minor issue: `chronicls.drawGrid()` is not documented and may cause issues.
-- Camera position is somewhat arbitrary but acceptable.
-- No color or material settings for visual shapes (not mandatory but improves visualization).
-- No explicit call to `vis.Run()` in the loop condition is correct.
 
-**Deductions:**
+- Logo added using `chrno.GetChronoDataFile()`.
 
-- Use of undocumented `drawGrid`: 3 points.
-- Minor visualization improvements possible but not critical.
+- Skybox, camera, and typical lights added.
 
-**Visualization score:** 5 - 3 = **2**
+- Visual shapes for beams added with appropriate data types and settings.
+
+- Minor issue: `chronicls.drawGrid()` is used but not documented; may cause confusion or error if undefined.
+
+- No color setting for visual shapes (optional).
+
+- No camera movement or interaction code (acceptable).
+
+**Deduction:** 2 points for minor visualization issues (undocumented `drawGrid` and no color settings).
 
 ---
 
 ### **Summary of deductions:**
 
-| Criterion                  | Max Points | Deduction | Score |
-|----------------------------|------------|-----------|-------|
-| Completeness               | 40         | 5         | 35    |
-| Correctness                | 30         | 30        | 0     |
-| Code Quality               | 10         | 10        | 0     |
-| Efficiency                 | 10         | 3         | 7     |
-| Error Handling & Robustness| 5          | 5         | 0     |
-| Visualization              | 5          | 3         | 2     |
-| **Total**                 | **100**    | **56**    | **44**|
+| Criterion                     | Max Points | Deduction | Notes                                  |
+|-------------------------------|------------|-----------|----------------------------------------|
+| Completeness                  | 40         | 20        | Missing motor initialization, minor unused variable |
+| Correctness                  | 30         | 30        | Incorrect motor API usage, node indexing errors, joint init errors |
+| Code Quality                 | 10         | 7         | Poor naming consistency, no comments  |
+| Efficiency                  | 10         | 5         | Explicit Euler usage, unused variable  |
+| Error Handling and Robustness | 5          | 5         | No error handling                      |
+| Visualization Tools          | 5          | 2         | Minor visualization issues             |
+| **Total Deductions**          |            | 69        |                                        |
+
+**Final Score = 100 - 69 = 31**
 
 ---
 
-### **Final score:**
+### Final score output:
 
-[[44]]
+[[31]]
 
 ---
 
-### **Explanation:**
+### Explanation:
 
-- The script includes all essential components but misses minor details like using the output directory.
-- The most critical issue is the incorrect use of `SetTorqueFunction` on a `ChLinkMotorRotationSpeed` motor, which expects a speed function. This will cause the motor not to behave as intended.
-- The use of `chrno.Vect3` instead of `chrno.ChVector3d` is likely to cause runtime errors.
-- The visualization setup is mostly correct but uses an undocumented function `drawGrid`.
-- Code quality suffers from lack of comments and confusing import aliasing.
+The script includes many essential components such as system initialization, body creation, mesh and beam building, and visualization setup. However, critical errors severely impact correctness and completeness:
+
+- The motor joint is not initialized properly and uses an incorrect API method (`SetTorqueFunction` instead of `SetSpeedFunction`).
+
+- The beam node indexing is out of range, which will cause runtime errors.
+
+- Use of `.front()` on Python lists is invalid.
+
+- Joints are initialized with nodes instead of bodies or frames, which is inconsistent with the API.
+
+- Lack of comments and inconsistent naming reduce code clarity.
+
 - No error handling is present.
-- Minor inefficiencies are present but not critical.
 
-The score reflects these issues, with major deductions for correctness and code quality.
+- Minor visualization issues and inefficient timestepper choice.
+
+These issues collectively reduce the score significantly despite the overall structure being present.

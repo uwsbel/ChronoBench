@@ -1,6 +1,8 @@
 import pychrono as ch
 import pychrono.ros as chros
+
 import rclpy
+from rclpy.node import Node
 from std_msgs.msg import String
 
 
@@ -24,16 +26,17 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.message + str(self.ticker)} ...")
-        msg = String()  
-        msg.data = self.message + str(self.ticker)  
-        self.publisher.publish(msg)  
-        self.ticker += 1  
+        if self.publisher is not None:
+            print(f"Publishing {self.ticker} ...")
+            msg = String()  
+            msg.data = self.message + str(self.ticker)  
+            self.publisher.publish(msg)  
+            self.ticker += 1  
 
 def main():
     
     sys = ch.ChSystemNSC()
-    sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  
 
     
     phys_mat = ch.ChContactMaterialNSC()
@@ -41,15 +44,15 @@ def main():
 
     
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
-    floor.SetPos(ch.ChVectorD(0, 0, -1))  
+    floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
     sys.Add(floor)  
 
     
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
-    box.SetPos(ch.ChVectorD(0, 0, 5))  
-    box.SetRot(ch.QuaternionD(ch.ChVectorD(1, 0, 0), 0.2))  
+    box.SetPos(ch.ChVector3d(0, 0, 5))  
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
     sys.Add(box)  
 
@@ -81,14 +84,23 @@ def main():
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
-        sys.DoStepDynamics(time_step)  
-        time = sys.GetChTime()  
+        try:
+            sys.DoStepDynamics(time_step)  
+            time = sys.GetChTime()  
 
-        if not ros_manager.Update(time, time_step):  
-            break  
+            if not ros_manager.Update(time, time_step):  
+                print("ROS manager update failed. Exiting simulation loop.")
+                break  
 
-        realtime_timer.Spin(time_step)  
+            realtime_timer.Spin(time_step)  
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
+
+    print("Simulation loop completed.")
 
 
 if __name__ == "__main__":
+    rclpy.init(args=None)
     main()
+    rclpy.shutdown()

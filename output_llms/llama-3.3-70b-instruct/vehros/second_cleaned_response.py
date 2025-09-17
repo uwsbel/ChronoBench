@@ -17,11 +17,11 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)  
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)  
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)  
     hmmwv.Initialize()  
 
     
@@ -48,12 +48,12 @@ def main():
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
-    vis.AddTypicalLights()
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVectorD(0, 0, 10))
-    vis.AddTypicalGround(100)
+    vis.AddTypicalLights()
+    vis.AddCamera(ch.ChVectorD(0, 0, 5))
+    vis.AddTypicalGround(50)
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetWindowTitle('HMMWV Simulation')
     vis.SetLogo("")
 
     
@@ -84,7 +84,6 @@ def main():
         vis.BeginScene()
         vis.DrawAll()
         vis.EndScene()
-        vis.Render()
 
 if __name__ == "__main__":
     main()

@@ -98,10 +98,9 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Added logic for a double lane change maneuver
-time_intervals = [(0, 10), (10, 20), (20, 30), (30, 40), (40, 50)]
-steering_adjustments = [0.5, -0.5, 0.5, -0.5, 0]
-throttle_adjustments = [0.8, 0.8, 0.8, 0.8, 0]
-braking_adjustments = [0, 0, 0, 0, 1]
+time_intervals = [(0, 5), (5, 10), (10, 15), (15, 20)]
+steering_adjustments = [0.5, -0.5, 0.5, -0.5]
+throttle_adjustments = [1, 1, 1, 0]
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -132,12 +131,11 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Apply steering and throttle adjustments based on time intervals
+    # Adjust steering and throttle based on time intervals
     for i, (start, end) in enumerate(time_intervals):
         if start <= time < end:
             driver_inputs.m_steering = steering_adjustments[i]
             driver_inputs.m_throttle = throttle_adjustments[i]
-            driver_inputs.m_braking = braking_adjustments[i]
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

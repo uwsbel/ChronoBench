@@ -14,7 +14,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Set the message content.
+        self.message = "Hello, world! At time: "  # Define the message content.
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""

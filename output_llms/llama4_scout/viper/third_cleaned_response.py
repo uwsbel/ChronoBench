@@ -15,26 +15,22 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-terrain = veh.ChTerrain(system)
+terrain = veh.ChTerrainSCM(system)
 terrain.Initialize(chrono.ChVector3d(0, 0, 0))  
 terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  
-terrain.SetLength(20)  
-terrain.SetWidth(20)  
+terrain.SetDimensions(20, 20)  
 terrain.SetMeshResolution(1)  
-
-
-soil = veh.ChSoilSCM()
-soil.SetFriction(0.9)  
-soil.SetRestitution(0.3)  
-soil.SetDamping(0.5)  
-soil.SetCohesion(1e4)  
-soil.SetFrictionAngle(math.pi / 4)  
-soil.SetDilationAngle(math.pi / 6)  
-soil.SetErodibility(0.01)  
-
-terrain.SetSoil(soil)
+terrain.SetSoilParameters(
+    1e5,   
+    0.3,   
+    0.9,   
+    1.0,   
+    0.01,  
+    30     
+)
 
 system.Add(terrain.GetGroundBody())  
+terrain.AddToSystem()
 
 
 rover = viper.Viper(system)  

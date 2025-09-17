@@ -20,12 +20,11 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -39,9 +38,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-
 # Create the UAZBUS vehicle, set parameters, and initialize
-
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -75,7 +71,6 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('UAZBUS Demo')
 vis.SetWindowSize(1280, 1024)
@@ -99,30 +94,28 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Time intervals and corresponding steering and throttle adjustments
-time_interval_1 = 5.0
-time_interval_2 = 10.0
-time_interval_3 = 15.0
-steering_adjustment_1 = -0.5
-steering_adjustment_2 = 0.5
-throttle_adjustment_1 = 0.5
-throttle_adjustment_2 = 0.0
+# Lane change maneuver parameters
+lane_change_start_time = 2.0
+lane_change_duration = 4.0
+steering_angle = 0.5
+throttle_input = 0.5
+braking_input = 0.5
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -131,26 +124,20 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Lane change maneuver logic
+    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
+        driver_inputs.m_steering = steering_angle
+        driver_inputs.m_throttle = throttle_input
+    elif time >= lane_change_start_time + lane_change_duration:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = braking_input
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Lane change maneuver logic
-    if time < time_interval_1:
-        driver_inputs.m_steering = steering_adjustment_1
-        driver_inputs.m_throttle = throttle_adjustment_1
-    elif time < time_interval_2:
-        driver_inputs.m_steering = steering_adjustment_2
-        driver_inputs.m_throttle = throttle_adjustment_1
-    elif time < time_interval_3:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = throttle_adjustment_2
-    else:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 1.0
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

@@ -1,68 +1,61 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+
+L = 1.0  
+N = 10   
+A = 0.01**2  
+E = 2e5      
+rho = 7800   
 
 
 mesh = fea.ChMesh()
 
 
-L = 1.0  
-num_elements = 10  
-radius = 0.01  
-E = 2e5  
-density = 1000  
-area = chrono.CH_C_PI * radius**2  
-I = chrono.CH_C_PI * radius**4 / 4  
-
-
-for i in range(num_elements + 1):
-    pos = chrono.ChVectorD(L * i / num_elements, 0, 0)
+nodes = []
+for i in range(N + 1):
+    pos = chrono.ChVectorD(i * L / N, 0, 0)
     node = fea.ChNodeFEAxyz(pos)
     mesh.AddNode(node)
+    nodes.append(node)
 
 
-for i in range(num_elements):
+for i in range(N):
     element = fea.ChElementCableANCF()
-    element.SetNodes(mesh.GetNode(i), mesh.GetNode(i+1))
-    element.SetDiameter(2 * radius)
-    element.SetMaterialYoungModulus(E)
-    element.SetArea(area)
-    element.SetI(I)
-    element.SetDensity(density)
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSectionProperties(A, E, rho)  
     mesh.AddElement(element)
 
 
-system.Add(mesh)
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(nodes[0], chrono.ChFrameD())
+sys.Add(constraint)
 
 
-node0 = mesh.GetNode(0)
-constraint = chrono.ChLinkMateGeneric(True, True, True, True, True, True)
-constraint.Initialize(node0, system.GetGroundBody(), False, chrono.ChFrameD(), chrono.ChFrameD())
-system.Add(constraint)
+vis_beam = chrono.ChVisualShapeFEA(mesh)
+vis_beam.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+vis_beam.SetWireframe(True)
+vis_beam.SetDrawInUndeformedState(False)  
+mesh.AddVisualShapeFEA(vis_beam)
 
 
-application = irrlicht.ChIrrApp(system, 'ANCF Beam Simulation', irrlicht.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(irrlicht.vector3df(0.5, 0.5, -1.5))  
+sys.Add(mesh)
 
 
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetWireframe(True)
-vis_mesh.SetShowNodes(True)
-vis_mesh.SetNodeSize(0.01)
-mesh.AddAsset(vis_mesh)
-
-application.AssetBindAll()
-application.AssetUpdateAll()
+vis = irr.ChIrrApp(sys, 'ANCF Beam Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+vis.Run()
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    system.DoStepDynamics(1e-4)
+while vis.GetDevice().run():
+    sys.DoStepDynamics(0.001)  
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

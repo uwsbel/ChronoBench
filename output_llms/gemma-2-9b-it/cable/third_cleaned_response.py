@@ -6,6 +6,7 @@ import pychrono.irrlicht as chronoirr
 
 
 
+
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
@@ -18,16 +19,14 @@ class Model1:
 
             
             builder = fea.ChBuilderCableANCF()
-
             
             
-            num_elements = i * 2 + 10 
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
-                num_elements,  
-                chrono.ChVector3d(0, 0, -0.1 - 0.1 * i),  
-                chrono.ChVector3d(0.5 + 0.1 * i, 0, -0.1 - 0.1 * i)  
+                i * 5 + 10,  
+                chrono.ChVector3d(i * 0.5, 0, -0.1),  
+                chrono.ChVector3d((i * 0.5) + 0.5, 0, -0.1)  
             )
 
             
@@ -44,20 +43,25 @@ class Model1:
             system.Add(constraint_hinge)  
 
             
-            box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
-            box.SetPos(builder.GetLastBeamNodes().back().GetPos())
-            system.Add(box)
+            box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1)
+            box_body.SetPos(builder.GetLastBeamNodes().back().GetPos())
+            system.Add(box_body)
 
             
             constraint_hinge_box = fea.ChLinkNodeFrame()
-            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), box)
+            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), box_body.GetFrame().GetPos())
             system.Add(constraint_hinge_box)
 
+        self.PrintBodyPositions(system)
+
     def PrintBodyPositions(self, system):
-        for i in range(self.n_chains):
+        while True:
+            for i in range(self.n_chains):
+                box_body = system.GetBody(i * 5 + 10 + 1)  
+                print(f"Chain {i+1} Body Position: {box_body.GetPos()}")
             
-            box = system.GetBody(i * 2 + 10)  
-            print(f"Chain {i+1} Box Position: {box.GetPos()}")
+            
+            chrono.ChTime.Sleep(0.1)
 
 
 sys = chrono.ChSystemSMC()
@@ -115,5 +119,4 @@ while vis.Run():
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-    sys.DoStepDynamics(0.01)  
-    model.PrintBodyPositions(sys)
+    sys.DoStepDynamics(0.01)

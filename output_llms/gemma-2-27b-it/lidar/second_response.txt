@@ -13,9 +13,9 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # ----------------------------------
-    # Add a box to be sensed by a lidar
-    # ----------------------------------
+    # -----------------------
+    # Create a box
+    # -----------------------
     side = 2
     box = chrono.ChBodyEasyBox(side, side, side, 1000)
     box.SetPos(chrono.ChVector3d(0, 0, 0))
@@ -28,7 +28,7 @@ def main():
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
-    # Create a lidar and add it to the sensor manager
+    # Create a 3D lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
@@ -129,7 +129,7 @@ def main():
 
     if vis:
         # Visualize the point cloud
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 1, 1.0, "2D Lidar Point Cloud"))
 
     # Provides the host access to the XYZI data
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
@@ -148,7 +148,7 @@ def main():
     t1 = time.time()
 
     while ch_time < end_time:
-        # Set lidar to orbit around the box
+        # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -167,8 +167,17 @@ def main():
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
-        # Access the XYZI buffer from 2D lidar
-        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
-        if xyzi_buffer_2d.HasData():
-            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('XYZI buffer received from 2D lidar. Lidar resolution: {0
+        # Update sensor manager (will render/save/filter automatically)
+        manager.Update()
+
+        # Perform step of dynamics
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Get the current time of the simulation
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+# -----------------
+# Lid

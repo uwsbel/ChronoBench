@@ -77,9 +77,12 @@ terrain.Initialize()
 # Create a box obstacle
 obstacle = chrono.ChBody()
 obstacle.SetBodyFixed(True)
-obstacle.SetCollisionShape(chrono.ChBoxShape(chrono.ChVector3d(0.5, 5, 0.2)))
+obstacle.SetMass(1)
+obstacle.SetInertia(1, 1, 1)
 obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
-vehicle.GetSystem().Add(chrono.ChLinkBaseCFrame(obstacle, vehicle.GetVehicle()))
+obstacle.SetSize(0.5, 5, 0.2)
+obstacle.SetCollisionShape(chrono.ChBoxShape(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0.25, 2.5, 0.1)))
+vehicle.GetSystem().Add(vehicle.GetSystem().GetBodyList().Append(obstacle))
 
 # Create the vehicle Irrlicht interface
 

@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -111,24 +111,29 @@ step_number = 0
 render_frame = 0
 
 # Lane change maneuver logic
-lane_change_time = 5.0  # Time for one lane change
-lane_change_start_time = 0
-lane_change_direction = 1  # 1 for right, -1 for left
+lane_change_time = 5.0  # Time to complete a lane change
+brake_time = 2.0  # Time to brake after lane change
+
+lane_change_step = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    # Lane change logic
-    if lane_change_start_time > 0 and time - lane_change_start_time > lane_change_time:
-        lane_change_start_time = 0
-        lane_change_direction *= -1 
-
-    if lane_change_start_time == 0 and time > 10:  # Start lane change after 10 seconds
-        lane_change_start_time = time
-        
-    if lane_change_start_time > 0:
-        steering_angle = lane_change_direction * 0.5  # Adjust steering angle for lane change
+    if lane_change_step == 0:
+      # Lane change phase 1: Steer into the new lane
+      if time < lane_change_time:
+        steering_angle = (time / lane_change_time) * 0.5  
         driver.SetSteering(steering_angle)
+      else:
+        lane_change_step = 1  
+
+    elif lane_change_step == 1:
+      # Lane change phase 2: Brake to a safe speed
+      if time < lane_change_time + brake_time:
+        driver.SetBraking(1.0)  
+      else:
+        lane_change_step = 0
+        driver.SetSteering(0)  # Center steering
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :

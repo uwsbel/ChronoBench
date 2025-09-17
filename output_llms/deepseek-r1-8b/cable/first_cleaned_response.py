@@ -1,81 +1,93 @@
-import pychrono as pychrono
-import pychrono.viewer.iranviewer as iranviewer
-
-
-pychrono.initialize()
-scene = pychrono.Scene()
-camera = pychrono.Camera()
-renderer = iranviewer.IrrRenderer()
-renderer.setScene(scene)
-renderer.setLightingEnabled(True)
-
-
-num_elements = 10
-length = 5.0  
-cross-sectional_area = 0.1  
-density = 8000  
-young_modulus = 210000  
-poisson_ratio = 0.2
-
-
-cable_elements = []
-for i in range(num_elements):
-    cable = pychrono.RigidRod(
-        name="cable" + str(i),
-        length=length / num_elements,
-        cross-sectional_area=cross-sectional_area,
-        density=density,
-        young_modulus=young_modulus,
-        poisson_ratio=poisson_ratio
-    )
-    cable_elements.append(cable)
-
-
-fixed_node = pychrono.Node("fixed", pychrono.Vec3(0, 0, 0), pychrono.Vec3(0, 0, 0))
-free_node = pychrono.Node("free", pychrono.Vec3(0, length, 0), pychrono.Vec3(0, 0, 0))
-
-
-current_node = fixed_node
-for cable in cable_elements:
-    current_node = pychrono.RigidRod.create(
-        name=cable.name,
-        first_node=current_node,
-        second_node=pychrono.Node("node" + str(i), pychrono.Vec3(
-            0, (i+1)*length/num_elements, 0), pychrono.Vec3(0, 0, 0))
-    )
-
-
-gravity_field = pychrono.Forces.GravityField(g=9.81, direction=pychrono.Vec3(0, -1, 0))
-force = pychrono.Forces.Force(
-    name="gravity",
-    body=free_node,
-    force=gravity_field.get_force(free_node.get_pos())
+import pychrono as pyct
+from pychrono import ( 
+    pyct, 
+    G, 
+    GroundPlane, 
+    HingeConstraint, 
+    Fixed, 
+    ANCFBeam, 
+    Material, 
+    Node, 
+    Link, 
+    ContactConstraint, 
+    Timer, 
+    Renderer, 
+    Scene, 
+    pyutil as pu
 )
 
 
-scene.add_elements(cable_elements)
-scene.add_forces([force])
+scene = Scene()
+scene.gravity = [0, 0, -9.81]  
 
 
-renderer.setLightDirection(pychrono.Vec3(1, 1, 1))
-renderer.setLightIntensity(1)
-renderer.setAmbientLight(pychrono.Vec4(0.5, 0.5, 0.5, 1))
+ground = GroundPlane(scene, 0, 0, 0, 'xy', 0, 100, 100)
+scene.add_object(ground)
 
 
-camera.set_pos(pychrono.Vec3(5, 5, 5))
-camera.look_at(pychrono.Vec3(0, 0, 0))
+num_elements = 10  
+length = 5.0  
+diameter = 0.01  
+density = 1000  
+cross_section = 0.5 * diameter * 0.5 * 3.14159265  
 
 
-time_step = 0.01
-max_steps = 10000
+E = 1e8  
+nu = 0.2  
+rho = density  
 
 
-for step in range(max_steps):
-    pychrono.Simulate()
+beam = ANCFBeam(scene, num_elements, length, E, nu, rho, cross_section)
+
+
+nodes = []
+for i in range(num_elements + 1):
+    x = i * (length / num_elements) if i != 0 else 0
+    y = 0
+    z = 0
+    nodes.append(Node(scene, x, y, z))
+
+
+nodes[0].add_support(Fixed())
+
+
+for i in range(1, len(nodes)):
+    scene.add_constraint(ContactConstraint(nodes[i-1], nodes[i], 'z'))
+
+
+for i in range(len(nodes)-1):
+    scene.add_constraint(HingeConstraint(nodes[i], nodes[i+1]))
+
+
+for i in range(num_elements):
+    scene.add_object(beam._get_element(i))
+
+
+for node in nodes:
+    node.position = node.initial_position
+
+
+renderer = Renderer(scene)
+renderer.view = [0, 0, 5, 0, 0, 0]  
+renderer.look = [0, 0, 5, 1, 0, 0]  
+
+
+timer = Timer(0.001)  
+simulation_step = 0
+
+def simulation_loop():
+    global simulation_step
+    simulation_step += 1
+
+    
     renderer.update()
-    
-    
-    
-    
 
-renderer.close()
+    
+    for node in nodes:
+        node.update()
+
+    
+    renderer.render()
+
+
+simulation_loop()

@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 
 
 
-
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         
@@ -24,35 +23,40 @@ class Model1:
             
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
-
+            
             
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            system.Add(constraint_hinge)  
             
             
-            for j in range(10):  
-                
-                builder.BuildBeam(
-                    mesh,  
-                    msection_cable2, 
-                    10,  
-                    chrono.ChVector3d(0, 0, -0.1), 
-                    chrono.ChVector3d(0.5, 0, -0.1)
-                )
+            builder.BuildBeam(
+                mesh,  
+                msection_cable2,  
+                10,  
+                chrono.ChVector3d(0, 0, -0.1),  
+                chrono.ChVector3d(0.5, 0, -0.1)  
+            )
             
             
             
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
-        
-        mtruss = chrono.ChBody()
-        mtruss.SetFixed(True)  
-
-        
-        constraint_hinge = fea.ChLinkNodeFrame()
-        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-        system.Add(constraint_hinge)  
+            
+            visualize_chain = chrono.ChVisualShapeFEA(mesh)
+            visualize_chain.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+            visualize_chain.SetColorscaleMinMax(-0.4, 0.4)  
+            visualize_chain.SetSmoothFaces(True)  
+            visualize_chain.SetWireframe(False) 
+            mesh.AddVisualShapeFEA(visualize_chain)  
+            
+            
+            visualize_nodes = chrono.ChVisualShapeFEA(mesh)
+            visualize_nodes.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+            visualize_nodes.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
+            visualize_nodes.SetSymbolsThickness(0.006)  
+            visualize_nodes.SetSymbolsScale(0.01)  
+            visualize_nodes.SetZbufferHide(False)  
+            mesh.AddVisualShapeFEA(visualize_nodes)  
 
 
 sys = chrono.ChSystemSMC()
@@ -92,7 +96,7 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES() 
+solver = chrono.ChSolverMINRES()  
 if solver.GetType()== chrono.ChSolver.Type_MINRES :
 	print( "Using MINRES solver" )
 	sys.SetSolver(solver)
@@ -111,8 +115,8 @@ while vis.Run():
     vis.Render()  
     vis.EndScene()  
     sys.DoStepDynamics(0.01)  
-
-
-def PrintBodyPositions(system):
-    for body in system.GetBodies():
-        print(f"Body Position: {body.GetPosition()}")
+    
+    
+    print(f"Positions of end bodies of chain {i+1}:")
+    for body in model.GetBodies():
+        print(body.GetPosition())

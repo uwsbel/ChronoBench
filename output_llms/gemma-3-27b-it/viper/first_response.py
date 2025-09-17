@@ -3,7 +3,7 @@ import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
 
 # ---
-# Initialize the PyChrono environment and core components.
+# Initialize the PyChrono environment and core components
 # ---
 
 # Create a Chrono system
@@ -11,88 +11,83 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # ---
-# Add the required physical systems and objects as specified.
+# Add the required physical systems and objects
 # ---
 
 # Create the ground body
-body_floor = chrono.ChBodyEasy()
-body_floor.SetBodyFixed(True)
-body_floor.SetMass(1000)
-body_floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_floor.SetShapeBoxes(0.5, 0.1, 1)
-system.Add(body_floor)
+body_ground = chrono.ChBodyEasy()
+body_ground.SetBodyFixed(True)
+body_ground.SetMass(1000)
+body_ground.SetShape(chrono.ChBoxShape())
+body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+body_ground.SetVisualizationType(chrono.ChVisualizationType.BOX)
+system.Add(body_ground)
 
 # Create the Viper rover
 viper = veh.Viper()
-viper.SetVehicleModelPath("./viper/viper.py")
+viper.SetVehicleModelPath("data/vehicle/viper/viper.py")
 viper.Initialize(system)
+viper.SetContactFrictionCoefficient(0.9)
+viper.SetRestitutionCoefficient(0.1)
 viper.SetPos(chrono.ChVectorD(0, 0.5, 0))
-viper.SetForwardSpeed(0)
+viper.SetVisualizationType(veh.Viper.VisualizationType.MESH)
 
-# Create the driver
-driver = veh.ViperDriver()
-driver.SetSteeringDelta(0.1)
-driver.SetMaxSteeringAngle(0.5)  # Adjust as needed
-driver.SetThrottleDelta(0.1)
-driver.SetMaxThrottle(1.0)
-driver.SetBrakeDelta(0.1)
-driver.SetMaxBrake(1.0)
-viper.SetDriver(driver)
+# Get the driver
+driver = viper.GetDriver()
 
 # ---
-# Set necessary default parameters such as positions, forces, and interactions.
+# Set necessary default parameters
 # ---
 
-# Set initial steering angle
-initial_steering = 0.0
-driver.SetSteering(initial_steering)
+# Simulation time parameters
+time_step = 0.005
+simulation_time = 10
+time_to_steer = 5  # Time to complete the steering maneuver
+
+# Initial steering angle
+initial_steering_angle = 0.0
+target_steering_angle = 0.5  # Example target steering angle (in radians)
 
 # ---
-# Create a real-time visualization using Irrlicht with camera settings and lighting.
+# Create a real-time visualization using Irrlicht
 # ---
 
-# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Viper Rover Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 1, -2))
+vis.AddCamera(chrono.ChVectorD(0, 1.5, -3))
 vis.AddTypicalLights()
 
 # ---
-# Implement a simulation loop where the rover's steering gradually changes
-# over a specified time period, updating and rendering the rover at each timestep.
+# Implement a simulation loop
 # ---
 
-# Simulation parameters
-time_step = 0.01
-simulation_time = 10.0
-steering_change_duration = 5.0
-final_steering_angle = 0.5
-
-# Simulation loop
 time = 0.0
-steering_start_time = 0.0
-steering_changed = False
+steering_progress = 0.0
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Update the simulation
     system.DoStepDynamics(time_step)
 
-    # Gradually change steering angle
-    if time > steering_start_time and not steering_changed:
-        steering_angle = initial_steering + (time - steering_start_time) * (final_steering_angle - initial_steering) / steering_change_duration
-        steering_angle = min(steering_angle, final_steering_angle) # Clamp steering angle
+    # Calculate steering angle based on time
+    if time < time_to_steer:
+        steering_progress = time / time_to_steer
+        current_steering_angle = initial_steering_angle + (target_steering_angle - initial_steering_angle) * steering_progress
+    else:
+        current_steering_angle = target_steering_angle
 
-        driver.SetSteering(steering_angle)
+    # Set steering angle to the driver
+    driver.SetSteeringAngle(current_steering_angle)
 
-        if time >= steering_start_time + steering_change_duration:
-            steering_changed = True
-            
+    # Apply a forward force
+    driver.SetThrottle(1.0)
+
     time += time_step
     if time > simulation_time:
         break

@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 1.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -24,6 +24,7 @@ tire_model = veh.TireModelType_TMEASY
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
+terrain_mesh = veh.GetDataFile("terrain/highway_mesh.obj")
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -33,11 +34,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 1e-4  
+step_size = 5e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 200  
+render_step_size = 1.0 / 100  
 
 
 
@@ -68,9 +69,11 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
+
+patch.LoadMesh(terrain_mesh)
 patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -103,23 +106,10 @@ driver.Initialize()
 reference_speed = 20.0  
 
 
-class PIDController:
-    def __init__(self, kp, ki, kd, setpoint):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.setpoint = setpoint
-        self.previous_error = 0
-        self.integral = 0
-
-    def update(self, current_value):
-        error = self.setpoint - current_value
-        self.integral += error
-        derivative = error - self.previous_error
-        self.previous_error = error
-        return self.kp * error + self.ki * self.integral + self.kd * derivative
-
-pid = PIDController(kp=0.1, ki=0.01, kd=0.001, setpoint=reference_speed)
+pid_throttle = chrono.ChFunction_PID()
+pid_throttle.SetKp(0.1)
+pid_throttle.SetKi(0.01)
+pid_throttle.SetKd(0.0)
 
 
 
@@ -140,7 +130,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -150,15 +140,16 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    speed_error = reference_speed - current_speed
+    throttle_input = pid_throttle.GetValue(speed_error)
+    driver_inputs.SetThrottle(throttle_input)
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    throttle_input = pid.update(current_speed)
-    driver_inputs.SetThrottle(throttle_input)
 
     
     driver.Advance(step_size)

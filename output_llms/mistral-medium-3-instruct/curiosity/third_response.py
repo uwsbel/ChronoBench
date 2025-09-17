@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  # Added sensor module import
+import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -12,9 +12,6 @@ system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-# Create sensor manager
-manager = sens.ChSensorManager(system)  # Added sensor manager
 
 # Create ground body with contact material and add it to the system
 ground_mat = chrono.ChContactMaterialNSC()
@@ -41,25 +38,25 @@ rover.SetDriver(driver)
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Fixed: Changed ChFramed to ChFrameD
 
-# Add lidar sensor to the rover
-lidar = sens.ChLidarSensor(rover.GetChassis())  # Create lidar sensor attached to rover chassis
-lidar.SetName("rover_lidar")  # Set sensor name
-lidar.SetUpdateRate(20)  # Update rate in Hz
+# Create sensor manager
+manager = sens.ChSensorManager(system)
 
-# Set lidar parameters
-lidar.SetHorizontalSamples(180)  # Number of horizontal samples
-lidar.SetVerticalSamples(1)  # Single vertical line (2D lidar)
-lidar.SetHorizontalFieldOfView(chrono.ChCPI * 2)  # 360 degree horizontal FOV
-lidar.SetVerticalFieldOfView(chrono.ChCPI / 180)  # 1 degree vertical FOV
-lidar.SetMinRange(0.1)  # Minimum detection range
-lidar.SetMaxRange(10)  # Maximum detection range
+# Create lidar sensor
+lidar = sens.ChLidarSensor(rover.GetChassisBody())  # Attach to rover chassis
+lidar.SetName("Lidar")
+lidar.SetUpdateRate(20)  # Hz
+lidar.SetHorizontalSamples(360)  # Number of horizontal samples
+lidar.SetVerticalSamples(1)  # Number of vertical samples (1 for 2D lidar)
+lidar.SetHorizontalAngle(chrono.ChC2PI)  # 360 degree field of view
+lidar.SetVerticalAngle(chrono.CH_C_PI / 180)  # 1 degree vertical angle
+lidar.SetMinRange(0.1)  # Minimum range in meters
+lidar.SetMaxRange(10.0)  # Maximum range in meters
 
-# Set up filters (optional)
-filter = sens.ChFilterPCfromLidar()
-filter.SetSensor(lidar)
-filter.SetUseTransform(True)
+# Add filters to the lidar
+lidar.AddFilter(sens.ChFilterPCfromLidar())
+lidar.AddFilter(sens.ChFilterSaveToFile("lidar_data.txt"))
 
 # Add lidar to sensor manager
 manager.AddSensor(lidar)
@@ -88,15 +85,15 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Update sensor manager
-    manager.Update()  # Added sensor manager update
-
     # ask rover to move forward
     driver.SetSteering(0.0)
     driver.SetThrottle(0.5)  # Added throttle to make rover move
 
     # Update rover dynamics
     rover.Update()
+
+    # Update sensor manager
+    manager.Update()
 
     # Render the scene
     vis.BeginScene()

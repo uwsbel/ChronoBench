@@ -1,65 +1,52 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+importchrono
+importchrono irrlicht
+importchrono utilities
 
 
-system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
+app = ChIrrApp(ChSystemNSC(), "Mass-Spring-Damper Simulation", CHDIMENSION2D(800, 600))
+app.SetLight(ChVectorD(0, 1, 3), ChVectorD(0, 0, 1))
+app.SetCamera(ChVectorD(0, 1.5, 3), ChVectorD(0, 0, 0))
 
 
-application = chronoirr.ChIrrApp(system, "Mass-Spring-Damper System", chronoirr.dimension2du(800, 600))
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0, 0, 0))
-
-
-ground = chrono.ChBody()
+ground = ChBody()
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(ground)
+ground.SetPos(ChVectorD(0, 0, 0))
+ground.GetCollisionModel().AddBox(ChVectorD(2, 1, 2))
+ground.GetVisualShape(0).SetMaterialColor(ChColor(0.2, 0.2, 0.2))
 
 
-mass = chrono.ChBody()
+mass = ChBody()
 mass.SetMass(1)
-mass.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-mass.SetPos(chrono.ChVectorD(0, 0, 1))
-system.Add(mass)
+mass.SetPos(ChVectorD(0, 1, 0))
+mass.GetCollisionModel().AddBox(ChVectorD(0.2, 0.2, 0.2))
+mass.GetVisualShape(0).SetMaterialColor(ChColor(0.8, 0, 0))
 
 
-spring = chrono.ChLinkTSDA()
-spring.Initialize(ground, mass, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D()))
+spring = ChLinkTSDA()
+spring.Initialize(ground, mass, ChCoordsysD(ChVectorD(0, 0, 0), ChMatrix33D()))
 spring.SetRestLength(1)
 spring.SetSpringCoefficient(100)
 spring.SetDampingCoefficient(10)
+spring.SetDrawLength(0.5)
+
+
+system = app.GetSystem()
+system.Add(ground)
+system.Add(mass)
 system.Add(spring)
 
 
-mass_shape = chrono.ChBoxShape()
-mass_shape.GetBoxGeometry().SetLengths(chrono.ChVectorD(0.2, 0.2, 0.5))
-mass_shape.SetColor(chrono.ChColor(0.5, 0, 0))
-mass.AddVisualShape(mass_shape)
-
-spring_shape = chrono.ChCylinderShape()
-spring_shape.GetCylinderGeometry().SetHeight(1)
-spring_shape.GetCylinderGeometry().SetRadius(0.05)
-spring_shape.SetColor(chrono.ChColor(0, 0.5, 0))
-spring.GetVisualShape().AddVisualShape(spring_shape)
+spring_shape = ChVisualShape()
+spring_shape.SetType(ChVisualShapeType.SPHERESPRING)
+spring_shape.SetDimensions(ChVectorD(0.1, 1, 0))
+spring_shape.SetMaterialColor(ChColor(0, 0.8, 0))
+spring.GetLink().AddVisualShape(spring_shape)
 
 
-application.AssetSetShared()
-application.SetRootScene(system.GetRootNode())
-
-
-time = 0
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
-    
-    
-    spring.GetVisualShape().GetCylinderGeometry().SetHeight(abs(mass.GetPos().z - ground.GetPos().z))
-    
-    time += system.GetChTimeStep()
-    if time > 10:
-        break
-
-application.GetDevice().close()
+app.Begin()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    system.DoStepDynamics(0.005)
+    app.EndScene()
+app.End()

@@ -1,43 +1,52 @@
-import pychrono as chrono
-import pychrono.irr as irr
+import pychrono as pch
+import pychrono.physics as pchphys
+import pychrono.visualization as pchvis
 
 # Initialize PyChrono
-chrono.init()
-
-# Create the Irrlicht engine
-engine = irr.IrrlichtEngine()
+p = pch.PyChrono()
 
 # Create the world
-world = chrono.World()
+world = pch.World()
 
-# Define beam parameters
-beam_length = 1.0
-beam_width = 0.1
-beam_material = chrono.Material("beam", 1.0, 0.0, 0.0)
+# Define the mesh
+mesh = pch.Mesh()
+mesh.SetMeshType(pch.MeshType.BEAM)
+mesh.SetMeshFilename("beam_mesh.obj")
 
-# Create a mesh with beams
-beam_mesh = chrono.Mesh()
-beam_mesh.add_vertices([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-beam_mesh.add_faces([0, 1, 2, 3])
+# Create a beam element
+beam = pch.BeamElement(mesh)
+beam.SetBeamMaterial(pch.Material(0.0, 0.0, 0.0))
 
-# Create beam nodes
-beam_nodes = chrono.Nodes()
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
+# Create a node
+node = pch.Node(mesh)
+node.SetNodeMaterial(pch.Material(0.0, 0.0, 0.0))
 
-# Set the beam material properties
-beam_material.set_density(1000.0)
-beam_material.set_elasticity(200.0)
-beam_material.set_poisson_ratio(0.3)
+# Add the beam and node to the world
+world.AddObject(beam)
+world.AddObject(node)
 
-# Add the beam mesh and nodes to the world
-world.add_mesh(beam_mesh)
-world.add_nodes(beam_nodes)
+# Set initial positions and forces
+beam.SetPosition(pch.Vector3(0.0, 0.0, 0.0))
+node.SetPosition(pch.Vector3(0.0, 0.0, 0.0))
 
-# Set the simulation parameters
-world.set_gravity(chrono.Vector(0.0, -9.81, 0.0))
-world.set_time_step(0.01)
+# Set initial forces
+beam.SetForce(pch.Vector3(0.0, 0.0, 0.0))
+node.SetForce(pch.Vector3(0.0, 0.0, 0.0))
+
+# Initialize Irrlicht
+irr = pch.Irrlicht()
+
+# Set up the Irrlicht visualization
+irr.CreateIrrlichtScene()
 
 # Run the simulation loop
-engine.run()
+while True:
+    # Update the simulation
+    world.Update(0.01)
+
+    # Render the scene
+    irr.Render()
+
+    # Check for user input
+    if input("Press any key to exit: ") == "":
+        break

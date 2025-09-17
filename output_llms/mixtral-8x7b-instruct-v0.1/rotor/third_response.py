@@ -145,7 +145,6 @@ vis.AddTypicalLights()
 # Use a more precise HHT timestepper
 # sys.SetTimestepperType(chrono.ChTimestepperHHT())
 sys.SetTimestepper(chrono.ChTimestepperHHT())
-sys.Set_HHT_EnergyConsistency(True)
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)

@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.UAZBUS() 
+vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -72,7 +72,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat = chrono.ChContactMaterialNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 1000, True, box_mat)
@@ -114,7 +114,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
     if (step_number % render_steps == 0) :

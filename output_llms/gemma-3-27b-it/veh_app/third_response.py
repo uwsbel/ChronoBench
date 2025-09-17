@@ -13,7 +13,7 @@ print(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 chassis_vis_type = veh.VisualizationType_MESH
 suspension_vis_type = veh.VisualizationType_PRIMITIVES
 steering_vis_type = veh.VisualizationType_PRIMITIVES
@@ -124,6 +124,7 @@ cam = sens.ChCameraSensor(
     gator.GetChassisBody(), update_rate, offset_pose, image_width, image_height, fov
 )
 cam.SetName("Third Person POV")
+# Renders the image at current point in the filter graph
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
@@ -149,14 +150,14 @@ lidar = sens.ChLidarSensor(
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
-lidar.SetCollectionWindow(1 / update_rate)
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.SetCollectionWindow(1 / update_rate)  # Provides the host access to the Depth, Intensity data
+lidar.PushFilter(sens.ChFilterDIAccess())  # Convert Depth, Intensity data to XYZI point cloud data
+lidar.PushFilter(sens.ChFilterPCfromDepth())  # Provides the host access to the XYZI data
 lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 manager.AddSensor(lidar)
 
-# Create Depth Camera
+# Add Depth Camera
 depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
@@ -168,7 +169,7 @@ depth_cam = sens.ChDepthCameraSensor(
     30.0  # Maximum depth
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap("Depth Map"))
 manager.AddSensor(depth_cam)
 
 # ---------------

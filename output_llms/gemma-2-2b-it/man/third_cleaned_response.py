@@ -1,10 +1,23 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
 from pychrono.sensor import SensorManager
 from pychrono.sensor import LidarSensor
+from pychrono.vehicle import Vehicle
+from pychrono.vehicle import VehicleVisualSystemIrrlicht
+from pychrono.vehicle import ChWheeledVehicleVisualSystemIrrlicht
+from pychrono.sensor import Sensor
+from pychrono.sensor import SensorType
+from pychrono.sensor import SensorData
+from pychrono.sensor import SensorDataPoint
+from pychrono.sensor import SensorDataEvent
+from pychrono.sensor import SensorDataEventTypes
+from pychrono.sensor import SensorDataEventTypes
+from pychrono.sensor import SensorDataPoint
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -18,6 +31,7 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_TMEASY
+
 
 
 terrainHeight = 0      
@@ -38,9 +52,6 @@ tire_step_size = step_size
 
 render_step_size = 1.0 / 50  
 
-
-sensor_manager = SensorManager()
-lidar_sensor = LidarSensor(sensor_manager)
 
 
 vehicle = veh.MAN_10t() 
@@ -75,6 +86,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
@@ -84,6 +96,59 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+
+
+driver = veh.ChInteractiveDriverIRR(vis)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+
+sensor_manager = SensorManager()
+
+
+lidar_sensor = LidarSensor(sensor_manager)
+lidar_sensor.Initialize()
+
+
+random_boxes = []
+for i in range(5):
+    box = veh.Box(chrono.ChVector3d(np.random.uniform(-100, 100), 
+                                       np.random.uniform(-100, 100), 
+                                       np.random.uniform(-100, 100)))
+    random_boxes.append(box)
+
+
+terrain.AddRandomBoxes(random_boxes)
+
+
+sensor_manager = SensorManager()
+
+
+lidar_sensor = LidarSensor(sensor_manager)
+lidar_sensor.Initialize()
+
+
+sensor_manager.Update()
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

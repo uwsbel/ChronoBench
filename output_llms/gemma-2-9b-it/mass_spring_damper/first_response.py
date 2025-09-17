@@ -1,51 +1,36 @@
 import pychrono as chrono
-import pychrono.irrlicht as vis
+import pychrono.irrlicht as chronoirr
 
-# Create the Chrono system
+# Initialize Chrono engine
+chrono.SetChronoDataPath("..")  # Set path to Chrono data files
 system = chrono.ChSystemNSC()
 
-# Set up visualization
-vis.ChVisualSystemIrrlicht.SetWindowSize(800, 600)
-vis.ChVisualSystemIrrlicht.SetWindowTitle("Mass-Spring-Damper")
-vis.ChVisualSystemIrrlicht.Initialize()
-vis.ChVisualSystemIrrlicht.AddCamera(
-    pos=chrono.ChVectorD(0, 0, 1),
-    lookat=chrono.ChVectorD(0, 0, 0),
-    up=chrono.ChVectorD(0, 1, 0),
-)
-vis.ChVisualSystemIrrlicht.SetAmbientLight(chrono.ChColor(0.1, 0.1, 0.1))
-vis.ChVisualSystemIrrlicht.SetLight(
-    chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), chrono.ChColor(1, 1, 1)
-)
-
-# Create the ground
+# Create ground
 ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-system.AddBody(ground)
+system.Add(ground)
 
-# Create the mass
-mass = chrono.ChBodyEasySphere(1, 10)
-mass.SetPos(chrono.ChVectorD(0, 0, 1))
-system.AddBody(mass)
+# Create mass
+mass = chrono.ChBodyEasySphere(0.5, 100)
+mass.SetPos(chrono.ChVectorD(0, 1, 0))
+system.Add(mass)
 
-# Create the spring and damper
-link = chrono.ChLinkTSDA(mass, ground)
-link.SetSpringParam(100, 10)  # Default spring stiffness and damping
-system.AddLink(link)
+# Create spring-damper connection
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(ground, mass, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+system.Add(spring_damper)
 
-# Create visual shapes
-mass_shape = chrono.ChShapeSphere(1)
-ground_shape = chrono.ChShapeBox(5, 5, 0.5)
-link_shape = chrono.ChShapeCylinder(0.1, 1)
+# Visualize with Irrlicht
+vis = chronoirr.ChIrrApp(system, 'Mass-Spring-Damper')
+vis.AddCamera(chrono.ChVectorD(5, 5, 5))
+vis.AddLight(chrono.ChVectorD(10, 10, 10))
 
-mass.GetAssets().push_back(chrono.ChVisualShapeData(mass_shape))
-ground.GetAssets().push_back(chrono.ChVisualShapeData(ground_shape))
-link.GetAssets().push_back(chrono.ChVisualShapeData(link_shape))
+# Set up Irrlicht visualization
+vis.SetWindowSize(1024, 768)
+vis.SetRenderMode(chronoirr.CH_RENDERING_MODE_WIREFRAME)
 
-# Run the simulation
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-for i in range(1000):
-    system.DoStepDynamics(0.01)
-    vis.ChVisualSystemIrrlicht.Render()
-
-vis.ChVisualSystemIrrlicht.Close()
+# Run simulation
+vis.Start()
+while vis.GetDevice().run():
+    system.DoStepDynamics(1e-3)
+    vis.Render()

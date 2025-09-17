@@ -66,13 +66,13 @@ def move(mode):
 time = 0
 while vis.Run():
     if time < 5:
-        print("Moving straight...")
+        print("Moving straight")
         move('straight')
     elif time < 10:
-        print("Turning left...")
+        print("Turning left")
         move('left')
     else:
-        print("Turning right...")
+        print("Turning right")
         move('right')
 
     

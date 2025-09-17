@@ -1,133 +1,147 @@
-import chrono as c
-import chrono-python-irrlicht as irrlicht
+import chrono as chrono
+import chronoIRR as chronoirr
+import math
 
 
-irrlicht.init()
+chrono.Initialize()
+solver = chrono.ChronoSolver()
+solver.SetTolerance(1e-4)
 
 
-terrain = c.RigidTerrain(
-    name="terrain",
-    dim=(100, 100, 0.1),
-    texture=c.Texture(
-        name="terrain_texture",
-        file_name="path/to/terrain_texture.png",
-        scaling=(1, 1),
-        rotation=(0, 0),
-        translation=(0, 0)
-    )
-)
+terrain = chrono.RigidTerrain()
+terrain.SetTexture("path/to/terrain/texture.png")
+terrain.SetDimensions(100, 100, 1)  
+terrain.SetLocation(0, 0, 0)
+terrain.SetMaterial(chrono.Material(0.5, 0.5, 0.5))  
+terrain.SetMesh(chrono.ChronoMesh("path/to/terrain/mesh.obj"))
 
 
-vehicle = c.Gator(
-    name="gator",
-    location=(0, 0, 0),
-    orientation=(0, 0, 0),
-    contact_method=c.ContactMethod(
-        name="contact_method",
-        friction_coeff=0.5,
-        restitution_coeff=0.1
-    ),
-    tire_model=c.TMEasyTireModel(
-        name="tire_model",
-        radius=0.5,
-        stiffness=100000,
-        damping=1000,
-        preload=1000
-    )
-)
+vehicle = chrono.RigidBody()
+vehicle.SetName("Gator")
+vehicle.SetMass(1000)
+vehicle.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.5, 0.5, 0.5)))
+vehicle.SetLocation(0, 0, 0)
+vehicle.SetOrientation(chrono.QFromEuler(0, 0, 0))
+vehicle.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+vehicle.SetTireModel(chrono.TireModelTMEasy())
+vehicle.SetMesh(chrono.ChronoMesh("path/to/vehicle/mesh.obj"))
 
 
-vehicle.add_body(
-    name="chassis",
-    mass=1000,
-    inertia_tensor=(1000, 1000, 1000),
-    mesh=c.Mesh(
-        name="chassis_mesh",
-        file_name="path/to/chassis_mesh.obj",
-        scaling=(1, 1, 1),
-        rotation=(0, 0, 0),
-        translation=(0, 0)
-    )
-)
-
-vehicle.add_wheel(
-    name="front_left_wheel",
-    radius=0.5,
-    stiffness=100000,
-    damping=1000,
-    preload=1000,
-    mesh=c.Mesh(
-        name="front_left_wheel_mesh",
-        file_name="path/to/front_left_wheel_mesh.obj",
-        scaling=(1, 1, 1),
-        rotation=(0, 0, 0),
-        translation=(0, 0)
-    )
-)
-
-vehicle.add_wheel(
-    name="front_right_wheel",
-    radius=0.5,
-    stiffness=100000,
-    damping=1000,
-    preload=1000,
-    mesh=c.Mesh(
-        name="front_right_wheel_mesh",
-        file_name="path/to/front_right_wheel_mesh.obj",
-        scaling=(1, 1, 1),
-        rotation=(0, 0, 0),
-        translation=(0, 0)
-    )
-)
-
-vehicle.add_wheel(
-    name="rear_left_wheel",
-    radius=0.5,
-    stiffness=100000,
-    damping=1000,
-    preload=1000,
-    mesh=c.Mesh(
-        name="rear_left_wheel_mesh",
-        file_name="path/to/rear_left_wheel_mesh.obj",
-        scaling=(1, 1, 1),
-        rotation=(0, 0, 0),
-        translation=(0, 0)
-    )
-)
-
-vehicle.add_wheel(
-    name="rear_right_wheel",
-    radius=0.5,
-    stiffness=100000,
-    damping=1000,
-    preload=1000,
-    mesh=c.Mesh(
-        name="rear_right_wheel_mesh",
-        file_name="path/to/rear_right_wheel_mesh.obj",
-        scaling=(1, 1, 1),
-        rotation=(0, 0, 0),
-        translation=(0, 0)
-    )
-)
+chassis = chrono.RigidBody()
+chassis.SetName("Chassis")
+chassis.SetMass(500)
+chassis.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.2, 0.2, 0.2)))
+chassis.SetLocation(0, 0, 0)
+chassis.SetOrientation(chrono.QFromEuler(0, 0, 0))
+chassis.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+chassis.SetTireModel(chrono.TireModelTMEasy())
+chassis.SetMesh(chrono.ChronoMesh("path/to/chassis/mesh.obj"))
+vehicle.AddChild(chassis)
 
 
-driver = c.Driver(
-    name="driver",
-    vehicle=vehicle,
-    steering_gain=0.1,
-    throttle_gain=0.1,
-    braking_gain=0.1
-)
+wheel1 = chrono.RigidBody()
+wheel1.SetName("Wheel1")
+wheel1.SetMass(50)
+wheel1.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+wheel1.SetLocation(0, -0.5, 0)
+wheel1.SetOrientation(chrono.QFromEuler(0, 0, 0))
+wheel1.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+wheel1.SetTireModel(chrono.TireModelTMEasy())
+wheel1.SetMesh(chrono.ChronoMesh("path/to/wheel/mesh.obj"))
+vehicle.AddChild(wheel1)
+
+wheel2 = chrono.RigidBody()
+wheel2.SetName("Wheel2")
+wheel2.SetMass(50)
+wheel2.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+wheel2.SetLocation(0, 0.5, 0)
+wheel2.SetOrientation(chrono.QFromEuler(0, 0, 0))
+wheel2.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+wheel2.SetTireModel(chrono.TireModelTMEasy())
+wheel2.SetMesh(chrono.ChronoMesh("path/to/wheel/mesh.obj"))
+vehicle.AddChild(wheel2)
+
+wheel3 = chrono.RigidBody()
+wheel3.SetName("Wheel3")
+wheel3.SetMass(50)
+wheel3.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+wheel3.SetLocation(-0.5, 0, 0)
+wheel3.SetOrientation(chrono.QFromEuler(0, 0, 0))
+wheel3.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+wheel3.SetTireModel(chrono.TireModelTMEasy())
+wheel3.SetMesh(chrono.ChronoMesh("path/to/wheel/mesh.obj"))
+vehicle.AddChild(wheel3)
+
+wheel4 = chrono.RigidBody()
+wheel4.SetName("Wheel4")
+wheel4.SetMass(50)
+wheel4.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+wheel4.SetLocation(0.5, 0, 0)
+wheel4.SetOrientation(chrono.QFromEuler(0, 0, 0))
+wheel4.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+wheel4.SetTireModel(chrono.TireModelTMEasy())
+wheel4.SetMesh(chrono.ChronoMesh("path/to/wheel/mesh.obj"))
+vehicle.AddChild(wheel4)
 
 
-simulation = c.Simulation(
-    name="simulation",
-    terrain=terrain,
-    vehicle=vehicle,
-    driver=driver,
-    frame_rate=50,
-    real_time=True
-)
+driver = chrono.RigidBody()
+driver.SetName("Driver")
+driver.SetMass(100)
+driver.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.2, 0.2, 0.2)))
+driver.SetLocation(0, 0, 1)
+driver.SetOrientation(chrono.QFromEuler(0, 0, 0))
+driver.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+driver.SetTireModel(chrono.TireModelTMEasy())
+driver.SetMesh(chrono.ChronoMesh("path/to/driver/mesh.obj"))
+vehicle.AddChild(driver)
 
 
-simulation.start()
+driver_steering = chrono.RigidBody()
+driver_steering.SetName("DriverSteering")
+driver_steering.SetMass(10)
+driver_steering.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+driver_steering.SetLocation(0, 0, 1.5)
+driver_steering.SetOrientation(chrono.QFromEuler(0, 0, 0))
+driver_steering.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+driver_steering.SetTireModel(chrono.TireModelTMEasy())
+driver_steering.SetMesh(chrono.ChronoMesh("path/to/driver_steering/mesh.obj"))
+driver.AddChild(driver_steering)
+
+driver_throttle = chrono.RigidBody()
+driver_throttle.SetName("DriverThrottle")
+driver_throttle.SetMass(10)
+driver_throttle.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+driver_throttle.SetLocation(0, 0, 1.5)
+driver_throttle.SetOrientation(chrono.QFromEuler(0, 0, 0))
+driver_throttle.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+driver_throttle.SetTireModel(chrono.TireModelTMEasy())
+driver_throttle.SetMesh(chrono.ChronoMesh("path/to/driver_throttle/mesh.obj"))
+driver.AddChild(driver_throttle)
+
+driver_braking = chrono.RigidBody()
+driver_braking.SetName("DriverBraking")
+driver_braking.SetMass(10)
+driver_braking.SetInertiaTensor(chrono.InertiaTensor(chrono.Vec3(0.1, 0.1, 0.1)))
+driver_braking.SetLocation(0, 0, 1.5)
+driver_braking.SetOrientation(chrono.QFromEuler(0, 0, 0))
+driver_braking.SetContactMethod(chrono.ContactMethod(chrono.CM_RAY)
+driver_braking.SetTireModel(chrono.TireModelTMEasy())
+driver_braking.SetMesh(chrono.ChronoMesh("path/to/driver_braking/mesh.obj"))
+driver.AddChild(driver_braking)
+
+
+t = 0
+dt = 1 / 50  
+while t < 10:
+    solver.Solve()
+    t += dt
+    chronoirr.Render()
+    chronoirr.Update()
+    chronoirr.Finalize()
+    chrono.Update()
+    chrono.Finalize()
+
+
+chrono.Finalize()
+solver.Clear()
+chrono.Terminate()

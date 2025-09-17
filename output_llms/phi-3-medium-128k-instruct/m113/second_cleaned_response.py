@@ -17,10 +17,10 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrain_model = veh.SoilTerrain.STANDARD
-terrainHeight = 0  
+terrain_model = veh.SCMDeformableTerrain.SURFACE
+terrainHeight = 0      
 terrainLength = 100.0  
-terrainWidth = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -59,19 +59,18 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.SoilTerrain(vehicle.GetSystem())  
+soil_params = chrono.ChSoilParameters()
+soil_params.SetFriction(0.9)
+soil_params.SetRestitution(0.01)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())  
+terrain.SetSoilParameters(soil_params)
 
 
-terrainHeightMap = [0.0] * (terrainLength * terrainWidth)  
-for i in range(len(terrainHeightMap)):
-    terrainHeightMap[i] = 0.0  
-terrain.SetHeightMap(terrainHeightMap)
+height_map = [0.0, 0.0, 1.0]  
+terrain.Initialize(height_map, 100, 100)
 
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  
-terrain.Initialize()
+
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -95,6 +94,8 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
+
+driver.SetThrottle(0.8)  
 driver.Initialize()
 
 
@@ -131,9 +132,6 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
-    
-    driver.SetThrottle(0.8)  
     vis.Advance(step_size)
     
     step_number += 1

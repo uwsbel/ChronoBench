@@ -32,30 +32,31 @@ my_system.Add(mass)
 
 mass_shape = chronoirr.ChSphereShape()
 mass_shape.GetSphereGeometry().rad = 0.1
-mass_shape.SetColor(chrono.ChColor(0.5, 0.5, 1))
-mass_vis = chronoirr.ChBodySceneNode(my_vis.GetSceneManager(), my_vis.GetVideoDriver())
-mass_vis.SetBody(mass)
-mass_vis.AddAsset(mass_shape)
+mass.AddAsset(mass_shape)
 
 spring_shape = chronoirr.ChLineShape()
 spring_shape.SetLineGeometry(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -2, 0))
-spring_shape.SetColor(chrono.ChColor(1, 0.5, 0.5))
-spring_vis = chronoirr.ChBodySceneNode(my_vis.GetSceneManager(), my_vis.GetVideoDriver())
-spring_vis.SetBody(ground)
-spring_vis.AddAsset(spring_shape)
+spring_shape.SetColor(chrono.ChColor(0.2, 0.8, 0.2))
+spring_shape.SetThickness(0.01)
+mass.AddAsset(spring_shape)
 
 
-spring = chrono.ChLinkTSDA()
-spring.Initialize(ground, mass, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-spring.Set_SpringK(chrono.CH_C_KG * 100)  
-spring.Set_SpringR(chrono.CH_C_KG * 10)  
-my_system.Add(spring)
+spring_constant = 1000
+damping_constant = 10
+rest_length = 2
+connection = chrono.ChLinkTSDA()
+connection.Initialize(ground, mass, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+connection.Set_SpringK(spring_constant)
+connection.Set_SpringRestLength(rest_length)
+connection.Set_SpringDampingF(damping_constant)
+my_system.Add(connection)
 
 
 while my_vis.Run():
+    my_system.DoStepDynamics(0.01)
     my_vis.BeginScene()
     my_vis.DrawAll()
     my_vis.EndScene()
-    my_system.DoStepDynamics(0.01)
 
-my_vis.GetDevice().closeDevice()
+
+my_vis.CloseWindow()

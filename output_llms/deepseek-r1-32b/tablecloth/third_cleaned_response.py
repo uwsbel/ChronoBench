@@ -129,9 +129,9 @@ if (True):
     
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  
-    mvisualizeshellA.SetWireframe(True)    
-    mvisualizeshellA.SetBackfaceCull(True) 
+    mvisualizeshellA.SetWireframe(True)  
     mvisualizeshellA.SetShellResolution(2)  
+    mvisualizeshellA.SetBackfaceCull(True)  
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
 
     

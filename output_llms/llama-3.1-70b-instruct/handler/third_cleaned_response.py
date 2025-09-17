@@ -1,9 +1,8 @@
 import pychrono as ch
-import pychrono.irrlicht as chirr
+import pychrono.irrlicht as chr
 import pychrono.ros as chros
 
-import rclpy
-from rclpy.node import Node
+import rclpy.publisher
 from std_msgs.msg import Int64
 
 
@@ -59,20 +58,20 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-    publish_rate = 10  
     
     
-    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
     
     
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
     
     
-    tf_handler = chros.ChROSTFHandler(publish_rate)
+    tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
     
     
+    publish_rate = 10  
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
@@ -80,23 +79,30 @@ def main():
     ros_manager.Initialize()
 
     
-    app = chirr.ChVisualSystemIrrlicht()
-    app.SetWindowSize(1024, 768)  
-    app.SetWindowTitle("PyChrono Simulation")  
-    app.AddTypicalLights()  
-    app.AddTypicalCamera(ch.ChVector3d(0, 0, 5))  
-    app.SetShowFPS(True)  
-    app.SetCameraZoom(0.5)  
+    app = chr.ChVisualSystemIrrlicht()
+    app.SetWindowSize(1024, 768)
+    app.SetWindowTitle("PyChrono Simulation")
+    app.AddTypicalLights()
+    app.AddCamera(chr.ChIrrCamera())
+    app.AddShadowAll()
+
+    
+    app.SetTypicalLighing()
+    app.AddSkyBox()
+    app.AddLogo()
+    app.SetShowFPS(True)
+
+    
+    realtime_timer = ch.ChRealtimeStepTimer()
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    step_number = 0  
-    render_step_size = 10  
-    render_steps = 0  
+    step_number = 0
+    render_step_size = 10
+    render_steps = 0
 
-    realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
@@ -104,14 +110,14 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        step_number += 1  
-        render_steps += 1  
-
+        
         if render_steps >= render_step_size:
-            app.BeginScene()  
-            app.DrawAll()  
-            app.EndScene()  
-            render_steps = 0  
+            app.BeginScene()
+            app.DrawAll()
+            app.EndScene()
+            render_steps = 0
+        render_steps += 1
+        step_number += 1
 
         realtime_timer.Spin(time_step)  
 

@@ -1,7 +1,4 @@
 import pychrono as pychrono
-from pychrono.objects import *
-from pychrono.sensors import *
-from pychrono.render import *
 import numpy as np
 
 # Initialize PyChrono environment
@@ -9,92 +6,83 @@ pychrono.init()
 
 # Create a scene
 scene = pychrono.Scene()
+scene.set_ground_plane("horizontal", 0, 0, 0)
 
-# Load the triangular mesh from the Wavefront .obj file
-obj = pychrono.objects.MeshObject("triangular_mesh.obj")
-scene.add_object(obj)
+# Load Wavefront .obj file
+mesh = pychrono.SceneMesh("sphere.obj")
+# Add the mesh to the scene
+scene.add_mesh(mesh)
+# Create a body from the mesh
+body = pychrono.Body("body")
+body.set_mass(1)
+body.set_position([0, 0, 5])
+body.set_constraints(pychrono.BodyConstraintsfixed_position())
 
-# Set the object as fixed
-obj.set_body_type("fixed")
+# Add lidar sensor
+lidar_sensor = pychrono.SensorLidar(body, "lidar")
+lidar_sensor.set_update_frequency(10)
+lidar_sensor.set_noise_level(0.1)
+lidar_sensor.add_visualization("lidar_points", color=(0, 0, 1), size=0.1)
 
-# Add a lidar sensor
-lidar_sensor = pychrono.sensors.LidarSensor()
-lidar_sensor.set_noise_level(0.1)  # Set noise level for lidar data
-lidar_sensor.set_parent(obj)  # Attach lidar to the mesh object
+# Define orbit parameters
+orbit_radius = 5  # Radius of the orbit
+orbit_speed = 1  # Speed of the orbit in units per second
+lidar_height = 1  # Height of the lidar sensor above the mesh
 
-# Define the orbit path for the lidar
-orbit_radius = 5.0  # Radius of the orbit
-orbit_vertical = 5.0  # Vertical offset from the mesh
-orbit_speed = 1.0  # Speed of orbital movement
-orbit_period = 10.0  # Time to complete one orbit
+# Get initial position for lidar
+lidar_position = np.array([orbit_radius, 0, lidar_height])
 
-lidar = pychrono.objects.Body()
-lidar.set_body_type("dynamic")
-lidar.set_mass(0.0)  # No mass for the lidar
-lidar.set_size(0.1, 0.1, 0.1)  # Small size for the lidar
-lidar.set_position(obj.get_position() + pychrono.Vec3(orbit_radius, 0, orbit_vertical))
-lidar.set_velocity(pychrono.Vec3(orbit_speed, 0, 0))
-
-# Create an orbit constraint for the lidar
-orbit_constraint = pychrono.constraints.OrbitConstraint(lidar, obj)
-scene.add_constraint(orbit_constraint)
-
-# Set up the camera
-camera = pychrono.objects.Camera()
-camera.set_position(pychrono.Vec3(10, 10, 10))
-camera.set_look_at(pychrono.Vec3(0, 0, 0))
-camera.set_up(pychrono.Vec3(0, 1, 0))
-renderer = pychrono.render.Renderer(camera)
-renderer.setClearColor(0.5, 0.5, 0.5)
-
-# Add visualization for the lidar data
-lidar_visual = pychrono.render.PointCloudVisualizer()
-lidar_visual.set_source(lidar.get_source())
-renderer.add(lidar_visual)
+# Function to update lidar position
+def update_lidar_position():
+    global step, lidar_position
+    step += 1
+    angle = step * 2 * np.pi / 360  # Degrees to radians
+    lidar_position = np.array([
+        orbit_radius * np.cos(angle),
+        orbit_radius * np.sin(angle),
+        lidar_height
+    ])
 
 # Add visualization for the mesh
-mesh_visual = pychrono.render.MeshVisualizer()
-mesh_visual.set_source(obj.get_source())
-renderer.add(mesh_visual)
+mesh_visualization = pychrono.VisualizationMesh(
+    mesh,
+    color=(1, 0, 0),
+    wireframe=True
+)
+scene.add_visualization(mesh_visualization)
 
-# Simulation parameters
-simulation_time = pychrono.SimTime(0, 1.0)  # 1 second
-final_time = pychrono.SimTime(10, 1.0)    # 10 seconds
-dt = pychrono.SimTime(0.01, 1.0)        # Time step
+# Add the lidar sensor to the scene
+scene.add_sensor(lidar_sensor)
 
-# Initialize the lidar buffer for saving data
-lidar_buffer = []
-current_time = 0.0
+# Start simulation
+simulation = pychrono.Simulation(scene)
+simulation.set_ground_friction(0.5)
+simulation.set_gravity([0, 0, -9.81])
 
-# Main simulation loop
-while simulation_time < final_time:
-    # Update simulation
-    scene.update()
-    
-    # Update lidar position along the orbit
-    current_time += dt.get_value()
-    angle = (current_time / orbit_period) * 360.0
-    lidar.set_position(obj.get_position() + pychrono.Vec3(
-        orbit_radius * np.cos(angle * np.pi / 180),
-        0,
-        orbit_vertical + orbit_radius * np.sin(angle * np.pi / 180)
-    ))
+# Create a buffer to store lidar data
+lidar_buffer = pychrono.Buffer()
+lidar_sensor.set_save_to_file(lidar_buffer, "lidar_data", step=5)
 
-    # Update lidar data
-    lidar_data = lidar.get_source().get_point_cloud()
-    lidar_buffer.append(lidar_data.copy())
-    
-    # Print lidar buffer data
-    print(f"Lidar Data at time {current_time:.3f}:")
-    print("PointCloud Shape:", lidar_data.shape)
-    print("First few points:", lidar_data[:3, :])
-    
-    # Next simulation step
-    simulation_time += dt
+# Define visualization for the lidar data
+lidar_visualization = pychrono.VisualizationPlot(
+    lidar_buffer,
+    x_axis="distance",
+    y_axis="intensity",
+    z_axis="height",
+    show_legend=True
+)
+simulation.add_visualization(lidar_visualization)
 
-# Save lidar data to file
-with open("lidar_data.npy", "wb") as f:
-    np.save(f, np.array(lidar_buffer))
+# Start the simulation
+simulation.start()
 
-# Close the visualization
-renderer.close()
+# Print lidar buffer data at each step
+while True:
+    simulation.step()
+    update_lidar_position()
+    data = lidar_buffer.get_data()
+    print(f"Step {step}: Lidar Data - Distance: {data[0]} | Intensity: {data[1]} | Height: {data[2]}")
+    if step % 5 == 0:
+        lidar_buffer.save_to_file()
+    if step % 1000 == 0:
+        break

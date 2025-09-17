@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -21,10 +20,32 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
+class SCMTerrainParams:
+    def __init__(self, kphi, kc, n_exponent, cohesion, friction, janosi, stiffness, damping):
+        self.kphi = kphi
+        self.kc = kc
+        self.n_exponent = n_exponent
+        self.cohesion = cohesion
+        self.friction = friction
+        self.janosi = janosi
+        self.stiffness = stiffness
+        self.damping = damping
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+
+terrain_configs = {
+    "soft": SCMTerrainParams(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4),
+    "mid": SCMTerrainParams(5e6, 0, 1.1, 0, 30, 0.01, 5e8, 1e5),
+    "hard": SCMTerrainParams(1e7, 0, 1.1, 0, 30, 0.01, 1e9, 5e5)
+}
+
+
+terrain_type = "mid"  
+terrain_params = terrain_configs[terrain_type]
+
+
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
@@ -42,14 +63,13 @@ render_step_size = 1.0 / 50
 
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -62,51 +82,15 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-class SCMTerrainParams:
-    def __init__(self, soil_type):
-        if soil_type == "soft":
-            self.Bekker_Kphi = 2e6
-            self.Bekker_Kc = 0
-            self.Bekker_n = 1.1
-            self.Mohr_cohesion = 0
-            self.Mohr_friction = 30
-            self.Janosi_shear = 0.01
-            self.Elastic_stiffness = 2e8
-            self.Damping = 3e4
-        elif soil_type == "mid":
-            self.Bekker_Kphi = 5e6
-            self.Bekker_Kc = 0.1
-            self.Bekker_n = 1.2
-            self.Mohr_cohesion = 10
-            self.Mohr_friction = 40
-            self.Janosi_shear = 0.02
-            self.Elastic_stiffness = 5e8
-            self.Damping = 5e4
-        elif soil_type == "hard":
-            self.Bekker_Kphi = 1e7
-            self.Bekker_Kc = 0.2
-            self.Bekker_n = 1.3
-            self.Mohr_cohesion = 20
-            self.Mohr_friction = 50
-            self.Janosi_shear = 0.03
-            self.Elastic_stiffness = 1e9
-            self.Damping = 1e5
-        else:
-            raise ValueError("Invalid soil type. Choose from 'soft', 'mid', or 'hard'.")
-
-
-terrain_params = SCMTerrainParams("mid")  
-
-
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(terrain_params.Bekker_Kphi,
-                            terrain_params.Bekker_Kc,
-                            terrain_params.Bekker_n,
-                            terrain_params.Mohr_cohesion,
-                            terrain_params.Mohr_friction,
-                            terrain_params.Janosi_shear,
-                            terrain_params.Elastic_stiffness,
-                            terrain_params.Damping)
+terrain.SetSoilParameters(terrain_params.kphi,
+                            terrain_params.kc,
+                            terrain_params.n_exponent,
+                            terrain_params.cohesion,
+                            terrain_params.friction,
+                            terrain_params.janosi,
+                            terrain_params.stiffness,
+                            terrain_params.damping)
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

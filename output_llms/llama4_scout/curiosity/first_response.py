@@ -1,79 +1,55 @@
-import chrono as ch
-import chrono.irrlicht as chirr
+import pychrono as chrono
+import pychrono.irrlicht as irr
 
 # Initialize PyChrono environment
-ch.ChEngine.Initialize()
+chrono.ChEngine.Initialize()
 
 # Create the Irrlicht application
-app = chirr.ChIrrApp()
+app = irr.ChIrrApp()
 
-# Create the ground body
-ground = ch.ChBodyEasyTerrain(
-    "ground",
-    1000,  # x-size
-    1000,  # y-size
-    10,    # z-size (height)
-    20,    # x-steps
-    20,    # y-steps
-    ch.ChVector3d(0, 0, -5)  # position
-)
+# Create the simulation system
+system = chrono.ChSystem()
 
-# Set ground collision properties
-ground.GetCollisionModel().SetContactMaterialProperties(0.9, 0.9, 0.9)
-ground.GetCollisionModel().SetContactShapeType(ch.ChContactShapeType.SPHERE)
-
-# Add ground to the system
-ground.SetPos(ch.ChVector3d(0, 0, -5))
-ground.SetFixed(True)
-
-system = ch.ChSystemNSC()
+# Create a fixed ground with collision properties
+ground = chrono.ChBodyEasyBox(chrono.Vector(100, 10, 100),  # dimensions
+                              chrono.Vector(0, -5, 0),  # position
+                              True,  # create collision shape
+                              True)  # create visualization shape
+ground.SetBodyFixed(True)
+ground.GetCollisionShape().SetFriction(0.8)
 system.Add(ground)
 
 # Load the Curiosity rover model
-rover = ch.ChBodyEasyMesh(
-    "path/to/curiosity_rover.obj",  # replace with actual path
-    1000,  # scale
-    False,  # is convex
-    True,   # collision
-    ch.ChVector3d(0, 0, 0)  # position
-)
-
-# Add rover to the system
+rover = chrono.ChBodyEasyMesh('path/to/curiosity_rover.obj',  # mesh file path
+                              chrono.Vector(0, 0, 0),  # position
+                              True,  # create collision shape
+                              True)  # create visualization shape
+rover.SetMass(1000)  # set rover mass
 system.Add(rover)
 
-# Create a motor for steering
-steering_motor = ch.ChMotor(
-    ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)),
-    ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaterniond(0, 0, 0, 1))
-)
+# Add a motor control driver for real-time steering inputs
+steering_driver = chrono.ChSteeringDriver(rover)
+steering_driver.SetSteeringFunction(chrono.ChSteeringFunction_Sine(0.1,  # amplitude
+                                                                0.5))  # frequency
+system.Add(steering_driver)
 
-# Set up motor control driver for real-time steering inputs
-steering_driver = ch.ChFunction_Const(0)  # placeholder constant function
+# Set up visualization using Irrlicht
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraPosition(chrono.Vector(10, 10, 10))
+vis.SetCameraTarget(chrono.Vector(0, 0, 0))
+vis.EnableShadows()
+vis.EnableSFX(irr.SOUND_FX_NONE)
+vis.EnableLights()
 
-# Add steering motor and driver to the system
-system.Add(steering_motor)
-steering_motor.SetControlFunction(steering_driver)
+# Add textures and logos (assuming they are in the same directory)
+vis.AddLogo(irr.ChLogo('chronologo.png'))
+vis.AddTexture(irr.ChTexture('terrain.jpg'))
 
-# Visualization settings
-irrlicht_renderer = chirr.ChIrrlichtRenderer(system)
-irrlicht_renderer.SetWindowSize(chirr.ChVector2di(800, 600))
-irrlicht_renderer.SetWindowTitle("Curiosity Rover Simulation")
-irrlicht_renderer.UseCameraSettings(chirr.ChCameraSettings())
+# Run the simulation
+app.SetSystem(system)
+app.SetVisualSystem(vis)
+app.DoRun()
 
-# Camera settings
-camera = irrlicht_renderer.GetCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.LookAt(ch.ChVector3d(0, 0, 0))
-
-# Lighting and shadows
-irrlicht_renderer.EnableSunlight(True)
-irrlicht_renderer.EnableShadows(True)
-
-# Texture and logo
-irrlicht_renderer.EnableTextures(True)
-irrlicht_renderer.LoadTexture("path/to/texture.jpg")  # replace with actual path
-irrlicht_renderer.SetLogo("path/to/logo.png")  # replace with actual path
-
-# Simulation loop
-while irrlicht_renderer.Run():
-    system.Update(1 / 60.0)  # 1/60 s time step
+# Clean up
+chrono.ChEngine.Finalize()

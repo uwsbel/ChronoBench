@@ -61,8 +61,19 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.4)  
 patch_mat.SetRestitution(0.05)  
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVector3d(0, 0, 1))), chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'), True, 0.01, False)
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(
+        chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngAxis(math.radians(-90), chrono.ChVector3d(0, 0, 1))
+    ),  
+    chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
+    True,
+    0.01,
+    False,
+)
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
+    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True
+)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
@@ -110,7 +121,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -3,51 +3,77 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Initialize Chrono system
-    system = chrono.ChSystem()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    # Initialize the Chrono system
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    # Create terrain
-    terrain = veh.RigidTerrain(system, chrono.ChMaterialSurfaceNSC())
-    terrain.SetHeight(0)
-    terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 200, 200)
+    # Create rigid terrain with texture
+    terrain = veh.RigidTerrain(my_system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch = terrain.AddPatch(chrono.ChCoordsysD(),  # Local coordinates
+                            100, 100,  # Size X, Z
+                            patch_mat)
+    patch_mat.SetFriction(0.9)
     terrain.Initialize()
+    
+    # Set terrain texture (example texture)
+    texture_path = chrono.GetChronoDataFile('textures/concrete.jpg')
+    patch.GetMaterialSurface().GetVisualMaterial().SetTexture(texture_path, 200, 200)
 
     # Create BMW E90 Sedan vehicle with TMEASY tires
-    my_vehicle = veh.Sedan(system)
-    my_vehicle.SetTireModelType(veh.TireModelType.TMEASY)
-    my_vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
-    my_vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
-    my_vehicle.SetInitPosition(chrono.ChVectorD(0, 0.2, 0.5), chrono.ChQuaternionD(1,0,0,0))
-    my_vehicle.Initialize()
+    vehicle = veh.Sedan(my_system)
+    vehicle.SetTireModelType(veh.TireModelType.TMEASY)
+    vehicle.SetTireStepSize(0.01)  # Tire integration time step
+    vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))  # Start above terrain
+    vehicle.SetInitFwdVel(10)  # Initial forward velocity (m/s)
+    
+    # Configure visualization (mesh-based for better detail)
+    vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType.MESH)
+    
+    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT),
+                      veh.ChContactMethod.NSC,
+                      True)  # Enable visualization
 
-    # Configure TMEasy tires (optional parameters)
-    for axle in my_vehicle.GetAxles():
-        for wheel in axle.wheels:
-            wheel.tire.SetTireType(veh.TireModelType.TMEASY)
-            # Example parameter tuning (uncomment as needed)
-            # wheel.tire.GetTMEasy().SetLongitudinalStiffness(1e5)
-            # wheel.tire.GetTMEasy().SetLateralStiffness(1e5)
+    # Initialize driver with Irrlicht input
+    driver = veh.ChIrrGuiDriver()
+    vehicle.SetDriver(driver)
 
-    # Create interactive driver
-    driver = veh.ManualDriver()
-    my_vehicle.InitializeDriver(driver)
+    # Setup Irrlicht visualization
+    app = irr.ChIrrApp(my_system, 'BMW E90 Sedan Simulation', irr.dimension2du(1024, 768))
+    app.SetCamera( irr.ChIrrChaseCamera(app.GetSceneManager(), vehicle.GetChassis()) )
+    app.GetCamera().SetChaseDirection( irr.VECT_Y, True )  # Chase along Y-axis (vehicle's forward)
+    app.GetCamera().SetChasePosition( chrono.ChVectorD(0, 2, 5) )  # Position relative to chassis
+    
+    # Add lighting and skybox
+    app.AddTypicalLights()
+    app.AddLightWithShadow(chrono.ChVectorD(0, 30, 0), chrono.ChVectorD(0, 0, 0), 15, 100, 512)
+    app.AddSkyBox()
 
-    # Initialize Irrlicht visualization
-    app = irr.ChIrrApp(system, 'BMW E90 Sedan Simulation', irr.dimension2du(1280, 720))
-    app.AddLightWithShadow(chrono.ChVectorD(0, 30, 50), chrono.ChVectorD(0, 0, 0), 250, 500, 250)
-    app.SetSkyBox()
-    app.SetChaseCamera(my_vehicle.GetChassis(), 6.0, 0.5)  # Chase camera setup
-    app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    app.Add(terrain.GetPlane())  # Add terrain visualization
-    app.Add(my_vehicle.GetVisualization())  # Add vehicle visualization
+    # Bind and update assets
+    app.AssetBindAll()
+    app.AssetUpdateAll()
 
-    # Simulation settings
-    app.SetTimestep(0.01)
-    app.SetTryRealtime(True)
-
-    # Start simulation loop
-    app.MainLoop()
+    # Simulation loop
+    while app.GetDevice().run():
+        time = my_system.GetChTime()
+        
+        # Update driver inputs (steering, throttle, brake)
+        driver.Synchronize(time)
+        
+        # Update vehicle and terrain
+        vehicle.Synchronize(time)
+        terrain.Synchronize(time)
+        
+        # Advance simulation step
+        my_system.DoStepDynamics(0.01)  # Time step matches tire step
+        
+        # Render scene
+        app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        app.DrawAll()
+        app.EndScene()
 
 if __name__ == '__main__':
     main()

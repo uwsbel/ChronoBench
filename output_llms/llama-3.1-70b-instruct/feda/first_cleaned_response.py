@@ -1,70 +1,53 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.vehicle as chrono_vehicle
+import pychrono.vehicle as veh
 import numpy as np
 
 
-chrono.SetChronoDataPath('./data/')
+mysim = chrono.ChSystemNSC()
 
 
-sim = chrono.ChSystemNSC()
+vis = chronoirr.ChVisualSystemIrrlicht(mysim)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('FEDA Vehicle Simulation')
-vis.SetCamera(chrono.ChVectorD(0, 0, 6), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+chrono.GetLog().SetPathToChronoData("/path/to/data")
 
 
-vehicle = chrono_vehicle.ChFedaVehicle(sim)
+feda = veh.FE_Vehicle(mysim)
 
 
-vehicle.SetContactMethod(chrono_vehicle.ContactMethod_ELLIPSOID)
-vehicle.SetTireModel(chrono_vehicle.TireModel_RIGID_RING)
-vehicle.SetChassisVisualization(chrono_vehicle.VisualizationType_MESH)
-vehicle.SetSuspensionVisualization(chrono_vehicle.VisualizationType_MESH)
-vehicle.SetSteeringVisualization(chrono_vehicle.VisualizationType_MESH)
-vehicle.SetWheelVisualization(chrono_vehicle.VisualizationType_MESH)
+feda.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+feda.SetChassisOrientation(chrono.Q_from_AngX(chrono.CH_C_PI / 4))
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+feda.SetContactMethod(chrono.ContactMethod_NSC)
+feda.SetTireModel(veh.TireModel_RigidRing)
 
 
-terrain = chrono.ChBodyEasyBox(sim, 10, 10, 1, 1000, True, True)
-terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.SetVisualizationType(chrono.ChVisualizationType_MESH)
-terrain.SetMesh(chrono.ChTriangleMesh())
-terrain.GetMesh().LoadWavefrontMesh('data/terrain.obj')
-terrain.SetTexture(chrono.ChTexture('data/terrain.jpg'))
+terrain = veh.RigidTerrain(mysim)
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
+terrain.SetFriction(0.9)
 
 
-sim.Add(vehicle.GetPart(0))
-sim.Add(terrain)
+feda.AddVisualization(chrono.ChVisualizationType_MESH)
+feda.SetVisualizationType(chrono.ChVisualizationType_MESH)
 
 
-driver = chrono_vehicle.ChIrrlichtDriver()
-driver.SetVehicle(vehicle)
-driver.SetSteeringRange(-0.5, 0.5)
-driver.SetThrottleRange(0, 100)
-driver.SetBrakingRange(0, 100)
+driver = veh.ChIrrlichtDriver(feda, vis)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
 
-vis.SetCameraFollowMode(chrono.ChVectorD(0, 0, 6), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+vis.SetCamera(chrono.ChVectorD(0, 1, -3), chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
 
 
-while sim.GetChTime() < 10:
-    sim.DoStepDynamics(0.02)
-    vis.Render()
-    vis.PollEvents()
-    driver.Synchronize(0.02)
-
-    
-    vehicle.Update(0.02)
-
-    
-    vis.Render()
-
-    
-    sim.GetChTime()
+while vis.Run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    mysim.DoStepDynamics(0.02)
+    driver.Synchronize()
+    vis.DrawAll()
+    vis.EndScene()
+    chrono.ChUtils::Sleep(0.02)

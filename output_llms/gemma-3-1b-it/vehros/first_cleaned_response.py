@@ -4,52 +4,53 @@ import time
 import random
 
 
-simulation_time = 100  
-dt = 0.1  
+simulation_duration = 60  
+time_step = 0.1  
 terrain_friction = 0.9  
 terrain_restitution = 0.8  
-vehicle_type = "SUV"  
-contact_method = "Contact"  
-engine_type = "Diesel"
-tire_model = "All-Terrain"
+vehicle_type = "SUV"
+contact_method = "Impact"
+engine_type = "Turbo"
+tire_model = "All Season"
+vehicle_mass = 1500  
+vehicle_weight = 500  
+vehicle_speed = 25  
 initial_position = [0, 0, 0]
-initial_velocity = 10  
-initial_acceleration = 0.1  
+initial_velocity = 0
+initial_acceleration = 0
 initial_steering_angle = 0
-initial_throttle = 0
 initial_brake = 0
-initial_radius = 1.0 
 
 
-pychrono.init()
+chrono = pychrono.Chronos()
 
 
-
-vehicle = pychrono.Vehicle(
+vehicle = chrono.Vehicle(
     id="vehicle",
     type=vehicle_type,
-    position=initial_position,
-    velocity=initial_velocity,
+    mass=vehicle_mass,
+    weight=vehicle_weight,
+    speed=vehicle_speed,
     acceleration=initial_acceleration,
     steering_angle=initial_steering_angle,
-    throttle=initial_throttle,
     brake=initial_brake,
-    radius=initial_radius
+    contact_method=contact_method,
+    terrain_friction=terrain_friction,
+    terrain_restitution=terrain_restitution
 )
 
 
-terrain = pychrono.Terrain(
+terrain = chrono.Terrain(
     id="terrain",
-    type=terrain_friction,
+    heightmap = np.zeros((100, 100), dtype=np.float32),  
     friction=terrain_friction,
-    restitution=terrain_restitution,
-    heightmap=np.random.rand(100, 100)  
+    restitution=terrain_restitution
 )
 
 
-ros_manager = pychrono.Manager()
+ros_manager = chrono.Manager()
 ros_manager.register_handlers(
-    "vehicle_handler",
+    "vehicle_handler",  
     lambda event: print(f"Vehicle Event: {event}")
 )
 
@@ -57,38 +58,32 @@ ros_manager.register_handlers(
 try:
     while True:
         
-        
-        vehicle.update(dt)
+        current_time = chrono.time()
+        current_position = vehicle.position
+        current_velocity = vehicle.velocity
+        current_steering_angle = vehicle.steering_angle
+        current_brake = vehicle.brake
 
         
-        terrain.update(dt)
+        terrain.update(current_position, current_velocity, current_steering_angle, current_brake)
 
         
         
         
-        driver_input = {
-            "throttle": initial_throttle,
-            "brake": initial_brake,
-            "steering_angle": initial_steering_angle
-        }
-        print(f"Driver Input: {driver_input}")
+        if current_time >= time_step:
+            print("Time elapsed.  Updating driver state...")
+            
+            current_brake = max(0, current_brake - 0.1) 
+            print("Brake applied.")
 
         
-        ros_manager.publish(
-            "vehicle_state",
-            {
-                "position": vehicle.position,
-                "velocity": vehicle.velocity,
-                "acceleration": vehicle.acceleration,
-                "steering_angle": vehicle.steering_angle,
-                "throttle": vehicle.throttle,
-                "brake": vehicle.brake
-            }
-        )
+        chrono.sync(current_time)
 
         
-        time.sleep(dt)
+        
+        
+        print(f"Time: {current_time}")
 
 except KeyboardInterrupt:
     print("Simulation interrupted.")
-    print("ROS Manager:  Data published successfully.")
+    break

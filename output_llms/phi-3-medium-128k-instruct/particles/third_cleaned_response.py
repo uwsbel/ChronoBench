@@ -119,12 +119,16 @@ while vis.Run():
     sys.DoStepDynamics(stepsize)
 
 
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetVel(chrono.ChVector3d(0.5, 0, 0.1))
-sys.Add(msphereBody2)
+sphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere2.SetPos(chrono.ChVector3d(-10, -10, 0))
+sphere2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(sphere2)
+sphere2.SetVelocity(chrono.ChVector3d(0.5, 0, 0.1))
 
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetVel(chrono.ChVector3d(-0.5, 0, -0.1))
-sys.Add(msphereBody3)
+sphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+sphere3.SetPos(chrono.ChVector3d(0, 20, 0))
+sphere3.SetVelocity(chrono.ChVector3d(0, -0.5, 0.2))
+sys.Add(sphere3)
+
+
+G_constant = 6.674e-11

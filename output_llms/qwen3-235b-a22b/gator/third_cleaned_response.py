@@ -88,7 +88,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 2.0   
 throttle_time = 2.0   
-braking_time = 1.0     
+braking_time = 0.6    
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,6 +102,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -111,6 +112,7 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
     
     driver_inputs = driver.GetInputs()

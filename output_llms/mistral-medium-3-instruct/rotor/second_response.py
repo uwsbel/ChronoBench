@@ -16,7 +16,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));  # Changed gra
 beam_L = 10  # Changed beam length to 10
 beam_ro = 0.060  # Changed outer radius to 0.060
 beam_ri = 0.055  # Changed inner radius to 0.055
-CH_PI = 3.141592653589793  # More precise value for PI
+CH_PI = 3.141592653589793  # More precise value of PI
 
 # Create a section, i.e. thickness and material properties
 # for beams. This will be shared among some beams.
@@ -47,11 +47,11 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
                   msection,  # section of the beam
                   20,  # number of sections (spans)
                   chrono.ChVector3d(0, 0, 0),  # start point
-                  chrono.ChVector3d(beam_L, 0, 0),  # end point (changed to 10)
+                  chrono.ChVector3d(beam_L, 0, 0),  # end point
                   chrono.VECT_Y,  # suggested Y direction of section
                   1)  # order (3 = cubic, etc)
 
-node_mid = builder.GetLastBeamNodes()[int(m.floor(builder.GetLastBeamNodes().size() / 2.0))]
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
 # Create the flywheel and attach it to the center of the beam
 

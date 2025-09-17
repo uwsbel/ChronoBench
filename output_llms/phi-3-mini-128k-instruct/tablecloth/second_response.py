@@ -71,17 +71,15 @@ for iz in range(nsections_z):
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-mvisualizeshellA.SetFaceMode(chrono.ChVisualShapeFEA.FaceMode_SMOOTH)
+mvisualizeshellA.SetFaceType(chrono.ChVisualShapeFEA.FaceType_SMOOTH)
 mvisualizeshellA.SetWireframe(False)
 mvisualizeshellA.SetBackFaceCulling(True)
-mvisualizeshellA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizeshellA.SetGlyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellA.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-mvisualizeshellB.SetSymbolsThickness(0.006)
 mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -114,40 +112,30 @@ while vis.Run():
     sys.DoStepDynamics(timestep)
 
 # Node monitoring and loading setup
-nodePlotA = chrono.ChVector3d(0, 0, 0)
-nodePlotB = chrono.ChVector3d(L_x, 0, 0)
+nodePlotA = chrono.ChVisualElement(mvisualizeshellA)
+nodePlotB = chrono.ChVisualElement(mvisualizeshellB)
 nodesLoad = []
-ref_X = lambda x: x
-ref_Y = lambda y: y
-load_force = chrono.ChVector3d(0, -9.81, 0)
+ref_X = chrono.ChVector3d(0, 0, 0)
+ref_Y = chrono.ChVector3d(0, 0, 0)
+load_force = chrono.ChVector3d(0, -1000, 0)
 
-# Interpolate reference points
-x_ref = ref_X(L_x / 2)
-y_ref = ref_Y(0)
-
-# Apply loads
-for node in mynodes:
-    if node.GetPosition().x == nodePlotA.x:
-        nodesLoad.append(load_force)
-
-# Element monitoring
-for element in [melementA, melementB]:
-    if element == melementmonitor:
-        element.SetMonitor(True)
+# Monitoring nodes and elements
+mnodemonitor = chrono.ChNodeFEAxyz(mynodes[0])
+melementmonitor = melementA
 
 # Fix upper nodes
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
-# Setup monitoring nodes and elements
-mnodemonitor = mynodes[0]
-melementmonitor = melementA
+# Adjust visualization shapes
+# Uncomment the following lines for optional visualization adjustments
+# mvisualizeshellA.SetFaceType(chrono.ChVisualShapeFEA.FaceType_SMOOTH)
+# mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetBackFaceCulling(False)
 
-# Simulation loop
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    sys.DoStepDynamics(timestep)
-    sys.UpdateMesh()
+# Solver adjustment
+# No change needed as the solver is already set to PardisoMKL with LockSparsityPattern=True
+
+# Time step adjustment
+# No change needed as the time step is already set to 0.005

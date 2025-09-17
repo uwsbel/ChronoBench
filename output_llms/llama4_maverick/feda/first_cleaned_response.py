@@ -1,62 +1,77 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
 
 
-print("Copyright (c) 2023 projectchrono.org")
+def main():
+    
+    chrono.SetChronoDataPath("/path/to/chrono/data/")  
+    sys = chrono.ChSystemSMC()
 
+    
+    init_loc = chrono.ChVector3d(0, 0, 1.0)
+    init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+    vehicle = veh.FEDA_Vehicle(sys, init_loc, init_rot)
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
-veh.SetDataPath("/path/to/chrono/vehicle/data/")
+    
+    vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+    vehicle.SetTireType(veh.TireModelType_TMEasy)
 
+    
+    vehicle.Initialize()
 
-init_loc = chrono.ChVectorD(0, 0.5, 0.6)
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle = veh.FEDA_Vehicle("FEDA", veh.ContactMethod_SMC, veh.FEDA_TireModel_TMEasy)
+    
+    cam_pos = chrono.ChVector3d(10, 10, 5)
+    cam_target = vehicle.GetChassis().GetPos()
+    cam = chronoirr.ChIrrCamera(1, cam_pos, cam_target)
 
+    
+    terrain = veh.RigidTerrain(sys)
+    terrain.SetContactFrictionCoefficient(0.9)
+    terrain.SetContactRestitutionCoefficient(0.1)
+    terrain.SetContactMaterial(chrono.ChMaterialSurfaceSMC())
+    mesh_file = chrono.GetChronoDataFile("terrain/height_maps/my_terrain.obj")
+    mesh = chrono.ChTriangleMeshConnected()
+    mesh.LoadWavefrontMesh(mesh_file)
+    mesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1))
+    mesh_asset = chrono.ChTriangleMeshShape()
+    mesh_asset.SetMesh(mesh)
+    terrain.AddMesh(mesh_asset, chrono.ChVector3d(0, 0, 0))
+    terrain.Initialize()
 
-vehicle.Initialize(init_loc, init_rot)
+    
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
 
+    
+    vis = chronoirr.ChIrrApp(sys, "FEDA Vehicle Simulation", chronoirr.dimension2du(1280, 720))
+    vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    vis.AddSkyBox()
+    vis.AddCamera(cam)
+    vis.AddTypicalLights()
+    vis.AttachVehicle(vehicle)
 
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
+    
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    while vis.Run():
+        time = sys.GetChTime()
+        driver_inputs = driver.GetInputs()
+        vehicle.Advance(time, driver_inputs)
+        sys.DoStepDynamics(1e-3)
+        vis.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+        vis.Render()
+        vis.EndScene()
+        realtime_timer.Spin(1.0 / 50.0)
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)), "data/terrain/heightmaps/test64.bmp", 128, 128, 0, 0.1)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 16, 16)
-patch.SetContactFrictionCoefficient(0.9)
-patch.SetContactRestitutionCoefficient(0.01)
-patch.SetContactMaterial(0.8, 0.01, 2e8)
-terrain.Initialize()
-
-
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(vehicle.GetSystem())
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("FEDA Vehicle Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + "chrono_logo_white.png")
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 5, -5), init_loc)
-vis.AddTypicalLights()
-
-
-driver = veh.ChIrrGuiDriver(vis)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.06)
-driver.Initialize()
-
-
-while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
-    driver_inputs = driver.GetInputs()
-    vehicle.Advance(time, driver_inputs)
-    vis.Run()
-    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    vis.Render()
-    vis.EndScene()
-    chrono.ChThreestepper_RungeKutta_Explicit(vehicle.GetSystem()).Advance(1 / 50.0)
+if __name__ == "__main__":
+    main()

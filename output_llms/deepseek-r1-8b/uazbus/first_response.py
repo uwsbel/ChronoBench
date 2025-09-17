@@ -1,101 +1,83 @@
 import pychrono as pychrono
-from pychrono import (Vehicle, Driver, Terrain, Material, Scene, Renderer, Camera, Light)
-import numpy as np
+import pychrono.vehicles as vehicles
+from pychrono.vehicles import Vehicle
+from pychrono.objects import *
+from pychrono import contact
+from pychrono.utils import *
+from pychrono.vehicles.damages import *
+from pychrono.vehicles import Driver
 
-# Initialize PyChrono environment
-pychrono.init()
+def main():
+    # Initialize PyChrono environment
+    sim = pychrono.Sim()
+    sim.set_global.gravity(pychrono.Vec3(0, -9.81, 0))
+    sim.set_time_unit(1.0)  # seconds
 
-# Create a new scene
-scene = Scene()
-renderer = Renderer()
-camera = Camera()
-light = Light()
+    # Initialize vehicle
+    vehicle = Vehicle("UAZBUS", mass=1000, inertia=pychrono.inertia.I(2000, 400, 400, 0, 0, 0, 0, 0, 0))  # inertia in kg*m^2
+    vehicle.set_initial_position(Point3d(0, 1, 0))  # assuming z=0 is ground level
+    vehicle.set_initial_orientation(Rot3d(1, 0, 0))  # initial orientation
+    vehicle.set_friction(1000)  # default friction coefficient
+    vehicle.set_restitution(0.3)  # default restitution coefficient
 
-# Initialize vehicle
-vehicle = Vehicle()
-# Add a UAZBUS vehicle with appropriate dimensions and mass
-vehicle.name = "UAZBUS"
-vehicle.mass = 3500  # Mass of a typical UAZBUS truck
-vehicle.length = 5.0  # Length of the vehicle
-vehicle.width = 2.5  # Width of the vehicle
-vehicle.height = 3.0  # Height of the vehicle
-vehicle.position = np.array([0.0, 0.0, 5.0])  # Initial position (x,y,z)
-vehicle.orientation = pychrono.Vector3d(0, 0, 1)  # Initial orientation (roll, pitch, yaw)
-vehicle.velocity = np.array([0.0, 0.0, 0.0])  # Initial velocity
-vehicle.angular_velocity = np.array([0.0, 0.0, 0.0])  # Initial angular velocity
+    # Initialize terrain
+    terrain = pychrono.objects.Plane("ground", pychrono.Vec3(0, 0, 0), pychrono.Vec3(0, 0, 1), friction=1000, restitution=0.3)
 
-# Initialize terrain
-terrain = Terrain()
-terrain.name = "RigidTerrain"
-terrain.position = np.array([0.0, 0.0, 0.0])  # Center of the terrain
-terrain.size = 100.0  # Size of the terrain (x,y)
-terrain.material = Material()
-terrain.material.friction = 0.5  # Friction coefficient
-terrain.material.restitution = 0.3  # Restitution coefficient
+    # Initialize driver
+    driver = Driver("Driver", vehicle)
+    driver.set_name("AI Driver")
+    driver.set_path_following(True)
+    driver.set_max_speed(20)  # m/s
+    driver.set_acceleration_max(0.5)  # m/s²
+    driver.set_steering_max(0.5)  # rad/s
 
-# Initialize driver system
-driver = Driver()
-driver.name = "Driver"
-driver.position = np.array([0.0, 0.0, 5.0])  # Driver position
-driver.control_input = 0.0  # Initial control input (steering, acceleration, braking)
+    # Define path for driver
+    path = pychrono.path.Path("straight_path", pychrono.Vec3d(0, 0, 0), pychrono.Vec3d(100, 0, 0), 0)  # straight line in x-direction
 
-# Setup visualization
-renderer = Scene()
-renderer.camera = camera
-camera.position = np.array([15.0, 15.0, 15.0])  # Camera position
-camera.look_at = np.array([0.0, 0.0, 0.0])  # Camera looking at origin
-renderer.width = 1024  # Width of the renderer
-renderer.height = 768  # Height of the renderer
-renderer.fov = 45.0  # Field of view
-renderer.use_deprecated_light = True
-renderer.add_light(source=light, position=np.array([10.0, 10.0, 10.0]))
+    # Initialize visualization
+    renderer = pychrono.renderers.IrrlichtRenderer()
+    renderer.set_camera_position(Point3d(10, 10, 10))
+    renderer.set_look_at(Point3d(0, 0, 0))
+    renderer.set_light_direction(Point3d(0, 0, 1))
+    renderer.set_light_color(Color(1, 1, 1))
+    renderer.set_update_rate(1000)  # ms
 
-# Add the vehicle and terrain to the scene
-scene.add_object(vehicle)
-scene.add_object(terrain)
+    # Add vehicle to renderer
+    renderer.add_object(vehicle, "vehicle")
+    renderer.add_object(terrain, "terrain")
 
-# Add the driver to the scene
-scene.add_driver(driver)
+    # Add contact sensor
+    contact = contact.Contact("vehicle_ground", vehicle, terrain)
 
-# Setup simulation loop
-timestep = 0.001  # Timestep for simulation
-loop = pychrono.SimulationLoop()
-loop.start()
+    # Simulation loop
+    dt = 0.001  # time step
+    while True:
+        # Update driver target position based on path and speed
+        current_pos = vehicle.get_position()
+        current_speed = vehicle.get_linear_velocity().x
+        if current_speed < driver.get_max_speed():
+            target_pos = path.get_point_at_distance(current_pos.x, current_speed * dt)
+        else:
+            target_pos = path.get_end_point()
 
-while True:
-    # Synchronize and advance all components
-    pychrono同步和推进所有组件
-    pychrono同步和推进所有组件
+        # Update driver's desired state
+        driver.set_target_position(target_pos)
+        driver.set_desired_speed(driver.get_max_speed())
 
-    # Get the current state of the vehicle
-    vehicle_state = vehicle.get_state()
-    driver_input = driver.get_input()
+        # Get current state
+        state = sim.get_state()
+        vehicle_state = state.get_vehicle_state()
+        vehicle_state.set_linear_velocity(vehicle.get_linear_velocity())
+        vehicle_state.set_angular_velocity(vehicle.get_angular_velocity())
 
-    # Update the vehicle based on driver input
-    vehicle.apply_force(
-        force=pychrono.Vector3d(
-            0.0,
-            0.0,
-            driver_input * 1000.0  # Acceleration force
-        ),
-        body_index=0
-    )
-    vehicle.apply_torque(
-        torque=pychrono.Vector3d(
-            0.0,
-            0.0,
-            driver_input * 100.0  # Steering torque
-        ),
-        body_index=0
-    )
+        # Update visualization
+        renderer.update()
 
-    # Update the simulation
-    pychrono.update(timestep)
+        # Perform simulation step
+        sim.step(dt)
 
-    # Render the scene
-    renderer.begin_frame()
-    renderer.draw_scene()
-    renderer.end_frame()
+        # Update contact
+        contact.update()
 
-    # Sleep for the timestep
-    pychrono.sleep(timestep)
+if __name__ == "__main__":
+    main()

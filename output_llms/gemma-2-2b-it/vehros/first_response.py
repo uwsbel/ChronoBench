@@ -1,58 +1,51 @@
 import pychrono as chrono
-import pychrono.physics as phys
+import pychrono.physics as physics
+import pychrono.vehicle as vehicle
+import pychrono.terrain as terrain
 import pychrono.ros as ros
+import pychrono.driver as driver
 
-# --- Initialize PyChrono ---
-app = chrono.Application()
+# Initialize PyChrono
+chrono.init()
 
-# --- Create the environment ---
+# Create the world
 world = chrono.World()
-world.set_gravity(chrono.Vector3(0, -9.81, 0))
 
-# --- Create the terrain ---
-terrain = chrono.Terrain(
-    chrono.Material("terrain_material"),
-    chrono.Friction(0.2),
-    chrono.Restitution(0.5),
-)
-world.add(terrain)
+# Create the terrain
+terrain_data = terrain.TerrainData()
+terrain_data.setFriction(0.5)
+terrain_data.setRestitution(0.8)
+terrain = terrain.Terrain(terrain_data, world)
 
-# --- Create the HMMWV vehicle ---
-vehicle = chrono.Vehicle(
-    "HMMWV",
-    chrono.ContactMethod("Wheel-Ground"),
-    engine_type="Internal Combustion",
-    tire_model="Michelin",
-)
-vehicle.set_mass(1000)
-vehicle.set_wheel_radius(0.2)
-vehicle.set_wheel_base(2.5)
-vehicle.set_center_of_mass(chrono.Vector3(0, 0.5, 0))
+# Create the HMMWV vehicle
+vehicle_data = vehicle.VehicleData()
+vehicle_data.setContactMethod(vehicle.ContactMethod.GROUND)
+vehicle_data.setEngineType(vehicle.EngineType.INTERNAL_COMBUSTION)
+vehicle_data.setTireModel(vehicle.TireModel.TYRE_TIRE_MODEL)
+vehicle = vehicle.Vehicle(vehicle_data, world)
 
-# --- Add the vehicle to the world ---
-world.add(vehicle)
+# Set initial vehicle parameters
+vehicle.setMass(1000)
+vehicle.setPosition(chrono.Vec3(0, 0, 0))
+vehicle.setVelocity(chrono.Vec3(0, 5, 0))
 
-# --- Create the driver system ---
-driver = chrono.Driver()
-driver.set_control_mode("Manual")
+# Create the driver system
+driver = driver.Driver(vehicle)
 
-# --- Initialize ROS ---
-ros_manager = ros.ROSManager(app, "vehicle_state_publisher")
-ros_manager.register_handler(chrono.ClockSynchronization)
-ros_manager.register_handler(driver.get_inputs)
-ros_manager.register_handler(vehicle.get_state)
+# Create the ROS manager
+ros_manager = ros.RosManager(world)
+ros_manager.registerHandler(chrono.ClockSynchronizationHandler())
+ros_manager.registerHandler(driver.DriverInputHandler())
+ros_manager.registerHandler(vehicle.VehicleStateHandler())
 
-# --- Simulation loop ---
-while True:
-    # --- Update the clock ---
-    app.update_clock()
+# Set the simulation loop
+chrono.SimulationLoop(world)
 
-    # --- Update the vehicle and driver systems ---
-    vehicle.update(app.get_time())
-    driver.update(app.get_time())
+# Define the simulation time step
+dt = 0.01
 
-    # --- Publish the vehicle state to ROS ---
-    ros_manager.publish_data()
+# Define the simulation duration
+duration = 10
 
-    # --- Sleep for a short duration ---
-    app.sleep(0.1)
+# Start the simulation
+chrono.run(duration)

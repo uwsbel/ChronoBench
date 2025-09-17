@@ -24,9 +24,6 @@ tire_model = veh.TireModelType_TMEASY
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-terrain_height_map = veh.HeightMap()
-terrain_height_map.SetSize(terrainLength, terrainWidth)
-terrain_height_map.SetHeight(terrainHeight)
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -43,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
-vehicle = veh.MAN_5t()  
+vehicle = veh.MAN_5t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -66,15 +62,10 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(terrain_height_map)
-
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.RigidHillTerrain(vehicle.GetSystem()) 
+terrain.SetHeightMap(veh.GetDataFile("terrain/heightmap.txt")) 
+terrain.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg")) 
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
@@ -103,7 +94,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -113,10 +104,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

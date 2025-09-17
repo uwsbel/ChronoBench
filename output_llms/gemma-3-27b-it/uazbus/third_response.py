@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Type of tire model (RIGID, TMEASY)
-tire_model = veh.TireModelType_RIGID  # Changed to RIGID
+tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -121,9 +121,6 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Set constant throttle for forward movement
-    driver_inputs.throttle = 0.5
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -138,6 +135,9 @@ while vis.Run():
 
     # Increment frame number
     step_number += 1
+
+    # Move the vehicle forward
+    driver.SetThrottle(0.5)
 
     # Spin in place for real time to catch up
     s.Spin(step_size)

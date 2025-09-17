@@ -4,57 +4,61 @@ import pychrono.vehicle as veh
 import pychrono.engine as engine
 
 # Initialize the Chrono::Engine system
-chrono.SetChronoDataPath('../../data/')  # Set the path to the Chrono data directory
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to the Chrono data directory
 
-# Create a Chrono::Engine physical system
+# Create the simulation system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Set the gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the ground body
-ground_body = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-ground_body.SetPos(chrono.ChVectorD(0, -0.05, 0))
-ground_body.SetBodyFixed(True)
-system.Add(ground_body)
+ground = chrono.ChBodyEasyBox(10, 10, 0.5, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+system.Add(ground)
 
-# Create the Turtlebot
-turtlebot = veh.ChTurtlebot()
-turtlebot.Init()
-turtlebot.SetChassisBodyPos(chrono.ChVectorD(0, 0.5, 0))
-turtlebot.SetChassisBodyRot(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
-system.Add(turtlebot.GetVehicle())
+# Create the Turtlebot robot
+turtlebot = veh.ChTankVehicleSystem()
+turtlebot.Initialize(system, chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Add the Turtlebot to the system
+system.Add(turtlebot)
 
 # Create the Irrlicht visualization system
-visualization = chronoirr.ChIrrApp()
-visualization.AddSystem(system)
-visualization.AddLogo()
-visualization.AddSkyBox()
-visualization.AddTypicalLights()
-visualization.AddTypicalCamera(chrono.ChVectorD(0, 0.5, -1.5), chrono.ChVectorD(0, 0.5, 0))
+visualization = chronoirr.ChIrrApp(system, 'Turtlebot Simulation', chronoirr.dimension2du(800, 600))
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_opengl.png'))
+visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 10, 40, 50)
 
-# Set up the simulation step size and duration
-step_size = 0.01  # 10 ms
-end_time = 10  # 10 seconds
+# Set the camera position and target
+camera = visualization.GetSceneManager().getActiveCamera()
+camera.setPosition(chrono.ChVectorD(0, -5, 5))
+camera.setTarget(chrono.ChVectorD(0, 0, 0.5))
 
-# Simulation loop
-start_time = system.GetChTime()
-while system.GetChTime() - start_time < end_time:
-    # Control the Turtlebot's motors
-    if system.GetChTime() < 2:
-        turtlebot.SetMotorSpeed(1, 1)  # Move forward
-    elif system.GetChTime() < 4:
-        turtlebot.SetMotorSpeed(1, -1)  # Turn left
-    elif system.GetChTime() < 6:
-        turtlebot.SetMotorSpeed(-1, 1)  # Turn right
-    else:
-        turtlebot.SetMotorSpeed(1, 1)  # Move forward
-
+# Create a simulation step function
+def simulation_step():
     # Update the simulation
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(0.01)
 
     # Render the scene
     visualization.BeginScene()
     visualization.Render()
     visualization.EndScene()
 
-# Close the visualization
-visualization.Close()
+# Control the Turtlebot's motors
+def control_turtlebot(time):
+    if time < 5:
+        turtlebot.SetMotorSpeed(1, 1)  # Move forward
+    elif time < 10:
+        turtlebot.SetMotorSpeed(1, -1)  # Turn right
+    elif time < 15:
+        turtlebot.SetMotorSpeed(-1, 1)  # Turn left
+    else:
+        turtlebot.SetMotorSpeed(0, 0)  # Stop
+
+# Simulation loop
+time = 0
+while visualization.Run():
+    control_turtlebot(time)
+    simulation_step()
+    time += 0.01

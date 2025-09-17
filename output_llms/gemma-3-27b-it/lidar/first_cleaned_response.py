@@ -4,61 +4,96 @@ import pychrono.postprocess
 import numpy as np
 
 
-chrono.SetChronoDataPath("./")  
+
+
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+
+
+
 
 
 mesh_file = "cube.obj"  
-mesh_body = chrono.ChBodyEasy()
-mesh_body.SetBodyFixed(True)
-mesh_body.AddAsset(chrono.ChTriangleMeshConnected())
-mesh_body.GetAsset().LoadFromFile(mesh_file)
-mesh_body.SetCollide(True)
-system.Add(mesh_body)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadFromFile(mesh_file)
+
+
+body = chrono.ChBodyEasy()
+body.AddAsset(mesh)
+body.SetBodyFixed(True)
+system.Add(body)
+
+
+
+
+
 
 
 sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(mesh_body)
+sensor_manager.AddSensor(body)
 
 
 lidar = chrono.ChLidarSensor()
 lidar.SetSensorName("Lidar")
+lidar.SetBody(body)
 lidar.SetScanRate(10)  
-lidar.SetRange(10)  
+lidar.SetRange(10.0)  
 lidar.SetResolution(180)  
-lidar.SetFOV(np.pi / 2)  
+lidar.SetFOV(360.0)  
 lidar.SetNoiseStdDev(0.01)  
 lidar.SetVisualize(True)  
 lidar.SetSaveData(True)  
-lidar.SetOutputFileName("lidar_data.txt")  
+lidar.SetSavePath("lidar_data.txt")  
 
 sensor_manager.AddSensor(lidar)
 
 
-orbit_radius = 5
-orbit_speed = 1  
-time = 0
-def update_lidar_position(body, time):
-    
-    x = orbit_radius * np.cos(orbit_speed * time)
-    z = orbit_radius * np.sin(orbit_speed * time)
-    lidar.SetPos(chrono.ChVectorD(x, 0, z))
-    return lidar
+
+
+
+
+
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(body,
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 5), chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.AddLink(revolute)
+
+
+revolute.Set_motor_speed(0.5) 
+
+
+
+
+
+
+
+vis = chrono.ChVisualSystemGL()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Lidar Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddTypicalLights()
 
 
 time_step = 0.01
-num_steps = 100
+time_end = 10
 
-for i in range(num_steps):
-    time += time_step
-    update_lidar_position(mesh_body, time)
 
+while system.GetChTime() < time_end:
     system.DoStepDynamics(time_step)
-
+    
     
     if lidar.HasNewData():
-        buffer = lidar.GetBuffer()
-        print(f"Step {i}: Lidar data points = {len(buffer)}")
+        data = lidar.GetBuffer()
+        print("Lidar Data:")
+        for point in data:
+            print(f"  Distance: {point[0]}, Angle: {point[1]}")
+
+    vis.Render()
+    vis.ProcessEvents()

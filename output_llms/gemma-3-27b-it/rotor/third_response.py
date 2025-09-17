@@ -66,8 +66,7 @@ sys.Add(truss)
 
 # Create the end bearing
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 # Create the motor that rotates the beam
@@ -76,12 +75,12 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 # Connect the rotor and the stator and add the motor to the system:
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      truss,  # body B (master)
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))  # motor frame, in abs. coords
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))  # motor frame, in abs. coords
                      )
 sys.Add(rotmotor1)
 
-# Custom motor function
+
+# Define custom motor function
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -98,6 +97,7 @@ class ChFunctionMyFun(chrono.ChFunction):
             return self.A2 * m.sin(self.w * x)
         else:
             return self.A1 * m.sin(self.w * x)
+
 
 f_ramp = ChFunctionMyFun(A1=10, A2=5, T1=2, T2=5, T3=8, w=1)
 rotmotor1.SetMotorFunction(f_ramp)
@@ -129,7 +129,8 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
-#sys.DoStaticLinear() # Uncomment for static analysis
+#sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT) # More precise timestepper
+sys.DoStaticLinear()
 
 while vis.Run():
     vis.BeginScene()

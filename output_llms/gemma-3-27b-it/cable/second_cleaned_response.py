@@ -7,6 +7,7 @@ import pychrono.irrlicht as chronoirr
 
 
 
+
 class Model1:
     def __init__(self, system, mesh):
         
@@ -83,11 +84,11 @@ solver = chrono.ChSolverMINRES()
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
-solver.SetMaxIterations(200)  
-solver.SetTolerance(1e-10)  
-solver.EnableDiagonalPreconditioner(True)  
-solver.EnableWarmStart(True)  
-solver.SetVerbose(False)  
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+solver.EnableWarmStart(True)
+solver.SetVerbose(False)
 
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)

@@ -3,32 +3,42 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# 1. Modified initial vehicle location
+# Initial vehicle location and orientation (Modified to -50 in X)
 initLoc = chrono.ChVector3d(-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# 2. Increased terrain length
-terrainHeight = 0
-terrainLength = 200.0  # Changed from 100.0
-terrainWidth = 100.0
+# Rigid terrain (Modified length to 200.0)
+terrainHeight = 0      # terrain height
+terrainLength = 200.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
+# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50
 
-# Create vehicle
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the FEDA vehicle, set parameters, and initialize
 vehicle = veh.FEDA()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -36,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -46,7 +57,7 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -55,12 +66,11 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# 1. Fixed texture path (veh.GetDataFile -> chrono.GetChronoDataFile)
-patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create visualization
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -71,41 +81,64 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# 1. Create ISO double lane change path
-path = veh.ChPathGen_ISO_double_lane_change(chrono.ChVector3d(0, 0, 0.5), 3.5, 100.0, 100)
-path.SetColor(chrono.ChColor(1, 0, 0))  # Red path for visualization
-vis.AddPath(path, 0.05, chrono.ChColor(1, 0, 0))  # Visualize the path
+# Create ISO standard double lane change path
+path = chrono.ChBezierCurve()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-40, 0, 0))
+path.AddPoint(chrono.ChVector3d(-30, 3.5, 0))
+path.AddPoint(chrono.ChVector3d(-15, 3.5, 0))
+path.AddPoint(chrono.ChVector3d(0, 0, 0))
+path.AddPoint(chrono.ChVector3d(15, -3.5, 0))
+path.AddPoint(chrono.ChVector3d(30, -3.5, 0))
+path.AddPoint(chrono.ChVector3d(40, 0, 0))
+path.AddPoint(chrono.ChVector3d(50, 0, 0))
 
-# 1. Create path follower driver
-driver = veh.ChPathFollowerDriver(vehicle, path, "ISO_Double_Lane_Change", 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.8, 0.01, 0.2)  # Kp, Ki, Kd
-driver.GetSpeedController().SetGains(0.4, 0.01, 0.1)     # Kp, Ki, Kd
+# Create path-follower driver
+driver = veh.ChPathFollowerDriver(vehicle, path, "my_path", 10.0)
+
+# Configure steering controller
+steering_pid = driver.GetSteeringPID()
+steering_pid.SetGains(0.8, 0.0, 0.02)  # Kp, Ki, Kd
+steering_pid.SetLookAheadDistance(5.0)
+
+# Configure speed controller
+speed_pid = driver.GetSpeedPID()
+speed_pid.SetGains(0.4, 0.0, 0.0)  # Kp, Ki, Kd
+speed_pid.SetTargetSpeed(10.0)
+
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop setup
+# Number of simulation steps between renders
 render_steps = math.ceil(render_step_size / step_size)
+
+# Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

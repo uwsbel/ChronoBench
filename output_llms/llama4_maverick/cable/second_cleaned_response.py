@@ -7,7 +7,6 @@ import pychrono.irrlicht as chronoirr
 
 
 
-
 class Model1:
     def __init__(self, system, mesh):
         
@@ -15,10 +14,10 @@ class Model1:
         msection_cable2.SetDiameter(0.015)  
         msection_cable2.SetYoungModulus(0.01e9)  
         msection_cable2.SetRayleighDamping(0.0001)  
-        
+
         
         builder = fea.ChBuilderCableANCF()
-        
+
         
         builder.BuildBeam(
             mesh,  
@@ -27,29 +26,29 @@ class Model1:
             chrono.ChVector3d(0, 0, -0.1),  
             chrono.ChVector3d(0.5, 0, -0.1)  
         )
-        
+
         
         
         builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
-        
+
         
         mtruss = chrono.ChBody()
         mtruss.SetFixed(True)  
-        system.Add(mtruss)  
-        
+
         
         constraint_hinge = fea.ChLinkNodeFrame()
         constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
         system.Add(constraint_hinge)  
 
+
 def main():
     
     sys = chrono.ChSystemSMC()
     mesh = fea.ChMesh()
-    sys.Add(mesh)  
-    
+
     
     model = Model1(sys, mesh)
+    sys.Add(mesh)  
 
     
     
@@ -59,7 +58,7 @@ def main():
     visualizebeamA.SetSmoothFaces(True)  
     visualizebeamA.SetWireframe(False)  
     mesh.AddVisualShapeFEA(visualizebeamA)  
-    
+
     
     visualizebeamB = chrono.ChVisualShapeFEA(mesh)
     visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
@@ -68,7 +67,7 @@ def main():
     visualizebeamB.SetSymbolsScale(0.01)  
     visualizebeamB.SetZbufferHide(False)  
     mesh.AddVisualShapeFEA(visualizebeamB)  
-    
+
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)  
@@ -79,7 +78,7 @@ def main():
     vis.AddSkyBox()  
     vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  
     vis.AddTypicalLights()  
-    
+
     
     solver = chrono.ChSolverMINRES()  
     if solver.GetType() == chrono.ChSolver.Type_MINRES:
@@ -90,17 +89,18 @@ def main():
     solver.EnableDiagonalPreconditioner(True)  
     solver.EnableWarmStart(True)  
     solver.SetVerbose(False)  
-    
+
     
     ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
     sys.SetTimestepper(ts)
-    
+
     
     while vis.Run():
         vis.BeginScene()  
         vis.Render()  
         vis.EndScene()  
         sys.DoStepDynamics(0.01)  
+
 
 if __name__ == "__main__":
     main()

@@ -42,7 +42,7 @@ render_step_size = 1.0 / 20
 
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,43 +62,18 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetBox(terrainLength, terrainWidth, terrainHeight, 10, 10, 0.1)
+terrain.SetBoxTerrain(terrainLength, terrainWidth, terrainHeight)
 
 
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-
-
-
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo')
-vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
-vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
-
-
-driver = veh.ChInteractiveDriverIRR(vis)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
-
-driver.Initialize()
+terrain_patch = veh.RigidTerrainPatch(vehicle.GetSystem())
+terrain_patch.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.AddPatch(terrain_patch)
 
 
 
 
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -108,11 +83,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

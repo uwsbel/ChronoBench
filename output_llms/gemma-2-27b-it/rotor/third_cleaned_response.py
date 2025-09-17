@@ -113,8 +113,8 @@ class ChFunctionMyFun(chrono.ChFunction):
             return self.A2 * m.exp(-self.w * (x - self.T3))
 
 
-f_motor = ChFunctionMyFun(A1=0, A2=100, T1=1, T2=2, T3=3, w=0.5)
-rotmotor1.SetMotorFunction(f_motor)
+f_ramp = ChFunctionMyFun(A1=0, A2=100, T1=1, T2=2, T3=3, w=0.5)
+rotmotor1.SetMotorFunction(f_ramp)
 
 
 
@@ -146,8 +146,6 @@ msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
 sys.DoStaticLinear()
-
-
 
 while vis.Run():
     vis.BeginScene()

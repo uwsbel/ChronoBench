@@ -144,7 +144,7 @@ while vis.Run():
     for node in nodesLoad:
         node.SetForce(load_force)
 
-    # Track reference nodes
+    # Apply reference tracking to nodes
     nodePlotA.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
     nodePlotB.SetPos(chrono.ChVector3d(ref_X(t), 0, ref_Y(t)))
 

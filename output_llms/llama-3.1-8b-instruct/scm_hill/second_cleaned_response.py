@@ -1,9 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
-import numpy as np
 import pychrono.sensor as sensor
+import pychrono.numpy as np
+import math
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -41,7 +41,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 20  
-
 
 
 vehicle = veh.HMMWV_Full() 
@@ -87,7 +86,6 @@ terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -97,30 +95,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-
-obstacles = []
-for i in range(5):
-    obstacle = veh.ChBoxObstacle()
-    obstacle.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0))
-    obstacle.SetSize(chrono.ChVector3d(1, 1, 1))
-    obstacles.append(obstacle)
-    vehicle.GetSystem().AddBody(obstacle)
-
-
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-
-lidar = sensor.ChLidarSensor(vehicle.GetSystem())
-lidar.SetRange(10)
-lidar.SetResolution(0.1)
-lidar.SetHeight(2)
-lidar.SetVisualization(True)
-lidar.SetFilter(10, 0.1)
-lidar.SetType(sensor.ChSensorType.LIDAR)
-lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-lidar.SetRotation(chrono.ChQuaterniond(0, 0, 0, 1))
-vehicle.GetSystem().AddSensor(lidar)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -136,19 +110,33 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+sensor_manager = sensor.ChSensorManager()
 
 
+lidar = sensor.ChLidarSensor(vehicle.GetVehicle(), sensor_manager)
+lidar.SetFilterType(sensor.FilterType_DENSITY)
+lidar.SetVisualizationType(sensor.VisualizationType_MESH)
+lidar.SetDensityFilterRange(0.1, 10.0)
+lidar.SetMaxDistance(10.0)
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+sensor_manager.AddSensor(lidar)
 
 
-render_steps = math.ceil(render_step_size / step_size)
+obstacles = []
+for i in range(5):
+    obstacle = veh.ChBoxObstacle()
+    obstacle.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(0, 1)))
+    obstacle.SetSize(chrono.ChVector3d(np.random.uniform(1, 5), np.random.uniform(1, 5), np.random.uniform(0.1, 1)))
+    obstacles.append(obstacle)
 
 
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
+for obstacle in obstacles:
+    vehicle.GetSystem().AddBody(obstacle)
+
+
+sensor_manager.AddToSystem(vehicle.GetSystem())
+
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -182,3 +170,6 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
+
+    
+    sensor_manager.Update()

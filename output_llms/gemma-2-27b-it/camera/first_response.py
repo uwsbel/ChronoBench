@@ -2,86 +2,54 @@ import pychrono as chrono
 import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
 
-# ---------------------------------------------------------------------
-#
-#  Create the simulation system
-#
-# ---------------------------------------------------------------------
-
+# 1. Initialize the PyChrono environment and core components
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ---------------------------------------------------------------------
-#
-#  Create the fixed body with the mesh
-#
-# ---------------------------------------------------------------------
+# 2. Add the triangular mesh as a fixed body
+mesh_file = "your_mesh.obj"  # Replace with your .obj file path
+body = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+body.SetFixed(True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+trimesh = chrono.ChTriangleMeshConnected()
+trimesh.LoadWavefrontMesh(mesh_file)
+body.AddAsset(trimesh)
+my_system.Add(body)
 
-body_mesh = chrono.ChBody()
-body_mesh.SetBodyFixed(True)
-
-# Load the mesh from the .obj file
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("your_mesh.obj")
-
-# Create a collision model from the mesh
-col_model = chrono.ChCollisionModelConnected()
-col_model.SetMesh(mesh)
-col_model.SetFamily(1)
-col_model.SetFamilyMaskNoCollisionWithFamily(1)
-body_mesh.AddCollisionModel(col_model)
-
-# Add the body to the system
-my_system.Add(body_mesh)
-
-# ---------------------------------------------------------------------
-#
-#  Create the camera sensor
-#
-# ---------------------------------------------------------------------
-
+# 3. Set up the camera sensor and manager
 camera = chrono.ChCameraSensor()
-camera.SetSensorPosition(chrono.ChVectorD(2, 2, 2))
-camera.SetSensorDirection(chrono.ChVectorD(-1, -1, -1))
-camera.SetImageSize(640, 480)
+camera.SetLens(chrono.ChCameraSensor.ORTHOGRAPHIC)
+camera.SetView(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+camera.SetOrthographicSize(10)
+camera.SetFrameRate(30)
 
-# Add noise filters and visualizations
-camera.AddNoiseFilter(chrono.ChGaussianNoiseFilter(0.01))
-camera.SetVisualizationType(chrono.ChCameraSensor.VisualizationType_COLOR)
+# Add noise filters and visualizations to the camera
+noise_filter = chrono.ChFilterNoise()
+camera.AddFilter(noise_filter)
+vis_filter = chrono.ChFilterVisualization()
+camera.AddFilter(vis_filter)
 
-# Create a sensor manager and add the camera
-sensor_manager = chrono.ChSensorManager()
+sensor_manager = chrono.ChSensorManager(my_system)
 sensor_manager.AddSensor(camera)
 
-# Attach the camera to the body
-body_mesh.AddSensor(camera)
+# 4. Simulation loop
+myapplication = chronoirr.ChIrrApp(my_system)
+myapplication.SetWindowSize(800, 600)
+myapplication.SetStepManage(True)
+myapplication.SetTimestep(0.01)
 
-# ---------------------------------------------------------------------
-#
-#  Simulation loop
-#
-# ---------------------------------------------------------------------
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
 
-# Create an Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("PyChrono Mesh Visualization")
-vis.Initialize()
-
-# Simulation parameters
-time_step = 0.01
-simulation_time = 10
-
-while vis.Run():
-    # Update the camera position in an orbit around the mesh
-    angle = my_system.GetChTime() * 2  # Rotate at 2 radians per second
-    camera.SetSensorPosition(chrono.ChVectorD(2 * chrono.ChMath.Sin(angle), 2, 2 * chrono.ChMath.Cos(angle)))
-
-    # Update the simulation
-    my_system.DoStepDynamics(time_step)
+    # Update camera position in an orbit
+    angle = myapplication.GetChTime() * 0.5
+    camera.SetPos(chrono.ChVectorD(5 * chrono.ChCos(angle), 0, 5 * chrono.ChSin(angle)))
+    camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
     # Print camera buffer data
-    print(camera.GetBufferData())
+    buffer = camera.GetBuffer()
+    print(buffer)
 
-vis.Deinitialize()
+    myapplication.DoStep()
+    myapplication.EndScene()

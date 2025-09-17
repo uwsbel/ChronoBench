@@ -118,3 +118,10 @@ ch_iterate.doMotion(chsys, sim_time, dt)
 # Start PyChrono GUI for visualization
 
 pychrono_gui.main()
+
+
+# Run the simulation
+
+if __name__ == '__main__':
+
+    ch_iterate.iterate(chsys, sim_time, dt)

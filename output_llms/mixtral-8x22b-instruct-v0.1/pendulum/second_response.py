@@ -39,7 +39,7 @@ pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 pend_1.SetWvel(chrono.ChVector3d(0, 0, 2))  # 2 rad/s around the Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around all axes
+# The spherical joint allows rotation around all three axes
 sph_1 = chrono.ChLinkLockSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(sph_1)

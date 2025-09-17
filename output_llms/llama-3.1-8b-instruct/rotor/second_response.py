@@ -16,7 +16,7 @@ sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0));  # changed gra
 beam_L = 10  # changed beam length
 beam_ro = 0.060  # changed outer radius
 beam_ri = 0.055  # changed inner radius
-CH_PI = 3.14159  # changed pi value to a more precise one
+CH_PI = 3.14159  # corrected math constant
 
 # Create a section, i.e. thickness and material properties
 # for beams. This will be shared among some beams.

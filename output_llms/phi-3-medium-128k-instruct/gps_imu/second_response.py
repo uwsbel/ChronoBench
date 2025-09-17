@@ -144,8 +144,13 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Initialize GPS Data List
-gps_data = []
+# Added GPS Data Logging
+log_steps = math.ceil(render_step_size / log_step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
 # Simulation loop
 while vis.Run():
@@ -167,6 +172,11 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Modified Driver Inputs
+    if time >= 6:
+        driver_inputs.throttle = 0  # Apply braking after 6 seconds
+        driver_inputs.steering = 0
+
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
@@ -175,21 +185,16 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-
-    # Added GPS Data Logging
-    if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
-
+    
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Modified Driver Inputs
-    if time > 6.0:
-        driver_inputs['throttle'] = 0.0  # Apply braking after 6 seconds
-        driver_inputs['steering'] = 0.0
+    # Log GPS data at intervals defined by log_steps
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
 # Added GPS Data Output
 print("GPS Data: ", gps_data)

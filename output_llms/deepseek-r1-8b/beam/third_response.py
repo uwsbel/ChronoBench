@@ -74,45 +74,26 @@ constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,     # x, y, z
-                              False, False,False)    # Rx, Ry, Rz
+                              False, False, False)    # Rx, Ry, Rz
 
-
-# Add some EULER-BERNOULLI BEAMS (the fast way!)
-
-# Shortcut!
-# This ChBuilderBeamEuler helper object is very useful because it will
-# subdivide 'beams' into sequences of finite elements of beam type, ex.
-# one 'beam' could be made of 5 FEM elements of ChElementBeamEuler class.
-# If new nodes are needed, it will create them for you.
+# Add another beam segment using `builder.BuildBeam()`
+# New beam starts from the last node of the previous beam (A node)
+# and ends at (0.2, 0.1, -0.1) with 'Y' up direction
 
 builder = fea.ChBuilderBeamEuler()
 
-# Now, simply use BuildBeam to create a beam from a point to another:
+# Build the new beam
 builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
                     msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
                     5,                         # the number of ChElementBeamEuler to create
-                    chrono.ChVector3d(0, 0, -0.1),   # the 'A' point in space (beginning of beam)
-                    chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
+                    chrono.ChVector3d(0.2, 0, -0.1),   # the 'A' point in space (beginning of beam)
+                    chrono.ChVector3d(0.2, 0.1, -0.1), # the 'B' point in space (end of beam)
                     chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
 ## After having used BuildBeam(), you can retrieve the nodes used for the beam,
 ## For example say you want to fix the A end and apply a force to the B end:
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-# Add another beam segment using `builder.BuildBeam()`
-# New beam starts from the last node of the previous beam (A) and ends at (0.2, 0.1, -0.1)
-builder.BuildBeam(mesh,
-                 msection,
-                 5,
-                 chrono.ChVector3d(0, 0, -0.1),  # A point for new beam
-                 chrono.ChVector3d(0.2, 0.1, -0.1),  # B point for new beam
-                 chrono.ChVector3d(0, 1, 0))      # Y up direction
-
-## Retrieve the nodes for the new beam and apply forces/torques
-new_beam_nodes = builder.GetLastBeamNodes()
-new_beam_nodes.back().SetFixed(True)  # Fix the A end of the new beam
-new_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))  # Apply force to the B end
+# builder.GetLastBeamNodes().back().SetFixed(True)
+# builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 # We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False);
@@ -131,6 +112,14 @@ visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
 visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()

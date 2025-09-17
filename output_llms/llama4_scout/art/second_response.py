@@ -51,13 +51,11 @@ vehicle.SetMaxMotorVoltageRatio(0.16)
 vehicle.SetStallTorque(0.3)
 vehicle.SetTireRollingResistance(0.06)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain

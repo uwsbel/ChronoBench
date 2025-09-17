@@ -2,71 +2,72 @@
 
 ```python
 import pychrono as chrono
-import pychrono.fea as fea
+import pychrono.fem as fem
 import pychrono.irrlicht as irr
 
-# Initialize the Chrono system
-system = chrono.ChSystemNSC()
+# Initialize the PyChrono system
+sys = chrono.ChSystemNSC()
 
 # Create a mesh container
-mesh = fea.ChMesh()
+mesh = fem.ChMesh()
+sys.Add(mesh)
 
-# Define isotropic Kirchhoff material properties
-material = fea.ChMaterialShellKirchhoff()
-material.SetYoungModulus(2e5)  # 200 kPa
-material.SetPoissonRatio(0.3)
-material.SetDensity(1000)      # 1000 kg/m^3
-material.SetThickness(0.001)   # 1 mm thickness
+# Tablecloth parameters
+Lx = 1.0  # Length in X-direction
+Ly = 1.0  # Length in Y-direction
+Nx = 10   # Number of nodes along X
+Ny = 10   # Number of nodes along Y
+dx = Lx / (Nx - 1)
+dy = Ly / (Ny - 1)
 
-# Mesh grid parameters
-nx, ny = 20, 20                # Number of elements in X and Y directions
-lx, ly = 1.0, 1.0              # Tablecloth dimensions (meters)
-dx, dy = lx / nx, ly / ny      # Element spacing
-
-# Create nodes in X-Z plane (Y=0) with fixed boundary conditions
+# Create nodes and fix corners
 nodes = []
-for i in range(nx + 1):
+for i in range(Nx):
     row = []
-    for j in range(ny + 1):
+    for j in range(Ny):
         x = i * dx
-        z = j * dy
-        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, z))
-        # Fix nodes at left (i=0) and right (i=nx) edges
-        if i == 0 or i == nx:
-            node.SetFixed(True)
+        y = j * dy
+        z = 0.0
+        node = fem.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
         mesh.AddNode(node)
         row.append(node)
+        # Fix corner nodes
+        if ((i == 0 and j == 0) or 
+            (i == Nx-1 and j == 0) or 
+            (i == Nx-1 and j == Ny-1) or 
+            (i == 0 and j == Ny-1)):
+            node.SetFixed(True)
     nodes.append(row)
 
-# Create shell elements using ANCF (Absolute Nodal Coordinate Formulation)
-for i in range(nx):
-    for j in range(ny):
-        # Get corner nodes for the element
-        n1 = nodes[i][j]
-        n2 = nodes[i+1][j]
-        n3 = nodes[i+1][j+1]
-        n4 = nodes[i][j+1]
-        
-        # Create and configure the shell element
-        el = fea.ChElementShellANCF_3423()
-        el.SetNodes(n1, n2, n3, n4)
-        # Add material layer with thickness and normal direction
-        el.AddLayer(material, 0.001, chrono.ChVectorD(0, 1, 0))  # Y-axis normal
-        mesh.AddElement(el)
+# Create shell elements with isotropic Kirchhoff material
+material = fem.ChMaterialShellKirchhoff(
+    E=1e6,        # Young's modulus
+    nu=0.3,       # Poisson ratio
+    density=1000, # Density (kg/m^3)
+    thickness=0.001 # Thickness (m)
+)
 
-# Add the mesh to the system
-system.Add(mesh)
+# Generate quadrilateral elements
+for i in range(Nx - 1):
+    for j in range(Ny - 1):
+        element = fem.ChElementShellKirchhoff()
+        element.SetNodes(
+            nodes[i][j],
+            nodes[i+1][j],
+            nodes[i+1][j+1],
+            nodes[i][j+1]
+        )
+        element.SetMaterial(material)
+        mesh.AddElement(element)
 
-# Configure solver (PardisoMKL for sparse matrix handling)
-system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
-system.SetSolverMaxIterations(100)
+# Configure solver
+sys.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+sys.SetSolverMaxIterations(100)
 
 # Set up Irrlicht visualization
-vis = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', irr.dimension2du(1024, 768))
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddTypicalCamera(irr.vector3df(0, 3, -4))  # Camera position
+vis = irr.ChIrrApp(sys, 'Tablecloth Folding Simulation', irr.dimension2du(1024, 768))
 vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
 vis.AssetBindAll()
 vis.AssetUpdateAll()
 
@@ -74,6 +75,6 @@ vis.AssetUpdateAll()
 while vis.GetDevice().run():
     vis.BeginScene()
     vis.Render()
+    sys.DoStepDynamics(0.01)
     vis.EndScene()
-    system.DoStepDynamics(0.01)
 ```

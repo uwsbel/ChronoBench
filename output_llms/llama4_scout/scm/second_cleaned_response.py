@@ -23,7 +23,7 @@ class SCMTerrainParameters:
                 "Bekker_Kc": 1e4,
                 "Bekker_n": 1.0,
                 "Mohr_cohesive_limit": 1000,
-                "Mohr_friction_limit": 35,
+                "Mohr_friction_limit": 40,
                 "Janosi_shear_coefficient": 0.005,
                 "elastic_stiffness": 4e8,
                 "damping": 2e4
@@ -33,7 +33,7 @@ class SCMTerrainParameters:
                 "Bekker_Kc": 2e4,
                 "Bekker_n": 0.9,
                 "Mohr_cohesive_limit": 2000,
-                "Mohr_friction_limit": 40,
+                "Mohr_friction_limit": 50,
                 "Janosi_shear_coefficient": 0.001,
                 "elastic_stiffness": 8e8,
                 "damping": 1e4
@@ -84,11 +84,15 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -129,15 +133,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-
-
-
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -145,30 +141,25 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
+    realtime_timer.Spin(step_size)
 
     
-    realtime_timer.Spin(step_size)
+    print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

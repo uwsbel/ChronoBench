@@ -18,11 +18,11 @@ msection = fea.ChBeamSectionEulerAdvanced()
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
-msection.SetYoungModulus(2.01e11)  # Corrected Young's modulus (Pa)
-msection.SetShearModulus(0.81e11)  # Corrected Shear modulus (Pa)
+msection.SetYoungModulus(2.0e11)  # Corrected Young's Modulus
+msection.SetShearModulus(8.0e10)  # Corrected Shear Modulus
 msection.SetRayleighDamping(0.000)
-msection.SetCentroid(0, 0.0125)
-msection.SetShearCenter(0, 0.0125)
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
 msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
 # Add some EULER-BERNOULLI BEAMS:
@@ -59,13 +59,13 @@ constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True,  # x, y, z
-                               True, True, True)  # Rx, Ry, Rz
+                              True, True, True)  # Rx, Ry, Rz
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,  # x, y, z
-                               False, False, False)  # Rx, Ry, Rz
+                              False, False, False)  # Rx, Ry, Rz
 
 # Add some EULER-BERNOULLI BEAMS (the fast way!)
 # Shortcut!

@@ -4,22 +4,6 @@ import pychrono.sensor as sens
 import math
 import time
 
-# Camera parameters
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-update_rate = 30              # Update rate in Hz
-image_width = 1280            # Image width in pixels
-image_height = 720            # Image height in pixels
-fov = 1.408                   # Camera's horizontal field of view in radians
-lag = 0                       # Lag in seconds
-exposure_time = 0             # Exposure time in seconds
-
-# Simulation parameters
-step_size = 1e-3              # Simulation step size
-end_time = 20.0               # Simulation end time
-save = False                  # Save camera images
-vis = True                    # Render camera images
-out_dir = "SENSOR_OUTPUT/"    # Output directory
-
 def main():
     # -----------------
     # Create the system
@@ -27,14 +11,17 @@ def main():
     # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------------------
+    # -----------------------
     # Create a box object
-    # -----------------------------------
-    side = 2  # Box dimensions
+    # -----------------------
+    side = 1.0  # Dimensions of the box
+    # Create a box body with specified dimensions and mass
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetFixed(True)                      # Fix the box in space
-    mphysicalSystem.Add(box_body)                # Add the box to the physical system
+    box_body.SetFixed(True)  # Fix the body in space
+    # Add a texture to the box
+    box_body.AddVisualShape(chrono.ChVisualShape(chrono.ChMaterialSurface texture))
+    mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
     # -----------------------
     # Create a sensor manager
@@ -58,12 +45,12 @@ def main():
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box_body,             # Body the camera is attached to
-        update_rate,          # Camera update rate in Hz
-        offset_pose,          # Offset pose of the camera
-        image_width,          # Image width in pixels
-        image_height,         # Image height in pixels
-        fov                   # Camera's horizontal field of view in radians
+        box_body,              # Body the camera is attached to
+        update_rate,            # Camera update rate in Hz
+        offset_pose,            # Offset pose of the camera
+        image_width,            # Image width in pixels
+        image_height,           # Image height in pixels
+        fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
@@ -144,6 +131,48 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+# -----------------
+# Camera parameters
+# -----------------
+
+# Noise model attached to the sensor
+noise_model = "CONST_NORMAL"  # Constant normal noise model
+
+# Update rate in Hz
+update_rate = 30
+
+# Image width and height
+image_width = 1280
+image_height = 720
+
+# Camera's horizontal field of view
+fov = 1.408  # Horizontal field of view in radians
+
+# Lag (in seconds) between sensing and when data becomes accessible
+lag = 0
+
+# Exposure (in seconds) of each image
+exposure_time = 0
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 20.0
+
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
 
 # Main function entry point
 main()

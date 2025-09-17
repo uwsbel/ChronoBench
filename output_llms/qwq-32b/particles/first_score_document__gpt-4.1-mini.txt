@@ -5,173 +5,152 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The system is correctly initialized with `chrono.ChSystemNSC()`.  
+  The system is initialized correctly with `chrono.ChSystemNSC()`. However, the gravity is set to zero explicitly with `system.Set_G_acc(chrono.ChVectorD(0, 0, 0))`. This is acceptable since the simulation models gravitational attraction between particles explicitly, but it is a deliberate choice rather than a missing component.  
   **No deduction.**
 
 - **Body Creation:**  
-  Bodies are created with random positions, velocities, masses, and collision shapes. The collision model is cleared and rebuilt properly.  
-  However, the collision shape is always a sphere of radius 0.1 (`AddSphere(0.1)`), regardless of the visual shape chosen (sphere, box, cylinder). This is inconsistent and could cause inaccurate collision detection for non-spherical shapes.  
-  **Deduct 10 points** for incomplete collision shape setup.
+  Bodies are created dynamically in `emit_particle()`. However, the code manually sets inertia using `body.SetInertia(...)` with `chrono.ChSphereInertia`, `chrono.ChBoxInertia`, and `chrono.ChCylinderInertia`. According to the API documentation, the correct method to set inertia is `SetInertiaXX()` with a vector, or using helper functions like `ChBodyEasySphere` which handle inertia internally. The functions `ChSphereInertia`, `ChBoxInertia`, and `ChCylinderInertia` do not exist in the documented API. This is a significant omission or error.  
+  **Deduct 15 points for missing/incorrect body inertia setting.**
 
-- **Visualization Setup:**  
-  The visualization system is created with `chrono.ChVisualSystemIrrlicht()`. Window size, title, camera position, and rotation are set. However, the visualization system is not attached to the physical system via `vis.AttachSystem(my_system)`, which is required for proper visualization per the API documentation. Also, `vis.Initialize()` is not called before the simulation loop, which is necessary to prepare the visualization system.  
-  **Deduct 15 points** for missing essential visualization setup steps.
-
-- **Simulation Loop:**  
-  The loop runs while `vis.Run()` is true, forces are cleared, gravitational forces are manually computed and applied, and `my_system.DoStepDynamics()` is called.  
-  However, the visualization rendering calls are `vis.Begin()` and `vis.Render()`, but the recommended pattern is to use `vis.BeginScene()` and `vis.EndScene()` around rendering. The code uses `vis.Begin()` and `vis.End()` only once outside the loop, which is not the standard usage.  
-  **Deduct 5 points** for minor deviations in visualization rendering calls.
+- **Collision Model Setup:**  
+  The collision shapes are added via `body.GetCollisionModel().AddSphere()`, etc., but the collision model is built with `BuildModel()`. However, the collision model is never enabled explicitly with `body.EnableCollision(True)`. Instead, `body.SetCollide(True)` is used, which is not a documented method. The documented method is `EnableCollision(True)`.  
+  **Deduct 10 points for incorrect collision enabling method.**
 
 - **Material Setup:**  
-  A `chrono.ChMaterialSurface()` is created and friction and restitution are set. However, for `ChSystemNSC()`, the recommended material is `ChContactMaterialNSC()`. Using `ChMaterialSurface()` may not properly configure contact properties for NSC systems.  
-  **Deduct 10 points** for incorrect or incomplete material setup.
+  A material is created with `chrono.ChMaterialSurface()` but no friction, damping, or compliance parameters are set. The documentation recommends setting these for realistic contact behavior.  
+  **Deduct 5 points for missing material property settings.**
 
-- **Collision Model Envelope and Margin:**  
-  No global collision envelope or margin is set, which is recommended to improve collision detection stability.  
-  **Deduct 5 points** for minor omission.
+- **Visualization Setup:**  
+  The visualizer is created and configured with window size, title, camera position, and look-at point. However, the visualizer is not attached to the system via `visualizer.AttachSystem(system)`, nor is it initialized with `visualizer.Initialize()`. Also, typical lights and skybox are not added, which are standard for good visualization.  
+  **Deduct 15 points for missing `AttachSystem()` and `Initialize()`, and missing lighting/skybox.**
 
-**Total Completeness Deduction: 10 + 15 + 5 + 10 + 5 = 45 points**  
-Since the maximum is 40, cap deduction at 40 points.  
-**Score for Completeness: 0/40**
+- **Simulation Loop:**  
+  The loop uses `visualizer.Run()` correctly. However, the rendering calls are `visualizer.DrawAll()` instead of the documented sequence: `BeginScene()`, `Render()`, `EndScene()`.  
+  **Deduct 10 points for incomplete rendering calls.**
+
+- **Force Application:**  
+  Forces are applied by creating a `chrono.ChForce()` object and adding it to the body. However, `ChForce` is a base class and not typically instantiated directly. The API does not document `ChForce` as a force object to be added to bodies. Instead, forces are usually applied via `body.AddForce(chrono.ChVectorD(...))` or by overriding force calculation methods. This is a significant API misuse.  
+  **Deduct 15 points for incorrect force application method.**
+
+**Total Completeness Deduction: 15 + 10 + 5 + 15 + 10 + 15 = 70 points**  
+Since completeness max is 40, the deduction is capped at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Use of `SetMaterialSurface()` on body:**  
-  The method `SetMaterialSurface()` is not standard for assigning contact materials to bodies. The API uses `SetMaterialSurface()` for some contexts, but generally, contact materials are assigned via collision models or system-wide materials. This may not correctly assign the material for contact.  
-  **Deduct 15 points** for incorrect API usage affecting simulation behavior.
+- **Incorrect API usage:**  
+  - `Set_G_acc()` is not a documented method; the correct method is `Set_G_acc()` or `Set_G_acceleration()`. The documentation shows `Set_G_acc()` is used, but the underscore is unusual; typically, it is `Set_G_acceleration()`. This is minor but suspicious.  
+  - `body.SetPos_dt(vel)` is used to set velocity. The documented method is `SetPos_dt()`, so this is correct.  
+  - Use of `body.SetInertia()` with non-existent inertia functions is incorrect.  
+  - Use of `body.SetCollide(True)` instead of `EnableCollision(True)` is incorrect.  
+  - Force application via `ChForce()` is incorrect.  
+  - Visualization calls are incomplete and missing `AttachSystem()` and `Initialize()`.  
+  - Rendering calls are incomplete.  
 
-- **Collision Model Setup:**  
-  The collision model is cleared and a sphere is added for all bodies, regardless of visual shape. This leads to incorrect collision behavior for boxes and cylinders.  
-  **Deduct 15 points** for logical error in collision shape setup.
+- **Logical errors:**  
+  - The gravitational force calculation is done manually and applied via a force object that is not properly integrated with the system. This likely means forces are not applied correctly, and the simulation will not behave as intended.  
+  - The collision shapes are added but no collision system type is set (e.g., Bullet). This may default but is better to specify.  
+  - No timestep is passed to `DoStepDynamics()`. The documentation requires a timestep argument.  
+  **Deduct 15 points for major API misuse and logical errors.**
 
-- **Force Calculation:**  
-  The gravitational force is manually computed between all pairs of particles. This is logically correct, but the gravitational constant `G` is arbitrarily set to `1e-3` without explanation. This is acceptable for a demo but could be noted.  
-  No deduction here.
+- **Minor inaccuracies:**  
+  - The use of `random` for particle properties is acceptable.  
+  - The use of `np.sqrt()` is fine but could be replaced with `r_vec.Length()` for consistency.  
+  - The force magnitude calculation is correct in principle.  
 
-- **Velocity Initialization:**  
-  Velocities are set via `SetPos_dt()`, which is correct.
-
-- **Rotation Initialization:**  
-  Rotation is set using `Q_from_AngAxis()`, which is correct.
-
-- **Use of `ClearForces()` and `AddForce()`:**  
-  Correct usage.
-
-- **Time Step:**  
-  The time step of 0.005 is reasonable.
-
-**Total Correctness Deduction: 15 + 15 = 30 points**  
-**Score for Correctness: 0/30**
+**Total Correctness Deduction: 15 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and Structure:**  
-  The code is reasonably structured with functions and a main guard. Variable names are meaningful.  
-  However, there are no comments explaining the purpose of functions or key steps, which reduces readability and maintainability.  
-  Also, the code is duplicated in the provided snippet, which is unnecessary and confusing.  
-  **Deduct 5 points** for lack of comments.  
-  **Deduct 3 points** for duplicated code and minor formatting issues.
+- The code is mostly readable with meaningful variable names.  
+- However, there are no comments explaining the purpose of functions or key steps.  
+- The code structure is acceptable but could be improved by modularizing force calculations or separating visualization setup.  
+- Minor formatting issues: inconsistent spacing, no docstrings.  
 
-- **Formatting:**  
-  Generally acceptable.
-
-**Total Code Quality Deduction: 8 points**  
-**Score for Code Quality: 2/10**
+**Deduct 5 points for insufficient comments and lack of documentation.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Force Calculation:**  
-  The gravitational force calculation is O(N²) with nested loops over all particles, which is expected for such a simulation. No spatial partitioning or optimization is used, but this is acceptable for a small number of particles.  
-  No deduction.
+- The nested loop for force calculation is O(n²), which is expected for N-body simulations without optimization.  
+- The force vector is recalculated every step, which is necessary.  
+- However, the force is applied via a force object that is created once per particle and reused, which is acceptable.  
+- The collision model is rebuilt every time a particle is emitted, which is necessary.  
+- The visualization calls are minimal but missing standard calls, which could affect performance.  
+- The use of `np.sqrt()` instead of `r_vec.Length()` is a minor inefficiency.  
 
-- **Collision Model Setup:**  
-  The collision model is rebuilt every time a particle is created, which is necessary.
-
-- **Visualization Calls:**  
-  The visualization rendering loop is minimal but misses `BeginScene()` and `EndScene()`, which could affect performance.
-
-- **Redundant Imports:**  
-  `numpy` is imported but never used.  
-  **Deduct 3 points** for unnecessary import.
-
-**Total Efficiency Deduction: 3 points**  
-**Score for Efficiency: 7/10**
+**Deduct 3 points for minor optimization opportunities (e.g., using built-in vector length).**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., no try-except blocks, no checks for zero distances beyond a minimal threshold).  
-- The code skips force calculation if distance squared is less than `1e-6`, which is a minimal edge case handling.  
-- No checks for invalid inputs or system initialization errors.  
-- No handling of visualization initialization failure.  
-**Deduct 3 points** for minimal edge case handling.  
-**Deduct 5 points** for lack of basic error handling.  
-Total deduction capped at 5 points.  
-**Score for Error Handling: 0/5**
+- No error handling is present.  
+- The code skips force calculation when distance squared is very small, which is good.  
+- No checks for system or visualization initialization success.  
+- No handling of potential exceptions from random or vector operations.  
+
+**Deduct 3 points for inadequate error handling and robustness.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but not attached to the system (`vis.AttachSystem(my_system)` missing).  
-- `vis.Initialize()` is not called before the loop.  
-- The rendering loop uses `vis.Begin()` and `vis.Render()`, but the recommended pattern is `vis.BeginScene()` and `vis.EndScene()`.  
-- No skybox, lighting, or camera setup beyond position and rotation.  
-- No logo or other visual enhancements.  
-**Deduct 5 points** for incorrect/incomplete visualization setup.
+- Visualization system is created and configured but missing critical steps: `AttachSystem()`, `Initialize()`, adding lights, skybox, and proper rendering calls.  
+- Camera is set via `SetCameraPosition()` and `SetCameraLookat()`, which is acceptable but less standard than `AddCamera()`.  
+- No lighting or environment setup reduces visualization quality.  
 
-**Score for Visualization: 0/5**
+**Deduct 5 points for incomplete and inadequate visualization setup.**
 
 ---
 
-### **Summary of Deductions**
+### Summary of Deductions:
 
-| Criterion                  | Points | Deduction | Score  |
-|----------------------------|--------|-----------|--------|
-| Completeness               | 40     | 40        | 0      |
-| Correctness               | 30     | 30        | 0      |
-| Code Quality              | 10     | 8         | 2      |
-| Efficiency                | 10     | 3         | 7      |
-| Error Handling & Robustness | 5      | 5         | 0      |
-| Visualization             | 5      | 5         | 0      |
-| **Total**                 | 100    | 91        | **9**  |
-
----
-
-### **Final Score: [[9]]**
+| Criterion                     | Max Points | Deduction | Points Awarded |
+|-------------------------------|------------|-----------|---------------|
+| Completeness                  | 40         | 40        | 0             |
+| Correctness                  | 30         | 15        | 15            |
+| Code Quality                 | 10         | 5         | 5             |
+| Efficiency                  | 10         | 3         | 7             |
+| Error Handling and Robustness | 5          | 3         | 2             |
+| Use of Visualization Tools    | 5          | 5         | 0             |
+| **Total**                    | **100**    | **71**    | **29**        |
 
 ---
 
-### **Explanation of Deductions**
-
-- The script misses essential visualization setup steps (`AttachSystem`, `Initialize`) and uses an incorrect rendering loop pattern, severely impacting visualization correctness and completeness.  
-- The collision model setup is inconsistent with the visual shapes, leading to incorrect collision behavior.  
-- The material setup uses a generic `ChMaterialSurface()` instead of the appropriate contact material class for NSC systems, which can affect contact physics.  
-- The code lacks comments and has duplicated code, reducing readability and maintainability.  
-- Unused imports and missing error handling reduce code quality and robustness.  
-- Visualization setup is minimal and incomplete, lacking lighting, skybox, and proper camera setup.  
-- Despite these issues, the core simulation loop and force calculations are logically sound, and the code structure is acceptable.
+### Final Score:  
+[[29]]
 
 ---
 
-**Recommendations for Improvement:**
+### Explanation:
 
-- Use `vis.AttachSystem(my_system)` and `vis.Initialize()` before the simulation loop.  
-- Use `vis.BeginScene()` and `vis.EndScene()` around rendering calls inside the loop.  
-- Match collision shapes to visual shapes for accurate collision detection.  
-- Use `ChContactMaterialNSC()` for materials in NSC systems.  
-- Remove duplicate code and add meaningful comments.  
-- Remove unused imports like `numpy`.  
-- Add basic error handling and improve edge case checks.  
-- Enhance visualization with lighting, skybox, and camera controls.
+The script demonstrates an understanding of the general structure of a PyChrono simulation, including system initialization, particle creation, force calculation, and visualization. However, it contains several critical API misuses and omissions:
+
+- Incorrect inertia setting and force application methods that would prevent the simulation from behaving as intended.  
+- Missing essential visualization setup steps (`AttachSystem()`, `Initialize()`, lighting, skybox).  
+- Incomplete rendering calls that do not follow the documented pattern.  
+- Lack of material property settings for realistic contact behavior.  
+- Missing timestep argument in `DoStepDynamics()`.  
+- Insufficient comments and error handling reduce code quality and robustness.
+
+These issues lead to a significant deduction in completeness and correctness, as well as visualization quality. Minor inefficiencies and lack of comments further reduce the score.
+
+To improve, the script should:
+
+- Use documented inertia setting methods or helper functions.  
+- Apply forces directly via `body.AddForce(chrono.ChVectorD(...))` or override force calculation methods.  
+- Properly enable collision with `EnableCollision(True)`.  
+- Set material friction and damping parameters.  
+- Attach and initialize the visualization system correctly, add lighting and skybox.  
+- Use the full rendering sequence (`BeginScene()`, `Render()`, `EndScene()`).  
+- Pass the timestep to `DoStepDynamics()`.  
+- Add comments and basic error handling.
 
 ---
 
-This concludes the evaluation.
+This evaluation is based on the PyChrono API documentation and best practices in simulation and Python coding.

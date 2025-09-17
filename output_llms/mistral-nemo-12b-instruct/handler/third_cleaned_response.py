@@ -57,32 +57,36 @@ def main():
     sys.Add(box)  
 
     
-    vis = chil.ChIrrApp(sys, chil.CH_HARDWARE_OPENGL)
-    vis.AddTypicalLogo(vis.GetVideoDriver())  
-    vis.SetWindowSize(800, 600)  
-    vis.SetWindowTitle("PyChrono Simulation")  
-    vis.AddLight(chil.CH_VECTOR3D(0, 30, 0), chil.CH_COLOR(1, 1, 1))  
-    vis.AddCamera(chil.CH_CAMERAPERSPECTIVE, chil.CH_VECTOR3D(1, 1, 1))  
-    vis.SetCameraPosition(chil.CH_VECTOR3D(1, 1, 1))  
-    vis.SetCameraLookAt(chil.CH_VECTOR3D(0, 0, 0))  
-
-    
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.SetPublishRate(10)  
 
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
+
+    
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+
+    
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
 
     
-    custom_handler = MyCustomHandler("~/my_topic", 10)
+    publish_rate = 10  
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
     ros_manager.Initialize()
+
+    
+    vis = chil.ChIrrApp(sys, chil.CH_RGB, chil.CH_PERSPECTIVE)
+    vis.AddBody(floor)
+    vis.AddBody(box)
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.SetCamera(chil.Camera(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5))
+    vis.AddLight(chil.Light(chil.LightType.DIRECTIONAL, chil.Vector3d(1, 1, 1), chil.Vector3d(0, 0, 0)))
+    vis.Initialize()
 
     
     time = 0
@@ -90,7 +94,7 @@ def main():
     time_end = 30  
     step_number = 0  
     render_step_size = 10  
-    render_steps = 0  
+    render_steps = 10  
 
     realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
@@ -100,14 +104,12 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        step_number += 1  
-        render_steps += 1  
-
-        if render_steps >= render_step_size:  
-            vis.DoStep()  
-            render_steps = 0  
-
         realtime_timer.Spin(time_step)  
+
+        
+        step_number += 1
+        if step_number % render_steps == 0:
+            vis.DoStep()  
 
 
 if __name__ == "__main__":

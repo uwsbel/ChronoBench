@@ -1,10 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-rest_length = 1.5
-spring_coef = 50
-damping_coef = 1
-
 
 class MySpringForce(chrono.ChForce):
     def __init__(self, spring_coef, damping_coef, rest_length):
@@ -13,17 +9,27 @@ class MySpringForce(chrono.ChForce):
         self.damping_coef = damping_coef
         self.rest_length = rest_length
 
-    def ComputeForce(self, time, pos, vel, force):
+    def ComputeForce(self, time, pos, vel, body):
         
-        displacement = pos - chrono.ChVector3d(1, 0, 0)  
-        current_length = displacement.Length()
-        direction = displacement.GetNormalized()
+        ground_pos = chrono.ChVector3d(1, 0, 0)
 
-        spring_force = -self.spring_coef * (current_length - self.rest_length) * direction
+        
+        delta = pos - ground_pos
+        length = delta.Length()
+
+        
+        spring_force = -self.spring_coef * (length - self.rest_length) * delta.GetNormalized()
+
+        
         damping_force = -self.damping_coef * vel
-        total_force = spring_force + damping_force
 
-        force += total_force
+        
+        force = spring_force + damping_force
+        return force
+
+rest_length = 1.5
+spring_coef = 50
+damping_coef = 1
 
 sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
@@ -82,17 +88,18 @@ spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 spring_2 = chrono.ChLinkForce()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
-custom_force = MySpringForce(spring_coef, damping_coef, rest_length)
-spring_2.SetForceFunctor(custom_force)
+spring_force = MySpringForce(spring_coef, damping_coef, rest_length)
+spring_2.AddForceFunctor(spring_force)
 sys.AddLink(spring_2)
 
 
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Enhanced Spring Demo')
+vis.SetWindowTitle('ChLinkTSDA and Custom Force Functor demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

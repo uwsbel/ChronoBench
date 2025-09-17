@@ -22,12 +22,12 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Add mesh_body to the simulation system
+    sys.Add(mesh_body)  # Add the mesh body to the simulation system.
 
     # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(True)  # Make the body static.
+    ground_body.SetFixed(False)  # Make the body movable.
     ground_body.SetMass(0)  # Set mass to 0 (static object).
     sys.Add(ground_body)
 
@@ -42,7 +42,7 @@ def main():
     sens_manager.scene.AddPointLight(ch.ChVector3f(23, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
 
     # Create and configure a camera sensor.
-    offset_pose = ch.ChFrame(ch.ChVector3d(-8, 0, 2), ch.Q_from_AngAxis(.2, ch.ChVector3d(0, 1, 0)))
+    offset_pose = ch.ChFramed(ch.ChVector3d(-8, 0, 2), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     cam = sens.ChCameraSensor(ground_body, 30, offset_pose, 1280, 720, 1.408)
     cam.PushFilter(sens.ChFilterVisualize(1280, 720))  # Visualize the camera output.
     cam.PushFilter(sens.ChFilterRGBA8Access())  # Access raw RGBA8 data.
@@ -54,22 +54,22 @@ def main():
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar PC data"))  # Visualize the point cloud.
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  # Visualize the point cloud.
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
     # Create 2d lidar
-    offset_pose_2dlidar = ch.ChFrame(ch.ChVector3d(-8, 0, 0), ch.Q_from_AngAxis(.2, ch.ChVector3d(0, 1, 0)))
+    offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Scan Data"))  # Visualize the point cloud.
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  # Visualize the point cloud.
     sens_manager.AddSensor(lidar2d)
 
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
-    gps_reference = ch.ChVector3d(-89.4, 43.07, 260.)  # Corrected GPS reference
+    gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
     gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none)
     gps.PushFilter(sens.ChFilterGPSAccess())  # Access GPS data.
     gps.SetName("gps")
@@ -103,7 +103,7 @@ def main():
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -134,10 +134,11 @@ def main():
         # Update sensors and ROS data.
         sens_manager.Update()
         if not ros_manager.Update():
+            print("ROS manager update failed. Exiting simulation loop.")
             break
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 
 if __name__ == "__main__":
     main()
 
-# The corrected code is provided above.
+# The corrected and modified code is provided above.

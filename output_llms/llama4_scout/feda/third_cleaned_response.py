@@ -48,20 +48,17 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
@@ -77,12 +74,31 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 
 
-light1 = vis.AddLightPoint(chrono.ChVector3d(-10, -10, 5), chrono.ChColor(1, 1, 1), 100)
-light2 = vis.AddLightPoint(chrono.ChVector3d(10, 10, 5), chrono.ChColor(1, 1, 1), 100)
+light1 = vis.AddLightPoint(chrono.ChVector3d(-10, -10, 5), chrono.ChColor(1, 1, 1), 1000)
+light2 = vis.AddLightPoint(chrono.ChVector3d(10, 10, 5), chrono.ChColor(1, 1, 1), 1000)
 
-vis.AddSkyBox()
 
-vis.AttachVehicle(vehicle.GetVehicle())
+sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
+
+
+camera_pos = chrono.ChVector3d(0, 0, 1.5)
+camera_dir = chrono.ChVector3d(0, 0, -1)
+camera_up = chrono.ChVector3d(0, 1, 0)
+camera_sensor = sensor_manager.AddCameraSensor(vehicle.GetChassisBody(),  
+                                                 camera_pos,  
+                                                 camera_dir,  
+                                                 camera_up,  
+                                                 90,  
+                                                 1920,  
+                                                 1080,  
+                                                 1)  
+
+
+vis_filter = veh.ChSensorVisualizationFilter()
+camera_sensor.SetVisualizationFilter(vis_filter)
+
+
+sensor_manager.AddSensor(camera_sensor)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -95,27 +111,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
-
-sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
-
-
-camera_pos = chrono.ChVector3d(0, 0, 1.5)
-camera_dir = chrono.ChVector3d(0, 0, -1)
-camera_up = chrono.ChVector3d(0, 1, 0)
-camera_sensor = sensor_manager.AddCameraSensor(
-    vehicle.GetChassisBody(),  
-    chrono.ChCoordsysd(camera_pos, chrono.QuaternionFromDir(camera_dir, camera_up)),  
-    1920,  
-    1080,  
-    60  
-)
-
-
-image_color = veh.ChCameraSensorImageColor()
-image_color.SetName("image")
-image_color.SetVerbose(True)
-camera_sensor.AddFilter(image_color)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -132,7 +127,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -140,7 +135,7 @@ while vis.Run():
 
         
         sensor_manager.Update()
-        image_color.WriteImage(chrono.GetChronoDataPath() + "images/")
+        vis_filter.Update()
 
     
     driver_inputs = driver.GetInputs()
@@ -156,7 +151,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)  
 
     
     step_number += 1

@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture(ch.Texture("path/to/floor_texture.png"))  # Set floor texture
+    floor.GetVisualModel().SetTexture(ch.Texture("floor_texture.png"))  # Set texture for floor
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,21 +53,14 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture(ch.Texture("path/to/box_texture.png"))  # Set box texture
+    box.GetVisualModel().SetTexture(ch.Texture("box_texture.png"))  # Set texture for box
     sys.Add(box)  # Add the box to the simulation system.
-
-    # Set up visualization
-    application = chirr.ChIrrApp(sys, "PyChrono Simulation", chirr.dimension2du(1024, 768))
-    application.AddTypicalLogo()
-    application.AddTypicalSky()
-    application.AddTypicalLights()
-    application.AddTypicalCamera(chirr.vector3df(0, 0, 3))
-    application.AssetBindAll()
-    application.AssetUpdateAll()
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-    publish_rate = 10  # Set publishing rate to 10 Hz
+
+    # Set publish rate for ROS handlers
+    publish_rate = 10  # 10 Hz
 
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
@@ -87,18 +80,34 @@ def main():
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Rendering control variables
-    step_number = 0
-    render_step_size = 10  # Render every 10 steps
-    render_steps = 0
+    # =============================================
+    # Set up visualization
+    # =============================================
+    vis = chirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("PyChrono ROS Simulation")
+    vis.Initialize()
+    vis.AddLogo()
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(5, 5, 2), ch.ChVector3d(0, 0, 1))
+    vis.AddTypicalLights()
+    vis.SetCameraVertical(ch.CameraVerticalDir.Z)
 
-    # Run the simulation loop.
+    # =============================================
+    # Simulation parameters
+    # =============================================
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
 
+    # Rendering control parameters
+    step_number = 0
+    render_step_size = 10  # Render every 10 steps
+    render_steps = 0
+
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
-    while time < time_end and application.GetDevice().run():
+    while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
@@ -107,14 +116,16 @@ def main():
 
         # Conditional rendering
         if step_number % render_step_size == 0:
-            application.BeginScene()
-            application.DrawAll()
-            application.DoStep()
-            application.EndScene()
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
             render_steps += 1
 
         step_number += 1
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+
+    # Print simulation statistics
+    print(f"Simulation completed in {render_steps} rendered frames")
 
 # Entry point of the script.
 if __name__ == "__main__":

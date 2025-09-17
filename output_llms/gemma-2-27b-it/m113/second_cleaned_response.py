@@ -17,15 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeightMap = chrono.GetChronoDataFile('terrain/height_map.png')  
-terrain_model = veh.SCMTerrain(vehicle.GetSystem())
-terrain_model.SetHeightmap(terrainHeightMap, 100, 100)  
-
-
-terrain_model.SetFriction(0.8)
-terrain_model.SetRestitution(0.01)
-terrain_model.SetYoungModulus(1e7)
-terrain_model.SetPoissonRatio(0.3)
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -40,7 +34,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.M113()
@@ -65,7 +58,25 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain_model.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0), terrainLength, terrainWidth)
+
+
+patch.SetSoilParameters(
+    density=1700,
+    friction=0.4,
+    cohesion=5e3,
+    yield_stress=1e4,
+    pressure_sinkage=5e4,
+    elastic_modulus=1e6
+)
+
+
+patch.InitializeHeightMap("terrain/heightmap.png") 
+
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.Initialize()
 
 
 
@@ -94,7 +105,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
@@ -120,16 +130,15 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     
     driver.Synchronize(time)
-    terrain_model.Synchronize(time)  
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
     driver.Advance(step_size)
-    terrain_model.Advance(step_size)  
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
     
     vehicle.GetVehicle().SetThrottle(0.8) 
-
+    vis.Advance(step_size)
     
     step_number += 1

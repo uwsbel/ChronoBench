@@ -9,8 +9,8 @@ sys = chrono.ChSystemNSC()                        # Initializing the Chrono phys
 mat = chrono.ChContactMaterialNSC()               # Creating a contact material for collision handling
 
 # Create all rigid bodies with specific dimensions
-radA = 1.5                                       # Defining radius for first gear
-radB = 3.5                                       # Defining radius for second gear
+radA = 1.5                                        # Defining radius for first gear
+radB = 3.5                                        # Defining radius for second gear
 
 # Create the truss
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,      # Creating a box-shaped truss body with dimensions 15x8x2

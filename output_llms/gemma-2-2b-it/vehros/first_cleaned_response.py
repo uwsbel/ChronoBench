@@ -1,58 +1,51 @@
 import pychrono as chrono
-import pychrono.physics as phys
+import pychrono.physics as physics
+import pychrono.vehicle as vehicle
+import pychrono.terrain as terrain
 import pychrono.ros as ros
+import pychrono.driver as driver
 
 
-app = chrono.Application()
+chrono.init()
 
 
 world = chrono.World()
-world.set_gravity(chrono.Vector3(0, -9.81, 0))
 
 
-terrain = chrono.Terrain(
-    chrono.Material("terrain_material"),
-    chrono.Friction(0.2),
-    chrono.Restitution(0.5),
-)
-world.add(terrain)
+terrain_data = terrain.TerrainData()
+terrain_data.setFriction(0.5)
+terrain_data.setRestitution(0.8)
+terrain = terrain.Terrain(terrain_data, world)
 
 
-vehicle = chrono.Vehicle(
-    "HMMWV",
-    chrono.ContactMethod("Wheel-Ground"),
-    engine_type="Internal Combustion",
-    tire_model="Michelin",
-)
-vehicle.set_mass(1000)
-vehicle.set_wheel_radius(0.2)
-vehicle.set_wheel_base(2.5)
-vehicle.set_center_of_mass(chrono.Vector3(0, 0.5, 0))
+vehicle_data = vehicle.VehicleData()
+vehicle_data.setContactMethod(vehicle.ContactMethod.GROUND)
+vehicle_data.setEngineType(vehicle.EngineType.INTERNAL_COMBUSTION)
+vehicle_data.setTireModel(vehicle.TireModel.TYRE_TIRE_MODEL)
+vehicle = vehicle.Vehicle(vehicle_data, world)
 
 
-world.add(vehicle)
+vehicle.setMass(1000)
+vehicle.setPosition(chrono.Vec3(0, 0, 0))
+vehicle.setVelocity(chrono.Vec3(0, 5, 0))
 
 
-driver = chrono.Driver()
-driver.set_control_mode("Manual")
+driver = driver.Driver(vehicle)
 
 
-ros_manager = ros.ROSManager(app, "vehicle_state_publisher")
-ros_manager.register_handler(chrono.ClockSynchronization)
-ros_manager.register_handler(driver.get_inputs)
-ros_manager.register_handler(vehicle.get_state)
+ros_manager = ros.RosManager(world)
+ros_manager.registerHandler(chrono.ClockSynchronizationHandler())
+ros_manager.registerHandler(driver.DriverInputHandler())
+ros_manager.registerHandler(vehicle.VehicleStateHandler())
 
 
-while True:
-    
-    app.update_clock()
+chrono.SimulationLoop(world)
 
-    
-    vehicle.update(app.get_time())
-    driver.update(app.get_time())
 
-    
-    ros_manager.publish_data()
+dt = 0.01
 
-    
-    app.sleep(0.1)
+
+duration = 10
+
+
+chrono.run(duration)

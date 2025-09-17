@@ -3,42 +3,39 @@ import pychrono.irrlicht as vis
 import numpy as np
 
 
-chrono.SetChronoDataPath("path/to/your/chrono/data")  
-app = vis.Application()
-
-
-world = chrono.World()
+chrono.SetChronoDataPath("path/to/chrono/data")  
+app = vis.Application(chrono.GetChronoDataPath())
+vis_scene = app.GetScene()
 
 
 terrain = chrono.RigidBody(chrono.BodyEasyBox(10, 10, 1))
 terrain.SetPos(chrono.Vec3(0, 0, 0))
 terrain.SetBodyFixed(True)
-world.Add(terrain)
+vis_scene.Add(terrain.GetVisualShape())
 
 
-texture = vis.Texture(app, "path/to/your/terrain/texture.png")
+texture = vis.Texture(chrono.GetChronoDataPath() + "textures/terrain.png")  
 terrain.GetVisualShape().SetTexture(texture)
 
 
-vehicle = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  
+vehicle = chrono.ChBodyEasyCylinder(0.5, 2, 1, 1000)  
 vehicle.SetPos(chrono.Vec3(0, 0, 1))
 vehicle.SetBodyFixed(False)
-world.Add(vehicle)
+vis_scene.Add(vehicle.GetVisualShape())
 
 
 vehicle.SetCollide(True)
-vehicle.GetVisualShape().SetMaterial(chrono.Material(chrono.Color(0.8, 0.2, 0.2)))  
+vehicle.SetMaterial(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  
 
 
+def update_vehicle(dt):
+    
+    
+    pass
 
 
-
-dt = 1/50
+app.SetTargetFPS(50)
 while app.Run():
-    world.Step(dt)
-    app.BeginScene()
-    app.DrawWorld(world)
+    app.BeginScene(True, True, chrono.Color(1, 1, 1))
+    update_vehicle(app.GetFrameTime())
     app.EndScene()
-
-
-app.Close()

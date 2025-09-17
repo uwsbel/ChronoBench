@@ -19,9 +19,8 @@ mfloor.SetFixed(True)  # Fix the floor so it doesn't move
 sys.Add(mfloor)  # Add the floor to the simulation system
 
 # Create the crank body, which is a cylinder
-mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)  # Create a cylinder along the Y-axis with radius 0.4 meters and thickness 0.1 meters
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, crank_rad, crank_thick, 1000)  # Create a cylinder along the Z-axis with radius 0.4 meters and thickness 0.1 meters
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))  # Position the crank at (x=-1, y=0.5, z=-0.1)
-mcrank.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(1, 0, 0)))  # Rotate the crank to align it along the Z-axis
 sys.Add(mcrank)  # Add the crank to the simulation system
 
 # Create the connecting rod, which is a box
@@ -32,7 +31,7 @@ sys.Add(mrod)  # Add the rod to the simulation system
 # Create the piston, which is a cylinder
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)  # Create a cylinder along the Y-axis with radius 0.2 meters and height 0.3 meters
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))  # Position the piston at (x=0.9, y=0.5, z=0)
-mpiston.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(0, 1, 0)))  # Rotate the piston to align it along the X-axis
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  # Rotate the piston to align it along the X-axis
 sys.Add(mpiston)  # Add the piston to the simulation system
 
 # Create a motor to spin the crankshaft
@@ -44,17 +43,17 @@ sys.Add(my_motor)  # Add the motor to the simulation system
 
 # Create a revolute joint to connect the crank to the rod
 mjointA = chrono.ChLinkLockRevolute()  # Create a revolute (hinge) joint
-mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  # Initialize the joint at (x=-0.6, y=0.5, z=0)
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(mcrank.GetFrame_REF_to_abs(), chrono.ChVector3d(crank_rad, 0, 0), chrono.Q_ROTATE_Y_TO_Z))  # Initialize the joint at (x=-0.6, y=0.5, z=0)
 sys.Add(mjointA)  # Add the joint to the simulation system
 
 # Create a revolute joint to connect the rod to the piston
 mjointB = chrono.ChLinkLockRevolute()  # Create a revolute (hinge) joint
-mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  # Initialize the joint at (x=0.9, y=0.5, z=0)
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(mrod.GetFrame_REF_to_abs(), chrono.ChVector3d(rod_length, 0, 0), chrono.Q_ROTATE_Y_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0)
 sys.Add(mjointB)  # Add the joint to the simulation system
 
 # Create a prismatic joint to connect the piston to the floor, allowing linear motion along the X-axis
 mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
-mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  # Initialize the joint at (x=0.9, y=0.5, z=0)
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0) with rotation aligning the Z-axis to the X-axis
 sys.Add(mjointC)  # Add the joint to the simulation system
 
 # Set up the Irrlicht visualization system
@@ -74,46 +73,46 @@ array_angle = []
 array_pos = []
 array_speed = []
 
-# Set the simulation time step and total simulation time
-time_step = 1e-3  # 1 ms
-total_simulation_time = 20  # 20 seconds
-
 # Run the interactive simulation loop
 simulation_time = 0.0
-while vis.Run() and simulation_time < total_simulation_time:
+while vis.Run() and simulation_time < 20.0:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
-    sys.DoStepDynamics(time_step)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
+    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
     # Collect data during simulation
+    simulation_time += 1e-3
     array_time.append(simulation_time)
-    array_angle.append(my_motor.GetMotorRotation().GetAngle())
+    array_angle.append(mcrank.GetRot().Q_to_Euler().z)  # Assuming the crank rotates around the Z-axis
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
-    # Update simulation time
-    simulation_time += time_step
-
-# Matplotlib plotting
-fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+# Matplotlib Plotting
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
 # First subplot: Plot position [m] versus the crank angle [rad]
-axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
-axs[0].set_title('Position vs. Crank Angle')
-axs[0].xaxis.set_major_locator(plt.MultipleLocator(np.pi / 2))
-axs[0].grid(True)
+ax1.plot(array_angle, array_pos, label='Position vs. Angle')
+ax1.set_xlabel('Crank Angle [rad]')
+ax1.set_ylabel('Position [m]')
+ax1.set_title('Position vs. Crank Angle')
+ax1.legend()
+
+# Adjust x-axis ticks to display π-based intervals
+ax1.set_xticks(np.arange(0, 2*np.pi + np.pi/2, np.pi/2))
+ax1.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
 
 # Second subplot: Plot speed [m/s] versus the crank angle [rad]
-axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_title('Speed vs. Crank Angle')
-axs[1].xaxis.set_major_locator(plt.MultipleLocator(np.pi / 2))
-axs[1].grid(True)
+ax2.plot(array_angle, array_speed, label='Speed vs. Angle', color='r')
+ax2.set_xlabel('Crank Angle [rad]')
+ax2.set_ylabel('Speed [m/s]')
+ax2.set_title('Speed vs. Crank Angle')
+ax2.legend()
+
+# Adjust x-axis ticks to display π-based intervals
+ax2.set_xticks(np.arange(0, 2*np.pi + np.pi/2, np.pi/2))
+ax2.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
 
 plt.tight_layout()
 plt.show()

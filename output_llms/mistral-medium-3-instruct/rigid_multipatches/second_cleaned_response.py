@@ -32,20 +32,17 @@ def main():
     terrain_mat.SetRestitution(0.01)
 
     
-    terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrain.AddPatch(terrain_mat,
+                    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                     veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                    collision_enabled=True, contact_material_thickness=0.01)
+                    collision_enabled=True,
+                    contact_mat_thickness=0.01)
 
     
     terrain_vis_mesh = chrono.ChTriangleMeshConnected()
-    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-
-    
+    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
     terrain_vis_shape = chrono.ChVisualShapeTriangleMesh()
     terrain_vis_shape.SetMesh(terrain_vis_mesh)
-    terrain_vis_shape.SetName("terrain_visual_mesh")
-
-    
     terrain.GetGroundBody().AddVisualShape(terrain_vis_shape)
 
     terrain.Initialize()

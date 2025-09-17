@@ -1,60 +1,61 @@
-# Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment and core components
-sys = chrono.ChSystemNSC()
-
-# Create the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 100))
-vis.SetCameraAZEL(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-vis.SetLogo("")
+sys = chrono.ChSystem()
 
 # Create the vehicle
 hmmwv = veh.HMMWV()
 hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
 hmmwv.SetTireModel(veh.TireModel_TMEASY)
-hmmwv.SetLocation(chrono.ChVectorD(0, 0, 1.5))
-hmmwv.SetRotation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
+hmmwv.SetVisualization(veh.Visualization_PRIMITIVE)
+
+# Initialize the vehicle with specific parameters
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+
+# Add the vehicle to the system
 sys.Add(hmmwv)
 
-# Add primitive visualization for the vehicle components
-hmmwv.AddVisualization(veh.Visualization_PRIMITIVES)
-
-# Create the rigid terrain
-terrain = chrono.ChBodyEasyBox(sys, 100, 100, 1, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -1.5, 0))
+# Create a rigid terrain
+terrain = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True)
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetCollide(True)
+terrain.SetBodyFixed(True)
+
+# Add the terrain to the system
 sys.Add(terrain)
 
-# Set the terrain texture
-texture = chronoirr.ChTexture()
-texture.SetTexture(chronoirr.GetTexture("terrain.png"))
-vis.AddTexture(terrain, texture)
+# Set up the visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddTypicalLights()
 
-# Configure the interactive driver system
-driver = veh.DriverInteractive(hmmwv)
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetBrakingGain(0.5)
+# Set up the interactive driver system
+driver = veh.ChIrrVehicleDriver(hmmwv)
+steering_func = lambda x: 0.1 * x
+throttle_func = lambda x: 0.5 * x
+braking_func = lambda x: 0.2 * x
+driver.SetSteeringFunction(steering_func)
+driver.SetThrottleFunction(throttle_func)
+driver.SetBrakingFunction(braking_func)
 
-# Simulation loop
+# Set up the simulation loop
+time_step = 0.02
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.SetLogo("")
+
 while vis.Run():
     # Update the vehicle dynamics
-    sys.DoStepDynamics(0.02)
+    sys.DoStepDynamics(time_step)
     
     # Render the scene
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
-    # Update the driver system
-    driver.Synchronize(0.02)
-    
-    # Cap the frame rate
+
+    # Limit the simulation to run in real time at 50 frames per second
     chrono.ChSleep(0.02)

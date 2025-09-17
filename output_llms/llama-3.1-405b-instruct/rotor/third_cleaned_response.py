@@ -17,13 +17,13 @@ class ChFunctionMyFun(chrono.ChFunction):
 
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1
+            return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A1 + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
-        elif x < self.T3:
-            return self.A2
-        else:
             return self.A2 * m.sin(self.w * x)
+        elif x < self.T3:
+            return self.A1 * m.sin(self.w * x)
+        else:
+            return 0
 
 sys = chrono.ChSystemSMC()
 
@@ -114,7 +114,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
 sys.Add(rotmotor1)
 
 
-f_ramp = ChFunctionMyFun(10, 20, 0, 1, 2, 0.5)
+f_ramp = ChFunctionMyFun(40, 20, 1, 2, 3, 0.2)
 rotmotor1.SetMotorFunction(f_ramp)
 
 

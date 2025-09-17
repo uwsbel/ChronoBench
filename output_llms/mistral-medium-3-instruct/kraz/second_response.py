@@ -6,8 +6,8 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed from (0, 0, 0.5) to (-15, 0, 0.5)
+# Initial vehicle location and orientation - changed from (0, 0, 0.5) to (-15, 0, 0.5)
+initLoc = chrono.ChVector3d(-15, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)  # Adjusted to match new position
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -24,8 +24,8 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point on chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed from (0,0, 2.1) to (3,0, 2.1)
+# Point on chassis tracked by the camera - changed from (0,0, 2.1) to (3,0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -71,7 +71,8 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  # Changed from 25.0, 1.5 to 25.0, 10.5
+# Adjusted chase camera parameters from (25.0, 1.5) to (25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -97,28 +98,35 @@ print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
 # Double lane change parameters
 lane_change_start_time = 5.0
-lane_change_duration = 3.0
-lane_change_amplitude = 0.5  # steering angle amplitude
+lane_change_duration = 5.0
+lane_change_amplitude = 0.5
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Double lane change maneuver
-    if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        # Calculate normalized time in the maneuver
-        t = (time - lane_change_start_time) / lane_change_duration
-        # Apply steering input following a sine wave pattern
-        steering_input = lane_change_amplitude * math.sin(2 * math.pi * t)
-        driver.SetSteering(steering_input)
-    else:
-        driver.SetSteering(0)
+    if time >= lane_change_start_time and time <= lane_change_start_time + lane_change_duration:
+        # Calculate steering input based on time
+        t = time - lane_change_start_time
+        steering_input = 0.0
+
+        if t < lane_change_duration/2:
+            # First lane change (left)
+            steering_input = -lane_change_amplitude * (1 - math.cos(2 * math.pi * t / (lane_change_duration/2)))
+        else:
+            # Second lane change (right)
+            steering_input = lane_change_amplitude * (1 - math.cos(2 * math.pi * (t - lane_change_duration/2) / (lane_change_duration/2)))
+
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = steering_input
+        driver.SetInputs(driver_inputs)
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):

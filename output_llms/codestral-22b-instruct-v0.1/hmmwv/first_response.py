@@ -27,20 +27,24 @@ terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
 
 # 3. Set necessary default parameters
 
-# Configure the interactive driver system
-driver = veh.ChIrrGuiDriver(hmmwv.GetVehicle(), cam_location=chrono.ChVectorD(0, 20, 10))
+# Configure the driver system
+driver = veh.ChDriver(hmmwv)
+driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
+driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
+driver.Initialize()
 
-# 4. Set up the simulation loop
-
-# Create an Irrlicht application to visualize the system
-application = irr.ChIrrApp(my_system, "HMMWV on Rigid Terrain", irr.dimension2du(1024, 768))
+# Set up the simulation loop
+application = irr.ChIrrApp(my_system, 'HMMWV on Rigid Terrain', irr.dimension2du(1024, 768))
 application.AddTypicalLogo()
 application.AddTypicalSky()
-application.AddTypicalCamera(chrono.ChVectorD(0, 20, 10))
 application.AddTypicalLights()
-application.AddLightWithShadow(chrono.ChVectorD(20, 20, 20), chrono.ChVectorD(0, 0, 0), 30, 4, 20, 50)
-application.AssetBindAll()
-application.AssetUpdateAll()
+application.AddTypicalCamera(irr.vector3df(0, 3, -6))
+application.AddLightWithShadow(irr.vector3df(3, 10, -10), irr.vector3df(0, 0, 0), 15, 10, 70, 512, irr.SColorf(0.8, 0.8, 1))
+application.AddShadowAll()
+
+application.SetTimestep(0.02)
+application.SetTryRealtime(True)
+application.SetFrameRate(50)
 
 # Run the simulation loop
 while application.GetDevice().run():
@@ -48,5 +52,3 @@ while application.GetDevice().run():
     application.DrawAll()
     application.DoStep()
     application.EndScene()
-    my_system.DoStepDynamics(1e-3)
-    driver.Synchronize(my_system)

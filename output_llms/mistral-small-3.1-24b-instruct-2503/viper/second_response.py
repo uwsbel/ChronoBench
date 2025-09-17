@@ -32,6 +32,25 @@ init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFrame(init_pos, init_rot))
 
+# Create sensor manager
+manager = sens.ChSensorManager(system)
+intensity = 1.0
+manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+
+# Create a camera sensor
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.Quaternion(chrono.ChVector3d(0, 1, 0), 0.2))
+cam = sens.ChCameraSensor(
+    rover.GetChassis().GetBody(),
+    15,  # update rate
+    offset_pose,
+    720,  # image width
+    480,  # image height
+    1.408  # field of view
+)
+cam.SetName("Third Person POV")
+cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
+manager.AddSensor(cam)
+
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
@@ -48,29 +67,10 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Create a sensor manager
-manager = sens.ChSensorManager(system)
-intensity = 1.0
-manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-
-# Create a camera sensor
-offset_pose = chrono.ChFrame(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(math.pi / 5, chrono.ChVector3d(0, 1, 0)))
-cam = sens.ChCameraSensor(
-    rover.GetChassis().GetBody(),
-    15,  # update rate
-    offset_pose,
-    720,  # image width
-    480,  # image height
-    1.408  # field of view
-)
-cam.SetName("Third Person POV")
-cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
-manager.AddSensor(cam)
-
 # Set the simulation time step
 time_step = 1e-3
 
-# Define variables for simulation step and render step size
+# Simulation step and render step size
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
@@ -96,7 +96,7 @@ while vis.Run():
     manager.Update()
 
     # Render the scene at specific intervals
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -4,71 +4,98 @@ import pychrono.sensor
 import pychrono.postprocess
 import numpy as np
 
-# --- Simulation setup ---
-chrono.SetChronoDataPath("./")  # Replace with your ChronoDataPath if needed
+# ---
+#  Create the simulation system
+# ---
 
-# Create a physical system
+# Create a Chrono physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# --- Create the mesh body ---
+# ---
+#
+#   Create the triangular mesh
+# ---
+
+# Load the mesh from a Wavefront .obj file
 mesh_file = "cube.obj"  # Replace with your .obj file
-mesh_body = chrono.ChBodyEasy()
-mesh_body.SetBodyFixed(True)
-mesh_body.AddAsset(chrono.ChTriangleMeshConnected())
-mesh_body.GetAsset().LoadFromFile(mesh_file)
-mesh_body.SetCollide(True)
-system.Add(mesh_body)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadFromFile(mesh_file)
 
-# --- Lidar sensor setup ---
+# Create a ChBody from the mesh
+body = chrono.ChBodyEasy()
+body.AddAsset(mesh)
+body.SetBodyFixed(True)
+system.Add(body)
+
+# ---
+#
+#   Create the Lidar sensor
+# ---
+
+# Create a sensor manager
 sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(mesh_body)
+sensor_manager.AddSensor(body)
 
-# Create a lidar sensor
+# Create a Lidar sensor
 lidar = chrono.ChLidarSensor()
 lidar.SetSensorName("Lidar")
+lidar.SetBody(body)
 lidar.SetScanRate(10)  # Scans per second
-lidar.SetRange(10)  # Maximum range
+lidar.SetRange(10.0)  # Maximum range
 lidar.SetResolution(180)  # Number of points in a scan
-lidar.SetFOV(np.pi / 2)  # Field of view in radians
-lidar.SetNoiseStdDev(0.01)  # Standard deviation of noise
+lidar.SetFOV(360.0)  # Field of view
+lidar.SetNoiseStdDev(0.01)  # Standard deviation of the noise
 lidar.SetVisualize(True)  # Visualize the lidar rays
 lidar.SetSaveData(True)  # Save the lidar data to a file
-lidar.SetOutputFileName("lidar_data.txt")  # File name for saving lidar data
+lidar.SetSavePath("lidar_data.txt")  # File path to save the lidar data
 
 sensor_manager.AddSensor(lidar)
 
-# --- Orbiting motion setup ---
-orbit_radius = 5
-orbit_speed = 1  # radians per second
-time = 0
-def update_lidar_position(body, time):
-    """Updates the lidar's position in an orbit around the mesh."""
-    x = orbit_radius * np.cos(orbit_speed * time)
-    z = orbit_radius * np.sin(orbit_speed * time)
-    lidar.SetPos(chrono.ChVectorD(x, 0, z))
-    return lidar
+# ---
+#
+#   Create the orbit motion
+# ---
 
-# --- Simulation loop ---
+# Create a revolute joint to orbit the lidar around the mesh
+revolute = chrono.ChLinkRevolute()
+revolute.Initialize(body,
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 5), chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0, 1, 0))),
+                    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.AddLink(revolute)
+
+# Set the motor speed for the revolute joint
+revolute.Set_motor_speed(0.5) # radians/second
+
+# ---
+#
+#   Simulation loop
+# ---
+
+# Create a visualization window
+vis = chrono.ChVisualSystemGL()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Lidar Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddTypicalLights()
+
+# Simulation parameters
 time_step = 0.01
-num_steps = 100
+time_end = 10
 
-for i in range(num_steps):
-    time += time_step
-    update_lidar_position(mesh_body, time)
-
+# Simulation loop
+while system.GetChTime() < time_end:
     system.DoStepDynamics(time_step)
-
+    
     # Print lidar buffer data
     if lidar.HasNewData():
-        buffer = lidar.GetBuffer()
-        print(f"Step {i}: Lidar data points = {len(buffer)}")
-        # You can process the buffer data here if needed
-        # For example, print the first few points:
-        # for j in range(min(5, len(buffer))):
-        #     print(f"Point {j}: {buffer[j]}")
+        data = lidar.GetBuffer()
+        print("Lidar Data:")
+        for point in data:
+            print(f"  Distance: {point[0]}, Angle: {point[1]}")
 
-# --- Post-processing (optional) ---
-# You can add post-processing to visualize the simulation results
-# For example, using the Chrono::Postprocess library.
+    vis.Render()
+    vis.ProcessEvents()
 ```

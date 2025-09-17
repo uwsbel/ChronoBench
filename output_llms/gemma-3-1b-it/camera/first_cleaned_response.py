@@ -1,104 +1,97 @@
 import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import Delaunay
+from pychrono.core import System
+from pychrono.core import Scene
+from pychrono.core import Physics
+from pychrono.core import Camera
+from pychrono.core import SensorManager
+from pychrono.core import Simulation
 
-def simulate_orbital_simulation(obj_file):
+
+try:
     
-
-    try:
-        
-        chrono = pychrono.Chrono()
-        chrono.set_environment(
-            "dynamic",  
-            "fixed_body",
-            "triangular_mesh",
-            obj_file
-        )
-
-        
-        try:
-            mesh = chrono.load_mesh(obj_file)
-        except Exception as e:
-            print(f"Error loading mesh: {e}")
-            return
-
-        
-        
-        mesh_data = mesh.get_data()
-
-        
-        fixed_body = chrono.create_body(
-            name="FixedBody",
-            mass=10.0,  
-            position=(0, 0, 0),
-            rotation=(0, 0, 0)
-        )
-
-        
-        orbiting_object = chrono.create_body(
-            name="OrbitingObject",
-            mass=5.0,  
-            position=(0, 0, 0),
-            rotation=(0, 0, 0)
-        )
-
-        
-        
-        orbiting_object.position = (0, 0, 0)
-        orbiting_object.rotation = (0, 0, 0)
-
-        
-        
-        
-        
-        
-        
-
-        
-        mesh_force = 0.1  
-        orbiting_object.force = mesh_force * 10 
-
-        
-        orbiting_object.force = 0.05 
-
-        
-        chrono.set_simulation_parameters(
-            time_step=0.01,  
-            gravity=0.0,  
-            time_step=100,  
-            
-        )
-
-        
-        for step in range(100):
-            
-            camera_buffer = chrono.get_camera_buffer(
-                orbiting_object,
-                mesh_data,
-                time_step
-            )
-
-            
-            print(f"Step: {step}, Camera Buffer: {camera_buffer}")
-
-            
-            
-            
-            
-            
-            
-            
+    chrono = pychrono.core.Core()
+    chrono.initialize()
+    print("PyChrono initialized successfully.")
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
 
-        
-        chrono.end_simulation()
 
-    except Exception as e:
-        print(f"Error during simulation: {e}")
+try:
+    mesh = chrono.load_mesh("path/to/your/triangle.obj")
+except Exception as e:
+    print(f"Error loading mesh: {e}")
+    exit()
 
 
-if __name__ == "__main__":
+object_name = "triangle"  
+object = chrono.create_object(object_name)
+
+
+sensor_manager = SensorManager(object)
+
+
+camera = chrono.create_camera(
+    object_name,
+    sensor_manager=sensor_manager,
+    camera_position=(0, 0, 5),  
+    camera_orientation=0,       
+    camera_resolution=100,      
     
-    obj_file = "triangular_mesh.obj"
-    simulate_orbital_simulation(obj_file)
+)
+
+
+
+initial_position = (0, 0, 5)
+initial_force = 10.0
+initial_velocity = 0.0
+
+
+simulation_time = 10  
+time_step = 0.1  
+simulation_rate = 10  
+
+
+try:
+    simulation = chrono.create_simulation(
+        simulation_time,
+        simulation_rate,
+        initial_position,
+        initial_force,
+        initial_velocity,
+        object
+    )
+    print("Simulation started.")
+
+    
+    for t in range(simulation_time):
+        
+        camera.position = camera.position + camera.velocity * time_step
+        
+        print(f"Time: {t}, Camera Position: {camera.position}")
+
+        
+        simulation.update()
+
+    print("Simulation finished.")
+
+except Exception as e:
+    print(f"Simulation failed: {e}")
+    exit()
+
+
+
+simulation.stop()
+print("Simulation stopped.")
+
+
+
+try:
+    plt.imshow(camera.image, cmap='gray')
+    plt.title("Camera Image")
+    plt.show()
+except Exception as e:
+    print(f"Visualization failed: {e}")

@@ -24,9 +24,9 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0  
+terrainLength = 100.0  
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -67,7 +67,7 @@ vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
 vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(20, 0, 0.5), initRot))
+vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(20, 0, 0.5), initRot))  
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
 vehicle2.Initialize()
@@ -84,7 +84,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle1.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -105,10 +105,9 @@ driver1 = veh.ChInteractiveDriverIRR(vis)
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
-
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
 driver1.SetSteeringDelta(render_step_size / steering_time)
 driver1.SetThrottleDelta(render_step_size / throttle_time)
 driver1.SetBrakingDelta(render_step_size / braking_time)
@@ -138,7 +137,7 @@ while vis.Run():
     time = vehicle1.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -150,20 +149,9 @@ while vis.Run():
 
     
     steering_input1 = 0.5 * math.sin(time)
-    throttle_input1 = 0.5
-    braking_input1 = 0.0
-
-    steering_input2 = 0.5 * math.sin(time + 2)
-    throttle_input2 = 0.5
-    braking_input2 = 0.0
-
+    steering_input2 = -0.5 * math.sin(time)
     driver_inputs1.steering = steering_input1
-    driver_inputs1.throttle = throttle_input1
-    driver_inputs1.braking = braking_input1
-
     driver_inputs2.steering = steering_input2
-    driver_inputs2.throttle = throttle_input2
-    driver_inputs2.braking = braking_input2
 
     
     driver1.Synchronize(time)

@@ -71,9 +71,16 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box_body = chrono.ChBodyEasyBox(10, 1, 1, 1000, False, True)
-box_body.SetPos(chrono.ChVectorD(20, 0, 0.5))
-box_body.SetBodyFixed(True)
+box_size = chrono.ChVector3d(10, 1, 1)
+box_pos = chrono.ChVector3d(5, 0, 0.5)
+box_body = chrono.ChBody()
+box_body.SetPos(box_pos)
+box_body.SetMass(1000)
+box_body.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
+box_body.SetCollide(True)
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().Size = box_size
+box_body.AddAsset(box_shape)
 vehicle.GetSystem().Add(box_body)
 
 

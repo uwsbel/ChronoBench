@@ -27,6 +27,23 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()  
 
 
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -38,36 +55,20 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-vis.EnableShadows()  
+
+
+vis.EnableShadows()
 
 
 time_step = 2e-3
 
 
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
-    else:
-        raise ValueError("Invalid mode. Choose from 'straight', 'left', 'right'.")
-
-
 time = 0
 while vis.Run():
-    if time < 5.0:
+    if time < 5:
         move('straight')
         print("Moving straight")
-    elif 5.0 <= time < 10.0:
+    elif time < 10:
         move('left')
         print("Turning left")
     else:

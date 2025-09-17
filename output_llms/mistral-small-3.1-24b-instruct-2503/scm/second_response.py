@@ -39,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced()  could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -57,67 +57,46 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Encapsulate SCM Terrain Parameters
+# Define SCM Terrain Parameters class
 class SCMTerrainParameters:
     def __init__(self, config="mid"):
-        self.config = config
-        self.parameters = self.get_parameters(config)
-
-    def get_parameters(self, config):
         if config == "soft":
-            return {
-                "Bekker_Kphi": 1e6,
-                "Bekker_Kc": 0,
-                "Bekker_n": 1.1,
-                "Mohr_cohesive_limit": 0,
-                "Mohr_friction_limit": 30,
-                "Janosi_shear_coefficient": 0.01,
-                "Elastic_stiffness": 1e8,
-                "Damping": 2e4
-            }
+            self.Kphi = 1e6
+            self.Kc = 0
+            self.n = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.shear = 0.01
+            self.stiffness = 1e8
+            self.damping = 2e4
         elif config == "mid":
-            return {
-                "Bekker_Kphi": 2e6,
-                "Bekker_Kc": 0,
-                "Bekker_n": 1.1,
-                "Mohr_cohesive_limit": 0,
-                "Mohr_friction_limit": 30,
-                "Janosi_shear_coefficient": 0.01,
-                "Elastic_stiffness": 2e8,
-                "Damping": 3e4
-            }
+            self.Kphi = 2e6
+            self.Kc = 0
+            self.n = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.shear = 0.01
+            self.stiffness = 2e8
+            self.damping = 3e4
         elif config == "hard":
-            return {
-                "Bekker_Kphi": 3e6,
-                "Bekker_Kc": 0,
-                "Bekker_n": 1.1,
-                "Mohr_cohesive_limit": 0,
-                "Mohr_friction_limit": 30,
-                "Janosi_shear_coefficient": 0.01,
-                "Elastic_stiffness": 3e8,
-                "Damping": 4e4
-            }
+            self.Kphi = 3e6
+            self.Kc = 0
+            self.n = 1.1
+            self.cohesion = 0
+            self.friction = 30
+            self.shear = 0.01
+            self.stiffness = 3e8
+            self.damping = 4e4
         else:
             raise ValueError("Invalid terrain configuration")
 
-    def get_parameter(self, key):
-        return self.parameters[key]
+    def get_parameters(self):
+        return (self.Kphi, self.Kc, self.n, self.cohesion, self.friction, self.shear, self.stiffness, self.damping)
 
-# Initialize Terrain Parameters
+# Create the SCM deformable terrain patch with predefined configuration
 terrain_params = SCMTerrainParameters(config="mid")
-
-# Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(
-    terrain_params.get_parameter("Bekker_Kphi"),
-    terrain_params.get_parameter("Bekker_Kc"),
-    terrain_params.get_parameter("Bekker_n"),
-    terrain_params.get_parameter("Mohr_cohesive_limit"),
-    terrain_params.get_parameter("Mohr_friction_limit"),
-    terrain_params.get_parameter("Janosi_shear_coefficient"),
-    terrain_params.get_parameter("Elastic_stiffness"),
-    terrain_params.get_parameter("Damping")
-)
+terrain.SetSoilParameters(*terrain_params.get_parameters())
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -156,13 +135,13 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

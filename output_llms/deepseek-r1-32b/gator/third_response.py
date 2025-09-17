@@ -14,13 +14,12 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_PRIMITIVES  # Changed from MESH to PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_PRIMITIVES  # Added primitive collision
+chassis_collision_type = veh.CollisionType_PRIMITIVES  # Changed to PRIMITIVES
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -42,7 +41,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 # Create the Gator vehicle, set parameters, and initialize
 vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
-vehicle.SetChassisCollisionType(chassis_collision_type)  # Now using primitive collision
+vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
@@ -50,7 +49,7 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)  # Visualization now uses primitives
+vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
@@ -93,7 +92,6 @@ driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 2.0  # Increased from 1.0
 throttle_time = 2.0  # Increased from 1.0
 braking_time = 0.5   # Increased from 0.3
-
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

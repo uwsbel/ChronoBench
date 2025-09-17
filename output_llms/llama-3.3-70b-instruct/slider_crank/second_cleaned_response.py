@@ -58,12 +58,6 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -75,10 +69,14 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-t = 0
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
 
 
-while vis.Run() and t < 20:
+time = 0
+while vis.Run() and time < 20:
     
     vis.BeginScene()  
     vis.Render()  
@@ -86,31 +84,29 @@ while vis.Run() and t < 20:
     sys.DoStepDynamics(1e-3)  
 
     
-    array_time.append(t)
-    array_angle.append(my_motor.GetMotorRot())
-    array_pos.append(mpiston.GetPos().x())
-    array_speed.append(my_motor.GetMotorSpeed())
+    array_time.append(time)
+    array_angle.append(mcrank.GetRot().EulerAngles()[2])  
+    array_pos.append(mpiston.GetPos().x())  
+    array_speed.append(my_motor.GetMotorSpeed())  
 
-    
-    t += 1e-3
+    time += 1e-3  
 
 
-fig, axs = plt.subplots(2, figsize=(10, 6))
+fig, axs = plt.subplots(2, figsize=(8, 6))
 
 axs[0].plot(array_angle, array_pos)
-axs[0].set_title('Position vs. Crank Angle')
 axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
+axs[0].set_ylabel('Piston Position [m]')
+axs[0].set_title('Position vs. Crank Angle')
+axs[0].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[0].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
 axs[1].plot(array_angle, array_speed)
-axs[1].set_title('Speed vs. Crank Angle')
 axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-
-
-xticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
-axs[0].set_xticks(xticks)
-axs[1].set_xticks(xticks)
+axs[1].set_ylabel('Motor Speed [rad/s]')
+axs[1].set_title('Speed vs. Crank Angle')
+axs[1].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[1].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
 plt.tight_layout()
 plt.show()

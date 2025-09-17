@@ -30,28 +30,70 @@ robot.Initialize()
 
 sensor_manager = sens.ChSensorManager()
 lidar_sensor = sens.ChLidarSensor(sensor_manager, system)
-lidar_sensor.SetLidarType(sens.ChLidarSensor.Type_3D_LIDAR)
-lidar_sensor.SetLidarRange(5.0)
-lidar_sensor.SetLidarFieldOfView(180)
-lidar_sensor.SetLidarRangeResolution(0.1)
-lidar_sensor.SetLidarRotationFrequency(10)
-lidar_sensor.SetLidarRangeAverageFilter(5)
-lidar_sensor.SetLidarPointCloudFilter(10)
-lidar_sensor.SetLidarPointCloudFilterAverage(5)
-lidar_sensor.SetLidarPointCloudFilterMinimum(1)
-lidar_sensor.SetLidarPointCloudFilterMaximum(100)
-sensor_manager.AddSensor(lidar_sensor)
 
 
-for i in range(5):
-    box_pos = chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-0.5, 0.5))
-    box_size = chrono.ChVector3d(1, 1, 0.5)
-    box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True, chrono.ChContactMaterialNSC())
-    box.SetPos(box_d,
-,
-,
-,
-0,   0,    
-   
-,   
-,
+
+
+lidar_sensor.SetName("Lidar")
+lidar_sensor.SetRange(1000)
+lidar_sensor.SetMaxRange(5000)
+lidar_sensor.SetMinAngle(0)
+lidar_sensor.SetMaxAngle(math.pi)
+lidar_sensor.SetMinElevation(0)
+lidar_sensor.SetMaxElevation(math.pi / 2)
+lidar_sensor.SetMinAzimuth(0)
+lidar_sensor.SetMaxAzimuth(2 * math.pi)
+lidar_sensor.SetMinAngleFilter(0.1)
+lidar_sensor.SetMaxAngleFilter(0.1)
+lidar_sensor.SetMinElevationFilter(0.1)
+lidar_sensor.SetMaxElevationFilter(0.1)
+lidar_sensor.SetMinAzimuthFilter(0.1)
+lidar_sensor.SetMaxAzimuthFilter(0.1)
+system.Add(lidar_sensor)
+
+
+for _ in range(5):
+    box_pos = chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-0.5, -0.1))
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, chrono.ChContactMaterialNSC())
+    box.SetPos(box_pos)
+    box.SetRot(chrono.ChQuaterniond(math.cos(np.random.uniform(0, 2 * math.pi)), 0, 0, math.sin(np.random.uniform(0, 2 * math.pi))))
+    system.Add(box)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with Sensors')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+
+
+
+
+time_step = 2e-3
+
+
+time = 0
+while vis.Run():
+    
+    sensor_manager.Update()
+
+    
+    robot.move('straight')
+
+    
+    time += time_step
+
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    
+    system.DoStepDynamics(time_step)

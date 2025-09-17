@@ -4,7 +4,6 @@ import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
 import os
-import csv
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -138,6 +137,21 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
+depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    depth_cam_offset,
+    image_width,
+    image_height,
+    fov,
+    30.0  
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterDepthMapVisualize(image_width, image_height, 1.0, "Depth Map"))
+manager.AddSensor(depth_cam)
+
+
 offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
@@ -171,24 +185,8 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_cam_offset,
-    image_width,
-    image_height,
-    fov,
-    30.0  
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
+vehicle_logs = []
 
-
-csv_file = open("vehicle_state.csv", mode='w', newline='')
-csv_writer = csv.writer(csv_file)
-csv_writer.writerow(['Time', 'X', 'Y', 'Z', 'Heading'])
 
 
 
@@ -196,7 +194,7 @@ csv_writer.writerow(['Time', 'X', 'Y', 'Z', 'Heading'])
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
+end_time = tend  
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
@@ -213,11 +211,17 @@ while time < end_time:
     manager.Update()
 
     
-    pos = gator.GetChassisBody().GetPos()
-    rot = gator.GetChassisBody().GetRot()
-    mat = rot.Q_to_mat33()
-    heading = math.atan2(mat[1][0], mat[0][0])
-    csv_writer.writerow([time, pos.x, pos.y, pos.z, heading])
+    chassis = gator.GetChassisBody()
+    pos = chassis.GetPos()
+    rot = chassis.GetRot()
+    heading = math.atan2(rot.GetY(), rot.GetX()) * 180 / math.pi  
+    vehicle_logs.append({
+        'time': time,
+        'x': pos.x,
+        'y': pos.y,
+        'z': pos.z,
+        'heading': heading
+    })
 
     
     driver.Advance(step_size)
@@ -228,4 +232,6 @@ while time < end_time:
     realtime_timer.Spin(step_size)
 
 
-csv_file.close()
+print("\nVehicle State Log:")
+for log in vehicle_logs:
+    print(f"Time: {log['time']:.2f}s, Position: ({log['x']:.2f}, {log['y']:.2f}, {log['z']:.2f}), Heading: {log['heading']:.2f} degrees")

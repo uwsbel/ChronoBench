@@ -25,11 +25,13 @@ def main():
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    terrain.SetMesh(chrono.GetDataFile('vehicle/terrain/meshes/Highway_col.obj'))
     terrain.SetCollisionEnabled(True)
-    terrain.SetCollisionMaterial(chrono.ChContactMaterialNSC(
-        friction=0.9, restitution=0.01, thickness=0.01))
-    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_vis.obj')))
+    terrain.SetContactMaterialThickness(0.01)
+
+    
+    visual_mesh = veh.ChVisualShapeTriangleMesh(chrono.GetDataFile('terrain/meshes/Highway_vis.obj'))
+    terrain.AddVisualShape(visual_mesh)
 
     
     terrain.Initialize()

@@ -2,120 +2,77 @@
 import pychrono as chrono
 import pychrono.sensor as sensor
 import pychrono.ros as ros
-import chrono_types
 
 # 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("./data/")
-system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 2. Add physical systems and objects
-ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+# 2. Add ground body and mesh for visualization
+ground = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
-system.Add(ground)
+my_system.Add(ground)
 
-# Create a mesh for visualization
-ground_mesh = chrono.ChTriangleMeshConnected()
-ground_mesh.LoadFromFile("ground.obj")
-ground.AddAsset(chrono.ChVisualShapeAsset(ground_mesh))
-
-# 3. Configure the ground body to move
-ground.SetPos_dt(chrono.ChVectorD(0.1, 0, 0))  # Example: Move 0.1 units in x-direction per timestep
+# 3. Create sensor manager and ROS manager
+sensor_manager = sensor.ChSensorManager(my_system)
+ros_manager = ros.ChROSManager(my_system)
 
 # 4. Integrate sensors
-sensor_manager = sensor.ChSensorManager(system)
-
-# Camera
 camera = sensor.ChCameraSensor(sensor_manager)
 camera.SetPos(chrono.ChVectorD(0, 2, 0))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-camera.SetVerticalFOV(chrono.CH_C_PI / 4)
-camera.SetAspect(16.0 / 9.0)
-camera.SetName("camera")
-
-# Lidar
-lidar = sensor.ChLidarSensor(sensor_manager)
-lidar.SetPos(chrono.ChVectorD(0, 1, 0))
-lidar.SetDirection(chrono.ChVectorD(0, 0, -1))
-lidar.SetRange(10)
-lidar.SetAngularResolution(chrono.CH_C_PI / 180)
-lidar.SetName("lidar")
-
-# GPS
-gps = sensor.ChGPSSensor(sensor_manager)
-gps.SetPos(chrono.ChVectorD(0, 1.5, 0))
-gps.SetName("gps")
-
-# Accelerometer
-accelerometer = sensor.ChAccelerometerSensor(sensor_manager)
-accelerometer.SetPos(chrono.ChVectorD(0, 1, 0))
-accelerometer.SetName("accelerometer")
-
-# Gyroscope
-gyroscope = sensor.ChGyroscopeSensor(sensor_manager)
-gyroscope.SetPos(chrono.ChVectorD(0, 1, 0))
-gyroscope.SetName("gyroscope")
-
-# Magnetometer
-magnetometer = sensor.ChMagnetometerSensor(sensor_manager)
-magnetometer.SetPos(chrono.ChVectorD(0, 1, 0))
-magnetometer.SetName("magnetometer")
-
-# 5. ROS Manager
-ros_manager = ros.ChROSManager(system)
-
-# Register sensors with ROS topics
+camera.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+camera.SetImageSize(640, 480)
 ros_manager.RegisterSensor(camera, "/camera/image")
+
+lidar = sensor.ChLidarSensor(sensor_manager)
+lidar.SetPos(chrono.ChVectorD(0, 2, 0))
+lidar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+lidar.SetScanAngle(chrono.ChVectorD(-0.5, 0.5))
 ros_manager.RegisterSensor(lidar, "/lidar/scan")
+
+gps = sensor.ChGPSSensor(sensor_manager)
+gps.SetPos(chrono.ChVectorD(0, 2, 0))
 ros_manager.RegisterSensor(gps, "/gps/data")
+
+accelerometer = sensor.ChAccelerometerSensor(sensor_manager)
+accelerometer.SetPos(chrono.ChVectorD(0, 2, 0))
 ros_manager.RegisterSensor(accelerometer, "/accelerometer/data")
+
+gyroscope = sensor.ChGyroscopeSensor(sensor_manager)
+gyroscope.SetPos(chrono.ChVectorD(0, 2, 0))
 ros_manager.RegisterSensor(gyroscope, "/gyroscope/data")
+
+magnetometer = sensor.ChMagnetometerSensor(sensor_manager)
+magnetometer.SetPos(chrono.ChVectorD(0, 2, 0))
 ros_manager.RegisterSensor(magnetometer, "/magnetometer/data")
 
-# 6. Simulation loop
-time_step = 0.01
-while system.GetChTime() < 10:
-    # Update sensors
+# 5. Simulation loop
+while my_system.GetChTime() < 10:
+    # Update sensor data
     sensor_manager.Update()
 
-    # Advance simulation
-    system.DoStepDynamics(time_step)
+    # Move the ground body
+    ground.SetPos(chrono.ChVectorD(0, -1 + 0.1 * my_system.GetChTime(), 0))
 
-    # Maintain real-time execution
-    chrono.ChSystem.WaitUntilNextStep(time_step)
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
 
-# Cleanup
-ros_manager.Stop()
+    # Publish sensor data through ROS
+    ros_manager.PublishData()
+
 ```
 
 **Explanation:**
 
-1. **Initialization:**
-   - Sets up the Chrono environment, system, and solver.
-   - Defines gravity.
+1. **Initialization:** The code initializes the Chrono system, sets gravity, and chooses a solver.
+2. **Ground Body:** A ground body is created with a box shape and fixed position.
+3. **Sensor Manager and ROS Manager:** The `ChSensorManager` handles sensor updates, and the `ChROSManager` publishes sensor data to ROS topics.
+4. **Sensor Integration:** Different sensor types (camera, lidar, GPS, accelerometer, gyroscope, magnetometer) are created, configured with positions and parameters, and registered with both the sensor manager and the ROS manager.
+5. **Simulation Loop:** The loop runs for 10 seconds. In each iteration:
+   - Sensor data is updated using `sensor_manager.Update()`.
+   - The ground body is moved vertically.
+   - The simulation is advanced by a time step using `my_system.DoStepDynamics(0.01)`.
+   - Sensor data is published to ROS topics using `ros_manager.PublishData()`.
 
-2. **Ground Body:**
-   - Creates a ground body using `ChBodyEasyBox`.
-   - Sets its position, mass, and makes it fixed.
-   - Adds a mesh for visualization.
-   - Sets a velocity for movement.
-
-3. **Sensors:**
-   - Creates instances of various sensor types (camera, lidar, GPS, accelerometer, gyroscope, magnetometer).
-   - Configures their positions, directions, ranges, and other parameters.
-   - Assigns names to each sensor for identification.
-
-4. **ROS Manager:**
-   - Creates a `ChROSManager` to handle ROS communication.
-   - Registers each sensor with a specific ROS topic for publishing data.
-
-5. **Simulation Loop:**
-   - Runs a loop for a specified duration (10 seconds in this case).
-   - Updates sensor readings using `sensor_manager.Update()`.
-   - Advances the simulation by one time step using `system.DoStepDynamics(time_step)`.
-   - Uses `chrono.ChSystem.WaitUntilNextStep(time_step)` to maintain real-time execution.
-
-6. **Cleanup:**
-   - Stops the ROS manager when the simulation ends.
+**Note:** This script requires the PyChrono library and ROS to be installed.

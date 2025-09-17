@@ -1,99 +1,129 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visual as v
-import numpy as np
-import matplotlib.pyplot as plt
-from pychrono.core import System
+import time
+import random
+import math
+import irlayout as ir
 
-class HMMWVSimulation:
-    def __init__(self, vehicle_mass, terrain_model, driver_inputs, visual_system):
-        """
-        Initializes the HMMWV simulation.
+# Simulation Parameters
+SIMULATION_TIME = 60  # Simulation duration in seconds
+NUM_STEPS = 100
+INITIAL_POSITION = (0, 0, 0)
+INITIAL_FORCE = 10.0
+INITIAL_IMU_DATA = {
+    'acceleration': [0.0, 0.0, 0.0],
+    'gyro': [0.0, 0.0, 0.0],
+    'angular_velocity': [0.0, 0.0, 0.0]
+}
+INITIAL_GPS_DATA = {
+    'latitude': 34.0522,
+    'longitude': -118.2437,
+    'altitude': 0.0
+}
 
-        Args:
-            vehicle_mass (float): The mass of the vehicle.
-            terrain_model (dict): A dictionary defining the terrain model.  Keys are terrain types (e.g., "grass", "dirt", "snow"),
-                                    values are dictionaries containing terrain properties like slope, roughness, etc.
-            driver_inputs (dict): A dictionary containing driver inputs (e.g., acceleration, steering angle).
-            visual_system (pychrono.visual.Visual): The visual system to use.
-        """
-        self.vehicle_mass = vehicle_mass
-        self.terrain_model = terrain_model
-        self.driver_inputs = driver_inputs
-        self.visual_system = visual_system
-        self.simulation_time = 10  # Initial simulation time
-        self.time_step = 0.1  # Time step for simulation
-        self.current_time = 0
-        self.vehicle_position = np.array([0, 0, 0])  # Initial position
-        self.vehicle_velocity = np.array([0, 0, 0])
-        self.sensor_data = {}  # Store sensor readings
-        self.sensor_id = 0  # Unique ID for each sensor
+# HMMWV Parameters
+HMMWV_TYPE = "HMMWV"
+HMMWV_SIZE = 5  # Size of the vehicle (e.g., 5 for a small vehicle)
+# Terrain Parameters (Simplified - can be expanded)
+TERRAIN_HEIGHT = 1.0
+TERRAIN_WIDTH = 0.5
 
-    def update_sensor_data(self):
-        """Updates the sensor data based on sensor readings."""
-        for sensor_id, sensor in self.sensor_data.items():
-            try:
-                # Simulate sensor readings (replace with actual sensor readings)
-                # This is a placeholder - replace with actual sensor readings
-                sensor_value = np.random.rand() * 10  # Example sensor value
-                self.sensor_data[sensor_id] = sensor_value
-            except Exception as e:
-                print(f"Error updating sensor data for sensor {sensor_id}: {e}")
+# Sensor Parameters
+IMU_DATA_RANGE = 0.1  # Range of accelerometer and gyroscope readings
+IMU_DATA_EPS = 0.01 # Small tolerance for sensor readings
 
-    def update_vehicle_position(self):
-        """Updates the vehicle position based on the vehicle's velocity and the terrain."""
-        self.vehicle_position = self.vehicle_velocity * self.time_step
-        self.vehicle_velocity = self.vehicle_velocity - self.vehicle_mass * self.time_step
+# Visual Parameters
+VISUAL_WIDTH = 600
+VISUAL_HEIGHT = 400
+VISUAL_COLOR = (255, 255, 255)  # White
 
-    def update_vehicle_velocity(self):
-        """Updates the vehicle velocity based on the vehicle's mass and the time step."""
-        self.vehicle_velocity = self.vehicle_mass * self.time_step
+# Simulation Functions
+def initialize_chrono():
+    """Initializes the PyChrono environment and core components."""
+    print("Initializing PyChrono...")
+    chrono.init()
+    print("PyChrono initialized.")
 
-    def run_simulation(self):
-        """Runs the simulation loop."""
-        self.simulation_time = self.time_step
-        while self.current_time < self.simulation_time:
-            self.update_sensor_data()
-            self.update_vehicle_position()
-            self.update_vehicle_velocity()
-            self.current_time += self.time_step
+def setup_vehicle(position, force, initial_imu_data, initial_gps_data):
+    """Sets up the vehicle's initial position, force, and sensor data."""
+    print("Setting up vehicle...")
+    vehicle_mass = 100.0
+    vehicle_speed = 0.0
+    vehicle_acceleration = 0.0
+    vehicle_gyro = 0.0
+    vehicle_angular_velocity = 0.0
+    
+    vehicle_position = position
+    vehicle_force = force
+    vehicle_imu_data = initial_imu_data
+    vehicle_gps_data = initial_gps_data
+    
+    return vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity
 
-        self.visual_system.render(self.vehicle_position, self.vehicle_velocity, self.sensor_data)
+def update_vehicle(time_step):
+    """Updates the vehicle's state based on sensor data and forces."""
+    global vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity
+    
+    # Update IMU data
+    vehicle_gyro += 0.01  # Small update for IMU
+    vehicle_gyro = max(0.0, vehicle_gyro) # Prevent negative gyro
+    
+    vehicle_angular_velocity += 0.01 # Small update for angular velocity
+    vehicle_angular_velocity = max(0.0, vehicle_angular_velocity)
+    
+    # Update GPS data
+    vehicle_gps_data['latitude'] = vehicle_position[0]
+    vehicle_gps_data['longitude'] = vehicle_position[1]
+    vehicle_gps_data['altitude'] = vehicle_position[2]
+    
+    # Update force
+    vehicle_force += 0.1
+    
+    # Simple acceleration calculation (can be improved)
+    vehicle_acceleration = vehicle_force / vehicle_mass
+    
+    # Update vehicle state
+    vehicle_mass += 0.1
+    vehicle_speed += vehicle_acceleration
+    vehicle_gyro += 0.01
+    vehicle_angular_velocity += 0.01
+    
+    return vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity
 
-    def get_vehicle_mass(self):
-        """Returns the vehicle mass."""
-        return self.vehicle_mass
+def render_scene(vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity):
+    """Renders the vehicle's current state using Irrlicht."""
+    try:
+        ir.board(VISUAL_WIDTH, VISUAL_HEIGHT, VISUAL_COLOR)
+        vehicle_mass_label = ir.text(f"{vehicle_mass:.2f}", (VISUAL_WIDTH // 2, VISUAL_HEIGHT // 2))
+        vehicle_speed_label = ir.text(f"{vehicle_speed:.2f}", (VISUAL_WIDTH // 2, VISUAL_HEIGHT // 2))
+        vehicle_acceleration_label = ir.text(f"{vehicle_acceleration:.2f}", (VISUAL_WIDTH // 2, VISUAL_HEIGHT // 2))
+        vehicle_gyro_label = ir.text(f"{vehicle_gyro:.2f}", (VISUAL_WIDTH // 2, VISUAL_HEIGHT // 2))
+        vehicle_angular_velocity_label = ir.text(f"{vehicle_angular_velocity:.2f}", (VISUAL_WIDTH // 2, VISUAL_HEIGHT // 2))
+    except Exception as e:
+        print(f"Error rendering: {e}")
 
-    def get_sensor_data(self):
-        """Returns the sensor data."""
-        return self.sensor_data
+def simulate_step():
+    """Simulates a single step of the simulation."""
+    global vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity
+    
+    # Update vehicle state
+    vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity = update_vehicle(SIMULATION_TIME / NUM_STEPS)
+    
+    # Render the scene
+    render_scene(vehicle_mass, vehicle_speed, vehicle_acceleration, vehicle_gyro, vehicle_angular_velocity)
+    
+    # Print sensor data
+    print(f"Sensor Data: {vehicle_mass:.2f}, {vehicle_speed:.2f}, {vehicle_acceleration:.2f}, {vehicle_gyro:.2f}, {vehicle_angular_velocity:.2f}")
+    
+    # Wait for the next step
+    time.sleep(1 / NUM_STEPS)
 
-    def get_sensor_id(self):
-        """Returns the sensor ID."""
-        return self.sensor_id
+# Main Simulation Loop
+if __name__ == "__main__":
+    # Initialize PyChrono
+    initialize_chrono()
 
-if __name__ == '__main__':
-    # Example Usage:
-    vehicle_mass = 1000.0
-    terrain_model = {
-        "grass": {"slope": 0.0, "roughness": 0.5},
-        "dirt": {"slope": 0.0, "roughness": 0.2},
-        "snow": {"slope": 0.0, "roughness": 0.8}
-    }
-    driver_inputs = {
-        "acceleration": 1.0,
-        "steering_angle": 0.0
-    }
-    visual_system = v.Visual(
-        title="HMMWV Simulation",
-        width=800,
-        height=600,
-        background="white",
-        # Add other visual settings here
-    )
-
-    simulation = HMMWVSimulation(vehicle_mass, terrain_model, driver_inputs, visual_system)
-    simulation.run_simulation()
-    print(f"Vehicle Mass: {simulation.get_vehicle_mass()}")
-    print(f"Sensor Data: {simulation.get_sensor_data()}")
-    print(f"Sensor ID: {simulation.get_sensor_id()}")
+    # Start the simulation
+    for step in range(NUM_STEPS):
+        simulate_step()
+    
+    print("Simulation complete.")

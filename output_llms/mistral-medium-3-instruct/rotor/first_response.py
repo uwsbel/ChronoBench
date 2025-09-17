@@ -1,115 +1,89 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
 import numpy as np
 
-# 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set your Chrono data path here
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
+
+# Create the physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Create the IGA beam for the Jeffcott rotor
-# Beam parameters
-length = 1.0  # m
-radius = 0.05  # m
-density = 7800  # kg/m^3
-E = 2.1e11  # Young's modulus (Pa)
-nu = 0.3  # Poisson's ratio
-G = E / (2 * (1 + nu))  # Shear modulus
+# Create the IGA beam
+beam_length = 2.0  # meters
+beam_radius = 0.05  # meters
+beam_density = 7800  # kg/m^3 (steel)
+beam_E = 2.1e11  # Young's modulus (steel)
+beam_G = 8.0e10  # Shear modulus (steel)
+beam_nu = 0.3  # Poisson ratio
 
 # Create the IGA beam
-beam = fea.ChBeamIGA()
-beam.SetDensity(density)
-beam.SetYoungModulus(E)
-beam.SetShearModulus(G)
-beam.SetPoissonRatio(nu)
+beam = chrono.ChBeamIGA()
+beam.SetDensity(beam_density)
+beam.SetYoungModulus(beam_E)
+beam.SetShearModulus(beam_G)
+beam.SetPoissonRatio(beam_nu)
+beam.SetRadius(beam_radius)
+beam.SetLength(beam_length)
 
-# Define the beam geometry (cylinder)
-beam.SetBeamGeometry(fea.ChBeamIGA.Geometry.CYLINDER)
-beam.SetBeamDimensions(radius, radius)
-
-# Create the mesh (simple 1D beam with 10 elements)
+# Set the beam discretization (using 10 elements for this example)
 beam.SetNumElements(10)
-beam.SetNumLayers(1)  # Single layer for simplicity
-beam.SetNumPoints(11)  # 10 elements + 1
 
-# Initialize the beam
-beam.SetupInitial(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                 chrono.ChVectorD(length, 0, 0))
+# Add the beam to the system
 system.Add(beam)
 
-# 3. Add a flywheel at the center of the beam
-flywheel = chrono.ChBody()
-flywheel.SetMass(10)  # kg
-flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  # kg·m²
-flywheel.SetPos(chrono.ChVectorD(length/2, 0, 0))
+# Create a flywheel (disk) at the center of the beam
+flywheel = chrono.ChBodyEasyCylinder(beam_radius*2, 0.1, beam_density, True, True)
+flywheel.SetPos(chrono.ChVectorD(0, 0, 0))  # Center of the beam
+flywheel.SetRot(chrono.Q_from_AngAxis(chrono.CH_PI_2, chrono.ChVectorD(1, 0, 0)))
 system.Add(flywheel)
 
-# Connect flywheel to beam at center
-link_flywheel = chrono.ChLinkLockLock()
-link_flywheel.Initialize(beam.GetNode(5), flywheel)
-system.Add(link_flywheel)
+# Connect the flywheel to the beam at the center
+link = chrono.ChLinkLockRevolute()
+link.Initialize(beam, flywheel, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(link)
 
-# 4. Add a rotational motor at one end of the beam
-motor = chrono.ChBody()
-motor.SetMass(1)
-motor.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
-motor.SetPos(chrono.ChVectorD(0, 0, 0))
-motor.SetBodyFixed(True)  # Fixed to ground
+# Create a motor to drive one end of the beam
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(beam, chrono.ChFrameD(chrono.ChVectorD(-beam_length/2, 0, 0)), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 system.Add(motor)
 
-# Connect motor to beam at first node
-link_motor = chrono.ChLinkLockRevolute()
-link_motor.Initialize(beam.GetNode(0), motor)
-system.Add(link_motor)
+# Set the motor speed function (constant speed for this example)
+motor_function = chrono.ChFunction_Const(10.0)  # 10 rad/s
+motor.SetSpeedFunction(motor_function)
 
-# Add rotational speed function (constant speed for this example)
-rot_speed = chrono.ChFunction_Const(10)  # 10 rad/s
-motor_link = chrono.ChLinkMotorRotationSpeed()
-motor_link.Initialize(link_motor, rot_speed)
-system.Add(motor_link)
-
-# 5. Visualization setup
-# Create Irrlicht application
+# Create visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Jeffcott Rotor Simulation')
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Jeffcott Rotor with IGA Beam")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1, 3, 1), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.AddLightWithShadow(chrono.ChVectorD(2, 4, 2), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
 
-# FEM visualization for the beam
-beam_vis = fea.ChVisualizationFEAmesh(beam)
-beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODES)
-beam_vis.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-beam_vis.SetFEMscaling(0.01)
-beam_vis.SetSymbolsThickness(0.006)
-beam_vis.SetWireframe(True)
-beam_vis.SetWireframeColor(chrono.ChColor(0.2, 0.2, 0.8))
-beam_vis.SetWireframeRender(True)
-beam_vis.SetSurfaceRender(True)
-beam_vis.SetSurfaceColor(chrono.ChColor(0.8, 0.8, 0.2))
-beam.GetMesh().AddAsset(beam_vis)
+# Enable FEM visualization for the beam
+beam.SetVisualizationType(chrono.ChVisualizationFEAmesh())
+beam.GetVisualizationModel().SetFEMdataType(chrono.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+beam.GetVisualizationModel().SetFEMglyphType(chrono.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+beam.GetVisualizationModel().SetFEMrenderMode(chrono.ChVisualizationFEAmesh.E_RENDER_SOLID)
+beam.GetVisualizationModel().SetColorscaleMinMax(-0.1, 0.1)
 
-# Visualize flywheel
-flywheel_vis = chrono.ChSphereShape()
-flywheel_vis.GetSphereGeometry().rad = 0.1
-flywheel_vis.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
-flywheel.AddAsset(flywheel_vis)
+# Simulation parameters
+time_step = 1e-4
+end_time = 5.0
 
-# 6. Simulation parameters
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-system.SetMaxPenetrationRecoverySpeed(1.0)
-system.SetMinBounceSpeed(0.1)
-
-# Simulation loop
-time_step = 0.001
+# Run the simulation
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     system.DoStepDynamics(time_step)
+    vis.Advance(time_step)
+
+    # Print current time
+    current_time = system.GetChTime()
+    if current_time >= end_time:
+        break

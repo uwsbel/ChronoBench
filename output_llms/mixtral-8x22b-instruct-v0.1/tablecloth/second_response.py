@@ -70,9 +70,6 @@ for iz in range(nsections_z):
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
-
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
@@ -83,17 +80,16 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-# Fix upper nodes
-for j in range(30):
-    for k in range(30):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
+        # Monitor a specific element
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA
 
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-mvisualizeshellA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mvisualizeshellA.SetSmoothFaces(True)
-mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+# mvisualizeshellA.SetSmoothFaces(True)
+# mvisualizeshellA.SetWireframe(True)
 # mvisualizeshellA.SetBackfaceCull(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
@@ -102,6 +98,11 @@ mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
 mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
+
+# Fix upper nodes
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 # Irrlicht visualization system setup
 vis = chronoirr.ChVisualSystemIrrlicht()

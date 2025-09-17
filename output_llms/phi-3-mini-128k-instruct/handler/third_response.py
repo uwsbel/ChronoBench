@@ -10,19 +10,17 @@ from rclpy.node import get_clock
 from rclpy.timer import Timer
 from rclpy.time import Time
 from irrlicht.scene.mesh import Mesh
-from irrlicht.scene.render import RenderWindow, RenderScene, RenderPlugin
-from irrlicht.scene.scene import Scene
+from irrlicht.scene.render import RenderWindow, RenderScene, RenderDevice, RenderType
+from irrlicht.scene.material import Material
+from irrlicht.scene.light import DirectionalLight
 from irrlicht.scene.video import VideoDriver
-from irrlicht.scene.video.video_device import VideoDeviceType
-from irrlicht.scene.video.video_device import VideoDriver
-from irrlicht.scene.video.video_device import VideoDriverType
-from irrlicht.scene.video.video_device import VideoDriverType_2D
+from irrlicht.scene.video import VideoDriverType
 
 # Define a custom ROS handler for publishing integer messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate):
+    def __init__(self, topic: str, publish_rate: float):
         super().__init__(publish_rate)  # Initialize the handler with the specified publishing rate.
 
         self.topic = topic
@@ -32,11 +30,11 @@ class MyCustomHandler(chros.ChROSHandler):
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
-        # Create a ROS publisher for the specified topic with the specified publishing rate.
+        # Create a ROS publisher for the specified topic with the specified rate.
         self.publisher = interface.GetNode().create_publisher(Int64, self.topic, self.publish_rate)
         return True  # Return True to indicate successful initialization.
 
-    def Tick(self, time: float):
+    def Tick(self, time: float) -> None:
         """Publish an integer message to the ROS topic."""
         print(f"Publishing {self.ticker} ...")
         msg = Int64()  # Create a message object of type Int64.
@@ -44,6 +42,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 
+# Initialize ROS node and create a publisher.
 def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
@@ -56,7 +55,7 @@ def main():
     # Create a floor object.
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
-    floor.SetTexture("path_to_floor_texture.jpg")  # Set the texture for the floor.
+    floor.SetTexture("path/to/floor_texture.jpg")  # Set the texture for the floor.
     floor.SetName("base_link")  # Set the name for ROS communication.
     sys.Add(floor)  # Add the floor to the simulation system.
 
@@ -64,102 +63,78 @@ def main():
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
-    box.SetTexture("path_to_box_texture.jpg")  # Set the texture for the box.
+    box.SetTexture("path/to/box_texture.jpg")  # Set the texture for the box.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Set up Irrlicht visualization.
-    scene = Scene()
-    video_device = VideoDriver(VideoDriverType.DIRECT3D, VideoDriverType_2D)
-    video_driver = VideoDriver(scene, video_device)
-    video_driver.SetFullscreen(False)
-    video_driver.SetWidth(1280)
-    video_driver.SetHeight(720)
-    video_driver.SetFPS(60)
-    video_driver.SetAntiAlias(True)
-    video_driver.SetDeviceName("Direct3D")
-    video_driver.SetFullscreen(False)
-    video_driver.SetBackgroundColor(ch.vector3df(0.1, 0.1, 0.1))
-
-    # Set up the camera.
-    camera = CameraInfo()
-    camera.SetPosition(ch.vector3df(5, 5, 5))
-    camera.SetFov(ch.vector3df(60, 45))
-    camera.SetTarget(ch.vector3df(0, 0, 0))
-    camera.SetFOV(ch.vector3df(90, 60))
-    camera.SetFieldOfView(ch.vector3df(30, 0, 0))
-    camera.SetNearPlane(0.1)
-    camera.SetFarPlane(1000)
-    scene.AddLight(LightInfo(LightType.DIRECTIONAL, ch.vector3df(1, 1, 1), 1.0)
-    scene.AddLight(LightInfo(LightType.DIRECTIONAL, ch.vector3df(-1, -1, -1), 0.5))
-    scene.AddLight(LightInfo(LightType.DIRECTIONAL, ch.vector3df(1, -1, -1), 0.5))
-    scene.AddLight(LightInfo(LightType.DIRECTIONAL, ch.vector3df(-1, 1, -1), 0.5))
-    scene.AddCamera(camera)
-
-    # Create a render scene.
-    render_scene = RenderScene()
-    render_scene.AddGeometry(floor)
-    render_scene.AddGeometry(box)
-    render_scene.SetSkySea()
-    render_scene.SetBackgroundColor(ch.vector3df(0.1, 0.1, 0.1))
-    render_scene.SetAmbientLight(ch.vector3df(0.3, 0.3, 0.3))
-    render_scene.SetLight(ch.vector3df(1, 1, 1))
-
-    # Set up the render window.
-    render_window = RenderWindow(video_driver, "PyChrono Visualization", 1280, 720)
-    render_window.AddLight(LightInfo(LightType.DIRECTIONAL, ch.vector3df(1, 1, 1), 1.0))
-    render_window.AddCamera(camera)
-
-    # Create a timer for rendering.
-    step_number = 0
-    render_steps = 5
-    step_time = 1.0 / render_steps
-    render_timer = Timer(get_clock(), step_time)
-
-    # Create and configure the ROS manager.
+    # Initialize the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-
+    
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+    
+    # Create and configure the Irrlicht visualization system.
+    irrlicht_scene = Mesh.addFilledMesh(Mesh.createPlane(8, 8, 1))
+    irrlicht_scene.SetMaterial(Material.New(0, Material.CreateMipMap(Material.New(0, 0.5, 0.5, 1, 1, 1)))
+    irrlicht_scene.SetTexture("path/to/floor_texture.jpg")
+    irrlicht_scene.SetTexture("path/to/box_texture.jpg")
 
-    # Register a transform handler for coordinate transformations.
-    tf_handler = chros.ChROSTFHandler(30)
-    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
-    ros_manager.RegisterHandler(tf_handler)
+    # Set up Irrlicht rendering device and window.
+    render_device = RenderDevice(VideoDriver(VideoDriverType.DIRECTVIDEO))
+    render_window = RenderWindow(800, 600, "PyChrono Simulation", "DirectWindow", render_device)
+    render_scene = RenderScene(render_window, RenderType.GREENSCREEN)
+    render_scene.AddLight(DirectionalLight(LightType.DIRECTIONAL, DirectionalLight.CreateBlue(255, 255, 255, 100))
+    render_scene.AddCamera("irrlicht_camera", 50, 50, 50)
 
-    # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", 10)  # Set publish_rate to 10 Hz.
-    ros_manager.RegisterPythonHandler(custom_handler)
+    # Create a timer for updating the scene every few steps.
+    step_number = 0
+    render_step_size = 100
+    render_steps = 10
+    timer = Timer(get_clock(), render_step_size, True)
 
-    # Initialize the ROS manager.
+    # Initialize ROS manager.
     ros_manager.Initialize()
-
-    # Initialize ROS node and publishers.
-    node = Node("pychrono_node")
-    publisher = Publisher(node, "/my_topic", Int64(), 10)  # Set publish_rate to 10 Hz.
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
 
+    realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
-        # Update ROS communication.
-        ros_manager.Update(time, time_step)
+        if not ros_manager.Update(time, time_step):  # Update ROS communication.
+            break  # Exit the loop if the ROS manager indicates a problem.
 
-        # Render the scene every few steps.
+        # Update the Irrlicht scene every few steps.
         if step_number % render_steps == 0:
             render_scene.RenderScene()
-            render_window.RenderScene()
-            step_number += 1
+            timer.reset()
 
-        realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+        # Update the ROS manager.
+        ros_manager.Update(time, time_step)
+
+        # Update the Irrlicht camera and lights.
+        irrlicht_scene.SetCamera("irrlicht_camera")
+        irrlicht_scene.SetLightPosition(ch.ChVector3d(10, 10, 10))
+
+        step_number += 1
+
+    # Clean up.
+    timer.cancel()
+    render_scene.DeleteAllActors()
+    render_window.Close()
 
 if __name__ == "__main__":
+    rclpy.init(args=None)
+    node = Node("pychrono_ros_visualization")
+    custom_handler = MyCustomHandler("~/my_topic", 10)  # Set publish_rate to 10 Hz.
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterPythonHandler(custom_handler)
+    ros_manager.Initialize()
     main()

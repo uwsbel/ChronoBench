@@ -40,50 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-class SCMTerrainParams:
-    def __init__(self, config="soft"):
-        self.config = config
-        self.soilKphi = 2e6
-        self.soilKc = 0
-        self.nExponent = 1.1
-        self.mohrCohesiveLimit = 0
-        self.mohrFrictionLimit = 30
-        self.janosiShearCoefficient = 0.01
-        self.elasticStiffness = 2e8
-        self.damping = 3e4
 
-    def Initialize(self):
-        if self.config == "soft":
-            self.soilKphi = 2e6
-            self.soilKc = 0
-            self.nExponent = 1.1
-            self.mohrCohesiveLimit = 0
-            self.mohrFrictionLimit = 30
-            self.janosiShearCoefficient = 0.01
-            self.elasticStiffness = 2e8
-            self.damping = 3e4
-        elif self.config == "mid":
-            self.soilKphi = 5e6
-            self.soilKc = 1e6
-            self.nExponent = 1.2
-            self.mohrCohesiveLimit = 10
-            self.mohrFrictionLimit = 35
-            self.janosiShearCoefficient = 0.02
-            self.elasticStiffness = 4e8
-            self.damping = 5e4
-        elif self.config == "hard":
-            self.soilKphi = 1e7
-            self.soilKc = 2e6
-            self.nExponent = 1.3
-            self.mohrCohesiveLimit = 20
-            self.mohrFrictionLimit = 40
-            self.janosiShearCoefficient = 0.03
-            self.elasticStiffness = 5e8
-            self.damping = 7e4
-
-terrainParams = SCMTerrainParams("mid")
-
-# Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -94,24 +51,71 @@ vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-# Set up terrain
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(
-    terrainParams.soilKphi,
-    terrainParams.soilKc,
-    terrainParams.nExponent,
-    terrainParams.mohrCohesiveLimit,
-    terrainParams.mohrFrictionLimit,
-    terrainParams.janosiShearCoefficient,
-    terrainParams.elasticStiffness,
-    terrainParams.damping
-)
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
 
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the SCM deformable terrain patch
+class SCMTerrainParams:
+    def __init__(self, name):
+        if name == "soft":
+            self.Kphi = 2e6
+            self.Kc = 0
+            self.n = 1.1
+            self.Mohr_cohesive = 0
+            self.Mohr_friction = 30
+            self.Janosi = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
+            self.plot_type = veh.SCMTerrain.PLOT_SINKAGE
+            self.plot_color = (0, 0, 0.1)
+        elif name == "mid":
+            self.Kphi = 1e6
+            self.Kc = 0.5
+            self.n = 1.0
+            self.Mohr_cohesive = 10
+            self.Mohr_friction = 45
+            self.Janosi = 0.05
+            self.elastic_stiffness = 1e8
+            self.damping = 5e4
+            self.plot_type = veh.SCMTerrain.PLOT_SINKAGE
+            self.plot_color = (0, 0, 0.2)
+        elif name == "hard":
+            self.Kphi = 3e6
+            self.Kc = 1
+            self.n = 1.2
+            self.Mohr_cohesive = 20
+            self.Mohr_friction = 60
+            self.Janosi = 0.1
+            self.elastic_stiffness = 5e8
+            self.damping = 1e5
+            self.plot_type = veh.SCMTerrain.PLOT_SINKAGE
+            self.plot_color = (0, 0, 0.3)
+        else:
+            raise ValueError("Invalid terrain parameter name")
+
+    def GetParameters(self):
+        return (self.Kphi, self.Kc, self.n, 
+                self.Mohr_cohesive, self.Mohr_friction, 
+                self.Janosi, self.elastic_stiffness, 
+                self.damping, self.plot_type, self.plot_color)
+
+terrain_params = SCMTerrainParams("hard")
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(*terrain_params.GetParameters())
+terrain.SetPlotType(*terrain_params.GetParameters())
+
+# Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -125,7 +129,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1

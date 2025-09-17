@@ -32,22 +32,21 @@ sensor_manager = sens.ChSensorManager()
 lidar_sensor = sens.ChLidarSensor()
 lidar_sensor.SetRange(5)
 lidar_sensor.SetFov(math.pi)
-lidar_sensor.SetResolution(0.0174533)
+lidar_sensor.SetResolution(360)
 lidar_sensor.SetPosition(chrono.ChVector3d(0, 0.2, 0))
-lidar_sensor.SetDirection(chrono.ChVector3d(0, 0, -1))
-lidar_sensor.SetNumBeams(1024)
-lidar_sensor.SetFilter(sens.ChLidarSensor.FilterType.BOX)
-lidar_sensor.SetFilterParams(chrono.ChVector3d(0.1, 0.1, 0.1))
-sensor_manager.Add(lidar_sensor)
+lidar_sensor.SetDirection(chrono.ChVector3d(0, 0, 1))
+sensor_manager.AddSensor(lidar_sensor)
 system.Add(sensor_manager)
 
 
-box_positions = np.random.rand(5, 3) * 10 - 5
-boxes = []
-for pos in box_positions:
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, ground_mat)
-    box.SetPos(chrono.ChVector3d(pos[0], pos[1], 0.25))
-    boxes.append(box)
+box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat.SetFriction(0.6)
+box_mat.SetRestitution(0.3)
+for _ in range(5):
+    pos = chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5)
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, box_mat)
+    box.SetPos(pos)
+    box.SetBodyFixed(False)
     system.Add(box)
 
 
@@ -55,7 +54,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with boxes')
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with obstacles')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -64,20 +63,36 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
 
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
+
 
 
 time_step = 2e-3
 
 
+def move(mode):
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    if mode == 'straight':
+        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+
+
 time = 0
 while vis.Run():
     
-    robot.move('straight')
+    sensor_manager.Update()
 
     
-    sensor_manager.Update()
+    move('straight')
+
+    
+    time += time_step
 
     
     vis.BeginScene()
@@ -86,15 +101,3 @@ while vis.Run():
 
     
     system.DoStepDynamics(time_step)
-
-
-def move(self, mode):
-    if mode == 'straight':
-        self.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        self.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        self.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        self.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        self.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
-        self.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)

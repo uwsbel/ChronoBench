@@ -12,6 +12,7 @@ mesh = fea.ChMesh()
 
 # Create a section, i.e. thickness and material properties for beams. This will be shared among some beams.
 msection = fea.ChBeamSectionEulerAdvanced()
+
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
@@ -20,7 +21,8 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45.0)  # Corrected from radians to degrees
+# Corrected: Section rotation set to 45 degrees instead of incorrect radians conversion
+msection.SetSectionRotation(45.0)
 
 # Add some EULER-BERNOULLI BEAMS:
 beam_L = 0.1
@@ -55,12 +57,12 @@ sys.Add(mtruss)
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)  # x, y, z, Rx, Ry, Rz
+constr_bc.SetConstrainedCoords(True, True, True, True, True, True)  # All DOFs constrained
 
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True, False, False, False)  # x, y, z, Rx, Ry, Rz
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)  # Only Y and Z translations constrained
 
 # Add some EULER-BERNOULLI BEAMS (the fast way!)
 builder = fea.ChBuilderBeamEuler()
@@ -68,12 +70,15 @@ builder = fea.ChBuilderBeamEuler()
 # First beam
 builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
 
-# Apply constraints to the first beam's nodes
+# Retrieve nodes from the first beam and apply constraints
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
-# Second beam (new requirement)
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+# Add another beam segment as per instructions
+prev_nodes = builder.GetLastBeamNodes()
+beam_A = prev_nodes.back().GetPos()  # Start at the last node of the previous beam
+beam_B = chrono.ChVector3d(0.2, 0.1, -0.1)  # Endpoint specified in instructions
+builder.BuildBeam(mesh, msection, 5, beam_A, beam_B, chrono.ChVector3d(0, 1, 0))  # New vertical beam segment
 
 # We do not want gravity effect on FEA elements in this demo
 mesh.SetAutomaticGravity(False)
@@ -108,7 +113,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
 vis.AddTypicalLights()
 
-# Change the solver to MKL Pardiso
+# Change the solver to MKL Pardiso for better FEA accuracy
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 

@@ -62,10 +62,15 @@ time = 0
 steering = 0
 while vis.Run():
     time += time_step
-
+    
+    
+    if time >= 1:
+        steering = 0  
+    else:
+        steering = 0  
     
     driver.SetSteering(steering)
-    driver.SetThrottle(1)  
+    driver.SetForwardSpeed(0.5)  
 
     
     rover.Update()

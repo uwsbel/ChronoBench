@@ -40,12 +40,14 @@ driver.Initialize(vehicle)
 app.GetSceneManager().AddNode(driver.GetDriverNode())
 
 
-app.SetStepManage(chrono.ChStepManage(chrono.ChTimestepperType_EULER_IMPLICIT_LINEARIZED, 1e-3, 50, 1))
+app.SetStepManage(chrono.ChStepManage(1 / 50))
 
 
 while app.GetDevice().run():
+    
+    sys.DoStepDynamics(1 / 50)
+    
+    
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
-    sys.DoStepDynamics(1e-3)
-    app.GetDevice().setWindowCaption('FEDA Vehicle Simulation - FPS: ' + str(app.GetDevice().getVideoDriver().getFPS()))

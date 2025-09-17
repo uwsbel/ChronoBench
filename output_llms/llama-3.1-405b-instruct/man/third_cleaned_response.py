@@ -42,7 +42,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -50,8 +49,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -70,11 +67,9 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
-
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -88,40 +83,6 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.SceneAdd(vis.GetSceneManager())
-
-
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),
-    update_rate=100.0,
-    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.ChQuaternionD(1, 0, 0, 0)),
-    collection_window=0.02,
-    horizontal_samples=100,
-    vertical_samples=32,
-    horizontal_fov=2 * math.pi,
-    max_distance=100.0,
-    device_offset=0.02
-)
-manager.AddSensor(lidar)
-
-
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(
-        vehicle.GetSystem(),
-        1, 1, 1,  
-        1000,  
-        True,  
-        True  
-    )
-    box.SetPos(chrono.ChVector3d(
-        np.random.uniform(-10, 10),
-        np.random.uniform(-10, 10),
-        np.random.uniform(0.5, 2.0)
-    ))
-    vehicle.GetSystem().AddBody(box)
-
-
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -131,7 +92,6 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
@@ -144,6 +104,39 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+
+lidar = sens.ChLidarSensor(
+    vehicle.GetVehicle().GetChassisBody(),
+    update_rate=100.0,
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5), chrono.QUNIT),
+    collection_type=sens.VisualizationType_MESH,
+    scan_horizontal_samples=100,
+    scan_vertical_samples=2,
+    horizontal_fov=chrono.CH_C_PI / 2,
+    max_distance=100.0,
+    visualization_type=sens.VisualizationType_MESH,
+    visualization_scale=0.1
+)
+manager.AddSensor(lidar)
+
+
+for i in range(10):
+    box = chrono.ChBodyEasyBox(
+        vehicle.GetSystem(),
+        1.0,
+        1.0,
+        1.0,
+        1000,
+        True,
+        True,
+        chrono.ChContactMaterialNSC()
+    )
+    box.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1.0))
+    vehicle.GetSystem().AddBody(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

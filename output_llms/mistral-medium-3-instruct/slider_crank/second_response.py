@@ -1,7 +1,7 @@
-import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
-import matplotlib.pyplot as plt
-import numpy as np
+import pychrono.core as chrono  # Import the core Chrono library
+import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization library for Chrono
+import matplotlib.pyplot as plt  # Import matplotlib for plotting
+import numpy as np  # Import numpy for numerical operations
 
 # Initialize the Chrono simulation system with non-smooth contact (NSC) method
 sys = chrono.ChSystemNSC()
@@ -57,12 +57,6 @@ mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
 mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0) with rotation aligning the Z-axis to the X-axis
 sys.Add(mjointC)  # Add the joint to the simulation system
 
-# Initialize arrays for plotting
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
 # Set up the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()  # Create the Irrlicht visualization system
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
@@ -74,42 +68,41 @@ vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
+# Array Initialization for Plotting
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
 # Run the interactive simulation loop
 sim_time = 0
-max_sim_time = 20  # seconds
-while vis.Run() and sim_time < max_sim_time:
-    # Get current simulation time
-    current_time = sys.GetChTime()
-
-    # Get crank angle (rotation around Z axis)
-    crank_rot = mcrank.GetRot()
-    angle = crank_rot.Q_to_Euler123().z  # Get Z component of Euler angles
-
-    # Get piston position (X coordinate)
-    piston_pos = mpiston.GetPos().x
-
-    # Get piston speed (X component of velocity)
-    piston_speed = mpiston.GetPos_dt().x
-
-    # Append data to arrays
-    array_time.append(current_time)
-    array_angle.append(angle)
-    array_pos.append(piston_pos)
-    array_speed.append(piston_speed)
-
+while vis.Run() and sim_time < 20:  # Stop simulation after 20 seconds
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
-    # Update simulation time
+    # Collect data for plotting
+    current_time = sys.GetChTime()
+    current_angle = mcrank.GetRot().Q_to_Euler123().x  # Get crank angle (assuming rotation around X axis)
+    current_pos = mpiston.GetPos().x  # Get piston position along X axis
+    current_speed = mpiston.GetPos_dt().x  # Get piston speed along X axis
+
+    array_time.append(current_time)
+    array_angle.append(current_angle)
+    array_pos.append(current_pos)
+    array_speed.append(current_speed)
+
     sim_time = current_time
 
-# Create plots after simulation
+# Close the visualization
+vis.Close()
+
+# Matplotlib Plotting
 plt.figure(figsize=(12, 6))
 
-# First subplot: position vs angle
+# First subplot: Position vs Crank Angle
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)
 plt.title('Position vs Crank Angle')
@@ -117,7 +110,12 @@ plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.grid(True)
 
-# Second subplot: speed vs angle
+# Set x-axis ticks to π-based intervals
+xticks = np.arange(0, 2 * np.pi + np.pi/2, np.pi/2)
+xtick_labels = ['0', 'π/2', 'π', '3π/2', '2π']
+plt.xticks(xticks, xtick_labels)
+
+# Second subplot: Speed vs Crank Angle
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.title('Speed vs Crank Angle')
@@ -126,11 +124,7 @@ plt.ylabel('Speed [m/s]')
 plt.grid(True)
 
 # Set x-axis ticks to π-based intervals
-xticks = np.arange(0, 2*np.pi + np.pi/2, np.pi/2)
-xtick_labels = [f'{tick/np.pi}π' if tick != 0 else '0' for tick in xticks]
-for ax in plt.gcf().axes:
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xtick_labels)
+plt.xticks(xticks, xtick_labels)
 
 plt.tight_layout()
 plt.show()

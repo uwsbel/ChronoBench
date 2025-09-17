@@ -27,10 +27,8 @@ def main():
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
     
-    vis_box = ch.ChBodyEasyBox(1, 1, 1, 1000)
-    vis_box.SetPos(ch.ChVector3d(0, 0, 2))
-    vis_box.SetBodyFixed(True)
-    vis_box.GetVisualModel().SetColor(ch.ChColor(0.5, 0.5, 0.5))
+    vis_box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    vis_box.SetPos(ch.ChVector3d(5, 0, 1))
     hmmwv.GetSystem().Add(vis_box)
 
     
@@ -72,31 +70,26 @@ def main():
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
 
     
-    lidar = sens.ChLidarSensor(vis_box)
-    lidar.SetName("LIDAR")
-    lidar.SetLidarType(sens.LidarType::SCANNER)
-    lidar.SetFrequency(20)  
-    lidar.SetVerticalResolution(1)  
-    lidar.SetHorizontalResolution(360)  
-    lidar.SetVerticalRange(0.1)  
-    lidar.SetHorizontalRange(6.28)  
-    lidar.SetMinRange(0.1)  
-    lidar.SetMaxRange(50)  
-    lidar.SetFilter(sens.ChLidarFilter::DEFAULT)
-    lidar.SetFilter(sens.ChLidarFilter::RING)
-    lidar.SetFilter(sens.ChLidarFilter::DISTANCE)
-    lidar.SetFilter(sens.ChLidarFilter::INTENSITY)
-    lidar.SetFilter(sens.ChLidarFilter::TIMESTAMP)
-    lidar.AddChannel(sens.ChLidarChannel::DISTANCE)
-    lidar.AddChannel(sens.ChLidarChannel::INTENSITY)
-    lidar.AddChannel(sens.ChLidarChannel::RING)
-    lidar.AddChannel(sens.ChLidarChannel::TIMESTAMP)
-    lidar.SetOffset(ch.ChVector3d(0, 0, 0.5))  
-    lidar.SetRotation(ch.ChQuaterniond(1, 0, 0, 0))  
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(),  
+                               0.1,                     
+                               ch.ChVector3d(0, 0, 1),   
+                               ch.ChVector3d(0, 0, 1),   
+                               0,                       
+                               360,                     
+                               0.1,                     
+                               0.1,                     
+                               10.0)                    
+
+    
+    lidar.AddFilter(sens.ChFilterPCfromLidar())
+    lidar.AddFilter(sens.ChFilterSaveToFile("lidar_data"))
+    lidar.AddFilter(sens.ChFilterVisualizePointCloud(vis))
+
+    
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar/points"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar_data"))
 
     
     time = 0
@@ -110,6 +103,7 @@ def main():
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
     hmmwv.GetVehicle().EnableRealtime(True)  
+
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
         
@@ -117,6 +111,10 @@ def main():
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
+
+        
+        sens_manager.Update()
+
         
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
@@ -129,11 +127,9 @@ def main():
         hmmwv.Advance(time_step)
 
         
-        sens_manager.Update()
-
-        
         if not ros_manager.Update(time, time_step):
             break  
+
         step_number += 1
 
 if __name__ == "__main__":

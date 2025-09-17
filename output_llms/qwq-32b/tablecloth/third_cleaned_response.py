@@ -13,7 +13,7 @@ try:
     os.mkdir(out_dir)  
 except OSError as exc:
     if exc.errno != errno.EEXIST:  
-        print("Error creating output directory")
+        print("Error creating output directory ")
 
 
 sys = chrono.ChSystemSMC()  
@@ -23,6 +23,7 @@ mesh = fea.ChMesh()
 
 
 sys.Add(mesh)
+
 
 
 mesh.SetAutomaticGravity(False)
@@ -85,13 +86,10 @@ if (True):
                 melementmonitor = melementA  
 
             
-            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (iz < nsections_z and ix < nsections_x) else None
-            
             melementA.SetNodes(
                 mynodes[iz * (nsections_x + 1) + ix],
                 mynodes[iz * (nsections_x + 1) + ix + 1],
-                mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                boundary_1
+                mynodes[(iz + 1) * (nsections_x + 1) + ix]
             )
 
             
@@ -102,13 +100,10 @@ if (True):
             mesh.AddElement(melementB)
 
             
-            boundary_1B = mynodes[iz * (nsections_x + 1) + ix] if (iz >= 0 and ix >= 0) else None
-            
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
-                boundary_1B
+                mynodes[iz * (nsections_x + 1) + ix + 1]
             )
 
             
@@ -123,8 +118,8 @@ if (True):
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  
     mvisualizeshellA.SetWireframe(True)  
-    mvisualizeshellA.SetShellResolution(2)  
     mvisualizeshellA.SetBackfaceCull(True)  
+    mvisualizeshellA.SetShellResolution(2)  
     mesh.AddVisualShapeFEA(mvisualizeshellA)  
 
     

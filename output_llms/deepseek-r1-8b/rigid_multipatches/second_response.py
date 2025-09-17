@@ -23,27 +23,26 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single patch
+    # Create the terrain with simplified patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-
+    
     # Create contact material for terrain
     terrain_mat = chrono.ChContactMaterialNSC()
     terrain_mat.SetFriction(0.9)
     terrain_mat.SetRestitution(0.01)
-    terrain_mat.SetContactThickness(0.01)  # Set contact thickness
-
-    # Add single terrain patch using mesh file
-    terrain_patch = terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 32, 32, 0.0, 3.0)
-    terrain_patch.SetColor(chrono.ChColor(1.0, 0.8, 0.8))
-    terrain_patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 32, 32)
-
+    terrain_mat.SetContactThickness(0.01)
+    
+    # Add simplified terrain patch using Highway_col mesh
+    terrain_patch = terrain.AddPatch(terrain_mat, 
+                                      chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                                      veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 
+                                      64.0, 64.0, 0.0, 3.0)
+    terrain_patch.EnableCollision(True)
+    
     # Add visual mesh to terrain
-    vis_shape = chrono.ChVisualShapeTriangleMesh()
-    vis_shape.SetMeshFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    vis_shape.SetCollisionShape(chrono.ChVisualShape(chrono.ChColor(1.0, 1.0, 1.0), 0.8))
-    terrain.GetGroundBody().AddShape(vis_shape)
-
+    terrain_vis = veh.CreateVisualShapeTriangleMesh(chrono.GetChronoDataFile("terrain/meshes/Highway_vis.obj"))
+    terrain.AddVisualShape(terrain_vis, "ground")
+    
     terrain.Initialize()
 
     # Create the vehicle Irrlicht interface
@@ -96,6 +95,5 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 # Simulation step sizes
 step_size = 2e-3
 tire_step_size = 1e-3
-
 
 main()

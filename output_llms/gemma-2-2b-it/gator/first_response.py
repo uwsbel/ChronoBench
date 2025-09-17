@@ -1,45 +1,55 @@
-from pychrono import *
-from pychrono.irrlicht import IrrlichtEngine
-from pychrono.irrlicht.irrlicht import IrrlichtScene
-from pychrono.irrlicht.irrlicht import IrrlichtDevice
-from pychrono.irrlicht.irrlicht import IrrlichtMaterial
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.IrrlichtEngine as IrrlichtEngine
 
-# Initialize PyChrono
-initPyChrono()
+# Create the PyChrono environment
+chrono.init()
 
-# Create Irrlicht engine and scene
-engine = IrrlichtEngine()
-scene = IrrlichtScene()
-device = IrrlichtDevice(engine)
+# Create Irrlicht engine
+irr_engine = IrrlichtEngine.IrrlichtEngine()
 
-# Create RigidTerrain
+# Create the RigidTerrain
 terrain_width = 100
 terrain_height = 50
-terrain = RigidTerrain(
+terrain_material = irr.irrlicht.Material(irr.irrlicht.Color(1, 1, 1, 1))  # White
+terrain = chrono.RigidTerrain(
     width=terrain_width,
     height=terrain_height,
-    material=IrrlichtMaterial(color=(0.5, 0.5, 0.5)),
-    texture=device.getTexture("path.png"),
+    material=terrain_material,
+    texture=irr_engine.getTexture("terrain.png"),  # Replace with your terrain texture
 )
 
-# Create Gator vehicle
-vehicle = Vehicle(
-    name="Gator",
-    position=Vec3(0, 0, 0),
-    orientation=Vec3(0, 0, 0),
-    contactMethod=ContactMethod.CONTACT_POINT,
-    tireModel=TMEASY,
-)
+# Create the Gator vehicle
+vehicle_model = chrono.Vehicle("gator", "vehicle.obj")  # Replace with your Gator model file
+vehicle_model.setContactMethod(chrono.ContactMethod.NONE)  # Set to NONE for now
+vehicle_model.setTMEASYTireModel(chrono.TMEASY)  # Use TMEASY tire model
 
-# Set vehicle mesh visualization
-vehicle.mesh.setVisualizationType(VisualizationType.MESH)
+# Set vehicle parameters
+vehicle_position = chrono.Vec3(0, 0, 0)
+vehicle_orientation = chrono.Vec3(0, 0, 0)
+vehicle_contact_point = chrono.Vec3(0, 0, 0)
+vehicle_mass = 1000  # kg
+vehicle_inertia = chrono.Vec3(0, 0, 0)  # Replace with your vehicle inertia
 
 # Add the vehicle to the scene
-scene.add(vehicle)
-scene.add(terrain)
-
-# Create a driver system
-driver = Driver(vehicle)
+chrono.add(vehicle_model)
+chrono.add(terrain)
 
 # Set up the simulation loop
-engine.run(50)
+chrono.setSimulationTimeStep(0.01)
+chrono.setSimulationFrameRate(50)
+
+# Define the driver system
+class DriverSystem:
+    def __init__(self, vehicle):
+        self.vehicle = vehicle
+
+    def update(self):
+        # Implement your driver logic here, e.g., steering, throttle, braking
+        pass
+
+# Create the driver system
+driver_system = DriverSystem(vehicle_model)
+
+# Start the simulation
+chrono.run()

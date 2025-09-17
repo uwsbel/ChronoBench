@@ -67,33 +67,38 @@ def main():
     
     
     
-    if True:  
+    if "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  
+    elif "PIXEL_DEPENDENT":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  
+    elif "NONE":
+        
+        pass
 
     
-    if True:  
+    if True:
         cam.PushFilter(sens.ChFilterVisualize(960, 480, "Before Grayscale Filter"))
 
     
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
     
-    if True:  
-        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/rgb/"))
+    if True:
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/" + "rgb/"))
 
     
     cam.PushFilter(sens.ChFilterGrayscale())
 
     
-    if True:  
-        cam.PushFilter(sens.ChFilterVisualize(480, 240, "Grayscale Image"))
+    if True:
+        cam.PushFilter(sens.ChFilterVisualize(int(960 / 2), int(480 / 2), "Grayscale Image"))
 
     
-    if True:  
-        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/gray/"))
+    if True:
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/" + "gray/"))
 
     
-    cam.PushFilter(sens.ChFilterImageResize(480, 240))
+    cam.PushFilter(sens.ChFilterImageResize(int(960 / 2), int(480 / 2)))
 
     
     cam.PushFilter(sens.ChFilterR8Access())

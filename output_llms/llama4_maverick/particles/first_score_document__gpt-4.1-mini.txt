@@ -1,142 +1,146 @@
-**Evaluation of the provided PyChrono simulation script:**
+**Evaluation:**
 
 ---
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`sys = chrono.ChSystemSMC()`), with data path set. ✔️  
-- **Body Creation:** Particle bodies are created dynamically with shapes and added to the system. A fixed container body is created and added. ✔️  
-- **Visualization:** Visualization system is set up with window size, title, initialization, logo, skybox, camera, and lights. ✔️  
-- **Simulation Loop:** Present with rendering, particle emission, custom gravity application, and stepping dynamics. ✔️  
+- **System Initialization:** Present and correctly uses `chrono.ChSystemSMC()`. (No deduction)
+- **Gravity Setup:** Uses `system.Set_G_acc(...)` correctly. (No deduction)
+- **Body Creation:** Two bodies created (`body1`, `body2`), with mass, position, and fixed status set. (No deduction)
+- **Particle Factory and Emitter:** Particle factory and emitter are created, with a custom particle creator class. (No deduction)
+- **Visualization:** Visualization system (`chronoirr.ChVisualSystemIrrlicht`) is set up with window size, title, initialization, logo, skybox, camera, and lights. (No deduction)
+- **Simulation Loop:** Present with rendering and stepping. (No deduction)
+- **Custom Force:** Custom gravity force implemented and added to system. (No deduction)
 
-**Minor omissions / deviations:**  
-- The fixed container body (`particle_container`) is created but never used as a parent or reference frame for particles; it is added to the system but does not serve a clear purpose. This is a minor design oddity but not a missing component.  
-- No contact materials or collision models are explicitly created or assigned to bodies. While not strictly mandatory, it is a best practice to define materials for realistic contact behavior, especially with `ChSystemSMC`. This is a minor omission.  
-- Gravity is set to zero globally, which is intentional due to custom gravity, so no deduction here.  
+**Minor omissions / deviations:**
 
-**Deductions:**  
-- Minor omission for lack of contact materials and collision setup: **-5 points**
+- The `particle_emitter.EmitParticles()` call uses `chrono.ChCoordsysD` with only position argument, but the API expects a full coordinate system (position + rotation). This is minor and likely defaults rotation, so no deduction.
+- The particle shapes are added via `AddShape()` with `chrono.ChSphereShape`, `ChBoxShape`, and `ChEllipsoidShape`. The API documentation shows visual shapes like `ChVisualShapeBox` and `ChVisualShapeSphere`, but these are visual shapes, not collision shapes. The code uses `ChSphereShape` etc., which are not standard PyChrono shape classes for collision or visualization. This is a significant issue (see correctness below).
+- The particles do not have collision enabled or material assigned, which is important for physical interaction. This is a minor omission but affects completeness.
 
-**Subtotal:** 40 - 5 = **35 points**
+**Deduction:**  
+- Missing proper collision shapes and material assignment for particles: **-15 points** (essential component missing for correct particle physics).  
+- Minor omission: no collision enabled on particles or bodies (except fixed bodies), no material assigned: **-5 points**.
+
+**Total Completeness deduction: 20 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API Usage:**  
-  - `sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))` is correct to disable default gravity. ✔️  
-  - Particle shapes are created using `chrono.ChSphereShape()` and `chrono.ChBoxShape()`. However, these are **visual assets**, not collision shapes or body shapes. The code adds these shapes as assets (`AddAsset`) but does not define collision shapes or enable collision on bodies. This means particles will not collide or interact physically, which is likely unintended. This is a **significant correctness issue**.  
-  - The bodies are created with mass and inertia but no collision model is defined or enabled (`EnableCollision(True)` is missing). Without collision shapes and collision enabled, the simulation will not handle contacts properly.  
-  - The `SetInertiaXX` is set to (1,1,1) for all particles regardless of shape or size, which is a simplification but acceptable for a demo.  
-  - The custom gravity function applies forces between all pairs of bodies, including the fixed container (which has infinite mass). This could cause issues or unexpected behavior since the container is fixed and has no mass set explicitly.  
-  - The use of `body.SetPos_dt()` to set initial velocity is correct.  
-  - The rotation is set using `chrono.Q_from_Euler123`, which is correct.  
-  - Visualization setup uses `chrono.ChVectorD` for camera position, but the API documentation uses `chrono.ChVector3d`. This is a minor inconsistency but likely acceptable since `ChVectorD` is an alias for double precision vector.  
-  - The logo path is constructed manually using string concatenation instead of `chrono.GetChronoDataFile()`, which is the recommended way. This is a minor correctness issue.  
-  - The simulation loop calls `ApplyCustomGravity(sys)` every frame, which is logically correct but inefficient (see efficiency).  
-  - The `sys.DoStepDynamics(0.01)` call is correct.  
+- **Particle Creation:**
+
+  - The method `CreateParticle` creates a `chrono_particlefactory.ChParticle()` and sets mass, position, velocity, rotation, and angular velocity.  
+  - However, `SetRot` and `SetRot_dt` expect unit quaternions for rotation and angular velocity. The code uses random quaternions without normalization, which can cause invalid rotations. This is a logical error.  
+  - The shapes added are `chrono.ChSphereShape`, `ChBoxShape`, `ChEllipsoidShape`. According to PyChrono API, these classes do not exist or are not used for collision or visualization. The correct approach is to use `ChBodyEasySphere`, `ChBodyEasyBox`, or add collision shapes via `collision_model` or visual shapes via `AddVisualShape`. This is a significant API misuse and will cause runtime errors or no visible shapes.  
+- **CustomGravity Force:**
+
+  - The `CustomGravity` class inherits from `chrono.ChForce`, but the API documentation does not mention `ChForce` as a base class for custom forces. Usually, forces are applied via callbacks or by overriding `Update` in a different way.  
+  - The `Update` method is called manually in the loop for each body, but the force is also added to the system via `system.AddForce(custom_gravity)`. This is inconsistent: either the force is managed by the system or manually updated.  
+  - The force calculation uses `distance**3` in denominator and multiplies by vector `r`, which is correct for Newtonian gravity force vector.  
+  - However, the force is applied only in `Update` method, which is not automatically called by the system. The system will not call `Update` on `ChForce` objects automatically. This means the gravitational force is only applied when manually called, which is done only for bodies in the loop, but the initial `custom_gravity` added to system is never updated. This is a logical error.  
+- **Body Properties:**
+
+  - `SetBodyFixed(True)` is used, but the API documentation uses `SetFixed(True)`. This is an API misuse and will cause the fixed property not to be set.  
+- **Visualization:**
+
+  - `vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')` is used, but the API documentation recommends `chrono.GetChronoDataFile()` to get the full path. This may cause file not found errors. Minor issue.  
+- **Simulation Loop:**
+
+  - The loop calls `custom_gravity.Update(0)` for each body, but creates new `CustomGravity` instances each time, which is inefficient and unnecessary.  
+  - The `system.DoStepDynamics(0.01)` is called after rendering, which is correct.
 
 **Deductions:**  
-- Major correctness issue: missing collision shapes and collision enabling on bodies → **-15 points**  
-- Minor correctness issue: logo path not using `GetChronoDataFile()` → **-5 points**  
+- Incorrect shape classes for particles: **-15 points** (significant API misuse).  
+- Incorrect method `SetBodyFixed` instead of `SetFixed`: **-10 points** (logical error affecting body behavior).  
+- Misuse of `CustomGravity` force class and update mechanism: **-10 points** (logical error, force not applied correctly).  
+- Minor issue with logo path: **-2 points**.
 
-**Subtotal:** 30 - 15 - 5 = **10 points**
+**Total Correctness deduction: 37 points** (cap at 30 points since total is 30)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names (`particle_container`, `emitter`, `ApplyCustomGravity`).  
-- The class `ParticleEmitter` encapsulates particle creation, which is good structure.  
-- However, there are **no comments** explaining the purpose of key sections, functions, or parameters.  
-- The code formatting is acceptable but could benefit from spacing and comments for clarity.  
-- The use of magic numbers (e.g., 0.5 probability, ranges for position and velocity) is not explained.  
-- The function `ApplyCustomGravity` is a bit inefficient and could be better documented.  
+- The code is mostly readable with reasonable variable names.  
+- Lack of comments explaining the purpose of classes and key steps.  
+- The `RandomParticleCreator` class could benefit from comments explaining the random rotation and shape assignment.  
+- The `CustomGravity` class lacks docstrings or comments explaining the force calculation.  
+- The simulation loop is not commented, and the logic for applying gravity forces is not explained.  
+- The code imports `pychrono` twice (once at start and once at end), which is unnecessary.  
+- Formatting is acceptable but could be improved with consistent blank lines and spacing.
 
 **Deductions:**  
-- Lack of comments/documentation: **-5 points**  
-- Minor readability issues (lack of spacing, some variable names could be clearer): **-3 points**  
+- Lack of comments and documentation: **-5 points**  
+- Minor readability issues and redundant import: **-2 points**
 
-**Subtotal:** 10 - 5 - 3 = **2 points**
+**Total Code Quality deduction: 7 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The `ApplyCustomGravity` function computes pairwise forces between all bodies every frame with a nested loop of O(n²). For 10-20 particles this is acceptable, but for larger numbers this is inefficient.  
-- The function is called every frame without any optimization or caching.  
-- The random emission of particles inside the loop is probabilistic, which is fine.  
-- The creation of shapes inside `EmitParticle` creates new shape objects every time, which is necessary.  
-- The bodies do not enable collision, so the physics engine does not perform collision detection, which is efficient but incorrect (see correctness).  
-- The visualization loop is standard.  
+- Creating new `CustomGravity` instances inside the loop every frame for each body is inefficient. The force objects should be created once and reused. **-5 points**  
+- The random quaternion generation without normalization is inefficient and potentially problematic. **-3 points**  
+- The particle emission condition `if random.random() < 0.1:` is fine, no deduction.  
+- No other obvious inefficiencies.
 
-**Deductions:**  
-- Missing optimization for pairwise force calculation (e.g., spatial partitioning, early exit) → **-3 points**  
-- No major redundant or unnecessary API calls found.  
-
-**Subtotal:** 10 - 3 = **7 points**
+**Total Efficiency deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- There is **no error handling** for file paths, system initialization, or particle creation.  
-- The data path is hardcoded and may not exist, no check or fallback is implemented.  
-- The `ApplyCustomGravity` function does not handle zero-distance or overlapping bodies robustly (it skips zero distance but no epsilon threshold).  
-- The fixed container body is added but not used meaningfully; no checks for mass or collision.  
-- No try-except blocks or validation of inputs.  
+- No error handling for file paths (e.g., data path or logo file).  
+- No checks for zero distance in gravity force beyond `if distance > 0`, which is minimal.  
+- No handling of particle creation errors or invalid rotations.  
+- No exception handling or warnings.  
+- Overall, minimal robustness.
 
 **Deductions:**  
-- Lack of basic error handling: **-5 points**  
-- Minor edge case handling (zero distance) is done, so no deduction here.  
-
-**Subtotal:** 0 points
+- Lack of basic error handling: **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up correctly with window size, title, initialization, skybox, camera, and typical lights.  
-- The logo is added but the path is constructed manually instead of using `GetChronoDataFile()`.  
-- Camera position is at (0,0,-10), which may be suboptimal for viewing particles scattered in a cube from -5 to 5 in all axes. A better camera position might be (0,0,10) or offset to see the scene better. Minor issue.  
-- Lighting and skybox are added, which is good.  
+- Visualization system is set up correctly with window size, title, initialization, skybox, camera, and lights.  
+- Logo added but path may be incorrect (minor issue).  
+- No visual shapes added to bodies or particles, so particles may not be visible. This is a significant visualization omission.  
+- No camera movement or interaction beyond initial setup.  
+- No visualization of particles' shapes or colors.
 
 **Deductions:**  
-- Minor visualization issue with logo path: **-2 points**  
-- Minor suboptimal camera position: **-2 points**  
+- Missing visual shapes for particles: **-3 points**  
+- Minor issue with logo path: **-2 points**
 
-**Subtotal:** 5 - 2 - 2 = **1 point**
-
----
-
-### **Final Score Calculation**
-
-| Category                   | Points | Deductions | Score |
-|----------------------------|--------|------------|-------|
-| Completeness               | 40     | 5          | 35    |
-| Correctness               | 30     | 20         | 10    |
-| Code Quality              | 10     | 8          | 2     |
-| Efficiency                | 10     | 3          | 7     |
-| Error Handling & Robustness| 5      | 5          | 0     |
-| Visualization             | 5      | 4          | 1     |
-| **Total**                 | 100    | 45         | **55**|
+**Total Visualization deduction: 5 points**
 
 ---
 
-### Summary of Major Issues:
+### Summary of Deductions
 
-- **Missing collision shapes and enabling collision on particles** is the most critical correctness flaw, as it fundamentally changes simulation behavior (no collisions).  
-- **No error handling** and hardcoded paths reduce robustness.  
-- **Lack of comments/documentation** reduces code quality.  
-- Minor inefficiencies and visualization suboptimalities.
+| Criterion                  | Deduction Points |
+|----------------------------|------------------|
+| Completeness               | 20               |
+| Correctness               | 30 (capped)      |
+| Code Quality              | 7                |
+| Efficiency                | 8                |
+| Error Handling & Robustness| 5                |
+| Visualization             | 5                |
+| **Total**                 | 75               |
 
 ---
 
-**Final score:**
+### Final Score
 
-[[55]]
+100 - 75 = **25**
+
+---
+
+**Final score:** [[25]]
 
 ---
 
 **Explanation:**  
-The script covers all essential components but misses critical correctness aspects like collision setup, which is fundamental for physical simulations. Code quality and error handling are weak due to lack of comments and robustness. Visualization is mostly correct but has minor issues. Efficiency could be improved for scalability. Overall, the script is functional but incomplete and incorrect in key simulation behaviors.
+The script includes most essential components but misses critical details such as proper collision and visual shapes for particles, correct use of API methods (`SetFixed` vs `SetBodyFixed`), and proper force application mechanisms. The custom gravity force is not integrated correctly with the system's update cycle, and the particle shapes use non-existent classes, which will cause runtime errors or no visible particles. The code lacks comments and has inefficiencies such as recreating force objects every frame. Visualization setup is mostly correct but incomplete due to missing visual shapes for particles. Error handling is absent. These issues lead to significant deductions in correctness, completeness, and robustness.

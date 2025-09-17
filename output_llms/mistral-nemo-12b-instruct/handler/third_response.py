@@ -56,41 +56,45 @@ def main():
     box.SetTexture("box_texture.png")  # Set texture for the box.
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Create and configure the Irrlicht visualization.
-    vis = chil.ChIrrApp(sys, chil.CH_HARDWARE_OPENGL)
-    vis.AddTypicalLogo(vis.GetVideoDriver())  # Add the typical Irrlicht logo.
-    vis.SetWindowSize(800, 600)  # Set the window size.
-    vis.SetWindowTitle("PyChrono Simulation")  # Set the window title.
-    vis.AddLight(chil.CH_VECTOR3D(0, 30, 0), chil.CH_COLOR(1, 1, 1))  # Add a light source.
-    vis.AddCamera(chil.CH_CAMERAPERSPECTIVE, chil.CH_VECTOR3D(1, 1, 1))  # Add a camera.
-    vis.SetCameraPosition(chil.CH_VECTOR3D(1, 1, 1))  # Set the camera position.
-    vis.SetCameraLookAt(chil.CH_VECTOR3D(0, 0, 0))  # Set the camera target.
-
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.SetPublishRate(10)  # Set the publishing rate for ROS handlers.
 
-    # Register handlers for ROS communication.
+    # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
+
+    # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
+
+    # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
 
     # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", 10)
+    publish_rate = 10  # Set publish rate to 10 Hz.
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
+    # Set up Irrlicht visualization.
+    vis = chil.ChIrrApp(sys, chil.CH_RGB, chil.CH_PERSPECTIVE)
+    vis.AddBody(floor)
+    vis.AddBody(box)
+    vis.SetWindowSize(800, 600)
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.SetCamera(chil.Camera(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5))
+    vis.AddLight(chil.Light(chil.LightType.DIRECTIONAL, chil.Vector3d(1, 1, 1), chil.Vector3d(0, 0, 0)))
+    vis.Initialize()
+
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-    step_number = 0  # Initialize the step counter.
-    render_step_size = 10  # Define the number of steps between render updates.
-    render_steps = 0  # Initialize the render step counter.
+    step_number = 0  # Initialize step counter.
+    render_step_size = 10  # Set rendering step size.
+    render_steps = 10  # Set rendering steps.
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
@@ -100,14 +104,12 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        step_number += 1  # Increment the step counter.
-        render_steps += 1  # Increment the render step counter.
-
-        if render_steps >= render_step_size:  # Check if it's time to update the scene.
-            vis.DoStep()  # Update the visualization.
-            render_steps = 0  # Reset the render step counter.
-
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+
+        # Conditional rendering based on render_steps.
+        step_number += 1
+        if step_number % render_steps == 0:
+            vis.DoStep()  # Update the visualization scene.
 
 # Entry point of the script.
 if __name__ == "__main__":

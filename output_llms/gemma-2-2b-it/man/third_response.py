@@ -1,10 +1,23 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
 import pychrono.sensor as sensor
 import numpy as np
 from pychrono.sensor import SensorManager
 from pychrono.sensor import LidarSensor
+from pychrono.vehicle import Vehicle
+from pychrono.vehicle import VehicleVisualSystemIrrlicht
+from pychrono.vehicle import ChWheeledVehicleVisualSystemIrrlicht
+from pychrono.sensor import Sensor
+from pychrono.sensor import SensorType
+from pychrono.sensor import SensorData
+from pychrono.sensor import SensorDataPoint
+from pychrono.sensor import SensorDataEvent
+from pychrono.sensor import SensorDataEventTypes
+from pychrono.sensor import SensorDataEventTypes
+from pychrono.sensor import SensorDataPoint
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -20,6 +33,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -38,11 +52,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Import sensor manager and lidar sensor
-sensor_manager = SensorManager()
-lidar_sensor = LidarSensor(sensor_manager)
-
 # Create the MAN vehicle, set parameters, and initialize
+
 vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -75,6 +86,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
@@ -85,7 +97,60 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Create the driver system
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+# Import sensor manager
+sensor_manager = SensorManager()
+
+# Import lidar sensor
+lidar_sensor = LidarSensor(sensor_manager)
+lidar_sensor.Initialize()
+
+# Create random boxes to simulate obstacles
+random_boxes = []
+for i in range(5):
+    box = veh.Box(chrono.ChVector3d(np.random.uniform(-100, 100), 
+                                       np.random.uniform(-100, 100), 
+                                       np.random.uniform(-100, 100)))
+    random_boxes.append(box)
+
+# Add the random boxes to the terrain
+terrain.AddRandomBoxes(random_boxes)
+
+# Create a sensor manager
+sensor_manager = SensorManager()
+
+# Create a lidar sensor
+lidar_sensor = LidarSensor(sensor_manager)
+lidar_sensor.Initialize()
+
+# Update sensor data
+sensor_manager.Update()
+
+# Create a driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.

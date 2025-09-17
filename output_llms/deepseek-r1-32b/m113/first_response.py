@@ -8,36 +8,32 @@ system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 system.Set_time_step(0.001)
 
 # Create M113 vehicle
-vehicle_system = vehicle.ChVehicleSystem(system)
+vehicle.SetChronoDataPath()
 m113 = vehicle.ChM113()
-m113.Initialize(vehicle_system, chrono.ChVectorD(0, 0, 1))
+m113.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)), True)
 
-# Create rigid terrain
+# Create terrain
 terrain = vehicle.ChTerrain()
 terrain.SetSize(100, 100)
-terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
+terrain.SetHeight(0)
 terrain.SetFriction(0.8)
 terrain.SetRestitution(0.1)
-terrain.CreateCollisionModel()
+terrain.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+terrain.SetCollisionMaterial(chrono.ChMaterialSurface())
+terrain.Initialize()
 system.Add(terrain)
 
-# Initialize driver system
+# Create driver
 driver = vehicle.ChDriver()
-driver.Initialize(m113.GetDriverInterface())
-driver.SetInputs(0, 0, 0)  # steering, throttle, braking
+driver.Initialize(m113.GetDriver(), 0.1)
 
-# Visualization setup
+# Create Irrlicht visualization
 vis = chronoirr.ChIrrApp(system, "M113 Simulation", chronoirr.dimension2du(800, 600))
-vis.SetLightPosition(chrono.ChVectorD(0, 0, 10))
-vis.SetLightDir(chrono.ChVectorD(0, 0, -1))
-vis.AddTypicalLights()
-vis.AddAllTypicalCameraDofs()
-vis.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-vis.SetCameraDirection(chrono.ChVectorD(-1, -1, 0))
-
-# Add vehicle and terrain to visualization
+vis.SetCamera(chronoirr.vector3df(5, 5, 5), chronoirr.vector3df(0, 0, 0))
+vis.SetLight(chronoirr.vector3df(5, 5, 5), chronoirr.vector3df(0, 0, 0))
+vis.AddAllTypicalLights()
 vis.Add(m113.GetVehicle())
-vis.Add(terrain.GetCollisionModel())
+vis.Add(terrain.GetTerrain())
 
 # Simulation loop
 time = 0
@@ -47,19 +43,19 @@ while vis.Run():
     vis.EndScene()
     
     # Update vehicle and driver
-    m113.Update(time)
-    driver.Update(time)
+    m113.Synchronize(driver)
+    driver.Update()
     
     # Advance simulation
-    system.DoStepDynamics(system.Get_time_step())
+    system.DoStepDynamics(0.001)
+    time += 0.001
     
-    # Synchronize visualization
-    time += system.Get_time_step()
-    vis.Synchronize(time)
+    # Keep simulation in real-time
+    chronoirr.Synchronize(0.001)
     
     # Check for exit
     if vis.GetKeyboard().IsKeyDown(chronoirr.KEY_ESCAPE):
         break
 
-vis.Close()
+# Return vehicle and system for further analysis
 return m113, system

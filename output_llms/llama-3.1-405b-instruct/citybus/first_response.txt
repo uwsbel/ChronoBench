@@ -10,94 +10,84 @@ chrono.SetChronoDataPath('/path/to/chrono/data/')
 sys = chrono.ChSystemNSC()
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys,  # parent system
-                              100, 100, 2,  # size
-                              1000,  # density
-                              True,  # contact geometry
-                              True,  # enable collision
-                              chrono.ChMaterialSurfaceNSC())  # material
-ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground = chrono.ChBodyEasyBox(sys,  # Parent system
+                              100, 100, 2,  # Box dimensions
+                              1000,  # Density
+                              True,  # Visualization
+                              True,  # Collision
+                              chrono.ChMaterialSurfaceNSC())  # Material
+ground.SetBodyFixed(True)
 sys.Add(ground)
 
-# Create a RigidTerrain
-terrain = chrono.ChRigidTerrain(sys)
-terrain.SetSize(chrono.ChVectorD(100, 100, 2))
-terrain.SetTexture(chrono.ChTexture('terrain_texture.jpg'))
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(sys,  # Parent system
+                               100, 100, 2,  # Box dimensions
+                               1000,  # Density
+                               True,  # Visualization
+                               True,  # Collision
+                               chrono.ChMaterialSurfaceNSC())  # Material
+terrain.SetBodyFixed(True)
 sys.Add(terrain)
 
+# Create a texture for the terrain
+texture = chrono.ChTexture()
+texture.SetTextureFilename('/path/to/terrain/texture.png')
+terrain.AddAsset(texture)
+
 # Create the CityBus vehicle
-vehicle = chrono.ChPart(sys)
-vehicle.SetMass(5000)
-vehicle.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-
-# Add vehicle parts
-chassis = chrono.ChPart(vehicle)
-chassis.SetMass(2000)
-chassis.SetInertiaXX(chrono.ChVectorD(500, 500, 500))
-chassis.SetPos(chrono.ChVectorD(0, 0.5, 0))
-vehicle.Add(chassis)
-
-wheel_LF = chrono.ChPart(vehicle)
-wheel_LF.SetMass(100)
-wheel_LF.SetInertiaXX(chrono.ChVectorD(20, 20, 20))
-wheel_LF.SetPos(chrono.ChVectorD(-1.5, 0.2, 1.5))
-vehicle.Add(wheel_LF)
-
-wheel_RF = chrono.ChPart(vehicle)
-wheel_RF.SetMass(100)
-wheel_RF.SetInertiaXX(chrono.ChVectorD(20, 20, 20))
-wheel_RF.SetPos(chrono.ChVectorD(1.5, 0.2, 1.5))
-vehicle.Add(wheel_RF)
-
-wheel_LR = chrono.ChPart(vehicle)
-wheel_LR.SetMass(100)
-wheel_LR.SetInertiaXX(chrono.ChVectorD(20, 20, 20))
-wheel_LR.SetPos(chrono.ChVectorD(-1.5, 0.2, -1.5))
-vehicle.Add(wheel_LR)
-
-wheel_RR = chrono.ChPart(vehicle)
-wheel_RR.SetMass(100)
-wheel_RR.SetInertiaXX(chrono.ChVectorD(20, 20, 20))
-wheel_RR.SetPos(chrono.ChVectorD(1.5, 0.2, -1.5))
-vehicle.Add(wheel_RR)
-
-# Add tire models
-tire_LF = chrono.ChTireModelRigid(wheel_LF)
-tire_RF = chrono.ChTireModelRigid(wheel_RF)
-tire_LR = chrono.ChTireModelRigid(wheel_LR)
-tire_RR = chrono.ChTireModelRigid(wheel_RR)
-
-# Add vehicle to system
+vehicle = chrono.ChPart(sys,  # Parent system
+                        'CityBus',  # Name
+                        chrono.ChVectorD(0, 0, 0.5),  # Initial position
+                        chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
 sys.Add(vehicle)
 
-# Create an Irrlicht application
+# Create the vehicle's tire model
+tire_model = chrono.ChPart(sys,  # Parent system
+                           'Tire',  # Name
+                           chrono.ChVectorD(0, 0, 0.5),  # Initial position
+                           chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
+tire_model.SetMass(10)
+tire_model.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+sys.Add(tire_model)
+
+# Create the vehicle's mesh visualization
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('/path/to/vehicle/mesh.obj')
+vehicle.AddAsset(mesh)
+
+# Create the vehicle's primitive visualization
+box = chrono.ChBoxShape()
+box.GetBoxGeometry().SetLengths(chrono.ChVectorD(2, 1, 1))
+vehicle.AddAsset(box)
+
+# Create an interactive driver system
+driver = chrono.ChIrrNodeAsset(vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+# Create the Irrlicht application
 app = chronoirr.ChIrrApp(sys, 'CityBus Simulation', chronoirr.dimension2du(800, 600))
 
-# Set up the camera
-camera = app.GetSceneManager().GetActiveCamera()
-camera.SetPosition(chrono.ChVectorD(0, 2, -5))
-camera.SetTarget(chrono.ChVectorD(0, 1, 0))
-
-# Set up the interactive driver system
-driver = chronoirr.ChIrrNodeAsset(sys, vehicle)
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-app.GetSceneManager().GetRootSceneNode().AddChild(driver)
+# Set the camera to follow the vehicle
+camera = app.GetSceneManager().getActiveCamera()
+camera.setTarget(vehicle.GetPos())
+camera.setPosition(vehicle.GetPos() + chrono.ChVectorD(0, -5, 2))
 
 # Simulation loop
 while app.GetDevice().run():
-    # Update vehicle dynamics
-    sys.DoStepDynamics(1 / 50)
+    # Update the vehicle dynamics
+    sys.DoStepDynamics(1 / 50.0)
+
+    # Update the driver system
+    driver.SetSteering(app.GetDriver().GetSteering())
+    driver.SetThrottle(app.GetDriver().GetThrottle())
+    driver.SetBraking(app.GetDriver().GetBraking())
 
     # Render the scene
-    app.BeginScene()
+    app.BeginScene(True, True, chronoirr.SColor(255, 255, 255, 255))
     app.DrawAll()
     app.EndScene()
-
-    # Update the camera position
-    camera.SetPosition(vehicle.GetPos() + chrono.ChVectorD(0, 2, -5))
-    camera.SetTarget(vehicle.GetPos())
 ```
-This code initializes a PyChrono simulation environment with a CityBus vehicle on a rigid terrain. The vehicle is composed of multiple parts, including the chassis and wheels, each with its own mass, inertia, and position. The simulation loop updates the vehicle dynamics and renders the scene in real-time using Irrlicht. The camera is set to follow the vehicle from a specified position, and an interactive driver system is implemented to control the vehicle's steering, throttle, and braking.
+
+Note: This script assumes that you have the necessary dependencies installed, including PyChrono and Irrlicht. You will need to modify the script to match your specific environment and file paths. Additionally, this script is just a starting point and may require further modification to achieve the desired simulation behavior.

@@ -11,22 +11,20 @@ def main():
     # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------------------
-    # Add a box to be sensed by a camera
-    # -----------------------------------
+    # -----------------------
+    # Create a box object
+    # -----------------------
+    # Define the side length of the box
     side = 1.0
-    # Create a box
+    
+    # Create a box object
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_body.SetBodyFixed(True)  # Fix the box in space
-    mphysicalSystem.Add(box_body)  # Add the box to the physical system
-
-    # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBox(side, side, side)
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  # Set the shape to be immutable
-    box_body.AddVisualShape(box_shape)  # Attach the visual shape to the box
+    
+    # Set the position of the box
+    box_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    
+    # Add the box to the physical system
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -36,23 +34,27 @@ def main():
 
     # Add point lights to the scene for illumination
     intensity = 1.0  # Set the light intensity
-    manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
+    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVectorD(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVectorD(1, 0, 0), chrono.ChVectorD(0, -1, 0))
 
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
+    # Define the camera parameters
+    update_rate = 30  # Camera update rate in Hz
+    image_width = 1280  # Image width in pixels
+    image_height = 720  # Image height in pixels
+    fov = 1.408  # Camera's horizontal field of view in radians
+    lag = 0  # Lag (in seconds) between sensing and when data becomes accessible
+    exposure_time = 0  # Exposure (in seconds) of each image
+
     # Define the camera offset pose relative to the body it is attached to
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7, 0, 3), chrono.Q_from_AngX(2))
 
     # Initialize the camera sensor
-    update_rate = 30
-    image_width = 1280
-    image_height = 720
-    fov = 1.408  # Horizontal field of view in radians
     cam = sens.ChCameraSensor(
         box_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
@@ -62,16 +64,16 @@ def main():
         fov                     # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
-    lag = 0
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
-    exposure_time = 0
     cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
     # ------------------------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
+    # Define the noise model
+    noise_model = "CONST_NORMAL"  # Constant normal noise model
+
     # Apply noise model to the camera sensor based on the specified type
-    noise_model = "CONST_NORMAL"
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
     elif noise_model == "PIXEL_DEPENDENT":
@@ -120,16 +122,16 @@ def main():
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
-    step_size = 1e-3
-    end_time = 20.0
+    step_size = 1e-3   # Simulation step size
+    end_time = 20.0    # Simulation end time
 
     t1 = time.time()  # Record the start time of the simulation
 
     while ch_time < end_time:
         # Dynamically set the camera's position around the orbit
-        cam.SetOffsetPose(chrono.ChFramed(
-            chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
-            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
+        cam.SetOffsetPose(chrono.ChFrameD(
+            chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+            chrono.Q_from_AngX(ch_time * orbit_rate)))
 
         # Access the RGBA8 buffer from the camera
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()

@@ -20,11 +20,11 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Add a long box obstacle
+# Create a long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(4, 1, 0.5, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  # Position the obstacle in front of the rover's new starting position
-obstacle.SetFixed(True)
+obstacle = chrono.ChBodyEasyBox(2, 0.5, 0.5, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Position the obstacle on the ground
+obstacle.SetFixed(True)  # Fix the obstacle in place
 obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)
 
@@ -53,6 +53,9 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
+
 # Set the simulation time step
 time_step = 1e-3
 
@@ -61,9 +64,9 @@ time = 0
 while vis.Run():
     time += time_step
 
-    # Set constant forward speed with zero steering
-    driver.SetSpeed(0.5)  # Speed in m/s
-    driver.SetSteering(0)
+    # Set constant forward movement with zero steering
+    driver.SetSteering(0)  # Zero steering
+    driver.SetThrottle(0.5)  # Set constant throttle for forward movement
 
     # Update rover dynamics
     rover.Update()

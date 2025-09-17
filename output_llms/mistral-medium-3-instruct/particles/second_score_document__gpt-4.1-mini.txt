@@ -4,175 +4,120 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly uses `chrono.ChSystemNSC()` and sets collision system type to BULLET. ✔️  
-- **Body Creation:** Creates a sphere body with `ChBodyEasySphere` and adds it to the system. ✔️  
-- **Visualization Setup:** Uses `ChVisualSystemIrrlicht` with proper window size, title, camera, lights, skybox, and logo. ✔️  
-- **Particle Emitter Setup:** Properly configures a `ChParticleEmitter` with positioner, aligner, velocity, angular velocity, and shape creator. ✔️  
-- **Callback for particle creation:** Implements a subclass of `ChRandomShapeCreator_AddBodyCallback` and registers it. ✔️  
-- **Simulation Loop:** Includes the main loop with visualization rendering, particle emission, force accumulation, energy calculation, and stepping the simulation. ✔️  
+- **System Initialization:** Present and correctly uses `chrono.ChSystemNSC()` and sets collision system to BULLET. ✔️  
+- **Body Creation:** Creates a sphere body with `ChBodyEasySphere`, sets position, texture, and adds to system. ✔️  
+- **Visualization Setup:** Uses Irrlicht visualization, attaches system, sets window size/title, initializes, adds logo, skybox, camera, and lights. ✔️  
+- **Particle Emitter Setup:** Creates and configures a particle emitter with positioner, aligner, velocity, angular velocity, and shape creator. ✔️  
+- **Callback for particle creation:** Implements a callback class `MyCreatorForAll` to bind visual and collision items and set gyro torque. ✔️  
+- **Solver and gravity:** Sets solver type and max iterations, sets gravity to zero vector. ✔️  
+- **Simulation Loop:** Properly runs visualization loop, begins/ends scene, emits particles, clears accumulators, computes energies, applies gravitational forces, steps dynamics. ✔️  
 
 **Minor omissions or slight deviations:**  
-- The emitter positioner is set with `chrono.ChBox(50, 50, 50)` and `chrono.ChFramed()`. According to the API, `ChRandomParticlePositionOnGeometry.SetGeometry()` expects a geometry and a frame. `chrono.ChBox` is a geometry, but it is not clear if the default `ChFramed()` is correctly positioned or oriented. This is minor and likely acceptable.  
-- The gravitational acceleration is set to zero, which is acceptable if intentional but might be unexpected in some simulations. No deduction here since it can be a design choice.  
-- The `sphere_mat` is created as `ChContactMaterialNSC()` but not explicitly assigned to the system or bodies except the sphere. This is acceptable since the sphere uses it.  
-- The `msphereBody` is created but not fixed or constrained; it will be free-floating. This is acceptable.
+- The emitter's geometry is set with `chrono.ChBox(50, 50, 50)` but the second argument is `chrono.ChFramed()`. According to the API, `SetGeometry` expects a geometry and a frame. `chrono.ChFramed()` is a base class; typically, one uses `chrono.ChFrameMoving()` or `chrono.ChFrameMovingD()` or `chrono.ChCoordsysD()`. This might work but is a minor deviation from typical usage.  
+- No explicit call to `sys.Add(emitter)` or similar, but emitters are not bodies and don't need adding to the system. ✔️  
+- The gravitational constant `G_constant` is set to `6.674e-3`, which is a scaled value (not the real gravitational constant). This is acceptable if intentional for simulation scale. ✔️  
+- No explicit setting of collision margins or envelopes, which could improve collision robustness but not strictly required. Minor omission.  
 
-**No missing essential components.**  
-**No significant lack of important details.**
-
-**Completeness score: 40/40**
+**Deduction:** Minor omissions → **-5 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API usage correctness:**  
-  - `ChSystemNSC()` and `SetCollisionSystemType(Type_BULLET)` are correctly used.  
-  - Material creation and friction setting are correct.  
-  - `ChBodyEasySphere` usage is correct.  
-  - Visualization setup follows API guidelines.  
-  - Particle emitter and its components are correctly configured.  
-  - Callback subclassing and registration are correct.  
-  - Solver type set to PSOR with max iterations is correct.  
-  - Gravity set to zero is allowed.  
-  - Simulation loop calls `DoStepDynamics(stepsize)` after force accumulation and energy calculations, which is correct.  
-  - Energy calculations:  
-    - Kinetic energy uses `0.5 * mass * velocity squared` correctly.  
-    - Potential energy uses gravitational potential energy formula with a custom gravitational constant `G_constant = 6.674e-3`.  
-    - Forces are accumulated pairwise with Newton's law of gravitation.  
-    - The force direction and magnitude calculations are correct.  
-  - Use of `body.EmptyAccumulators()` before force accumulation is correct.
+- **API usage:** All PyChrono API calls are consistent with the documentation.  
+- **Particle emitter setup:** Correct use of distributions and particle creator.  
+- **Callback:** Properly inherits from `ChRandomShapeCreator_AddBodyCallback` and overrides `OnAddBody`.  
+- **Energy calculations:** Kinetic energy computed as 0.5 * m * v², potential energy computed via pairwise gravitational potential.  
+- **Force application:** Forces applied correctly and symmetrically to pairs of bodies.  
+- **Simulation stepping:** `sys.DoStepDynamics(stepsize)` called after force application and energy calculation.  
+- **Clearing accumulators:** Calls `body.EmptyAccumulators()` before force calculations, which is correct to avoid force accumulation errors.  
+- **Solver settings:** Uses PSOR solver with 40 max iterations, acceptable.  
+- **Gravity:** Set to zero vector, consistent with custom gravitational force calculation.  
 
-- **Logical errors:**  
-  - The gravitational constant `6.674e-3` is a scaled-down version of the real gravitational constant (6.674e-11). This is likely intentional for simulation scale, so no deduction.  
-  - The force accumulation uses `abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)` and the opposite force on `abodyB`. This is correct.  
-  - The potential energy is accumulated as negative, which is correct for gravitational potential energy.  
-  - The velocity squared is computed with `.Length2()`, which returns the squared length, so kinetic energy is correctly computed.
+**Logical errors:**  
+- The gravitational force calculation does not check for zero distance or very small distances, which could cause division by zero or extremely large forces. This is a significant logical omission that can cause simulation instability or crashes.  
+- The force accumulation uses `abodyA.GetPos()` as the application point, which is acceptable but applying force at the center of mass is typical. No error here.  
+- The energy printout is inside the loop, which is fine for monitoring.  
 
-- **Minor inaccuracies:**  
-  - The `body.SetUseGyroTorque(False)` call in the callback disables gyroscopic torque. This is acceptable but might affect rotational dynamics; no deduction since it is a valid API call.  
-  - The `body.GetVisualShape(0).SetTexture(...)` is called without checking if the visual shape exists. This could cause an error if no visual shape is present, but since the particles are spheres created with `ChRandomShapeCreatorSpheres`, they likely have a visual shape. No deduction.  
-  - The `sys.GetBodies()` returns an iterable of bodies; converting to list for combinations is acceptable.
-
-**No incorrect API usage causing significant behavior changes.**  
-**No logical errors detected.**
-
-**Correctness score: 30/30**
+**Deduction:** Logical error due to missing zero-distance check → **-10 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  - The code is mostly well-structured and readable.  
-  - Variable names are meaningful (e.g., `msphereBody`, `emitter`, `mcreator_spheres`).  
-  - The class `MyCreatorForAll` is clearly defined with an appropriate name.  
-  - The main loop is clear and logically ordered.
-
-- **Comments:**  
-  - The code lacks comments explaining the purpose of blocks, parameters, or the physics being simulated.  
-  - No docstrings or inline comments are present.
+- **Readability:** Variable names are meaningful (`msphereBody`, `emitter`, `mvelo`, `mangvelo`, `mcreator_spheres`, `mcreation_callback`).  
+- **Structure:** Code is logically structured with class definition first, then system setup, then simulation loop.  
+- **Comments:** Sparse comments; only a few inline comments for energy calculation and gravitational constant. No comments explaining the purpose of major blocks or the callback class.  
+- **Formatting:** Good indentation and spacing.  
+- **Use of magic numbers:** The gravitational constant is hardcoded without explanation.  
+- **Use of print statement:** Uses f-string formatting, which is modern and readable.  
 
 **Deduction:**  
-- Deduct 5 points for insufficient comments and documentation.  
-- No deduction for readability or structure since it is acceptable.
-
-**Code Quality score: 5/10**
+- Lack of sufficient comments → **-5 points**  
+- Overall good readability and structure → no deduction here.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations or redundant code:**  
-  - The energy calculations loop over all bodies and then over all pairs of bodies for gravitational forces. This is O(n²) complexity, which is expected for pairwise interactions.  
-  - The force accumulation and energy calculation are done before `DoStepDynamics()`, which is correct.  
-  - The `body.EmptyAccumulators()` is called inside the kinetic energy loop, which is acceptable but could be done once per body outside the loop for clarity. Minor.  
-  - The `combinations(sys.GetBodies(), 2)` is converted to a list each iteration, which is unnecessary; it could be iterated directly. Minor inefficiency.  
-  - The gravitational force calculation normalizes the vector `D_attract / r_attract` without checking for zero distance, which could cause division by zero if two bodies occupy the same position. This is a robustness issue (see Error Handling below).  
-  - The visualization rendering calls are standard and efficient.
+- **Force calculation:** Uses `itertools.combinations` to compute pairwise forces, which is efficient for pairwise interactions.  
+- **Energy calculation:** Loops over all bodies once for kinetic energy, then over all pairs for potential energy, which is necessary.  
+- **Clearing accumulators:** Done once per body, which is correct.  
+- **No redundant API calls or unnecessary computations observed.**  
+- **Potential optimization:** The gravitational force calculation could skip pairs with very large distances or implement a cutoff to improve performance, but this is not mandatory.  
+- **Potential optimization:** The force magnitude calculation divides by `r_attract**2` and then normalizes vector by dividing by `r_attract`. This is mathematically correct but could be combined to avoid repeated division. Minor optimization opportunity.  
 
 **Deduction:**  
-- Deduct 3 points for missing optimization opportunity: avoid converting combinations to list every loop iteration.  
-- Deduct 5 points for lack of zero-distance check before division in gravitational force calculation (also relates to robustness).  
-
-**Efficiency score: 2/10**
+- Missing obvious optimization (combining divisions) → **-3 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Basic error handling:**  
-  - No try-except blocks or error handling for file loading (textures, logos).  
-  - No checks for zero division in gravitational force calculation (`r_attract` could be zero). This is a critical omission that could cause runtime errors or crashes.  
-  - No validation of particle emitter parameters or system state.  
-  - No handling of potential exceptions in visualization or system stepping.
+- **No error handling:** No try-except blocks or checks for invalid inputs.  
+- **No checks for zero or near-zero distances in gravitational force calculation, risking division by zero or numerical instability.**  
+- **No validation of emitter parameters or system state.**  
+- **No handling of visualization errors or system failures.**  
 
 **Deduction:**  
-- Deduct 5 points for lack of basic error handling and missing zero-distance check in force calculation.
-
-**Error Handling score: 0/5**
+- Lack of basic error handling and edge case checks → **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Visualization setup:**  
-  - Uses `ChVisualSystemIrrlicht` correctly.  
-  - Sets window size and title.  
-  - Calls `Initialize()`.  
-  - Adds logo, skybox, camera, and typical lights.  
-  - Binds bodies to visualization in the callback.  
-  - Visualization loop uses `vis.Run()`, `BeginScene()`, `Render()`, and `EndScene()` correctly.
+- **Visualization system properly initialized and attached to system.**  
+- **Window size and title set.**  
+- **Logo, skybox, camera, and typical lights added.**  
+- **Visualization loop correctly implemented with BeginScene, Render, EndScene.**  
+- **No obvious misconfigurations or missing visualization elements.**  
 
-- **Minor issues:**  
-  - The camera is positioned at `(0, 14, -20)`, which is reasonable but might be suboptimal depending on the scene scale.  
-  - No interactive controls or camera updates during simulation, but this is optional.  
-  - No explicit call to `vis.Update()` or similar, but `Render()` is sufficient.
+**Minor issue:**  
+- Camera position is set to `(0, 14, -20)`, which is acceptable but no comments or explanation.  
+- No user interaction or camera control shown, but not required.  
 
-**No significant visualization issues.**
-
-**Visualization score: 5/5**
+**Deduction:** No significant issues → no deduction.
 
 ---
 
 ### **Summary of deductions:**
 
-| Criterion                  | Points | Deduction Reason                                  |
-|----------------------------|--------|--------------------------------------------------|
-| Completeness               | 40     | None                                             |
-| Correctness               | 30     | None                                             |
-| Code Quality              | 10     | -5 for lack of comments                           |
-| Efficiency                | 10     | -5 for missing zero-distance check (also robustness) <br> -3 for list conversion inefficiency |
-| Error Handling & Robustness | 5      | -5 for missing error handling and zero-distance check |
-| Visualization             | 5      | None                                             |
+| Criterion                      | Points | Deduction Reason                                  |
+|-------------------------------|--------|--------------------------------------------------|
+| Completeness                  | 40     | -5 (minor omission in emitter geometry frame)    |
+| Correctness                  | 30     | -10 (missing zero-distance check in gravity)     |
+| Code Quality                 | 10     | -5 (insufficient comments)                        |
+| Efficiency                  | 10     | -3 (minor optimization opportunity in force calc)|
+| Error Handling and Robustness | 5      | -5 (no error handling or edge case checks)       |
+| Visualization Tools          | 5      | 0 (no issues)                                     |
+
+**Total deductions:** 5 + 10 + 5 + 3 + 5 = 28 points
+
+**Final score:** 100 - 28 = 72 points
 
 ---
 
-### **Final score calculation:**
+[[72]]
 
-- Completeness: 40/40  
-- Correctness: 30/30  
-- Code Quality: 5/10  
-- Efficiency: 2/10  
-- Error Handling: 0/5  
-- Visualization: 5/5  
-
-**Total = 40 + 30 + 5 + 2 + 0 + 5 = 82**
-
----
-
-### **Final score:**
-
-[[82]]
-
----
-
-### **Explanation:**
-
-The script is complete and correctly uses the PyChrono API for system setup, body creation, particle emission, visualization, and simulation stepping. The physics calculations, including gravitational forces and energy computations, are logically sound and correctly implemented.
-
-However, the code lacks comments and documentation, reducing code quality. Efficiency is impacted by minor inefficiencies and a critical missing check for zero-distance in gravitational force calculation, which also affects robustness and error handling. The absence of any error handling or safeguards against division by zero is a significant issue.
-
-Visualization is well set up and follows best practices.
-
-Improving comments, adding error handling (especially for zero-distance in force calculations), and minor code optimizations would raise the score significantly.
+**Explanation:**  
+The script is largely complete and correctly uses PyChrono APIs for system setup, particle emission, visualization, and simulation stepping. The main issues are the lack of error handling and robustness, especially the missing check for zero or near-zero distances in gravitational force calculations, which can cause runtime errors or instability. Minor code quality issues include sparse comments and a small optimization opportunity in force calculations. Visualization is well handled. Overall, the script is functional but could be improved for robustness and maintainability.

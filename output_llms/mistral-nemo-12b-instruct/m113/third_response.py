@@ -147,4 +147,4 @@ while vis.Run():
     step_number += 1
 
     # Hard-code the throttle value to 0.8 during the simulation loop
-    driver_inputs[1] = 0.8
+    driver_inputs[0] = 0.8

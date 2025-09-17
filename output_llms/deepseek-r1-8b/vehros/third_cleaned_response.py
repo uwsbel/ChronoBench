@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 import math
-import pychrono.sensor as sens  
+from pychrono.body import pybody  
 
 def main():
     veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
@@ -27,42 +27,31 @@ def main():
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     
     
-    sens_manager = sens.ChSensorManager()
-    
-    lidar_sensor = sens.ChLidarSensor(
-        sens.ChSensorConfig(
-            frequency=10,  
-            angular_resolution=0.1,  
-            range_min=0.5,  
-            range_max=8.0,  
-            field_of_view=90,  
-        ),
-        hmmwv.GetVehicle().GetSystem()
-    )
-    sens_manager.AddSensor(lidar_sensor)
-    
-    
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
+    terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    patch_mat = ch.ChContactMaterialNSC()  
+    patch_mat.SetFriction(0.9)  
+    patch_mat.SetRestitution(0.01)  
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+    terrain.Initialize()  
     
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('Viper rover - Rigid terrain with Lidar')
+    vis.SetWindowTitle('Viper rover - Rigid terrain')
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-    vis.AddChBodyEasyBox(hmmwv.GetChassisBody(), 1, 1, 1, ch.VisualizationColor_Cyan)
     
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  
-
+    
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
@@ -71,13 +60,25 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar/data"))
-    ros_manager.Initialize()  
-
+    
+    lidar_sensor = chros.ChLidarSensor(25, hmmwv.GetVehicle(), pybody.ChBodyEasyBox(ch.ChVector3d(0, 0, 5)))
+    lidar_sensor.SetSensorType(chros.ChLidarSensorType_STATIC)
+    lidar_sensor.SetLidarModel(chros.ChLidarModel_OXTS)
+    lidar_sensor.SetGroundFilter(True)
+    lidar_sensor.SetLaserFilter(1.0, 0.5)
+    lidar_sensor.Initialize()
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/lidar"))
+    
+    
+    sens_manager = ch.sens.ChSensorManager()
+    sens_manager.AddSensor(lidar_sensor)
+    
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
+    
     
     
     time_step = 1e-3
@@ -85,32 +86,34 @@ def main():
     
     render_step_size = 1.0 / 25  
     render_steps = math.ceil(render_step_size / time_step)
+    
     hmmwv.GetVehicle().EnableRealtime(True)  
     
     while vis.Run():  
         time = hmmwv.GetSystem().GetChTime()  
+        
         
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
         
+        
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
-
+        
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
-
+        
         
         if not ros_manager.Update(time, time_step):
             break  
+        sens_manager.Update()  
         step_number += 1
-        
-        sens_manager.Update()
 
 if __name__ == "__main__":
     main()

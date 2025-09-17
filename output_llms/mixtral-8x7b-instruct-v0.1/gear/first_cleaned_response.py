@@ -3,60 +3,69 @@ from chrono import ChVector, ChQuaternion, ChCoordsys, ChBody, ChLinkMate, ChLin
 from chrono.irrlicht import IrrApp
 
 
-chrono.SetChDir('path/to/your/chrono/data/folder')
-my_irr_app = IrrApp(window_size=(800, 600), irr_driver_type=chrono.ChDriverType.IrrDriverTypeOpenGL)
-my_system = chrono.ChSystemSMC()
+chrono.SetChDir('path/to/your/chrono/data/')
+my_data = chrono.ChData()
+my_system = chrono.ChSystemNSC(my_data)
 
 
 
-truss_body = ChBody(mass=0, ChVector(0, 0, 0))
-my_system.AddBody(truss_body)
-truss_shape = chrono.ChBoxShape(half_extents=ChVector(0.1, 0.1, 0.1))
-truss_body.AddShape(truss_shape)
+truss = my_system.AddBody(ChBody(my_data))
+truss.SetPos(ChVector(0, 0, 0))
+truss.SetBodyFixed(True)
 
 
-bar_body = ChBody(mass=1, ChVector(0, 0, 0))
-my_system.AddBody(bar_body)
-bar_shape = chrono.ChCylinderShape(radius=0.05, length=1)
-bar_body.AddShape(bar_shape)
-bar_body.SetPos(ChVector(0, 0.5, 0))
-bar_body.SetBodyFixed(True)
+bar = my_system.AddBody(ChBody(my_data))
+bar.SetPos(ChVector(0, 0, 0))
+bar.SetMass(1.0)
+bar.SetInertiaXX(ChVector(0.05, 0.05, 0.05))
+bar_shape = my_system.AddBox(bar, 1, 0.1, 0.1)
 
 
-gear1_body = ChBody(mass=1, ChVector(0, 0, 0))
-my_system.AddBody(gear1_body)
-gear1_shape = chrono.ChCylinderShape(radius=0.1, length=0.2)
-gear1_body.AddShape(gear1_shape)
-gear1_body.SetPos(ChVector(1.2, 0.5, 0))
+gear1 = my_system.AddBody(ChBody(my_data))
+gear1.SetPos(ChVector(1.5, 0, 0))
+gear1.SetMass(1.0)
+gear1.SetInertiaXX(ChVector(0.05, 0.05, 0.05))
+gear1_shape = my_system.AddCylinder(gear1, 0.5, 0.1, ChCoordsys(ChVector(0, 0, 0), ChQuaternion(1, 0, 0, 0)))
+
+gear2 = my_system.AddBody(ChBody(my_data))
+gear2.SetPos(ChVector(3, 0, 0))
+gear2.SetMass(1.0)
+gear2.SetInertiaXX(ChVector(0.05, 0.05, 0.05))
+gear2_shape = my_system.AddCylinder(gear2, 0.5, 0.1, ChCoordsys(ChVector(0, 0, 0), ChQuaternion(1, 0, 0, 0)))
 
 
-gear2_body = ChBody(mass=1, ChVector(0, 0, 0))
-my_system.AddBody(gear2_body)
-gear2_shape = chrono.ChCylinderShape(radius=0.1, length=0.2)
-gear2_body.AddShape(gear2_shape)
-gear2_body.SetPos(ChVector(2.2, 0.5, 0))
+motor = ChLinkMotorRotationAxis()
+motor.Initialize(gear1, gear2, ChVector(0, 0, 1))
+motor.SetAngSpeed(10.0)  
+my_system.AddLink(motor)
 
 
-gear_motor = ChLinkMotorRotationAxis()
-gear_motor.Initialize(gear1_body, gear2_body, chrono.ChFrame(ChVector(1.2, 0.5, 0), ChVector(0, 0, 1)))
-gear_motor.SetMotorSpeeds(10, 10)  
-my_system.AddLink(gear_motor)
 
 
-my_system.Set_G_acc(ChVector(0, 0, -9.81))
+
+my_app = IrrApp(my_data.GetIrrlichtDevice(), 'Epicyclic Gears', 800, 600, False)
+my_app.AddTypicalLogo()
+my_app.AddSkyBox()
+my_app.AddCamera(ChVector(0, 10, 5), ChVector(0, 0, 0))
 
 
-my_irr_app.AssetList.Add(truss_shape.GetIRRShape())
-my_irr_app.AssetList.Add(bar_shape.GetIRRShape())
-my_irr_app.AssetList.Add(gear1_shape.GetIRRShape())
-my_irr_app.AssetList.Add(gear2_shape.GetIRRShape())
-
-my_irr_app.AddLightWithShadow(chrono.ChVector(0, 10, 0), chrono.ChVector(0, -1, 0), 500)
-my_irr_app.AddCamera(chrono.ChVector(0, 10, -10), chrono.ChVector(0, 0, 0))
+my_app.Add(truss.GetAsChIrrBody())
+my_app.Add(bar.GetAsChIrrBody())
+my_app.Add(gear1.GetAsChIrrBody())
+my_app.Add(gear2.GetAsChIrrBody())
 
 
-while my_irr_app.GetDevice().Run():
-    my_irr_app.BeginScene()
-    my_system.DoStepDynamics(my_irr_app.GetTimeStep())
-    my_irr_app.DrawAll()
-    my_irr_app.EndScene()
+bar_shape.GetAsShape().SetMaterial(chrono.ChMaterialSurface().SetColor(chrono.ChColor(0.5, 0.5, 1)))
+gear1_shape.GetAsShape().SetMaterial(chrono.ChMaterialSurface().SetColor(chrono.ChColor(1, 0.5, 0.5)))
+gear2_shape.GetAsShape().SetMaterial(chrono.ChMaterialSurface().SetColor(chrono.ChColor(1, 0.5, 0.5)))
+
+
+while my_app.GetDevice().Run():
+    my_system.DoStepDynamics(my_app.GetElapsed())
+    my_app.DrawAll()
+    my_app.GUI_element_demos.SetText(
+        'Simulated time: %g' % my_system.GetChTime())
+
+
+del my_app
+del my_system

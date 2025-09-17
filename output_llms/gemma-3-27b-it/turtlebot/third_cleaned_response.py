@@ -48,11 +48,11 @@ sensor_manager.AddSensor(robot)
 
 
 lidar = sens.ChLidarSensor()
-lidar.SetSensorMode(sens.ChLidarSensor.Mode_RANGE)
+lidar.SetSensorMode(sens.ChLidarSensor.Mode_DISTANCE)
 lidar.SetResolution(180)
-lidar.SetRange(5.0)
+lidar.SetRange(10)
 lidar.SetNoise(0.01)
-lidar.SetFilter(sens.ChLidarSensor.Filter_MEDIAN)
+lidar.SetFilterType(sens.ChLidarSensor.Filter_MEDIAN)
 lidar.SetFilterSize(3)
 lidar.Attach(robot, chrono.ChVector3d(0, 0, 0.1))
 sensor_manager.AddSensor(lidar)
@@ -76,9 +76,6 @@ def move(mode):
     elif mode == 'right':
         robot.SetMotorSpeed(0.5, 0)
         robot.SetMotorSpeed(-0.5, 1)
-    else:
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(0, 1)
 
 
 time_step = 2e-3
@@ -99,6 +96,9 @@ while vis.Run():
     if abs(time - 2.0) < 1e-4:
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+    
+    move('straight')
 
     
     sensor_manager.Update()

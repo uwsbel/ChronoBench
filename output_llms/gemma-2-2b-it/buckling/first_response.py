@@ -1,55 +1,51 @@
 import pychrono as chrono
-import pychrono.chrono as chrono
+import pychrono.chrono as chrono_chrono
 import pychrono.irrlicht as irrlicht
 import pychrono.FEA as FEA
 
-# Initialize PyChrono
+# Initialize PyChrono environment
 chrono.init()
 
-# Create the simulation environment
-world = chrono.World()
+# Create a new Chrono simulation
+sim = chrono.Simulation()
 
-# Define the beam geometry
-beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.05
-beam_material = chrono.Material("Steel", 1000.0)  # Example material properties
+# Define the scene
+scene = chrono.Scene()
 
-beam_element = chrono.BeamElement(beam_length, beam_width, beam_height, beam_material)
+# Create the beam
+beam = chrono.Beam()
+beam.set_material("Steel")
+beam.set_length(1.0)
+beam.set_cross_section("Rectangle", width=0.1, height=0.05)
+beam.set_position(chrono.Vector3D(0.0, 0.0, 0.0))
 
-# Define the motor
-motor = chrono.Motor(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.Vector(0.0, 1.0, 0.0),
-    chrono.Vector(0.0, 0.0, 1.0),
-    chrono.Vector(0.0, 0.0, 0.0),
-    chrono.Vector(1.0, 0.0, 0.0),
-)
+# Create the motor
+motor = chrono.Motor()
+motor.set_position(chrono.Vector3D(0.5, 0.0, 0.0))
+motor.set_force(chrono.Vector3D(0.0, 10.0, 0.0))
 
-# Create the constraint
-constraint = chrono.Constraint(beam_element, motor)
+# Define the constraints
+beam.add_constraint(chrono.ConstraintType.Fixed, motor)
 
-# Set up the FEA solver
-FEA_solver = chrono.FEA.FEA()
-FEA_solver.set_material(beam_material)
+# Create the Irrlicht visualization
+irr = irrlicht.Irrlicht()
 
-# Define the timestepper
-timestepper = chrono.Timestepper(
-    FEA_solver,
-    world,
-    chrono.EulerIntegration(),
-    chrono.NewtonianIntegration(),
-)
+# Initialize the Irrlicht engine
+irr.init()
 
-# Define the visualization
-irrlicht_visualizer = irrlicht.IrrlichtVisualizer()
+# Set the Irrlicht visualization
+irr.set_visualisation(scene)
 
-# Add the beam and motor to the simulation
-world.add_object(beam_element)
-world.add_object(motor)
+# Set the solver and timestepper
+solver = chrono.Solver()
+timestepper = chrono.Timestepper()
 
 # Run the simulation
-chrono.run(timestepper, world)
+sim.run(solver, timestepper)
 
-# Render the simulation using Irrlicht
-irrlicht_visualizer.run()
+# Visualize the simulation
+irr.visualize(sim)
+
+# Cleanup
+sim.finalize()
+irr.shutdown()

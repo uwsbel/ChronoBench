@@ -1,37 +1,34 @@
-# Create deformable terrain
-   terrain = chrono.ChSCMDeformableTerrain()
-   terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  # Define the ground plane
-   terrain.SetDimensions(100, 100, 1)  # Length, width, height
-   terrain.SetMeshResolution(100, 100, 10)  # Mesh resolution
-   terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  # Set soil parameters
-   system.Add(terrain)
-
 import os
 import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import veh, irrlicht as chronoirr
+from pychrono import irrlicht as chronoirr
+from pychrono import vehicle as veh
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in the negative Z direction
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create deformable terrain
+# Create deformable terrain using SCM
 terrain = chrono.ChSCMDeformableTerrain()
-terrain.SetPlane(chrono.ChVector3d(0, 0, 0))  # Define the ground plane
-terrain.SetDimensions(100, 100, 1)  # Length, width, height
-terrain.SetMeshResolution(100, 100, 10)  # Mesh resolution
-terrain.SetMaterial(chrono.ChMaterialNSC().SetStiffness(1000.0).SetDamping(0.5))  # Set soil parameters
+terrain.SetPlaneEquation(chrono.ChVector3d(-0, -0, 1))  # Plane equation: z = -1
+terrain.SetDimensions(20, 20, 10)  # Length, width, height
+terrain.SetMeshResolution(10)       # Mesh resolution
+terrain.SetYoungModulus(1e6)      # Young's modulus
+terrain.SetPoissonsRatio(0.3)     # Poisson's ratio
+terrain.SetDampingRatio(0.5)     # Damping ratio
+terrain.SetFrictionCoefficient(1.0)  # Friction coefficient
 system.Add(terrain)
+terrain.SetFixed(True)  # Fix the terrain in place
 
 # Create Viper rover
-rover = viper.Viper(system)
-driver = viper.ViperDCMotorControl()
-rover.SetDriver(driver)
+rover = viper.Viper(system)  # Instantiate the Viper rover
+driver = viper.ViperDCMotorControl()  # Create a driver for the rover
+rover.SetDriver(driver)  # Assign the driver to the rover
 
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(0, 0.2, 0)
@@ -54,23 +51,23 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Set simulation time step
+# Set the simulation time step
 time_step = 1e-3
 
 # Simulation loop
 time = 0
 while vis.Run():
-    time += time_step
+    time += time_step  # Increment the simulation time
     steering = 0.0  # Set constant steering
 
     driver.SetSteering(steering)  # Set the steering for the rover
 
-    rover.Update()
+    rover.Update()  # Update the rover's state
 
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)

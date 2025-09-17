@@ -53,7 +53,7 @@ mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating t
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
 
 # Adding a thin cylinder only for visualization purpose
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                # Creating a thin cylinder for visualization
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                # Creating a thin cylinder for visualization
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     # Adding the visual shape to the gear body
                                                           chrono.QuatFromAngleX(chrono.CH_PI_2)))  # Positioning and rotating the visual cylinder
 
@@ -64,5 +64,3 @@ link_motor.Initialize(mbody_gearA, mbody_truss,                     # Initializi
                                       chrono.QUNIT))                # No initial rotation
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              # Setting constant rotation speed to 3 rad/s
 sys.AddLink(link_motor)                                             # Adding the motor link to the system
-
-#

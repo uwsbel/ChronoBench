@@ -96,30 +96,17 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # PID controller for throttle control
-class PIDController:
-    def __init__(self, kp, ki, kd, setpoint):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.setpoint = setpoint
-        self.error_prev = 0
-        self.error_sum = 0
-
-    def update(self, current_value):
-        error = self.setpoint - current_value
-        self.error_sum += error
-        error_diff = error - self.error_prev
-        self.error_prev = error
-        return self.kp * error + self.ki * self.error_sum + self.kd * error_diff
-
-pid_controller = PIDController(1.0, 0.1, 0.1, 10.0)  # adjust PID gains as needed
+pid = veh.ChPIDController()
+pid.SetGains(1.0, 0.1, 0.1)
+pid.SetOutputLimits(-1.0, 1.0)
+pid.SetSetpoint(10.0)  # reference speed
 
 # ---------------
 # Simulation loop
 # ---------------
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -129,11 +116,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -148,14 +135,9 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Update PID controller
-    vehicle_speed = vehicle.GetVehicle().GetChassisBody().GetPos_dt().Length()
-    throttle_input = pid_controller.update(vehicle_speed)
-
-    # Limit throttle input to [0, 1] range
-    throttle_input = max(0.0, min(throttle_input, 1.0))
-
-    # Update driver inputs with PID-controlled throttle
+    # PID control for throttle
+    speed_error = pid.GetSetpoint() - vehicle.GetVehicle().GetChassis().GetPos_dt().Length()
+    throttle_input = pid.GetOutput(speed_error)
     driver_inputs.m_throttle = throttle_input
 
     # Advance simulation for one timestep for all modules
@@ -163,7 +145,6 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     # Increment frame number
     step_number += 1
 

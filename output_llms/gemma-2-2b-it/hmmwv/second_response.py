@@ -20,10 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
-terrainWidth = 200.0   # size in Y direction
+terrainHeight = 0      
+terrainLength = 200.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -37,11 +36,10 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50  # FPS = 50
-
+render_step_size = 1.0 / 50  
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -83,12 +81,13 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 # Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
+driver = veh.ChPathFollowerDriverIRR(vis)  # Use path follower driver
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 1.0  
+throttle_time = 0.3  
+braking_time = 0.3   
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -136,9 +135,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Add visualization for the sentinel and target points
-sentinel_point = chrono.ChVector3d(0, 0, 0)
-target_point = chrono.ChVector3d(0, 0, 0)
-vis.AddSphere(sentinel_point, 0.2, chrono.ChColor(1, 0, 0))
-vis.AddSphere(target_point, 0.2, chrono.ChColor(0, 1, 0))

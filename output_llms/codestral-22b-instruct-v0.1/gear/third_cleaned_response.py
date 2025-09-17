@@ -99,7 +99,7 @@ sys.AddLink(link_revoluteD)
 link_gearAD = chrono.ChLinkLockGear()
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
-link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(-m.pi / 2)))
+link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_gearAD.SetTransmissionRatio(1)
 link_gearAD.SetEnforcePhase(True)
 sys.AddLink(link_gearAD)
@@ -117,8 +117,10 @@ link_revoluteE.Initialize(mbody_pulleyE, mbody_truss, chrono.ChFramed(chrono.ChV
 sys.AddLink(link_revoluteE)
 
 
-link_beltDE = chrono.ChLinkSynchro()
+link_beltDE = chrono.ChLinkLockSynchro()
 link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())
+link_beltDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
+link_beltDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 sys.AddLink(link_beltDE)
 
 

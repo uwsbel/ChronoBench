@@ -51,7 +51,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace ConvexHulls with Spheres
+# Replace the particle shape creator
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -110,5 +110,6 @@ while vis.Run():
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
     total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
+    print(f"Kinetic Energy: {kinetic_energy:.2f}, Potential Energy: {potential_energy:.2f}, Total Energy: {total_energy:.2f}")

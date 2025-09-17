@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 import numpy as np
-import pychrono.sensor as sensor
+import pychrono.sensor as sens
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -115,40 +115,32 @@ driver.Initialize()
 
 
 
-num_obstacles = 5
-obstacle_size = chrono.ChVector3d(2, 2, 2)
-for i in range(num_obstacles):
-    obstacle_pos = chrono.ChVector3d(np.random.uniform(-50, 50),
-                                    np.random.uniform(-50, 50),
-                                    obstacle_size.z / 2)
-    obstacle = chrono.ChBodyEasyBox(obstacle_size.x, obstacle_size.y, obstacle_size.z, 1000)
-    obstacle.SetPos(obstacle_pos)
-    vehicle.GetSystem().Add(obstacle)
+
+obstacles = []
+for i in range(5):
+    
+    x = np.random.uniform(-30, 30)
+    y = np.random.uniform(-30, 30)
+    z = 0.5  
+    
+    
+    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    obstacle.SetPos(chrono.ChVector3d(x, y, z))
+    vehicle.GetSystem().AddBody(obstacle)
+    obstacles.append(obstacle)
 
 
 
 
-manager = sensor.ChSensorManager(vehicle.GetSystem())
-lidar = sensor.ChLidarSensor()
-lidar.SetCollisionEnvelope(chrono.ChCollisionModelParallel())
-lidar.SetFrequency(10)
-lidar.SetAngularResolution(chrono.ChRadians(0.5))
-lidar.SetSensorPosition(chrono.ChVector3d(0, 0, 2))
-lidar.SetSensorDirection(chrono.ChVector3d(0, 0, -1))
-lidar.SetRange(50)
-
-
+manager = sens.ChSensorManager(vehicle.GetSystem())
+lidar = sens.ChLidarSensor(vehicle.GetChassisBody())
+lidar.SetCollisionEnvelope(chrono.ChCollisionModel.Type_BOX)
+lidar.SetFilter(sens.ChLidarSensor.FILTER_DISTANCE, 0.1)
+lidar.SetFilter(sens.ChLidarSensor.FILTER_ANGLE, 10 * chrono.CH_C_PI / 180)
+lidar.SetAngle(chrono.ChVector2d(0, 0))
+lidar.SetPolarScan(chrono.ChVector2d(0, 0), chrono.ChVector2d(chrono.CH_C_PI / 2, 2 * chrono.CH_C_PI))
+lidar.Initialize()
 manager.AddSensor(lidar)
-
-
-lidar_points = sensor.ChPointcloudVisualizer()
-lidar_points.SetSensor(lidar)
-lidar_points.SetScale(0.1)
-lidar_points.SetShowPoints(True)
-lidar_points.SetShowNormals(False)
-lidar_points.SetShowConnections(False)
-
-vis.AddVisualizer(lidar_points)
 
 
 
@@ -183,9 +175,7 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    manager.Update()
+    manager.Update() 
 
     
     driver.Advance(step_size)

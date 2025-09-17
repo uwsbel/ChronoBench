@@ -32,20 +32,17 @@ def main():
     terrain_mat.SetRestitution(0.01)
 
     # Add single terrain patch using mesh
-    terrain.AddPatch(terrain_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrain.AddPatch(terrain_mat,
+                    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                     veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                    collision_enabled=True, contact_material_thickness=0.01)
+                    collision_enabled=True,
+                    contact_mat_thickness=0.01)
 
-    # Create visual mesh for the terrain
+    # Create and add visual mesh for the terrain
     terrain_vis_mesh = chrono.ChTriangleMeshConnected()
-    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
-
-    # Create visual shape for the terrain
+    terrain_vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
     terrain_vis_shape = chrono.ChVisualShapeTriangleMesh()
     terrain_vis_shape.SetMesh(terrain_vis_mesh)
-    terrain_vis_shape.SetName("terrain_visual_mesh")
-
-    # Add visual shape to the terrain's ground body
     terrain.GetGroundBody().AddVisualShape(terrain_vis_shape)
 
     terrain.Initialize()

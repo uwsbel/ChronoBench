@@ -62,7 +62,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -84,23 +84,20 @@ class MyDriver(veh.ChDriver):
         super(MyDriver, self).__init__()
         self.delay = delay
 
-    def Synchronize(self, time, driver_inputs):
-        if time < self.delay:
-            driver_inputs.m_throttle = 0
-            driver_inputs.m_steering = 0
-            driver_inputs.m_braking = 0
-        else:
-            if time < 0.2 + self.delay:
-                driver_inputs.m_throttle = min((time - self.delay) / 0.2, 0.7)
-            else:
-                driver_inputs.m_throttle = 0.7
+    def Synchronize(self, time):
+        throttle = 0
+        steering = 0
+        braking = 0
 
-            if time >= 2:
-                driver_inputs.m_steering = math.sin((time - 2) * 2 * math.pi)
-            else:
-                driver_inputs.m_steering = 0
+        if time > self.delay + 0.2:
+            throttle = min(0.7, (time - self.delay - 0.2) * 3.5)  
 
-            driver_inputs.m_braking = 0
+        if time > self.delay + 2:
+            steering = 0.5 * math.sin((time - self.delay - 2) * 2 * math.pi)  
+
+        self.SetThrottle(throttle)
+        self.SetSteering(steering)
+        self.SetBraking(braking)
 
 
 driver = MyDriver(delay=0.5)
@@ -140,10 +137,10 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < simulation_end_time:
         render_frame += 1
 
     
-    driver_inputs = veh.ChDriverInputs()
+    driver_inputs = driver.GetInputs()
 
     
-    driver.Synchronize(time, driver_inputs)
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)

@@ -62,7 +62,6 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 patch1 = terrain.AddPatch(patch_mat, 
@@ -70,29 +69,31 @@ patch1 = terrain.AddPatch(patch_mat,
     terrainLength / 2, terrainWidth / 2)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch1.AddBump(chrono.ChVector3d(0.1, 0.1, 0.0))  
 
 
 patch2 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, 0, 0), chrono.QUNIT), 
     terrainLength / 2, terrainWidth / 2)
 patch2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.6, 0.8, 0.7))
+patch2.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch2.AddBump(chrono.ChVector3d(0.1, 0.1, 0.0))  
 
 
 patch3 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, terrainWidth / 2, 0), chrono.QUNIT), 
     terrainLength / 2, terrainWidth / 2)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/heightmap.png"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.9, 0.9, 0.9))
-patch3.SetHeightMapScale(0.1) 
+patch3.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch3.AddBump(chrono.ChVector3d(0.1, 0.1, 0.0))  
 
 
 patch4 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(terrainLength / 2, terrainWidth / 2, 0), chrono.QUNIT), 
     terrainLength / 2, terrainWidth / 2)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.7, 0.8))
-patch4.SetBumpScale(0.05) 
+patch4.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch4.AddBump(chrono.ChVector3d(0.1, 0.1, 0.0))  
 
 terrain.Initialize()
 

@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -64,10 +63,11 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -84,48 +84,59 @@ vis.AttachVehicle(vehicle.GetVehicle())
 class MyDriver(veh.ChDriver):
     def __init__(self, delay=0.5):
         super().__init__()
+        self.delay_timer = chrono.ChRealtimeStepTimer()
         self.delay = delay
         self.throttle = 0.0
         self.steering = 0.0
         self.braking = 0.0
-        self.throttle_time = 0.0
-        self.steering_time = 0.0
+        self.throttle_timer = chrono.ChRealtimeStepTimer()
+        self.steering_timer = chrono.ChRealtimeStepTimer()
+        self.braking_timer = chrono.ChRealtimeStepTimer()
+        self.throttle_max = 0.7
+        self.steering_amplitude = 1.0
+        self.steering_frequency = 1.0 / 1.0  
+        self.steering_phase = 0.0
+        self.throttle_phase = 0.0
+        self.braking_phase = 0.0
 
     def Synchronize(self, time, driver_inputs):
         
-        if time - self.last_time >= self.delay:
-            self.last_time = time
-
-            
-            self.throttle = min(1.0, max(0.0, self.throttle + (time - self.last_time) / 2.0))
-            
-            
-            if time >= 2.0:
-                self.steering = math.sin((time - 2.0) * 2.0) * 0.5
-            else:
-                self.steering = 0.0
-            
-            
-            if time >= 3.0:
-                self.braking = 1.0
-            else:
-                self.braking = 0.0
-
+        self.delay_timer.Spin(self.delay * self.step_size)
         
-        self.driverInputs.Throttle = self.throttle
-        self.driverInputs.Steering = self.steering
-        self.driverInputs.Braking = self.braking
+        
+        if time >= 2.0:
+            self.steering = math.sin(time - 2.0) * self.steering_amplitude
+        else:
+            self.steering = 0.0
+            
+        
+        if time >= 0.2:
+            self.throttle = min(1.0, time - 0.2) * 0.7
+        else:
+            self.throttle = 0.0
+            
+        
+        if time >= 3.0:
+            self.braking = 1.0
+        else:
+            self.braking = 0.0
+            
+        
+        self.driver_inputs.throttle = self.throttle
+        self.driver_inputs.steering = self.steering
+        self.driver_inputs.braking = self.braking
+
+    def Initialize(self):
+        pass
+
+    def Advance(self, step_size):
+        self.delay_timer.Spin(self.delay * self.step_size)
+        self.throttle_timer.Spin(0.1)
+        self.steering_timer.Spin(0.1)
+        self.braking_timer.Spin(0.1)
 
 driver = MyDriver(delay=0.5)
 driver.Initialize()
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -137,11 +148,12 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-simulation_end_time = 4.0  
+simulation_time = 0.0
 
 while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
+    simulation_time += step_size
+    if simulation_time >= 4.0:
+        break
 
     
     if (step_number % render_steps == 0):
@@ -154,13 +166,16 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    driver.Synchronize(simulation_time)
+    terrain.Synchronize(simulation_time)
+    vehicle.Synchronize(simulation_time, driver_inputs, terrain)
+    vis.Synchronize(simulation_time, driver_inputs)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
     
     step_number += 1
@@ -169,5 +184,5 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     
-    if time >= simulation_end_time:
+    if simulation_time >= 4.0:
         break

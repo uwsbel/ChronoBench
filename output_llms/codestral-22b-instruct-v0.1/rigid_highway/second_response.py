@@ -85,8 +85,9 @@ new_patch = terrain.AddPatch(new_patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/bump.obj'),
     True, 0.01, False)
-new_patch.GetGroundBody().SetVisualizationColor(chrono.ChColor(0.5, 0.5, 0.8))
-new_patch.GetGroundBody().SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
+new_patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+new_patch.GetGroundBody().SetVisualMaterial(0, chrono.ChColor(0.5, 0.5, 0.8))
+new_patch.GetGroundBody().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 terrain.Initialize()
 

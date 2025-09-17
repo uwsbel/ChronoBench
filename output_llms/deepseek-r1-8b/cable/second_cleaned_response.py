@@ -79,7 +79,7 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES()
+solver = chrono.ChSolverMINRES()  
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)

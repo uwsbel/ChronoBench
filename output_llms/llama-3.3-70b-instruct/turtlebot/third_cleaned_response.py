@@ -32,24 +32,22 @@ sensor_manager = sens.ChSensorManager(system)
 
 
 lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetName("LidarSensor")
-lidar_sensor.SetFrequency(10)
-lidar_sensor.SetRange(0, 10)
+lidar_sensor.SetName("Lidar")
+lidar_sensor.SetNoiseType(sens.ChLidarSensor.eUniformNoise)
+lidar_sensor.SetMinRange(0.1)
+lidar_sensor.SetMaxRange(10.0)
 lidar_sensor.SetHorizontalFOV(math.pi / 2)
 lidar_sensor.SetVerticalFOV(math.pi / 4)
-lidar_sensor.SetHorizontalResolution(180)
-lidar_sensor.SetVerticalResolution(60)
-lidar_sensor.SetNoiseLevel(0.01)
-lidar_sensor.SetMinDistance(0.1)
-lidar_sensor.SetMaxDistance(10)
-lidar_sensor.AddFilter(sens.ChFilterPassThrough("pass_through_filter", 0.5, 10))
+lidar_sensor.SetFrequency(10.0)
+lidar_sensor.AddFilter(sens.ChLidarFilter.eMinDistanceFilter, 0.5)
+lidar_sensor.AddFilter(sens.ChLidarFilter.eMaxDistanceFilter, 5.0)
 sensor_manager.AddSensor(lidar_sensor)
 
 
-for _ in range(5):
+for i in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(1, 1, 1, 100, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.25))
     box.SetFixed(False)
     system.Add(box)
 
@@ -75,19 +73,19 @@ time_step = 2e-3
 
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(0.5, 0)
-        robot.SetMotorSpeed(0.5, 1)
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(0.5, 0)
-        robot.SetMotorSpeed(-0.5, 1)
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(-0.5, 0)
-        robot.SetMotorSpeed(0.5, 1)
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(0, 1)
 
 
 time = 0
 while vis.Run():
-    move('straight')
+    move('straight')  
 
     
     sensor_manager.Update()

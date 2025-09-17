@@ -3,7 +3,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-print ("Example: PyChrono using  beam finite elements")
+print("Example: PyChrono using beam finite elements")
 
 sys = chrono.ChSystemSMC()
 
@@ -19,9 +19,9 @@ msection.SetAsRectangularSection(beam_wy, beam_wz)
 msection.SetYoungModulus(0.01e9)
 msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
-msection.SetCentroid(0,0.02)
-msection.SetShearCenter(0,0.1)
-msection.SetSectionRotation(45*chrono.CH_RAD_TO_DEG)
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
 
 
 beam_L = 0.1
@@ -37,11 +37,13 @@ mesh.AddNode(hnode3)
 belement1 = fea.ChElementBeamEuler()
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
+
 mesh.AddElement(belement1)
 
 belement2 = fea.ChElementBeamEuler()
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
+
 mesh.AddElement(belement2)
 
 
@@ -66,13 +68,16 @@ constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
 builder = fea.ChBuilderBeamEuler()
 
+
 builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+
+
+
+builder.BuildBeam(mesh, msection, 5, builder.GetLastBeamNodes().back().GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+
+
 builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-
-last_node = builder.GetLastBeamNodes().back()
-builder.BuildBeam(mesh, msection, 5, last_node.GetPos(), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
 
 
 mesh.SetAutomaticGravity(False)
@@ -99,7 +104,7 @@ mesh.AddVisualShapeFEA(visualizebeamC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1024,768)
+vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))

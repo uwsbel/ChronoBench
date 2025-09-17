@@ -22,47 +22,48 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 
+sensor_manager = sens.ChSensorManager(system)
+
+
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetName("LidarSensor")
+lidar_sensor.SetFrequency(10)
+lidar_sensor.SetRange(5)
+lidar_sensor.SetHorizontalFOV(math.pi / 2)
+lidar_sensor.SetVerticalFOV(math.pi / 4)
+lidar_sensor.SetNumberOfScans(10)
+lidar_sensor.SetNoiseModel(sens.ChLidarNoiseModel.GAUSSIAN)
+lidar_sensor.SetNoiseStdDev(0.01)
+lidar_sensor.SetMinDistance(0.1)
+lidar_sensor.SetMaxDistance(5)
+lidar_sensor.SetRayCastingFilter(sens.ChLidarRayCastingFilter.ALL)
+sensor_manager.AddSensor(lidar_sensor)
+
+
 init_pos = chrono.ChVector3d(0, 0.2, 0)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)  
 robot.Initialize()  
 
 
-sensor_manager = sens.ChSensorManager(system)
-
-
-lidar_sensor = sens.ChLidarSensor(system, 
-                                  chrono.ChVector3d(0, 0, 0.5),  
-                                  chrono.ChQuaterniond(1, 0, 0, 0),  
-                                  10,  
-                                  10,  
-                                  0.1,  
-                                  10,  
-                                  100,  
-                                  100,  
-                                  10,  
-                                  sens.ChLidarFilterType.ALL)
-sensor_manager.AddSensor(lidar_sensor)
-
-
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
     box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, box_mat)
     box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
-    box.SetFixed(False)
+    box.SetFixed(False)  
     system.Add(box)
 
 
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(math.pi, 0)  
+        robot.SetMotorSpeed(math.pi, 1)  
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(-math.pi, 0)  
+        robot.SetMotorSpeed(math.pi, 1)  
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(math.pi, 0)  
+        robot.SetMotorSpeed(-math.pi, 1)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

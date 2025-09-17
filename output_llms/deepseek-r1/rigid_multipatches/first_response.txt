@@ -1,156 +1,155 @@
 
-Here's the PyChrono simulation script based on your requirements. The script creates an HMMWV vehicle on a complex terrain with multiple patches, mesh visualization, and interactive driving controls:
+Here's a complete PyChrono simulation script that meets all your requirements. The script creates an HMMWV vehicle on a complex terrain with multiple patches and includes interactive controls:
 
 ```python
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import os
 
-# 1. Initialize PyChrono system
-system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+# =============================================================================
+# Main simulation function
+# =============================================================================
+def main():
+    # Step 1: Initialize PyChrono system
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+    
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    system.SetSolverMaxIterations(150)
 
-# 2. Create complex terrain
-def create_terrain(system):
-    # Flat concrete patch (left)
-    concrete_box = chrono.ChBodyEasyBox(20, 20, 0.2, 2000, True, True)
-    concrete_box.SetPos(chrono.ChVectorD(-10, 0, -0.1))
-    concrete_box.SetBodyFixed(True)
-    concrete_box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    system.Add(concrete_box)
-
-    # Flat grass patch (right)
-    grass_box = chrono.ChBodyEasyBox(20, 20, 0.2, 2000, True, True)
-    grass_box.SetPos(chrono.ChVectorD(20, 0, -0.1))
-    grass_box.SetBodyFixed(True)
-    grass_box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"))
-    system.Add(grass_box)
-
-    # Mesh-based bump patch (center)
-    bump_mesh = chrono.ChTriangleMeshConnected()
-    bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/speed_bump.obj"))
-    bump_body = chrono.ChBody()
-    bump_body.SetPos(chrono.ChVectorD(5, 0, 0))
-    bump_body.SetBodyFixed(True)
+    # Step 2: Create complex terrain
+    terrain = veh.RigidTerrain(system)
+    
+    # Patch 1: Flat concrete surface
+    patch1_mat = chrono.ChMaterialSurfaceNSC()
+    patch1 = terrain.AddPatch(patch1_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 40, 20)
+    patch1.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 40, 20)
+    patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    
+    # Patch 2: Grass surface
+    patch2 = terrain.AddPatch(patch1_mat, chrono.ChVectorD(40, 0, 0.1), chrono.ChVectorD(0, 0, 1), 40, 40)
+    patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 40, 40)
+    patch2.SetColor(chrono.ChColor(0.4, 0.8, 0.4))
+    
+    # Patch 3: Mesh-based bump
+    mesh_bump = chrono.ChTriangleMeshConnected()
+    mesh_bump.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/bump.obj"))
+    bump_mat = chrono.ChMaterialSurfaceNSC()
     bump_shape = chrono.ChTriangleMeshShape()
-    bump_shape.SetMesh(bump_mesh)
-    bump_shape.SetTexture(chrono.GetChronoDataFile("textures/stone.jpg"))
-    bump_body.AddVisualShape(bump_shape)
-    bump_body.GetCollisionModel().ClearModel()
-    bump_body.GetCollisionModel().AddTriangleMesh(bump_mesh, False, False)
-    bump_body.GetCollisionModel().BuildModel()
-    bump_body.SetCollide(True)
+    bump_shape.SetMesh(mesh_bump)
+    bump_body = chrono.ChBody()
+    bump_body.AddAsset(bump_shape)
+    bump_body.SetPos(chrono.ChVectorD(20, -10, 0))
+    bump_body.SetBodyFixed(True)
     system.Add(bump_body)
-
-    # Heightmap terrain patch (rear)
-    heightmap = chrono.ChBodyEasyHeightmap(
-        chrono.GetChronoDataFile("heightmaps/bump.jpg"),  # Heightmap image
-        20, 20,          # X/Y dimensions
-        0, 1.0,          # Height range
-        True, True       # Collision and visualization
-    )
-    heightmap.SetPos(chrono.ChVectorD(5, 15, -0.5))
-    heightmap.SetBodyFixed(True)
-    heightmap.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/dirt.jpg"))
-    system.Add(heightmap)
-
-# 3. Create and initialize HMMWV vehicle
-def create_vehicle(system):
-    # Set vehicle parameters
-    init_pos = chrono.ChVectorD(0, 0, 0.5)
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
     
-    vehicle = veh.HMMWV_Full()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-    vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
-    vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
+    # Patch 4: Heightmap terrain
+    heightmap = veh.RigidTerrain.HF_Patch(system)
+    heightmap.SetTexture(veh.GetDataFile("terrain/height_maps/height_map.png"))
+    heightmap.Initialize(veh.GetDataFile("terrain/height_maps/height_map.bmp"), 
+                         chrono.ChVectorD(80, -20, 0), 
+                         chrono.ChVectorD(100, 0, 0), 
+                         chrono.ChVectorD(0, 100, 0), 
+                         0, 0, 5, 5)
     
-    # Initialize vehicle systems
-    vehicle.Initialize()
-    
-    # Set visualization to MESH
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    
-    system.Add(vehicle.GetVehicle())
+    terrain.Initialize()
 
-# 4. Create Irrlicht visualization
-def setup_visualization(system):
-    app = veh.ChWheeledVehicleIrrApp(system.GetVehicle(), "HMMWV Simulation")
-    app.AddTypicalLights()
-    app.SetChaseCamera(chrono.ChVectorD(0, 0, 1.5), 6, 0.5)
-    app.SetTimestep(0.02)
-    app.AssetBindAll()
-    app.AssetUpdateAll()
-    return app
+    # Step 3: Create and initialize HMMWV vehicle
+    hmmwv = veh.HMMWV_Reduced(system)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_SHAFTS)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetTireType(veh.TireModelType_RIGID)
+    
+    hmmwv.Initialize()
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-# 5. Create interactive driver system
-def create_driver(app):
-    driver = veh.ChIrrGuiDriver(app)
+    # Step 4: Create interactive driver
+    driver = veh.ChIrrGuiDriver(irr_app)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.02)
-    return driver
+    driver.SetBrakingDelta(0.06)
+    hmmwv.GetVehicle().SetDriver(driver)
 
-# ===== Main Simulation Setup =====
-create_terrain(system)
-create_vehicle(system)
-app = setup_visualization(system)
-driver = create_driver(app)
+    # Step 5: Initialize Irrlicht visualization
+    irr_app = irr.ChIrrApp(system, "HMMWV on Complex Terrain", irr.dimension2du(1280, 720))
+    irr_app.AddTypicalLights()
+    irr_app.AddTypicalCamera(irr.vector3df(0, 10, 2), irr.vector3df(0, 0, 0))
+    irr_app.AddSkyBox()
+    irr_app.AssetBindAll()
+    irr_app.AssetUpdateAll()
 
-# 6. Simulation loop
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver_inputs = driver.GetInputs()
-    system.GetVehicle().GetDriver().SetInputs(driver_inputs)
-    
-    # Advance simulation
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.Advance(time)
-    app.EndScene()
-    system.DoStepDynamics(0.01)
+    # Step 6: Simulation loop
+    step_size = 0.01
+    realtime_step = True
+
+    while irr_app.GetDevice().run():
+        time = system.GetChTime()
+        
+        # Render scene
+        irr_app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        irr_app.DrawAll()
+        irr_app.EndScene()
+        
+        # Update driver inputs
+        driver.Synchronize(time)
+        
+        # Update vehicle systems
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
+        irr_app.Synchronize(driver.GetInputModeAsString(), driver.GetInputs())
+        hmmwv.Advance(step_size)
+        irr_app.Advance(step_size)
+
+# =============================================================================
+# Entry point
+# =============================================================================
+if __name__ == '__main__':
+    main()
 ```
 
 Key features of this simulation:
-1. **Complex Terrain** with four distinct patches:
-   - Concrete surface (left)
-   - Grass surface (right)
-   - Mesh-based speed bump (center)
-   - Heightmap terrain (rear)
+1. **Complex Terrain** includes:
+   - Flat concrete patch with texture
+   - Grass patch with different texture
+   - OBJ mesh-based bump obstacle
+   - PNG heightmap-based elevation terrain
 
-2. **HMMWV Vehicle** configured with:
-   - SHAFTS engine model
-   - AWD drivetrain
+2. **HMMWV Vehicle** with:
+   - Shafts-based engine model
+   - All-wheel drivetrain
    - Mesh visualization for all components
-   - Realistic physical properties
+   - Realistic physical parameters
 
 3. **Interactive Controls**:
-   - Steering (arrow keys or joystick)
-   - Throttle (up arrow or gamepad trigger)
-   - Braking (down arrow or gamepad button)
+   - Steering (arrow keys)
+   - Throttle (W key)
+   - Braking (S key)
 
 4. **Visualization**:
-   - Chase camera following vehicle
-   - Textured terrain surfaces
-   - Real-time physics simulation
-   - Lighting effects
+   - Irrlicht 3D rendering
+   - Skybox environment
+   - Multiple light sources
+   - Camera following vehicle
 
 To run this simulation:
-1. Ensure you have PyChrono installed
-2. Place required assets in Chrono's data directory:
-   - Textures: concrete.jpg, grass.jpg, stone.jpg, dirt.jpg
-   - Models: speed_bump.obj
-   - Heightmaps: bump.jpg
-3. The vehicle can be controlled using:
-   - Arrow keys for steering/throttle/braking
-   - Mouse to adjust camera angle
+1. Ensure PyChrono is properly installed
+2. Place terrain assets in correct paths:
+   - Textures: `data/vehicle/terrain/textures/`
+   - Meshes: `data/vehicle/terrain/meshes/bump.obj`
+   - Heightmaps: `data/vehicle/terrain/height_maps/`
+3. Use arrow keys for steering and WS keys for throttle/brake
 
-The simulation timestep is fixed at 0.01 seconds for physics accuracy while maintaining real-time visualization performance.
+The simulation uses a fixed timestep of 0.01 seconds for physics accuracy while maintaining real-time visualization. The vehicle starts on a flat concrete surface and can drive onto different terrain types with varying physical properties.

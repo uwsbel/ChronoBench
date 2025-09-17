@@ -7,7 +7,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle locations and orientations
+# Initial vehicle location and orientation
 initLocTruck = chrono.ChVector3d(0, 0, 0.5)
 initRotTruck = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -24,9 +24,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model_truck = veh.TireModelType_RIGID
 tire_model_sedan = veh.TireModelType_TMEASY
 
-# Rigid terrain with predefined highway mesh
+# Predefined highway mesh terrain
 terrain_model = veh.RigidTerrain.HIGHWAY_MESH
-terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
 
@@ -78,9 +77,8 @@ sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(truck.GetSystem())
-terrain.InitializeFromHeightMap(chrono.GetChronoDataFile('terrain/heightmaps/highway.txt'), 
-                                chrono.GetChronoDataFile('terrain/textures/asphalt.jpg'))
+terrain = veh.RigidTerrain(truck.GetSystem(), terrain_model)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -96,20 +94,17 @@ vis.AttachVehicle(sedan)
 
 # Create the driver systems
 driver_truck = veh.ChInteractiveDriverIRR(vis)
-driver_sedan = veh.ChParticularDriver(sedan)
-driver_sedan.SetThrottle(0.5)  # fixed throttle
-driver_sedan.SetSteering(0.0)  # fixed steering
-
-# Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3  # time to go from 0 to +1
-driver_truck.SetSteeringDelta(render_step_size / steering_time)
-driver_truck.SetThrottleDelta(render_step_size / throttle_time)
-driver_truck.SetBrakingDelta(render_step_size / braking_time)
+driver_truck.SetSteeringDelta(render_step_size / 1.0)
+driver_truck.SetThrottleDelta(render_step_size / 1.0)
+driver_truck.SetBrakingDelta(render_step_size / 0.3)
 driver_truck.Initialize()
 
-# Output vehicle masses
+driver_sedan = veh.ChParticularDriver(sedan)
+driver_sedan.SetThrottle(0.5)  # fixed throttle
+driver_sedan.SetSteering(0.1)  # fixed steering
+driver_sedan.Initialize()
+
+# Output vehicle mass
 print("TRUCK TRACTOR MASS: ", truck.GetTractor().GetMass())
 print("SEDAN MASS: ", sedan.GetMass())
 
@@ -129,7 +124,7 @@ while vis.Run():
     time = truck.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -137,27 +132,25 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs_truck = driver_truck.GetInputs()
-    driver_inputs_sedan = driver_sedan.GetInputs()
+    driver_inputs_sedan = chrono.ChVehicleInputs()
 
     # Update modules (process inputs from other modules)
     driver_truck.Synchronize(time)
-    driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
     truck.Synchronize(time, driver_inputs_truck, terrain)
     sedan.Synchronize(time, driver_inputs_sedan, terrain)
     vis.Synchronize(time, driver_inputs_truck)
 
+    # Store vehicle states
+    truck_states.append(truck.GetTractor().GetPos())
+    sedan_states.append(sedan.GetPos())
+
     # Advance simulation for one timestep for all modules
     driver_truck.Advance(step_size)
-    driver_sedan.Advance(step_size)
     terrain.Advance(step_size)
     truck.Advance(step_size)
     sedan.Advance(step_size)
     vis.Advance(step_size)
-
-    # Store vehicle states
-    truck_states.append(truck.GetTractor().GetPos())
-    sedan_states.append(sedan.GetPos())
 
     # Increment frame number
     step_number += 1

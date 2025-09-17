@@ -68,7 +68,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -185,12 +185,12 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-gps_data = [[point[0], point[1]] for point in gps_data]
-plt.plot([point[0] for point in gps_data], [point[1] for point in gps_data], label='GPS Trajectory')
-plt.xlabel('Latitude')
-plt.ylabel('Longitude')
+latitudes = [data[0] for data in gps_data]
+longitudes = [data[1] for data in gps_data]
+plt.plot(longitudes, latitudes, marker='o')
 plt.title('GPS Trajectory')
-plt.legend()
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
 plt.grid(True)
 plt.show()
 

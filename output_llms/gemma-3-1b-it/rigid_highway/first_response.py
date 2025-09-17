@@ -1,53 +1,78 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visual as pv
+import pychrono.visual as cv
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual import MeshVisualizer
-from pychrono.core import Simulation
-from pychrono.visual.mesh import MeshVisualizer
-from pychrono.visual.render import Render
-from pychrono.visual.ui import UI
-import random
+import math
+
+# --- Configuration ---
+# Vehicle parameters
+vehicle_id = 1
+vehicle_type = "HMMWV"
+vehicle_location = [0, 0, 0]  # Initial position (x, y, z)
+vehicle_orientation = [0, 0, 0]  # Initial orientation (roll, pitch, yaw)
+contact_method = 'dynamic'  # 'dynamic' or 'static'
+tire_model = "IrrlichtTire"
+terrain_resolution = 10  # Adjust for detail
+terrain_height = 5  # Height of the terrain
+terrain_color = [0.8, 0.8, 0.8]  # Light gray terrain color
+# --- Simulation Setup ---
+# Initialize PyChrono
+chrono.init()
+
+# --- Physical Systems & Objects ---
+# 1. Vehicle
+vehicle = pc.Vehicle(
+    vehicle_id,
+    vehicle_type,
+    vehicle_location,
+    vehicle_orientation,
+    contact_method,
+    tire_model,
+    terrain_resolution,
+    terrain_color
+)
+
+# 2. Terrain
+terrain = pc.Terrain(
+    terrain_resolution,
+    terrain_color
+)
+
+# 3. Collision
+collision = pc.Collision(
+    vehicle,
+    terrain
+)
 
 # --- Simulation Parameters ---
-terrain_height = 10.0  # Meters
-terrain_width = 10.0
-terrain_scale = 1.0  # Meters
-terrain_density = 0.5  # Density of terrain (0.0 - 1.0)
-terrain_color = np.random.rand(terrain_width, terrain_height)
-terrain_color = np.clip(terrain_color, 0.0, 1.0)
+# Simulation time
+simulation_time = 10  # seconds
+# Simulation speed
+simulation_speed = 50
 
-# Vehicle Parameters
-vehicle_x = 0.0
-vehicle_y = 0.0
-vehicle_z = 0.0
-vehicle_orientation = 0.0  # Radians
-vehicle_speed = 0.0
-vehicle_throttle = 0.0
-vehicle_brake = 0.0
-vehicle_contact_method = 'contact_method'  # 'contact_method' or 'static'
-vehicle_tire_model = 'Irrlicht_Tire'  # Specify tire model
-vehicle_mass = 100.0  # kg
-vehicle_radius = 0.5  # meters
+# --- Simulation Loop ---
+try:
+    while True:
+        # Update Vehicle Dynamics
+        vehicle.update_dynamics()
 
-# --- Terrain Setup ---
-highway_col = 'Highway_col.obj'
-highway_vis = 'Highway_vis.obj'
+        # Update Terrain
+        terrain.update_geometry()
 
-# --- Simulation Setup ---
-simulation = Simulation()
-simulation.set_vehicle(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius)
-simulation.set_terrain(terrain_height, terrain_width, terrain_scale, terrain_density)
-simulation.set_visual(MeshVisualizer(terrain_color))
-simulation.set_ui(UI(vehicle_x, vehicle_y, vehicle_z, vehicle_orientation, vehicle_speed, vehicle_throttle, vehicle_brake, vehicle_contact_method, vehicle_tire_model, vehicle_mass, vehicle_radius))
+        # Update Collision
+        collision.update_geometry()
 
-# --- Rendering ---
-render = Render()
-render.render(simulation)
+        # Rendering
+        cv.render(vehicle, 1) # Render the vehicle
 
-# --- Main Loop ---
-simulation.run()
-simulation.wait()
+        # Display the scene
+        cv.display(1)
 
-print("Simulation complete.")
+        # Sleep for a short time
+        time.sleep(simulation_speed)
+
+except Exception as e:
+    print(f"Simulation error: {e}")
+    print("Consider adding more robust error handling and logging.")
+    break

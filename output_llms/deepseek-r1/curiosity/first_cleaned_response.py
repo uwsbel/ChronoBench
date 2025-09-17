@@ -1,87 +1,72 @@
 import pychrono as chrono
-import pychrono.robot as robot
+import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
 import os
 
 
-chrono.SetChronoDataPath("path/to/chrono/data/")  
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 
 
 system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-system.SetSolverType(chrono.ChSolver.Type_PSS)
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 system.SetSolverMaxIterations(100)
 
 
 ground_mat = chrono.ChMaterialSurfaceNSC()
-ground_mat.SetFriction(0.9)
-ground_mat.SetRestitution(0.01)
-
-ground = chrono.ChBodyEasyBox(50, 1, 50, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 
-ground_texture = chrono.ChTexture()
-ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-ground.AddAsset(ground_texture)
-
-
-rover = robot.Curiosity()
-rover.SetDriver(robot.CuriosityDCMotorControl())
-rover.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, -0.4, 0), chrono.QUNIT))
-system.Add(rover.GetChassis().GetBody())
+rover = veh.Curiosity(system)
+rover.SetDriver(veh.CuriosityDriver())
+rover.Initialize(chrono.ChFrameD(chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetWindowTitle('Curiosity Rover Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+
+
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVectorD(3, 2, 3), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 50, 5, 20, 50, 512)
-
-
+vis.AddTypicalLights(chrono.ChVectorD(30, 30, 30), chrono.ChVectorD(-30, -30, 30), 200, 200)
+vis.AddLightWithShadow(chrono.ChVectorD(10, 20, 10), chrono.ChVectorD(0, 0, 0), 50, 5, 40, 80, 512)
 vis.EnableShadows()
 
 
-time_step = 0.001
-time = 0
-last_time = 0
-
-
-steering_angle = 0.0
-speed_level = 0.0
+driver = veh.ChIrrGuiDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
 
 
 while vis.Run():
     time = system.GetChTime()
     
     
-    steering_angle = 0.3 * chrono.ChSineStep(time, 1.0, 0.5)
-    speed_level = 0.5
+    driver_inputs = veh.DriverInputs()
+    driver_inputs.m_steering = driver.GetSteering()
+    driver_inputs.m_throttle = driver.GetThrottle()
+    driver_inputs.m_braking = driver.GetBraking()
     
-    rover.GetDriver().SetSteering(steering_angle)
-    rover.GetDriver().SetSpeed(speed_level)
-    rover.GetDriver().Update(time_step)
+    rover.DriverInputs = driver_inputs
+    rover.Update(time)
     
     
     vis.BeginScene()
     vis.Render()
+    chronoirr.drawGrid(vis, 1, 1, 12, 12, 
+                      chrono.ChCoordsysD(chrono.ChVectorD(0, -1, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)),
+                      chrono.ChColor(0.5, 0.5, 0.5), True)
+    chronoirr.drawAllCOGs(vis, 1.0)
     vis.EndScene()
     
     
-    system.DoStepDynamics(time_step)
-    
-    
-    if time - last_time > 0.02:  
-        cam_pos = rover.GetChassis().GetBody().GetPos() + chrono.ChVectorD(-3, 1, 0)
-        vis.GetActiveCamera().setTarget(chronoirr.vector3df(rover.GetChassis().GetBody().GetPos().x, 
-                                                          rover.GetChassis().GetBody().GetPos().y,
-                                                          rover.GetChassis().GetBody().GetPos().z))
-        vis.GetActiveCamera().setPosition(chronoirr.vector3df(cam_pos.x, cam_pos.y, cam_pos.z))
-        last_time = time
+    system.DoStepDynamics(1e-3)

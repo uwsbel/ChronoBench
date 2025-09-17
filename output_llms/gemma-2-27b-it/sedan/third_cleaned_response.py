@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,8 +21,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrain_model = veh.RigidTerrain.MESH
-
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
@@ -38,7 +37,8 @@ step_size = 1e-4
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 60  
+render_step_size = 1.0 / 100  
+
 
 
 
@@ -66,9 +66,10 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
-
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth, terrain_model)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -79,7 +80,7 @@ vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -98,6 +99,14 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+pid = chrono.ChPIDController(1.0, 0.1, 0.01)  
+
+
+ref_speed = 20.0  
+
+driver.SetTargetSpeed(ref_speed)
+
+
 
 
 
@@ -111,16 +120,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-
-Kp = 1.0
-Ki = 0.1
-Kd = 0.01
-integral = 0.0
-previous_error = 0.0
-
-
-reference_speed = 20.0  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -136,20 +135,16 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    current_speed = vehicle.GetVehicle().GetChassisBody().GetLinearVelocity().Length()
-    error = reference_speed - current_speed
+    speed_error = ref_speed - vehicle.GetVehicle().GetSpeed()
 
     
-    integral += error * step_size
-    derivative = (error - previous_error) / step_size
-    throttle_input = Kp * error + Ki * integral + Kd * derivative
-    previous_error = error
+    throttle_input = pid.Update(speed_error)
 
     
-    throttle_input = max(0.0, min(throttle_input, 1.0))
+    throttle_input = max(0, min(throttle_input, 1))
 
     
-    driver_inputs.m_throttle = throttle_input
+    driver_inputs.throttle = throttle_input
 
     
     driver.Synchronize(time)

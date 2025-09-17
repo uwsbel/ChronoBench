@@ -2,7 +2,7 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import numpy as np
+import math
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -45,21 +45,25 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed to grass texture
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -89,31 +93,42 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = int(np.ceil(render_step_size / step_size))
-
-# Create a sensor manager
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-sensor_manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChColor(1, 1, 1), 100)  # Add point light
-sensor_manager.scene.AddPointLight(chrono.ChVector3f(-10, 0, 5), chrono.ChColor(1, 1, 1), 100)  # Add point light
-
-# Create a camera sensor
-offset_pose = chrono.ChFrame3d(chrono.ChVector3d(-1, 0, 1.5))
-cam = sens.ChCameraSensor(vehicle.GetChassisBody(),  # body camera is attached to
-                          30,  # update rate in Hz
-                          offset_pose,  # offset pose from body
-                          1280,  # image width
-                          720,  # image height
-                          90  # FOV
-                          )
-cam.SetName("Camera Sensor")
-cam.PushFilter(sens.ChFilterVisualize(1280, 720, "FOV Camera"))  # Add visualization filter
-sensor_manager.AddSensor(cam)
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Create a sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Add point lights to the scene
+light1 = chrono.ChLight()
+light1.SetLightType(chrono.ChLight.LightType_POINT)
+light1.SetPosition(chrono.ChVector3d(0, 0, 10))
+light1.SetIntensity(10)
+vehicle.GetSystem().AddLight(light1)
+
+light2 = chrono.ChLight()
+light2.SetLightType(chrono.ChLight.LightType_POINT)
+light2.SetPosition(chrono.ChVector3d(10, 0, 10))
+light2.SetIntensity(10)
+vehicle.GetSystem().AddLight(light2)
+
+# Add a camera sensor to the vehicle's chassis body
+camera = sens.ChCameraSensor(
+    vehicle.GetChassisBody(),
+    30,
+    chrono.ChFrame(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+    1280,
+    720,
+    90
+)
+camera.SetName("Camera Sensor")
+manager.AddSensor(camera)
+
+# Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -133,8 +148,8 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Update sensor manager
-    sensor_manager.Update()
+    # Update the sensor manager
+    manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -147,4 +162,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-

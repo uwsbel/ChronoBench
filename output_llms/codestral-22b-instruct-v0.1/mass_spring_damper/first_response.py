@@ -45,7 +45,8 @@ spring_shape.SetPos(chrono.ChVectorD(0, 2.5, 0))
 spring_shape.SetRot(chrono.ChQuaternionD(1, 0, 0, chrono.CH_C_PI_2))
 
 # Run the simulation
-app.SetTimestep(0.01)
-app.AssetBindAll()
-app.AssetUpdateAll()
-app.Run()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

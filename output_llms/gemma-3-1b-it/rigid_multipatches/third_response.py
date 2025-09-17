@@ -84,13 +84,8 @@ def main():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        # Get driver inputs
-        driver_inputs = driver.GetInputs()
-
-        # Update modules (process inputs from other modules)
-        driver.Synchronize(time)
+        vis.Synchronize(time)
         terrain.Synchronize(time, driver_inputs, terrain)
-        hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
         # Advance simulation for one timestep for all modules

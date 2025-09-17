@@ -25,6 +25,7 @@ tire_model_sedan = veh.TireModelType_TMEASY
 
 
 terrain_model = veh.RigidTerrain.MESH
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -50,6 +51,7 @@ vehicle_truck.SetChassisCollisionType(chassis_collision_type)
 vehicle_truck.SetChassisFixed(False)
 vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
 vehicle_truck.Initialize()
+vehicle_truck.SetTireModelType(tire_model_truck)
 
 vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_truck.SetSteeringVisualizationType(vis_type)
@@ -66,6 +68,7 @@ vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
 vehicle_sedan.SetChassisFixed(False)
 vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
 vehicle_sedan.Initialize()
+vehicle_sedan.SetTireModelType(tire_model_sedan)
 
 vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_sedan.SetSteeringVisualizationType(vis_type)
@@ -102,19 +105,22 @@ vis.AttachVehicle(vehicle_sedan.GetChassis())
 
 
 driver_truck = veh.ChInteractiveDriverIRR(vis)
-steering_time_truck = 1.0  
-throttle_time_truck = 1.0  
-braking_time_truck = 0.3   
-driver_truck.SetSteeringDelta(render_step_size / steering_time_truck)
-driver_truck.SetThrottleDelta(render_step_size / throttle_time_truck)
-driver_truck.SetBrakingDelta(render_step_size / braking_time_truck)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver_truck.SetSteeringDelta(render_step_size / steering_time)
+driver_truck.SetThrottleDelta(render_step_size / throttle_time)
+driver_truck.SetBrakingDelta(render_step_size / braking_time)
+
 driver_truck.Initialize()
 
 
-driver_sedan = veh.ChDriver(vehicle_sedan.GetChassis())
-driver_sedan.SetSteeringAngle(0.0)
-driver_sedan.SetThrottle(0.5)
-driver_sedan.SetBraking(0.0)
+driver_sedan = veh.ChIrrAppDriver(vis)
+driver_sedan.SetSteeringAngle(0.2)  
+driver_sedan.SetThrottle(0.5)  
+driver_sedan.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle_truck.GetTractor().GetMass())
@@ -128,8 +134,8 @@ step_number = 0
 render_frame = 0
 
 
-states_truck = []
-states_sedan = []
+truck_tractor_states = []
+truck_trailer_states = []
 
 while vis.Run() :
     time = vehicle_truck.GetSystem().GetChTime()
@@ -143,13 +149,14 @@ while vis.Run() :
 
     
     driver_inputs_truck = driver_truck.GetInputs()
+    driver_inputs_sedan = driver_sedan.GetInputs()
 
     
     driver_truck.Synchronize(time)
     driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
     vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
-    vehicle_sedan.Synchronize(time, driver_sedan, terrain)
+    vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
     vis.Synchronize(time, driver_inputs_truck)
 
     
@@ -161,8 +168,8 @@ while vis.Run() :
     vis.Advance(step_size)
 
     
-    states_truck.append((vehicle_truck.GetTractor().GetPos(), vehicle_truck.GetTractor().GetRot()))
-    states_sedan.append((vehicle_sedan.GetChassis().GetPos(), vehicle_sedan.GetChassis().GetRot()))
+    truck_tractor_states.append(vehicle_truck.GetTractor().GetPos())
+    truck_trailer_states.append(vehicle_truck.GetTrailer().GetPos())
 
     
     step_number += 1

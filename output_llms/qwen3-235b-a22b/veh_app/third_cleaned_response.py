@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
+import os
 
 
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -24,33 +25,16 @@ trackPoint = chrono.ChVector3d(0.0, 0.0, 1.75)
 
 step_size = 1e-3
 tire_step_size = step_size
+render_step_size = 1.0 / 50
 
 
-tend = 1000
-
-
-render_step_size = 1.0 / 50  
-
-
-noise_model = "NONE"  
-
-
+noise_model = "NONE"
 update_rate = 10
-
-
 image_width = 1280
 image_height = 720
-
-
 fov = 1.408
-
-
 lag = 0
-
-
 exposure_time = 0
-
-
 vis = True
 
 
@@ -81,8 +65,6 @@ print("\n")
 gator.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-
-
 terrain = veh.RigidTerrain(gator.GetSystem())
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
@@ -99,7 +81,6 @@ box.SetFixed(True)
 box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().AddBody(box)
 
-
 cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
@@ -109,8 +90,6 @@ gator.GetSystem().AddBody(cylinder)
 
 driver = veh.ChDriver(gator.GetVehicle())
 driver.Initialize()
-
-
 
 
 manager = sens.ChSensorManager(gator.GetSystem())
@@ -128,89 +107,83 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
-
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChDepthCameraSensor(
+offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthSensor(
     gator.GetChassisBody(),
     update_rate,
-    depth_offset_pose,
+    offset_pose_depth,
     image_width,
     image_height,
     fov,
     30  
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 
-offset_pose = chrono.ChFramed(
+offset_pose_lidar = chrono.ChFramed(
     chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
 )
 lidar = sens.ChLidarSensor(
-    gator.GetChassisBody(),              
-    update_rate,            
-    offset_pose,            
-    800,     
-    300,       
-    2 * chrono.CH_PI,         
-    chrono.CH_PI / 12,         
-    -chrono.CH_PI / 6,         
-    100.0,                  
-    sens.LidarBeamShape_RECTANGULAR,  
-    2,          
-    0.003,       
-    0.003,       
-    sens.LidarReturnMode_STRONGEST_RETURN             
+    gator.GetChassisBody(),
+    update_rate,
+    offset_pose_lidar,
+    800,
+    300,
+    2 * chrono.CH_PI,
+    chrono.CH_PI / 12,
+    -chrono.CH_PI / 6,
+    100.0,
+    sens.LidarBeamShape_RECTANGULAR,
+    2,
+    0.003,
+    0.003,
+    sens.LidarReturnMode_STRONGEST_RETURN
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
 lidar.SetCollectionWindow(1/update_rate)
-
 lidar.PushFilter(sens.ChFilterDIAccess())
-
 lidar.PushFilter(sens.ChFilterPCfromDepth())
-
 lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
 manager.AddSensor(lidar)
-
-
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = tend  
+end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
+    
     
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
     
-    driver_inputs = driver.GetInputs()
-
     
+    driver_inputs = driver.GetInputs()
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
-
     manager.Update()
-
+    
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
-
+    
+    
+    chassis = gator.GetChassisBody()
+    pos = chassis.GetPos()
+    rot = chassis.GetRot()
+    yaw = rot.Q_to_Euler123()[2]  
+    current_time = gator.GetSystem().GetChTime()
+    print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {yaw:.3f} rad")
+    
     
     realtime_timer.Spin(step_size)
-
-    
-    current_time = gator.GetSystem().GetChTime()
-    pos = gator.GetChassisBody().GetPos()
-    heading = gator.GetVehicle().GetHeading()
-    print(f"Time: {current_time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Heading: {heading:.3f} rad")

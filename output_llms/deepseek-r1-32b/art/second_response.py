@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_MESH  # Changed from NONE to MESH
 tire_model = veh.TireModelType_FIALA  # Changed from TMEASY to FIALA
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -78,7 +77,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis = veh.ChTrackedVehicleVisualSystemIrrlicht()  # Changed from Wheeled to Tracked
 vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)

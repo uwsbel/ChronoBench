@@ -8,8 +8,6 @@ import os
 # Set the data path for Chrono assets
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-print(chrono.GetChronoDataPath() + 'vehicle/')
-
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
@@ -141,29 +139,25 @@ offset_pose = chrono.ChFramed(
         chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
 depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),              # Body lidar is attached to
+    gator.GetChassisBody(),              # Body depth camera is attached to
     update_rate,            # Scanning rate in Hz
     offset_pose,            # Offset pose
-    1280,     # Number of horizontal samples
-    720,       # Number of vertical channels
-    1.408,         # Horizontal field of view
-    30,                  # Maximum depth
-    sens.DepthCameraBeamShape_RECTANGULAR,  # Shape of the lidar beam
-    0.003,       # Divergence angle
-    0.003,       # Divergence angle (again, typically same value)
-    sens.DepthCameraReturnMode_STRONGEST_RETURN             # Return mode for the lidar
+    image_width,             # Image width
+    image_height,            # Image height
+    fov,                     # Horizontal field of view
+    30                       # Maximum depth
 )
-depth_cam.SetName("Depth Camera Sensor")
+depth_cam.SetName("Depth Camera")
 depth_cam.SetLag(lag)
 depth_cam.SetCollectionWindow(1/update_rate)
-# Provides the host access to the Depth, Intensity data
-depth_cam.PushFilter(sens.ChFilterDIAccess())
-# Convert Depth, Intensity data to XYZI point cloud data
+# Provides the host access to the Depth data
+depth_cam.PushFilter(sens.ChFilterDepthAccess())
+# Convert Depth data to XYZ point cloud data
 depth_cam.PushFilter(sens.ChFilterPCfromDepth())
-# Provides the host access to the XYZI data
-depth_cam.PushFilter(sens.ChFilterXYZIAccess())
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(640, 480, 1.0, "Depth Map"))
-# Add the lidar to the sensor manager
+# Provides the host access to the XYZ data
+depth_cam.PushFilter(sens.ChFilterXYZAccess())
+depth_cam.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Camera Point Cloud"))
+# Add the depth camera to the sensor manager
 manager.AddSensor(depth_cam)
 
 # create lidar sensor
@@ -198,6 +192,7 @@ lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
+
 # ---------------
 # Simulation loop
 # ---------------
@@ -221,7 +216,8 @@ while time < end_time:
     manager.Update()
 
     # Log vehicle state
-    print(f"Time: {time:.2f}, Position: {gator.GetVehicle().GetPos().x:.2f}, {gator.GetVehicle().GetPos().y:.2f}, {gator.GetVehicle().GetPos().z:.2f}, Heading: {gator.GetVehicle().GetRot().GetEuler1().z:.2f}")
+    print("Vehicle position: ", gator.GetVehicle().GetPos().x, gator.GetVehicle().GetPos().y, gator.GetVehicle().GetPos().z)
+    print("Vehicle heading: ", gator.GetVehicle().GetRot().eulerAngles.z)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

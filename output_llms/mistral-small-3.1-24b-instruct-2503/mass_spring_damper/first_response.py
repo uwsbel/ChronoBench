@@ -1,64 +1,56 @@
-import pychrono.core as chrono
+import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.physics as chronophys
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('../data/')
-
-# Create a Chrono::Engine physical system
+# System initialization
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-# Create the ground body
-ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, 0, -0.05))
+# Ground body
+ground = chrono.ChBodyEasyBox(1, 1, 0.1, 1000)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
 ground.SetBodyFixed(True)
 system.Add(ground)
 
-# Create the mass body
-mass = chrono.ChBodyEasySphere(0.2, 1000, True, True)
-mass.SetPos(chrono.ChVectorD(0, 0, 1))
+# Mass body
+mass = chrono.ChBodyEasySphere(0.1, 1, True, True)
+mass.SetPos(chrono.ChVectorD(0, 0.5, 0))
+mass.SetMass(1)
 system.Add(mass)
 
-# Create the spring-damper connection
-spring = chronophys.ChLinkTSDA()
-spring.Initialize(mass, ground, False, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0), False)
-spring.Set_Spring_coefficient(1000)
-spring.Set_Damping_coefficient(10)
-spring.Set_Rest_length(1)
-system.Add(spring)
+# Spring-damper link
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(ground, mass, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0.5, 0), False)
+spring_damper.Set_SpringCoefficient(1000)  # Default spring constant
+spring_damper.Set_DampingCoefficient(10)   # Default damping coefficient
+system.Add(spring_damper)
 
-# Create visual shapes for the mass and spring
-# Mass visual shape
-mass_vis_shape = chrono.ChSphereShape()
-mass_vis_shape.GetSphereGeometry().rad = 0.2
-mass_vis_shape.GetSphereGeometry().pos = chrono.ChVectorD(0, 0, 0)
-mass_vis_shape.SetColor(chrono.ChColor(1, 0, 0))  # Red color
-mass.AddVisualShape(mass_vis_shape)
+# Visualization setup
+application = chronoirr.ChIrrApp(system, 'Mass-Spring-Damper System', chrono.ChVectorD(0.2, 0.2, 0.2))
+application.AddTypicalSky()
+application.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+application.AddTypicalCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+application.AddTypicalLights()
 
-# Spring visual shape
-spring_vis_shape = chrono.ChCylinderShape()
-spring_vis_shape.GetCylinderGeometry().rad = 0.02
-spring_vis_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0)
-spring_vis_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, 1)
-spring_vis_shape.SetColor(chrono.ChColor(0, 1, 0))  # Green color
-mass.AddVisualShape(spring_vis_shape)
+# Visual shape for the mass
+mass_shape = chronoirr.ChIrrNodePointCloud()
+mass_shape.AttachBody(mass)
+application.GetSceneManager().getRootSceneNode().addChild(mass_shape)
 
-# Create the Irrlicht visualization system
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('Mass-Spring-Damper System')
-visualization.SetTryRealTimeRate(30)
-visualization.SetCameraVertical(chrono.ChVectorD(0, 1, 0))
-visualization.SetCameraTarget(chrono.ChVectorD(0, 0, 0.5))
-visualization.SetCameraDistance(2)
+# Visual shape for the spring
+spring_shape = chronoirr.ChIrrNodeLine()
+spring_shape.ClearPoints()
+spring_shape.PushPoint(chrono.ChVectorD(0, 0, 0))
+spring_shape.PushPoint(chrono.ChVectorD(0, 0.5, 0))
+spring_shape.SetDiameter(0.01)
+spring_shape.SetColorf(chrono.ChColorf(1, 0, 0))  # Red color
+application.GetSceneManager().getRootSceneNode().addChild(spring_shape)
 
-# Set up the lighting
-visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 1, 1, 1, 50)
+# Simulation loop
+application.SetTimestep(0.01)
+application.SetTryRealTime(True)
 
-# Run the simulation
-while visualization.Run():
-    system.DoStepDynamics(0.01)
-
-# Clean up
-visualization.Close()
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    system.DoStepDynamics(application.GetTimestep())
+    application.EndScene()

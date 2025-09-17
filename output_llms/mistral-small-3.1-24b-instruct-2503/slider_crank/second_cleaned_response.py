@@ -19,9 +19,8 @@ mfloor.SetFixed(True)
 sys.Add(mfloor)  
 
 
-mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)  
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, crank_rad, crank_thick, 1000)  
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))  
-mcrank.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(1, 0, 0)))  
 sys.Add(mcrank)  
 
 
@@ -32,7 +31,7 @@ sys.Add(mrod)
 
 mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)  
 mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))  
-mpiston.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(0, 1, 0)))  
+mpiston.SetRot(chrono.Q_ROTATE_Y_TO_X)  
 sys.Add(mpiston)  
 
 
@@ -44,17 +43,17 @@ sys.Add(my_motor)
 
 
 mjointA = chrono.ChLinkLockRevolute()  
-mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))  
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(mcrank.GetFrame_REF_to_abs(), chrono.ChVector3d(crank_rad, 0, 0), chrono.Q_ROTATE_Y_TO_Z))  
 sys.Add(mjointA)  
 
 
 mjointB = chrono.ChLinkLockRevolute()  
-mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(mrod.GetFrame_REF_to_abs(), chrono.ChVector3d(rod_length, 0, 0), chrono.Q_ROTATE_Y_TO_X))  
 sys.Add(mjointB)  
 
 
 mjointC = chrono.ChLinkLockPrismatic()  
-mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))  
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  
 sys.Add(mjointC)  
 
 
@@ -75,45 +74,45 @@ array_pos = []
 array_speed = []
 
 
-time_step = 1e-3  
-total_simulation_time = 20  
-
-
 simulation_time = 0.0
-while vis.Run() and simulation_time < total_simulation_time:
+while vis.Run() and simulation_time < 20.0:
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-    sys.DoStepDynamics(time_step)  
+    sys.DoStepDynamics(1e-3)  
 
     
+    simulation_time += 1e-3
     array_time.append(simulation_time)
-    array_angle.append(my_motor.GetMotorRotation().GetAngle())
+    array_angle.append(mcrank.GetRot().Q_to_Euler().z)  
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
-    
-    simulation_time += time_step
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
 
-fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+ax1.plot(array_angle, array_pos, label='Position vs. Angle')
+ax1.set_xlabel('Crank Angle [rad]')
+ax1.set_ylabel('Position [m]')
+ax1.set_title('Position vs. Crank Angle')
+ax1.legend()
 
 
-axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
-axs[0].set_title('Position vs. Crank Angle')
-axs[0].xaxis.set_major_locator(plt.MultipleLocator(np.pi / 2))
-axs[0].grid(True)
+ax1.set_xticks(np.arange(0, 2*np.pi + np.pi/2, np.pi/2))
+ax1.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
 
 
-axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-axs[1].set_title('Speed vs. Crank Angle')
-axs[1].xaxis.set_major_locator(plt.MultipleLocator(np.pi / 2))
-axs[1].grid(True)
+ax2.plot(array_angle, array_speed, label='Speed vs. Angle', color='r')
+ax2.set_xlabel('Crank Angle [rad]')
+ax2.set_ylabel('Speed [m/s]')
+ax2.set_title('Speed vs. Crank Angle')
+ax2.legend()
+
+
+ax2.set_xticks(np.arange(0, 2*np.pi + np.pi/2, np.pi/2))
+ax2.set_xticklabels(['0', 'π/2', 'π', '3π/2', '2π'])
 
 plt.tight_layout()
 plt.show()

@@ -102,7 +102,7 @@ box.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box.SetSize(chrono.ChVector3d(1, 1, 1))
 box.SetMass(1)
 box.SetCollide(True)
-box.SetMaterialOverride(patch_mat)
+box.SetMaterialSurface(patch_mat)
 gator.GetSystem().Add(box)
 
 
@@ -115,8 +115,12 @@ cylinder.SetRadius(0.5)
 cylinder.SetHeight(1)
 cylinder.SetMass(1)
 cylinder.SetCollide(True)
-cylinder.SetMaterialOverride(patch_mat)
+cylinder.SetMaterialSurface(patch_mat)
 gator.GetSystem().Add(cylinder)
+
+
+driver = veh.ChDriver(gator.GetVehicle())
+driver.Initialize()
 
 
 
@@ -153,11 +157,10 @@ lidar = sens.ChLidarSensor(
     0.003,
     sens.ReturnMode_STRONGEST
 )
-
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZI())
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Visualization"))
+lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar"))
 manager.AddSensor(lidar)
 
 
@@ -170,8 +173,6 @@ while time < end_time:
     time = gator.GetSystem().GetChTime()
 
     
-    driver = veh.ChDriver(gator.GetVehicle())
-    driver.Initialize()
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
 

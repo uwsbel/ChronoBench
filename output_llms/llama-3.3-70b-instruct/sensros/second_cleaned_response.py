@@ -22,14 +22,14 @@ def main():
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
     mesh_body.AddVisualShape(trimesh_shape)
-    mesh_body.SetFixed(False)  
+    mesh_body.SetFixed(True)  
     mesh_body.SetMass(0)  
     sys.Add(mesh_body)
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(False)  
+    ground_body.SetFixed(True)  
     ground_body.SetMass(0)  
     sys.Add(ground_body)
 
@@ -61,12 +61,12 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar_2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI / 2, -ch.CH_PI / 2, 100., 0)
-    lidar_2d.PushFilter(sens.ChFilterDIAccess())  
-    lidar_2d.PushFilter(sens.ChFilterScanAccess())  
-    lidar_2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar Scan"))  
-    lidar_2d.SetName("lidar2d")
-    sens_manager.AddSensor(lidar_2d)
+    lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, -ch.CH_PI / 2, ch.CH_PI / 2, 100., 0)
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  
+    lidar2d.PushFilter(sens.ChFilterScanAccess())  
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar Scan"))  
+    lidar2d.SetName("lidar2d")
+    sens_manager.AddSensor(lidar2d)
 
     
     noise_model_none = sens.ChNoiseNone()
@@ -111,6 +111,8 @@ def main():
     ros_manager.RegisterHandler(gyro_handler)
     mag_handler = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
     ros_manager.RegisterHandler(mag_handler)
+    lidar2d_handler = chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan")
+    ros_manager.RegisterHandler(lidar2d_handler)
 
     
     imu_handler = chros.ChROSIMUHandler(100, "~/output/imu/data")
@@ -118,9 +120,6 @@ def main():
     imu_handler.SetGyroscopeHandler(gyro_handler)
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
-
-    
-    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar_2d, "~/output/lidar2d/data/scan"))
 
     ros_manager.Initialize()  
 

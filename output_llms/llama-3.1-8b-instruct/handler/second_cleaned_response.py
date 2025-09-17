@@ -27,7 +27,7 @@ class MyCustomHandler(chros.ChROSHandler):
         
         print(f"Publishing {self.ticker} ...")
         msg = String()  
-        msg.data = self.message + str(self.ticker)  
+        msg.data = self.message + str(int(self.ticker))  
         self.publisher.publish(msg)  
         self.ticker += 1  
 

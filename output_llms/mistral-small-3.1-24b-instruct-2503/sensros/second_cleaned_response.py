@@ -7,13 +7,9 @@ def main():
     sys = ch.ChSystemNSC()
 
     
-    ground_material = ch.ChMaterialSurfaceNSC()
-    ground_material.SetFriction(0.6)
-
-    
     mmesh = ch.ChTriangleMeshConnected()
     
-    mmesh.LoadWavefrontMeshConnected(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
+    mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
 
     
@@ -31,7 +27,7 @@ def main():
     sys.Add(mesh_body)
 
     
-    ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False, ground_material)
+    ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
     ground_body.SetFixed(True)  
     sys.Add(ground_body)
@@ -55,18 +51,20 @@ def main():
     sens_manager.AddSensor(cam)
 
     
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  
-    lidar.SetName("lidar")
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "lidar3d"))  
+    lidar.SetName("lidar3d")
     sens_manager.AddSensor(lidar)
 
     
-    lidar2d = sens.ChLidarSensor2D(ground_body, 10.0, offset_pose, 180, 360, 2 * ch.CH_PI, ch.CH_PI / 180, -ch.CH_PI / 2, 100.0, 0.0)
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, 0, 0, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar2D"))  
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "lidar2d"))  
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -105,8 +103,8 @@ def main():
 
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler2D(lidar2d, "~/output/lidar2d/data/scan"))  
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar3d/data/pointcloud"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan"))  
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)

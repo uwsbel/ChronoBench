@@ -135,12 +135,6 @@ while vis.Run() :
     vis.Advance(step_size)
     
     step_number += 1
-
+    
     
     driver_inputs.SetThrottle(0.8)
-
-
-   box = chrono.ChBoxShape(chrono.ChVector3d(10, 0.5, 2))  
-   box_body = chrono.ChBodyEasy(100, box)  
-   box_body.SetPos(chrono.ChVector3d(0, 0, 1))  
-   vehicle.GetSystem().Add(box_body)

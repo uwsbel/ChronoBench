@@ -6,7 +6,8 @@ import numpy as np
 import math
 
 # Set data paths
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+chrono.SetChronoDataPath('./chrono_data/')
+veh.SetDataPath('./chrono_data/vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -21,12 +22,12 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -89,46 +90,36 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = np.ceil(render_step_size / step_size).astype(int)
 
-# Create a sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.Add(patch)
+# Create sensor manager
+manager = sens.SensorManager(vehicle.GetSystem())
+manager.scene.AddSkyBox()
 
-# Create a lidar sensor
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),
-    10,
-    chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-    100,
-    chrono.ChVector3d(0, 0, 0.5),
-    60,
-    -60,
-    100,
-    0.1,
-    200,
-    sens.ChLidarBeamShape_RECTANGULAR,
-    True,
-)
+# Create lidar sensor
+lidar = sens.SensorLidar(vehicle.GetChassisBody(),  # body lidar is attached to
+                         10,  # update rate
+                         chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  # offset pose
+                         100,  # number of horizontal samples
+                         10,  # number of vertical channels
+                         chrono.CH_C_PI,  # horizontal field of view
+                         chrono.CH_C_PI / 4,  # vertical field of view
+                         0.1,  # near clip distance
+                         100  # far clip distance
+                         )
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterLidarXYZ())
-lidar.PushFilter(sens.ChFilterLidarIntensity())
+lidar.PushFilter(sens.SensorFilterDIA())
 manager.AddSensor(lidar)
 
-# Create and add random boxes to the simulation
-np.random.seed(1)
-for _ in range(10):
-    x = np.random.uniform(-terrainLength / 2, terrainLength / 2)
-    y = np.random.uniform(-terrainWidth / 2, terrainWidth / 2)
-    z = 1
-    box_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, patch_mat)
-    box_body.SetPos(chrono.ChVector3d(x, y, z))
-    vehicle.GetSystem().AddBody(box_body)
-    manager.scene.Add(box_body)
+# Add random boxes to the simulation
+for i in range(10):
+    box_body = chrono.ChBodyEasyBox(1, 1, 1, 1, True, True)
+    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(0, 5)))
+    vehicle.GetSystem().Add(box_body)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -169,4 +160,4 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-### Provided Python Code
+### Corrected and Modified Script

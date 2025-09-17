@@ -6,6 +6,7 @@ import math
 import matplotlib.pyplot as plt
 
 # Set the Chrono data directory
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -22,9 +23,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain parameters
-terrainHeight = 0     # Terrain height
+terrainHeight = 0  # Terrain height
 terrainLength = 100.0  # Size in X direction
-terrainWidth = 100.0   # Size in Y direction
+terrainWidth = 100.0  # Size in Y direction
 
 # Point on the chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -39,7 +40,7 @@ tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
-log_step_size = 1.0 / 20    # Frequency of data logging
+log_step_size = 1.0 / 20  # Frequency of data logging
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
@@ -106,7 +107,7 @@ imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attach
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-imu.PushFilter(sens.ChFilterAccelAccess())  # Provides the host access to the IMU data
+imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 # Create a GPS sensor and add it to the manager
@@ -118,7 +119,7 @@ gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  # Body GPS is attached to
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-gps.PushFilter(sens.ChFilterGPSAccess())  # Provides the host access to the GPS data
+gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 # Simulation loop
@@ -142,10 +143,9 @@ while vis.Run():
 
     if step_number % log_steps == 0:
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        if gps_coor is not None and len(gps_coor) > 0:
-            gps_data.append([gps_coor[0], gps_coor[1]])
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
 
-    # Simplified driver inputs
+    # Set driver inputs
     driver.SetSteering(0.6)
     driver.SetThrottle(0.5)
     driver_inputs = driver.GetInputs()
@@ -172,16 +172,14 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 # Plot GPS data using Matplotlib
-if gps_data:
-    gps_data = list(zip(*gps_data))
-    plt.figure(figsize=(10, 6))
-    plt.plot(gps_data[1], gps_data[0], label='GPS Trajectory')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('GPS Trajectory')
-    plt.legend()
-    plt.show()
+gps_lat = [data[0] for data in gps_data]
+gps_long = [data[1] for data in gps_data]
+plt.figure(figsize=(10, 6))
+plt.plot(gps_long, gps_lat, label='GPS Trajectory')
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.title('GPS Trajectory')
+plt.legend()
+plt.show()
 
-print("GPS Data: ", gps_data)
-
-# The modified code is provided above.
+# Your Python code here

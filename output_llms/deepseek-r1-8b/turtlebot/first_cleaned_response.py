@@ -1,86 +1,74 @@
 import pychrono as pychrono
-import pydgp as pydgp
-import pyirrlicht as pyirrlicht
+from pychrono import Body, BodyStatic, BodyRigid, BodySphere, BodyCapsule, BodyBox, BodyPlane, BodyJoint, BodyHinge, BodyRevolute, BodyFixed, BodyFixedPoint, BodyFixedAxis, BodyFixedRotation, BodyFixedTranslation
+from pychrono import chrono, D, G, M, Unit, deg, rad
+import numpy as np
+import Irrlicht as Irrlicht
 
 
-pychrono.init()
-pychrono.setGravity(pychrono.vector3(0, 0, -9.81))
+chrono = pychrono.Chrono()
+chrono.setGravity(D(0, 0, G))
 
 
-ground_body = pydgp.createBody(pydgp.shape_plane_xy(1, 1, 0.1))
-ground_body.setPos(pychrono.vector3(0, 0, 0))
-ground_body.setMaterial(pydgp.material_py(1.0, 0.0, 0.0, 0.5, 0.0, 0.0))
+ground = BodyStatic()
+ground.setMass(M(1000))
+ground.setPosition(D(0, 0, 0))
+ground.setRot(D(0, 0, 0))  
+chrono.addBody(ground)
 
 
-turtlebot_body = pydgp.createBody(pydgp.shape_sphere(0.05))
-turtlebot_body.setPos(pychrono.vector3(0, 0.5, 0))
-turtlebot_body.setRot(pychrono.vector3(0, 1, 0))  
+turtlebot = BodyRigid()
+turtlebot.setMass(M(10))
+turtlebot.setPosition(D(0, 1, 0))  
+turtlebot.setRot(D(0, 0, 0))  
+chrono.addBody(turtlebot)
 
 
-camera = pyirrlicht.createCamera("Camera")
-camera.setPos(pychrono.vector3(0, 10, 20))
-camera.lookAt(pychrono.vector3(0, 0, 0))
-camera.setFieldOfView(45.0)
-camera.setNearFar(0.1, 1000.0)
 
-
-light = pyirrlicht.createLight("Light")
-light.setPos(pychrono.vector3(10, 10, 10))
-light.setDiffuseColor(pychrono.vector3(1.0, 1.0, 1.0))
-light.setDirection(pychrono.vector3(-1, -1, -1))
-
-
-chrono_system = pychrono.ChronoSystem()
-chrono_system.addBody(turtlebot_body)
-chrono_system.addBody(ground_body)
-
-
-timestep = 0.01  
-simulation_loop = pychrono.SimulationLoop(timestep)
-
-
-right_motor = 0.5
-left_motor = -0.5
-
-
-torque = 0.5
-
-
-turtlebot_mesh = pyirrlicht.createMesh("Turtlebot")
-turtlebot_mesh.setMaterial(pyirrlicht.material_diffuse_color(pychrono.vector3(1.0, 0.0, 0.0)))
-
-def simulate():
-    global right_motor, left_motor, torque
+turtlebot_links = []
+for i in range(4):
+    link = BodyCapsule()
+    link.setMass(M(0.1))
+    link.setLength(D(0.5, 0, 0))
+    turtlebot_links.append(link)
     
-    keys = pychrono.getKeys()
+    joint = BodyRevolute()
+    joint.setRot(D(0, 0, 0))  
+    joint.setPivotPoint(turtlebot_links[i-1].getEndPoint())
+    joint.setAxis(D(0, 0, 1))  
+    chrono.addBody(joint)
+    turtlebot_links[i].setParent(turtlebot_links[i-1])
+
+
+renderer = Irrlicht.Renderer()
+renderer.setLight(D(10, 10, 10))  
+camera = D(5, 5, 5)
+renderer.setCamera(camera, D(0, 0, 0))  
+renderer.enableShadows()
+
+
+timestep = 0.1
+while True:
+    
+    turtlebot.setMotors(D(-1, 0, 0), D(1, 0, 0))  
     
     
-    speed = 0.1
-    if keys[pychrono.KEY_UP]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(speed, 0, 0))
-    elif keys[pychrono.KEY_DOWN]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(-speed, 0, 0))
-    elif keys[pychrono.KEY_LEFT]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(0, speed, 0))
-    elif keys[pychrono.KEY_RIGHT]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(0, -speed, 0))
+    renderer.clear()
+    renderer.render()
     
     
-    turtlebot_body.setRotationalVelocity(pychrono.vector3(0, 0, torque))
-    turtlebot_body.setLinearVelocity(pychrono.vector3(0, 0, 0))  
+    renderer.drawBody(ground)
     
     
-    turtlebot_body.setRot(pychrono.vector3(0, 1, 0))  
-    turtlebot_body.setLinearVelocity(pychrono.vector3(0, 0, 0))
+    renderer.drawBody(turtlebot)
     
     
-    turtlebot_mesh.update()
-    ground_body.update()
-    chrono_system.update()
-    camera.update()
+    for link in turtlebot_links:
+        renderer.drawBody(link)
     
     
-    renderer.update()
-
-
-simulation_loop.start(simulate)
+    camera_pos = D(5, 5, 5)
+    camera_look = D(0, 0, 0)
+    renderer.setCamera(camera_pos, camera_look)
+    
+    
+    chrono.step(timestep)

@@ -1,4 +1,5 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
 import math
@@ -94,14 +95,14 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# create a box
+# Create a box
 box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box.SetFixed(True)
 box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().AddBody(box)
 
-# create cylinder
+# Create cylinder
 cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.5, 1, 1000)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetFixed(True)
@@ -131,17 +132,33 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
+# Renders the image at current point in the filter graph
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create lidar sensor
-offset_pose = chrono.ChFramed(
+# Create Depth Camera
+depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
+    gator.GetChassisBody(),
+    update_rate,
+    depth_offset_pose,
+    image_width,
+    image_height,
+    fov,
+    30
+)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
+
+# Create LIDAR sensor
+lidar_offset_pose = chrono.ChFramed(
     chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
 )
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
-    offset_pose,            # Offset pose
+    lidar_offset_pose,            # Offset pose
     800,     # Number of horizontal samples
     300,       # Number of vertical channels
     2 * chrono.CH_PI,         # Horizontal field of view
@@ -157,32 +174,22 @@ lidar = sens.ChLidarSensor(
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
 lidar.SetCollectionWindow(1/update_rate)
+# Provides the host access to the Depth, Intensity data
 lidar.PushFilter(sens.ChFilterDIAccess())
+# Convert Depth, Intensity data to XYZI point cloud data
 lidar.PushFilter(sens.ChFilterPCfromDepth())
+# Provides the host access to the XYZI data
+lidar.PushFilter(sens.ChFilterXYZIAccess())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+# Add the lidar to the sensor manager
 manager.AddSensor(lidar)
-
-# Add Depth Camera
-depth_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-depth_cam = sens.ChDepthCameraSensor(
-    gator.GetChassisBody(),
-    update_rate,
-    depth_offset_pose,
-    image_width,
-    image_height,
-    fov,
-    30.0  # Maximum depth
-)
-depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_cam)
 
 # ---------------
 # Simulation loop
 # ---------------
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = tend
+end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -199,9 +206,10 @@ while time < end_time:
     manager.Update()
 
     # Log vehicle state
-    vehicle_state = gator.GetVehicle().GetChassis().GetPos()
-    heading = gator.GetVehicle().GetChassis().GetRot().Q_to_Euler123()
-    print(f"Time: {time:.2f}, Position: ({vehicle_state.x:.2f}, {vehicle_state.y:.2f}, {vehicle_state.z:.2f}), Heading: ({heading.x:.2f}, {heading.y:.2f}, {heading.z:.2f})")
+    loc = gator.GetVehicle().GetChassis().GetPos()
+    rot = gator.GetVehicle().GetChassis().GetRot()
+    heading = rot.Q_to_Euler().z / chrono.CH_C_PI * 180
+    print(f"Time: {time:.2f} s, Position: ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}), Heading: {heading:.2f} deg")
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

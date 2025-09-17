@@ -20,7 +20,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+
+terrainHeight = 0.05  
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -43,13 +44,12 @@ vehicle = veh.Gator()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
@@ -62,29 +62,21 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
 
-terrain_textures = ["terrain/textures/tile1.jpg", "terrain/textures/tile2.jpg", "terrain/textures/tile3.jpg", "terrain/textures/tile4.jpg"]
-terrain_heights = [0, 0.1, 0.2, 0.3]  
-terrain_lengths = [terrainLength, terrainLength, terrainLength, terrainLength]
-terrain_widths = [terrainWidth, terrainWidth, terrainWidth, terrainWidth]
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-for i in range(4):
-    patch = terrain.AddPatch(patch_mat,
-                           chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrain_heights[i]),
-                           chrono.QUNIT,
-                           terrain_lengths[i],
-                           terrain_widths[i])
-    patch.SetTexture(veh.GetDataFile(patch_textures[i]), 200, 200)
+textures = ["terrain/textures/tile1.jpg", "terrain/textures/tile2.jpg", "terrain/textures/tile3.jpg", "terrain/textures/tile4.jpg"]
+heights = [0.05, 0.05, 0.1, 0.1]  
+patches = []
+for i, texture in enumerate(textures):
+    height = heights[i] + 0.05  
+    patch = terrain.AddPatch(patch_mat, 
+        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, height), chrono.QUNIT), 
+        terrainLength, terrainWidth)
+    patch.SetTexture(veh.GetDataFile(texture), 200, 200)
     patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    
-    bump_height = 0.5
-    bump_length = 20.0
-    bump_width = 20.0
-    bump_pos = chrono.ChVector3d(0, 0, bump_height)
-    bump = terrain.AddBox(chrono.ChCoordsysd(bump_pos), bump_length, bump_width, bump_height)
-    bump.SetTexture(veh.GetDataFile(patch_textures[i]), 200, 200)
-    bump.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-    bump.SetRestitution(0.8)
-    terrain.Initialize()
+    patches.append(patch)
+
+
+for patch in patches:
+    patch.Initialize()
 
 
 

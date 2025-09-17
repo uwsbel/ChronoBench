@@ -14,17 +14,15 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create ground body with contact material and add it to the system
 ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  # Position the ground slightly below the origin
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create long box obstacle
-obstacle = chrono.ChBoxNSC(5, 1, 1)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0))
-obstacle.SetFixed(True)
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+# Create and position the long box obstacle
+obstacle = chrono.ChBodyEasyBox(30, 1, 0.5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, -0.5))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -64,7 +62,12 @@ while vis.Run():
     time += time_step
 
     # Set steering input for the rover
-    steering = 0.0
+    steering = 0
+    if time < 1:
+        steering = 0  # Rover moves forward immediately with zero steering
+    else:
+        steering = 0  # Rover maintains zero steering input
+    
     driver.SetSteering(steering)
 
     # Update rover dynamics

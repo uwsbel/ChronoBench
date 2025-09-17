@@ -59,28 +59,39 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Terrain Patches
-terrain_patches = [
-    veh.RigidTerrainPatch(
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        terrainLength, terrainWidth,
-        chrono.ChVector3d(0, 0, 0),  # Initial position
-        chrono.ChVector3d(0, 0, 0),  # Initial orientation
-        chrono.ChColor(0.8, 0.8, 0.5),  # Color
-        chrono.ChTexture("terrain/textures/tile4.jpg"),  # Texture
-        chrono.ChTexture("terrain/textures/tile5.jpg"),  # Texture
-        chrono.ChTexture("terrain/textures/tile6.jpg"),  # Texture
-        chrono.ChTexture("terrain/textures/tile7.jpg"),  # Texture
-        chrono.ChTexture("terrain/textures/tile8.jpg"),  # Texture
-        0.9,  # Friction
-        0.01  # Restitution
-    )
+# Add 4 patches of terrain with different textures
+patch_heights = [
+    chrono.ChVector3d(0.0, 0.0, 0.0),
+    chrono.ChVector3d(0.0, 0.0, 0.0),
+    chrono.ChVector3d(0.0, 0.0, 0.0),
+    chrono.ChVector3d(0.0, 0.0, 0.0)
+]
+patch_textures = [
+    veh.GetDataFile("terrain/textures/tile4.jpg"),
+    veh.GetDataFile("terrain/textures/tile4.jpg"),
+    veh.GetDataFile("terrain/textures/tile4.jpg"),
+    veh.GetDataFile("terrain/textures/tile4.jpg")
+]
+patch_colors = [
+    chrono.ChColor(0.8, 0.8, 0.5),
+    chrono.ChColor(0.8, 0.8, 0.5),
+    chrono.ChColor(0.8, 0.8, 0.5),
+    chrono.ChColor(0.8, 0.8, 0.5)
 ]
 
-for patch in terrain_patches:
+for i in range(4):
+    patch = terrain.AddPatch(patch_mat, 
+        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+        terrainLength, terrainWidth)
+    patch.SetTexture(patch_textures[i], 200, 200)
+    patch.SetColor(patch_colors[i])
     patch.Initialize()
+
 
 # -------------------------------------
 # Create the vehicle Irrlicht interface

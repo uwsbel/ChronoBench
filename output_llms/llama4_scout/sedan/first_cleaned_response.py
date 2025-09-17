@@ -6,7 +6,7 @@ import chrono.vehicle as veh
 ch.set_default_G_acc(9.81)
 
 
-system = ch.ChSystemEulerImplicit()
+system = ch.ChSystem_EulerImplicit()
 
 
 app = irr.ChIrrApp(system, "BMW E90 Sedan Simulation", irr.IrrlichtInfo())
@@ -14,22 +14,19 @@ app = irr.ChIrrApp(system, "BMW E90 Sedan Simulation", irr.IrrlichtInfo())
 
 terrain = veh.ChTerrain()
 terrain.SetSystem(system)
-terrain.Initialize(0.0, 0.0, 0.0)
-
-
-terrain.SetVisualize(enable=True)
-terrain.SetCollide(enable=True)
+terrain.Initialize(1000, 1000)
 
 
 vehicle = veh.ChBMW_E90()
-vehicle.Initialize(system, terrain.GetGroundBody(), ch.ChCoordsysD(0, 1.0, 0.5, ch.ChQuaternionD(0, 0, 0, 1)))
+vehicle.Initialize(terrain, ch.ChCoordsysD(0, 0, 1.1))
 
 
-vehicle.SetVisualize(enable=True)
-vehicle.SetCollide(enable=True)
+vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizer.VisualizationTypeEnum.NET)
+vehicle.SetTireVisualizationType(veh.ChVehicleVisualizer.VisualizationTypeEnum.SINGLE_TIRE)
+vehicle.SetTireCollisionType(veh.ChVehicleVisualizer.CollisionTypeEnum.SINGLE_TIRE)
 
 
-tire_model = veh.ChTMEASY()
+tire_model = veh.ChTMEasyTire(vehicle.GetTire(0))
 vehicle.SetTireModel(tire_model)
 
 
@@ -37,32 +34,22 @@ driver = veh.ChInteractiveDriver()
 driver.Initialize(vehicle)
 
 
-driver.SetThrottle(0.5)
-driver.SetSteering(0.0)
-driver.SetBraking(0.0)
+vehicle.GetChassisBody().SetPos(ch.ChVectorD(0, 0, 1.1))
+vehicle.GetEngine().SetOutput(ch.ChVectorD(0, 0, 0))
 
 
-vehicle_node = app.AddChronoVehicle(vehicle, "vehicle")
+app.AddSkyBox()
+app.AddDirectionalLight(ch.ChVectorD(1, 1, 1), ch.ChVectorD(-1, -1, -1))
 
 
-camera = irr.ChChaseCamera()
-camera.Initialize(vehicle_node, vehicle.GetChassisBody(), ch.ChVectorD(0, -10, 5))
+app.SetCameraMoveType(irr.ChCameraMoveType.CAMERA_CHASE)
 
 
-light = irr.ChDirectionalLight()
-light.SetDirection(ch.ChVectorD(1, -1, -1))
-app.AddLight(light)
+terrain_mat = ch.ChMaterialSurface()
+terrain_mat.SetKfriction(0.8)
+terrain_mat.SetRestitution(0.3)
+terrain.GetTerrainBody().SetMaterial(terrain_mat)
 
 
-skybox = irr.ChSkyBox()
-app.AddSkyBox(skybox)
-
-
-terrain.SetTexture(irr.ChTexture("terrain.jpg"))
-terrain.SetLogo(irr.ChLogo("logo.png"))
-
-
-while app.Run():
-    system.DoStepDynamics(1e-3)
-    app.Synchronize("", 1e-3)
-    app.Advance(1e-3)
+app.SetMaxFPS(60)
+app.Run()

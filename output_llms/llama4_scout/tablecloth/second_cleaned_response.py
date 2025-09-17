@@ -72,7 +72,6 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], 
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], 
                            boundary_1, boundary_2, boundary_3)
-        
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
         
@@ -91,7 +90,6 @@ for iz in range(nsections_z):
                            mynodes[(iz + 1) * (nsections_x + 1) + ix], 
                            mynodes[iz * (nsections_x + 1) + ix + 1], 
                            boundary_1, boundary_2, boundary_3)
-        
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 

@@ -3,7 +3,8 @@ import pychrono.irrlicht as chronoirr
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Create the physical system
+# chrono.SetChronoDataPath('path/to/data')
+
 sys = chrono.ChSystemNSC()
 
 # Some data shared in the following
@@ -42,7 +43,7 @@ sys.Add(mpiston)
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank,  # the first connected body
                     mfloor,  # the second connected body
-                    chrono.ChFrameD(crank_center))  # where to create the motor in abs.space
+                    chrono.ChFramed(crank_center))  # where to create the motor in abs.space
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  # ang.speed: 180°/s
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
@@ -51,26 +52,24 @@ sys.Add(my_motor)
 mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 # Create rod-piston joint (changed from revolute to spherical)
 mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 # Create piston-truss joint (changed from prismatic to planar)
 mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+                   chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                   chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 sys.Add(mjointC)
 
-# Visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
@@ -100,7 +99,7 @@ while vis.Run():
     vis.EndScene()
     sys.DoStepDynamics(1e-3)
 
-    # stop simulation after 20 seconds
+    # stop simulation after 2 seconds
     if sys.GetChTime() > 20:
         vis.GetDevice().closeDevice()
 

@@ -54,6 +54,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -67,13 +68,13 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,  # Bekker Kphi
-                          0,  # Bekker Kc
-                          1.1,  # Bekker n exponent
-                          0,  # Mohr cohesive limit (Pa)
-                          30,  # Mohr friction limit (degrees)
-                          0.01,  # Janosi shear coefficient (m)
-                          2e8,  # Elastic stiffness (Pa/m), before plastic yield
-                          3e4  # Damping (Pa s/m), proportional to negative vertical speed (optional)
+                           0,  # Bekker Kc
+                           1.1,  # Bekker n exponent
+                           0,  # Mohr cohesive limit (Pa)
+                           30,  # Mohr friction limit (degrees)
+                           0.01,  # Janosi shear coefficient (m)
+                           2e8,  # Elastic stiffness (Pa/m), before plastic yield
+                           3e4  # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
@@ -100,22 +101,16 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the sensor manager
-manager = sensor.ChSensorManager()
+sensor_manager = sensor.ChSensorManager()
+vis.AttachSensorManager(sensor_manager)
 
 # Create the Lidar sensor
-lidar = sensor.ChLidarSensor()
-lidar.SetRange(20)
-lidar.SetResolution(0.1)
-lidar.SetFov(np.pi / 4)
-lidar.SetPosition(chrono.ChVector3d(0, 0, 2))
-lidar.SetOrientation(chrono.ChQuaterniond(0, 0, 0, 1))
-lidar.SetColor(chrono.ChColor(1, 0, 0))
-
-# Add the Lidar sensor to the vehicle
-vehicle.GetVehicle().AddSensor(lidar)
-
-# Add the sensor manager to the visualization system
-vis.AddSensorManager(manager)
+lidar_sensor = sensor.ChLidarSensor()
+lidar_sensor.SetRange(30)
+lidar_sensor.SetResolution(10)
+lidar_sensor.SetRangeFilter(10, 20)
+lidar_sensor.SetColor(chrono.ChColor(1, 0, 0))
+vehicle.GetVehicle().AddSensor(lidar_sensor)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -123,7 +118,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -159,10 +154,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
-    manager.Update()  # Added to update the sensor manager during the simulation loop
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    sensor_manager.Update(time)  # Update the sensor manager
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
@@ -177,22 +172,31 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Add obstacles
-num_obstacles = 5
-obstacle_size = 2.0
-for i in range(num_obstacles):
-    x = np.random.uniform(-10, 10)
-    y = np.random.uniform(-10, 10)
-    z = np.random.uniform(terrainHeight, terrainHeight + obstacle_size)
-
-    box_shape = chrono.ChBoxShape()
-    box_shape.GetBoxGeometry().SetSize(chrono.ChVectorD(obstacle_size / 2, obstacle_size / 2, obstacle_size / 2))
-
-    body = chrono.ChBody()
-    body.SetPos(chrono.ChVectorD(x, y, z))
-    body.AddShape(box_shape)
-    body.SetMass(1000)
+# Create 5 random box obstacles
+for i in range(5):
+    pos = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.1)
+    size = chrono.ChVectorD(np.random.uniform(0.5, 2), np.random.uniform(0.5, 2), 0.5)
+    body = chrono.ChBodyEasyBox(size.x, size.y, size.z, 1000, chrono.ChVectorD(0, 0, 0), True, True)
+    body.SetPos(pos)
     body.SetCollide(True)
-    body.SetBodyFixed(True)
-
     vehicle.GetSystem().AddBody(body)
+
+# Run the simulation for 10 seconds
+for i in range(int(10 / step_size)):
+    time = vehicle.GetSystem().GetChTime()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    sensor_manager.Update(time)  # Update the sensor manager
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)

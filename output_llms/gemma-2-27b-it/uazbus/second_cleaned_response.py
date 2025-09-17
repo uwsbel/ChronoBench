@@ -111,9 +111,9 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_duration = 5.0  
-lane_width = 3.0  
-steering_angle = 0.5  
+lane_change_start_time = 5.0  
+lane_change_duration = 2.0  
+lane_width = 3.7  
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -126,19 +126,16 @@ while vis.Run() :
         render_frame += 1
 
     
-    if time < lane_change_duration:
-        
-        steering_input = steering_angle * math.sin(math.pi * time / lane_change_duration)
-        driver.SetSteeringInput(steering_input)
-        driver.SetThrottleInput(0.5)  
-    else:
-        
-        driver.SetSteeringInput(0)
-        driver.SetThrottleInput(0)
-        driver.SetBrakingInput(1)
+    driver_inputs = driver.GetInputs()
 
     
-    driver_inputs = driver.GetInputs()
+    if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
+        steering_angle = math.sin((time - lane_change_start_time) / lane_change_duration * math.pi) * lane_width / vehicle.GetVehicle().GetWheelbase()
+        driver_inputs.steering = steering_angle
+        
+    if time > lane_change_start_time + lane_change_duration + 2:
+        driver_inputs.throttle = 0
+        driver_inputs.braking = 1
 
     
     driver.Synchronize(time)

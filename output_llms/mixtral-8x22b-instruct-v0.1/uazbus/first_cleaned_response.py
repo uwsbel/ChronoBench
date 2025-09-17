@@ -33,35 +33,33 @@ my_terrain.SetRestitution(0.1)
 my_system.Add(my_terrain)
 
 
-my_driver = veh.DriverSH()
-my_vehicle.Initialize(my_driver)
+my_driver = veh.DriverLQR(my_vehicle)
 
 
 
-my_vehicle.SetTireForce(veh.TireForceDirCorr(0.001, 0.001, 0.001, 0.001, 0.001, 0.001))
+my_vehicle.SetTerrain(my_terrain)
 
 
-my_visual_system = chronoirr.ChVisualSystemIrrlicht()
-my_visual_system.SetWindowSize(800, 600)
-my_visual_system.SetWindowTitle("PyChrono Vehicle Simulation")
-my_visual_system.Initialize()
-my_visual_system.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-my_visual_system.AddSkyBox()
-my_visual_system.AddCamera(chrono.ChVectorD(0, -20, 1), chrono.ChVectorD(0, 0, 1))
-my_visual_system.AddLight(chrono.ChVectorD(0, 10, 10), chrono.ChColor(0.7, 0.7, 0.7))
-my_visual_system.AddLight(chrono.ChVectorD(-10, 10, 0), chrono.ChColor(0.3, 0.3, 0.3))
+my_application = chronoirr.ChIrrApp(my_system, "PyChrono Vehicle Simulation", chronoirr.Dimensions(800, 600))
 
 
-my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+my_application.GetCameraSystem().SetFar(100)
+my_application.GetCameraSystem().SetPosition(chrono.ChVectorD(0, 0, 1.5))
+my_application.GetCameraSystem().SetTarget(chrono.ChVectorD(0, 0, 0))
 
-my_driver.SetSteering(0.0)
-my_driver.SetThrottle(0.5)
-my_driver.SetBraking(0.0)
 
-while my_visual_system.Run():
+my_application.GetLightSystem().Enable()
+
+
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+
+    my_application.DrawAll()
+
+    my_driver.Update()
+
     my_system.DoStepDynamics(0.01)
-    my_visual_system.BeginScene()
-    my_visual_system.DrawAll()
-    my_visual_system.EndScene()
 
-chrono.Ch chrono.End()
+    my_application.EndScene()
+
+chrono.ChEnd()

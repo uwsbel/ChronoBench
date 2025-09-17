@@ -1,67 +1,99 @@
 importchrono
 importchrono irrlicht
 importchrono vehicle
-importchrono vehicle irrlicht
+importchrono collision
+importchrono geometry
+importchrono visualization
+importchrono sensor
+importchrono driver
+importchrono utils
 
 
 system = chrono.ChSystem()
-system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-6)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-app = chrono.ChIrrApp(system, "HMMWV on Custom Terrain", chrono.CH.dimension(800, 600))
-app.SetLightPosition(chrono.ChVectorD(0, 100, 100))
-app.SetLightDir(chrono.ChVectorD(0, -1, -1))
-app.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
-app.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+application = chrono.ChIrrApp(system, "HMMWV Simulation", chrono.CHDimension(800, 600))
+application.AddLight(chrono.ChVectorD(0, 10, 10), chrono.ChColor(1, 1, 1))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalGrid()
 
 
-hmmwv = chrono.ChHMMWV()
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0))
-hmmwv.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-hmmwv.SetTireType(chrono.ChTireType.TMEASY)
-hmmwv.SetVisualization(chrono.ChVisualizationType.MESH)
-hmmwv.Initialize()
+vehicle = chrono.ChHMMWV()
+vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
+vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chrono.CHRONO)
+vehicle.SetTireType(chrono.TMEASY)
+vehicle.SetUseMeshes(True)
+vehicle.Initialize()
 
-
-terrain_collision = chrono.ChTriangleMeshShape()
-terrain_collision.SetFilename("Highway_col.obj")
-terrain_collision.SetScale(1)
-terrain_collision.Build()
-
-terrain_visual = chrono.ChTriangleMeshShape()
-terrain_visual.SetFilename("Highway_vis.obj")
-terrain_visual.SetScale(1)
-terrain_visual.Build()
 
 terrain = chrono.ChBody()
 terrain.SetBodyFixed(True)
-terrain.SetCollisionShape(terrain_collision)
-terrain.GetVisualShape().SetMaterial(chrono.ChVisualMaterial())
-terrain.GetVisualShape().SetTexture("Highway_tex.jpg")
-
-terrain_link = chrono.ChLinkLock()
-terrain_link.Initialize(terrain, None, False)
-system.Add(terrain_link)
-
-
-driver = chrono.ChIrrGuiDriver(app)
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.GetCollisionModel().AddModel(chrono.ChCollisionModelMesh(chrono.GetChronoDataFile("Highway_col.obj"), True))
+terrain.GetCollisionModel().SetConvexHull(False)
+terrain.GetCollisionModel().SetEnvelope(0.01)
+terrain.GetVisualShape().AddMaterial(chrono.ChVisualMaterial())
+terrain.GetVisualShape().AddModel(chrono.ChVisualModelMesh(chrono.GetChronoDataFile("Highway_vis.obj")))
+system.AddBody(terrain)
 
 
-vehicle_system = chrono.ChVehicleSystem()
-vehicle_system.Add(hmmwv)
-vehicle_system.AddDriver(driver)
-vehicle_system.SetTerrainCollision(terrain_collision)
+driver = chrono.ChDriver()
+vehicle.SetDriver(driver)
+vehicle.SetDriverInputs(chrono.ChDriverInputs())
 
 
-app.Begin()
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    vehicle_system.Update(1/50)
-    app.EndScene()
-app.End()
+def key_callback(key, pressed):
+    if pressed:
+        if key == 'w':
+            driver.SetThrottle(1)
+        elif key == 's':
+            driver.SetBrake(1)
+        elif key == 'a':
+            driver.SetSteering(-1)
+        elif key == 'd':
+            driver.SetSteering(1)
+    else:
+        if key == 'w' or key == 's':
+            driver.SetThrottle(0)
+            driver.SetBrake(0)
+        elif key == 'a' or key == 'd':
+            driver.SetSteering(0)
+
+application.SetKeyDownCallback(key_callback)
+application.SetKeyUpCallback(key_callback)
+
+
+application.Begin()
+fps_counter = 0
+last_time = chrono.ChTime::GetSystime()
+while application.GetDevice().Run():
+    time = chrono.ChTime::GetSystime()
+    dt = time - last_time
+    last_time = time
+    fps_counter += 1
+    
+    
+    vehicle.Update(chrono.GetChTime())
+    
+    
+    driver.Update()
+    
+    
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    
+    
+    sleep_time = max(0, 1/50 - dt)
+    if sleep_time > 0:
+        chrono.ChTime::Sleep(sleep_time)
+    
+    
+    if time - last_time >= 1:
+        print(f"FPS: {fps_counter}")
+        fps_counter = 0
+
+application.End()

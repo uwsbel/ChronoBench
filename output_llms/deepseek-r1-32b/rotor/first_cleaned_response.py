@@ -1,72 +1,78 @@
 importchrono
-importchrono_IGA
-importchrono_postprocess
-importnumpy as np
-importpyrr
+importchrono.IGA as chrono_iga
+importchrono irrlicht as chrono_irr
 
 
 system = chrono.ChSystemNSC()
-solver = chrono.ChLCPGSolver()
+solver = chrono.ChIterativeSolverLS()
 system.SetSolver(solver)
-application = chrono.ChIrrApp(system, "Jeffcott Rotor Simulation", chronoirr.dimension2D(800, 600))
+system.SetMax iteration(100)
+system.SetTolerance(1e-6)
 
 
-application.SetCameraPosition(pyrr.Vector3([0, 2, 2]))
-application.SetCameraRotation(pyrr.Vector3([60, 0, 0]))
+application = chrono_irr.ChIrrApp(system, "Jeffcott Rotor Simulation", chrono_irr.dimension2D(800, 600))
 application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 0.5, 1), chrono.ChVectorD(0, 0, 0))
 
 
-beam = chrono.IgaChIgaBeamElement()
+beam = chrono_iga.ChIgaBeamElement()
 beam.SetYoungModulus(2.1e11)  
 beam.SetPoissonRatio(0.3)     
-beam.SetArea(0.01)            
-beam.SetMoment(0.0001)        
-beam.SetLength(1.0)           
-beam.SetNumElements(10)        
-beam.SetNumControlPoints(4)    
+beam.SetAreaMoment(0.001)     
+beam.SetArea(0.0001)         
+beam.SetLength(1.0)          
+beam.SetNumElements(10)       
+beam.SetNumControlPoints(4)   
 
 
 system.Add(beam)
 
 
-flywheel = chrono.IgaChIgaFlywheel()
-flywheel.SetMass(1.0)          
-flywheel.SetRadius(0.1)        
-flywheel.SetPosition(pyrr.Vector3([0, 0, 0]))  
+flywheel = chrono_iga.ChIgaFlywheel()
+flywheel.SetMass(1.0)        
+flywheel.SetRadius(0.1)      
+flywheel.SetWidth(0.02)      
 
 
-ujt = chrono.ChUJT()
-ujt.Initialize(beam.GetNode(5), flywheel, pyrr.Matrix33.identity())
-system.Add(ujt)
+constraint = chrono.ChUJT()
+constraint.Initialize(beam.GetNode(beam.GetNumNodes()//2), flywheel)
+system.Add(constraint)
+system.Add(flywheel)
 
 
 motor = chrono.ChMotorRotation()
-motor.SetTorque(10.0)          
-motor.SetTargetVelocity(pyrr.Vector3([0, 0, 10]))  
-motor.Initialize(beam.GetNode(0), None, pyrr.Matrix33.identity())
+motor.SetTorque(10.0)        
+motor.SetSpeedTarget(10.0)   
+
+
+motor_constraint = chrono.ChUJT()
+motor_constraint.Initialize(beam.GetNode(beam.GetNumNodes()-1), motor)
+system.Add(motor_constraint)
 system.Add(motor)
 
 
-gravity = chrono.ChGravity()
-gravity.SetGravity(pyrr.Vector3([0, -9.81, 0]))
-system.Add(gravity)
+gravity = chrono.ChForce()
+gravity.SetF(chrono.ChVectorD(0, -9.81, 0))
+beam.AddForce(gravity)
 
 
 beam.SetFEMVisualization(True)
 beam.SetFEMVisualizationScale(0.1)
 
 
-damping = chrono.ChDamping()
-damping.SetDampingFactors(0.1, 0.1)
-system.Add(damping)
+system.SetDamping(0.1)
+
+
+fixed_constraint = chrono.ChFixed()
+fixed_constraint.Initialize(beam.GetNode(0))
+system.Add(fixed_constraint)
 
 
 application.AssetBindAll()
 application.AssetUpdateAll()
-application.AddAllTypicalLights()
 
-while application.GetDevice().run():
+while application.Run():
+    system.DoStepDynamics(0.001)
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()

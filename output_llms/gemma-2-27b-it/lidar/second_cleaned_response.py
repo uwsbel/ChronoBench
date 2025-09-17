@@ -129,7 +129,7 @@ def main():
 
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 1, 1.0, "2D Lidar Point Cloud"))
 
     
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
@@ -168,7 +168,12 @@ def main():
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
         
-        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
-        if xyzi_buffer_2d.HasData():
-            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('XYZI buffer received from 2D lidar. Lidar resolution: {0
+        manager.Update()
+
+        
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)

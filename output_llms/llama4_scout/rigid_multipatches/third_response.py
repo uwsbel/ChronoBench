@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # Set data path
+    # Set the data path
     veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
     # Create the HMMWV vehicle, set parameters, and initialize
@@ -16,7 +16,7 @@ def main():
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
     hmmwv.SetTireType(veh.TireModelType_TMEASY)
 
-    # Define step sizes
+    # Define simulation step sizes
     step_size = 2e-3
     tire_step_size = 1e-3
     hmmwv.SetTireStepSize(tire_step_size)

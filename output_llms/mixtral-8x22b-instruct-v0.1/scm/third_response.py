@@ -116,28 +116,41 @@ for i in range(10):
     vehicle.GetSystem().Add(box)
 
 # Integrate a Sensor System
-sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
+sensor_manager = veh.ChSensorManager()
+vehicle.GetSystem().Add(sensor_manager)
 
-# Create a camera sensor attached to the vehicle chassis
-camera_sensor = veh.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60)
-camera_sensor.SetImagePlaneNormal(chrono.ChVectorD(0, 0, 1))
-camera_sensor.SetImagePlaneDistance(1)
-camera_sensor.SetImagePlaneWidth(10)
-camera_sensor.SetImagePlaneHeight(10)
-camera_sensor.SetNearPlane(0.1)
-camera_sensor.SetFarPlane(100)
-camera_sensor.SetFieldOfView(chrono.ChFOV(60))
+# Add point lights
+light1 = chrono.ChLightPoint()
+light1.SetPos(chrono.ChVectorD(0, 0, 5))
+light1.SetColor(chrono.ChColor(1, 1, 1))
+sensor_manager.AddLight(light1)
 
-# Add the camera sensor to the sensor manager
-sensor_manager.AddSensor(camera_sensor)
+light2 = chrono.ChLightPoint()
+light2.SetPos(chrono.ChVectorD(5, 0, 0))
+light2.SetColor(chrono.ChColor(1, 1, 1))
+sensor_manager.AddLight(light2)
 
-# Create a filter to visualize the camera feed during the simulation
-camera_filter = veh.ChFilterVisualizeCamera(camera_sensor)
-camera_filter.SetName("Camera Feed")
-camera_filter.SetEnabled(True)
+# Add a camera sensor
+camera = chrono.ChCameraSensor()
+camera.SetName("Camera")
+camera.SetImageSize(640, 480)
+camera.SetFieldOfView(chrono.ChFOV(60, 60))
+camera.SetPos(chrono.ChVectorD(0, 0, 2))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+camera.SetUp(chrono.ChVectorD(0, 1, 0))
+camera.Initialize()
+vehicle.GetChassisBody().AddSensor(camera)
 
-# Add the filter to the sensor manager
-sensor_manager.AddFilter(camera_filter)
+# Add a filter to visualize the camera feed
+filter = chrono.ChFilterVisualize()
+filter.SetName("Camera filter")
+filter.SetInput(camera)
+filter.SetWindowTitle("Camera feed")
+filter.SetWindowSize(640, 480)
+filter.SetWindowPosition(1280, 0)
+filter.SetWindowBackgroundColor(chrono.ChColor(0.1, 0.1, 0.1))
+filter.Initialize()
+sensor_manager.AddFilter(filter)
 
 # ---------------
 # Simulation loop
@@ -172,14 +185,12 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

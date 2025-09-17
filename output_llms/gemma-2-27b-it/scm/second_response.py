@@ -61,7 +61,7 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# --- New SCM Terrain Parameter Class ---
+# --- SCM Terrain Parameter Class ---
 class SCMTerrainParameters:
     def __init__(self, config="mid"):
         if config == "soft":
@@ -70,7 +70,7 @@ class SCMTerrainParameters:
             self.n = 1.2
             self.cohesion = 0
             self.friction = 25
-            self.shear_coeff = 0.015
+            self.shear = 0.02
             self.elastic_stiffness = 1e8
             self.damping = 2e4
         elif config == "mid":
@@ -79,7 +79,7 @@ class SCMTerrainParameters:
             self.n = 1.1
             self.cohesion = 0
             self.friction = 30
-            self.shear_coeff = 0.01
+            self.shear = 0.01
             self.elastic_stiffness = 2e8
             self.damping = 3e4
         elif config == "hard":
@@ -88,22 +88,25 @@ class SCMTerrainParameters:
             self.n = 1.0
             self.cohesion = 0
             self.friction = 35
-            self.shear_coeff = 0.005
+            self.shear = 0.005
             self.elastic_stiffness = 5e8
-            self.damping = 1e5
+            self.damping = 5e4
         else:
-            raise ValueError("Invalid terrain configuration.")
+            raise ValueError("Invalid terrain configuration. Choose from 'soft', 'mid', or 'hard'.")
 
-    def get_params(self):
-        return self.Kphi, self.Kc, self.n, self.cohesion, self.friction, self.shear_coeff, self.elastic_stiffness, self.damping
+# --- Initialize Terrain ---
+terrain_params = SCMTerrainParameters(config="mid")  # Use 'soft', 'mid', or 'hard'
 
-# --- Initialize Terrain with Parameters ---
-terrain_params = SCMTerrainParameters(config="mid")
-Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping = terrain_params.get_params()
-
-# Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping)
+terrain.SetSoilParameters(terrain_params.Kphi,
+                            terrain_params.Kc,
+                            terrain_params.n,
+                            terrain_params.cohesion,
+                            terrain_params.friction,
+                            terrain_params.shear,
+                            terrain_params.elastic_stiffness,
+                            terrain_params.damping
+)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

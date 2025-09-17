@@ -25,6 +25,7 @@ terrain_model = veh.RigidTerrain.HEIGHTMAP
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
+heightmapFile = veh.GetDataFile('terrain/heightmaps/heightmap_10x10_bumpy.png')
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -68,9 +69,8 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model)
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
-    terrainLength, terrainWidth)
+    terrainLength, terrainWidth, heightmapFile)
 
-patch.SetHeightMap(veh.GetDataFile("terrain/heightmaps/heightmap_2.png"), 1.0)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()

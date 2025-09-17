@@ -13,7 +13,7 @@ class Model1:
         self.system = system
         self.mesh = mesh
         self.n_chains = n_chains
-        self.chains = []
+        self.end_bodies = []
 
         
         msection_cable2 = fea.ChBeamSectionCable()
@@ -21,21 +21,16 @@ class Model1:
         msection_cable2.SetYoungModulus(0.01e9)  
         msection_cable2.SetRayleighDamping(0.0001)  
 
-        for i in range(n_chains):
+        for i in range(self.n_chains):
             
             builder = fea.ChBuilderCableANCF()
-
-            
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)  
-
             
             builder.BuildBeam(
-                mesh,  
+                self.mesh,  
                 msection_cable2,  
-                10 + i * 2,  
-                chrono.ChVector3d(0, 0, -0.1 + i * 0.05),  
-                chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05)  
+                10 + i,  
+                chrono.ChVector3d(i * 0.1, 0, -0.1),  
+                chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1)  
             )
 
             
@@ -43,25 +38,28 @@ class Model1:
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
-            constraint_hinge = fea.ChLinkNodeFrame()
-            constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            system.Add(constraint_hinge)  
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  
 
             
-            box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-            box.SetPos(chrono.ChVector3d(0.5, 0, -0.1 + i * 0.05))
-            system.Add(box)
+            constraint_hinge = fea.ChLinkNodeFrame()
+            constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+            self.system.Add(constraint_hinge)  
+
+            
+            box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, 0.4)
+            box_body.SetPos(chrono.ChVector3d(i * 0.1 + 0.5, 0, -0.1))
+            self.system.Add(box_body)
+            self.end_bodies.append(box_body)
 
             
             constraint_box = fea.ChLinkNodeFrame()
-            constraint_box.Initialize(builder.GetLastBeamNodes().back(), box)
-            system.Add(constraint_box)  
-
-            self.chains.append((builder, mtruss, box))
+            constraint_box.Initialize(builder.GetLastBeamNodes().back(), box_body)
+            self.system.Add(constraint_box)  
 
     def PrintBodyPositions(self):
-        for i, (builder, mtruss, box) in enumerate(self.chains):
-            print(f"Chain {i+1}: Box position = {box.GetPos()}")
+        for i, body in enumerate(self.end_bodies):
+            print(f"Chain {i+1} end body position: {body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

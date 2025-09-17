@@ -6,7 +6,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location changed to (-50, 0, 0.5)
+# Initial vehicle location and orientation (changed to -50,0,0.5)
 initLoc = chrono.ChVector3d(-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -19,9 +19,9 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain with increased length (200.0)
+# Rigid terrain (length changed to 200.0)
 terrainHeight = 0
-terrainLength = 200.0  # Increased from 100.0 to 200.0
+terrainLength = 200.0  # increased from 100 to 200
 terrainWidth = 100.0
 
 # Point on chassis tracked by the camera
@@ -62,9 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-# Center patch at (50,0,0) to cover path from x=-50 to x=150
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -83,34 +82,38 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create ISO double lane change path (standard dimensions)
-points = [
-    chrono.ChVector3d(-50, 0, 0.1),
-    chrono.ChVector3d(-20, 0, 0.1),
-    chrono.ChVector3d(0,   0, 0.1),
-    chrono.ChVector3d(15, -1.75, 0.1),  # First lane change
-    chrono.ChVector3d(30, -1.75, 0.1),
-    chrono.ChVector3d(45,  0, 0.1),     # Return to center
-    chrono.ChVector3d(60,  1.75, 0.1),  # Second lane change
-    chrono.ChVector3d(75,  1.75, 0.1),
-    chrono.ChVector3d(90,  0, 0.1),     # Final straight
-    chrono.ChVector3d(150, 0, 0.1)
-]
+points = chrono.vector_ChVector3d()
+points.append(chrono.ChVector3d(-50, 0, 0))        # Start
+points.append(chrono.ChVector3d(-20, 0, 0))         # Approach
+points.append(chrono.ChVector3d(10, -3.5, 0))       # First avoidance
+points.append(chrono.ChVector3d(40, 0, 0))          # Return to center
+points.append(chrono.ChVector3d(70, 3.5, 0))        # Second avoidance
+points.append(chrono.ChVector3d(100, 0, 0))         # Final return
+points.append(chrono.ChVector3d(150, 0, 0))         # Straight section
+
 path = chrono.ChBezierCurve(points)
 
 # Create path-follower driver system
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "double_lane_change", 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "DoubleLaneChange", 10.0)  # Target speed 10 m/s
+
+# Configure steering controller
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5.0)  # 5m look-ahead
+steering_controller.SetGains(0.5, 0.0, 0.0)    # PID gains (P, I, D)
+
+# Configure speed controller
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.4, 0.0, 0.0)       # PID gains (P, I, D)
+
 driver.Initialize()
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Number of simulation steps between render frames
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counters
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -122,10 +125,11 @@ while vis.Run():
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
-        # Draw the path as a visualization aid
-        points = path.GetPoints()
-        for i in range(len(points) - 1):
-            vis.DrawLine(points[i], points[i+1], chrono.ChColor(0.8, 0.2, 0.2), True)
+        # Draw the path
+        path_asset = path.GetVisualModel()
+        path_asset.SetTransform(chrono.ChFramed())
+        vis.BindItem(path_asset)
+        vis.GetSceneManager().drawAll()
         vis.EndScene()
         render_frame += 1
 
@@ -147,5 +151,5 @@ while vis.Run():
     # Increment frame number
     step_number += 1
 
-    # Spin for real-time synchronization
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

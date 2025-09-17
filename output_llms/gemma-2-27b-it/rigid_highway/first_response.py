@@ -4,87 +4,101 @@ import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and add the terrain
+#  Simulation setup
 #
 # ---------------------------------------------------------------------
 
-mysystem = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Set the simulation time step
-mysystem.SetTimestepperType(chrono.ChTimestepperType.CHRONO_TS_FIXED)
-mysystem.SetStep(1.0 / 50.0)
+# Create the system and set the default gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(mysystem)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
-# Create the terrain
-terrain_mesh_col = chrono.ChObjFileLoader().LoadMesh("Highway_col.obj")
-terrain_mesh_vis = chrono.ChObjFileLoader().LoadMesh("Highway_vis.obj")
+# Set the simulation time step
+timestep = 1.0 / 50.0
 
-terrain = chrono.ChRigidBody()
+# ---------------------------------------------------------------------
+#
+#  Create the terrain
+#
+# ---------------------------------------------------------------------
+
+# Load the collision and visualization meshes for the terrain
+terrain_col = chrono.ChTriangleMeshShape()
+terrain_col.LoadWavefrontMesh("Highway_col.obj")
+
+terrain_vis = chrono.ChVisualShape()
+terrain_vis.LoadWavefrontMesh("Highway_vis.obj")
+
+# Create the terrain body and add the shapes
+terrain = chrono.ChBody()
 terrain.SetBodyFixed(True)
-terrain.SetCollide(True)
-
-terrain.AddAsset(terrain_mesh_col)
-terrain.AddAsset(terrain_mesh_vis)
-
-mysystem.Add(terrain)
+terrain.AddShape(terrain_col)
+terrain.AddVisualShape(terrain_vis)
+system.AddBody(terrain)
 
 # ---------------------------------------------------------------------
 #
-# Create the HMMWV vehicle
+#  Create the HMMWV vehicle
 #
 # ---------------------------------------------------------------------
 
-vehicle = chronovehicle.ChVehicle("HMMWV")
+# Create the HMMWV vehicle system
+vehicle = chronovehicle.ChVehicleSystem()
+vehicle.SetSystem(system)
 
-# Set vehicle location and orientation
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+# Load the vehicle chassis and components
+vehicle.AddVehicle(chronovehicle.ChVehicleModelData("HMMWV_model.json"))
+
+# Set the initial location and orientation of the vehicle
+vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.GetChassis().SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
 # Set the contact method and tire model
-vehicle.SetContactMethod(chronovehicle.ChContactMethod.NSC)
-vehicle.SetTireModel(chronovehicle.ChTireModel.TMEASY)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetTireModel(chronovehicle.TMEasy())
 
-# Add vehicle components (chassis, wheels, suspension, etc.)
-# ... (Refer to Chrono documentation for details on adding vehicle components)
-
-# Add the vehicle to the system
-mysystem.Add(vehicle)
+# Enable mesh visualization for all vehicle components
+vehicle.SetVisualizationType(chronovehicle.VisualizationType_MESH)
 
 # ---------------------------------------------------------------------
 #
-#  Create the interactive driver system
+#  Create the driver system
 #
 # ---------------------------------------------------------------------
 
-driver = chronovehicle.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+# Create the driver system
+driver = chronovehicle.ChDriverSystem(vehicle)
 
-vehicle.SetDriver(driver)
+# Configure the driver input mappings
+driver.SetSteeringInput(chrono.ChFunction_Const(0))
+driver.SetThrottleInput(chrono.ChFunction_Const(0))
+driver.SetBrakingInput(chrono.ChFunction_Const(0))
 
 # ---------------------------------------------------------------------
 #
-# Simulation loop
+#  Simulation loop
 #
 # ---------------------------------------------------------------------
 
 while vis.Run():
-    # Get input from the user
-    # ... (Implement steering, throttle, and braking controls)
+    # Get the simulation time
+    time = system.GetChTime()
 
-    # Update the driver system
-    driver.Update(mysystem.GetChTime())
+    # Update the driver inputs (example: keyboard control)
+    driver.Update(time, timestep)
 
     # Advance the simulation
-    mysystem.DoStepDynamics(1.0 / 50.0)
+    system.DoStepDynamics(timestep)
 
     # Render the scene
+    vis.BeginScene()
     vis.Render()
+    vis.EndScene()

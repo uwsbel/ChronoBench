@@ -4,9 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
-from pychrono.sensor import Sens
-from pychrono.sensor import SensorManager
-from pychrono.sensor import LidarSensor
+from pychrono.sensor import sens
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -24,20 +22,21 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 # Create Turtlebot Robot
-init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
-robot.Initialize()  # Initialize the robot
+init_pos = chrono.ChVector3d(0, 0.2, 0)  
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  
+robot.Initialize()  
 
 # Create sensor manager
-sens = Sens()
-sens.SetSensorType(Sens.Type_LIDAR)
-sens.SetSensorResolution(0.1)
-sens.SetSensorRange(5)
+sens_mgr = sens.ChSensorManager()
 
-# Create Lidar sensor
-lidar = LidarSensor(sens, 0.1, 5, 0.01, 0.01)  # Adjust parameters as needed
-sens.AddSensor(lidar)
+# Configure lidar sensor
+lidar = sens.ChLidarSensor(sens_mgr, 
+                          sensor_range=10, 
+                          sensor_resolution=0.1, 
+                          sensor_angle=360, 
+                          sensor_filter=sens.ChFilterType.Type_EDGE)
+sens_mgr.AddSensor(lidar)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -86,8 +85,9 @@ while vis.Run():
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
 
-    # Update sensor manager
-    sens.Update()
-
-    # Example: check sensor data
-    # print(sens.GetLidarData())  # Print Lidar sensor data
+    # Sensor Manager Update
+    sens_mgr.Update()
+    
+    # Move Turtlebot
+    if robot.GetMode() == 'straight':
+        robot.move('straight')

@@ -17,7 +17,6 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -37,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -49,6 +47,7 @@ vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -57,21 +56,20 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
 
+long_box_patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    200, 200, 10, 10, 10)  
+
+patch = long_box_patch  
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -89,11 +87,10 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
-throttle_time = 0.2  
+throttle_time = 1.0  
 braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(0.8)  
-driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.SetThrottleDelta(render_step_size / 0.8)
 
 driver.Initialize()
 

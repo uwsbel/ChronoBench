@@ -35,6 +35,7 @@ vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
@@ -58,26 +59,27 @@ while vis.Run():
             robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
             print("Robot moving straight.")
         elif mode == 'left':
-            robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-            robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
             print("Robot turning left.")
         elif mode == 'right':
-            robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+            robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
             robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
             print("Robot turning right.")
         else:
-            raise ValueError("Invalid mode: " + mode)
+            raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
     
-    if time < 5:
+    time += time_step
+    if time <= 5:
         move('straight')
 
     
-    elif time < 10:
+    if time <= 10:
         move('left')
 
     
-    else:
+    if time > 10:
         move('right')
 
     

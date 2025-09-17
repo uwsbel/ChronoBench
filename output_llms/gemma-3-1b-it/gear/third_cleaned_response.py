@@ -60,8 +60,8 @@ mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.
 
 link_motor = chrono.ChLinkMotorRotationSpeed()                      
 link_motor.Initialize(mbody_gearA, mbody_truss,                     
-                      chrono.ChFramed(chrono.ChVector3d(0, 0, 0),    
-                                      chrono.QUNIT))                
+                      chrono.ChFramed(chrono.ChVector3d(0, 0, 0),  
+                                      chrono.QUNIT))             
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              
 sys.AddLink(link_motor)                                                  
 
@@ -93,17 +93,12 @@ link_gearAB.SetEnforcePhase(True)
 sys.AddLink(link_gearAB)                                                  
 
 
-mbody_wheelA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
-                                        radA, 0.5,                  
-                                        1000, True, False, mat)     
-sys.Add(mbody_wheelA)                                                
-mbody_wheelA.SetPos(chrono.ChVector3d(0, 0, 0))                     
-
-mbody_wheelB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
-                                        radB, 0.5,                  
-                                        1000, True, False, mat)     
-sys.Add(mbody_wheelB)                                                
-mbody_wheelB.SetPos(chrono.ChVector3d(0, 0, 0))                     
+link_epicycloidA = chrono.ChLinkLockEpicycloid()                                     
+link_epicycloidA.Initialize(mbody_gearA, mbody_train, chrono.ChFramed())       
+link_epicycloidA.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
+link_epicycloidA.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    
+link_epicycloidA.SetEpicyclic(True)                                            
+sys.AddLink(link_epicycloidA)                                                  
 
 
 mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
@@ -128,15 +123,14 @@ mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
 link_motor = chrono.ChLinkMotorRotationSpeed()                      
 link_motor.Initialize(mbody_gearA, mbody_truss,                     
                       chrono.ChFramed(chrono.ChVector3d(0, 0, 0),    
-                                      chrono.QUNIT))                
+                                      chrono.QUNIT))             
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              
 sys.AddLink(link_motor)                                                  
 
 
 link_revolute = chrono.ChLinkLockRevolute()                         
-link_revolute.Initialize(mbody_gearA, mbody_train,                  
-                           chrono.ChFramed(chrono.ChVector3d(0, 0, 0),    
-                                           chrono.QUNIT))  
+link_revolute.Initialize(mbody_gearA, mbody_train, chrono.ChFramed(chrono.ChVector3d(0, 0, 0),     
+                                           chrono.QUNIT))             
 sys.AddLink(link_revolute)                                          
 
 
@@ -149,11 +143,6 @@ mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
 
-interaxis12 = radA + radB                                           
-mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,             
-                                        radB, 0.4,                  
-                                        1000, True, False, mat)     
-sys.Add(mbody_gearB)                                                
-mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           
-mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 
-mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                
+mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),    
+                                                          chrono.QUNIT))

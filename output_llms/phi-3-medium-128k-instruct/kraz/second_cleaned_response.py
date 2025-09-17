@@ -104,7 +104,8 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_time = 10.0  
+lane_change_time = 5.0  
+lane_change_step = int(lane_change_time / step_size)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -126,19 +127,18 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    if (time % lane_change_time == 0):
-        
-        driver.SetSteeringDelta(render_step_size / steering_time)
-        
-        driver.SetSteeringDelta(render_step_size / steering_time)
-        
-        while (time % lane_change_time < (lane_change_time / 2)):
+    if time > 0 and time < lane_change_time:
+        if step_number % lane_change_step == 0:
+            
+            driver.SetSteeringDelta(render_step_size / steering_time)
+            driver.SetThrottleDelta(render_step_size / throttle_time)
             driver.Advance(step_size)
-            vehicle.Advance(step_size)
-            vis.Advance(step_size)
-            realtime_timer.Spin(step_size)
-        
-        driver.SetSteeringDelta(0)
+            
+            driver.SetSteeringDelta(-render_step_size / steering_time)
+            driver.Advance(step_size)
+        else:
+            driver.SetSteeringDelta(0)
+            driver.Advance(step_size)
 
     
     driver.Advance(step_size)

@@ -166,6 +166,6 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
     
     
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle

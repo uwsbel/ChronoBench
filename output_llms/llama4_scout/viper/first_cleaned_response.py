@@ -2,56 +2,51 @@ import chrono as ch
 import chrono.irrlicht as irr
 
 
-ch.ChEngine.Initialize()
+ch.CH_Environment().Set_G_acc(ch.CH_CoordSys(0, 0, -9.81))
 
 
-system = ch.ChSystemNSC()
-system.SetGravitationalAcceleration(ch.ChVector3d(0, -9.81, 0))
+sys = ch.ChSystem()
 
 
 ground = ch.ChBodyEasyTerrain(
-    100, 100,  20, 20,  
-    ch.GetChronoDataFile("terrain/terrain.jpg"),  
-    ch.ChVector3d(0, 0, 0),  
-    False  
+    100, 100,  10, 10, 
+    ch.GetChronoDataFile("terrain/terrain_heightmap.png"), 
+    ch.GetChronoDataFile("terrain/terrain_color.jpg"), 
+    False, False, True
 )
-system.AddBody(ground)
+ground.SetPos(ch.CH_CoordSys(0, 0, -1))
+sys.Add(ground)
 
 
 viper = ch.ChVehicle(ch.GetChronoDataFile("vehicles/viper/Viper.json"))
-system.Add(viper.GetChassisBody())
+sys.Add(viper.GetChassisBody())
 for wheel in viper.GetWheels():
-    system.Add(wheel)
-for susp in viper.GetSuspensionLinks():
-    system.Add(susp)
+    sys.Add(wheel)
+sys.Add(viper.GetSteering())
 
 
-driver = ch.ChVehicleDriver(viper)
-driver.SetSpeed(5)  
+driver = ch.ChIrrGuiDriver(viper)
+driver.SetSteeringDelta(0.1, 1.0)  
 
 
-vis = irr.ChIrrApp(system, 'Viper Rover Simulation', 800, 600)
-vis.SetCameraPosition(ch.ChVector3d(0, -10, 5))
-vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
-vis.EnableCollisionVisualization(True)
-vis.EnableSFX(True)
-vis.EnableShadows(True)
+app = irr.ChIrrApp(sys, "Viper Rover Simulation", 800, 600)
+app.SetCameraPos(ch.CH_CoordSys(0, -5, 1))
+app.SetCameraTarget(ch.CH_CoordSys(0, 0, 0))
+app.EnableCollisionVisualization(True)
+app.EnableTimestepControl(True)
 
 
-t_end = 10.0  
-dt = 0.02     
-steering_time = 5.0  
-steering_start = 0.0
-steering_target = ch.ChVector3d(0.5, 0, 0)  
+app.AddLight(ch.CH_CoordSys(-5, -5, 5), ch.CH_CoordSys(10, 10, 10), ch.color(1, 1, 1))
 
-while vis.GetTime() < t_end:
-    if vis.GetTime() > steering_start and vis.GetTime() < steering_start + steering_time:
-        steering = steering_target * (vis.GetTime() - steering_start) / steering_time
-        driver.SetSteering(steering)
+
+while app.Run():
     
-    system.DoStepDynamics(dt)
-    vis.Render()
-    irr.ChIrrApp.SoftwareShadowsOn()
-    vis.UpdateCamera()
+    sys.Update()
 
-vis.Exit()
+    
+    if app.GetTimestep() < 10:
+        driver.SetSteering(0.1 * app.GetTimestep())
+
+    
+    app.Render()
+    app.Screenshot("viper_rover_sim.png")

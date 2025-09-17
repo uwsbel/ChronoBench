@@ -17,15 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrainHeightMap = chrono.GetChronoDataFile('terrain/height_map.png')  # Assuming height map exists
-terrain_model = veh.SCMTerrain(vehicle.GetSystem())
-terrain_model.SetHeightmap(terrainHeightMap, 100, 100)  # Adjust scale if needed
-
-# SCM soil parameters
-terrain_model.SetFriction(0.8)
-terrain_model.SetRestitution(0.01)
-terrain_model.SetYoungModulus(1e7)
-terrain_model.SetPoissonRatio(0.3)
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -42,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -64,8 +57,26 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+# Create the SCM terrain
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.ChVector3d(0, 0, 0), terrainLength, terrainWidth)
+
+# Set SCM soil parameters
+patch.SetSoilParameters(
+    density=1700,
+    friction=0.4,
+    cohesion=5e3,
+    yield_stress=1e4,
+    pressure_sinkage=5e4,
+    elastic_modulus=1e6
+)
+
+# Initialize SCM terrain using a height map
+patch.InitializeHeightMap("terrain/heightmap.png") # Assuming you have a heightmap file
+
 # Set SCM terrain texture
-terrain_model.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 
@@ -84,9 +95,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -94,7 +105,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
-# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # output vehicle mass
@@ -103,7 +113,7 @@ print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
@@ -120,16 +130,15 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain_model.Synchronize(time)  # Synchronize SCM terrain
+    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
-    terrain_model.Advance(step_size)  # Advance SCM terrain
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
-    # Hard-coded throttle value
+    # Hard-code throttle value
     vehicle.GetVehicle().SetThrottle(0.8) 
-
+    vis.Advance(step_size)
     # Increment frame number
     step_number += 1

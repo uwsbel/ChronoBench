@@ -44,9 +44,11 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
 
-# Create a long box obstacle
-obstacle = chrono.ChBodyEasyBox(2, 0.2, 1, 1000, True, True)
+# Create an obstacle
+obstacle = chrono.ChBodyEasyBox(2, 0.5, 1, 1000, True, True)
 obstacle.SetPos(chrono.ChVector3d(2, 0, 0.5))
 obstacle.SetFixed(True)
 obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))

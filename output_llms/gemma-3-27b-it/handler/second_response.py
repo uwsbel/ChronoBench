@@ -1,7 +1,7 @@
 import pychrono as ch
 import pychrono.ros as chros
 import rclpy.publisher
-from std_msgs.msg import String  # Changed from Int64 to String
+from std_msgs.msg import String  # Changed message type to String
 
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
@@ -82,7 +82,8 @@ def main():
             break  # Exit the loop if the ROS manager indicates a problem.
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
+    # Entry point of the script.
 
-# Entry point of the script.
+
 if __name__ == "__main__":
     main()

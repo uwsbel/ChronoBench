@@ -1,42 +1,36 @@
 import pychrono as chrono
 import pychrono.irrlicht as vis
 
-# Initialize PyChrono environment
+# Initialize PyChrono
 chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
 
-# Create rigid terrain
-terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  # Adjust dimensions as needed
+# --- Terrain ---
+terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  # Create a rigid terrain box
 terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetBodyFixed(True)
+terrain.SetBodyFixed(True)  # Fix the terrain
+terrain.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.Surface_Type.FRICTIONLESS, 0.5, 0.1))  # Set friction and restitution
 system.Add(terrain)
 
-# Set terrain friction and restitution
-terrain.SetFriction(chrono.ChVectorD(0.8, 0.8, 0.8))
-terrain.SetRestitution(0.5)
-
-# Create UAZBUS vehicle
-vehicle = chrono.ChBodyEasyCylinder(0.5, 2, 1000)  # Adjust dimensions as needed
+# --- UAZBUS Vehicle ---
+vehicle = chrono.ChBodyEasyBox(2, 2, 1, 100)  # Create a simple box for the vehicle
 vehicle.SetPos(chrono.ChVectorD(0, 0, 1))
 vehicle.SetBodyFixed(False)
 system.Add(vehicle)
 
-# Initialize driver system
-driver = chrono.ChDriver()
-driver.SetVehicle(vehicle)
-# ... configure driver parameters ...
+# --- Driver System ---
+driver = chrono.ChDriver()  # Placeholder for a custom driver system
 
-# Create Irrlicht visualization
-vis_app = vis.ChIrrApp(system, 'UAZBUS Simulation')
-vis_app.AddCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
-vis_app.SetSunLight(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, -1))
-vis_app.SetAmbientLight(chrono.ChColor(0.2, 0.2, 0.2))
+# --- Visualization ---
+vis.Init()
+vis.Add(vehicle)
+vis.Add(terrain)
+vis.SetCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))  # Set camera position and target
+vis.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))  # Set ambient light
+vis.SetLight(chrono.ChColor(1, 1, 1), chrono.ChVectorD(10, 10, 10))  # Set directional light
 
-# Simulation loop
-while not vis_app.GetQuitRequested():
-    system.DoStepDynamics(1/60.0)  # Adjust timestep as needed
-    vis_app.Render()
-    vis_app.Pump()
-    driver.Update()  # Update driver system
-
-vis_app.Close()
+# --- Simulation Loop ---
+while True:
+    system.DoStepDynamics(0.01)  # Advance simulation by 0.01 seconds
+    vis.Render()
+    driver.Update()  # Update the driver system

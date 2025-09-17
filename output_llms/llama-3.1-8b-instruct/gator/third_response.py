@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
-vis_type = veh.VisualizationType_PRIMITIVES  # Simplify visualization to primitives
+vis_type = veh.VisualizationType_PRIMITIVES
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_MESH  # Add collision for mesh
+chassis_collision_type = veh.CollisionType_MESH
 
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
@@ -48,6 +48,10 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+# Set chassis collision shape
+chassis_shape = vehicle.GetChassis().GetCollisionShape()
+chassis_shape.SetCollisionType(chrono.ChCollisionShapeType_BOX)
+chassis_shape.SetBoxDim(1, 1, 0.5)
 
 vehicle.Initialize()
 
@@ -93,9 +97,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 2.0  # Make driver less responsive
-throttle_time = 2.0  # Make driver less responsive
-braking_time = 0.6   # Make driver less responsive
+steering_time = 2.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 2.0  # time to go from 0 to +1
+braking_time = 0.6   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

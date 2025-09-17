@@ -1,8 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
+import pychrono.sensor as sens  # Added sensor module
+import numpy as np  # Added numpy
 import math
 
 """
@@ -10,6 +10,7 @@ import math
 """
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+sens.SetSensorDataPath(chrono.GetChronoDataPath() + 'sensor/')  # Set sensor data path
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-15, 0, 1.2)
@@ -45,8 +46,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -67,14 +67,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   # Bekker Kphi
-                            0,     # Bekker Kc
-                            1.1,   # Bekker n exponent
-                            0,     # Mohr cohesive limit (Pa)
-                            30,    # Mohr friction limit (degrees)
-                            0.01,  # Janosi shear coefficient (m)
-                            2e8,   # Elastic stiffness (Pa/m), before plastic yield
-                            3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
-)
+                          0,     # Bekker Kc
+                          1.1,   # Bekker n exponent
+                          0,     # Mohr cohesive limit (Pa)
+                          30,    # Mohr friction limit (degrees)
+                          0.01,  # Janosi shear coefficient (m)
+                          2e8,   # Elastic stiffness (Pa/m), before plastic yield
+                          3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+                          )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -83,25 +83,29 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 # Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Create 5 box obstacles randomly positioned
-for i in range(5):
-    x = np.random.uniform(-10, 10)
-    y = np.random.uniform(-10, 10)
-    z = 0.5  # Center at z=0.5 (height=1m)
-    
-    box_body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0, 1000)  # Dimensions 1x1x1, density 1000 kg/m³
-    box_body.SetPos(chrono.ChVector3d(x, y, z))
-    box_body.SetFixed(True)  # Static obstacles
-    box_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    vehicle.GetSystem().Add(box_body)
+# Create 5 box obstacles with random positions
+for _ in range(5):
+    # Random position in X and Y, fixed height
+    pos = chrono.ChVector3d(
+        np.random.uniform(-10, 20),
+        np.random.uniform(-10, 10),
+        0.5  # Center height (box will extend 0.5m below to sit on terrain)
+    )
+    box = chrono.ChBodyEasyBox(1.0, 1.0, 1.0,  # Dimensions
+                               2000,            # Density (kg/m³)
+                               True,            # Visualization
+                               True)            # Collision
+    box.SetPos(pos)
+    box.SetFixed(True)
+    vehicle.GetSystem().Add(box)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowTitle('HMMWV Demo with Sensors')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -109,6 +113,33 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create lidar sensor attached to vehicle chassis
+lidar_offset = chrono.ChVector3d(0, 0, 2.0)  # Roof position
+lidar_pose = chrono.ChFrameD(lidar_offset)
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),  # Parent body
+    10,                        # Update rate (Hz)
+    lidar_pose,                # Offset pose
+    1000,                      # Horizontal samples
+    20,                        # Vertical samples
+    2 * chrono.CH_PI,          # Horizontal FOV (360°)
+    chrono.CH_PI / 6,          # Vertical FOV (30°)
+    100.0,                     # Max detection range
+    sens.LidarModel_RayCast    # Model type
+)
+
+# Configure lidar with visualization filters
+lidar.SetName("Vehicle Lidar")
+lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Point Cloud"))
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
+
+# Add lidar to sensor manager
+manager.AddSensor(lidar)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -123,43 +154,12 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.AddPointLight(chrono.ChVector3d(0, 0, 100), chrono.ChColor(1,1,1), 5000)
-
-# Create and configure lidar sensor
-lidar_offset = chrono.ChVector3d(0, 0, 1.5)  # Mounted on roof
-lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # No rotation
-
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  # Parent body
-    10,                        # Update rate (Hz)
-    chrono.ChFrameD(lidar_offset, lidar_rot),  # Offset pose
-    900,                       # Horizontal samples
-    30,                        # Vertical samples
-    chrono.CH_PI,              # Horizontal FOV (180°)
-    chrono.CH_PI/6,            # Vertical FOV (30°)
-    100.0,                     # Max detection distance (meters)
-    sens.LidarModel_VELODYNE   # Sensor model
-)
-
-lidar.SetName("Lidar")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.1)
-
-# Add processing filters
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-lidar.PushFilter(sens.ChFilterAccess())
-
-manager.AddSensor(lidar)
-
 # ---------------
 # Simulation loop
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -169,11 +169,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -193,8 +193,8 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
-    # Update sensor manager
+
+    # Update sensor manager (processes sensor data)
     manager.Update()
 
     # Increment frame number
@@ -206,4 +206,6 @@ while vis.Run() :
 import pychrono.sensor as sens
    import numpy as np
 
-manager.Update()
+sens.SetSensorDataPath(chrono.GetChronoDataPath() + 'sensor/')
+
+manager.Update()  # Process sensor data each frame

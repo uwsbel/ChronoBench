@@ -33,11 +33,6 @@ def main():
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  # Initialize the terrain.
-    # Create a visualization box
-    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
-    hmmwv.GetSystem().Add(box)
-
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -51,6 +46,11 @@ def main():
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
+    # Create a visualization box
+    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)
+    box.SetPos(ch.ChVector3d(0, 0, 2))
+    hmmwv.GetSystem().AddBody(box)
+
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
@@ -63,21 +63,26 @@ def main():
     # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
 
-    # Create sensor manager
+    # Create and initialize the sensor manager
     sens_manager = ch.ChSensorManager()
-    
-    # Create and configure lidar sensor
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 
-                              range=50, 
-                              angle_step=0.1, 
-                              num_rays=360, 
-                              scan_frequency=10)
-    lidar.SetFilterType(sens.ChLidarFilterType_GAUSSIAN, 0.5)  # Apply Gaussian filter
-    lidar.SetFilterType(sens.ChLidarFilterType_RANGE_CLIP, 0, 50)  # Clip lidar range
+    sens_manager.SetUpdateFrequency(100)
+
+    # Create a lidar sensor
+    lidar = sens.ChLidarSensor()
+    lidar.SetName("lidar")
+    lidar.SetSensorType(sens.SensorType_LIDAR)
+    lidar.SetFrequency(10)  # Hz
+    lidar.SetRange(50)  # meters
+    lidar.SetResolution(0.1)  # meters
+    lidar.SetMaxPoints(1000)
+    lidar.SetAngle(ch.ChVector3d(0, 0, 0))
+    lidar.SetPos(ch.ChVector3d(0, 0, 2))
+    lidar.AddFilter(sens.ChLidarFilterGaussian(0.2))  # Add a Gaussian filter
+    lidar.AddFilter(sens.ChLidarFilterMaxRange(30))  # Add a max range filter
     sens_manager.AddSensor(lidar)
 
-    # Register ROS handler for lidar data
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar"))
+    # Register the lidar handler to publish data to ROS
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
     ros_manager.Initialize()  # Initialize the ROS manager.
 

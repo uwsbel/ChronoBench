@@ -79,12 +79,12 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()
+solver = chrono.ChSolverMINRES()  # Choose MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
 solver.SetMaxIterations(200)  # Set maximum number of iterations
-solver.SetTolerance(1e-10)  # Set solver tolerance
+solver.SetTolerance(1e-10)  # Set tolerance
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output

@@ -12,17 +12,14 @@ def main():
     # Initialize the Chrono physical system (non-smooth contact)
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------
-    # Create a box
-    # -----------------------
-    side = 2  # Define the side length of the box
-    box = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box body
-    box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    # Add a texture to the box (optional)
-    # box.AddVisualShape(chrono.ChVisualShapeBox(side, side, side))
-    # box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/texture.png"))
-    box.SetFixed(True)  # Fix the box in space
-    mphysicalSystem.Add(box)  # Add the box to the physical system
+    # -----------------------------------
+    # Add a box to be sensed by a camera
+    # -----------------------------------
+    side = 2
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(chrono.ChVector3d(0, 0, 0))
+    box.SetBodyFixed(True)
+    mphysicalSystem.Add(box)
 
     # -----------------------
     # Create a sensor manager
@@ -41,7 +38,7 @@ def main():
     # ------------------------------------------------
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
-    # Define the camera offset pose relative to the box it is attached to
+    # Define the camera offset pose relative to the body it is attached to
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
@@ -120,4 +117,15 @@ def main():
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
-            print('First Pixel: {0}'.format(rgba8_data
+            print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
+
+        # Update the sensor manager (render/save/filter data automatically)
+        manager.Update()
+
+        # Perform a step of dynamics simulation
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Update the current simulation time
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:",

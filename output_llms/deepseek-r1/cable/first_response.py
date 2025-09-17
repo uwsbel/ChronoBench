@@ -2,64 +2,75 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
-# Create the physical system
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+def main():
+    # 1. Initialize system and set gravity
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create a mesh for finite elements
-mesh = fea.ChMesh()
-system.Add(mesh)
+    # 2. Create ground body for hinge
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    system.Add(ground)
 
-# Beam parameters
-beam_length = 2.0         # Total beam length (m)
-n_elements = 10           # Number of ANCF cable elements
-node_spacing = beam_length / n_elements
-section_area = 0.01 * 0.01  # Cross-section area (10x10 mm)
-density = 7800            # Density of steel (kg/m³)
-young_modulus = 2e11      # Young's modulus (Pa)
-damping_ratio = 0.01      # Damping coefficient
+    # 3. Create mesh for ANCF elements
+    mesh = fea.ChMesh()
+    system.Add(mesh)
 
-# Create beam nodes and elements
-nodes = []
-for i in range(n_elements + 1):
-    position = chrono.ChVectorD(i * node_spacing, 0, 0)
-    node = fea.ChNodeFEAxyzD(position, chrono.ChVectorD(1, 0, 0))
-    nodes.append(node)
-    mesh.AddNode(node)
+    # 4. Define beam properties
+    length = 2.0
+    num_elements = 10
+    node_spacing = length / num_elements
+    density = 1000
+    E = 2e9  # Young's modulus
+    area = 0.1 * 0.1  # Cross-section (10x10 cm)
+    I = (0.1 ** 4) / 12  # Area moment of inertia
 
-    # Fix the first node to ground using a constraint
-    if i == 0:
-        constraint = fea.ChLinkPointFrame()
-        constraint.Initialize(node, chrono.ChFrameD(position))
-        system.Add(constraint)
+    # 5. Create nodes and set initial positions/orientations
+    nodes = []
+    for i in range(num_elements + 1):
+        pos = chrono.ChVectorD(i * node_spacing, 0, 0)
+        node = fea.ChNodeFEAxyzD(pos, chrono.ChVectorD(1, 0, 0))
+        nodes.append(node)
+        mesh.AddNode(node)
 
-# Create cable elements between nodes
-for i in range(n_elements):
-    element = fea.ChElementCableANCF()
-    element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetSectionArea(section_area)
-    element.SetDensity(density)
-    element.SetYoungModulus(young_modulus)
-    element.SetDampingCoefficient(damping_ratio)
-    mesh.AddElement(element)
+    # 6. Create cable elements between nodes
+    for i in range(num_elements):
+        element = fea.ChElementCableANCF()
+        element.SetNodes(nodes[i], nodes[i + 1])
+        element.SetSection(fea.ChBeamSectionCable())
+        element.SetSectionParameters(area, E, density, I)
+        mesh.AddElement(element)
 
-# Create the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ANCF Beam Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.5), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+    # 7. Fix first node to ground (hinge constraint)
+    constraint = fea.ChLinkPointFrame()
+    constraint.Initialize(nodes[0], ground)
+    system.Add(constraint)
 
-# Simulation loop
-step_size = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.RenderFrames(2.0)  # Render reference frames
-    vis.RenderMeshlines()   # Render mesh lines
-    vis.EndScene()
-    system.DoStepDynamics(step_size)
+    # 8. Setup Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("ANCF Beam Simulation")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1, 0.5, 2))
+    vis.AddTypicalLights()
+
+    # Visualize nodes and elements
+    vis_mesh = fea.ChVisualShapeFEA(mesh)
+    vis_mesh.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NODE_SPEED_NORM)
+    vis_mesh.SetColorscaleMinMax(0.0, 5.0)
+    vis_mesh.SetSmoothFaces(True)
+    mesh.AddVisualShapeFEA(vis_mesh)
+
+    # 9. Simulation loop
+    step_size = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(step_size)
+
+if __name__ == "__main__":
+    main()

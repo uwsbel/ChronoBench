@@ -49,7 +49,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Create particle shape creator with spheres
+# Replace the particle shape creator with spheres and configure it
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -88,26 +88,14 @@ while vis.Run():
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    G_constant = 6.674e-3  # Gravitational constant
-
-    # Energy calculations
+    # Add energy calculations
+    G_constant = 6.674e-3  # Define G_constant inside the loop for better organization
     kinetic_energy = 0
     potential_energy = 0
 
     for body in sys.GetBodies():
-        velocity = body.GetPos().GetPos_dt()
+        velocity = body.GetPos_dt()
         kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
-
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        potential_energy -= f_attract
-
-    total_energy = kinetic_energy + potential_energy
-
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
@@ -117,5 +105,9 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic energy: {kinetic_energy}, Potential energy: {potential_energy}, Total energy: {total_energy}")
 
     sys.DoStepDynamics(stepsize)

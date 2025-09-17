@@ -39,24 +39,14 @@ nsections_x, nsections_z = 40, 40
 nodePlotA = []
 nodePlotB = []
 nodesLoad = []
+load_force = chrono.ChVector3d(0, 100, 0)  
 
 
 def ref_X(t):
-    return 0.5 * (1 + math.sin(2 * math.pi * t))
+    return 0.5 * (1 + chrono.sin(2 * chrono.pi * t))
 
 def ref_Y(t):
-    return 0.5 * (1 + math.cos(2 * math.pi * t))
-
-
-load_force = chrono.ChVector3d(0, 10, 0)
-
-
-mnodemonitor = fea.ChNodeFEAxyz(chrono.ChVector3d(0.2, 0, 0.2))
-mesh.AddNode(mnodemonitor)
-melementmonitor = fea.ChElementShellBST()
-melementmonitor.SetNodes(mnodemonitor, mnodemonitor, mnodemonitor, None, None, None)
-melementmonitor.AddLayer(thickness, 0, material)
-mesh.AddElement(melementmonitor)
+    return 0.5 * (1 + chrono.cos(2 * chrono.pi * t))
 
 
 mynodes = []
@@ -66,7 +56,10 @@ for iz in range(nsections_z + 1):
         mnode = fea.ChNodeFEAxyz(p)
         mesh.AddNode(mnode)
         mynodes.append(mnode)
-
+        if iz == 0 and ix == 1:
+            mnodemonitor = fea.ChNodeFEAxyz(p)
+            mesh.AddNode(mnodemonitor)
+            
 
 for iz in range(nsections_z):
     for ix in range(nsections_x):
@@ -89,7 +82,11 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
-
+        
+        
+        if iz == 0 and ix == 1:
+            ementmonitor = melementA
+            
 
 for j in range(30):
     for k in range(30):
@@ -105,7 +102,6 @@ mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 

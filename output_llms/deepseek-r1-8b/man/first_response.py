@@ -1,93 +1,70 @@
 import pychrono as pychrono
-from pychrono import Vehicle, VehicleController, World, Ground, Light, SkyBox, Visualization, TireModel
+from pychrono import Input, Vehicle, TMEASY, Physics, Visualization, Camera, Light, Skybox, Terrain
 
-# Initialize the simulation
-sim = pychrono.Simulation()
-sim.set_time_step(0.001)
-sim.set_max_steps(10000)
+# Initialize PyChrono environment
+pychrono.init()
 
-# Initialize the vehicle
-vehicle = Vehicle("MAN 10t Truck", pychrono.VehicleModels.MAN_T80)
-vehicle.set_name("MAN 10t Truck")
-vehicle.set驾驶员(True)
-vehicle.set_controls(True)  # Enable steering, throttle, and braking controls
+# Initialize core components
+physics = Physics()
+vehicle = Vehicle()
+visualization = Visualization()
+input = Input()
 
-# Add driver controls
-driver_controls = VehicleController()
-driver_controls.set_max_steering_angle(0.5)
-driver_controls.set_max_throttle(0.5)
-driver_controls.set_max_braking_force(0.5)
-vehicle.set_controller(driver_controls)
+# Vehicle configuration
+truck = Vehicle()
+truck.name = "MAN 10T Truck"
+truck.mass = 10000  # 10,000 kg
+truck.length = 3.5  # 3.5 meters
+truck.width = 2.5  # 2.5 meters
+truck.height = 3  # 3 meters
+truck.suspension_damping = 0.5
+truck.suspension_spring_rate = 500000  # 500,000 N/m
+truck.tire_model = TMEASY  # Use TMEASY tire model
+truck.add_wheel("front_left", 1.5, 0.5, 0.5, 0)
+truck.add_wheel("front_right", 1.5, 0.5, 0.5, 0)
+truck.add_wheel("back_left", 1.5, 0.5, 0.5, 0)
+truck.add_wheel("back_right", 1.5, 0.5, 0.5, 0)
 
-# Initialize the world
-world = World()
-world.set_gravity(True, 0, -9.81)
-world.set_ground("Rigid Terrain", Ground(0, 0, 0, 50, 100, 0.5))
-world.set_texture("terrain/flat_terrain", "terrain/flat_terrain_diff")
-world.set_logo("logo/man_truck.png")
+# Add basic interactions
+truck.add_interaction("ground", "collision", 100000, 100000, 100000)  # High friction for realistic movement
+truck.gravity = 9.81  # Enable gravity
 
-# Add lighting
-light = Light.DirectionalLight(1000, 1000, 1000, 0, 0, 0)
-light.set_position(5, 5, 5)
-world.add_light(light)
+# Driver controls mapping
+def update_controls():
+    # Steering control (arrow keys)
+    speed = 10
+    if input.get_key('w'):
+        truck.steering = 0.5 * speed  # Steering left
+    if input.get_key('s'):
+        truck.steering = -0.5 * speed  # Steering right
+    if input.get_key('a'):
+        truck.throttle = 0.5  # Accelerate
+    if input.get_key('f'):
+        truck.braking = 0.5  # Brake
 
-sky = SkyBox("sky/skybox", "sky/skybox_diff")
-sky.set_position(100, 100, 100)
-world.add_sky(sky)
+# Visualization setup
+renderer = visualization.Renderer()
+renderer.set camera(position=(50, 50, 50), look_at=(0, 0, 0))
+renderer.enable_antialiasing()
+renderer.add_light(DirectionalLight(position=(100, 100, 100), color=(255, 255, 255)))
+renderer.add_skysphere(500, 500, 500, 32, 32)
+renderer.add_terrain(0, 0, 0, "ground", "grass", 100, 100)
 
-# Add visualization
-viz = Visualization("Irrlicht Visualization")
-viz.set_camera_position(0, 0, 5)
-viz.set_chase_camera(True)
-viz.set_antialiasing(4)
-viz.set_shadows(True)
-viz.set_texture("truck/man_truck", "truck/man_truck_diff")
-viz.set_terrain_texture("terrain/flat_terrain", "terrain/flat_terrain_diff")
-viz.set_terrain_logo("logo/man_truck.png")
+# Create the terrain
+terrain = Terrain()
+terrain.add_plane("ground", 0, 0, 0, 0, 0, 0, "flat", (0, 0, 0, 1), "grass", 100, 100)
 
-# Add vehicle-tire interaction
-tire_model = TireModel("TMEASY")
-tire_model.set_parameters(200000, 0.1, 0.001, 0.1)
-vehicle.add_tire_model(tire_model)
-
-# Set collision properties
-vehicle.set_collision_detection(True)
-vehicle.set_contact_handling(True)
-vehicle.set_friction(0.5)
-vehicle.set_normal_force(1000.0)
-vehicle.set_static_friction(0.5)
-
-# Set up simulation loop
-def update_simulation():
-    pychrono.pyUpdate()
-    # Get driver input
-    speed = vehicle.get_speed()
-    # Limit maximum speed
-    if speed > 10:
-        speed = 10
-    # Update vehicle state
-    vehicle.set_speed(speed[0], speed[1], speed[2])
-    
-    # Apply controls
-    steering = driver_controls.get_steering()
-    vehicle.set_steering(steering)
-    
-    throttle = driver_controls.get_throttle()
-    vehicle.set_throttle(throttle)
-    
-    braking = driver_controls.get_braking()
-    vehicle.set_braking(braking)
+# Add collision and friction
+truck.collision_enabled = True
+truck.contact_enabled = True
+truck.friction = 1.0
 
 # Start simulation
-sim.add_update_function(update_simulation)
-sim.start()
+physics.start()
+renderer.start()
 
-# Example key presses (to be handled in the visualization window)
-print("Example key controls:")
-print("A: Accelerate")
-print("W: Brake")
-print("F: Steering Left")
-print("D: Steering Right")
-
-# Run the simulation
-sim.run()
+# Driver controls loop
+while True:
+    update_controls()
+    physics.update()
+    renderer.render()

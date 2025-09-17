@@ -22,7 +22,7 @@ system.Add(ground)
 
 
 obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, ground_mat)
-obstacle.SetPos(chrono.ChVector3d(0, -0.5, 0))
+obstacle.SetPos(chrono.ChVector3d(-2.5, 0, 0))
 system.Add(obstacle)
 
 
@@ -62,10 +62,8 @@ while vis.Run():
     time += time_step
 
     
-    driver.SetSteering(0) 
-
-    
-    driver.SetThrottle(1) 
+    steering = 0  
+    driver.SetSteering(steering)
 
     
     rover.Update()

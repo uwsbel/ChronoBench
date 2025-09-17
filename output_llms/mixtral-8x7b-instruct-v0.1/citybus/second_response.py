@@ -84,13 +84,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
 driver_inputs = veh.vector_Entry()
-entry1 = veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0)
-entry2 = veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0)
-entry3 = veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
-driver_inputs.push_back(entry1)
-driver_inputs.push_back(entry2)
-driver_inputs.push_back(entry3)
-
+driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
+driver_inputs.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
+driver_inputs.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 driver = veh.ChDataDriver(driver_inputs)
 
 driver.Initialize()

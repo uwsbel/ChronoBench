@@ -40,6 +40,60 @@ tire_step_size = step_size
 
 render_step_size = 1.0 / 50  
 
+class SCMTerrainParams:
+    def __init__(self, config):
+        self.config = config
+        self.params = self.get_params()
+
+    def get_params(self):
+        if self.config == "soft":
+            return {
+                "Kphi": 1e6,
+                "Kc": 0,
+                "n": 1.1,
+                "cohesion": 0,
+                "friction": 30,
+                "shear_coeff": 0.01,
+                "elastic_stiffness": 1e8,
+                "damping": 3e4
+            }
+        elif self.config == "mid":
+            return {
+                "Kphi": 2e6,
+                "Kc": 0,
+                "n": 1.1,
+                "cohesion": 0,
+                "friction": 30,
+                "shear_coeff": 0.01,
+                "elastic_stiffness": 2e8,
+                "damping": 3e4
+            }
+        elif self.config == "hard":
+            return {
+                "Kphi": 3e6,
+                "Kc": 0,
+                "n": 1.1,
+                "cohesion": 0,
+                "friction": 30,
+                "shear_coeff": 0.01,
+                "elastic_stiffness": 3e8,
+                "damping": 3e4
+            }
+        else:
+            raise ValueError("Invalid terrain configuration")
+
+    def set_terrain_params(self, terrain):
+        terrain.SetSoilParameters(
+            self.params["Kphi"],
+            self.params["Kc"],
+            self.params["n"],
+            self.params["cohesion"],
+            self.params["friction"],
+            self.params["shear_coeff"],
+            self.params["elastic_stiffness"],
+            self.params["damping"]
+        )
+
 
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
@@ -60,60 +114,11 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-class SCMTerrainParams:
-    def __init__(self, config):
-        self.config = config
-        self.params = {
-            "soft": {
-                "Kphi": 2e6,
-                "Kc": 0,
-                "n": 1.1,
-                "cohesive_limit": 0,
-                "friction_limit": 30,
-                "shear_coefficient": 0.01,
-                "elastic_stiffness": 2e8,
-                "damping": 3e4
-            },
-            "mid": {
-                "Kphi": 5e6,
-                "Kc": 0,
-                "n": 1.2,
-                "cohesive_limit": 0,
-                "friction_limit": 35,
-                "shear_coefficient": 0.02,
-                "elastic_stiffness": 5e8,
-                "damping": 5e4
-            },
-            "hard": {
-                "Kphi": 1e7,
-                "Kc": 0,
-                "n": 1.3,
-                "cohesive_limit": 0,
-                "friction_limit": 40,
-                "shear_coefficient": 0.03,
-                "elastic_stiffness": 1e9,
-                "damping": 1e5
-            }
-        }
-
-    def get_params(self):
-        return self.params[self.config]
-
-
-terrain_config = "soft"
-terrain_params = SCMTerrainParams(terrain_config)
-
-
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-params = terrain_params.get_params()
-terrain.SetSoilParameters(params["Kphi"], 
-                          params["Kc"], 
-                          params["n"], 
-                          params["cohesive_limit"], 
-                          params["friction_limit"], 
-                          params["shear_coefficient"], 
-                          params["elastic_stiffness"], 
-                          params["damping"])
+
+
+terrain_params = SCMTerrainParams("mid")
+terrain_params.set_terrain_params(terrain)
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -153,7 +158,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -163,11 +168,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

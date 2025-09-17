@@ -62,7 +62,7 @@ def main():
     sens_manager.AddSensor(lidar)
 
     # Create and configure a 2D lidar sensor.
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI/2, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar2d.PushFilter(sens.ChFilterScanFromDepth())  # Convert depth data to scan.
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar"))  # Visualize the scan.
@@ -103,4 +103,4 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
 
     # Register handlers for each sensor, specifying ROS topics for output.
-    ros_manager.Register
+    ros_manager.RegisterHandler(

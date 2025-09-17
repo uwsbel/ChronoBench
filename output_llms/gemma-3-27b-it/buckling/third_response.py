@@ -1,9 +1,9 @@
-import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrno  # Import the main PyChrono library
-import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
-import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
-import os  # Import the OS library for file and directory operations
+import math as m
+import pychrono as chrno
+import pychrono.fea as fea
+import pychrono.pardisomkl as mklsolver
+import pychrono.irrlicht as chronicls
+import os
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrno.ChFunction):
@@ -52,7 +52,7 @@ body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrno.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrno.ChFramed(vG))
+motor.Initialize(body_truss, body_crank, chrno.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)

@@ -7,59 +7,75 @@ import pychrono.fea as fea
 length = 1.0  # beam length (m)
 thickness = 0.01  # beam thickness (m)
 width = 0.1  # beam width (m)
-E = 2.1e9  # Young's modulus (Pa)
+E = 2.1e11  # Young's modulus (Pa)
 nu = 0.3  # Poisson's ratio
 rho = 7800  # density (kg/m^3)
-force = 100  # applied force (N)
+force = 1000  # applied force (N)
 
 # Initialize the Chrono environment
-sys = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
-# Create the beam finite element mesh
-mesh = fea.ChMesh()
-beam_L = fea.ChElementBeamEuler()
-beam_L.SetNodes(fea.ChNodeFEAxyz(0, 0, 0), fea.ChNodeFEAxyz(length, 0, 0))
-beam_L.SetSectionProperties(width, thickness)
-beam_L.SetMaterialProperties(E, nu, rho)
-mesh.AddElement(beam_L)
+# Create the beam mesh
+beam_mesh = fea.ChMesh()
 
-# Create the motor function
+# Create the beam nodes
+for i in range(11):
+    node = fea.ChNodeFEAxyzD()
+    node.SetPos(chrono.ChVectorD(i * length / 10, 0, 0))
+    beam_mesh.AddNode(node)
+
+# Create the beam elements
+for i in range(10):
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(beam_mesh.GetNode(i), beam_mesh.GetNode(i + 1))
+    element.SetDimensions(width, thickness)
+    element.SetMaterialProperties(E, nu, rho)
+    beam_mesh.AddElement(element)
+
+# Add the beam mesh to the system
+my_system.Add(beam_mesh)
+
+# Create a custom motor function
 class CustomMotor(chrono.ChFunction):
     def __init__(self):
         super().__init__()
-        self.t_ref = 0
-        self.F = force
+        self.amplitude = 0.1
+        self.frequency = 1.0
 
     def Get_y(self, x):
-        if x > self.t_ref:
-            self.t_ref = x
-            return self.F
-        else:
-            return 0
+        return self.amplitude * chrono.ChMath.sin(2 * chrono.CH_C_PI * self.frequency * x)
 
-motor = CustomMotor()
+# Create a motor object
+motor = chrono.ChLinkMotorLinearForce()
+motor.Initialize(beam_mesh.GetNode(0), beam_mesh.GetNode(10), chrono.ChFrameD())
+motor.SetForceFunction(CustomMotor())
+my_system.Add(motor)
 
-# Add constraints
-sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(0), None, False, False, False))
-sys.AddConstraint(fea.ChLinkPointFrameGeneric(mesh.GetNode(1), None, False, False, False))
+# Add constraints between the beam nodes
+for i in range(10):
+    constraint = chrono.ChLinkTSDA()
+    constraint.Initialize(beam_mesh.GetNode(i), beam_mesh.GetNode(i + 1), chrono.ChFrameD())
+    my_system.Add(constraint)
 
-# Add the beam to the system
-sys.Add(mesh)
+# Create the Irrlicht visualization module
+application = chronoirr.ChIrrApp(my_system, 'Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
 
 # Set the solver and timestepper
-solver = chrono.ChSolverBB()
-timestepper = chrono.ChTimestepperHHT(solver)
-sys.SetSolver(timestepper)
+my_system.SetSolverType(chrono.ChSolver.Type_APGD)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
 
-# Initialize the Irrlicht visualization module
-application = chronoirr.ChIrrApp(sys, 'PyChrono Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
+# Simulate the system
 application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1))
-application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2.2, 7.2, 40, 512)
-
-# Run the simulation
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, -1))
+application.AddTypicalLights()
 application.AssetBindAll()
 application.AssetUpdateAll()
 application.Simulate(10)
 
-# Return the simulation script
+# Run the simulation
+application.SetTimestep(0.01)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

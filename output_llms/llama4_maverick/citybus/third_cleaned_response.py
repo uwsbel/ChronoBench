@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
 
 
 chrono_data_path = chrono.GetChronoDataPath()
@@ -100,7 +99,7 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = round(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

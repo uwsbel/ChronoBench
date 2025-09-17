@@ -65,8 +65,8 @@ sys.Add(mjointB)
 mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChCoordsys(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.QUNIT))
+                   chrono.ChCoordsys<>(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                       chrono.QUNIT))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()

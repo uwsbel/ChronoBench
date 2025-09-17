@@ -1,6 +1,6 @@
 import chrono as ch
 import chrono.sensor as chs
-import math
+import numpy as np
 
 
 ch.ChEngine.Initialize()
@@ -9,71 +9,63 @@ ch.ChEngine.Initialize()
 system = ch.ChSystem()
 
 
-mesh_body = ch.ChBodyAuxRef()
-mesh_body.SetFixed(True)
+mesh_body = ch.ChBody()
+mesh_body.SetFixed(True)  
 
 
 mesh = ch.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("path/to/your/mesh.obj")
+mesh.LoadWavefrontMesh('path/to/your/mesh.obj')
 
 
 mesh_body.AddCollisionShape(mesh)
-mesh_body.AddVisualShape(mesh)
-
-
 mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
 
 
-system.AddBody(mesh_body)
+system.Add(mesh_body)
 
 
 sensor_manager = chs.ChSensorManager(system)
 
 
-lidar_sensor = chs.ChLidarSensor(
-    mesh_body, 
-    ch.ChFrame3d(ch.ChVector3d(0, 0, 5), ch.ChQuaterniond(1, 0, 0, 0)), 
-    10,  
-    10,  
-    10,  
-    10,  
-    0.1,  
-    100  
-)
+lidar_sensor = chs.ChLidarSensor(mesh_body)
+
+
+lidar_sensor.SetHorizontalResolution(360)
+lidar_sensor.SetVerticalResolution(20)
+lidar_sensor.SetMinRange(0.1)
+lidar_sensor.SetMaxRange(100)
+lidar_sensor.SetPosition(ch.ChVector3d(0, 0, 1))
 
 
 noise_filter = chs.ChNoiseLidarFilter(0.1,  
-                                      0.01)  
+                                       0.01,  
+                                       0.001)  
 lidar_sensor.AddFilter(noise_filter)
 
 
 lidar_sensor.EnableVisualization(True)
 
 
-lidar_sensor.SetSaveAs("lidar_data", ".csv")
-
-
 sensor_manager.AddSensor(lidar_sensor)
 
 
-stepsize = 0.01
-end_time = 10
-
-
-for step in range(int(end_time / stepsize)):
-    
-    angle = step * 0.1
-    lidar_sensor.SetPos(ch.ChVector3d(5 * math.cos(angle), 5 * math.sin(angle), 5))
-
-    
-    system.DoStepDynamics(stepsize)
-
-    
-    lidar_data = lidar_sensor.GetBufferData()
+def PrintLidarData(sensor, data):
     print("Lidar Buffer Data:")
-    for point in lidar_data:
+    for point in data.GetBuffer():
         print(point)
 
+
+lidar_sensor.RegisterPointCloudCallback(PrintLidarData)
+
+
+system.SetTimestep(0.01)
+system.SetVerbose(False)
+
+
+while system.GetChTime() < 10:
+    system.DoStepDynamics(system.GetTimestep())
+
     
-    sensor_manager.Update()
-    sensor_manager.SaveData()
+    angle = system.GetChTime()
+    radius = 5
+    lidar_sensor.SetPosition(ch.ChVector3d(radius * np.cos(angle), radius * np.sin(angle), 1))

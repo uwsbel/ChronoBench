@@ -17,19 +17,17 @@ vis_type_mesh = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_PAC89  
+tire_model = veh.TireModelType_PACEJKA_89
 
 
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
-
 trackPoint = chrono.ChVectorD(-15.0, 10.0, 5.8)
 
 
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
 
 step_size = 5e-4
@@ -56,17 +54,13 @@ vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
 
 
-
-
-patch_mat = chrono.ChMaterialNSC()  
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-
-
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -80,7 +74,8 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
+
+vis.AttachVehicle(vehicle)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -92,13 +87,11 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -113,7 +106,6 @@ while vis.Run():
         render_frame += 1
 
     driver_inputs = driver.GetInputs()
-
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -123,6 +115,5 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     step_number += 1
     realtime_timer.Spin(step_size)

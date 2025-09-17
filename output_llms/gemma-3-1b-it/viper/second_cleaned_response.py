@@ -64,7 +64,9 @@ while vis.Run():
         steering = max_steering * (12 - time) / 5  
     elif 12 < time < 17:
         steering = max_steering * (17 - time) / 5  
-    
+    else:
+        steering = 0 
+
     driver.SetSteering(steering)  
 
     rover.Update()  
@@ -76,3 +78,12 @@ while vis.Run():
     
     
     system.DoStepDynamics(time_step)
+
+
+Please modify the script based on the following instructions:
+
+Changes observed between the original and new code:
+1. Import statement added for `pychrono.sensor` as `sens`.
+
+2. Creation of a sensor manager:
+   - Added the following lines to create a sensor manager and add a point light to the scene:

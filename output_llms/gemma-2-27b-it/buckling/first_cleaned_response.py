@@ -3,44 +3,51 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 
+
+
+
+
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-beam_material = fea.ChMaterialShellANCF(rho=7850, E=200e9, nu=0.3)
-beam_section = fea.ChSectionShellParametric(
-    type=fea.ChSectionShellParametric.PARABOLIC, thickness=0.01
-)
-
-beam_length = 1.0
-beam_nodes = 10
-beam = fea.ChBeamIGA(beam_nodes, beam_length, beam_material, beam_section)
+solver = chrono.ChSolverMINRES()
+my_system.SetSolver(solver)
+timestepper = chrono.ChTimestepperEulerImplicit(my_system)
+timestepper.SetStepSize(0.001)
 
 
-beam.SetPos(chrono.ChVectorD(0, 0, 0))
-beam.SetFixed(True)
 
 
-class MyMotorFunction(chrono.ChFunction):
-    def __init__(self, amplitude, frequency):
-        chrono.ChFunction.__init__(self)
-        self.amplitude = amplitude
-        self.frequency = frequency
 
-    def Get_y(self, x):
-        return self.amplitude * chrono.ChMath.Sin(self.frequency * x)
 
-motor_function = MyMotorFunction(amplitude=0.01, frequency=2 * chrono.CH_C_PI)
+beam_material = fea.ChMaterialShellANCF(100e9, 0.3, 1000)  
+
+beam_section = fea.ChSectionShellParametric(0.05, 0.05)
+
+beam = fea.ChBeamIGA(my_system)
+beam.SetNumElements(10)
+beam.SetMaterial(beam_material)
+beam.SetSection(beam_section)
+beam.SetNodesGeometry(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0))
+
+
+
+
+
+
+
+fixed_constraint = chrono.ChFixedJoint()
+fixed_constraint.Initialize(beam.GetNode(0), my_system)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.SetTargetFunction(motor_function)
-motor.Attach(beam.GetNode(beam_nodes - 1))
+motor.Initialize(beam.GetNode(1), chrono.ChVectorD(0, 0, 1))
+motor.SetSpeedFunction(chrono.ChFunction_Const(0.1))  
 
 
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-my_system.SetStep(0.001)
+
+
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -48,8 +55,14 @@ vis.AttachSystem(my_system)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle("Beam Buckling Simulation")
 vis.Initialize()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(2, 2, 2))
+
+
+
+
 
 
 while vis.Run():
-    my_system.DoStepDynamics(0.001)
+    my_system.DoStepDynamics(timestepper.GetStepSize())
     vis.Render()

@@ -26,22 +26,20 @@ sphere_mat.SetFriction(0.2)
 
 msphereBody1 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody1.SetPos(chrono.ChVector3d(1, 1, 0))
+msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))
 msphereBody1.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody1.SetPosDt(chrono.ChVector3d(0.5, 0, 0.1))  
 sys.Add(msphereBody1)
-
 
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
+msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody2.SetPosDt(chrono.ChVector3d(-0.5, 0, -0.1))  
 sys.Add(msphereBody2)
-
 
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
+msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-msphereBody3.SetPosDt(chrono.ChVector3d(0, -0.5, 0.2))  
 sys.Add(msphereBody3)
 
 

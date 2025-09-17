@@ -2,18 +2,12 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Set the data path for PyChrono assets
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Define simulation step sizes
-step_size = 2e-3
-tire_step_size = 1e-3
-
 def main():
-    # Create the HMMWV vehicle with updated initial position
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
+    # 1. Update initial position
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
@@ -22,47 +16,45 @@ def main():
     hmmwv.SetTireStepSize(tire_step_size)
     hmmwv.Initialize()
 
-    # Set visualization types for vehicle components
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Set the collision system type
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create terrain with a single patch using a collision mesh
+    # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Define contact material for the terrain patch
-    patch_material = chrono.ChContactMaterialNSC()
-    patch_material.SetFriction(0.9)
-    patch_material.SetRestitution(0.01)
+    # 2. Create single terrain patch with collision mesh
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(
+        patch_mat,
+        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+        veh.GetDataFile("terrain/meshes/Highway_col.obj")
+    )
+    patch.SetContactSurfaceThickness(0.01)
 
-    # Add the collision mesh patch
-    patch = terrain.AddPatch(patch_material,
-                             chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                             veh.GetDataFile("terrain/meshes/Highway_col.obj"))
-
-    # Attempt to set contact material thickness if method exists
-    if hasattr(patch, 'SetContactMaterialThickness'):
-        patch.SetContactMaterialThickness(0.01)
-
-    # Load and add the visual mesh for the terrain
+    # 3. Add visual mesh to terrain
     vis_mesh = chrono.ChTriangleMeshConnected()
-    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
-
-    vis_shape = chrono.ChVisualShapeTriangleMesh()
-    vis_shape.SetMesh(vis_mesh)
-    vis_shape.SetName("Highway Visualization")
-
-    # Attach the visual mesh to the terrain's ground body
-    terrain.GetGroundBody().AddVisualShape(vis_shape, chrono.ChFramed())
+    vis_mesh.LoadWavefrontMesh(
+        veh.GetDataFile("terrain/meshes/Highway_vis.obj"),
+        False,
+        True
+    )
+    vis_shape = chrono.ChVisualShapeTriangleMesh(vis_mesh)
+    patch_body = patch.GetBody()
+    patch_body.AddVisualShape(
+        vis_shape,
+        chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+    )
 
     terrain.Initialize()
 
-    # Create the Irrlicht visualization system
+    # Create the vehicle Irrlicht interface
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
     vis.SetWindowTitle('HMMWV Rigid Terrain Demo')
     vis.SetWindowSize(1280, 1024)
@@ -82,11 +74,10 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    # Simulation loop
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
 
-        # Render the scene
+        # Draw scene
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -94,18 +85,23 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
 
-        # Synchronize modules
+        # Update modules (process inputs from other modules)
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation
+        # Advance simulation for one timestep for all modules
         driver.Advance(step_size)
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)
         vis.Advance(step_size)
 
-# Run the simulation
-if __name__ == "__main__":
-    main()
+# Set data path
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Simulation step sizes
+step_size = 2e-3
+tire_step_size = 1e-3
+
+main()

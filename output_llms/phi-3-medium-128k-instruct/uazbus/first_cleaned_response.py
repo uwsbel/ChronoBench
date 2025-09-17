@@ -6,130 +6,114 @@ import pychrono.vehicle as vehicle
 
 import pychrono.vehicle_vehicles as vehicle_vehicles
 
-import pychrono.vehicle_vehicle as vehicle_vehicle
+import pychrono.vehicle_terrain as vehicle_terrain
 
-import pychrono.vehicle_vehicle_vehicles as vehicle_vehicle_vehicles
+import pychrono.vehicle_driver as vehicle_driver
 
-import pychrono.vehicle_vehicle_driver as vehicle_vehicle_driver
+import pychrono.vehicle_visual as vehicle_visual
 
-import pychrono.vehicle_vehicle_vehicle as vehicle_vehicle_vehicle
+import pychrono.vehicle_sensor as vehicle_sensor
 
+import pychrono.irrlicht as irr
 
+import pychrono.vehicle_friction as vehicle_friction
 
 
-chrono = pychrono.ChNoSimulator()
 
 
+chrono = pychrono.ChNoEngine()
 
 
-chrono.Set_Solver_Type(pychrono.ChSolverType.dDsSsfSM)
 
-chrono.Set_Real_Time(True)
 
-chrono.Set_Real_Time_Step(1.0/60.0)
+chrono.SetUseIrrlicht(True)
 
+chrono.SetIrrlichtOptions(
 
+    chrono.irrlicht.IrrlichtOptions_InfiniteLighting)
 
+chrono.SetVisualizationCamera(chrono.irrlicht.ChIrrApp.Far())
 
-terrain = pychrono.RigidTerrain("Terrain", 100.0, 100.0)
 
-terrain.Set_Friction_Coefficient(0.5)
 
-terrain.Set_Restitution(0.2)
 
-terrain.Add_Ramp(0.0, 0.0, 100.0, 100.0, 10.0)
+terrain = vehicle_terrain.ChTerrain()
 
+terrain.SetFriction(0.5)
 
+terrain.SetRestitution(0.3)
 
 
-uazbus = vehicle.UAZBUS("UAZBUS", 10.0, 5.0, 10.0)
 
-uazbus.Set_RigidBody_Mass(1500.0)
 
-uazbus.Set_RigidBody_Inertia(pychrono.ChBoxInertia(1000.0, 1000.0, 1000.0))
+chrono.Add(terrain)
 
-uazbus.Set_RigidBody_Pos(0.0, 0.0, 0.0)
 
-uazbus.Set_RigidBody_Vel(0.0, 0.0, 0.0)
 
-uazbus.Set_RigidBody_AngVel(0.0, 0.0, 0.0)
 
+vehicle_model = vehicle_vehicles.ChVehicleUAZBUS()
 
+vehicle_model.SetMass(1500.0)
 
+vehicle_model.SetChassisType(vehicle_vehicles.ChVehicleChassis_RigidBody)
 
-driver = vehicle_vehicle_driver.Driver("Driver")
 
-driver.Set_MaxSteerAngle(30.0)
 
-driver.Set_MaxBrake(1000.0)
 
-driver.Set_MaxAccel(10.0)
+vehicle = chrono.Add(vehicle_model)
 
-driver.Set_MaxSteerRate(30.0)
 
 
 
+vehicle.SetTerrain(terrain)
 
-uazbus.Add_Driver(driver)
 
 
 
+driver = vehicle_driver.ChVehicleDriver_Track()
 
-chrono.Set_Screen_Width(800)
+vehicle.Add(driver)
 
-chrono.Set_Screen_Height(600)
 
-chrono.Set_Screen_Title("UAZBUS Simulation")
 
-chrono.Set_Screen_Allow_Window_Resizing(False)
 
-chrono.Set_Screen_Allow_Fullscreen(False)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
 
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(0, 0, 0, 1))
 
 
 
-irr = pychrono.irrlicht.ChIrrApp("UAZBUS Visualization", chrono.Get_Window_Width(), chrono.Get_Window_Height())
 
-chrono.Add_Irr_Options(irr)
+visual = vehicle_visual.ChVehicleVisual(vehicle_model)
 
-irr.Set_Sleep_Speed(0.001)
+visual.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
 
-irr.Set_Max_FPS(60)
+chrono.Add(visual)
 
-irr.Set_Window_Title("UAZBUS Simulation")
 
-irr.Set_Use_OpenGL(False)
 
 
+sensor = vehicle_sensor.ChVehicleSensor(vehicle)
 
+sensor.SetFrequency(100)
 
-irr.Add_Vehicle(uazbus, vehicle_vehicle.Vehicle_Vehicle_Visualization(uazbus, 100.0, 100.0, 100.0, 100.0)
+chrono.Add(sensor)
 
 
 
 
-irr.Add_Terrain(terrain, 100.0, 100.0, 10.0)
-
-
-
-
-while(chrono.Get_Time() < 100.0):
-
-    chrono.Do_Step()
+while chrono.GetChTime() < 10:
 
     
 
-    irr.BeginScene()
+    chrono.DoStepD(0.01)
 
-    irr.Draw()
 
-    irr.EndScene()
+    
 
-    chrono.Set_Real_Time_Step(1.0/60.0)
-
-    chrono.Step()
+    chrono.Render()
 
 
 
 
-chrono.Destroy()
+chrono.Stop()

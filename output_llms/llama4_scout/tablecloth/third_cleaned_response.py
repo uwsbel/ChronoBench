@@ -26,7 +26,6 @@ sys.Add(mesh)
 
 
 
-mesh.SetAutomaticGravity(False)
 
 
 nodePlotA = fea.ChNodeFEAxyz()  
@@ -48,7 +47,7 @@ if True:
     
     density = 100  
     E = 6e4  
-    nu = 0.3  
+    nu = 0.0  
     thickness = 0.01  
 
     
@@ -82,7 +81,7 @@ if True:
             melementA = fea.ChElementShellBST()
             mesh.AddElement(melementA)
             if iz == 0 and ix == 1:
-                melementmonitor = melementA  
+                ementmonitor = melementA  
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
@@ -96,7 +95,7 @@ if True:
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 boundary_1,
                 boundary_2,
-                boundary_3,
+                boundary_3
             )
 
             
@@ -118,7 +117,7 @@ if True:
                 mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 boundary_1,
                 boundary_2,
-                boundary_3,
+                boundary_3
             )
 
             
@@ -148,11 +147,11 @@ if True:
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)  
     vis.SetWindowSize(1024, 768)  
-    vis.SetWindowTitle("Shells FEA test: triangle BST elements")  
+    vis.SetWindowTitle('Shells FEA test: triangle BST elements')  
     vis.Initialize()  
-    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))  
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
     vis.AddSkyBox()  
-    vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))  
+    vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  
     vis.AddTypicalLights()  
 
     

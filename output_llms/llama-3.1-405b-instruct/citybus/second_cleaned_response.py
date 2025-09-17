@@ -108,7 +108,6 @@ driver_inputs.append(entry2)
 
 driver = veh.ChDataDriver()
 driver.SetInputs(driver_inputs)
-driver.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

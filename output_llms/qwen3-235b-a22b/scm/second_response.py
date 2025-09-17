@@ -3,50 +3,41 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Custom class to manage SCM terrain parameters
-class SCMTerrainParams:
-    def __init__(self, config='soft'):
-        """Initialize terrain parameters based on predefined configurations."""
-        if config == 'soft':
-            self.k_phi = 2e6       # Bekker Kphi
-            self.k_c = 0           # Bekker Kc
-            self.n = 1.1           # Bekker n exponent
-            self.cohesion = 0      # Mohr cohesive limit (Pa)
-            self.friction_angle = 30  # Mohr friction limit (degrees)
-            self.shear_coeff = 0.01   # Janosi shear coefficient (m)
-            self.elastic_stiffness = 2e8  # Elastic stiffness (Pa/m)
-            self.damping = 3e4     # Damping (Pa s/m)
-        elif config == 'mid':
-            self.k_phi = 5e6
-            self.k_c = 1e3
-            self.n = 1.3
-            self.cohesion = 500
-            self.friction_angle = 40
-            self.shear_coeff = 0.02
-            self.elastic_stiffness = 5e8
-            self.damping = 5e4
-        elif config == 'hard':
-            self.k_phi = 1e7
-            self.k_c = 5e3
-            self.n = 1.5
-            self.cohesion = 2e3
-            self.friction_angle = 50
-            self.shear_coeff = 0.03
-            self.elastic_stiffness = 1e9
-            self.damping = 1e5
-        else:
-            raise ValueError(f"Invalid terrain configuration: {config}")
-    
+# Class to manage SCM terrain parameters
+class SCMTerrainParameters:
+    def __init__(self, Kphi, Kc, n, cohesive_limit, friction_limit, shear_coeff, stiffness, damping):
+        self.Kphi = Kphi
+        self.Kc = Kc
+        self.n = n
+        self.cohesive_limit = cohesive_limit
+        self.friction_limit = friction_limit
+        self.shear_coeff = shear_coeff
+        self.stiffness = stiffness
+        self.damping = damping
+
     def apply_to_terrain(self, terrain):
-        """Apply parameters to the provided SCMTerrain object."""
         terrain.SetSoilParameters(
-            self.k_phi, self.k_c, self.n,
-            self.cohesion, self.friction_angle,
-            self.shear_coeff, self.elastic_stiffness,
+            self.Kphi,
+            self.Kc,
+            self.n,
+            self.cohesive_limit,
+            self.friction_limit,
+            self.shear_coeff,
+            self.stiffness,
             self.damping
         )
 
-# Set Chrono data paths
+    @staticmethod
+    def get_configuration(config):
+        if config == "soft":
+            return SCMTerrainParameters(1e6, 0, 1.2, 0, 25, 0.02, 1e8, 2e4)
+        elif config == "mid":
+            return SCMTerrainParameters(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
+        elif config == "hard":
+            return SCMTerrainParameters(3e6, 0, 1.0, 0, 35, 0.005, 3e8, 4e4)
+        else:
+            raise ValueError(f"Invalid configuration: {config}")
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -54,33 +45,34 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc = chrono.ChVector3d(-8, 0, 0.6)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Collision type for chassis
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Tire model type
+# Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Terrain dimensions
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+# Rigid terrain parameters
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
+# Tracking point for camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
-# Contact method and visualization
+# Contact method
 contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-render_step_size = 1.0 / 50  # 50 FPS
 
-# Create and configure the HMMWV vehicle
+# Time interval between render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -90,29 +82,29 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Configure collision system
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create and configure SCM terrain
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 
-# Apply terrain parameters using the new class
-terrain_params = SCMTerrainParams(config='soft')  # Can be 'mid' or 'hard'
-terrain_params.apply_to_terrain(terrain)
+# Apply predefined terrain configuration
+params = SCMTerrainParameters.get_configuration("mid")
+params.apply_to_terrain(terrain)
 
 # Add moving patch and visualization settings
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-terrain.Initialize(20, 20, 0.02)  # SCM terrain mesh resolution
 
-# Create Irrlicht visualization system
+# Initialize terrain with correct dimensions
+terrain.Initialize(terrainLength, terrainWidth, 0.02)
+
+# Create visualization system
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -123,7 +115,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create and configure the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0
 throttle_time = 1.0
@@ -142,20 +134,17 @@ step_number = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
-    # Get and synchronize inputs
     driver_inputs = driver.GetInputs()
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

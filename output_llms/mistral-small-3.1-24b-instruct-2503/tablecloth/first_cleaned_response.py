@@ -1,52 +1,73 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.fem as fem
 import pychrono.solver as solver
+import pychrono.utils as utils
 
 
-chrono.ChSystemNSC my_system()
-my_system.SetSolverType(solver.ChSolver.PARDISOMKL)  
+chrono.SetChronoDataPath('path/to/chrono/data')  
 
 
-E = 2e9  
-nu = 0.3  
-thickness = 0.001  
+system = chrono.ChSystemNSC()
 
 
-material = chrono.ChMaterialShellKirchhoff()
-material.SetYoungModulus(E)
-material.SetPoissonRatio(nu)
-material.SetThickness(thickness)
+mesh = fem.ChElementShellIso34()
+mesh.SetYoungModulus(2e9)  
+mesh.SetPoissonRatio(0.3)  
+mesh.SetThickness(0.001)  
 
 
-width = 1.0  
-height = 1.0  
-num_x = 10  
-num_y = 10  
+num_nodes_x = 50
+num_nodes_y = 50
+length_x = 1.0
+length_y = 1.0
+
+nodes = []
+elements = []
 
 
-mesh = chrono.ChShellMesh()
-mesh.CreateGrid(width, height, num_x, num_y, material)
+for i in range(num_nodes_x):
+    for j in range(num_nodes_y):
+        node = chrono.ChNodeFEAxyzD()
+        node.SetPos(chrono.ChVectorD(i * length_x / (num_nodes_x - 1),
+                                      j * length_y / (num_nodes_y - 1),
+                                      0))
+        system.Add(node)
+        nodes.append(node)
 
 
-my_system.Add(mesh)
+for i in range(num_nodes_x - 1):
+    for j in range(num_nodes_y - 1):
+        elem = fem.ChElementShellIso34()
+        elem.SetNodes(nodes[(i + 1) * num_nodes_y + j],
+                      nodes[i * num_nodes_y + j],
+                      nodes[i * num_nodes_y + j + 1],
+                      nodes[(i + 1) * num_nodes_y + j + 1])
+        system.Add(elem)
+        elements.append(elem)
 
 
-visualization = chronoirr.ChIrrApp(my_system, "Tablecloth Folding Simulation", chronoirr.dimension2du(800, 600))
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile("logo_chrono_small.png"))
-visualization.AddTypicalFloor()
+visualization = chronoirr.ChIrrApp(system, 'Tablecloth Folding Simulation', chronoirr.dimension2du(800, 600))
 
 
-visualization.AddVisualSystem(chrono.ChVisualSystemIrrlicht())
-visualization.AssetBind(mesh)
+floor = chrono.ChBodyEasyBox(2, 0.1, 2, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(floor)
+visualization.AddTypicalLights()
+visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
+visualization.AddSkyBox()
+visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 5, 5, 50, 50, 100, 200)
 
 
-visualization.SetTimestep(0.01)
-visualization.SetTryRealTime(True)
+solver = solver.ChSolverPardisoMKL()
+solver.SetVerbose(False)
+system.SetSolver(solver)
 
 
-while visualization.Run():
-    my_system.DoStepDynamics(0.01)
+visualization.SetStepCallback([], system, update_func)
+
+def update_func():
+    system.DoStepDynamics(chrono.ChTimeStep(0.01))  
 
 
-visualization.Close()
+visualization.Run()

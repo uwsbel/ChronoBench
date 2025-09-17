@@ -91,7 +91,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
@@ -102,10 +101,11 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # ---------------
-# Add obstacles
+# Create obstacles
 # ---------------
 num_obstacles = 5
 obstacle_size = chrono.ChVector3d(1, 1, 1)
+obstacles = []
 for i in range(num_obstacles):
     obstacle = chrono.ChBodyEasy()
     obstacle.SetBodyFixed(True)
@@ -113,25 +113,23 @@ for i in range(num_obstacles):
     obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), 1))
     obstacle.SetMass(100)
     vehicle.GetSystem().Add(obstacle)
+    obstacles.append(obstacle)
 
 # ---------------
 # Sensor Manager and Lidar
 # ---------------
 manager = sensor.SensorManager(vehicle.GetSystem())
 lidar = sensor.Lidar()
-lidar.SetSensorMode(sensor.SensorMode.RANGE)
-lidar.SetScanAngleRange(-math.pi / 4, math.pi / 4)
-lidar.SetResolution(100)
-lidar.SetMaxRange(50)
-lidar.SetNoise(0.1)
-lidar.SetPos(chrono.ChVector3d(0, 0, 2))
-lidar.SetBody(vehicle.GetChassisBody())
+lidar.SetScanAngle(360)
+lidar.SetRange(50)
+lidar.SetResolution(0.1)
+lidar.SetSensorPos(chrono.ChVector3d(0, 0, 2))
+lidar.SetSensorRotation(chrono.ChQuaterniond(1, 0, 0, 0))
 manager.AddSensor(lidar)
 
 # ---------------
 # Simulation loop
 # ---------------
-
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 

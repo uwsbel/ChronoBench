@@ -52,7 +52,7 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
-# Define the custom motor function class
+# Define a custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         self.A1 = A1
@@ -66,17 +66,18 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * x
         elif x < self.T2:
-            return self.A1 * self.T1 + self.A2 * (x - self.T1)
+            return self.A1 * (self.T1 + (x - self.T1) * (self.A2 - self.A1) / (self.T2 - self.T1))
         elif x < self.T3:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.A2 * (x - self.T2)
+            return self.A2 * (self.T2 + (x - self.T2) * (self.T3 - self.T2) / (self.T3 - self.T2))
         else:
-            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.A2 * (self.T3 - self.T2) + self.w * (x - self.T3)
+            return self.w * (self.T3 + (x - self.T3) * (self.w - self.A2) / (1 - self.T3))
 
 # Create the flywheel and attach it to the center of the beam
+
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  # R, h, density
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
-                        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
     # flywheel initial alignment (rotate 90° so cylinder axis is on X)
 )
 sys.Add(mbodyflywheel)
@@ -111,8 +112,11 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
 sys.Add(rotmotor1)
 
 # Define the custom motor function
-f_ramp = ChFunctionMyFun(1, 2, 10, 20, 30, 1)
-rotmotor1.SetMotorFunction(f_ramp)
+myfun = ChFunctionMyFun(10, 20, 2, 4, 6, 10)
+rotmotor1.SetMotorFunction(myfun)
+
+# Optionally, set up a more precise HHT timestepper
+# sys.SetTimestepper(chrono.ChTimestepperHHT(0.5))
 
 # Attach a visualization of the FEM mesh.
 
@@ -142,9 +146,6 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
-
-# Optionally, set up a more precise HHT timestepper
-# sys.SetTimestepper(chrono.ChTimestepperHHT())
 
 sys.DoStaticLinear()
 

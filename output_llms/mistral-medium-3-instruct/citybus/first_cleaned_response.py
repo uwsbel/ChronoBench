@@ -1,95 +1,114 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import numpy as np
+import pychrono.vehicle.citybus as citybus
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
 
 
-terrain = veh.RigidTerrain(system)
-terrain.SetContactFrictionCoefficient(0.8)
-terrain.SetContactRestitutionCoefficient(0.1)
+step_size = 0.02  
+
+
+tend = 100.0
+
+
+trackPoint = chrono.ChVectorD(0.0, 0.0, 1.0)
+
+
+
+
+
+
+vehicle = citybus.CityBus()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.SetTireType(veh.TireModelType::TMEASY)
+vehicle.SetTireStepSize(step_size)
+vehicle.Initialize()
+
+vehicle.GetSystem().Set_G_acc(chrono.ChVectorD(0, 0, -9.81,))
+
+
+
+
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitution(0.1)
 terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.SetPlotType(veh.Terrain::PLOT_TEXTURE, True)
 
 
-terrain_mesh = chrono.ChTriangleMeshConnected()
-terrain_mesh.LoadWavefrontMesh("PATH_TO_TERRAIN_MESH.obj", False, True)  
-terrain.Initialize(terrain_mesh, 0, chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/dirt.jpg"), 200, 200)
+terrain.Initialize(0, 0, 0, 0)
 
 
-terrain.SetTexture("PATH_TO_TERRAIN_TEXTURE.png")
-terrain.SetTextureScale(20, 20)
 
 
-bus = veh.CityBus(system)
-bus.SetContactFrictionCoefficient(0.8)
-bus.SetContactRestitutionCoefficient(0.1)
-bus.SetContactMaterialProperties(2e7, 0.3)
 
 
-initLoc = chrono.ChVectorD(0, 0, 0.5)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-bus.Initialize(initLoc, initRot)
+driver = veh.ChInteractiveDriverIRR(vehicle)
+driver.SetSteeringDelta(0.04)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.04)
+driver.Initialize()
 
 
-tire = veh.ChPacejkaTire("PATH_TO_TIRE_DATA_FILE")  
-bus.SetTireType(tire)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("CityBus Simulation")
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))  
-vis.SetCameraFollow(bus.GetChassisBody(), chrono.ChVectorD(0, -5, 2))  
 
 
-bus.GetChassisBody().SetCollide(False)
-bus.GetChassisBody().SetVisualize(True)
-bus.GetChassisBody().GetVisualModel().AddTriangleMesh(chrono.ChTriangleMeshConnected())
-bus.GetChassisBody().GetVisualModel().GetMesh(0).LoadWavefrontMesh("PATH_TO_BUS_MESH.obj")
+app = chronoirr.ChIrrApp(vehicle.GetSystem(), "CityBus Demo", chrono.ChVectorD(1280, 720))
 
 
-driver = veh.ChDriver(system)
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-bus.SetDriver(driver)
+app.SetTimestep(step_size)
+app.SetTryRealtime(True)
+app.SetCameraVertical(chrono.ChCameraVertical_DIRTYZ)
+app.SetChaseCamera(trackPoint, 6.0, 0.5)
+app.SetSkyBox()
 
 
-time_step = 0.02  
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+
+
+
+
+
+step_size2 = step_size
+render_steps = int(step_size2 / step_size)
+
+
+step_number = 0
+
+while app.GetDevice().run():
+    time = vehicle.GetSystem().GetChTime()
 
     
-    steering = 0
-    throttle = 0
-    braking = 0
+    if time >= tend:
+        break
 
     
-    if vis.KeyDown(chrono.irrlicht.KEY_LEFT):
-        steering = -1
-    if vis.KeyDown(chrono.irrlicht.KEY_RIGHT):
-        steering = 1
-    if vis.KeyDown(chrono.irrlicht.KEY_UP):
-        throttle = 1
-    if vis.KeyDown(chrono.irrlicht.KEY_DOWN):
-        braking = 1
-
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStepDynamics(step_size)
+    app.EndScene()
 
     
-    system.DoStepDynamics(time_step)
-    bus.Synchronize(time_step)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, step_size, driver.GetInputs())
+
+    
+    if step_number % render_steps == 0:
+        app.GetSystem().DoStepDynamics(step_size)
+        app.DoStepDynamics(step_size)
+
+    step_number += 1
+
+print("Simulation completed")

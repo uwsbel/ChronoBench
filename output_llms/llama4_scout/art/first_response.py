@@ -1,57 +1,55 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 # 1. Initialize the PyChrono environment and core components
-ch.ChEngine.Initialize()
+chrono.ChEngine.Initialize()
 
 # 2. Create the Irrlicht application
-app = irr.ChIrrApp()
+app = irr.IrrlichtApplication()
 
 # 3. Create the vehicle
-vehicle = veh.ChARTcar()
+vehicle = veh.ARTcar()
 
-# 4. Set vehicle parameters
-vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
-vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
+# Initialize the vehicle
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# 5. Create the terrain
-terrain = ch.ChTerrain()
+# Set contact method and visualization type
+vehicle.SetContactMethod(veh.ChContactMethod_TM)
+vehicle.SetVisualizationType(veh.ChVisualizationType_MESH)
 
-# 6. Set terrain parameters
-terrain.SetType(terrain.RIGID)
-terrain.SetDimensions(100, 100)
-terrain.SetContactMethod(terrain.E_CONTACT_METHOD_NODES)
-terrain.SetVisualizationType(terrain.E_VISUALIZATION_TEXTURE)
+# 4. Create the terrain
+terrain = chrono.ChRigidTerrain(vehicle.GetChassisBody())
 
-# 7. Add a custom texture to the terrain
-texture = irr.ChIrrTexture()
-texture.LoadFromFile("path_to_your_texture.jpg")  # Replace with your texture path
-terrain.AddVisualizationTexture(texture)
+# Set terrain dimensions
+terrain.SetTerrainDimensions(chrono.ChVectorD(100, 100, 10))
 
-# 8. Create the driver system
-driver = veh.ChInteractiveDriver()
+# Add custom texture
+terrain.AddTerrainTexture(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 0), "checker.png")
 
-# 9. Set up the driver inputs
-driver.SetSteeringFunction(veh.ChDriverSteeringFunction(driver.E_STEERING_FUNCTION_LINEAR))
-driver.SetThrottleFunction(veh.ChDriverThrottleFunction(driver.E_THROTTLE_FUNCTION_LINEAR))
-driver.SetBrakingFunction(veh.ChDriverBrakingFunction(driver.E_BRAKING_FUNCTION_LINEAR))
+# 5. Create the interactive driver system
+driver = veh.ChInteractiveDriverARTcar(vehicle)
 
-# 10. Initialize the simulation
-vehicle.Initialize(terrain)
-driver.Initialize(vehicle)
+# Set up driver inputs
+driver.SetThrottle(0.5)
+driver.SetSteering(0.2)
+driver.SetBraking(0.1)
 
-# 11. Create the simulation loop
-def Simulate():
-    step_size = 0.02  # 50 Hz
-    time = 0
+# 6. Add the vehicle and terrain to the Irrlicht application
+app.Add(vehicle.GetChassisBody())
+app.Add(terrain.GetGroundBody())
 
+# 7. Simulation loop
+if __name__ == "__main__":
+    # Simulation parameters
+    step_size = 0.02
+    fps = 50
+
+    # Simulation loop
     while app.Run():
+        # Update vehicle dynamics
         vehicle.Update(step_size)
-        driver.Update(step_size)
-        app.Render()
 
-        time += step_size
-
-# Run the simulation
-Simulate()
+        # Update visualization
+        app.Synchronize("", step_size)
+        app.PostStep()

@@ -24,7 +24,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
@@ -83,15 +83,14 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
 driver = veh.ChDataDriver()
-driver.SetVehicle(vehicle)
 
 # Define a sequence of driver inputs
 driver_inputs = veh.vector_Entry()
-driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
+driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
 driver_inputs.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
 driver_inputs.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 
-driver.SetInputs(driver_inputs)
+driver.Initialize(driver_inputs)
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

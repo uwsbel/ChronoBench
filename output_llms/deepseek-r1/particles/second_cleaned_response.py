@@ -86,42 +86,45 @@ while vis.Run():
     vis.EndScene()
 
     emitter.EmitParticles(sys, stepsize)
-
+    
     
     G_constant = 6.674e-3  
 
     
-    bodies = list(sys.GetBodies())
-    
-    
-    kinetic_energy = 0.0
-    for body in bodies:
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
-    
-    
-    potential_energy = 0.0
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
-    total_energy = kinetic_energy + potential_energy
-    
-    
-    print(f"Kinetic energy: {kinetic_energy}, Potential energy: {potential_energy}, Total energy: {total_energy}")
+    bodies = sys.GetBodies()
+    body_pairs = list(combinations(bodies, 2))
 
     
     for body in bodies:
         body.EmptyAccumulators()
 
     
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
+    for bodyA, bodyB in body_pairs:
+        D_attract = bodyB.GetPos() - bodyA.GetPos()
         r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        
+        if r_attract > 1e-9:
+            f_attract = G_constant * (bodyA.GetMass() * bodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            bodyA.AccumulateForce(F_attract, bodyA.GetPos(), False)
+            bodyB.AccumulateForce(-F_attract, bodyB.GetPos(), False)
+
+    
+    kinetic_energy = 0.0
+    for body in bodies:
+        vel = body.GetPosDt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+
+    
+    potential_energy = 0.0
+    for bodyA, bodyB in body_pairs:
+        r = (bodyB.GetPos() - bodyA.GetPos()).Length()
+        
+        if r > 1e-9:
+            potential_energy -= G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
+
+    
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
 
     sys.DoStepDynamics(stepsize)

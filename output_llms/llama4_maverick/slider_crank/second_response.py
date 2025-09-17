@@ -68,7 +68,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()
 
-# Initialize arrays for storing values to be plotted
+# Initialize arrays for plotting
 array_time = []
 array_angle = []
 array_pos = []
@@ -83,20 +83,14 @@ while vis.Run() and time < 20:
     sys.DoStepDynamics(1e-3)
     time += 1e-3
     
-    # Collect data during simulation
+    # Collect data
     array_time.append(time)
-    array_angle.append(mcrank.GetRot().Q_to_Euler123().z)
+    array_angle.append(mcrank.GetRot().Q_to_Euler123().x)
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
-# Convert lists to numpy arrays
-array_time = np.array(array_time)
-array_angle = np.array(array_angle)
-array_pos = np.array(array_pos)
-array_speed = np.array(array_speed)
-
-# Matplotlib plotting
-plt.figure(figsize=(12, 6))
+# Plot the results
+plt.figure(figsize=(10, 5))
 
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)

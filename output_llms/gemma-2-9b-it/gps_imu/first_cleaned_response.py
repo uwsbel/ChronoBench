@@ -1,56 +1,61 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
+from pychrono import *
+from pychrono.irrlicht import *
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
+chrono.SetChronoData(chrono.CH_USE_FAST_SIMULATION)
 
 
-
-hmmwv = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 1000, chrono.ChVectorD(0, 0, 0), 
-                          chrono.ChVectorD(0.5, 0.5, 0.5))  
-system.Add(hmmwv)
+world = ChSystemNSC()
+world.Set_G_acc(ChVectorD(0, 0, -9.81))
 
 
-terrain = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 10000, chrono.ChVectorD(0, 0, 0),
-                          chrono.ChVectorD(10, 10, 1))  
-system.Add(terrain)
+terrain = ChBodyEasyBox(10, 10, 1, 1000)
+terrain.SetPos(ChVectorD(0, 0, 0))
+world.AddBody(terrain)
 
 
-imu = chrono.ChSensor_IMU(hmmwv)
-system.Add(imu)
+hmmwv = ChBodyEasyBox(2, 2, 1, 1000)  
+hmmwv.SetPos(ChVectorD(0, 0, 1))
+world.AddBody(hmmwv)
 
 
-gps = chrono.ChSensor_GPS(hmmwv)
-system.Add(gps)
+imu = ChBodyEasySphere(0.1, 10)
+imu.SetPos(hmmwv.GetPos() + ChVectorD(0, 0, 0.5))
+imu.SetBodyFixed(True)
+world.AddBody(imu)
 
 
-
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0.5))  
-
-
-
-
+gps = ChBodyEasySphere(0.1, 10)
+gps.SetPos(hmmwv.GetPos() + ChVectorD(0.5, 0, 0.5))
+gps.SetBodyFixed(True)
+world.AddBody(gps)
 
 
-app = irrlicht.IrrlichtApp(system)
-app.Run()
+driver_input = ChVectorD(0, 0, 0)
+
+
+visual_system = IrrlichtVisualizer(world)
 
 
 while True:
-    system.DoStepDynamics(0.01)  
     
     
-    imu_data = imu.Get_data()
-    gps_data = gps.Get_data()
-    print(f"IMU Data: {imu_data}")
-    print(f"GPS Data: {gps_data}")
-    
-    
-    
-    
-    app.Render()
 
     
-    print(f"Vehicle Mass: {hmmwv.GetMass()}")
+    hmmwv.AddTorque(driver_input * 10)  
+
+    
+    imu_data = imu.GetRot()  
+    gps_data = gps.GetPos()  
+
+    
+    
+
+    
+    world.Step(0.01)
+
+    
+    visual_system.Render()
+
+    
+    print(f"Vehicle mass: {hmmwv.GetMass()}")

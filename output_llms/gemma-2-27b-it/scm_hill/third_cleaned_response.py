@@ -63,9 +63,10 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model, terrainHeight,
-                           chrono.ChVector2d(terrainLength, terrainWidth),
-                           chrono.ChVector2d(0, 0),
-                           chrono.ChVector2d(0, 0))
+                          chrono.ChVector2d(terrainLength, terrainWidth),
+                          chrono.ChVector2d(0, 0),
+                          chrono.ChVector2d(0, 0), 
+                          veh.GetDataFile("terrain/height_maps/bump64.bmp"))
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 

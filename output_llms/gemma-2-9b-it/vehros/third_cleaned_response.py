@@ -34,11 +34,6 @@ def main():
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
     terrain.Initialize()  
     
-    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)
-    box.SetPos(ch.ChVector3d(0, 0, 2))
-    hmmwv.GetSystem().Add(box)
-
-    
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
     vis.SetCameraVertical(ch.CameraVerticalDir_Z)
@@ -50,6 +45,11 @@ def main():
     vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+    
+    box = ch.ChBodyEasyBox(1.0, 1.0, 1.0)
+    box.SetPos(ch.ChVector3d(0, 0, 2))
+    hmmwv.GetSystem().AddBody(box)
 
     
     driver = veh.ChDriver(hmmwv.GetVehicle())
@@ -65,19 +65,24 @@ def main():
 
     
     sens_manager = ch.ChSensorManager()
+    sens_manager.SetUpdateFrequency(100)
+
     
-    
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 
-                              range=50, 
-                              angle_step=0.1, 
-                              num_rays=360, 
-                              scan_frequency=10)
-    lidar.SetFilterType(sens.ChLidarFilterType_GAUSSIAN, 0.5)  
-    lidar.SetFilterType(sens.ChLidarFilterType_RANGE_CLIP, 0, 50)  
+    lidar = sens.ChLidarSensor()
+    lidar.SetName("lidar")
+    lidar.SetSensorType(sens.SensorType_LIDAR)
+    lidar.SetFrequency(10)  
+    lidar.SetRange(50)  
+    lidar.SetResolution(0.1)  
+    lidar.SetMaxPoints(1000)
+    lidar.SetAngle(ch.ChVector3d(0, 0, 0))
+    lidar.SetPos(ch.ChVector3d(0, 0, 2))
+    lidar.AddFilter(sens.ChLidarFilterGaussian(0.2))  
+    lidar.AddFilter(sens.ChLidarFilterMaxRange(30))  
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
 
     ros_manager.Initialize()  
 

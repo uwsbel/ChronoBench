@@ -1,87 +1,102 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
 import math
 
 
 system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, 0, 0))
+application = chronoirr.ChIrrApp(system, 'PyChrono Lidar Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0, 3, 6), chronoirr.vector3df(0, 0, 0))
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh("path/to/your/mesh.obj", False, True)  
-mesh_body = chrono.ChBody()
-mesh_body.SetMesh(mesh)
-mesh_body.SetBodyFixed(True)  
-system.Add(mesh_body)
+mesh.LoadWavefrontMesh('path_to_mesh.obj', True, True)  
 
 
-application = chronoirr.ChIrrApp(system, "PyChrono Mesh with Lidar Simulation", chronoirr.dimension2du(800, 600))
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(0, 10, 20), chronoirr.vector3df(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-application.SetTimestep(1e-3)
-application.SetStepManage(True)
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.GetCollisionModel().ClearModel()
+body.GetCollisionModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1), 0.001)
+body.SetCollide(False)
 
 
-dummy_body = chrono.ChBody()
-dummy_body.SetMass(0.1)  
-dummy_body.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
-dummy_body.SetPos(chrono.ChVectorD(5, 2, 0))  
-system.Add(dummy_body)
+vis_shape = chrono.ChVisualShapeTriangleMesh()
+vis_shape.SetMesh(mesh)
+vis_shape.SetOpacity(1.0)
+body.AddVisualShape(vis_shape)
+
+system.Add(body)
 
 
 manager = sens.ChSensorManager(system)
 
-
 lidar = sens.ChLidarSensor(
-    dummy_body,           
-    10,                   
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  
-    800,                  
-    30,                   
-    chrono.CH_C_PI,       
-    chrono.CH_C_PI / 4,   
-    100.0                 
+    body,                    
+    100,                   
+    chrono.ChFrameD(),     
+    360,                   
+    30,                    
+    chrono.CH_C_PI,        
+    chrono.CH_C_PI / 4,    
+    100,                   
+    sens.LidarBeamShape_RECTANGULAR,
+    2,                     
+    0.003,                 
+    0.003                  
 )
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(0)
-lidar.SetCollectionWindow(0.01)
+lidar.SetCollectionWindow(1 / 100)
 
 
-noise = sens.ChNoiseGaussian(0.01)
-lidar.AddNoise(noise)
-
-
-lidar.PushFilter(sens.ChFilterVisualize(800, 30, "Lidar Visualization"))
-
+lidar.AddFilter(sens.ChFilterNoiseLidarNormal(0.01))  
+lidar.AddFilter(sens.ChFilterVisual())               
+lidar.AddFilter(sens.ChFilterPCwrite())              
 
 manager.AddSensor(lidar)
 
 
+time_step = 0.01
+time = 0
+orbit_radius = 5
+orbit_height = 2
+omega = 0.5  
+
+
 while application.GetDevice().run():
-    application.BeginScene()
+    
+    theta = omega * time
+    x = orbit_radius * math.cos(theta)
+    z = orbit_radius * math.sin(theta)
+    y = orbit_height
+    lidar_pos = chrono.ChVectorD(x, y, z)
     
     
-    time = system.GetChTime()
-    radius = 5.0
-    height = 2.0
-    theta = 0.1 * time  
-    x = radius * math.cos(theta)
-    z = radius * math.sin(theta)
-    dummy_body.SetPos(chrono.ChVectorD(x, height, z))
+    dir_to_origin = -lidar_pos.GetNormalized()
+    rot = chrono.ChQuaternionFromTwoVectors(chrono.ChVectorD(1, 0, 0), dir_to_origin)
     
     
-    application.DoStep()
+    lidar.SetOffsetPose(chrono.ChFrameD(lidar_pos, rot))
     
     
+    system.DoStepDynamics(time_step)
     manager.Update()
-    buffer = lidar.GetMostRecentBuffer()
     
     
-    if buffer.HasData():
-        point_cloud = buffer.GetAsPointCloud()
-        print(f"Time: {time:.3f}s, Lidar Points: {point_cloud.shape[0]} points")
+    if lidar.HasData():
+        data = lidar.GetMostRecentData()
+        point_cloud = data.GetPointcloud()
+        print(f"Time: {time:.2f}, Point cloud size: {point_cloud.size()}")
+        if point_cloud.size() > 0:
+            first_point = point_cloud[0]
+            print(f"  First point: ({first_point.x:.2f}, {first_point.y:.2f}, {first_point.z:.2f})")
     
+    
+    application.BeginScene()
+    application.DrawAll()
     application.EndScene()
+    
+    time += time_step

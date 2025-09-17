@@ -32,6 +32,7 @@ mesh.SetAutomaticGravity(False)
 nodePlotA = fea.ChNodeFEAxyz()  # Node for plotting
 nodePlotB = fea.ChNodeFEAxyz()  # Another node for plotting
 nodesLoad = []  # List for nodes to apply loads
+
 # Create interpolation functions for reference tracking (if needed)
 ref_X = chrono.ChFunctionInterp()
 ref_Y = chrono.ChFunctionInterp()
@@ -86,15 +87,16 @@ if (True):  # Block to execute the following setup
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (ix > 0) else None
-            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix] if (iz > 0) else None
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix] if (ix > 0) else None
+            boundary_4 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
 
             # Set nodes to the element
             melementA.SetNodes(
                 mynodes[(iz) * (nsections_x + 1) + ix],
                 mynodes[(iz) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                boundary_1, boundary_2, boundary_3
+                boundary_1, boundary_2, boundary_3, boundary_4
             )
 
             # Add layer to the element
@@ -108,17 +110,44 @@ if (True):  # Block to execute the following setup
             boundary_1 = mynodes[(iz) * (nsections_x + 1) + ix]
             boundary_2 = mynodes[(iz) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
             boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if (iz < nsections_z - 1) else None
+            boundary_4 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if (ix < nsections_z - 1) else None
 
             # Set nodes to the element
             melementB.SetNodes(
-                mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+                mynodes[(iz + 1) * (nsections_x + 1) + ix],
                 mynodes[(iz) * (nsections_x + 1) + ix + 1],
-                boundary_1, boundary_2, boundary_3
+                boundary_1, boundary_2, boundary_3, boundary_4
             )
 
             # Add layer to the element
             melementB.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
+
+            # Create second element
+            melementC = fea.ChElementShellBST()
+            mesh.AddElement(melementC)
+
+            # Define boundary nodes
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if (ix < nsections_x - 1) else None
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix] if (ix > 0) else None
+            boundary_4 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if (ix < nsections_z - 1) else None
+
+            # Set nodes to the element
+            melementC.SetNodes(
+                mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+                mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                mynodes[(iz) * (nsections_x + 1) + ix + 1],
+                boundary_1, boundary_2, boundary_3, boundary_4
+            )
+
+            # Add layer to the element
+            melementC.AddLayer(thickness, 0 * chrono.CH_DEG_TO_RAD, material)
+
+    # Fix upper nodes of the mesh
+    for j in range(30):
+        for k in range(30):
+            mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
     # Create visualization for shell elements
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
@@ -135,24 +164,13 @@ if (True):  # Block to execute the following setup
     mvisualizeshellB.SetSymbolsThickness(0.006)  # Set thickness of symbols
     mesh.AddVisualShapeFEA(mvisualizeshellB)  # Add visual shape to mesh
 
-# Create Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)  # Attach the physical system to the visualization
-vis.SetWindowSize(1024, 768)  # Set window size
-vis.SetWindowTitle('Shells FEA test: triangle BST elements')  # Set window title
-vis.Initialize()  # Initialize the visualization window
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add logo to the window
-vis.AddSkyBox()  # Add a skybox for background
-vis.AddCamera(chrono.ChVector3d(1, .3, 1.3), chrono.ChVector3d(.5, -.3, .5))  # Add and position the camera
-vis.AddTypicalLights()  # Add typical lights to the scene
+    # Change solver to PardisoMKL
+    mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
+    mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
+    sys.SetSolver(mkl_solver)  # Set the solver in the system
 
-# Change solver to PardisoMKL
-mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
-mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
-sys.SetSolver(mkl_solver)  # Set the solver in the system
-
-# Define time step for simulation
-timestep = 0.005
+    # Define time step for simulation
+    timestep = 0.005
 
 # Final setup and system updates
 sys.Setup()  # Prepare the system for simulation

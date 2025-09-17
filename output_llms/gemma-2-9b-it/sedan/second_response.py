@@ -48,7 +48,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 # Create systems
 # --------------
 
-# Create the Sedan vehicle, set parameters, and initialize
+# Create the first Sedan vehicle, set parameters, and initialize
 vehicle1 = veh.BMW_E90()
 vehicle1.SetContactMethod(contact_method)
 vehicle1.SetChassisCollisionType(chassis_collision_type)
@@ -68,7 +68,7 @@ vehicle1.SetTireVisualizationType(vis_type)
 
 vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the second vehicle
+# Create the second Sedan vehicle, set parameters, and initialize
 vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
@@ -76,6 +76,7 @@ vehicle2.SetChassisFixed(False)
 vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot2))
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
+
 
 vehicle2.Initialize()
 
@@ -112,9 +113,10 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle1.GetVehicle())
 vis.AttachVehicle(vehicle2.GetVehicle())
 
-
-# Create the driver systems
+# Create the driver system for vehicle 1
 driver1 = veh.ChInteractiveDriverIRR(vis)
+
+# Create the driver system for vehicle 2
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
@@ -138,6 +140,7 @@ driver2.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle1.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle2.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -168,6 +171,10 @@ while vis.Run() :
     vehicle1.Synchronize(time, driver1_inputs, terrain)
     vehicle2.Synchronize(time, driver2_inputs, terrain)
     vis.Synchronize(time, driver1_inputs, driver2_inputs)
+
+    # Apply sinusoidal steering input
+    driver1_inputs.steering = math.sin(time * 2.0)
+    driver2_inputs.steering = -math.sin(time * 2.0)
 
     # Advance simulation for one timestep for all modules
     driver1.Advance(step_size)

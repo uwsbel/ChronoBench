@@ -21,9 +21,9 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0
-terrainLength = 200.0  # Increased terrain length
-terrainWidth = 100.0
+terrainHeight = 0  # terrain height
+terrainLength = 200.0  # size in X direction
+terrainWidth = 100.0  # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -40,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
-# veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,8 +60,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength,
-                         terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                         terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -79,24 +78,27 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Path following parameters
-radius = 20.0
-center = chrono.ChVector3d(50, 0, 0)
-num_points = 36  # Number of points defining the circular path
+path_radius = 20.0
+path_center = chrono.ChVector3d(100, 0, 0)
+num_path_points = 36  # Number of points defining the circle
 path_points = []
-for i in range(num_points):
-    angle = 2 * math.pi * i / num_points
-    x = center.x + radius * math.cos(angle)
-    y = center.y + radius * math.sin(angle)
-    path_points.append(chrono.ChVector3d(x, y, 0))
+for i in range(num_path_points):
+    angle = 2 * math.pi * i / num_path_points
+    x = path_center.x + path_radius * math.cos(angle)
+    y = path_center.y + path_radius * math.sin(angle)
+    path_points.append(chrono.ChVector3d(x, y, terrainHeight))
 
 # PID controller gains
 kp = 1.0
 ki = 0.0
 kd = 0.1
 
-# Initialize PID controller
+# Controller state
 integral = 0.0
 previous_error = 0.0
+
+# Throttle value
+throttle_value = 0.3
 
 # Visualization of path points
 path_spheres = []
@@ -104,28 +106,37 @@ for point in path_points:
     sphere = chrono.ChBodyEasy()
     sphere.SetPos(point)
     sphere.SetMass(1.0)
-    sphere.SetCollide(True)
+    sphere.SetCollide(False)
+    sphere.SetVisualizationType(chrono.VisualizationType_SPHERE)
+    sphere.SetRadius(0.5)
+    sphere.AddAsset(chrono.ChTriangleMeshConnected())
+    sphere.GetCollisionModel().ClearModel()
+    sphere.GetCollisionModel().AddSphere(0.5)
     sphere.SetBodyFixed(False)
-    sphere.AddVisualization("sphere", 0.5)
-    vehicle.GetSystem().Add(sphere)
+    vis.AddBody(sphere)
     path_spheres.append(sphere)
 
-# Set constant throttle
-throttle_value = 0.3
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-current_path_point_index = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Calculate error
-    vehicle_pos = vehicle.GetVehicle().GetPos()
-    target_point = path_points[current_path_point_index]
-    error = target_point.x - vehicle_pos.x
+    # Calculate the target point (current path point)
+    current_path_index = step_number % num_path_points
+    target_point = path_points[current_path_index]
+
+    # Calculate the error
+    vehicle_position = vehicle.GetVehicle().GetPos()
+    error = target_point.x - vehicle_position.x  # Only consider x-axis for steering
 
     # PID control
     integral += error * step_size
@@ -136,32 +147,34 @@ while vis.Run():
     # Limit steering angle
     steering_angle = max(-0.5, min(steering_angle, 0.5))
 
-    # Apply steering and throttle
-    driver_inputs = veh.ChDriverInputs()
-    driver_inputs.throttle = throttle_value
-    driver_inputs.steering = steering_angle
-    driver_inputs.braking = 0.0
+    # Set steering input
+    vehicle.GetVehicle().SetSteering(steering_angle)
 
-    # Update modules
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    # Set throttle input
+    vehicle.GetVehicle().SetThrottle(throttle_value)
 
-    # Advance simulation
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    # Set braking input
+    vehicle.GetVehicle().SetBraking(0.0)
 
-    # Update path point index
-    vehicle_pos = vehicle.GetVehicle().GetPos()
-    target_point = path_points[current_path_point_index]
-    distance_to_target = chrono.ChVector3d(target_point.x - vehicle_pos.x, target_point.y - vehicle_pos.y, 0).Norm()
-    if distance_to_target < 2.0:
-        current_path_point_index = (current_path_point_index + 1) % num_points
-
-    step_number += 1
+    # Render scene and output POV-Ray data
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Update modules (process inputs from other modules)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time)
+    vis.Synchronize(time)
+
+    # Advance simulation for one timestep for all modules
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    s.Spin(step_size)

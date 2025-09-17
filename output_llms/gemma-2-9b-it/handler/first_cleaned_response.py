@@ -1,13 +1,15 @@
 import pychrono as chrono
-import pychrono_ros as ros_chrono
 import rospy
+from std_msgs.msg import Int32
 
 
-rospy.init_node('pychrono_ros_example')
+chrono.SetChronoThread(chrono.CHRONO_THREAD_ROS)
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
 material = chrono.ChMaterialSurfaceNSC()
@@ -16,36 +18,41 @@ material.SetRestitution(0.2)
 
 
 floor = chrono.ChBodyEasyBox(10, 10, 0.1, material)
-floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.SetPos(chrono.ChVectorD(0, 0, -0.5))
 floor.SetBodyFixed(True)
-system.Add(floor)
+system.AddBody(floor)
 
 
 box = chrono.ChBodyEasyBox(1, 1, 1, material)
-box.SetPos(chrono.ChVectorD(0, 1, 0))
-system.Add(box)
+box.SetPos(chrono.ChVectorD(0, 0, 0.5))
+system.AddBody(box)
 
 
-ros_manager = ros_chrono.RosManager(system)
+class MyRosHandler(chrono.ChRosHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        self.topic_name = topic_name
+        self.pub = rospy.Publisher(self.topic_name, Int32, queue_size=10)
+
+    def OnUpdate(self, time):
+        
+        msg = Int32()
+        msg.data = int(time)
+        self.pub.publish(msg)
 
 
-class MyRosHandler(ros_chrono.RosBodyHandler):
-    def __init__(self, body):
-        super().__init__(body)
-        self.topic = rospy.Publisher('my_topic', rospy.Int32, queue_size=10)
-
-    def update(self):
-        self.topic.publish(int(self.body.GetPos().y))
+ros_manager = chrono.ChRosManager()
+ros_manager.SetClockHandler(chrono.ChRosClockHandler())
+ros_manager.SetBodyHandler(chrono.ChRosBodyHandler())
+ros_manager.SetTransformHandler(chrono.ChRosTransformHandler())
+ros_manager.AddHandler(MyRosHandler("my_topic"))
 
 
-ros_manager.RegisterHandler(MyRosHandler(box))
-
-
-ros_manager.AddClockHandler()
-ros_manager.AddBodyHandler(box)
-ros_manager.AddTransformHandler(box)
-
+rospy.init_node("chrono_ros_node")
+ros_manager.Start()
 
 while not rospy.is_shutdown():
-    system.DoStepDynamics(chrono.ChTime(0.01))  
-    ros_manager.RosUpdate()
+    system.DoStepDynamics(0.01)
+    ros_manager.DoStep()
+
+ros_manager.Stop()

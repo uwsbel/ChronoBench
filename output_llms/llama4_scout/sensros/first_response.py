@@ -1,88 +1,86 @@
 import chrono as ch
-import chrono.sensor as cs
-import chrono_ros as cr
+import chrono.sensor as chs
+import chrono_ros as chr
 
-# Initialize PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components
 ch.ChronoEngine.Initialize()
 
-# Create the Chrono system
+# 2. Create the Chrono system
 system = ch.ChronoSystemNSM()
 
-# Create a ground body
-ground_body = ch.ChronoBody(system)
-ground_body.SetPos(ch.ChronoVector(0, 0, 0))
-ground_body.SetRot(ch.ChronoQuaternion(1, 0, 0, 0))
+# 3. Add ground body
+ground_body = system.GetGroundBody()
 
-# Add a mesh object for visualization
-mesh = ch.ChronoTriangleMeshShape(ground_body)
-mesh.SetFilename("path/to/mesh.obj")
+# Add a mesh for visualization
+mesh = ch.ChronoTriangleMeshShape(ground_body, "path/to/mesh.obj")
 ground_body.AddVisualShape(mesh)
 
-# Set up the ground body to move
-def MoveGroundBody(t):
-    x = 10 * ch.ChTime.cos(2 * ch.ChTime.pi * t)
-    y = 10 * ch.ChTime.sin(2 * ch.ChTime.pi * t)
-    z = 0
-    ground_body.SetPos(ch.ChronoVector(x, y, z))
+# Set ground body to move (example: rotate around Y axis)
+ground_body.SetPos_dt(ch.ChVector3(0, 0, 0))
+ground_body.SetRot_dt(ch.ChQuaternion(1, 0, 0, 0))
 
-# Create a sensor manager
-sensor_manager = cs.ChronoSensorManager(system)
+# 4. Sensor manager
+sensor_manager = chs.ChSensorManager(system)
 
-# Create and add sensors
-camera = cs.ChronoCameraSensor(ground_body)
-camera.SetResolution(ch.ChronoVector(640, 480))
-camera.SetFOV(ch.ChronoVector(60, 45))
-camera.SetNearPlane(0.1)
-camera.SetFarPlane(100)
+# 5. Add sensors
+camera = chs.ChCameraSensor(ground_body,  # parent body
+                            chs.ChFrame3(0, 0, 0, 0, 0, 0),  # offset pose
+                            640, 480,  # image size
+                            chs.SENSOR orientations=[0, 0, 0],  # orientation
+                            chs.SENSOR positions=[0, 0, 1.5])  # position
 sensor_manager.AddSensor(camera)
 
-lidar = cs.ChronoLidarSensor(ground_body)
-lidar.SetResolution(ch.ChronoVector(128, 128))
-lidar.SetFOV(ch.ChronoVector(30, 30))
-lidar.SetNearPlane(0.1)
-lidar.SetFarPlane(100)
+lidar = chs.ChLidarSensor(ground_body,
+                          chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                          100,  # horizontal resolution
+                          100,  # vertical resolution
+                          chs.SENSOR orientations=[0, 0, 0],
+                          chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(lidar)
 
-gps = cs.ChronoGPSSensor(ground_body)
-gps.SetLocalization(ch.ChronoVector(1, 1, 1))
+gps = chs.ChGPSSensor(ground_body,
+                      chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                      chs.SENSOR orientations=[0, 0, 0],
+                      chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(gps)
 
-accelerometer = cs.ChronoAccelerometerSensor(ground_body)
-accelerometer.SetFrameRate(100)
+accelerometer = chs.ChAccelerometerSensor(ground_body,
+                                          chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                          chs.SENSOR orientations=[0, 0, 0],
+                                          chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(accelerometer)
 
-gyroscope = cs.ChronoGyroscopeSensor(ground_body)
-gyroscope.SetFrameRate(100)
+gyroscope = chs.ChGyroscopeSensor(ground_body,
+                                  chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                  chs.SENSOR orientations=[0, 0, 0],
+                                  chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(gyroscope)
 
-magnetometer = cs.ChronoMagnetometerSensor(ground_body)
-magnetometer.SetFrameRate(100)
+magnetometer = chs.ChMagnetometerSensor(ground_body,
+                                        chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                        chs.SENSOR orientations=[0, 0, 0],
+                                        chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(magnetometer)
 
-# Create a ROS manager
-ros_manager = cr.ChronoROSManager()
-
-# Register sensors with ROS manager
-ros_manager.RegisterSensor(camera, "/camera/image")
-ros_manager.RegisterSensor(lidar, "/lidar/pointcloud")
-ros_manager.RegisterSensor(gps, "/gps/fix")
-ros_manager.RegisterSensor(accelerometer, "/accelerometer/data")
-ros_manager.RegisterSensor(gyroscope, "/gyroscope/data")
-ros_manager.RegisterSensor(magnetometer, "/magnetometer/data")
+# 6. ROS manager and register sensors
+ros_manager = chr.ChROSManager()
+ros_manager.AttachSensor(camera, "camera/image_raw")
+ros_manager.AttachSensor(lidar, "lidar/point_cloud")
+ros_manager.AttachSensor(gps, "gps/fix")
+ros_manager.AttachSensor(accelerometer, "accelerometer/data")
+ros_manager.AttachSensor(gyroscope, "gyroscope/data")
+ros_manager.AttachSensor(magnetometer, "magnetometer/data")
 
 # Simulation loop
-while system.GetChTime() < 10:
+while system.GetChTime() < 10:  # simulate for 10 seconds
     # Update sensors
     sensor_manager.Update()
-
+    
     # Advance simulation
-    system.DoStep(0.01)
-
+    system.DoStep(1e-3)  # step size
+    
     # Maintain real-time execution
-    ch.ChronoEngine.Sleep(ch.ChronoTime(0.01))
+    chr.ChROSUtils.SleepUntilNextStep(system.GetChTimeStep())
 
-    # Move ground body
-    MoveGroundBody(system.GetChTime())
-
-# Clean up
-ch.ChronoEngine.Finalize()
+# Cleanup
+ch.ChronoEngine.Terminate()

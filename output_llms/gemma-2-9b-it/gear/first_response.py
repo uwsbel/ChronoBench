@@ -1,63 +1,55 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 
-# Initialize Chrono
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
+# Initialize the Chrono engine
 system = chrono.ChSystemNSC()
 
-# Create the scene
-vis = chronoirr.ChIrrApp(system)
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-vis.SetCamera(vis.GetActiveCamera())
-
-# Define materials
-mat_truss = chrono.ChMaterialSurfaceNSC()
-mat_truss.SetFriction(0.5, 0.5)
-mat_truss.SetRestitution(0.0)
-mat_gear = chrono.ChMaterialSurfaceNSC()
-mat_gear.SetFriction(0.8, 0.8)
-mat_gear.SetRestitution(0.1)
+# Set up the scene
+vis = chrono.ChVisualSystemIrrlicht(width=800, height=600)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Epicyclic Gears")
+vis.AddCamera(chrono.ChCamera(), chrono.ChVectorD(0, 0, 5))
+vis.SetAmbientLight(chrono.ChColor(0.1, 0.1, 0.1))
+vis.SetSunLight(chrono.ChColor(0.8, 0.8, 0.8), chrono.ChVectorD(1, 1, 1))
 
 # Create the fixed truss
 truss = chrono.ChBodyEasyBox(1, 1, 1, 100)
 truss.SetPos(chrono.ChVectorD(0, 0, 0))
-truss.SetBodyFixed(True)
-truss.SetMaterialSurface(mat_truss)
-system.AddBody(truss)
+system.Add(truss)
 
 # Create the rotating bar
-bar = chrono.ChBodyEasyCylinder(0.1, 1, 100)
+bar = chrono.ChBodyEasyCylinder(0.1, 0.5, 100)
 bar.SetPos(chrono.ChVectorD(0, 0, 0.5))
-bar.SetBodyFixed(False)
-bar.SetMaterialSurface(mat_truss)
-system.AddBody(bar)
+bar.SetRot(chrono.Q_from_AngX(chrono.deg2rad(45)))
+system.Add(bar)
 
 # Create the gears
-gear1 = chrono.ChBodyEasyGear(0.2, 20, 100)
-gear1.SetPos(chrono.ChVectorD(0.5, 0, 0))
-gear1.SetBodyFixed(False)
-gear1.SetMaterialSurface(mat_gear)
-system.AddBody(gear1)
+gear1 = chrono.ChBodyEasyCylinder(0.2, 0.1, 100)
+gear1.SetPos(chrono.ChVectorD(0.3, 0, 0.5))
+system.Add(gear1)
 
-gear2 = chrono.ChBodyEasyGear(0.2, 20, 100)
-gear2.SetPos(chrono.ChVectorD(1, 0, 0))
-gear2.SetBodyFixed(False)
-gear2.SetMaterialSurface(mat_gear)
-system.AddBody(gear2)
+gear2 = chrono.ChBodyEasyCylinder(0.2, 0.1, 100)
+gear2.SetPos(chrono.ChVectorD(0.3, 0, 0.5))
+system.Add(gear2)
+
+# Create the gear motor
+motor = chrono.ChGearMotor()
+motor.SetPos(chrono.ChVectorD(0.3, 0, 0.5))
+motor.SetSpeed(chrono.rad2deg(10))  # Set constant rotation speed
+system.Add(motor)
 
 # Connect the gears
-gear1.SetGearMesh(gear2)
+gear1.AddGear(gear2, 1, 1)  # Connect gear1 to gear2 with a 1:1 ratio
+motor.AddGear(gear1, 1, 1)  # Connect motor to gear1 with a 1:1 ratio
 
-# Add a motor to gear1
-motor = chrono.ChMotorRotation(gear1, gear2, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 1), 100)
-motor.SetMode(chrono.ChMotorMode.MODE_VELOCITY)
-motor.SetSpeed(2 * chrono.CH_C_PI)  # Set a constant rotation speed
-system.AddMotor(motor)
+# Set up materials and visualization
+gear1.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0.8, 0.2, 0.2), chrono.ChColor(0.5, 0.1, 0.1)))
+gear2.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0.2, 0.8, 0.2), chrono.ChColor(0.1, 0.5, 0.1)))
+bar.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0.2, 0.2, 0.8), chrono.ChColor(0.1, 0.1, 0.5)))
+truss.SetMaterial(chrono.ChMaterialSurface(chrono.ChColor(0.8, 0.8, 0.8), chrono.ChColor(0.6, 0.6, 0.6)))
 
 # Run the simulation
-vis.SetTimestep(1/240)
-vis.Start()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.DoStepDynamics(0.01)
 
-while vis.Run():
-    system.DoStepDynamics(vis.GetTimestep())
-    vis.Render()
+# Visualize the simulation
+vis.Run()

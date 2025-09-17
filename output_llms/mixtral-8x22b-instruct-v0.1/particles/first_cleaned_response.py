@@ -23,34 +23,25 @@ class ParticleEmitter:
 emitter = ParticleEmitter()
 
 
-def custom_gravitational_force(body1, body2):
-    force = chrono.ChVectorD(0, -6.67430e-11 * body1.GetMass() * body2.GetMass() / (body1.GetPos() - body2.GetPos()).LengthSquared(), 0)
-    body1.Accumulate_force(force, body1.GetPos(), True)
-    body2.Accumulate_force(-force, body2.GetPos(), True)
+myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Particle Attraction', chronoirr.dimension2du(800, 600))
 
 
-visualizer = chronoirr.ChIrrApp(my_system, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
-visualizer.AddTypicalSky()
-visualizer.AddTypicalLogo()
-visualizer.AddTypicalCamera(chronoirr.vector3df(0, 4, -3))
-visualizer.AddLightWithShadow(chronoirr.vector3df(2, 4, -2), chronoirr.vector3df(2, 2, -2), 3, 2, 20, 50, 100)
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    emitter.emit_particle()  
+    myapplication.EndScene()
 
 
-while visualizer.Run():
-    my_system.DoStepDynamics(0.01)
-    visualizer.BeginScene()
-    visualizer.DrawAll()
-    visualizer.EndScene()
+for body in my_system.Get_bodylist():
+    for other_body in my_system.Get_bodylist():
+        if body != other_body:
+            force = chrono.ChVectorD.Zero()
+            distance = body.GetPos() - other_body.GetPos()
+            force.x = distance.x * 10000
+            force.y = distance.y * 10000
+            force.z = distance.z * 10000
+            body.Accumulate_force(force, body.GetPos(), True)
 
-    
-    if np.random.rand() < 0.01:
-        emitter.emit_particle()
-
-    
-    for body1 in my_system.Get_bodylist():
-        for body2 in my_system.Get_bodylist():
-            if body1 != body2:
-                custom_gravitational_force(body1, body2)
-
-
-visualizer.Close()
+myapplication.Close()

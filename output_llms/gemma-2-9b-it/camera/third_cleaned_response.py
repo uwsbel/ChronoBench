@@ -15,12 +15,11 @@ def main():
     
     
     
-    
     side = 1.0  
-    box_shape = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_shape.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_shape.SetTexture(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.png"))  
-    mphysicalSystem.Add(box_shape)  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
+    box_body.SetBodyFixed(True)  
+    mphysicalSystem.Add(box_body)  
 
     
     
@@ -40,11 +39,11 @@ def main():
     
     
     
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 
     
     cam = sens.ChCameraSensor(
-        box_shape,              
+        box_body,              
         update_rate,            
         offset_pose,            
         image_width,            
@@ -119,3 +118,6 @@ def main():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
+
+        
+        manager.Update()

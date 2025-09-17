@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import numpy as np
 
 
 initLoc = chrono.ChVector3d(-20, 0, 1.5)
@@ -35,8 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 vehicle = veh.MAN_5t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -57,9 +56,11 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-mesh_file = veh.GetDataFile("terrain/meshes/test.obj")
-texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
-terrain.AddMesh(patch_mat, mesh_file, 1.0, chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(chrono.QUNIT))
+mesh_file = veh.GetDataFile("terrain/meshes/bump.obj")
+terrain.AddMesh(patch_mat, mesh_file, 1.0, chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+patch = terrain.GetMesh()
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
@@ -89,7 +90,7 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = round(render_step_size / step_size)
+render_steps = int(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

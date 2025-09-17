@@ -1,115 +1,116 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import os
 
 
-system = chrono.ChSystemNSC()
-system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
 
 
-def create_terrain(system):
+def main():
     
-    concrete_box = chrono.ChBodyEasyBox(20, 20, 0.2, 2000, True, True)
-    concrete_box.SetPos(chrono.ChVectorD(-10, 0, -0.1))
-    concrete_box.SetBodyFixed(True)
-    concrete_box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    system.Add(concrete_box)
-
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
     
-    grass_box = chrono.ChBodyEasyBox(20, 20, 0.2, 2000, True, True)
-    grass_box.SetPos(chrono.ChVectorD(20, 0, -0.1))
-    grass_box.SetBodyFixed(True)
-    grass_box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"))
-    system.Add(grass_box)
+    system = chrono.ChSystemNSC()
+    system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+    system.SetSolverMaxIterations(150)
 
     
-    bump_mesh = chrono.ChTriangleMeshConnected()
-    bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/speed_bump.obj"))
-    bump_body = chrono.ChBody()
-    bump_body.SetPos(chrono.ChVectorD(5, 0, 0))
-    bump_body.SetBodyFixed(True)
+    terrain = veh.RigidTerrain(system)
+    
+    
+    patch1_mat = chrono.ChMaterialSurfaceNSC()
+    patch1 = terrain.AddPatch(patch1_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), 40, 20)
+    patch1.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 40, 20)
+    patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    
+    
+    patch2 = terrain.AddPatch(patch1_mat, chrono.ChVectorD(40, 0, 0.1), chrono.ChVectorD(0, 0, 1), 40, 40)
+    patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 40, 40)
+    patch2.SetColor(chrono.ChColor(0.4, 0.8, 0.4))
+    
+    
+    mesh_bump = chrono.ChTriangleMeshConnected()
+    mesh_bump.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/bump.obj"))
+    bump_mat = chrono.ChMaterialSurfaceNSC()
     bump_shape = chrono.ChTriangleMeshShape()
-    bump_shape.SetMesh(bump_mesh)
-    bump_shape.SetTexture(chrono.GetChronoDataFile("textures/stone.jpg"))
-    bump_body.AddVisualShape(bump_shape)
-    bump_body.GetCollisionModel().ClearModel()
-    bump_body.GetCollisionModel().AddTriangleMesh(bump_mesh, False, False)
-    bump_body.GetCollisionModel().BuildModel()
-    bump_body.SetCollide(True)
+    bump_shape.SetMesh(mesh_bump)
+    bump_body = chrono.ChBody()
+    bump_body.AddAsset(bump_shape)
+    bump_body.SetPos(chrono.ChVectorD(20, -10, 0))
+    bump_body.SetBodyFixed(True)
     system.Add(bump_body)
+    
+    
+    heightmap = veh.RigidTerrain.HF_Patch(system)
+    heightmap.SetTexture(veh.GetDataFile("terrain/height_maps/height_map.png"))
+    heightmap.Initialize(veh.GetDataFile("terrain/height_maps/height_map.bmp"), 
+                         chrono.ChVectorD(80, -20, 0), 
+                         chrono.ChVectorD(100, 0, 0), 
+                         chrono.ChVectorD(0, 100, 0), 
+                         0, 0, 5, 5)
+    
+    terrain.Initialize()
 
     
-    heightmap = chrono.ChBodyEasyHeightmap(
-        chrono.GetChronoDataFile("heightmaps/bump.jpg"),  
-        20, 20,          
-        0, 1.0,          
-        True, True       
-    )
-    heightmap.SetPos(chrono.ChVectorD(5, 15, -0.5))
-    heightmap.SetBodyFixed(True)
-    heightmap.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/dirt.jpg"))
-    system.Add(heightmap)
+    hmmwv = veh.HMMWV_Reduced(system)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_SHAFTS)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetTireType(veh.TireModelType_RIGID)
+    
+    hmmwv.Initialize()
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-
-def create_vehicle(system):
     
-    init_pos = chrono.ChVectorD(0, 0, 0.5)
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-    
-    vehicle = veh.HMMWV_Full()
-    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
-    vehicle.SetEngineType(veh.EngineModelType_SHAFTS)
-    vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
-    
-    
-    vehicle.Initialize()
-    
-    
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    
-    system.Add(vehicle.GetVehicle())
-
-
-def setup_visualization(system):
-    app = veh.ChWheeledVehicleIrrApp(system.GetVehicle(), "HMMWV Simulation")
-    app.AddTypicalLights()
-    app.SetChaseCamera(chrono.ChVectorD(0, 0, 1.5), 6, 0.5)
-    app.SetTimestep(0.02)
-    app.AssetBindAll()
-    app.AssetUpdateAll()
-    return app
-
-
-def create_driver(app):
-    driver = veh.ChIrrGuiDriver(app)
+    driver = veh.ChIrrGuiDriver(irr_app)
     driver.SetSteeringDelta(0.02)
     driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.02)
-    return driver
+    driver.SetBrakingDelta(0.06)
+    hmmwv.GetVehicle().SetDriver(driver)
+
+    
+    irr_app = irr.ChIrrApp(system, "HMMWV on Complex Terrain", irr.dimension2du(1280, 720))
+    irr_app.AddTypicalLights()
+    irr_app.AddTypicalCamera(irr.vector3df(0, 10, 2), irr.vector3df(0, 0, 0))
+    irr_app.AddSkyBox()
+    irr_app.AssetBindAll()
+    irr_app.AssetUpdateAll()
+
+    
+    step_size = 0.01
+    realtime_step = True
+
+    while irr_app.GetDevice().run():
+        time = system.GetChTime()
+        
+        
+        irr_app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        irr_app.DrawAll()
+        irr_app.EndScene()
+        
+        
+        driver.Synchronize(time)
+        
+        
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        
+        
+        system.DoStepDynamics(step_size)
+        
+        
+        irr_app.Synchronize(driver.GetInputModeAsString(), driver.GetInputs())
+        hmmwv.Advance(step_size)
+        irr_app.Advance(step_size)
 
 
-create_terrain(system)
-create_vehicle(system)
-app = setup_visualization(system)
-driver = create_driver(app)
 
 
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    
-    driver_inputs = driver.GetInputs()
-    system.GetVehicle().GetDriver().SetInputs(driver_inputs)
-    
-    
-    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-    app.DrawAll()
-    app.Advance(time)
-    app.EndScene()
-    system.DoStepDynamics(0.01)
+if __name__ == '__main__':
+    main()

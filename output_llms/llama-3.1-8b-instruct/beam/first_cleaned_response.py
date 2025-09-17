@@ -2,42 +2,39 @@ import chrono as ch
 import chrono-python-irrlicht as cpi
 
 
-ch.InitChSystem()
-irrlicht = cpi.ChIrrAppCreate("PyChrono Beam Simulation", 1024, 768)
+ch.InitChronics()
 
 
-def create_beam(node1, node2, length, diameter, Young_modulus, density):
-    beam = ch.ChBeam(node1, node2, length, diameter, Young_modulus, density)
-    beam.SetMaterial(0.5, 0.5, 0.5)  
-    return beam
+sys = ch.ChSystem()
 
 
-node1 = ch.ChNodeXYZ(0, 0, 0)
-node2 = ch.ChNodeXYZ(5, 0, 0)
-node3 = ch.ChNodeXYZ(5, 5, 0)
-node4 = ch.ChNodeXYZ(0, 5, 0)
 
-beam1 = create_beam(node1, node2, 5, 0.1, 2e11, 7850)
-beam2 = create_beam(node2, node3, 5, 0.1, 2e11, 7850)
-beam3 = create_beam(node3, node4, 5, 0.1, 2e11, 7850)
-beam4 = create_beam(node4, node1, 5, 0.1, 2e11, 7850)
+n1 = ch.ChNodeBeam()
+n1.SetPos(ch.Vec(0, 0, 0))
+n2 = ch.ChNodeBeam()
+n2.SetPos(ch.Vec(2, 0, 0))
+n3 = ch.ChNodeBeam()
+n3.SetPos(ch.Vec(2, 2, 0))
 
 
-irrlicht.AddObject(node1)
-irrlicht.AddObject(node2)
-irrlicht.AddObject(node3)
-irrlicht.AddObject(node4)
-irrlicht.AddObject(beam1)
-irrlicht.AddObject(beam2)
-irrlicht.AddObject(beam3)
-irrlicht.AddObject(beam4)
+beam1 = ch.ChBeam()
+beam1.SetNode1(n1)
+beam1.SetNode2(n2)
+beam1.SetCrossSection(ch.ChBeamCrossSectionBox(0.1, 0.1))
+beam1.SetMaterialDef(ch.ChMaterialSurfaceElastic(1e9, 1e9, 0.3))
+sys.Add(beam1)
 
-while not irrlicht.IsClosed():
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.EndScene()
-    irrlicht.DoStep()
+beam2 = ch.ChBeam()
+beam2.SetNode1(n2)
+beam2.SetNode2(n3)
+beam2.SetCrossSection(ch.ChBeamCrossSectionBox(0.1, 0.1))
+beam2.SetMaterialDef(ch.ChMaterialSurfaceElastic(1e9, 1e9, 0.3))
+sys.Add(beam2)
 
 
-irrlicht.Terminate()
-ch.FinalizeChSystem()
+irrlicht = cpi.ChIrrApp(sys, "PyChrono Beam Simulation", cpi.dimension2D)
+irrlicht.AddLine(n1.GetPos(), n2.GetPos(), cpi.Color(1, 0, 0))
+irrlicht.AddLine(n2.GetPos(), n3.GetPos(), cpi.Color(0, 1, 0))
+
+
+irrlicht.Run()

@@ -3,7 +3,7 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath('path_to_chrono_data')  
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  
 
 
 system = chrono.ChSystemNSC()
@@ -11,46 +11,68 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
-
-beam_length = 2.0
+beam_length = 1.0
 beam_width = 0.1
 beam_height = 0.1
 num_elements = 10
 
 
-beam_mesh = chrono.ChMesh()
-beam_mesh.SetAutomaticGravity(False)
+beam_mesh = chrono.fea.ChMesh()
 
 
 nodes = []
 for i in range(num_elements + 1):
     x = i * beam_length / num_elements
-    node = chrono.ChNodeFEAxyzrot()
-    node.SetPos(chrono.ChVectorD(x, 0, 0))
-    node.SetMass(0.1)  
+    node = chrono.fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
     beam_mesh.AddNode(node)
     nodes.append(node)
 
 
 for i in range(num_elements):
-    element = chrono.ChElementBeamANCF()
+    element = chrono.fea.ChElementBeamEuler()
     element.SetNodes(nodes[i], nodes[i+1])
-    element.SetDimensions(beam_width, beam_height)
+    element.SetBeamInertia(beam_width*beam_height**3/12, beam_height*beam_width**3/12)
+    element.SetBeamArea(beam_width * beam_height)
     element.SetYoungModulus(2.1e11)  
     element.SetPoissonRatio(0.3)
-    element.SetDensity(7850)  
     beam_mesh.AddElement(element)
 
 
-fix_constraint = chrono.ChLinkLockLock()
+fix_constraint = chrono.fea.ChLinkPointFrame()
 fix_constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-system.AddLink(fix_constraint)
+system.Add(fix_constraint)
 
 
+system.Add(beam_mesh)
+
+
+
+force_magnitude = 1000.0  
 force = chrono.ChForce()
-force.SetMode(chrono.ChForce.FORCE)
-force.SetF_force(chrono.ChVectorD(0, 0, -1000))  
+force.SetMode(chrono.ChForce.FORCE_MODE_FORCE)
+force.SetF_force(chrono.ChVectorD(0, -force_magnitude, 0))
 nodes[-1].SetForce(force)
+
+
+class CustomMotorFunction(chrono.ChFunction):
+    def __init__(self):
+        super().__init__()
+        self.time = 0.0
+
+    def Get_y(self, time):
+        self.time = time
+        
+        if time < 1.0:
+            return time * force_magnitude
+        else:
+            return force_magnitude
+
+
+custom_motor = CustomMotorFunction()
+nodes[-1].SetForce(chrono.ChForce())
+nodes[-1].GetForce().SetMode(chrono.ChForce.FORCE_MODE_FUNCTION)
+nodes[-1].GetForce().SetF_force(chrono.ChVectorD(0, -1, 0))
+nodes[-1].GetForce().SetF_function(custom_motor)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -60,33 +82,27 @@ vis.SetWindowTitle('Beam Buckling Simulation')
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 1, 3), chrono.ChVectorD(0, 0, 0))
-vis.SetCameraMoveScale(0.01)
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, 5, 2), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 
-beam_asset = chrono.ChVisualizationFEAmesh(beam_mesh)
-beam_asset.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_PLOT_NODE_DISPLACEMENT)
-beam_asset.SetFEMglyphType(chrono.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-beam_asset.SetFEMscaling(0.1)
-beam_asset.SetWireframe(True)
-beam_mesh.AddAsset(beam_asset)
-
-
-system.SetSolverType(chrono.ChSolver.Type_PSSOR)
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
 system.SetMaxItersSolverSpeed(100)
 system.SetMaxItersSolverStab(100)
-system.SetTol(1e-10)
-system.SetMaxPenetrationRecoverySpeed(1.0)
+system.SetTolForce(1e-10)
+
+timestepper = chrono.ChTimestepperHHT()
+system.SetTimestepper(timestepper)
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(10)
+timestepper.SetTol(1e-10)
 
 
 time_step = 0.001
-simulation_time = 5.0
-output_fps = 30
-output_step = 1.0 / output_fps
-
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()
@@ -94,11 +110,10 @@ while vis.Run():
 
     system.DoStepDynamics(time_step)
 
-    current_time = system.GetChTime()
-    if current_time >= simulation_time:
-        break
-
     
-    if int(current_time % 1) == 0:
-        print(f"Time: {current_time:.2f}s")
-        print(f"Tip displacement: {nodes[-1].GetPos().z:.4f}m")
+    current_time = system.GetChTime()
+    displacement = nodes[-1].GetPos().y
+    print(f"Time: {current_time:.2f}s, Displacement: {displacement:.4f}m")
+
+    if current_time > 2.0:  
+        break

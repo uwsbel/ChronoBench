@@ -105,8 +105,9 @@ step_number = 0
 render_frame = 0
 
 
-last_manever_time = 0.0
-lane_change_interval = 5.0  
+lane_change_speed = 0.5  
+lane_change_duration = 2.0  
+last_lane_change_time = 0.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -134,43 +135,37 @@ while vis.Run():
     vis.Advance(step_size)
 
     
+    if time - last_lane_change_time > lane_change_duration:
+        
+        current_lane = int((vehicle.GetTractor().GetPosition().y) / 1.5)  
+        target_lane = (current_lane + 1) % 2  
+
+        
+        elapsed_time = time - last_lane_change_time
+        remaining_time = lane_change_duration - elapsed_time
+
+        
+        steer_force = lane_change_speed * (remaining_time / lane_change_duration)
+        driver.SetSteeringInput(steer_force)
+
+        
+        throttle_input = 0.5 * (remaining_time / lane_change_duration)
+        driver.SetThrottleInput(throttle_input)
+
+        
+        last_lane_change_time = time
+
+        
+        driver.SetSteeringInput(0)
+        driver.SetThrottleInput(0)
+
+    
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
 
     
-    if time - last_manever_time > lane_change_interval:
-        
-        print("Performing lane change at time:", time)
-        
-        
-        vehicle.GetSteering().SetAngle(0.0)
-        vehicle.GetBraking().SetBrake(1.0)
-        while vehicle.GetVelocity().GetMagnitude() > 0.1:
-            vehicle.Advance(step_size)
-        
-        
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.1))
-        
-        
-        vehicle.GetSteering().SetAngle(1.0)  
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        
-        vehicle.GetSteering().SetAngle(1.0)  
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        
-        vehicle.GetSteering().SetAngle(0.0)
-        chrono.ChTime.Sleep(chrono.ChTime(step_size * 0.5))
-        
-        
-        last_manever_time = time
-
-        
-        vehicle.GetTractor().GetChassis().SetOrientation(initRot)
+    print(f"Current Lane: {current_lane}")
+    print(f"Time since last lane change: {time - last_lane_change_time}")
+    print(f"Remaining time for lane change: {remaining_time}")

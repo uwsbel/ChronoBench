@@ -24,9 +24,9 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  # Make the body movable.
     mesh_body.SetMass(0)  # Set mass to 0 (static object).
-    sys.Add(mesh_body)  # Added as per the instructions
+    sys.Add(mesh_body)  # Added the mesh body to the simulation system.
 
-    # Create the ground body to attach sensors.
+    # Create a ground body to attach sensors.
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
     ground_body.SetFixed(False)  # Make the body movable.
@@ -40,6 +40,7 @@ def main():
     intensity = 1.0
     sens_manager.scene.AddPointLight(ch.ChVector3f(2, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
     sens_manager.scene.AddPointLight(ch.ChVector3f(9, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
+    sens_manager.scene.AddPointLight(ch.ChVector3f(16, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
     sens_manager.scene.AddPointLight(ch.ChVector3f(23, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
 
     # Create and configure a camera sensor.
@@ -48,7 +49,7 @@ def main():
     cam.PushFilter(sens.ChFilterVisualize(1280, 720))  # Visualize the camera output.
     cam.PushFilter(sens.ChFilterRGBA8Access())  # Access raw RGBA8 data.
     cam.SetName("camera")
-    sens_manager.AddSensor(cam)
+    sens_manager.scene.AddSensor(cam)
 
     # Create and configure a lidar sensor.
     lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
@@ -57,42 +58,40 @@ def main():
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
     lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  # Visualize the point cloud.
     lidar.SetName("lidar")
-    sens_manager.AddSensor(lidar)
-
+    sens_manager.scene.AddSensor(lidar)
+    
     # Create 2d lidar
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Added as per the instructions
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Added as per the instructions
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Added as per the instructions
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
-    sens_manager.AddSensor(lidar2d)
-
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Added necessary filter for 2D Lidar sensor
+    sens_manager.scene.AddSensor(lidar2d)
+    
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
     gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none)
     gps.PushFilter(sens.ChFilterGPSAccess())  # Access GPS data.
     gps.SetName("gps")
-    sens_manager.AddSensor(gps)
+    sens_manager.scene.AddSensor(gps)
 
     # Create and configure an accelerometer sensor.
     acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
     acc.PushFilter(sens.ChFilterAccelAccess())  # Access accelerometer data.
     acc.SetName("accelerometer")
-    sens_manager.AddSensor(acc)
+    sens_manager.scene.AddSensor(acc)
 
     # Create and configure a gyroscope sensor.
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
     gyro.PushFilter(sens.ChFilterGyroAccess())  # Access gyroscope data.
     gyro.SetName("gyroscope")
-    sens_manager.AddSensor(gyro)
+    sens_manager.scene.AddSensor(gyro)
 
     # Create and configure a magnetometer sensor.
     mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
     mag.PushFilter(sens.ChFilterMagnetAccess())  # Access magnetometer data.
     mag.SetName("magnetometer")
-    sens_manager.AddSensor(mag)
+    sens_manager.scene.AddSensor(mag)
 
     # Update the sensor manager to initialize sensors.
     sens_manager.Update()
@@ -102,9 +101,9 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
 
     # Register handlers for each sensor, specifying ROS topics for output.
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -120,7 +119,8 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    ros_manager.Initialize()  # Initialize the ROS manager.
+    # Initialize the ROS manager.
+    ros_manager.Initialize()
 
     # Run the simulation loop.
     time = 0
@@ -134,8 +134,12 @@ def main():
         time = sys.GetChTime()  # Update simulation time.
 
         # Update sensors and ROS data.
-        if not ros_manager.Update():  # Added check for ROS manager update status
-            break  # Exit the loop if the update fails
+        sens_manager.Update()
+
+        # Check ROS manager update status
+        if not ros_manager.IsUpdateSuccessful():
+            print("ROS manager update failed.")
+            break
 
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 

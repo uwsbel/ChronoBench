@@ -1,63 +1,48 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.sensors as sensors
-import pychrono.core as core
+import pychrono.sensor_manager as sensor_manager
+import numpy as np
 
 
-chrono.Init()
+chrono.init()
 
 
-world = chrono.World()
+scene = chrono.Scene()
 
 
 mesh_file = "your_mesh.obj"  
-mesh = chrono.Mesh.LoadMesh(mesh_file)
+mesh = chrono.Mesh.from_file(mesh_file)
 
 
 mesh_body = chrono.Body(mesh)
-mesh_body.SetFixed()
+mesh_body.set_mass(1.0)
+mesh_body.set_inertia(chrono.Inertia.create_identity(mesh_body.get_mass()))
+mesh_body.set_position(chrono.Vec3(0, 0, 0))
+scene.add_body(mesh_body)
 
 
-lidar = sensors.Lidar()
-lidar_manager = sensors.SensorManager(lidar)
+lidar_sensor = sensor_manager.LidarSensor()
+lidar_sensor.set_position(chrono.Vec3(0, 0, 5))  
 
 
-lidar_manager.SetNoiseFilter(sensors.GaussianFilter())
-lidar_manager.SetVisualization(vis.PointCloudVisualizer())
-lidar_manager.SetSaveOptions(sensors.SaveOptions(filename="lidar_data.csv"))
+lidar_sensor.set_noise_filter(sensor_manager.NoiseFilter.Gaussian(stddev=0.1))
+lidar_sensor.set_visualization(vis.Visualization.Color(color="red"))
+lidar_sensor.set_save_options(sensor_manager.SaveOptions.csv())
 
 
-mesh_body.AddSensor(lidar_manager)
-
-
-orbit_radius = 1.0
-orbit_angle = 0.0
-lidar_position = chrono.Vector3(0.0, 0.0, 0.0)  
-lidar_velocity = chrono.Vector3(0.0, 0.0, 0.0)  
+scene.add_sensor(lidar_sensor)
 
 
 dt = 0.01  
-simulation_duration = 1000  
+simulation_time = 10  
 
 
-world.SetSimulationTime(0)
-world.SetSimulationDuration(simulation_duration)
+chrono.run(scene, dt, simulation_time)
 
 
-for step in range(int(simulation_duration / dt)):
-    
-    lidar_position = chrono.Vector3(
-        lidar_position.x + lidar_velocity.x * dt,
-        lidar_position.y + lidar_velocity.y * dt,
-        lidar_position.z + lidar_velocity.z * dt,
-    )
-
-    
-    lidar_data = lidar_manager.GetSensorData()
-    print(lidar_data)
-
-    
-    world.Update()
+for step in range(int(simulation_time / dt)):
+    print(lidar_sensor.get_buffer_data())
 
 
-world.Shutdown()
+scene.clear()
+chrono.finalize()

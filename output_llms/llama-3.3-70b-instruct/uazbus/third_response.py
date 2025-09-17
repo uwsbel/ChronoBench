@@ -25,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point on the vehicle chassis tracked by the camera
+# Point on the chassis tracked by the camera
 trackPoint = chrono.ChVectorD(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -40,7 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the UAZBUS vehicle, set parameters, and initialize
-vehicle = veh.UAZBUS() 
+vehicle = veh.UAZBUS()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -72,7 +72,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create a box obstacle
-box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat = chrono.ChContactMaterialNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 0.5, 5, 0.2, 1000, True, box_mat)
@@ -114,7 +114,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
@@ -126,7 +126,7 @@ while vis.Run() :
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Set a constant throttle value of 0.5
+    # Set a constant throttle value of 0.5 to move the vehicle forward
     driver_inputs.m_throttle = 0.5
 
     # Update modules (process inputs from other modules)

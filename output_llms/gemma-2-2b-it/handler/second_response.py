@@ -24,7 +24,7 @@ class MyCustomHandler(chros.ChROSHandler):
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
-        """Publish a string message to the ROS topic."""
+        """Publish a concatenated string message to the ROS topic."""
         print(f"Publishing {self.message} ...")
         msg = String()  # Create a message object of type String.
         msg.data = self.message + str(self.ticker)  # Set the message data to the current ticker value.

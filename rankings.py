@@ -2,7 +2,7 @@
 """
 Comprehensive LLM Ranking System for SimBench
 Implements z-score based ranking methodology from rank_llm.py
-Fixes scale detection issues and handles all 24 student LLMs properly
+Handles all 24 student LLMs properly
 """
 
 import os
@@ -66,7 +66,7 @@ TARGET_MODELS = [
     # Qwen Models (2)
     "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
     "qwq-32b",
-    "qwen3-7b-instuct",
+    "qwen2-7b-instruct",
 ]
 
 # Systems to evaluate
@@ -96,56 +96,6 @@ class RankingSystem:
             return float(matches[-1])
         return None
     
-    def detect_and_fix_scale(self, scores: List[float], model_name: str, score_type: str) -> List[float]:
-        """
-        Detect scale and fix safely
-        Returns scores in 0-100 scale with proper validation
-        """
-        if not scores:
-            return scores
-        
-        scores = [s for s in scores if s is not None]
-        if not scores:
-            return []
-        
-        max_score = max(scores)
-        min_score = min(scores)
-        avg_score = np.mean(scores)
-        
-        # Special handling for gemma-3-27b-it (already in 0-100)
-        if model_name == "gemma-3-27b-it":
-            # Just cap at 100 for safety
-            fixed = [min(s, 100) for s in scores]
-            if max_score > 100:
-                self.warnings_log.append(f"WARNING: {model_name} {score_type} had scores > 100, capped at 100")
-            return fixed
-        
-        # Detect scale
-        if max_score > 100:
-            # Error case: scores exceed 100 (like phi-3-medium bug)
-            self.warnings_log.append(
-                f"ERROR: {model_name} {score_type} has scores > 100 (max={max_score:.2f}). "
-                f"Likely double-multiplication bug. Capping at 100."
-            )
-            return [min(s, 100) for s in scores]
-        
-        elif max_score <= 10:
-            # Definitely 0-10 scale, need multiplication
-            self.warnings_log.append(
-                f"INFO: {model_name} {score_type} detected in 0-10 scale (max={max_score:.2f}), converting to 0-100"
-            )
-            return [s * 10 for s in scores]
-        
-        elif avg_score < 10 and max_score < 20:
-            # Likely 0-10 scale (low average but one outlier below 20)
-            self.warnings_log.append(
-                f"INFO: {model_name} {score_type} likely in 0-10 scale (avg={avg_score:.2f}, max={max_score:.2f}), converting to 0-100"
-            )
-            return [s * 10 for s in scores]
-        
-        else:
-            # Already in 0-100 scale
-            return scores
     
     def collect_judge_scores(self) -> pd.DataFrame:
         """Collect judge scores from averaged CSV files"""
@@ -262,14 +212,10 @@ class RankingSystem:
                         except Exception as e:
                             logging.warning(f"Error reading {refdoc_file}: {e}")
             
-            # Fix scales and calculate averages
-            doc_scores_fixed = self.detect_and_fix_scale(doc_scores, model_name, "document")
-            ref_scores_fixed = self.detect_and_fix_scale(ref_scores, model_name, "reference")
-            refdoc_scores_fixed = self.detect_and_fix_scale(refdoc_scores, model_name, "ref_doc")
-            
-            avg_doc = np.mean(doc_scores_fixed) if doc_scores_fixed else 0.0
-            avg_ref = np.mean(ref_scores_fixed) if ref_scores_fixed else 0.0
-            avg_refdoc = np.mean(refdoc_scores_fixed) if refdoc_scores_fixed else 0.0
+            # Calculate averages directly from raw scores
+            avg_doc = np.mean(doc_scores) if doc_scores else 0.0
+            avg_ref = np.mean(ref_scores) if ref_scores else 0.0
+            avg_refdoc = np.mean(refdoc_scores) if refdoc_scores else 0.0
             
             records.append({
                 'model': model_name,
@@ -450,10 +396,9 @@ class RankingSystem:
             f.write("1. Data Collection:\n")
             f.write("   - Judge scores from output_llms/*/score files\n")
             f.write("   - Similarity metrics from evaluation_results.csv\n\n")
-            f.write("2. Scale Normalization:\n")
-            f.write("   - Detect if scores are in 0-10 or 0-100 scale\n")
-            f.write("   - Convert all to 0-100 scale\n")
-            f.write("   - Cap any scores > 100 (error correction)\n\n")
+            f.write("2. Score Processing:\n")
+            f.write("   - Use raw scores as provided\n")
+            f.write("   - Average scores across all systems and rounds\n\n")
             f.write("3. Z-Score Calculation:\n")
             f.write("   - Calculate z-scores for each metric\n")
             f.write("   - Z-score = (value - mean) / std_dev\n\n")
@@ -461,17 +406,17 @@ class RankingSystem:
             f.write("   - Judge metrics weight: 70%\n")
             f.write("   - Similarity metrics weight: 30%\n")
             f.write("   - Final score: min-max scaled to 0-100\n\n")
-            f.write("5. Special Handling:\n")
-            f.write("   - gemma-3-27b-it: No scale multiplication (already 0-100)\n")
-            f.write("   - phi-3-medium: Cap scores at 100 (fix double-multiplication)\n\n")
+            f.write("5. Output Generation:\n")
+            f.write("   - Main rankings CSV with consensus scores\n")
+            f.write("   - Detailed CSV with z-scores for transparency\n\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         logging.info(f"Methodology saved to: {method_file}")
         
-        # 4. Warnings log
+        # 4. Warnings log (if any)
         if self.warnings_log:
             warnings_file = f"{output_base}_warnings.log"
             with open(warnings_file, 'w') as f:
-                f.write("SCALE DETECTION AND CORRECTION LOG\n")
+                f.write("PROCESSING LOG\n")
                 f.write("=" * 50 + "\n\n")
                 for warning in self.warnings_log:
                     f.write(warning + "\n")
@@ -524,7 +469,7 @@ class RankingSystem:
         if self.warnings_log:
             print("\nKey warnings:")
             for warning in self.warnings_log[:3]:  # Show first 3 warnings
-                if "ERROR" in warning or "gemma-3-27b-it" in warning or "phi-3-medium" in warning:
+                if "ERROR" in warning:
                     print(f"  - {warning[:100]}...")
         
         return rankings_df

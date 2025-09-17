@@ -85,15 +85,9 @@ sys.Add(mesh)
 
 
 builder = fea.ChBuilderBeamEuler()
-
-builder.BuildBeam(msection,  
-                  chrono.ChVector3d(0, 0, -0.1),  
-                  chrono.ChVector3d(0.2, 0, -0.1),  
-                  chrono.ChVector3d(0, 1, 0),  
-                  5)  
-
+builder.SetSection(msection)
+builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, chrono.ChVector3d(0, 1, 0))
 builder.GetLastBeamNodes().back().SetFixed(True)
-
 builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 

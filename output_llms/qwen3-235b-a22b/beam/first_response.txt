@@ -2,77 +2,83 @@
 
 ```python
 import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as chronoirr
 
-# Initialize the physical system
-system = chrono.ChSystemNSC()
+# Initialize the Chrono system
+my_system = chrono.ChSystemNSC()
 
-# Create a mesh
-mesh = fea.ChMesh()
+# Create a mesh container
+mesh = chrono.ChMesh()
 
-# Beam properties
-num_nodes = 10
+# Beam parameters
+num_elements = 10
 beam_length = 1.0
-beam_width = 0.02
-beam_height = 0.02
-E = 2e11  # Young's modulus (Pa)
-nu = 0.3   # Poisson's ratio
-G = E / (2 * (1 + nu))  # Shear modulus
-density = 7800  # kg/m^3
+beam_radius = 0.05  # For visualization
 
-# Cross-sectional properties
-area = beam_width * beam_height
-Iyy = (beam_width * beam_height**3) / 12
-Izz = (beam_height * beam_width**3) / 12
-J = Iyy + Izz  # Polar moment of inertia
-
-# Create material
-material = fea.ChMaterialBeamANCF(density, E, G, area, Iyy, Izz, J)
-
-# Add nodes to the mesh
-nodes = []
-for i in range(num_nodes):
-    x = i * beam_length / (num_nodes - 1)
-    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+# Create nodes along the x-axis
+for i in range(num_elements + 1):
+    x = i * beam_length / num_elements
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+    if i == 0:  # Fix the first node
+        node.SetFixed(True)
     mesh.AddNode(node)
-    nodes.append(node)
 
-# Add beam elements
-for i in range(num_nodes - 1):
-    element = fea.ChElementBeam()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetMaterial(material)
-    mesh.AddElement(element)
+# Define beam material properties
+section = chrono.ChBeamSectionTimoshenko()
+section.SetE(1e4)  # Young's modulus (low for visible deformation)
+section.SetG(1e4 / (2 * (1 + 0.3)))  # Shear modulus
+section.SetArea(0.01)  # Cross-sectional area
+section.SetIyy(0.001)  # Area moment of inertia
+section.SetIzz(0.001)
+section.SetJ(0.0005)  # Polar moment of inertia
+section.SetDensity(1000)  # Density
+
+# Create beam elements between consecutive nodes
+for i in range(num_elements):
+    nodeA = mesh.GetNode(i)
+    nodeB = mesh.GetNode(i + 1)
+    beam = chrono.ChElementBeamTimoshenko()
+    beam.SetNodes(nodeA, nodeB)
+    beam.SetSection(section)
+    beam.SetReferenceDirection(chrono.ChVectorD(0, 1, 0))  # Reference Y-axis
+    mesh.AddElement(beam)
 
 # Add mesh to the system
-system.Add(mesh)
-
-# Fix the first node
-constraint = chrono.ChLinkPointFrame()
-constraint.Initialize(nodes[0], system.GetGroundBody())
-system.Add(constraint)
+my_system.Add(mesh)
 
 # Set up Irrlicht visualization
-application = irrlicht.ChIrrApp(system, 'Beam Finite Element Simulation', irrlicht.dimension2du(1024, 768))
+application = chronoirr.ChIrrApp(my_system, 'Beam FEA Simulation', chronoirr.dimension2du(1024, 768))
 application.AddTypicalLogo()
-application.AddTypicalCamera(irrlicht.vector3df(0, 0.5, 1))
+application.AddTypicalSky()
 application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0.5, -1, -2))  # Adjusted camera position
+
+# Visualization assets for beams and nodes
+vis_mesh = chrono.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_ELEM_BEAM)
+vis_mesh.SetColorscaleMinMax(0, 1)
+vis_mesh.SetBeamRadius(beam_radius)
+mesh.AddAsset(vis_mesh)
+
+# Optional: visualize nodes as red points
+node_vis = chrono.ChVisualizationFEAmesh(mesh)
+node_vis.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_NODE_POINT)
+node_vis.SetColor(chrono.ChColor(1, 0, 0))
+mesh.AddAsset(node_vis)
+
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Add visualization for the beam mesh
-visual_asset = fea.ChVisualizationFEAmesh(mesh)
-visual_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_VONMISES_STRAIN)
-visual_asset.SetColorscaleMinMax(0, 5e7)
-visual_asset.SetBeamRadius(0.005)
-mesh.AddAsset(visual_asset)
-
 # Simulation loop
-application.SetTimestep(0.001)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetSolverType(chrono.ChSolver.Type_MINRES)
+my_system.SetSolverMaxIterations(100)
+my_system.SetMaxPenetrationHysteresis(0.01)
+
+time_step = 0.01
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+    my_system.DoStepDynamics(time_step)
     application.EndScene()
-    system.DoStepDynamics(application.GetTimestep())
 ```

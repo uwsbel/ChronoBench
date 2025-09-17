@@ -13,49 +13,54 @@ application = chronoirr.ChIrrApp(my_system, "Epicyclic Gears Simulation", chrono
 
 # Set up the Irrlicht visualization system
 application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1), chronoirr.vector3df(0, 0, 0))
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 1.5))
 application.AddTypicalLights()
+application.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 30, 512)
 
 # Create a fixed truss
-truss_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+truss_body = chrono.ChBodyEasyBox(1, 0.1, 0.1, 1000, True)
 truss_body.SetPos(chrono.ChVectorD(0, 0, 0))
-truss_body.SetBodyFixed(True)
 my_system.Add(truss_body)
 
 # Create a rotating bar
-bar_body = chrono.ChBodyEasyCylinder(0.1, 1, 100, True, True)
+bar_body = chrono.ChBodyEasyBox(0.1, 1, 0.1, 1000, True)
 bar_body.SetPos(chrono.ChVectorD(0, 0, 0.5))
-bar_body.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+bar_body.SetRot(chrono.ChQuaternionD(chrono.Q_from_AngX(chrono.CH_C_PI / 4)))
 my_system.Add(bar_body)
 
 # Create two gears
-gear1_body = chrono.ChBodyEasyCylinder(0.2, 0.5, 100, True, True)
-gear1_body.SetPos(chrono.ChVectorD(0.5, 0, 0.5))
-gear1_body.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+gear1_body = chrono.ChBodyEasyCylinder(0.2, 0.1, 1000, True)
+gear1_body.SetPos(chrono.ChVectorD(0.5, 0, 0))
+gear1_body.SetRot(chrono.ChQuaternionD(chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
 my_system.Add(gear1_body)
 
-gear2_body = chrono.ChBodyEasyCylinder(0.2, 0.5, 100, True, True)
-gear2_body.SetPos(chrono.ChVectorD(-0.5, 0, 0.5))
-gear2_body.SetRot(chrono.ChQuaternionD(0, 0, 0, 1))
+gear2_body = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000, True)
+gear2_body.SetPos(chrono.ChVectorD(-0.5, 0, 0))
+gear2_body.SetRot(chrono.ChQuaternionD(chrono.Q_from_AngX(chrono.CH_C_PI / 2)))
 my_system.Add(gear2_body)
 
 # Create a gear motor to enforce a constant rotation speed
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(bar_body, gear1_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.5)))
-motor.SetMotorFunction(chrono.ChFunction_Const(chrono.CH_C_PI / 2))
-my_system.Add(motor)
+gear_motor = chrono.ChLinkMotorRotationSpeed()
+gear_motor.Initialize(gear1_body, gear2_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+gear_motor.SetSpindleConstraint(chrono.ChLinkMotorRotationSpeed.SpindleConstraint_SCREW)
+gear_motor.SetMotorFunction(chrono.ChFunction_Ramp(0, 10))
+my_system.Add(gear_motor)
 
-# Add contact material for the gears
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.5)
-material.SetRestitution(0.5)
-gear1_body.AddMaterial(material)
-gear2_body.AddMaterial(material)
+# Add a revolute joint between the rotating bar and the gear motor
+revolute_joint = chrono.ChLinkRevolute()
+revolute_joint.Initialize(bar_body, gear_motor.GetBody2(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_system.Add(revolute_joint)
 
-# Simulate the system
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Add a revolute joint between the gear motor and the fixed truss
+revolute_joint2 = chrono.ChLinkRevolute()
+revolute_joint2.Initialize(gear_motor.GetBody2(), truss_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+my_system.Add(revolute_joint2)
 
+# Set the simulation time step and the simulation end time
+application.SetTimestep(0.01)
+application.SetEndTime(10)
+
+# Run the simulation
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()

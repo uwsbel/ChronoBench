@@ -7,7 +7,7 @@ import pychrono.sensor as sens
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + '/vehicle/')
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 1.2)
@@ -32,7 +32,6 @@ trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
 contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
 
 
 step_size = 1e-3
@@ -68,21 +67,6 @@ terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-for i in range(5):
-    obstacle = chrono.ChBody()
-    x = np.random.uniform(-50, 50)
-    y = np.random.uniform(-50, 50)
-    z = 0.5
-    obstacle.SetPos(chrono.ChVector3d(x, y, z))
-    obstacle.SetBodyFixed(True)
-    obstacle.GetCollisionModel().ClearModel()
-    obstacle.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  
-    obstacle.GetCollisionModel().BuildModel()
-    box = chrono.ChVisualShapeBox(1, 1, 1)  
-    obstacle.AddVisualShape(box)
-    vehicle.GetSystem().AddBody(obstacle)
-
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -104,23 +88,33 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+obstacles = []
+for i in range(5):
+    obstacle = chrono.ChBodyEasyBox(1.0, 1.0, 1.0, 1000, True, True)
+    x = np.random.uniform(-terrainLength/2, terrainLength/2)
+    y = np.random.uniform(-terrainWidth/2, terrainWidth/2)
+    z = terrainHeight + 0.5
+    obstacle.SetPos(chrono.ChVector3d(x, y, z))
+    obstacle.SetFixed(True)
+    vehicle.GetSystem().Add(obstacle)
+    obstacles.append(obstacle)
+
+
 manager = sens.ChSensorManager(vehicle.GetSystem())
-offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+
 lidar = sens.ChLidarSensor(
     vehicle.GetChassisBody(),
-    100,
-    30,
-    offset_pose,
-    100,
+    10,
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.QUNIT),
     360,
-    30,
-    0.01,
-    sens.ChLidarSensor.LidarType_Cylinder
+    1,
+    chrono.CH_C_PI,
+    0.0,
+    100
 )
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0)
-lidar.SetCollectionWindow(0.1)
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1, "Point Cloud"))
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.333, "Point Cloud"))
 manager.AddSensor(lidar)
 
 
@@ -138,6 +132,7 @@ while vis.Run():
         vis.EndScene()
 
     driver_inputs = driver.GetInputs()
+
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -147,7 +142,7 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    manager.Update()
+    manager.Update()  
 
     step_number += 1
     realtime_timer.Spin(step_size)

@@ -15,10 +15,10 @@ def main():
     # ----------------------------------
     # Add a box to be sensed by a lidar
     # ----------------------------------
-    box = chrono.ChBodyEasyBox(side=1000, side=1000, side=1000, 1000)  
-    box.SetPos(chrono.ChVector3d(0, 0, 0))
-    box.SetFixed(True)
-    mphysicalSystem.Add(box)
+    box_body = chrono.ChBodyEasyBox(side=1000, side=1000, side=1000, 1000)  # Use side=1000 for all dimensions
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetFixed(True)
+    mphysicalSystem.Add(box_body)
 
     # -----------------------
     # Create a sensor manager
@@ -32,8 +32,8 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box,              # Body lidar is attached to
-        update_rate,        # Scanning rate in Hz
+        box_body,              # Body lidar is attached to
+        update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
         vertical_samples,       # Number of vertical channels

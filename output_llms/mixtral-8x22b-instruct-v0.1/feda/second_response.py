@@ -81,8 +81,8 @@ path.AddPoint(50, 0, 0.5)
 
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)  # Set target speed
 driver.SetLookAheadDistance(5)
-driver.SetGains(0.1, 0.01, 0.0)  # Set steering controller gains
-driver.SetSpeedGains(0.2, 0.01, 0.0)  # Set speed controller gains
+driver.SetGains(0.1, 0.01, 0.01)  # Steering controller gains
+driver.SetSpeedGains(0.2, 0.01, 0.01)  # Speed controller gains
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

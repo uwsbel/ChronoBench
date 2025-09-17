@@ -69,6 +69,7 @@ def main():
     driver.SetThrottleDelta(0.02)
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
+
     hmmwv.GetVehicle().EnableRealtime(True)
 
     while vis.Run():

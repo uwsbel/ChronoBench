@@ -1,43 +1,46 @@
 import pychrono as chrono
-import pychrono.vehicle as vehicle
+import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 
-my_system = chrono.ChSystem()
+system = chrono.ChSystem()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-terrain = vehicle.RigidTerrain(my_system)
-terrain.SetPlane(chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))  
-material = chrono.ChMaterialSurface()
-material.SetFriction(0.9)
-material.SetRestitution(0.1)
-terrain.GetGround().GetMaterialSurface().SetMaterial(material)
+mat_terrain = chrono.ChMaterialSurface()
+mat_terrain.SetFriction(0.9)
+mat_terrain.SetRestitution(0.1)
+terrain = veh.RigidTerrain(system, mat_terrain)
+terrain.Initialize()
 
 
-kraz = vehicle.Kraz()
-kraz.Initialize(my_system, terrain, True)  
-kraz.GetChassis().SetPos(chrono.ChVectorD(0, 0, 1))  
+kraz = veh.Kraz()
+kraz.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+kraz.Initialize(system, terrain, False)  
+
+
+kraz.SetChassisVisualizationType(veh.VisualizationType.MESH)
+kraz.SetWheelVisualizationType(veh.VisualizationType.MESH)
 
 
 driver = chrono.ChDriver()
 kraz.SetDriver(driver)
 driver.SetThrottle(0.5)  
-driver.SetSteering(0)    
 
 
-app = irr.ChIrrApp(my_system, 'Kraz Simulation', irr.dimension2du(1024, 768))
-app.SetCamera( irr.ChVectorD(5, 5, 2), irr.ChVectorD(0, 0, 0) )  
+app = irr.ChIrrApp(system, "Kraz Simulation", irr.dimension2du(1024, 768))
 app.AddTypicalLights()
-app.AddLightWithShadow( irr.ChVectorD(5, 5, 10), 200, 100, 10, 60 )  
+app.AddTypicalCamera(chrono.ChVectorD(5, 5, 2))
+app.SetCameraDirection(chrono.ChVectorD(-1, -1, 0))
 
 
-app.AssetBindAll()
-app.AssetUpdateAll()
+app.AssetBind(terrain.GetPlane())
+app.AssetUpdate(terrain.GetPlane())
+app.AssetBind(kraz.GetVehicle())
+app.AssetUpdate(kraz.GetVehicle())
 
 
 step_time = 0.01
-app.SetTimestep(step_time)
-app.SetTryRealtime(True)
 
 
 while app.GetDevice().run():
@@ -45,12 +48,13 @@ while app.GetDevice().run():
     
     
     
-    my_system.DoStepDynamics(step_time)
+    system.DoStepDynamics(step_time)
     
     
+    app.AssetUpdateAll()
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
     
     
-    app.SpinWait()
+    chrono.ChRealtimeStep(step_time)

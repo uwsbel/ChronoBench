@@ -1,101 +1,102 @@
 import pychrono
-import pychrono.core as chrono
-import pychrono.visual as visual
-import pychrono.utils as utils
-import random
+import pychrono.core as pc
+import pychrono.visuals as v
+import pychrono.physics as pcf
+import pychrono.utils as uc
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.anchors import Anchor
+from matplotlib.animation import FuncAnimation
 
 
 terrain_width = 10.0
 terrain_height = 5.0
 terrain_depth = 2.0
+vehicle_x = 0.0
+vehicle_y = 0.0
+vehicle_z = 0.0
 vehicle_speed = 0.5
-vehicle_acceleration = 0.3
-vehicle_deceleration = 0.2
-vehicle_steering_sensitivity = 0.1
-vehicle_throttle_sensitivity = 0.05
-vehicle_brake_sensitivity = 0.02
+vehicle_acceleration = 0.1
+vehicle_deceleration = 0.1
+vehicle_max_speed = 5.0
+vehicle_max_acceleration = 2.0
+vehicle_max_deceleration = 1.0
+vehicle_contact_method = 'rigid'  
+vehicle_visibility = 1.0
+vehicle_texture = 'texture.png' 
+simulation_duration = 60.0  
 
 
-vehicle_location = (0, 0, 0)
-vehicle_orientation = (0, 0, 0)
-contact_method = "friction"  
-visualization_type = "raytrace" 
+try:
+    
+    chrono = pc.chrono.Chronos()
+    chrono.init()
 
-
-terrain = visual.RigidTerrain(
-    width=terrain_width,
-    height=terrain_height,
-    depth=terrain_depth,
-    texture="terrain.png",  
-    color=(0.8, 0.8, 0.8) 
-)
-
-
-vehicle_mass = 10.0
-vehicle_center_of_mass = (vehicle_location[0], vehicle_location[1], vehicle_location[2])
-vehicle_radius = 0.5
-
-
-def run_simulation():
-    global vehicle_location, vehicle_orientation, contact_method, visualization_type
-
-    try:
+    
+    rigid_terrain = v.RigidTerrain(
+        width=terrain_width,
+        height=terrain_height,
+        depth=terrain_depth,
+        texture=uc.Texture(file=vehicle_texture),
         
-        chrono.init()
-
-        
-        chrono.set_simulation_parameters(
-            time_step=0.01,  
-            frame_rate=50,
-            gravity=0.0,
-            vehicle_mass=vehicle_mass,
-            vehicle_center_of_mass=vehicle_center_of_mass,
-            vehicle_radius=vehicle_radius,
-            vehicle_speed=vehicle_speed,
-            vehicle_acceleration=vehicle_acceleration,
-            vehicle_deceleration=vehicle_deceleration,
-            contact_method=contact_method,
-            visualization_type=visualization_type
+        ground_plane=v.GroundPlane(
+            x=0.0,
+            y=0.0,
+            z=terrain_height,
+            visible=True
         )
+    )
+
+    
+    vehicle = v.Vehicle(
+        x=vehicle_x,
+        y=vehicle_y,
+        z=vehicle_z,
+        speed=vehicle_speed,
+        acceleration=vehicle_acceleration,
+        deceleration=vehicle_deceleration,
+        contact_method=vehicle_contact_method,
+        visibility=vehicle_visibility,
+        texture=vehicle_texture
+    )
+
+    
+    vehicle.set_orientation(anchor=Anchor(x=0.0, y=0.0, z=0.0))
+
+    
+    def update_simulation(vehicle):
+        
+        vehicle.update_dynamics()
 
         
-        while True:
-            
-            vehicle_orientation += vehicle_speed * 0.1  
-            vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0) 
+        vehicle.update_position(vehicle.speed * dt)
 
-            
-            if contact_method == "friction":
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-
-            elif contact_method == "elastic":
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-                vehicle_orientation = np.clip(vehicle_orientation, -1.0, 1.0)
-
-            elif contact_method == "none":
-                pass 
-
-            
-            visual.update(visualization_type)
-
-            
-            visual.display(vehicle_location, vehicle_orientation, vehicle_radius)
-
-            
-            time.sleep(0.01)
-
-    except Exception as e:
-        print(f"Error: {e}")
-
-    finally:
         
-        chrono.cleanup()
+        vehicle.update_orientation(vehicle.acceleration * dt)
 
-if __name__ == "__main__":
-    run_simulation()
+        
+        v.update(vehicle)
+
+    dt = 1.0 / simulation_duration
+    for _ in range(simulation_duration):
+        update_simulation(vehicle)
+
+    
+    fig, ax = plt.subplots()
+    ax.set_xlim(0, terrain_width)
+    ax.set_ylim(0, terrain_height)
+    ax.set_aspect('equal')
+    ax.set_title('ARTcar Simulation')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    
+    ani = FuncAnimation(fig, update_simulation, interval=50, blit=True)
+
+    
+    plt.show()
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+    print("Please ensure that PyChrono is installed correctly and that the terrain and vehicle are properly defined.")

@@ -4,134 +4,154 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()` and gravity set). **No deduction.**
-- **Vehicle Creation:** The vehicle `veh.WheeledVehicle(system)` is created and initialized. However, the initialization is minimal:
-  - The vehicle is initialized at `(0,0,0.5)` with no rotation, which is acceptable.
-  - But no vehicle parameters (like chassis, wheels, powertrain, etc.) are set or loaded. According to the PyChrono vehicle example, a vehicle usually requires setting the contact method, chassis collision type, and loading vehicle parameters before initialization.
-  - **Deduct 10 points** for incomplete vehicle setup.
-- **Terrain Setup:** `veh.RigidTerrain(system)` is created and initialized with empty string for the mesh file and zero length. This is suspicious:
-  - The `Initialize` method is called with `system.GetContactMethod()`, empty string, and zero length.
-  - According to the documentation, `Initialize` usually requires a patch material and terrain dimensions or a mesh file path.
-  - No terrain patch is added, which means the terrain is effectively empty or non-existent.
-  - **Deduct 15 points** for missing essential terrain setup (no terrain patch added).
-- **Driver Setup:** `veh.ChDriver(uazbus)` is created and steering/speed controllers are set to PID types.
-  - However, no further driver input or synchronization is done.
-  - Driver is created but not properly synchronized or updated in the loop (see below).
-  - **No deduction here** as the driver is present and partially configured.
-- **Visualization Setup:** Uses `chronoirr.ChIrrApp` with window size, logo, sky, lights, camera, shadows, and asset binding.
-  - However, the API documentation recommends using `ChVisualSystemIrrlicht` and attaching the system, then calling `Initialize()`.
-  - The code uses `ChIrrApp` which is a higher-level wrapper but does not call `Initialize()`.
-  - Also, the camera is added with `AddTypicalCamera(chronoirr.vector3df(0, 3, -5))`, which is acceptable.
-  - **Deduct 5 points** for incomplete visualization initialization (missing `Initialize()` call).
-- **Simulation Loop:** The loop calls `vis.GetDevice().run()` (correct for `ChIrrApp`), then:
-  - `vis.BeginScene()`, `vis.DrawAll()`, `vis.DoStep()`, `vis.EndScene()`
-  - Then `system.DoStepDynamics(time_step)`
-  - Then `driver.Synchronize(time_step)`
-  - Then `vis.Synchronize("", system)`
-  - The order is problematic: `system.DoStepDynamics()` should be called **after** driver synchronization to ensure driver inputs affect the step.
-  - Also, `vis.DoStep()` is deprecated in favor of `system.DoStepDynamics()`.
-  - **Deduct 10 points** for incorrect simulation loop order and usage.
-- **Summary Completeness Deduction:** 10 + 15 + 5 + 10 = 40 points deducted (full deduction).
+- **System Initialization:**  
+  Present and correctly done with `chrono.ChSystemNSC()` and gravity set. No deduction.
+
+- **Vehicle Creation and Initialization:**  
+  The vehicle is created using `veh.WheeledVehicle("UAZBUS", system)`. However, according to the API documentation and typical usage, the vehicle constructor usually does not take the system as an argument. Instead, the vehicle internally manages its own system or the system is obtained via `GetSystem()`. The `Initialize()` method is called with `"UAZBUS"` and `veh.VehicleModelType_RIGID_FULL`, which is correct.  
+  However, the `Initialize()` method usually takes a `chrono.ChCoordsys` for initial position, not a string. The initial position is set later via `SetInitPosition()`, which is acceptable.  
+  **Deduction:** 10 points for incorrect vehicle initialization usage (passing system in constructor is not standard).
+
+- **Chassis Settings:**  
+  The chassis collision and visualization types are set correctly, and collision is enabled.  
+  **No deduction.**
+
+- **Terrain Setup:**  
+  Terrain is created with `veh.RigidTerrain(system)`, initialized as a plane, friction and restitution set. However, the terrain is not added to the system explicitly (though `RigidTerrain` internally manages this). This is acceptable.  
+  **No deduction.**
+
+- **Driver Setup:**  
+  A `SimpleVehicleDriver` is created with the vehicle, steering angle and engine force set. However, `SimpleVehicleDriver` is not a standard class in the documented API; the vehicle module typically uses `ChDriver` or a derived class, and driver inputs are usually set via a driver interface or input functions. This may be a custom or simplified class, but it is not documented here.  
+  **Deduction:** 15 points for missing or incorrect driver setup (essential for vehicle control).
+
+- **Visualization Setup:**  
+  The visualization is created with `chronoirr.ChIrrApp(system, "UAZBUS Simulation", chronoirr.dimension2du(1280, 720), False, True)`.  
+  The window size and title are set correctly.  
+  Typical logo, sky, camera, and lights are added.  
+  `AssetBindAll()` and `AssetUpdateAll()` are called, which is correct.  
+  However, the camera is added with `AddTypicalCamera(chronoirr.vector3df(0, 5, -10), chronoirr.vector3df(0, 0, 0))`, but the API documentation suggests using `AddCamera(chrono.ChVector3d(...))` or `AddTypicalCamera()` without parameters. The use of `chronoirr.vector3df` is acceptable but not standard per the docs.  
+  **Minor deviation:** 5 points deduction for slight deviation in visualization setup.
+
+- **Simulation Loop:**  
+  The loop uses `application.GetDevice().run()` which is correct for Irrlicht applications.  
+  The rendering calls `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()` are used.  
+  However, the API documentation suggests `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()`. The use of `DrawAll()` and `DoStep()` is not standard; usually, `DoStepDynamics(time_step)` is called on the system, and `Render()` is called on the visualization system.  
+  Also, no time step is specified for the simulation step.  
+  **Deduction:** 15 points for incomplete or incorrect simulation loop implementation.
+
+**Total Completeness Deduction:** 10 + 15 + 5 + 15 = 45 points (capped at 40 since total is 40 points)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**
-  - `system.Set_G_acc(...)` is used, but the correct method is `system.Set_G_acc(chrono.ChVectorD(...))` — this is correct.
-  - `veh.WheeledVehicle(system)` is created without specifying contact method or vehicle parameters, which is incorrect usage.
-  - `terrain.Initialize(system.GetContactMethod(), "", 0)` is incorrect as it lacks terrain patches or proper parameters.
-  - Visualization uses `ChIrrApp` but does not call `Initialize()`.
-  - Simulation loop calls `vis.DoStep()` and `system.DoStepDynamics()` both, which is redundant and can cause inconsistent stepping.
-  - Driver synchronization is done after stepping, which is logically incorrect.
-- **Logical errors:**
-  - The simulation loop order is wrong: driver inputs should be synchronized before stepping the system.
-  - Terrain is not properly initialized, so vehicle will have no ground to interact with.
-- **Minor inaccuracies:**
-  - `chrono.Q_from_AngX(0)` is used for rotation, which is valid but could be replaced with `chrono.QUNIT` for clarity.
-- **Summary Correctness Deduction:**
-  - 15 points for incorrect terrain initialization.
-  - 15 points for simulation loop order and stepping errors.
-  - Total: 30 points deducted.
+- **Incorrect use of `Set_G_acc`:**  
+  The method `Set_G_acc()` is called on the system. According to the API, the correct method is `Set_G_acc(chrono.ChVectorD(...))` or `Set_G_acc(chrono.ChVector3d(...))`. The code uses `chrono.ChVectorD(0, -9.81, 0)`, which is correct.  
+  **No deduction.**
+
+- **Vehicle constructor taking system as argument:**  
+  As noted, this is not standard and could cause errors or unexpected behavior.  
+  **Deduction:** 15 points.
+
+- **Driver class usage:**  
+  `SimpleVehicleDriver` is not a documented class; this may cause runtime errors or lack of control.  
+  **Deduction:** 15 points.
+
+- **Simulation loop calls:**  
+  Using `application.DoStep()` is not standard; the system's `DoStepDynamics()` should be called with a time step. This could cause simulation to not advance properly.  
+  **Deduction:** 15 points.
+
+- **Use of `chrono.Q_from_AngX(0)`:**  
+  The function `Q_from_AngX` is not documented; the standard is `chrono.Q_from_AngAxis(angle, axis)` or `chrono.QUNIT` for identity quaternion. This might cause an error or unexpected orientation.  
+  **Deduction:** 10 points.
+
+**Total Correctness Deduction:** 15 + 15 + 15 + 10 = 55 points (capped at 30)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**
-  - Variable names are meaningful (`system`, `uazbus`, `terrain`, `driver`, `vis`).
-  - Code is mostly well structured.
-  - However, no comments are present to explain steps.
-- **Comments:**
-  - No comments at all.
-- **Summary Code Quality Deduction:**
-  - 5 points for lack of comments.
-  - 0 points for readability (acceptable).
-  - Total: 5 points deducted.
+- **Readability and structure:**  
+  The code is mostly readable with meaningful variable names.  
+  However, there is no spacing between logical blocks, no comments explaining steps, and inconsistent formatting (e.g., no blank lines between major sections).  
+  **Deduction:** 5 points for lack of comments and minor readability issues.
+
+- **Comments:**  
+  No comments are present to explain the purpose of code blocks or parameters.  
+  **Deduction:** 5 points.
+
+**Total Code Quality Deduction:** 10 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant calls:**
-  - Calling both `vis.DoStep()` and `system.DoStepDynamics()` is redundant and inefficient.
-  - `vis.Synchronize("", system)` is called every loop but with an empty string as the first argument, which is unusual and possibly unnecessary.
-- **Missing optimizations:**
-  - No use of `Initialize()` for visualization to optimize setup.
-- **Summary Efficiency Deduction:**
-  - 5 points for redundant stepping calls.
-  - 3 points for missing visualization initialization optimization.
-  - Total: 8 points deducted.
+- No obvious redundant code or unnecessary calculations.  
+- The simulation loop does not specify a time step, which is inefficient or incorrect.  
+- The use of `SetChassisFixed(False)` is redundant because the chassis is by default not fixed.  
+- Minor inefficiency in calling `SetChassisCollisionType` and `SetChassisVisualizationType` separately instead of using defaults or combined calls.  
+- No use of `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()` or margin settings to improve collision detection efficiency.  
+- **Deduction:** 3 points for missing time step specification and minor inefficiencies.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all.
-- No checks for file paths, system initialization success, or driver/vehicle initialization.
-- No handling of edge cases (e.g., what if terrain fails to initialize).
-- **Deduct 5 points** for lack of error handling and robustness.
+- No error handling or checks for file paths, initialization success, or device readiness.  
+- No try-except blocks or validation of inputs.  
+- **Deduction:** 5 points for lack of basic error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is incomplete:
-  - Missing `Initialize()` call for `ChIrrApp`.
-  - Use of `AddTypicalLogo()` without specifying a path (though it may default internally).
-  - Use of `AddTypicalSky()` instead of `AddSkyBox()` (acceptable but less common).
-  - Lighting setup is somewhat elaborate but not fully aligned with documentation.
-- Minor issues:
-  - Camera position is reasonable.
-  - Shadow setup is present.
-- **Deduct 3 points** for incomplete visualization setup.
+- Visualization setup includes logo, sky, camera, and lights, which is good.  
+- However, the camera setup uses `AddTypicalCamera` with parameters, which is not standard.  
+- The simulation loop uses `DrawAll()` instead of `Render()`.  
+- No call to `application.Initialize()` or `application.SetTimestep()` which are typical in `ChIrrApp` usage.  
+- **Deduction:** 5 points for incorrect or incomplete visualization setup.
 
 ---
 
 ### Summary of deductions:
 
-| Criterion                  | Points Deducted |
-|----------------------------|-----------------|
-| Completeness               | 40              |
-| Correctness               | 30              |
-| Code Quality              | 5               |
-| Efficiency                | 8               |
-| Error Handling & Robustness | 5               |
-| Visualization Tools       | 3               |
-| **Total Deduction**       | **91**          |
+| Criterion                     | Max Points | Deduction | Notes                                  |
+|-------------------------------|------------|-----------|----------------------------------------|
+| Completeness                  | 40         | 40        | Missing/incorrect driver, loop, vehicle init |
+| Correctness                  | 30         | 30        | Incorrect vehicle constructor, driver, loop, quaternion |
+| Code Quality                 | 10         | 10        | No comments, minor readability issues |
+| Efficiency                  | 10         | 3         | Missing timestep, minor inefficiencies |
+| Error Handling and Robustness | 5          | 5         | No error handling                      |
+| Visualization Tools          | 5          | 5         | Incorrect visualization loop and camera setup |
+
+**Total deductions:** 40 + 30 + 10 + 3 + 5 + 5 = 93 points
+
+**Final score:** 100 - 93 = 7 points
 
 ---
 
-### Final Score:
+### Final score:
 
-100 - 91 = **9**
+[[7]]
 
 ---
 
 ### Explanation:
 
-The script includes the main components but misses essential details for vehicle and terrain initialization, uses incorrect or incomplete API calls (especially for terrain and simulation loop), lacks comments, and has redundant or inefficient code. Visualization setup is incomplete, and there is no error handling. These issues significantly impact the simulation's correctness and robustness.
+The script includes many essential components but suffers from several critical issues:
 
----
+- The vehicle is incorrectly initialized by passing the system to the constructor, which is not standard and likely incorrect.
 
-[[9]]
+- The driver setup uses an undocumented class, which would prevent proper vehicle control.
+
+- The simulation loop does not correctly advance the physics simulation with a specified time step and uses non-standard rendering calls.
+
+- The quaternion initialization uses a non-documented function.
+
+- Visualization setup is incomplete and uses non-standard calls.
+
+- There are no comments or error handling, reducing code quality and robustness.
+
+- Minor inefficiencies and missing best practices in collision margin settings and timestep specification.
+
+These issues significantly impact the correctness and completeness of the simulation, leading to a very low score.

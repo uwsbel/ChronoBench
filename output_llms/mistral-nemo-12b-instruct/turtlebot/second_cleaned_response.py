@@ -44,8 +44,6 @@ LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
 
-time_step = 2e-3
-
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
@@ -60,7 +58,10 @@ def move(mode):
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
         print("Turning right")
     else:
-        raise ValueError(f"Invalid mode: {mode}")
+        raise ValueError("Invalid mode. Choose from 'straight', 'left', 'right'")
+
+
+time_step = 2e-3
 
 
 time = 0

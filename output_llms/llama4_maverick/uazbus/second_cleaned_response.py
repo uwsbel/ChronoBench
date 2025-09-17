@@ -3,11 +3,11 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+chrono_data_path = chrono.GetChronoDataPath()
+veh.SetDataPath(chrono_data_path + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  
+initLoc = chrono.ChVector3d(-40, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -20,9 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0  
-terrainLength = 100.0  
-terrainWidth = 100.0  
+terrainHeight = 0 
+terrainLength = 100.0 
+terrainWidth = 100.0 
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -36,7 +36,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50  
+render_step_size = 1.0 / 50 
 
 
 vehicle = veh.UAZBUS()
@@ -62,8 +62,8 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 terrain.Initialize()
@@ -83,10 +83,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3  
-
+steering_time = 1.0 
+throttle_time = 1.0 
+braking_time = 0.3 
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -97,7 +96,7 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = int(render_step_size / step_size)
+render_steps = round(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -105,40 +104,32 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_time = 2.0  
-lane_change_start = 2.0  
-lane_change_interval = 4.0  
-
-
-while vis.Run():
+double_lane_change_time = 5.0
+braking_time = 10.0
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    if time > lane_change_start and time < lane_change_start + lane_change_time:
-        
-        driver_inputs = veh.Inputs()
+    driver_inputs = driver.GetInputs()
+
+    
+    if time > double_lane_change_time and time < double_lane_change_time + 2:
         driver_inputs.m_steering = 0.5
-        driver_inputs.m_throttle = 0.5
-    elif time > lane_change_start + lane_change_interval and time < lane_change_start + lane_change_interval + lane_change_time:
-        
-        driver_inputs = veh.Inputs()
+    elif time > double_lane_change_time + 2 and time < double_lane_change_time + 4:
         driver_inputs.m_steering = -0.5
-        driver_inputs.m_throttle = 0.5
-    elif time > lane_change_start + 2 * lane_change_interval:
-        
-        driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.5
-    else:
-        
-        driver_inputs = driver.GetInputs()
+    elif time > double_lane_change_time + 4:
+        driver_inputs.m_steering = 0
+
+    if time > braking_time:
+        driver_inputs.m_throttle = 0
+        driver_inputs.m_braking = 1
 
     
     driver.Synchronize(time)

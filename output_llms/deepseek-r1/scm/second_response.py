@@ -3,43 +3,35 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# New class to encapsulate SCM terrain parameters
-class SCMTerrainConfig:
+# New class for managing SCM terrain parameters
+class SCMParameters:
     def __init__(self, preset="mid"):
-        """
-        Initialize SCM terrain parameters with presets
-        Available presets: 'soft', 'mid', 'hard'
-        """
-        if preset == "soft":
-            # Soft terrain parameters
-            self.Kphi = 4e5    # Bekker Kphi [Pa/m^n]
-            self.Kc = 0        # Bekker Kc [Pa]
-            self.n = 1.1       # Bekker n exponent [-]
-            self.coh = 0       # Mohr cohesive limit [Pa]
-            self.phi = 20      # Mohr friction limit [deg]
-            self.J = 0.01      # Janosi shear coefficient [m]
-            self.E = 2e7       # Elastic stiffness [Pa/m]
-            self.damping = 3e4 # Damping [Pa s/m]
-        elif preset == "hard":
-            # Hard terrain parameters
-            self.Kphi = 5e6
-            self.Kc = 0
-            self.n = 1.1
-            self.coh = 0
-            self.phi = 40
-            self.J = 0.01
-            self.E = 5e8
-            self.damping = 3e4
-        else:  # Default to 'mid'
-            # Medium terrain parameters (original values)
-            self.Kphi = 2e6
-            self.Kc = 0
-            self.n = 1.1
-            self.coh = 0
-            self.phi = 30
-            self.J = 0.01
-            self.E = 2e8
-            self.damping = 3e4
+        # Define parameter presets
+        self.presets = {
+            "soft": (1e6,   # Bekker Kphi
+                     0,      # Bekker Kc
+                     1.1,    # Bekker n exponent
+                     0,      # Mohr cohesive limit (Pa)
+                     20,     # Mohr friction limit (degrees)
+                     0.02,   # Janosi shear coefficient (m)
+                     1e8,    # Elastic stiffness (Pa/m)
+                     2e4),   # Damping (Pa s/m)
+            
+            "mid": (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4),
+            
+            "hard": (5e6, 
+                     0, 
+                     1.1, 
+                     0, 
+                     40, 
+                     0.005, 
+                     5e8, 
+                     5e4)
+        }
+        self.params = self.presets.get(preset, self.presets["mid"])
+    
+    def apply(self, terrain):
+        terrain.SetSoilParameters(*self.params)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -63,7 +55,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
@@ -78,15 +70,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -101,18 +91,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 
-# Initialize terrain configuration with 'mid' preset
-terrain_config = SCMTerrainConfig("mid")
-terrain.SetSoilParameters(
-    terrain_config.Kphi,   # Bekker Kphi
-    terrain_config.Kc,     # Bekker Kc
-    terrain_config.n,      # Bekker n exponent
-    terrain_config.coh,    # Mohr cohesive limit (Pa)
-    terrain_config.phi,    # Mohr friction limit (degrees)
-    terrain_config.J,      # Janosi shear coefficient (m)
-    terrain_config.E,      # Elastic stiffness (Pa/m)
-    terrain_config.damping # Damping (Pa s/m)
-)
+# Initialize terrain parameters using encapsulated class
+terrain_params = SCMParameters("mid")  # Can change to "soft" or "hard"
+terrain_params.apply(terrain)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -120,11 +101,10 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 # Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
-# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
+# Initialize the SCM terrain (length, width, mesh resolution)
 terrain.Initialize(20, 20, 0.02)
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -135,11 +115,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
+# Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -153,22 +132,22 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    # Render scene
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -183,7 +162,7 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation for one timestep for all modules
+    # Advance simulation for one timestep
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -194,3 +173,5 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+terrain_params = SCMParameters("mid")  # Change to "soft" or "hard"

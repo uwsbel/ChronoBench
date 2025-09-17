@@ -2,93 +2,64 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chrono_vehicle
+import numpy as np
 
 # Initialize the PyChrono environment and core components
 chrono.SetChronoDataPath('./data/')
 system = chrono.ChSystemNSC()
 
-# Add the required physical systems and objects
 # Create the vehicle
-gator = chrono_vehicle.ChGator()
-gator.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+gator = chrono_vehicle.ChParticlesVehicle()
+gator.SetContactMethod(chrono.ChMaterialSurfaceNSC().GetContactMethod())
 gator.SetChassisVisualization(chrono.ChVisualizationType.PRIMITIVES)
 gator.SetSuspensionVisualization(chrono.ChVisualizationType.MESH)
 gator.SetSteeringVisualization(chrono.ChVisualizationType.MESH)
 gator.SetWheelVisualization(chrono.ChVisualizationType.MESH)
-gator.SetChassisCollisionLevel(chrono.ChCollisionLevel.NO_COLLISION)
-system.Add(gator)
 
-# Add the rigid terrain
-terrain = chrono.ChTerrain()
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, -0.8, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+# Add the vehicle to the simulation
+system.Add(gator.GetChassisBody())
+system.Add(gator.GetVehicle())
+
+# Create the terrain
+terrain = chrono.ChBodyEasyBox(system, 100, 10, 100, 1000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -10, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 terrain.SetVisualizationType(chrono.ChVisualizationType.MESH)
 system.Add(terrain)
 
-# Add the interactive driver system
-driver = chrono_vehicle.ChIrrlichtDriver()
-system.Add(driver)
+# Create the driver system
+driver = chrono_vehicle.ChIrrGuiDriver()
+driver.SetVehicle(gator)
+driver.SetSteeringMode(chrono_vehicle.SteeringMode.TWIST)
+driver.SetCamera(chrono.ChVectorD(0, 2.5, -3), chrono.ChVectorD(0, 1.5, 0))
 
-# Set up the sensor manager
-sensor_manager = chrono.ChSensorManager()
-gator.AddSensorManager(sensor_manager)
-
-# Add point lights and a camera
-light1 = chrono.ChLightPoint()
-light1.SetPosition(chrono.ChVectorD(10, 10, 10))
-light1.SetColor(chrono.ChColor(1, 1, 1))
-sensor_manager.AddSensor(light1)
-
-light2 = chrono.ChLightPoint()
-light2.SetPosition(chrono.ChVectorD(-10, 10, 10))
-light2.SetColor(chrono.ChColor(1, 1, 1))
-sensor_manager.AddSensor(light2)
-
+# Create the sensor manager
+sensor_manager = chrono.ChSensorManager(gator.GetChassisBody())
+point_light = chrono.ChLightPoint()
+point_light.SetPosition(chrono.ChVectorD(0, 5, 0))
+sensor_manager.AddSensor(point_light)
 camera = chrono.ChCamera()
-camera.SetPosition(chrono.ChVectorD(0, 1.5, -2))
-camera.SetCOI(chrono.ChVectorD(0, 1, 0))
-camera.SetFocalLength(50)
-camera.SetSensorSize(chrono.ChVectorD(1.6, 0.9))
-camera.SetImageSize(chrono.ChVectorI(1024, 768))
+camera.SetPosition(chrono.ChVectorD(0, 2.5, -3))
+camera.SetLookAt(chrono.ChVectorD(0, 1.5, 0))
 sensor_manager.AddSensor(camera)
 
-# Run the simulation loop
-step_size = 0.01
-time_end = 10
-while system.GetChTime() < time_end:
-    driver.Synchronize(system.GetChTime())
-    terrain.Synchronize(system.GetChTime())
-    gator.Synchronize(system.GetChTime())
-    sensor_manager.Synchronize(system.GetChTime())
-    system.DoStepDynamics(step_size)
-    system.GetCollisionSystem().Update()
-    system.GetCollisionSystem().ReportAllContacts()
-    system.GetCollisionSystem().ReportAllContacts()
+# Set up the simulation loop
+time_step = 0.01
+system.SetChTime(0)
+while system.GetChTime() < 10:
+    driver.Update(time_step)
+    terrain.Update(time_step)
+    gator.Update(time_step)
+    sensor_manager.Update(time_step)
+    system.DoStepDynamics(time_step)
+    system.Synchronize(time_step)
 
-# Render the camera images
-irrlicht = chronoirr.ChIrrlichtApplication(system, 'Gator Simulation', chronoirr dimension=[1024, 768])
-irrlicht.AddTypicalLights()
-irrlicht.AddTypicalSky()
-irrlicht.AddTypicalLogo('logo_pychrono_alpha.png')
-irrlicht.AddCamera(camera)
-irrlicht.SetCameraDistance(0.5)
-irrlicht.SetCameraAzimuth(30)
-irrlicht.SetCameraInclination(30)
-irrlicht.SetCameraUpDirection(chrono.ChVectorD(0, 0, 1))
-irrlicht.SetTimestep(step_size)
-irrlicht.SetTryRealtime(True)
+    # Render the camera images
+    camera.Render()
+    driver.Render()
 
-while (irrlicht.Run()):
-    driver.Synchronize(system.GetChTime())
-    terrain.Synchronize(system.GetChTime())
-    gator.Synchronize(system.GetChTime())
-    sensor_manager.Synchronize(system.GetChTime())
-    system.DoStepDynamics(step_size)
-    system.GetCollisionSystem().Update()
-    system.GetCollisionSystem().ReportAllContacts()
-    system.GetCollisionSystem().ReportAllContacts()
-    irrlicht.BeginScene()
-    irrlicht.DrawAll()
-    irrlicht.DoStep()
-    irrlicht.EndScene()
+    # Advance the simulation modules
+    system.Advance(time_step)
 ```
+
+This script initializes a PyChrono environment, creates a Gator vehicle with different visualization types for its parts, adds a rigid terrain and an interactive driver system, sets up a sensor manager with point lights and a camera attached to the vehicle's chassis, and runs a simulation loop updating the driver, terrain, vehicle, and sensor manager at each timestep while synchronizing and advancing the simulation modules.

@@ -7,7 +7,7 @@ def main():
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChVectorD(6, -70, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVectorD(6, -70, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -32,22 +32,17 @@ def main():
     material.SetRestitution(0.01)
 
     
-    terrain.AddMeshPatch(
-        material,
-        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),  
-        veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-        0.01  
-    )
-
-    
-    terrain.Initialize()
+    coordsys = chrono.ChCoordsysd(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+    patch = terrain.AddPatch(material, coordsys, veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 0.01)
 
     
     ground_body = terrain.GetGroundBody()
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetFilename(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape.SetFuzzyInside(True)
-    ground_body.AddAsset(visual_shape)
+    visual_mesh = chrono.ChTriangleMeshShape()
+    visual_mesh.SetMesh(chrono.importMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj")))
+    visual_mesh.SetName("terrain_visual")
+    ground_body.AddAsset(visual_mesh)
+
+    terrain.Initialize()
 
     
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

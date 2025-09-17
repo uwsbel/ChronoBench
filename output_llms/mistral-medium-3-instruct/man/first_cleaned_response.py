@@ -1,106 +1,114 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import pychrono.driver as driver
-import math
+from pychrono import ChVectorD, ChQuaternionD
+import numpy as np
 
 
 
 
 
 
-step_size = 0.01
+step_size = 1e-3
 
 
-tend = 100
+tend = 30
 
 
-
-
-
-
-vehicle = veh.WheelVehicle(veh.GetDataFile('hmmwv/vehicle/HMMWV_Vehicle.json'))
-
-
-vehicle.SetChassisCollisionType(chrono.ChCollisionModelType_ELLIPSOIDS)
-vehicle.SetTireCollisionType(chrono.ChCollisionModelType_MESH)
-
-
-vehicle.Initialize(chrono.ChCoorSysd(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+camera_target = ChVectorD(0.0, 0.0, 1.0)
 
 
 
 
+
+
+vehicle = veh.WheelVehicle(veh.GetDataFile('vehicle/man_10t/vehicle.json'))
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetContactFrictionCoefficient(0.9)
 terrain.SetContactRestitutionCoefficient(0.1)
 terrain.SetContactMaterialProperties(2e7, 0.3)
-terrain.Initialize(chrono.ChVectorD(0, 0, -1), chrono.ChVectorD(0, 0, 1))
-
-
-
-
+terrain.Initialize(ChVectorD(0, 0, 0), ChVectorD(0, 0, 1))
 
 
 driver = veh.ChDriver()
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-driver.Initialize()
+driver.Initialize(vehicle)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('MAN 10t Truck Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chronoirr.ChCamera.Chase)
+vis.SetCameraTrackingPoint(camera_target)
+vis.GetCamera().SetAngle(chrono.ChPi / 6)
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, -6, 1.75))
+vis.GetCamera().SetZoom(15)
+
+
+veh_vis = veh.ChWheelVehicleVisualSystemIrrlicht()
+veh_vis.SetVehicle(vehicle)
+veh_vis.Initialize()
+veh_vis.SetChaseCamera(camera_target, 6.0, 0.5)
+
+
+terrain_vis = veh.ChTerrainVisualSystemIrrlicht(terrain)
+terrain_vis.Initialize()
 
 
 
 
 
 
-app = irr.ChIrrApp(vehicle.GetSystem(), 'MAN 10t Truck Simulation', irr.dimension2d(1280, 720))
-
-
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(irr.vector3df(0, 5, 2))
-app.SetChaseCamera(vehicle.GetChassisBody(), 6.0, 0.5)
-
-
-terrain_vis = veh.ChTerrainVisualizationRigid(app.GetSceneManager(), vehicle.GetSystem(), terrain)
-terrain_vis.SetTexture(veh.GetDataFile('terrain/textures/grass.jpg'), 20, 20)
+vehicle.Initialize(ChVectorD(0, 0, 0.5), ChQuaternionD(1, 0, 0, 0), 0)
 
 
 
 
 
 
-num_steps = int(math.ceil(tend / step_size))
+render_steps = int(1 / (step_size * 60))
 
 
-app.SetTimestep(step_size)
-app.AssetBindAll()
-app.AssetUpdateAll()
+step_number = 0
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
 
     
-    app.GetDevice().getVideoDriver().beginScene()
-    driver.Synchronize(step_size)
-    driver.SetSteering(0.5 * math.sin(2 * math.pi * 0.1 * app.GetSystem().GetChTime()))
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
+    if time >= tend:
+        break
+
+    
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        veh_vis.Render()
+        terrain_vis.Render()
+        vis.EndScene()
+
+    
+    driver_inputs = driver.GetInputs()
+
+    
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+
+    
     driver.Advance(step_size)
-    app.GetDevice().getVideoDriver().endScene()
-
-    
-    vehicle.Synchronize(step_size)
+    terrain.Advance(step_size)
     vehicle.Advance(step_size)
 
     
-    if app.GetSystem().GetChTime() >= tend:
-        break
+    step_number += 1
 
-app.AssetUpdateAll()
+
+
+
+
+
+vis.RemoveAllAssets()

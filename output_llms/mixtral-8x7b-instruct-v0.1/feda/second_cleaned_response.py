@@ -74,26 +74,37 @@ terrain.Initialize()
 
 path = veh.ChPath(vehicle.GetSystem())
 path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-45, 10, 0))
 path.AddPoint(chrono.ChVector3d(-40, 0, 0))
-path.AddPoint(chrono.ChVector3d(-30, 1, 0))
-path.AddPoint(chrono.ChVector3d(-20, 1, 0))
-path.AddPoint(chrono.ChVector3d(-10, 1, 0))
+path.AddPoint(chrono.ChVector3d(-35, 10, 0))
+path.AddPoint(chrono.ChVector3d(-30, 0, 0))
+path.AddPoint(chrono.ChVector3d(-25, 10, 0))
+path.AddPoint(chrono.ChVector3d(-20, 0, 0))
+path.AddPoint(chrono.ChVector3d(-15, 10, 0))
+path.AddPoint(chrono.ChVector3d(-10, 0, 0))
+path.AddPoint(chrono.ChVector3d(-5, 10, 0))
 path.AddPoint(chrono.ChVector3d(0, 0, 0))
+path.AddPoint(chrono.ChVector3d(5, 10, 0))
 path.AddPoint(chrono.ChVector3d(10, 0, 0))
-path.AddPoint(chrono.ChVector3d(20, 1, 0))
-path.AddPoint(chrono.ChVector3d(30, 1, 0))
-path.AddPoint(chrono.ChVector3d(40, 1, 0))
+path.AddPoint(chrono.ChVector3d(15, 10, 0))
+path.AddPoint(chrono.ChVector3d(20, 0, 0))
+path.AddPoint(chrono.ChVector3d(25, 10, 0))
+path.AddPoint(chrono.ChVector3d(30, 0, 0))
+path.AddPoint(chrono.ChVector3d(35, 10, 0))
+path.AddPoint(chrono.ChVector3d(40, 0, 0))
+path.AddPoint(chrono.ChVector3d(45, 10, 0))
 path.AddPoint(chrono.ChVector3d(50, 0, 0))
 path.Initialize()
 
 driver = veh.ChPathFollowerDriver(vehicle, path)
 driver.SetTargetSpeed(10.0)
-steering_controller = driver.GetSteeringController()
-steering_controller.SetLookAheadDistance(5)
-steering_controller.SetGains(10, 0.5, 0.1)
-speed_controller = driver.GetSpeedController()
-speed_controller.SetGains(0.1, 0.05, 0.02)
 
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5.0)
+steering_controller.SetGains(0.5, 0.2, 0.1)
+
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.5, 0.2, 0.1)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -105,7 +116,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -123,13 +133,10 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     
     driver.Advance(step_size)

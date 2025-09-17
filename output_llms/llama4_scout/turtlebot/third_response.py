@@ -32,29 +32,35 @@ robot.Initialize()  # Initialize the robot
 sensor_manager = sens.ChSensorManager(system)
 
 # Configure and add lidar sensor
-lidar_pos = chrono.ChVector3d(0, 0, 0.5)
-lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-lidar_sensor = sens.ChLidarSensor(robot.GetBody(), lidar_pos, lidar_rot, 0.5, 0.1, 100)
-lidar_sensor.Update()  # Initialize the lidar points vector
+lidar_params = sens.ChLidarSensor.Params()
+lidar_params.num_horizontal_scan_lines = 16
+lidar_params.horizontal_scan_angle = 2 * math.pi
+lidar_params.vertical_scan_angle = 30 * math.pi / 180
+lidar_params.scan_frequency = 10
+lidar_params.min_range = 0.1
+lidar_params.max_range = 10
+lidar_sensor = sens.ChLidarSensor(robot.GetChassisBody(), lidar_params)
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 0.5))
+lidar_sensor.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
 sensor_manager.AddSensor(lidar_sensor)
 
-# Create and add 5 boxes with random positions
+# Add randomly placed boxes
 for _ in range(5):
-    box_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, ground_mat)
+    box_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
     box_body.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
     system.Add(box_body)
 
-# Function to control Turtlebot movement
+# Motion control function for Turtlebot
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(0, 0)  # Both wheels forward
-        robot.SetMotorSpeed(0, 1)  # Both wheels forward
+        robot.SetMotorSpeed(0, 0)  # Assuming 0 is the left wheel and 1 is the right wheel
+        robot.SetMotorSpeed(0, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, 0)  # Left wheel backward, right wheel forward
-        robot.SetMotorSpeed(math.pi, 1)  # Left wheel backward, right wheel forward
+        robot.SetMotorSpeed(-math.pi / 4, 0)
+        robot.SetMotorSpeed(math.pi / 4, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)  # Left wheel forward, right wheel backward
-        robot.SetMotorSpeed(-math.pi, 1)  # Left wheel forward, right wheel backward
+        robot.SetMotorSpeed(math.pi / 4, 0)
+        robot.SetMotorSpeed(-math.pi / 4, 1)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -72,14 +78,14 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Enable shadows (commented out to improve performance)
 # vis.EnableShadows()
 
-# Simulation parameters
+# Set the simulation time step
 time_step = 2e-3
-time = 0
 
 # Simulation loop
+time = 0
 while vis.Run():
     # Control Turtlebot movement
-    move('straight')  # Move straight
+    move('straight')  # Change to 'left' or 'right' as needed
 
     # Update sensor manager
     sensor_manager.Update()

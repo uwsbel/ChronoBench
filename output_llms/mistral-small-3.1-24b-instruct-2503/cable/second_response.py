@@ -82,12 +82,12 @@ vis.AddTypicalLights()  # Add typical lights for better illumination
 solver = chrono.ChSolverMINRES()  # Choose MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
-sys.SetSolver(solver)
-solver.SetMaxIterations(200)  # Set the maximum number of iterations for the solver
+solver.SetMaxIterations(200)  # Set the maximum number of iterations
 solver.SetTolerance(1e-10)  # Set the solver tolerance
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output
+sys.SetSolver(solver)
 
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)

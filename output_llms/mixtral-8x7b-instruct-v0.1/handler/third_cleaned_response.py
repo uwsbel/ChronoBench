@@ -42,9 +42,11 @@ def main():
     phys_mat.SetFriction(0.5)  
 
     
-    floor_geometry = ch.ChBox(10, 10, 1)
-    floor_material = ch.ChMaterialSurfaceNSC(phys_mat)
-    floor_body = ch.ChBody(floor_geometry, 1000, floor_material)
+    floor_geometry = ch.ChBoxShape()
+    floor_geometry.SetSize(ch.ChVectorD(10, 10, 0.1))
+    floor_material = ch.ChMaterialSurfaceNSC()
+    floor_material.SetFriction(0.5)
+    floor_body = ch.ChBodyEasyBox(10, 10, 0.1, 1000, True, True, phys_mat, floor_material)
     floor_body.SetPos(ch.ChVector3d(0, 0, -1))  
     floor_body.SetFixed(True)  
     floor_body.SetName("base_link")  
@@ -52,9 +54,11 @@ def main():
     sys.Add(floor_body)  
 
     
-    box_geometry = ch.ChBox(1, 1, 1)
-    box_material = ch.ChMaterialSurfaceNSC(phys_mat)
-    box_body = ch.ChBody(box_geometry, 1000, box_material)
+    box_geometry = ch.ChBoxShape()
+    box_geometry.SetSize(ch.ChVectorD(1, 1, 1))
+    box_material = ch.ChMaterialSurfaceNSC()
+    box_material.SetFriction(0.5)
+    box_body = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat, box_material)
     box_body.SetPos(ch.ChVector3d(0, 0, 5))  
     box_body.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box_body.SetName("box")  
@@ -66,7 +70,7 @@ def main():
     ros_manager = chros.ChROSPythonManager()
 
     
-    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
 
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box_body, "~/box"))
@@ -81,33 +85,33 @@ def main():
     ros_manager.RegisterPythonHandler(custom_handler)
 
     
-    device = Irrlicht.createDevice(Irrlicht.dimension2d(800, 600), 16, False, False, False, False, False)
-    device.setWindowCaption("PyChrono Simulation")
-    driver = device.getVideoDriver()
-    scene_manager = device.getSceneManager()
-    scene_manager.setAmbientLight(Irrlicht.SColor(100, 100, 100, 100))
-
-    
-    camera_node = scene_manager.addCameraSceneNode()
-    camera_node.setPosition(ch.ChVectorD(5, 5, 5))
-    camera_node.setTarget(ch.ChVectorD(0, 0, 0))
-
-    
-    light_node1 = scene_manager.addLightSceneNode(
-        0,
-        ch.ChVector3d(0, 10, 0),
-        Irrlicht.SColor(255, 255, 255, 255),
-        1000.0,
-    )
-    light_node2 = scene_manager.addLightSceneNode(
-        0,
-        ch.ChVector3d(0, -10, 0),
-        Irrlicht.SColor(255, 255, 255, 255),
-        1000.0,
-    )
-
-    
     ros_manager.Initialize()
+
+    
+    device = Irrlicht.createDevice(
+        Irrlicht.video.EDT_OPENGL,
+        core.dim2d(800, 600),
+        16,
+        False,
+        False,
+        False,
+        Irrlicht.scene.E_SCENE_MANAGER_AUTOCLEAR_FLAG | Irrlicht.video.E_VIDEO_RENDERER_PRESENT_RATES,
+    )
+
+    driver = device.getVideoDriver()
+    smgr = device.getSceneManager()
+
+    camera = smgr.addCameraSceneNodeFPS()
+    camera.setPosition(pyrr.Vector3([0, 5, -10]))
+    camera.setTarget(pyrr.Vector3([0, 0, 0]))
+
+    light_ambient = smgr.addLightSceneNode(None, pyrr.Vector3([0, 0, 0]))
+    light_ambient.setLightType(Irrlicht.video.ELT_DIRECTIONAL)
+    light_ambient.setColor(Irrlicht.video.SColor(255, 255, 255, 255))
+
+    light_point = smgr.addLightSceneNode(None, pyrr.Vector3([0, 5, 0]))
+    light_point.setLightType(Irrlicht.video.ELT_POINT)
+    light_point.setColor(Irrlicht.video.SColor(255, 255, 255, 255))
 
     
     step_number = 0
@@ -126,17 +130,19 @@ def main():
 
         if step_number % render_step_size == 0:
             
-            if not ros_manager.Update(time, time_step):
-                break  
+            driver.beginScene(True, True, Irrlicht.video.SColor(255, 100, 100, 100))
 
-            
-            driver.beginScene(True, True, Irrlicht.SColor(100, 100, 100, 255))
-            scene_manager.drawAll()
-            device.postEvent(Irrlicht.EEventType.EVENT_QUIT)
+            smgr.drawAll()
+            device.setWindowCaption(f"Chrono Simulation - Time: {time:.2f}")
+
             driver.endScene()
 
-        step_number += 1  
+        if not ros_manager.Update(time, time_step):  
+            break  
+
         realtime_timer.Spin(time_step)  
+
+        step_number += 1
 
 
 if __name__ == "__main__":

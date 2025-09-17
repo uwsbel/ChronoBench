@@ -6,32 +6,37 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# ========== MODIFICATION 1: Increase terrain length ==========
+# 1. Increase terrain length to 200.0
+terrainHeight = 0      
 terrainLength = 200.0  # Increased from 100.0 to 200.0
-terrainWidth = 100.0
-terrainHeight = 0
+terrainWidth = 100.0   
 
-# ========== MODIFICATION 2: Adjust initial position for circular path ==========
-radius = 20.0  # Circle radius
-initLoc = chrono.ChVector3d(radius, 0, 0.5)  # Start at circle edge
-initRot = chrono.Q_from_AngZ(math.pi/2)  # Orient vehicle tangent to circle
+# 2. Define circular path parameters
+path_radius = 20.0
+path_center = chrono.ChVector3d(0, 0, 0.5)
+initLoc = chrono.ChVector3d(path_radius, 0, 0.5)  # Start at edge of circle
+initRot = chrono.Q_from_AngZ(math.pi/2)  # Rotated 90° to face tangent
 
-# Visualization and collision settings
+# Visualization type for vehicle parts
 vis_type = veh.VisualizationType_PRIMITIVES
 chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
-# Camera tracking point
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
-# Simulation parameters
+# Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
+
+# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
+
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create and initialize vehicle
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -41,15 +46,15 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-# Set visualization types
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create terrain
+# Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
@@ -60,9 +65,9 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create visualization system
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Path Following Demo')
+vis.SetWindowTitle('HMMWV Circular Path Following')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -71,42 +76,55 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# ========== MODIFICATION 3: Create circular path ==========
-path_points = []
-for i in range(10):
-    angle = 2 * math.pi * i / 9
-    x = radius * math.cos(angle)
-    y = radius * math.sin(angle)
-    path_points.append(chrono.ChVector3d(x, y, 0.5))
-path = chrono.ChBezierCurve(path_points, True)  # Closed loop
+# 3. Create circular path
+npoints = 50
+points = []
+for i in range(npoints):
+    angle = i * 2 * math.pi / (npoints - 1)
+    x = path_center.x + path_radius * math.cos(angle)
+    y = path_center.y + path_radius * math.sin(angle)
+    points.append(chrono.ChVector3d(x, y, path_center.z))
+path = chrono.ChBezierCurve(points)
 
-# ========== MODIFICATION 4: Create path-following driver ==========
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 0, 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)  # PID gains for steering
-driver.GetSpeedController().SetGains(0.4, 0, 0)     # PID gains for speed
+# 4. Create path follower driver with PID controller
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "circular_path", 0.0, 10.0)
+driver.GetSteeringController().SetGains(0.5, 0.0, 0.0)  # PID gains
 driver.Initialize()
 
-# ========== MODIFICATION 5: Create visualization spheres ==========
-# Target point sphere (red)
-sphere_target = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sphere_target.SetPos(driver.GetSteeringController().GetTargetPoint())
-sphere_target.SetBodyFixed(True)
-sphere_target.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))
-vehicle.GetSystem().Add(sphere_target)
+# 5. Visualize path with two balls
+ball_radius = 0.5
+ball1 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball1.SetPos(chrono.ChVector3d(path_radius, 0, path_center.z))
+ball1.SetFixed(True)
+ball1.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))  # Red
+vehicle.GetSystem().Add(ball1)
 
-# Sentinel point sphere (green)
-sphere_sentinel = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sphere_sentinel.SetPos(driver.GetSteeringController().GetSentinelPoint())
-sphere_sentinel.SetBodyFixed(True)
-sphere_sentinel.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))
-vehicle.GetSystem().Add(sphere_sentinel)
+ball2 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball2.SetPos(chrono.ChVector3d(0, path_radius, path_center.z))
+ball2.SetFixed(True)
+ball2.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))  # Green
+vehicle.GetSystem().Add(ball2)
+
+# 6. Create visualization for controller points
+sentinel_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+sentinel_ball.SetPos(path_center)
+sentinel_ball.SetFixed(True)
+sentinel_ball.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue
+vehicle.GetSystem().Add(sentinel_ball)
+
+target_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+target_ball.SetPos(path_center)
+target_ball.SetFixed(True)
+target_ball.GetVisualShape(0).SetColor(chrono.ChColor(1, 1, 0))  # Yellow
+vehicle.GetSystem().Add(target_ball)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Simulation loop setup
+# Number of simulation steps between render frames
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -121,20 +139,21 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # ========== MODIFICATION 6: Driver inputs with constant throttle ==========
+    # 7. Update controller and get inputs
+    driver.Synchronize(time)
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.3  # Constant throttle override
-    driver_inputs.m_braking = 0.0   # Disable braking
+    driver_inputs.m_throttle = 0.3  # Constant throttle value
+    
+    # 8. Update controller visualization points
+    sentinel = driver.GetSteeringController().GetSentinelLocation()
+    target = driver.GetSteeringController().GetTargetLocation()
+    sentinel_ball.SetPos(sentinel)
+    target_ball.SetPos(target)
 
     # Update modules
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # ========== MODIFICATION 7: Update visualization spheres ==========
-    sphere_target.SetPos(driver.GetSteeringController().GetTargetPoint())
-    sphere_sentinel.SetPos(driver.GetSteeringController().GetSentinelPoint())
 
     # Advance simulation
     driver.Advance(step_size)
@@ -142,6 +161,8 @@ while vis.Run():
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment counter
+    # Increment frame number
     step_number += 1
+
+    # Spin for real-time synchronization
     realtime_timer.Spin(step_size)

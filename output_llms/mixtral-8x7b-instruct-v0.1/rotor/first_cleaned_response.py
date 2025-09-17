@@ -1,65 +1,65 @@
 import chrono
-from chrono import ChVector, ChMatrix33, ChQuaternion, ChCoordsys
-from chrono.fea import ChElementBeamIGA, ChLinkDirFrame
-from chrono.collision import ChCollisionModel, ChCollisionPair, ChBox, ChSphere
-from chrono.irrlicht import ChIrrApp
+from chrono import ChVector, ChMatrix33, ChQuaternion
+from chrono.irrlicht import ChirrApp
+from chrono.fea import ChElementBeamEulerBernoulli
 from chrono.vehicle import ChWheel, ChTire
+from chrono.collision import ChCollisionModel
 
 
-chrono.SetSharedConfig(chrono.ChConfig())
+chrono.ChSetShadows(True)
+chrono.ChSetChrono(True)
 
 
-beam_width = 0.1  
-beam_height = 0.05  
+myapp = ChirrApp(ChVectorD(0, 0, 0), 800, 600, false)
+myapp.AddTypicalSky()
+myapp.AddTypicalLogo()
+myapp.AddTypicalCamera(ChVectorD(0, 10, -20), ChVectorD(0, 0, 0))
+myapp.SetTimestep(1.0e-3)
+
+
 beam_length = 1.0  
-beam_sections = 10  
-beam = ChElementBeamIGA.IgaCreateBeam(beam_width, beam_height, beam_length, beam_sections)
+beam_radius = 0.02  
+beam_density = 7850  
+beam_E = 200e9  
+beam_G = 80e9  
+beam_J = 0.5 * beam_density * beam_radius ** 4 * 3.14159265358979323846 / 2
+beam = ChElementBeamEulerBernoulli(beam_length, beam_radius, beam_density, beam_E, beam_G)
+beam.SetPos(ChVectorD(0, 0, 0))
 
 
-system = chrono.ChSystem()
-system.Add(beam)
-
-
-flywheel_mass = 1.0  
+flywheel_mass = 2.0  
 flywheel_radius = 0.1  
-flywheel_inertia = flywheel_mass * (flywheel_radius ** 2) / 2.0  
-flywheel_body = chrono.ChBodyEasyBox(flywheel_mass, 0.1, 0.1, 0.1, True, True)
-flywheel_body.SetPos(ChVector(0, 0, 0))
-flywheel_body.SetMass(flywheel_mass)
-flywheel_body.SetInertiaXX(ChMatrix33.Diagonal(flywheel_inertia, flywheel_inertia, flywheel_inertia))
-system.Add(flywheel_body)
+flywheel_I = 0.5 * flywheel_mass * flywheel_radius ** 2
+flywheel = chrono.ChBodyEasyBox(flywheel_mass, flywheel_radius, flywheel_radius, True, True)
+flywheel.SetPos(ChVectorD(0, 0, 0))
+flywheel.SetMass(flywheel_mass)
+flywheel.SetInertiaXX(ChMatrix33D(flywheel_I))
+beam.AddBody(flywheel)
 
 
-link = ChLinkDirFrame()
-link.Initialize(beam, flywheel_body, ChCoordsys(ChVector(0, 0, 0), ChQuaternion.Identity()))
-system.Add(link)
+motor_torque = 10.0  
+motor_speed = 100.0  
+motor = chrono.ChLinkMotorRotation(beam, ChVectorD(beam_length / 2, 0, 0), ChVectorD(0, 0, 1), motor_torque)
+motor.SetAngSpeed(motor_speed)
 
 
-motor_torque = 1.0  
-motor_speed = 10.0  
-motor = chrono.ChLinkMotorRotationSpeed(beam, ChVector(0, 0, 1), motor_speed)
-motor.SetForce(motor_torque)
-system.Add(motor)
+collision_model = ChCollisionModel()
+collision_model.AddBody(beam)
+collision_model.BuildModel()
 
 
-vis = ChIrrApp(system)
-vis.AddLogo()
-vis.AddCamera(chrono.ChVector(2, 2, 2))
-vis.AddSkyBox()
-vis.AddTypicalLights()
+tire_radius = 0.1  
+tire_width = 0.1  
+tire_visual = ChWheel(tire_radius, tire_width)
+tire_visual.AddVisualShape(chrono.ChCylinderShape(tire_radius, tire_width, ChVectorD(0, 0, 0)))
+tire_visual.SetPos(ChVectorD(beam_length / 2, 0, 0))
+tire_visual.SetBodyFixed(True)
+myapp.Add(tire_visual)
 
 
-beam_mesh = chrono.ChMeshFile()
-beam_mesh.Load("path/to/iga_beam_mesh.obj")
-beam_shape = ChBox(beam_width / 2, beam_height / 2, beam_length / 2)
-beam_vis = chrono.ChVisualizationFEAmesh(beam, beam_mesh, beam_shape, chrono.ChColor(0.5, 0.5, 0.5))
-vis.Add(beam_vis)
+beam.AddVisualShape(chrono.ChCylinderShape(beam_radius, beam_length, ChVectorD(0, 0, 0)))
+myapp.AssetBindAll()
 
 
-flywheel_shape = ChSphere(flywheel_radius)
-flywheel_vis = chrono.ChVisualizationShape(flywheel_body, flywheel_shape, chrono.ChColor(0.5, 0, 0))
-vis.Add(flywheel_vis)
-
-
-vis.SetTimestep(0.001)
-vis.Run()
+myapp.AssetBindAll()
+myapp.Run()

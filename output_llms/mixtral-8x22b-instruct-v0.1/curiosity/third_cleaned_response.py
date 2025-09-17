@@ -50,17 +50,12 @@ lidar_params.horizontal_samples = 180
 lidar_params.vertical_samples = 1
 lidar_params.fov_up = 0
 lidar_params.fov_down = 0
-lidar_params.range = 5  
+lidar_params.range_min = 0.1
+lidar_params.range_max = 10
+lidar_params.noise_stddev = 0.01
 lidar = sens.ChLidarSensor(lidar_params)
-lidar.AttachTo(rover.GetChassis(), chrono.ChVector3d(0, 0, 0.2))
-
-
-filter = sens.ChFilterAccessPointLidar()
-filter.SetName("lidar_filter")
-filter.SetMaxDistance(lidar_params.range)
-lidar.AddFilter(filter)
-
-
+lidar.AttachTo(rover.GetChassis())
+lidar.SetName("Lidar")
 manager.AddSensor(lidar)
 
 

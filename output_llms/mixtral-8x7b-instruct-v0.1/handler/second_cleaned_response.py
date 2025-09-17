@@ -8,19 +8,16 @@ from std_msgs.msg import String
 class MyCustomHandler(chros.ChROSHandler):
     
 
-    def __init__(self, topic):
+    def __init__(self):
         super().__init__(1)  
-
-        self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
-        self.ticker = 0  
         self.message = "Hello, world! At time: "  
+        self.ticker = 0  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         
-        print(f"Creating publisher for topic {self.topic} ...")
+        print("Creating publisher for topic ...")
         
-        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
+        self.publisher = interface.GetNode().create_publisher(String, "~/my_topic", 1)
         return True  
 
     def Tick(self, time: float):
@@ -56,20 +53,20 @@ def main():
 
     
     ros_manager = chros.ChROSPythonManager()
-    
+
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
+
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
-    
+
     
     tf_handler = chros.ChROSTFHandler(30)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
+
     
-    
-    custom_handler = MyCustomHandler("~/my_topic")
+    custom_handler = MyCustomHandler()
     ros_manager.RegisterPythonHandler(custom_handler)
 
     

@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh  # Added vehicle module for deformable terrain
+import pychrono.vehicle as veh  # Added vehicle module for SCM terrain
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -13,38 +13,34 @@ system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravi
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
-# Create SCM deformable terrain (replacing rigid ground)
+# Create SCM deformable terrain (replaces rigid ground)
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(veh.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
-terrain.Initialize(20, 20, 0.1)  # Length = 20m, Width = 20m, Resolution = 0.1m
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5), chrono.QUNIT))
+# Set terrain dimensions and resolution
+terrain.Initialize(20.0, 20.0, 0.2)  # Length, width, mesh resolution (meters)
 
-# Set soil parameters (Bekker model)
-Kphi = 0.82e6  # Frictional modulus [Pa]
-Kc = 0.14e4    # Cohesive modulus [Pa]
-n = 1.0         # Sinkage exponent
-coh = 3e4       # Cohesion [Pa]
-mu = 0.3        # Friction coefficient
-H = 0.2         # Sinkage coefficient [m]
-m = 0.2         # Sinkage exponent
-Kn = 4e6        # Normal stiffness [Pa/m]
-Gn = 5e7        # Normal damping [Pa.s/m]
-Kt = 2e4        # Tangential stiffness [Pa/m]
-Gt = 5e4        # Tangential damping [Pa.s/m]
+# Configure soil parameters
+terrain.SetSoilParameters(
+    Bekker_Kphi=0.82e6,
+    Bekker_Kc=0.14e4,
+    Bekker_n=1.0,
+    Mohr_cohesion=0.3e4,
+    Mohr_friction=30.0,
+    Janosi_shear=0.01,
+    elastic_K=4e7,
+    damping_R=3e4
+)
 
-terrain.SetSoilParameters(Kphi, Kc, n, coh, mu, H, m, Kn, Gn, Kt, Gt)
-
-# Configure terrain visualization
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
-texture_file = chrono.GetChronoDataFile("textures/grass.jpg")
-terrain.SetTexture(texture_file, 20, 20)
+# Enable sinkage visualization
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
 driver = viper.ViperDCMotorControl()  # Create a driver for the rover
 rover.SetDriver(driver)  # Assign the driver to the rover
 
-# Initialize rover position and orientation
-init_pos = chrono.ChVector3d(0, 0.2, 0)
+# Initialize rover position and orientation (adjusted Z for new terrain)
+init_pos = chrono.ChVector3d(0, 0.2, 0.3)  # Raise initial Z position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
@@ -69,7 +65,7 @@ time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
     
-    # Constant steering set to 0.0 (removed time-varying behavior)
+    # Constant steering (replaces time-varying behavior)
     steering = 0.0
     driver.SetSteering(steering)  # Set the steering for the rover
 

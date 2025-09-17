@@ -1,9 +1,6 @@
 import pychrono.core as chrono
-import pychrono.sensor as sens
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
-import pychrono.fea as fea
+import pychrono.sensor as sens
 
 import numpy as np
 import time
@@ -11,54 +8,35 @@ import math
 
 def main():
     # -----------------
-    # Create the system
+    # Create the vehicle and its system
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # Create and initialize the ARTcar vehicle
-    chassis_file = "path/to/ARTcar/chassis_fea.ch"
-    suspension_file = "path/to/ARTcar/suspension.ch"
-    steering_file = "path/to/ARTcar/steering.ch"
-    powertrain_file = "path/to/ARTcar/powertrain.ch"
-    vehicle = veh.ChVehicle(veh.ChVehicleType::ARTCAR)
-    vehicle.SetChassisBody(chassis_file)
-    vehicle.SetSuspensionSubsystem(suspension_file)
-    vehicle.SetSteeringSubsystem(steering_file)
-    vehicle.SetPowertrainSubsystem(powertrain_file)
-    vehicle.SetChassisVisualizationType(veh.ChChassisVisualizationType::MESH)
-    vehicle.SetInitPosition(chrono.ChVector3d(0, 0, 0.5))
-    vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33d(1)))
-    vehicle.SetChassisFixed(False)
-    vehicle.SetChassisCollisionType(chrono.ChCollisionType::MESH)
-    vehicle.SetChassisMaterialSurface(chrono.ChMaterialSurfaceNSC())
-    mphysicalSystem.Add(vehicle.GetChassisBody())
+    # Create the terrain
+    terrain = veh.ChTerrain(100, 100, 0.1, 0.1, mphysicalSystem)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"), True)
+    terrain.SetColor(chrono.ChColorAsset(0.8, 0.8, 0.5))
+    terrain.SetMaterialProperties(0.1, 0.9, 0.01, 0.01, 0.01, 1000, 0.01)
+    terrain.Initialize()
 
-    # Add the vehicle to the system
-    vehicle.Initialize()
-    mphysicalSystem.Add(vehicle)
+    # Create the vehicle
+    vehicle = veh.ChVehicle(veh.ChVehicleType.ARTcar, mphysicalSystem)
+    vehicle.SetChassisBody(mphysicalSystem.GetChBodyByName("ARTcar_chassis"))
+    vehicle.SetChassisMaterialProperties(0.3, 0.3, 0.3)
+    vehicle.SetChassisDensity(1000)
+    vehicle.SetChassisColor(chrono.ChColorAsset(0.4, 0.4, 0.4))
 
     # Initialize the vehicle driver
-    driver = veh.ChDriver()
-    driver.Initialize(vehicle)
-    mphysicalSystem.Add(driver)
+    driver = veh.ChDriver(vehicle)
+    driver.SetSteeringController(veh.ChSteeringControllerPID(0.1, 0.0, 0.0))
+    driver.SetThrottleController(veh.ChThrottleControllerPID(0.1, 0.0, 0.0))
+    driver.SetBrakeController(veh.ChBrakeControllerPID(0.1, 0.0, 0.0))
 
-    # ----------------------------------
-    # Add a terrain to be sensed by a lidar
-    # ----------------------------------
-    terrain = fea.ChTerrain()
-    terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
-    terrain.SetColor(chrono.ChColorAsset(0.1, 0.8, 0.1))
-    terrain.Initialize(mphysicalSystem)
-    mphysicalSystem.Add(terrain)
-
-    # -----------------------
     # Create a sensor manager
-    # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
-    # Create a lidar and add it to the sensor manager
+    # Create a 3D lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose = chrono.ChFramed(
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
@@ -143,41 +121,28 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar_2d)
 
-    # Add a third person view camera sensor attached to the vehicle chassis
-    camera = sens.ChCameraSensor()
-    camera.Initialize(vehicle.GetChassisBody(), offset_pose)
+    # Add a third person view camera sensor
+    camera = sens.ChCameraSensor(vehicle.GetChassisBody(),  # Body camera is attached to
+                                  chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))),
+                                  640, 480, 1.0)
     camera.SetName("Third Person Camera")
-    camera.SetLag(lag)
-    camera.SetCollectionWindow(collection_time)
-    if vis:
-        camera.PushFilter(sens.ChFilterVisualize(640, 480, "Third Person Camera View"))
+    camera.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Third Person View"))
     manager.AddSensor(camera)
 
     # ---------------
     # Simulate system
     # ---------------
-    orbit_radius = 10
-    orbit_rate = 0.1
     ch_time = 0.0
 
     render_time = 0
     t1 = time.time()
 
     while ch_time < end_time:
-        # Update the vehicle driver
-        driver.Synchronize(step_size)
+        # Update the driver
+        driver.Synchronize(vehicle, ch_time)
 
-        # Set lidar to orbit around the vehicle chassis
-        lidar.SetOffsetPose(
-            chrono.ChFramed(
-                chrono.ChVector3d(
-                    orbit_radius * math.cos(ch_time * orbit_rate),
-                    orbit_radius * math.sin(ch_time * orbit_rate),
-                    1
-                ),
-                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
-            )
-        )
+        # Advance the vehicle
+        vehicle.Synchronize(terrain, driver, ch_time)
 
         # Access the XYZI buffer from lidar
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()

@@ -46,53 +46,56 @@ for iz in range(nsections_z + 1):
 
 # Create interpolation functions for reference tracking
 def ref_X(iz, ix):
-    return ix * (L_x / nsections_x)
+    return iz * (L_z / nsections_z)
 
 def ref_Y(iz, ix):
-    return iz * (L_z / nsections_z)
+    return ix * (L_x / nsections_x)
 
 # Create node variables for plotting and loading setup
 nodePlotA = mynodes[0]
-nodePlotB = mynodes[nsections_x * (nsections_z + 1)]
-nodesLoad = [mynodes[iz * (nsections_x + 1) + ix] for iz in range(1, nsections_z) for ix in range(1, nsections_x - 1)]
+nodePlotB = mynodes[0]
+nodesLoad = []
 
 # Create load force vector
-load_force = chrono.ChVector3d(0, -1, 0)
+load_force = chrono.ChVector3d(0, -100, 0)
 
 # Create monitoring nodes and elements
-mnodemonitor = fea.ChNodeFEAxyz(chrono.ChVector3d(0.5, 0, 0))
-mesh.AddNode(mnodemonitor)
-melementmonitor = fea.ChElementShellBST()
-mesh.AddElement(melementmonitor)
+mnodemonitor = mynodes[0]
+melementmonitor = None
+
+# Create element variables
+melementA = fea.ChElementShellBST()
+melementB = fea.ChElementShellBST()
 
 # Construct boundary nodes with conditional checks
 for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
         if ix > 0:
-            boundary_1 = mynodes[iz * (nsections_x + 1) + ix - 1]
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
         else:
-            boundary_1 = None
-
-        if iz > 0:
-            boundary_2 = mynodes[(iz - 1) * (nsections_x + 1) + ix]
-        else:
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
             boundary_2 = None
 
-        if ix < nsections_x:
-            boundary_3 = mynodes[iz * (nsections_x + 1) + ix + 1]
+        if iz > 0:
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
         else:
             boundary_3 = None
 
-        if iz < nsections_z:
-            boundary_4 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
-        else:
-            boundary_4 = None
+        # Create elements
+        melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
 
-        if (iz == 0 and ix == 1):
-            melementmonitor.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
-                                     mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
-            melementmonitor.AddLayer(thickness, 0, material)
-            mesh.AddElement(melementmonitor)
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
+
+# Element monitoring
+if (iz == 0 and ix == 1):
+    ementmonitor = melementA
 
 # Fix upper nodes
 for j in range(30):

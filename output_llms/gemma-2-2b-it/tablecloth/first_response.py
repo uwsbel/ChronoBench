@@ -1,63 +1,62 @@
 import pychrono as chrono
 import pychrono.core as core
 import pychrono.materials as materials
-import pychrono.dynamics as dynamics
-import pychrono.visualization as visualization
-import pychrono.solvers as solvers
+import pychrono.solver as solver
 
 # Initialize PyChrono
 chrono.init()
 
-# Create a new Chrono application
-app = chrono.Application()
+# Create a new simulation environment
+env = chrono.Environment()
 
-# Create a world
-world = chrono.World()
+# Create a new world
+world = chrono.World(env)
 
-# Create a material
+# Create a new material
 material = materials.IsotropicKirchhoff(
     density=1000.0,  # kg/m^3
-    elasticity=100.0,  # Pa
-    PoissonRatio=0.3,  #
+    YoungsModulus=1000000.0,  # Pa
+    PoissonRatio=0.3,  # dimensionless
+    ElastModulus=1000000.0,  # Pa
+    viscosity=1.0  # Pa*s
 )
 
 # Create a mesh grid for the tablecloth
-mesh = chrono.MeshGenerator.create_triangle_mesh(
-    size=0.1,  # mesh cell size
-    n_vertices=1000,  # number of vertices
-    n_elements=1000,  # number of elements
-)
+mesh = chrono.Mesh(world)
+mesh.addMaterial(material)
+mesh.generateMesh(1000, 1000)  # Adjust the number of nodes and elements for desired resolution
 
-# Create a shell element
-shell = chrono.ShellElement(
-    material=material,
-    mesh=mesh,
-    name="TableclothShell",
-)
+# Define the tablecloth geometry
+tablecloth = chrono.Shape(world)
+tablecloth.addMesh(mesh)
 
-# Create a set of nodes
-nodes = chrono.NodeSet()
-nodes.add_node(mesh.get_vertices())
+# Define the tablecloth boundary conditions
+tablecloth.setBoundaryConditions(chrono.BoundaryCondition.Fixed)
 
-# Create a set of elements
-elements = chrono.ElementSet()
-elements.add_element(shell)
+# Define the forces and interactions
+# Example: Apply a force to the tablecloth
+force = chrono.Force(world)
+force.setDirection(chrono.Vector3(0, 1, 0))
+force.setMagnitude(100.0)
+force.applyTo(tablecloth)
 
-# Create a simulation system
-system = chrono.SimulationSystem(
-    world=world,
-    elements=elements,
-    nodes=nodes,
-    solver=solvers.PardisoMKL(),
-)
+# Initialize the solver
+solver = solver.PardisoMKL(world)
 
-# Set up the visualization system
-vis = visualization.IrrlichtVisualization(app)
-vis.add_mesh(mesh)
-vis.add_system(system)
+# Set the solver parameters
+solver.setTolerance(1e-6)
+solver.setMaxIterations(1000)
 
-# Add forces and interactions
-# ... (Add forces, constraints, and interactions)
+# Set the simulation time step
+dt = 0.01  # seconds
 
-# Run the simulation
-app.run()
+# Set up the simulation loop
+while world.isRunning():
+    # Update the simulation
+    world.update(dt)
+
+    # Visualize the simulation
+    env.render()
+
+# Clean up
+env.destroy()

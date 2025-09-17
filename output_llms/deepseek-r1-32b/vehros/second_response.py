@@ -4,11 +4,17 @@ import pychrono.ros as chros
 from pychrono import irrlicht as chronoirr
 
 def main():
-    # Set the Chrono data path for vehicle data
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set the data path for vehicle data
+    
+    # Set vehicle visualization properties
+    hmmwv.SetChassisVisualizationType(veh.VehicleVisualizationType_VEH_VIS_NONE)
+    hmmwv.SetSuspensionVisualizationType(veh.VehicleVisualizationType_VEH_VIS_SIMPLE)
+    hmmwv.SetSteeringVisualizationType(veh.VehicleVisualizationType_VEH_VIS_SIMPLE)
+    hmmwv.SetWheelVisualizationType(veh.VehicleVisualizationType_VEH_VIS_MESH)
+    hmmwv.SetTireVisualizationType(veh.VehicleVisualizationType_VEH_VIS_MESH)
+    
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
     hmmwv.SetChassisFixed(False)  # Make the chassis movable.
@@ -19,14 +25,6 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
-
-    # Enhance visualization settings
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
-
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -34,16 +32,13 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set the texture for the terrain patch
-    
     terrain.Initialize()  # Initialize the terrain.
 
     # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()  # Initialize the driver system.
-    hmmwv.GetVehicle().SetDriver(driver)  # Add driver to vehicle
 
     # Create the ROS manager and register handlers for communication.
     ros_manager = chros.ChROSPythonManager()
@@ -54,21 +49,18 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Create and setup the Irrlicht visualization system
+    # Set up Irrlicht visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.SetWindowTitle('HMMWV Simulation')
-    vis.SetWindowSize(1024, 768)
-    vis.SetNumberOfBuffers(2)
-    vis.SetShadows(True)
-    vis.SetLightPosition(ch.ChVectorD(0, 0, 5))
-    vis.SetLightIntensity(1)
-    vis.SetCameraPosition(ch.ChVectorD(5, 0, 3))
-    vis.SetCameraRotation(ch.ChVectorD(0, 0, -45))
+    vis.SetWindowSize(800, 600)
+    vis.SetNumberOfCameras(1)
+    vis.SetActiveCamera(0)
+    vis.SetRenderMode(chronoirr.ChIrrRenderer.RENDER_MODE_OPENGL)
+    vis.AttachSystem(hmmwv.GetSystem())
+    vis.AddLight(ch.ChVector3d(0, 0, 10), ch.ChVector3d(0, 0, 1), 100)
+    vis.SetCameraPosition(ch.ChVector3d(5, 5, 5))
+    vis.SetCameraRotation(ch.ChVector3d(45, 45, 0))
     vis.Render()
-    
-    # Add vehicle and terrain to visualization system
-    vis.Add(hmmwv.GetVehicle())
-    vis.Add(terrain.GetTerrain())
 
     # Start the simulation loop.
     time = 0
@@ -77,10 +69,6 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
     
-    # Create renderer for visualization
-    renderer = chronoirr.ChIrrRenderer(vis)
-    renderer.SetRenderFlags(chronoirr.IRRRENDERER_RENDER_OBJECTS | chronoirr.IRRRENDERER_RENDER_WIREFRAME)
-
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
@@ -99,7 +87,7 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Update visualization
+        # Render the scene
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

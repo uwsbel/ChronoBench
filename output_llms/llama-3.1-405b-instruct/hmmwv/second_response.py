@@ -83,86 +83,59 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Path and Controller Implementation
 # Implement a circular path with a reasonable radius.
-# Visualize the path using two balls.
-path_radius = 50.0
-num_path_points = 100
+path_radius = 20.0
+num_points = 100
 path_points = []
-for i in range(num_path_points):
-    angle = 2 * math.pi * i / num_path_points
+for i in range(num_points):
+    angle = 2 * math.pi * i / num_points
     x = path_radius * math.cos(angle)
     y = path_radius * math.sin(angle)
-    path_points.append(chrono.ChVector3d(x, y, 0.5))
+    path_points.append(chrono.ChVector3d(x, y, 0))
 
-# Create the path visualization
-path_vis = []
-for point in path_points:
-    path_vis.append(vis.AddSphere(point, 0.5, chrono.ChColor(1, 0, 0)))
+# Visualize the path using two balls.
+path_balls = []
+for i in range(num_points):
+    ball = chrono.ChSphereShape()
+    ball.GetSphereGeometry().SetRadius(0.2)
+    ball.SetPos(path_points[i])
+    ball.SetBodyFixed(True)
+    vehicle.GetSystem().Add(ball)
+    path_balls.append(ball)
 
-# PID controller gains
-kp = 0.1
-ki = 0.01
-kd = 0.1
-
-# PID controller variables
-error_prev = 0
-integral = 0
-
-# Constant throttle value
+# Use a constant throttle value of 0.3 and use a PID controller with appropriate gains for steering control
 throttle = 0.3
+steering_pid = chrono.ChPIDController()
+steering_pid.SetGains(0.1, 0.01, 0.001)
 
-# Simulation loop
-realtime_timer = chrono.ChRealtimeStepTimer()
-step_number = 0
-render_frame = 0
-
+# Simulation loop updates
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % int(render_step_size / step_size) == 0) :
+    if (time % render_step_size < step_size) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
-    # Get the current vehicle position
-    vehicle_pos = vehicle.GetVehicle().GetPos()
+    # Update modules (process inputs from other modules)
+    steering_error = 0
+    sentinel_point = path_points[int(time * 10) % num_points]
+    target_point = path_points[(int(time * 10) + 1) % num_points]
+    vehicle_position = vehicle.GetVehicle().GetPos()
+    vehicle_direction = vehicle.GetVehicle().GetRot().GetZaxis()
+    steering_error = (sentinel_point - vehicle_position).Dot(vehicle_direction)
+    steering = steering_pid.Step(steering_error, step_size)
+    driver_inputs = veh.ChDriverInputs()
+    driver_inputs.SetThrottle(throttle)
+    driver_inputs.SetSteering(steering)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
-    # Find the closest point on the path to the vehicle
-    closest_point = None
-    closest_distance = float('inf')
-    for point in path_points:
-        distance = (vehicle_pos - point).Length()
-        if distance < closest_distance:
-            closest_distance = distance
-            closest_point = point
-
-    # Calculate the error
-    error = (closest_point - vehicle_pos).Length()
-
-    # Update the PID controller variables
-    integral += error * step_size
-    derivative = (error - error_prev) / step_size
-    error_prev = error
-
-    # Calculate the steering input
-    steering = kp * error + ki * integral + kd * derivative
-
-    # Update the vehicle inputs
-    vehicle_inputs = veh.ChDriverInputs()
-    vehicle_inputs.SetThrottle(throttle)
-    vehicle_inputs.SetSteering(steering)
-
-    # Update the vehicle
-    vehicle.Synchronize(time, vehicle_inputs, terrain)
-
-    # Advance the simulation
+    # Advance simulation for one timestep for all modules
     vehicle.Advance(step_size)
     terrain.Advance(step_size)
     vis.Advance(step_size)
 
-    # Increment the frame number
-    step_number += 1
-
-    # Spin in place for real time to catch up
-    realtime_timer.Spin(step_size)
+    # Visualization of controller points
+    vis.DrawSphere(sentinel_point, 0.2, chrono.ChColor(1, 0, 0))
+    vis.DrawSphere(target_point, 0.2, chrono.ChColor(0, 1, 0))

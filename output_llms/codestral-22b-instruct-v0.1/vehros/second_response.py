@@ -20,7 +20,7 @@ def main():
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)  # Set chassis visualization type.
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set suspension visualization type.
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)  # Set steering visualization type.
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)  # Set wheel visualization type.
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_NONE)  # Set wheel visualization type.
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)  # Set tire visualization type.
     hmmwv.Initialize()  # Initialize the vehicle.
 
@@ -54,24 +54,15 @@ def main():
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
 
     # Create an Irrlicht application to visualize the system
-    app = chronoirr.ChVisualSystemIrrlicht()
-    app.AttachSystem(hmmwv.GetSystem())
-    app.SetWindowSize(1024, 768)
-    app.SetWindowTitle('HMMWV Simulation')
-    app.Initialize()
-    app.AddCamera(ch.ChVector3d(0, -10, 2), ch.ChVector3d(0, 0, 0))
-    app.AddTypicalLights()
-    app.AddSkyBox()
-    app.AddLogo()
-    app.AddLightWithShadow(ch.ChVector3d(20, 20, 20), ch.ChVector3d(0, 0, 0), 30, 100, 100)
+    application = chronoirr.ChVisualSystemIrrlicht()
+    application.AttachSystem(hmmwv.GetSystem())
+    application.SetWindowSize(1280, 720)
+    application.SetWindowTitle('HMMWV Simulation')
+    application.Initialize()
+    application.AddCamera(ch.ChVector3d(0, -10, 1.6), ch.ChVector3d(0, 0, 1.6))
+    application.AddTypicalLights()
 
-    # Render loop setup
-    while app.GetDevice().run():
-        app.BeginScene()
-        app.DrawAll()
-        app.DoStep()
-        app.EndScene()
-
+    while application.Run():
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
@@ -88,6 +79,11 @@ def main():
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
+
+        # Render scene
+        application.BeginScene()
+        application.Render()
+        application.EndScene()
 
 if __name__ == "__main__":
     main()

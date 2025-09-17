@@ -21,7 +21,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
-terrain_model = veh.RigidTerrain.Box
+terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -61,15 +61,23 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.RigidTerrain.Box(vehicle.GetSystem())
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight, terrainLength, terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), terrainLength, terrainWidth)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6,   
+                        0,     
+                        1.1,   
+                        0,     
+                        30,    
+                        0.01,  
+                        2e8,   
+                        3e4    
+)
 
 
-terrain.AddMovingPatch = False
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-terrain.Initialize()
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainLength, terrainWidth, terrainModel, terrainHeight, terrainHeight, 0.02)
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

@@ -4,26 +4,42 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly uses `chrono.ChSystemSMC()`. ✔️  
-- **Mesh and Beam Setup:** The FEA mesh and beam section are properly created and configured with inertia and elasticity. ✔️  
-- **Bodies:** Flywheel body created with `ChBodyEasyCylinder`, truss body created and fixed. ✔️  
-- **Joints:**  
-  - Fixed joint between flywheel and beam node using `ChLinkMateFix`. ✔️  
-  - Generic bearing joint between beam end node and truss, initialized properly. ✔️  
-  - Motor joint (`ChLinkMotorRotationSpeed`) at beam start node, initialized and motor function set. ✔️  
+- **System Initialization:**  
+  The system is correctly initialized with `chrono.ChSystemSMC()`.  
+  **No deduction.**
+
+- **Mesh and FEA Setup:**  
+  The mesh is created and added to the system. The beam section is properly defined with inertia and elasticity properties. The beam is built with `ChBuilderBeamIGA` and nodes are accessed correctly.  
+  **No deduction.**
+
+- **Bodies and Joints:**  
+  The flywheel body is created using `ChBodyEasyCylinder`, positioned relative to the beam node, and added to the system. The fixed joint between the flywheel and beam node is created with `ChLinkMateFix`.  
+  The truss body is fixed and added.  
+  The bearing joint is created with `ChLinkMateGeneric` and initialized properly.  
+  The motor joint is created with `ChLinkMotorRotationSpeed` and initialized correctly.  
+  **No deduction.**
+
+- **Motor Function:**  
+  A custom function `ChFunctionMyFun` is defined and used as the motor speed function.  
+  **No deduction.**
+
 - **Visualization:**  
-  - Visual shapes for the mesh are added with surface and glyph types. ✔️  
-  - Irrlicht visualization system is set up with window size, title, logo, skybox, camera, and lights. ✔️  
-- **Solver:** Pardiso MKL solver is set and assigned to the system. ✔️  
-- **Simulation Loop:** Visualization loop with `vis.Run()`, scene begin/end, rendering, and `sys.DoStepDynamics()` with timestep. ✔️  
-- **Gravity:** Set on system and mesh automatic gravity enabled with a direction vector. ✔️  
+  Visualization shapes for the mesh are created and added. The Irrlicht visualization system is set up with window size, title, logo, skybox, camera, and lights.  
+  **No deduction.**
 
-**Minor completeness notes:**  
-- The mesh is added to the system before setting gravity, which is acceptable.  
-- The beam builder uses `BuildBeam` with 20 elements and proper orientation.  
-- The custom motor function is defined and used correctly.  
+- **Solver:**  
+  The Pardiso MKL solver is created and set for the system.  
+  **No deduction.**
 
-**No essential components missing.**  
+- **Simulation Execution:**  
+  The static linear solver is called once before the dynamic loop. The simulation loop runs with visualization and calls `sys.DoStepDynamics(0.002)`.  
+  **No deduction.**
+
+- **Minor completeness notes:**  
+  - The mesh gravity is set with `mesh.SetAutomaticGravity(True, 2)` which is a valid call but somewhat unusual; typically gravity is set on the system level only. However, since system gravity is also set explicitly, this is not a critical omission.  
+  - No explicit collision material or collision model setup is done, but since this is an FEA beam and rigid bodies with no collisions expected, this is acceptable.  
+  - No explicit time step or integrator settings are configured, but defaults are used.  
+  **No deduction.**
 
 **Completeness score: 40/40**
 
@@ -31,112 +47,151 @@
 
 ### 2. Correctness (30 points)
 
-- **API usage correctness:**  
-  - `ChFunctionMyFun` correctly subclasses `chrono.ChFunction` and overrides `GetVal` and `Clone`. ✔️  
-  - `SetAutomaticGravity(True, 2)` is used on mesh; the second argument is the axis index (2 = Z axis), but gravity vector is set as (0, -9.81, 0) (Y axis). This is inconsistent. The mesh gravity axis index should correspond to the gravity vector axis. This is a **minor logical inconsistency** that could cause unexpected gravity behavior on the mesh. Deduct 10 points for logical error here.  
-  - `ChBodyEasyCylinder` constructor is called with `(chrono.ChAxis_Y, 0.24, 0.1, 7800)`. According to PyChrono docs, `ChBodyEasyCylinder(radius, height, density, visualize=True, collision=True, material=None)`. The first argument should be radius, but here `chrono.ChAxis_Y` is passed first, which is incorrect. This is a **significant API misuse** that will cause the flywheel body to be created incorrectly or raise an error. Deduct 15 points.  
-  - `myjoint.Initialize(node_mid, mbodyflywheel)` is used. The docs specify `Initialize(body1, body2, frame)`. Here, no frame is provided, which is incorrect. This will cause the joint to be improperly initialized. Deduct 10 points.  
-  - `bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))` uses `ChFramed`, but the docs specify `ChCoordsysD` for frames. `ChFramed` is not a documented class in PyChrono API. This is an **incorrect API usage**. Deduct 15 points.  
-  - Similarly, `rotmotor1.Initialize(...)` uses `ChFramed` instead of `ChCoordsysD`. Deduct 15 points.  
-  - `rotmotor1.SetMotorFunction(f_ramp)` is called, but the correct method is `SetSpeedFunction()` per the docs. Deduct 15 points.  
-  - `sys.DoStaticLinear()` is called before the simulation loop. This is acceptable but unusual since the simulation is dynamic. No deduction.  
-  - The simulation loop calls `sys.DoStepDynamics(0.002)` with a small timestep, which is correct. ✔️  
+- **Use of `ChFunctionMyFun`:**  
+  The custom function inherits from `chrono.ChFunction` and overrides `GetVal` and `Clone` correctly. The logic inside `GetVal` is consistent and plausible.  
+  **No deduction.**
 
-**Summary of correctness deductions:**  
-- `ChBodyEasyCylinder` misuse: -15  
-- Missing frame in `myjoint.Initialize`: -10  
-- Use of `ChFramed` instead of `ChCoordsysD` in joint initializations: -15 (bearing) -15 (motor) = -30  
-- Using `SetMotorFunction` instead of `SetSpeedFunction`: -15  
-- Logical inconsistency in mesh gravity axis: -10  
+- **Joint Initialization:**  
+  - `ChLinkMateFix` is initialized between a beam node and a body. This is acceptable.  
+  - `ChLinkMateGeneric` is initialized with `False, True, True, False, True, True` for the DOFs, which corresponds to locking translation X, free translation Y and Z, locking rotation X, free rotation Y and Z. This seems intentional for a bearing.  
+  - The frame for `bearing.Initialize` is created with `chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())`. The API documentation shows `chrono.ChCoordsysD` or `chrono.ChCoordsys` is expected. `ChFramed` is a valid class but less common; however, it inherits from `ChCoordsys`. This is acceptable but unusual.  
+  - The motor joint is initialized with a frame rotated by 90 degrees around Y, which is consistent with the axis of rotation.  
+  - The motor speed function is set with `SetMotorFunction(f_ramp)`. According to the documentation, the method is `SetSpeedFunction(func)`. This is a significant API misuse.  
+  **Deduct 15 points for incorrect API usage: `SetMotorFunction` should be `SetSpeedFunction`.**
 
-Total deductions exceed the maximum for correctness (30 points), so cap at full deduction of 30 points.
+- **Use of `sys.DoStaticLinear()`:**  
+  This call is valid and appropriate to solve the static problem before dynamics.  
+  **No deduction.**
 
-**Correctness score: 0/30**
+- **Use of `chrono.ChBodyEasyCylinder`:**  
+  The constructor call is `chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)`. According to the documentation, `ChBodyEasyCylinder` expects `(radius, height, density, visualize=True, collision=True, material=None)`. The first argument should be radius, but here `chrono.ChAxis_Y` is passed, which is incorrect.  
+  This is a critical error and will cause the cylinder to be created incorrectly or fail.  
+  **Deduct 15 points for incorrect constructor arguments for `ChBodyEasyCylinder`.**
+
+- **Use of `mesh.SetAutomaticGravity(True, 2)`:**  
+  This method is not documented in the provided API. Gravity is set on the system level with `sys.SetGravitationalAcceleration`. Setting gravity on the mesh is unusual and may have no effect or cause confusion.  
+  **Deduct 5 points for questionable or undocumented API usage.**
+
+- **Use of `chrono.QuatFromAngleAxis`:**  
+  Used correctly to create rotations.  
+  **No deduction.**
+
+- **Use of `chrono.ChVisualShapeFEA`:**  
+  Visualization shapes are set up correctly with data types and glyphs.  
+  **No deduction.**
+
+- **Use of `chrono.ChLinkMateGeneric` initialization:**  
+  The frame is created with `chrono.ChFramed` instead of `chrono.ChCoordsys`. While `ChFramed` inherits from `ChCoordsys`, the documentation examples use `ChCoordsys`. This is acceptable but slightly unusual.  
+  **No deduction.**
+
+**Correctness score: 30 - 15 - 15 - 5 =  -5 (minimum 0)**  
+Since the total correctness is 30 points, and deductions sum to 35, the minimum is 0.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names (`beam_L`, `beam_ro`, `node_mid`, etc.). ✔️  
-- The class `ChFunctionMyFun` is well structured. ✔️  
-- However, there are **no comments** explaining the purpose of major blocks or parameters, which reduces understandability. Deduct 5 points.  
-- Some formatting issues: inconsistent spacing (e.g., no blank lines between major sections), and the use of magic numbers without explanation (e.g., `20` elements in beam, `0.002` timestep). Deduct 3 points.  
+- **Readability and Structure:**  
+  - The code is mostly well-structured, with logical grouping of definitions and setup.  
+  - Variable names are meaningful (`beam_L`, `beam_ro`, `mbodyflywheel`, etc.).  
+  - The custom function class is well-defined.  
+  - However, there are no comments explaining the purpose of major blocks or parameters, which reduces readability for others.  
+  - Some lines are long and could be broken for clarity.  
+  **Deduct 5 points for insufficient comments and minor readability issues.**
 
-**Code quality deductions: 8 points**
+- **Formatting:**  
+  - Indentation and spacing are consistent.  
+  - Imports are clear.  
+  **No deduction.**
 
-**Code quality score: 2/10**
+**Code Quality score: 5/10**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The code calculates repeated expressions like `(chrono.CH_C_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4))` multiple times for inertia and elasticity. This could be stored in a variable to avoid redundant computation. Deduct 3 points.  
-- The call to `builder.GetLastBeamNodes()` is repeated multiple times; storing the result in a variable would be more efficient. Deduct 3 points.  
-- The custom function `GetVal` uses multiple `if-elif` branches which is acceptable for clarity. No major inefficiency here.  
-- No other obvious inefficiencies.  
+- **Redundant or unnecessary calculations:**  
+  - The moments of inertia and area calculations are repeated multiple times with the same formula. These could be computed once and reused.  
+  - The use of `pow()` could be replaced with `**` for more Pythonic code, but this is minor.  
+  - The call to `builder.GetLastBeamNodes()` is repeated multiple times; storing the list once would be more efficient.  
+  **Deduct 5 points for redundant calculations and repeated calls.**
 
-**Efficiency deductions: 6 points**
+- **Use of solver and simulation loop:**  
+  - The solver is set once, and the simulation loop is standard.  
+  **No deduction.**
 
-**Efficiency score: 4/10**
+**Efficiency score: 5/10**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., no try-except blocks). However, typical PyChrono scripts often omit explicit error handling unless dealing with file I/O or user input. Deduct 3 points for lack of robustness.  
-- The custom function `GetVal` does not handle negative or unexpected inputs explicitly but returns 0 for `x >= T3`, which is reasonable. No deduction.  
+- **Error Handling:**  
+  - No try-except blocks or checks for invalid inputs.  
+  - The custom function does not check for invalid `x` values beyond the defined ranges, but it returns 0 outside the range, which is acceptable.  
+  - No validation of node indices or mesh building success.  
+  **Deduct 5 points for lack of basic error handling.**
 
-**Error handling deductions: 3 points**
+- **Edge Cases:**  
+  - The function `GetVal` handles all ranges of `x`.  
+  **No deduction.**
 
-**Error handling score: 2/5**
+**Error Handling score: 0/5**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached. ✔️  
-- Window size and title set. ✔️  
-- Logo, skybox, camera, and typical lights are added. ✔️  
-- Visual shapes for the mesh are added with appropriate data types and glyphs. ✔️  
-- Minor issue: The camera is added with position `(0, 1, 4)` looking at `(beam_L / 2, 0, 0)`, which is reasonable but could be improved for better viewing angles. Deduct 2 points for minor visualization optimization.  
+- **Visualization Setup:**  
+  - The Irrlicht visualization is properly initialized with window size, title, logo, skybox, camera, and typical lights.  
+  - Visual shapes for the mesh are added with appropriate data types and glyphs.  
+  - The camera is positioned to view the beam properly.  
+  **No deduction.**
 
-**Visualization deductions: 2 points**
+- **Minor visualization issues:**  
+  - The logo is added using `chrono.GetChronoDataFile('logo_pychrono_alpha.png')`, which is correct.  
+  - Lighting and skybox are standard.  
+  **No deduction.**
 
-**Visualization score: 3/5**
-
----
-
-### **Final scoring summary:**
-
-| Category                  | Points | Deductions | Score |
-|---------------------------|--------|------------|-------|
-| Completeness              | 40     | 0          | 40    |
-| Correctness               | 30     | 30         | 0     |
-| Code Quality              | 10     | 8          | 2     |
-| Efficiency                | 10     | 6          | 4     |
-| Error Handling & Robustness | 5      | 3          | 2     |
-| Visualization             | 5      | 2          | 3     |
-| **Total**                 | 100    | 49         | **51**|
+**Visualization score: 5/5**
 
 ---
 
-### **Explanation of major deductions:**
+### **Summary of deductions:**
 
-- **Correctness (30 points lost):**  
-  The most critical issues are the misuse of `ChBodyEasyCylinder` constructor, incorrect joint initialization calls missing required frames or using non-existent `ChFramed` class, and wrong method name `SetMotorFunction` instead of `SetSpeedFunction`. These errors would prevent the simulation from running correctly or cause incorrect behavior.
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | 0         | All essential components present            |
+| Correctness               | 30     | 30        | Incorrect `ChBodyEasyCylinder` args (-15), wrong motor method (-15), questionable gravity call (-5) |
+| Code Quality              | 10     | 5         | Lack of comments and minor readability issues |
+| Efficiency                | 10     | 5         | Redundant calculations and repeated calls  |
+| Error Handling & Robustness | 5      | 5         | No error handling                           |
+| Visualization             | 5      | 0         | Proper visualization setup                  |
 
-- **Code Quality (8 points lost):**  
-  Lack of comments and minor formatting issues reduce readability and maintainability.
+**Total deductions: 45 points**
 
-- **Efficiency (6 points lost):**  
-  Some redundant calculations and repeated calls could be optimized.
-
-- **Error Handling (3 points lost):**  
-  No error handling or checks for robustness.
-
-- **Visualization (2 points lost):**  
-  Minor suboptimal camera setup.
+**Final score: 40 + 0 + 5 + 5 + 0 = 50 points**
 
 ---
 
-[[51]]
+### **Final score:**
+
+[[50]]
+
+---
+
+### **Explanation:**
+
+The script is mostly complete and well-structured, with proper use of PyChrono components for system setup, FEA beam creation, bodies, joints, and visualization. However, there are critical API usage errors that significantly affect correctness:
+
+- The `ChBodyEasyCylinder` constructor is called with incorrect arguments, which would cause runtime errors or incorrect body creation.
+
+- The motor joint's speed function is set using a non-existent method `SetMotorFunction` instead of the correct `SetSpeedFunction`.
+
+- The call to `mesh.SetAutomaticGravity(True, 2)` is undocumented and likely unnecessary or ineffective.
+
+Additionally, the code lacks comments and error handling, and there are some inefficiencies due to repeated calculations and calls.
+
+Visualization is well done and follows best practices.
+
+Correcting the API misuse and improving code comments and efficiency would raise the score significantly.

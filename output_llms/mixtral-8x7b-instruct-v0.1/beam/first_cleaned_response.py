@@ -1,45 +1,68 @@
 import chrono
-from chrono import ChBody, ChSystem, ChBeam, ChLinkMotorRotation, ChLinkDirConnection, ChLinkEngine
-from chrono.irrlicht import ChIrrApp
+from chrono import ChVector, ChMatrix33, ChFrame
+from chrono.irrlicht import irrInit, irrApp, irrDevice, irrDriver, irrScene, irrIrrMesh, irrNode, irrLight
+from chrono.fea import ChBeamSection, ChLinkDirFrame, ChLinkMate, ChLinkLockRevolute, ChLinkDistance, ChLinkTorranceScott
+from chrono.fea.beam_utils import ChBeamEasyCreate
 
 
-my_system = ChSystem()
+chrono.ChSetChronoUnit(6) 
+mydata = chrono.ChData()
+mydata.SetName("BeamDemo")
+myapp = irrApp(mydata)
+mydriver = irrDriver(myapp)
+myscene = irrScene(myapp)
+mydevice = irrDevice(mydriver)
 
 
-beam1 = ChBeam()
-beam1.SetFixedBase(True)
-beam1.SetBodyFixed(True)
-beam1.SetMesh("path/to/your/beam1_mesh.obj")
-beam1.SetCollide(True)
-my_system.AddBody(beam1)
-
-beam2 = ChBeam()
-beam2.SetMesh("path/to/your/beam2_mesh.obj")
-beam2.SetCollide(True)
-my_system.AddBody(beam2)
+mysystem = chrono.ChSystemSMC(mydata)
 
 
-beam1.SetPos(chrono.ChVectorD(0, 0, 0))
-beam2.SetPos(chrono.ChVectorD(2, 0, 0))
+beam_radius = 0.1  
+beam_length = 5.0  
+beam_density = 1000  
+beam_young = 200e9  
+beam_poisson = 0.3
+beam_section = ChBeamSection(beam_radius, beam_radius, 0, mydata)
+beam_section.SetMaterialProperties(beam_density, beam_young, beam_poisson)
 
 
-motor = ChLinkMotorRotation()
-motor.Initialize(beam1, beam2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
-my_system.AddLink(motor)
+node_positions = [ChVector(0, 0, 0), ChVector(beam_length, 0, 0), ChVector(beam_length, beam_length, 0)]
+nodes = []
+for pos in node_positions:
+    node = chrono.ChBodyEasyCreate(mydata, chrono.ChBody.ChBodyType.ChBodyType_RIGID)
+    node.SetPos(pos)
+    nodes.append(node)
+    mysystem.AddBody(node)
 
-dir_conn = ChLinkDirConnection()
-dir_conn.Initialize(beam1, beam2, chrono.ChFrameD(chrono.ChVectorD(1, 0, 0)))
-my_system.AddLink(dir_conn)
+beam_poses = [(nodes[0], nodes[1]), (nodes[1], nodes[2])]
+beams = []
+for pos, beam_pose in enumerate(beam_poses):
+    beam = ChBeamEasyCreate(mysystem, beam_section, pos, chrono.ChBeam.BeamType.BEAM_STRAIGHT)
+    beam.SetFixedConnection(beam_pose[0], beam_pose[1])
+    beams.append(beam)
 
 
-my_application = ChIrrApp(my_system)
-my_application.AddLogo("path/to/your/logo.bmp")
-my_application.AddTypicalSky()
-my_application.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-my_application.SetTimestep(1e-3)
-my_application.SetTryRealtime(True)
+for node in nodes:
+    node_mesh = irrIrrMesh.CreateSphere(mydevice, 0.2, 20, 20, irr.video.SColor(255, 255, 255, 255))
+    node_node = irrNode(mydevice)
+    node_node.addChild(irrNode(mydevice, node_mesh))
+    node_node.setPosition(irr.core.vector3df(node.GetPos().x, node.GetPos().y, node.GetPos().z))
+    myscene.addChild(node_node)
 
-while (my_application.GetDevice().run()):
-    my_system.DoStepDynamics(my_application.GetTimestep())
-    my_application.DrawAll()
-    my_application.DoStepGraphics()
+for beam in beams:
+    beam_mesh = irrIrrMesh.CreateCylinder(mydevice, beam_radius, beam_length, 20, irr.video.SColor(255, 255, 255, 255))
+    beam_node = irrNode(mydevice)
+    beam_node.addChild(irrNode(mydevice, beam_mesh))
+    beam_node.setPosition(irr.core.vector3df(beam.GetPos().x, beam.GetPos().y, beam.GetPos().z))
+    myscene.addChild(beam_node)
+
+
+gravity = chrono.ChVector(0, -9.81, 0)
+mysystem.Set_G_acc(gravity)
+
+
+myapp.SetTimestep(1e-3)
+while myapp.GetRunning():
+    myapp.GetDevice().run()
+    mydriver.IdentifyCollidingBodies()
+    mysystem.DoStepDynamics(myapp.GetTimestep())

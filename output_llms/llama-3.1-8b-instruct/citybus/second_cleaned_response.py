@@ -83,18 +83,12 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDataDriver()
+driver_inputs = veh.vector_Entry()
+driver_inputs.Add(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
+driver_inputs.Add(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))  
+driver_inputs.Add(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))  
 
-
-driver_inputs = []
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
-driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))  
-driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))  
-
-
-driver.SetInputs(driver_inputs)
-
-driver.Initialize()
+driver = veh.ChDataDriver(vis, driver_inputs)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

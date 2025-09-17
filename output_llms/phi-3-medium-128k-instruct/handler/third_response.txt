@@ -24,32 +24,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Publish an integer message to the ROS topic."""
         print(f"Publishing {self.ticker} ...")
         msg = Int64()  # Create a message object of type Int64.
-        msg.data = self.ticker  # Set the message data to the current ticker value.
-        self.publisher.publish(msg)  # Publish the message to the ROS topic.
-        self.ticker += 1  # Increment the ticker for the next message.
-
-# Define a custom ROS handler for publishing integer messages.
-class MyCustomHandler(chros.ChROSHandler):
-    """This custom handler will publish integer messages to a specified ROS topic."""
-
-    def __init__(self, topic):
-        super().__init__(10)  # Initialize the handler with a 10 Hz publishing rate.
-
-        self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
-        self.ticker = 0  # Initialize a counter for published messages.
-
-    def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
-        """Initialize the ROS publisher."""
-        print(f"Creating publisher for topic {self.topic} ...")
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)  # Update publishing rate to 10 Hz
-        return True  # Return True to indicate successful initialization.
-
-    def Tick(self, time: float):
-        """Publish an integer message to the ROS topic."""
-        print(f"Publishing {self.ticker} ...")
-        msg = Int64()  # Create a message object of type Int64.
-        msg.data = self.ticker  # Set the message data to the current ticker value.
+        msg.data = self.ticker
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 
@@ -76,10 +51,6 @@ def main():
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
-    # Set textures for the floor and box
-    floor.SetTexture("path/to/floor_texture.png")
-    box.SetTexture("path/to/box_texture.png")
-
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     
@@ -101,36 +72,42 @@ def main():
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Visualization setup with Irrlicht
-    irr_options = chros.ChIrrOptions()
-    irr_options.SetWindowTitle("Simulation")
-    irr_options.SetWindowSize(800, 600)
-    irr_options.SetCameraPosition(ch.ChVector3d(0, 0, 100))
-    irr_options.SetTextureFilenames(["path/to/floor_texture.png", "path/to/box_texture.png"])
-    irr_options.SetUp()
-    irr_options.SetTexture(floor, "path/to/floor_texture.png")
-    irr_options.SetTexture(box, "path/to/box_texture.png")
-    irr_options.SetUp()
+    # Set up Irrlicht visualization
+    irr_options = ch.ChIrrAppearance()
+    irr_options.SetTexture(ch.ChIrrAppearance.TEXTURE_FILE_PLAIN_RGB, "path/to/floor_texture.png")
+    floor.SetAppearance(irr_options)
+    irr_options.SetTexture(ch.ChIrrAppearance.TEXTURE_FILE_PLAIN_RGB, "path/to/box_texture.png")
+    box.SetAppearance(irr_options)
 
-    # Create the Irrlicht visualizer
-    irr_visualizer = chros.ChIrrApp(irr_options)
+    # Create and configure the Irrlicht renderer.
+    irr_renderer = ch.ChIrrAppearance()
+    irr_renderer.SetCamera(ch.ChIrrAppearance.CAMERA_PERSPECTIVE)
+    irr_renderer.SetLighting(ch.ChIrrAppearance.LIGHTING_ALL)
+    irr_renderer.SetWindowProperties(ch.ChIrrAppearance.WINDOW_WIDTH, 800, ch.ChIrrAppearance.WINDOW_HEIGHT, 600, ch.ChIrrAppearance.WINDOW_TITLE, "My Simulation")
+    irr_renderer.AddCamera(ch.ChIrrAppearance.CAMERA_DEFAULT, ch.ChIrrAppearance.CAMERA_POSITION, ch.ChVector3d(0, 0, 10))
+    irr_renderer.AddCamera(ch.ChIrrAppearance.CAMERA_RIGHT, ch.ChIrrAppearance.CAMERA_POSITION, ch.ChVector3d(10, 0, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 0, 10))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 10, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, -10, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(-10, 0, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 0, -10))
 
-    # Create and register a renderer
-    renderer = chros.ChIrrRenderer()
-    irr_visualizer.AddRenderer(renderer)
-    irr_visualizer.AddRenderer(renderer)
+    # Create and configure the Irrlicht window.
+    irr_window = ch.ChIrrWindow()
+    irr_window.SetWindowTitle("My Simulation")
+    irr_window.SetWindowSize(irr_renderer.GetWindowWidth(), irr_renderer.GetWindowHeight())
+    irr_window.SetWindowPosition(0, 0)
+    irr_window.AddRenderer(irr_renderer)
 
-    # Define variables for controlling rendering frame rate
+    # Set up rendering frame rate control variables
     step_number = 0
-    render_step_size = 10
-    render_steps = 100
+    render_step_size = 1e-3  # Define the simulation time step.
+    render_steps = 10  # Define the number of steps to render.
 
     # Run the simulation loop.
     time = 0
-    time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-
-    realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
+    time_step = 1e-3  # Define the simulation time step.
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
@@ -138,10 +115,11 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        if step_number % render_step_size == 0:  # Conditional rendering
-            irr_visualizer.Render()  # Render the scene every few steps based on the render_steps variable
-            step_number += 1
+        if step_number % render_steps == 0:
+            irr_window.Render()  # Render the scene every few steps.
+        step_number += 1
 
+        realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
 # Entry point of the script.

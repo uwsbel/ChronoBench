@@ -13,84 +13,55 @@ app = chirr.ChIrrApp()
 system = ch.ChSystem()
 
 
-
+system.SetGravitationalAcceleration(ch.ChVector3d(0, -9.81, 0))
 
 
 class ParticleEmitter(ch.ChParticleEmitter):
     def __init__(self):
         super(ParticleEmitter, self).__init__()
-        self.SetParticleMass(0.1)
-        self.SetParticleRadius(0.1)
-        self.SetEmissionRate(10)
-        self.SetInitialVelocity(ch.ChVector3f(0, 0, 0))
-        self.SetInitialAngularVelocity(ch.ChVector3f(0, 0, 0))
+        self.SetEmissionRate(100)  
+        self.SetInitialShape(ch.ChParticleEmitter.Shape.SPHERE)
+        self.SetInitialSizeDistribution(ch.ChParticleEmitter.SizeDistribution.UNIFORM, 0.1, 0.1)
+        self.SetInitialVelocityDistribution(ch.ChParticleEmitter.VelocityDistribution.GAUSSIAN, ch.ChVector3d(0, 0, 0), ch.ChVector3d(1, 1, 1))
+        self.SetInitialPositionDistribution(ch.ChParticleEmitter.PositionDistribution.UNIFORM, ch.ChVector3d(0, 10, 0), ch.ChVector3d(10, 10, 10))
 
-    def EmitParticles(self, timeStep):
-        for _ in range(self.GetEmissionRate()):
-            particle = ch.ChParticle()
-            particle.SetMass(self.GetParticleMass())
-            particle.SetRadius(self.GetParticleRadius())
-            particle.SetPos(ch.ChVector3f(
-                random.uniform(-5, 5),
-                random.uniform(0, 10),
-                random.uniform(-5, 5)
-            ))
-            particle.SetLinVel(ch.ChVector3f(
-                random.uniform(-1, 1),
-                random.uniform(-2, 0),
-                random.uniform(-1, 1)
-            ))
-            particle.SetAngVel(ch.ChVector3f(
-                random.uniform(-0.1, 0.1),
-                random.uniform(-0.1, 0.1),
-                random.uniform(-0.1, 0.1)
-            ))
-            system.Add(particle)
+    def Update(self, step):
+        if random.random() < 0.1:  
+            pos = ch.ChVector3d(random.uniform(-5, 5), random.uniform(5, 15), random.uniform(-5, 5))
+            vel = ch.ChVector3d(random.uniform(-1, 1), random.uniform(-5, 0), random.uniform(-1, 1))
+            self.EmitParticles(pos, vel, ch.ChQuaterniond(1, 0, 0, 0), 0.1)
 
 emitter = ParticleEmitter()
 system.Add(emitter)
 
 
-class CustomGravity(ch.ChForceTorque):
-    def __init__(self, body):
-        super(CustomGravity, self).__init__()
-        self.body = body
-
-    def ComputeForce(self, body, M, H, timeStep):
-        F = ch.ChVector3f()
-        for other in system.Get_particles():
-            if other != body:
-                distance = (body.GetPos() - other.GetPos()).Length()
-                if distance > 0:
-                    grav_force = 0.1 / (distance ** 2)
-                    direction = (other.GetPos() - body.GetPos()).Normalize()
-                    F += grav_force * direction
-        return F
+vis = chirr.ChIrrSceneNode(system.GetVisualSystem())
+app.SetSceneNode(vis)
 
 
-for _ in range(100):  
-    particle = ch.ChParticle()
-    particle.SetMass(0.1)
-    particle.SetRadius(0.1)
-    particle.SetPos(ch.ChVector3f(
-        random.uniform(-5, 5),
-        random.uniform(0, 10),
-        random.uniform(-5, 5)
-    ))
-    particle.AddForce(CustomGravity(particle))
-    system.Add(particle)
+class CustomGravityCallback(ch.ChCustomIntegratorCallback):
+    def __init__(self, system):
+        super(CustomGravityCallback, self).__init__()
+        self.system = system
+
+    def ComputeForces(self, bodies, forces):
+        G = 0.1  
+        for body in bodies:
+            if isinstance(body, ch.ChBody):
+                pos = body.GetPos()
+                for other_body in bodies:
+                    if other_body != body and isinstance(other_body, ch.ChBody):
+                        other_pos = other_body.GetPos()
+                        distance = (pos - other_pos).Length()
+                        if distance > 0:
+                            force = G * body.GetMass() * other_body.GetMass() / (distance ** 2) * (other_pos - pos).Normalized()
+                            forces[body].AddForce(force, pos)
+
+callback = CustomGravityCallback(system)
+system.SetCustomIntegratorCallback(callback)
 
 
-scene = app.AddScene()
-
-
-camera = chirr.ChIrrCamera()
-camera.SetPosition(ch.ChVector3f(0, 5, -10))
-camera.LookAt(ch.ChVector3f(0, 0, 0))
-scene.Add(camera)
-
-
+app.Initialize()
+app.SetSimulationRate(1 / 60)
 while app.Run():
-    system.DoStepDynamics(1 / 60.0)
-    app.Render()
-    scene.Update()
+    system.DoStepDynamics(1 / 60)

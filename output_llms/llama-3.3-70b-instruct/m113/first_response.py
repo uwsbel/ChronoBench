@@ -3,67 +3,51 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment and core components
-sys = chrono.ChSystemNSC()
+sys = chrono.ChSystem()
 
-# Add the required physical systems and objects
 # Create the M113 vehicle
 m113 = veh.VehicleM113()
-m113.Initialize(sys)
-m113.SetChassisFixed(False)
-m113.SetChassisMass(15000)
-m113.SetChassisInertia(chrono.ChVectorD(1000, 1000, 1000))
-m113.SetEngineType(veh.EngineType.INTERNAL_COMBUSTION)
-m113.SetEnginePower(500e3)
-m113.SetTransmissionType(veh.TransmissionType.TORQUE_CONVERTER)
-m113.SetDrivelineType(veh.DrivelineType.ALL_WHEEL_DRIVE)
-m113.SetBrakeType(veh.BrakeType.HYDRAULIC_WHEEL)
-m113.SetSteeringType(veh.SteeringType.RACK_PINION)
-m113.SetSuspensionType(veh.SuspensionType.Independent)
-m113.AddVisualization(chrono.ChVisualSystem::Instance().GetAssetPath() + "/vehicles/M113")
+m113.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(0)))
 
-# Create the terrain
-terrain = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True, True)
+# Add the vehicle to the system
+sys.Add(m113)
+
+# Create a rigid terrain
+terrain = chrono.ChBodyEasyBox(sys, 10, 10, 0.1, 1000, True, chrono.ChVectorD(0, -1, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 terrain.GetMaterial().SetFriction(0.8)
-terrain.GetMaterial().SetRestitution(0.5)
-terrain.SetPos(chrono.ChVectorD(0, -10, 0))
-terrain.SetBodyFixed(True)
+terrain.GetMaterial().SetRestitution(0.2)
+sys.Add(terrain)
 
-# Create the driver system
-driver = veh.ChIrrlichtDriver()
-driver.SetVehicle(m113)
-driver.SetSteeringGain(0.5)
-driver.SetThrottleGain(0.5)
-driver.SetBrakingGain(0.5)
+# Initialize a driver system for vehicle control
+driver = veh.ChDriverM113(m113)
+sys.Add(driver)
 
-# Create the visualization system
+# Create a real-time visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 10, -20))
-vis.AddCamera(chrono.ChVectorD(0, 10, 20))
-vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.SetWindowSize(1024, 768)
+vis.SetLogo("")
 
-# Set necessary default parameters
-m113.SetChassisPos(chrono.ChVectorD(0, 5, 0))
-m113.SetChassisRot(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-m113.SetEngineOn()
+# Set camera settings
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, -10, 2))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 # Simulation loop
 time = 0
 dt = 0.01
 while time < 10:
-    # Advance the simulation
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
     sys.DoStepDynamics(dt)
-    time += dt
-
-    # Update the driver system
-    driver.Synchronize(time)
-
-    # Update the visualization system
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    time += dt
 
-    # Keep the simulation in real-time
+    # Maintain real-time execution
     chrono.ChRealtimeStep(sys)
+
+# Clean up
+sys.Delete()

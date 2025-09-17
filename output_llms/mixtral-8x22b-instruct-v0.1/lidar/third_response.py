@@ -11,7 +11,7 @@ def main():
     # Create the system
     # -----------------
     my_vehicle = vehi.ARTcar()
-    my_vehicle.Initialize(chrono.GetChronoDataFile('vehicle/vehicle/car/car.json'))
+    my_vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
     mphysicalSystem = my_vehicle.GetSystem()
 
     # ----------------------------------
@@ -24,6 +24,20 @@ def main():
     box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
     box.SetFixed(True)
     mphysicalSystem.Add(box)
+
+    # --------------------------------
+    # Create a vehicle driver
+    # --------------------------------
+    my_driver = vehi.ChIrrGuiDriver(my_vehicle)
+
+    # --------------------------------
+    # Create a terrain
+    # --------------------------------
+    terrain = vehi.ChTerrainPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/ground.jpg"), 200, 200)
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.SetContactMaterial(0.9, 0.01, 0.0001, 0.0001)
+    mphysicalSystem.Add(terrain)
 
     # -----------------------
     # Create a sensor manager
@@ -116,6 +130,33 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar_2d)
 
+    # ------------------------------------------------
+    # Create a third person view camera and add it to the sensor manager
+    # ------------------------------------------------
+    camera = sens.ChCameraSensor(
+        my_vehicle.GetChassis(),              # Body camera is attached to
+        chrono.ChVector3d(1.0, 0, 1),          # Offset pose
+        chrono.ChVector3d(0, 0, 0),            # Direction
+        chrono.ChVector3d(0, 1, 0),            # Up
+        1.0,                                  # Field of view
+        1.0,                                  # Aspect ratio
+        0.1,                                  # Near plane
+        100.0,                                # Far plane
+        640,                                  # Width
+        480,                                  # Height
+        sens.CameraRenderMode_OPENGL          # Render mode
+    )
+    camera.SetName("Third Person Camera")
+    camera.SetLag(lag)
+    camera.SetCollectionWindow(collection_time)
+    if vis:
+        # Visualize the camera image
+        camera.PushFilter(sens.ChFilterVisualizeImage(640, 480, "Third Person Camera Image"))
+    # Provides the host access to the image data
+    camera.PushFilter(sens.ChFilterImageAccess())
+    # Add the camera to the sensor manager
+    manager.AddSensor(camera)
+
     # ---------------
     # Simulate system
     # ---------------
@@ -151,6 +192,14 @@ def main():
 
         # Perform step of dynamics
         mphysicalSystem.DoStepDynamics(step_size)
+
+        # Synchronize vehicle and terrain
+        my_vehicle.Synchronize(step_size)
+        terrain.Synchronize(my_vehicle.GetSystem(), my_vehicle.GetChassis(), step_size)
+
+        # Advance vehicle and driver
+        my_vehicle.Advance(step_size)
+        my_driver.Advance(step_size)
 
         # Get the current time of the simulation
         ch_time = mphysicalSystem.GetChTime()

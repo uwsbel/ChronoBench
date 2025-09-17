@@ -37,9 +37,10 @@ terrain.Initialize(50, 50, 0, 0, 0, 0, 1, 'terrain_mesh.obj')
 app = chronoirr.ChIrrApp(man_truck, 'MAN 10t Truck Simulation', chronoirr.dimension2du(1024, 768))
 app.AddTypicalLogo()
 app.AddTypicalSky()
-app.AddTypicalCamera(chronoirr.vector3df(0, 3, -5))
+app.AddTypicalCamera(chronoirr.vector3df(0, 3, -5), chronoirr.vector3df(0, 0, 0))
 app.AddTypicalLights()
-app.SetTimestep(0.01)
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 # Run the simulation
 while app.GetDevice().run():

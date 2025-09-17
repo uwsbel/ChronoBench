@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
 
@@ -26,12 +27,24 @@ class Model1:
             builder = fea.ChBuilderCableANCF()
 
             
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)  
+            self.system.Add(mtruss)
+
+            
+            n_elements = 10 + i * 2
+
+            
+            start_point = chrono.ChVector3d(i * 0.5, 0, -0.1)
+            end_point = chrono.ChVector3d(i * 0.5 + 0.5, 0, -0.1)
+
+            
             builder.BuildBeam(
-                mesh,  
+                self.mesh,  
                 msection_cable2,  
-                10 + i,  
-                chrono.ChVector3d(i * 0.5, 0, -0.1),  
-                chrono.ChVector3d(i * 0.5 + 0.5, 0, -0.1)  
+                n_elements,  
+                start_point,  
+                end_point  
             )
 
             
@@ -39,49 +52,24 @@ class Model1:
             builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
-            mtruss = chrono.ChBody()
-            mtruss.SetFixed(True)  
-
-            
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            system.Add(constraint_hinge)  
+            self.system.Add(constraint_hinge)  
 
             
-            box_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)
-            box_body.SetPos(chrono.ChVector3d(i * 0.5 + 0.5, 0, -0.1))
+            end_body = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True)
+            end_body.SetPos(end_point)
+            self.system.Add(end_body)
+            self.end_bodies.append(end_body)
 
-            
-            constraint_box = fea.ChLinkNodeFrame()
-            constraint_box.Initialize(builder.GetLastBeamNodes().back(), box_body)
-            system.Add(constraint_box)  
-
-            self.end_bodies.append(box_body)
-
-            
-            system.Add(box_body)
-
-        
-        
-        visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-        visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-        visualizebeamA.SetSmoothFaces(True)  
-        visualizebeamA.SetWireframe(False)  
-        mesh.AddVisualShapeFEA(visualizebeamA)  
-
-        
-        visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-        visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-        visualizebeamB.SetSymbolsThickness(0.006)  
-        visualizebeamB.SetSymbolsScale(0.01)  
-        visualizebeamB.SetZbufferHide(False)  
-        mesh.AddVisualShapeFEA(visualizebeamB)  
+            constraint_box = fea.ChLinkPointFrame()
+            constraint_box.Initialize(builder.GetLastBeamNodes().back(), end_body)
+            self.system.Add(constraint_box)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.end_bodies):
             print(f"Chain {i+1} end body position: {body.GetPos()}")
+
 
 
 sys = chrono.ChSystemSMC()
@@ -90,6 +78,24 @@ mesh = fea.ChMesh()
 
 model = Model1(sys, mesh)
 sys.Add(mesh)  
+
+
+
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
+visualizebeamA.SetSmoothFaces(True)  
+visualizebeamA.SetWireframe(False)  
+mesh.AddVisualShapeFEA(visualizebeamA)  
+
+
+visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
+visualizebeamB.SetSymbolsThickness(0.006)  
+visualizebeamB.SetSymbolsScale(0.01)  
+visualizebeamB.SetZbufferHide(False)  
+mesh.AddVisualShapeFEA(visualizebeamB)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

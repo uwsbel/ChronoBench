@@ -30,15 +30,17 @@ class Model1:
 
         
         
+        
         builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
         
         mtruss = chrono.ChBody()
         mtruss.SetFixed(True)  
+        system.Add(mtruss)  
 
         
         constraint_hinge = fea.ChLinkNodeFrame()
-        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)  
         system.Add(constraint_hinge)  
 
 
@@ -80,7 +82,7 @@ vis.AddTypicalLights()
 
 
 solver = chrono.ChSolverMINRES()  
-if solver.GetType() == chrono.ChSolver.Type_MINRES:  
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
 solver.SetMaxIterations(200)  

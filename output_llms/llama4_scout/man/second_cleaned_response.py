@@ -3,11 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  
+initLoc = chrono.ChVector3d(-20, 0, 1.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -20,10 +17,23 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrain_model = veh.RigidTerrain.HeightMap
-terrainHeight = 0
 terrainLength = 100.0  
 terrainWidth = 100.0  
+
+
+height_map = [
+    (0, 0, 0),
+    (10, 0, 1),
+    (20, 0, 2),
+    (30, 0, 1.5),
+    (40, 0, 1),
+    (50, 0, 0.5),
+    (60, 0, 0),
+    (70, 0, -0.5),
+    (80, 0, -1),
+    (90, 0, -1.5),
+    (100, 0, -2),
+]
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -40,7 +50,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.MAN_5t()  
+vehicle = veh.MAN_5t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -65,14 +75,22 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-def height_map(x, y):
-    return 0.5 * math.sin(2 * math.pi * x / 20) + 0.2 * math.sin(2 * math.pi * y / 20) + 0.5
+def height_map_func(x, y):
+    for i in range(len(height_map) - 1):
+        x1, y1, z1 = height_map[i]
+        x2, y2, z2 = height_map[i + 1]
+        if x1 <= x <= x2:
+            ratio = (x - x1) / (x2 - x1)
+            return z1 + (z2 - z1) * ratio
+    return 0
 
-terrain.InitializeFromHeightMap(patch_mat, terrainLength, terrainWidth, height_map)
+terrain.SetHeightMapCallback(height_map_func, terrainLength, terrainWidth)
 
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-terrain.GetTerrainRenderMesh().SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))  
-terrain.GetTerrainRenderMesh().SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -112,7 +130,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

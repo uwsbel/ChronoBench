@@ -169,19 +169,19 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
-depth_camera = sens.ChDepthCamera(
+depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
+    depth_cam_offset,
     image_width,
     image_height,
     fov,
     30.0  
 )
-depth_camera.SetName("Depth Camera")
-depth_camera.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_camera)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
 
 
 
@@ -189,42 +189,36 @@ manager.AddSensor(depth_camera)
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
+while time < end_time:
+    time = gator.GetSystem().GetChTime()
 
+    
+    chassis_pos = gator.GetChassisBody().GetPos()
+    chassis_rot = gator.GetChassisBody().GetRot()
+    
+    heading = math.degrees(math.atan2(2 * (chassis_rot.w * chassis_rot.z + chassis_rot.x * chassis_rot.y),
+                                     1 - 2 * (chassis_rot.y**2 + chassis_rot.z**2)))
 
-with open("vehicle_state_log.csv", "w") as log_file:
-    log_file.write("Time,X,Y,Z,Heading\n")
+    
+    print(f"Time: {time:.2f}s | Position: X={chassis_pos.x:.2f}, Y={chassis_pos.y:.2f}, Z={chassis_pos.z:.2f} | Heading: {heading:.2f}°")
 
-    while time < end_time:
-        time = gator.GetSystem().GetChTime()
+    
+    driver.SetSteering(0.5)
+    driver.SetThrottle(0.2)
+    
+    driver_inputs = driver.GetInputs()
 
-        
-        chassis_pos = gator.GetChassisBody().GetPos()
-        chassis_rot = gator.GetChassisBody().GetRot()
+    
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    gator.Synchronize(time, driver_inputs, terrain)
 
-        
-        heading = math.degrees(chrono.ChQuaterniond(chassis_rot).Q_to_Yaw())
+    manager.Update()
 
-        
-        log_file.write(f"{time},{chassis_pos.x},{chassis_pos.y},{chassis_pos.z},{heading}\n")
+    
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    gator.Advance(step_size)
 
-        
-        driver.SetSteering(0.5)
-        driver.SetThrottle(0.2)
-
-        
-        driver_inputs = driver.GetInputs()
-
-        
-        driver.Synchronize(time)
-        terrain.Synchronize(time)
-        gator.Synchronize(time, driver_inputs, terrain)
-
-        manager.Update()
-
-        
-        driver.Advance(step_size)
-        terrain.Advance(step_size)
-        gator.Advance(step_size)
-
-        
-        realtime_timer.Spin(step_size)
+    
+    realtime_timer.Spin(step_size)

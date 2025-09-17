@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  
+import pychrono.sensor as sens
 from pychrono import irrlicht as chronoirr
 
 
@@ -12,9 +12,6 @@ system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-
-manager = sens.ChSensorManager(system)  
 
 
 ground_mat = chrono.ChContactMaterialNSC()
@@ -41,25 +38,25 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
 
 
-lidar = sens.ChLidarSensor(rover.GetChassis())  
-lidar.SetName("rover_lidar")  
+manager = sens.ChSensorManager(system)
+
+
+lidar = sens.ChLidarSensor(rover.GetChassisBody())  
+lidar.SetName("Lidar")
 lidar.SetUpdateRate(20)  
-
-
-lidar.SetHorizontalSamples(180)  
+lidar.SetHorizontalSamples(360)  
 lidar.SetVerticalSamples(1)  
-lidar.SetHorizontalFieldOfView(chrono.ChCPI * 2)  
-lidar.SetVerticalFieldOfView(chrono.ChCPI / 180)  
+lidar.SetHorizontalAngle(chrono.ChC2PI)  
+lidar.SetVerticalAngle(chrono.CH_C_PI / 180)  
 lidar.SetMinRange(0.1)  
-lidar.SetMaxRange(10)  
+lidar.SetMaxRange(10.0)  
 
 
-filter = sens.ChFilterPCfromLidar()
-filter.SetSensor(lidar)
-filter.SetUseTransform(True)
+lidar.AddFilter(sens.ChFilterPCfromLidar())
+lidar.AddFilter(sens.ChFilterSaveToFile("lidar_data.txt"))
 
 
 manager.AddSensor(lidar)
@@ -89,14 +86,14 @@ while vis.Run():
     time += time_step
 
     
-    manager.Update()  
-
-    
     driver.SetSteering(0.0)
     driver.SetThrottle(0.5)  
 
     
     rover.Update()
+
+    
+    manager.Update()
 
     
     vis.BeginScene()

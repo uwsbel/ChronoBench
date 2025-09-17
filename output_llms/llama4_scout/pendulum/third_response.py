@@ -32,21 +32,14 @@ cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Set the initial position of the first pendulum (center of mass) in the absolute frame
-# The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
-
-# Create a revolute joint to connect the first pendulum to the ground
-# The revolute joint allows rotation around a single axis (the Z-axis in this case)
-rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(rev_1)
 
 # Create the second pendulum body and add it to the simulation
 pend_2 = chrono.ChBody()
 sys.AddBody(pend_2)
-pend_2.SetFixed(False)  # The second pendulum can move
-pend_2.EnableCollision(False)  # Disable collision detection for the second pendulum
-pend_2.SetMass(1)  # Set the mass of the second pendulum (in kg)
+pend_2.SetFixed(False)  # The pendulum can move
+pend_2.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_2.SetMass(1)  # Set the mass of the pendulum (in kg)
 pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Set the inertia tensor (in kg·m^2)
 
 # Add a visualization cylinder to the second pendulum
@@ -55,8 +48,12 @@ cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # Set the color of the cylinder (RGB)
 pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Set the initial position of the second pendulum (center of mass) in the absolute frame
-# The second pendulum is initially horizontal, pointing towards the positive X direction
 pend_2.SetPos(chrono.ChVector3d(1.5, 0, 1))
+
+# Create a revolute joint to connect the first pendulum to the ground
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_1)
 
 # Create a revolute joint to connect the second pendulum to the first pendulum
 rev_2 = chrono.ChLinkLockRevolute()
@@ -88,11 +85,11 @@ while vis.Run():
         print("t = ", sys.GetChTime())
         print("Pendulum 1 position: ", pos_1.x, " ", pos_1.y)
 
-        lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
-        print("Pendulum 1 velocity: ", lin_vel_1.x, " ", lin_vel_1.y)
-
         pos_2 = pend_2.GetPos()  # Get the position of the second pendulum
         print("Pendulum 2 position: ", pos_2.x, " ", pos_2.y)
+
+        lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
+        print("Pendulum 1 velocity: ", lin_vel_1.x, " ", lin_vel_1.y)
 
         lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
         print("Pendulum 2 velocity: ", lin_vel_2.x, " ", lin_vel_2.y)

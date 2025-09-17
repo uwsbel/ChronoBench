@@ -1,89 +1,59 @@
-from pychrono import ChSystem, ChSystemNSC, ChLinkTSDA, ChBody, ChCoordsys, ChCoordSysD, ChVec3D, ChFrame, ChRigidBody, ChSphereShape, ChMaterialSurface, ChVisualStyle, ChVisuals
-import pychrono.pychrono as pch
+from pychron import *
 
-# Initialize the simulation environment
+from pychron.physics import Mass, SpringDamper
+from pychron.irrlicht import IrrlichtVisualizer, IrrlichtPhysics
+from pychron.physics.visuals import Visual, SphereVisual, CylinderVisual
 
-system = ChSystemNSC()
+# Initialize PyChrono
+
+chrono = Chrono()
+
+# Create the physics engine
+
+engine = IrrlichtPhysics(chrono)
 
 # Create the ground body
 
-ground = ChBody()
-ground.SetMass(0)
-ground.SetStatic()
-system.AddBody(ground)
+ground = ChronoSphere(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
 
 # Create the mass body
 
-mass = ChBody()
-mass.SetMass(1.0)
-system.AddBody(mass)
+mass = Mass(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
 
-# Create the spring and damper
+# Create the spring damper system
 
-spring = ChLinkTSDA(mass, ground)
-spring.Initialize(ChCoordsysD(ChFrame(ChCoordSysD(ChBody(), ChVec3D(0, 0, 0)))
-spring.Initialize(ChCoordsysD(ground))
-spring.Initialize(ChCoordsysD(mass))
-spring.Initialize(ChCoordsysD(ground))
+spring_damper = SpringDamper(chrono, 100.0, 0.1)
 
-# Set spring-damper parameters
+# Connect the mass to the ground using ChLinkTSDA
 
-spring.InitializeDamper(1.0)
-spring.InitializeSpring(1.0, 0.05)
+spring_damper.create_link(mass, ground, ChLinkTSDA(100.0, 0.1))
 
-# Create a sphere shape for the mass
+# Add visuals for the mass and spring
 
-massShape = ChSphereShape(0.1)
-mass.AddAsset(massShape)
+mass_visual = SphereVisual(chrono, 0.2, mass.get_shape())
 
-# Create a visual style for the mass
+spring_visual = CylinderVisual(chrono, 0.1, spring_damper.get_shape())
 
-visualStyle = ChVisualStyle()
-visualStyle.SetTexture("mass_texture.png")
-mass.AddAsset(visualStyle)
+# Add visuals to the Irrlicht visualizer
 
-# Add the mass to the system
+visualizer = IrrlichtVisualizer(chrono)
 
-mass.AddAsset(massShape)
+visualizer.add_visual(mass_visual)
 
-# Set up the Irrlicht visualization
+visualizer.add_visual(spring_visual)
 
-system.SetVisuals(ChVisuals())
+# Set camera settings
 
-# Configure the Irrlicht visualization
+visualizer.set_light_position(0, 10, 0)
 
-irrlicht_settings = system.GetIrrlichtSettings()
-irrlicht_settings.SetLighting(True)
-irrlicht_settings.SetCamera(ChCamera(ChCoordSys(ChFrame(ChVec3D(0, 0, 0), ChVec3D(0, 0, 0)))
+visualizer.set_camera_position(0, 10, 10)
 
-# Set up the Irrlicht materials
-
-material = ChMaterialSurface()
-material.SetAmbientColor(ChColor(0.7, 0.7, 0.7))
-massShape.SetMaterial(material)
-
-# Add the mass to the Irrlicht visualization
-
-mass.AddAsset(material)
+visualizer.set_camera_lookat(0, 0, 0)
 
 # Run the simulation
 
-system.SetSolverIterations(10)
-system.SetSolverTolerance(1e-6)
-system.SetSolverIterationLimit(100)
-system.SetSolverMaxSpeed(100)
+while True:
 
-system.SetGravity(ChVector3D(0, 0, -9.81))
+    chrono.run()
 
-# Run the simulation for 10 seconds
-
-sim_time = 10
-dt = 0.01
-
-for t in pch.interval(0, sim_time, dt):
-
-    system.DoStepDynamics(dt)
-
-# Print the position of the mass
-
-print(f"Time: {t:.2f}s, Position: {mass.p()}")
+    visualizer.render()

@@ -1,67 +1,96 @@
 ```python
 import chrono
-from chrono import ChMaterial, ChSystem, ChBody, ChLinkMate, ChVisualization, ChShapes, ChFunctions, ChTimestepperODE
-from chrono.irrlicht import ChIrrApp
-from chrono.fea import ChMesh, ChElementShell, ChLoaderMSH
+from chrono import ChMaterial, ChSystem, ChBody, ChShape, ChLinkMate, ChVisualization, ChShapes, ChMatrixDynamic, ChFrame
+from chrono.irrlicht import ChirrApp
+from chrono.fea import ChElementShellQT
+from chrono.fea.shell import ChShellInterface
+from chrono.fea.shell.driver import ChDriverShellLin
+from chrono.fea.truss import ChElementT3
+from chrono.fea.truss import ChTrussInterface
+from chrono.core import ChTimer
+from chrono.collision import ChCollisionModel
+from chrono.irrlicht.user_interface import ChIrrGui
 
-# Initialize PyChrono environment and core components
-chrono.SetChronoDataPath('path/to/chrono/data')
-
-# Initialize the system
+# Initialize the PyChrono environment and core components
+ChSystem.SetSolverType(ChSystem.SOLVER_PARDISO_MKL)
 my_system = ChSystem()
-my_system.Set_G_acc(ChVectorD(0, 0, -9.81))
-my_system.SetSolverType(ChSolver.Type_PARDISO_MKL)
 
+# Add the required physical systems and objects as specified
 # Create a tablecloth using shell elements
-tablecloth_mesh = ChMesh()
-tablecloth_loader = ChLoaderMSH()
-tablecloth_loader.Load('path/to/tablecloth/mesh.msh', tablecloth_mesh)
+tablecloth_width = 1.5  # meters
+tablecloth_length = 2.0  # meters
+num_elem_width = 10
+num_elem_length = 15
 
-tablecloth_material = ChMaterialSurfaceShell()
-tablecloth_material.SetYoungModulus(130e6)
-tablecloth_material.SetPoissonRatio(0.35)
-tablecloth_material.SetThickness(0.001)
+tablecloth_nodes = []
+tablecloth_elements = []
+tablecloth_material = ChMaterial.KirchhoffIsotropic(50, 0.3)
 
-for element in tablecloth_mesh.GetElements():
-    if isinstance(element, ChElementShell):
-        element.SetMaterialSurface(tablecloth_material)
+for i in range(num_elem_width + 1):
+    for j in range(num_elem_length + 1):
+        x = i * tablecloth_width / num_elem_width
+        y = j * tablecloth_length / num_elem_length
 
-tablecloth_body = ChBody()
-tablecloth_body.SetMass(1)
-tablecloth_body.SetCollide(False)
-tablecloth_body.SetPos(ChVectorD(0, 0, 0))
-tablecloth_body.SetChassisShape(tablecloth_mesh)
-my_system.AddBody(tablecloth_body)
+        if i < num_elem_width and j < num_elem_length:
+            # Create nodes
+            node = ChBody()
+            node.SetPos(chrono.ChVectorD(x, y, 0.01))
+            node.SetMass(0.0)
+            node.SetCollide(False)
+            my_system.AddBody(node)
+            tablecloth_nodes.append(node)
 
-# Set up Irrlicht visualization system
+            # Create elements
+            if i % 2 == 0 and j % 2 == 0:
+                el = ChElementShellQT(node, tablecloth_material, 0.1, 0.1)
+            else:
+                el = ChElementShellQT(node, tablecloth_material, 0.1, 0.1)
+                el.SetThickness(0.005)
+
+            el.SetPressure(0.0)
+            el.SetBendingStiffness(1000)
+            el.SetShearStiffness(1000)
+            el.SetTorsionalStiffness(1000)
+            el.SetFlexuralStiffness(1000)
+
+            my_system.AddElement(el)
+            tablecloth_elements.append(el)
+
+# Set necessary default parameters such as positions, forces, and interactions
+for node in tablecloth_nodes:
+    node.SetPos(node.GetPos() + chrono.ChVectorD(0, 0, 0.01))
+
+# Set up an Irrlicht visualization system
 my_vis = ChVisualization()
-my_vis.AttachSystem(my_system)
-my_vis.SetWindowSize(800, 600)
-my_vis.SetWindowTitle('Tablecloth Folding Simulation')
-my_vis.Initialize()
-my_vis.AddLogo()
-my_vis.AddSkyBox()
-my_vis.AddCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))
+my_vis.AddSystem(my_system)
+my_vis.SetWindowSize(1280, 720)
+my_vis.SetTimestep(1e-4)
+my_vis.SetShowPhysics(True)
+my_vis.SetShowCollision(True)
+my_app = ChirrApp(my_vis)
 
-# Set up time-stepping
-my_stepper = ChTimestepperODE()
-my_stepper.SetStepSize(1e-4)
-my_stepper.SetMaxIterations(100)
-my_stepper.SetTolVel(1e-8)
-my_stepper.SetTolPos(1e-8)
-my_system.SetTimestepper(my_stepper)
+# Add a user interface
+my_gui = ChIrrGui()
+my_app.AddUserInterface(my_gui)
 
 # Run the simulation
-for i in range(10000):
-    my_stepper.DoStepDynamics(my_system)
+timer = ChTimer()
+timer.Start()
+
+while my_app.GetDevice().run():
+    my_app.BeginScene()
     my_vis.BeginScene()
-    my_vis.RenderScene()
+
+    my_system.DoStepDynamics(my_vis.GetTimestep())
+
+    my_vis.DrawAll()
+    my_app.DrawAll()
+
     my_vis.EndScene()
+    my_app.EndScene()
 
-# Clean up
-del my_system
-del my_stepper
-del my_vis
+my_app.GetDevice().drop()
+
+timer.Stop()
+print("Elapsed time: ", timer.GetElapsedTime())
 ```
-
-Make sure to replace the placeholder paths with the actual paths to the Chrono data directory and the tablecloth mesh file. This script initializes the PyChrono environment, creates a tablecloth using shell elements with an isotropic Kirchhoff material, and sets up an Irrlicht visualization system. It also uses the PardisoMKL solver for efficient dynamics handling.

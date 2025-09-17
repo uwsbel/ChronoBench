@@ -18,6 +18,7 @@ ground.EnableCollision(False)
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
 
+
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
 body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
@@ -61,25 +62,32 @@ body_3.AddVisualShape(box_3)
 
 
 spring_1 = chrono.ChLinkTSDA()
-spring_1.Initialize(body_1, body_2, False, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 0))
+spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
 spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
 
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
-
 spring_2 = chrono.ChLinkTSDA()
-spring_2.Initialize(body_2, body_3, False, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 0))
+spring_2.Initialize(body_1, body_2, False, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 0))
 spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_2)
 
 
+spring_3 = chrono.ChLinkTSDA()
+spring_3.Initialize(body_2, body_3, False, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 0))
+spring_3.SetRestLength(rest_length)
+spring_3.SetSpringCoefficient(spring_coef)
+spring_3.SetDampingCoefficient(damping_coef)
+sys.AddLink(spring_3)
+
+
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)

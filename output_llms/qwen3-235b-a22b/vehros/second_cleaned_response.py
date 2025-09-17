@@ -34,11 +34,9 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     
-    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-
     terrain.Initialize()  
 
     
@@ -57,13 +55,14 @@ def main():
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetCameraVertical(ch.CameraVerticalDir_Z)
     vis.SetWindowSize(1280, 720)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono.png"))
+    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 2.5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddTypicalLights()
+    vis.AddCamera(chronoirr.vector3df(0, 5, 2), chronoirr.vector3df(0, 0, 1))
+    vis.AddTypicalLights(chronoirr.vector3df(100, 100, 100), chronoirr.vector3df(100, -100, 100), 250, 250)
 
     
     time = 0
@@ -91,9 +90,9 @@ def main():
 
         
         if vis.Run():
-            vis.BeginScene()
             vis.Render()
-            vis.EndScene()
+        else:
+            break
 
 if __name__ == "__main__":
     main()

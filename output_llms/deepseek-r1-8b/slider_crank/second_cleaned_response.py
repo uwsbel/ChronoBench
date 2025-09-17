@@ -75,41 +75,45 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-while True:
+while vis.Run():
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
+
     
-    
-    current_time = sys.GetTime() * 0.001  
-    current_angle = my_motor.GetAngularSpeed()  
-    current_pos = mpiston.GetPos().x  
-    current_speed = my_angularspeed.GetVelocity()  
-    
-    
+    current_time = sys.GetTime()
     array_time.append(current_time)
-    array_angle.append(current_angle)
-    array_pos.append(current_pos)
-    array_speed.append(current_speed)
     
     
-    if current_time >= 20:
+    crank_pos = sys.GetLinkPosition(mcrank)
+    crank_angle = sys.GetLinkAngle(mcrank)
+    crank_speed = sys.GetLinkVelocity(mcrank)[0]  
+    
+    array_angle.append(crank_angle)
+    array_pos.append(crank_pos[1])  
+    array_speed.append(crank_speed)
+    
+    if current_time >= 20:  
         break
+    
+    sys.DoStepDynamics(1e-3)  
 
 
 plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.plot(array_time, array_pos, 'b-', linewidth=2)
-plt.xlabel('Time (s)')
-plt.ylabel('Position (m)')
+plt.subplot(2, 1, 1)
+plt.plot(array_time, array_pos, label='Position [m]')
+plt.xlabel('Time [s]')
+plt.ylabel('Position [m]')
 plt.title('Crank Position vs Time')
-plt.grid(True)
-plt.subplot(1, 2, 2)
-plt.plot(array_time, array_speed, 'r-', linewidth=2)
-plt.xlabel('Time (s)')
-plt.ylabel('Speed (m/s)')
+plt.legend()
+
+plt.subplot(2, 1, 2)
+plt.plot(array_time, array_speed, label='Speed [m/s]')
+plt.xlabel('Time [s]')
+plt.ylabel('Speed [m/s]')
 plt.title('Crank Speed vs Time')
-plt.grid(True)
+plt.legend()
+
 plt.tight_layout()
 plt.show()

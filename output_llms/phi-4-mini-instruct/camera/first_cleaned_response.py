@@ -1,55 +1,100 @@
-from PyChrono import *
-import numpy as np
+from pychrono import *
 
 
-ChronoInit()
+
+ch = Chrono()
 
 
-world = World()
+
+ch.init()
 
 
-mesh = TriangularMesh("path/to/mesh.obj", 0.1)
+
+mesh = Mesh("path/to/mesh.obj")
 
 
-world.AddFixedBody(mesh, "fixed_mesh")
+
+ch.add_body(mesh, position=[0, 0, 0], fixed=True)
 
 
-camera = CameraSensor(world, "camera_sensor")
 
 
-camera.AddNoiseFilter(NoiseFilter(0.01, 0.01, 0.01, 0.01, 0.01))
+camera = Camera()
+
+ch.add_sensor(camera, body=mesh)
 
 
-visualizer = CameraVisualizer(world, "camera_visualizer")
-visualizer.AddCamera(camera)
 
 
-camera.SetPosition(0, 0, 0)
-camera.SetOrientation(0, 0, 0)
+sensor_manager = SensorManager()
+
+sensor_manager.add_camera(camera)
+
+sensor_manager.add_noise_filter('gaussian', mean=0, variance=0.1)
 
 
-sensor_manager = SensorManager(world, "sensor_manager")
-sensor_manager.AddSensor(camera)
 
 
-camera.SetOrbitMode("elliptical")
-camera.SetOrbitRadius(5.0)
-camera.SetOrbitPeriod(10.0)
-camera.SetOrbitDirection(0, 0, 1)
+camera_visualizer = CameraVisualizer()
+
+ch.add_visualizer(camera_visualizer, camera)
 
 
-camera.SetOrbitStep(0.1)
 
 
-for step in range(1000):
-    
-    world.Step(1.0)
-
-    
-    buffer = camera.GetBuffer()
+def update_camera_position(step, dt):
 
     
-    print(f"Step: {step}, Buffer Data: {buffer}")
+
+    orbit_radius = 10.0
+
+    angular_velocity = 0.1
+
+    
+
+    theta = angular_velocity * step * dt
+
+    x = orbit_radius * np.cos(theta)
+
+    y = orbit_radius * np.sin(theta)
+
+    z = 0.0
+
+    
+
+    camera.set_position([x, y, z])
 
 
-world.Finalize()
+
+
+step = 0
+
+dt = 0.01
+
+while ch.simulation_step(step, dt):
+
+    
+
+    update_camera_position(step, dt)
+
+
+    
+
+    buffer = camera.get_buffer()
+
+    print(f"Step: {step}, Camera Buffer: {buffer = camera, camera, step, step
+
+
+
+    
+
+    
+
+    
+
+    step += 1
+
+
+
+
+ch.run_simulation()

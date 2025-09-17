@@ -13,6 +13,25 @@ my_system = chrono.ChSystemNSC()
 
 
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1200, 800)
+vis.SetWindowTitle("MAN 10t Truck Simulation")
+vis.Initialize()
+
+
+camera = vis.GetSceneManager().addCameraSceneNode(None, chrono.ChVectorD(0, 2, -5))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
+
+
+light = vis.GetSceneManager().addLightSceneNode(None, chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
+
+
+vis.GetSceneManager().addSkyBoxSceneNode(chronoirr.ChVisualSystemIrrlicht.GetSkyBoxTexturePath("skybox/"))
 
 
 
@@ -24,37 +43,18 @@ my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 vehicle = chronovehicle.ChVehicle("MAN 10t Truck")
 
 
-vehicle.SetChassisFixed(False)
-vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
-vehicle.SetChassisCollisionType(chronovehicle.CollisionType_BOX)
+my_system.Add(vehicle.GetChassis())
 
 
-vehicle.SetVehiclePath("path/to/MAN_10t_truck.json")
+vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(chronovehicle.VisualizationType_MESH)
 
 
-tire_model = chronovehicle.TMEasyTire
-for i in range(4):
-    tire = chronovehicle.ChWheel(tire_model)
-    tire.SetVisualizationType(chronovehicle.VisualizationType_MESH)
-    tire.SetCollisionType(chronovehicle.CollisionType_MESH)
-    vehicle.AddWheel(tire)
+vehicle.SetVehicleModel("MAN_10t_truck")
 
 
-
-
-
-
-
-
-terrain = chrono.ChBodyEasyBox(100, 100, 1)
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-my_system.Add(terrain)
-
-
-terrain.AddAsset(chronoirr.ChIrrAssetTexture("path/to/terrain_texture.jpg"))
-terrain.AddAsset(chronoirr.ChIrrAssetLogo("path/to/terrain_logo.png"))
+vehicle.SetTireModel(chronovehicle.TMEasyTire())
 
 
 
@@ -63,19 +63,13 @@ terrain.AddAsset(chronoirr.ChIrrAssetLogo("path/to/terrain_logo.png"))
 
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+driver = chronovehicle.ChDriver()
+driver.SetSteeringInput(0)
+driver.SetThrottleInput(0)
+driver.SetBrakingInput(0)
 
 
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(0, 5, 10))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
-
-
-light = vis.AddLightDirectional(chrono.ChVectorD(1, -1, 1))
-
-
-vis.AddSkyBox("path/to/skybox.jpg")
+vehicle.SetDriver(driver)
 
 
 
@@ -84,6 +78,16 @@ vis.AddSkyBox("path/to/skybox.jpg")
 
 
 
+ground = chrono.ChBodyEasyBox(100, 100, 0.1, 1000)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+
+
+my_system.Add(ground)
+
+
+ground.GetVisualShape(0).SetTexture(chronoirr.ChVisualSystemIrrlicht.GetTexturePath("terrain/grass.jpg"))
+ground.GetVisualShape(0).SetLogoTexture(chronoirr.ChVisualSystemIrrlicht.GetTexturePath("terrain/logo.png"))
 
 
 
@@ -93,9 +97,20 @@ vis.AddSkyBox("path/to/skybox.jpg")
 
 while vis.Run():
     
+    steering = ... 
+    throttle = ... 
+    braking = ... 
+
+    
+    driver.SetSteeringInput(steering)
+    driver.SetThrottleInput(throttle)
+    driver.SetBrakingInput(braking)
 
     
     my_system.DoStepDynamics(0.01)
 
     
     vis.Render()
+
+
+vis.Deinitialize()

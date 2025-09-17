@@ -29,9 +29,7 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
-    patch = ch.ChTriangleMeshPatch()
-    patch_mat.SetTriangleMesh(patch)
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+    patch_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     terrain.Initialize()  
 
@@ -50,40 +48,29 @@ def main():
 
     
     vis_system = chronoirr.ChVisualSystemIrrlicht()
-    vis_system.SetVehicle(hmmwv.GetVehicle())
-    vis_system.SetTerrain(terrain)
-    vis_system.SetCameraPosition(ch.ChVector3d(0, 10, 5))
-    vis_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))
-    vis_system.SetCameraUp(ch.ChVector3d(0, 1, 0))
+    vis_system.SetWindowTitle("HMMWV Simulation")  
+    vis_system.SetWindowDimension(800, 600)  
+    vis_system.SetDevice(chronoirr.ChDeviceIrrlicht())  
+    vis_system.SetCameraPosition(ch.ChVector3d(0, 0, 5))  
+    vis_system.SetCameraTarget(ch.ChVector3d(0, 0, 0))  
+    vis_system.SetCameraUp(ch.ChVector3d(0, 1, 0))  
+    vis_system.AddVehicle(hmmwv)  
+    vis_system.AddTerrain(terrain)  
 
     
-    time = 0
-    time_step = 1e-3  
-    time_end = 30  
-
-    hmmwv.GetVehicle().EnableRealtime(True)  
-    while time < time_end:
-        time = hmmwv.GetSystem().GetChTime()  
+    while True:
+        
+        driver.Advance(1e-3)
+        terrain.Advance(1e-3)
+        hmmwv.Advance(1e-3)
 
         
-        driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  
-        terrain.Synchronize(time)  
-        hmmwv.Synchronize(time, driver_inputs, terrain)  
+        vis_system.Render()  
+        vis_system.Update()  
 
         
-        driver.Advance(time_step)
-        terrain.Advance(time_step)
-        hmmwv.Advance(time_step)
-
-        
-        if not ros_manager.Update(time, time_step):
+        if chronoirr.GetDevice().IsKeyDown(chronoirr.KEY_ESCAPE):
             break  
-
-        
-        vis_system.Render()
-        vis_system.StepRender()
-        vis_system.FrameRender()
 
 if __name__ == "__main__":
     main()

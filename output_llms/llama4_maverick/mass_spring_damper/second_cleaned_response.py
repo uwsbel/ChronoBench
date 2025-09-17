@@ -7,17 +7,6 @@ spring_coef = 50
 damping_coef = 1
 
 
-class MySpringForce(chrono.ForceFunctor):
-    def __init__(self, spring_coef, damping_coef):
-        super().__init__()
-        self.spring_coef = spring_coef
-        self.damping_coef = damping_coef
-
-    def evaluate(self, time, rest_length, length, vel):
-        force = -self.spring_coef * (length - rest_length) - self.damping_coef * vel
-        return force
-
-
 sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
@@ -58,6 +47,17 @@ box_2.SetColor(chrono.ChColor(0, 0.6, 0))
 body_2.AddVisualShape(box_2)
 
 
+class MySpringForce(chrono.ForceFunctor):
+    def __init__(self, spring_coef, damping_coef):
+        super().__init__()
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
+
+    def evaluate(self, time, rest_length, length, vel):
+        force = -self.spring_coef * (length - rest_length) - self.damping_coef * vel
+        return force
+
+
 spring_1 = chrono.ChLinkTSDA()
 spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
@@ -67,11 +67,11 @@ sys.AddLink(spring_1)
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
-spring_force = MySpringForce(spring_coef, damping_coef)
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
-spring_2.RegisterForceFunctor(spring_force)
+force_functor = MySpringForce(spring_coef, damping_coef)
+spring_2.RegisterForceFunctor(force_functor)
 sys.AddLink(spring_2)
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
@@ -85,7 +85,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
-
 
 while vis.Run():
     vis.BeginScene()

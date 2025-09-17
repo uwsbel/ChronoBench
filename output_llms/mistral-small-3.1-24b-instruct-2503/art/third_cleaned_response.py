@@ -48,9 +48,11 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26)  
-vehicle.SetStallTorque(0.4)            
-vehicle.SetTireRollingResistance(0.03) 
+
+
+vehicle.SetMaxMotorVoltageRatio(0.26)
+vehicle.SetStallTorque(0.4)
+vehicle.SetTireRollingResistance(0.03)
 
 vehicle.Initialize()
 
@@ -68,7 +70,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -77,7 +79,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('dart')
+vis.SetWindowTitle('ARTcar Simulation')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -104,7 +106,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetTotalMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,7 +120,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

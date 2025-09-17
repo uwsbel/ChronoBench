@@ -1,179 +1,105 @@
 import pychrono as chrono
-import pychrono.fea as fea
 import pychrono.irrlicht as irr
 
 
-my_system = chrono.ChSystemMulticore()
-fea_system = fea.ChFEMintegrate(my_system)
+sys = chrono.ChSystemNSC()
+sys.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+sys.SetMaxItersSolverSpeed(100)
+sys.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
 
-vis = irr.ChIrrApp(my_system, 'Beam Buckling Simulation', irr.dimension2du(800,600))
-vis.AddFEAMesh(fea_system)
-vis.SetCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,0,0))
-vis.SetSymbolscale(0.001)
-vis.SetShadowAll(0)
-vis.SetVideoframeCloud(0)
-vis.SetVideoframeSpheresize(0.001)
-vis.SetVideoframeLinesize(0.0005)
+sys.SetTimestepper(chrono.ChTimestepperHHT(sys))
+sys.GetTimestepper().SetAlpha(-0.2)
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Beam Buckling FEA Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSky()
+vis.AddGrid()
+sys.SetVisualSystem(vis)
 
 
 beam_length = 2.0
 num_elements = 20
-num_nodes = num_elements + 1
-cross_section_width = 0.1  
-cross_section_height = 0.02  
+element_length = beam_length / num_elements
 
-
-young_modulus = 2.1e9  
+cross_section_width = 0.1
+cross_section_height = 0.02
+material_density = 7850
+young_modulus = 2.1e11
 poisson_ratio = 0.3
-density = 7850  
 
 
 nodes = []
-for i in range(num_nodes):
-    x = i * beam_length / num_elements
-    node = fea.ChNodeFEAxyzD()
+for i in range(num_elements + 1):
+    x = i * element_length
+    node = chrono.ChNodeFEAbeam()
     node.SetPos(chrono.ChVectorD(x, 0, 0))
-    fea_system.AddNode(node)
+    sys.AddNode(node)
     nodes.append(node)
 
 
-nodes[0].SetFixed(True)
-
-
+elements = []
 for i in range(num_elements):
-    elem = fea.ChElementBeamANCF()
-    elem.SetNodes(nodes[i], nodes[i+1])
+    n1 = nodes[i]
+    n2 = nodes[i + 1]
+    elem = chrono.ChElementBeam()
+    elem.SetNodes(n1, n2)
     elem.Set_E(young_modulus)
-    elem.Set_nu(poisson_ratio)
-    elem.Set_rho(density)
-    
+    elem.Set_G(young_modulus / (2 * (1 + poisson_ratio)))
+    elem.Set_density(material_density)
     area = cross_section_width * cross_section_height
-    Ixx = (cross_section_width * cross_section_height**3) / 12
-    Iyy = (cross_section_height * cross_section_width**3) / 12
-    elem.Set_A(area)
-    elem.Set_Ixx(Ixx)
-    elem.Set_Iyy(Iyy)
-    fea_system.AddElement(elem)
+    elem.Set_Area(area)
+    Iz = (cross_section_width * cross_section_height**3) / 12
+    elem.Set_Iz(Iz)
+    sys.AddElement(elem)
+    elements.append(elem)
 
 
-class CustomForceFunction(chrono.ChFunction):
-    def Get_y(self, time):
-        
-        return -1e4 * time  
-
-force_func = CustomForceFunction()
-force = fea.ChLoadBodyForce()
-force.SetLoadDir(chrono.ChVectorD(-1, 0, 0))  
-force.SetF(force_func)
-force.SetNode(nodes[-1])
-fea_system.AddLoad(force)
+fixed = chrono.ChLinkLockPointFrame()
+fixed.Initialize(nodes[0].GetBody(), sys.Get_ground(), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+sys.Add(fixed)
 
 
-integrator = fea.ChFEMintegrateImplicit()
-integrator.SetTolerance(1e-6)
-integrator.SetMaxIterations(50)
-fea_system.SetIntegrator(integrator)
+target_body = chrono.ChBody()
+target_body.SetBodyFixed(True)
+target_body.SetPos(nodes[-1].GetPos())
+sys.Add(target_body)
+
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic.Initialize(nodes[-1].GetBody(), target_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+sys.Add(prismatic)
+
+motor = chrono.ChLinkMotorLinear()
+motor.Initialize(nodes[-1].GetBody(), target_body, chrono.VECT_X)
+motor.SetMode(chrono.ChLinkMotorLinear.Modes.POSITION)
+motor.SetReferencePositionFunction(lambda time: -0.1 * time)  
+sys.Add(motor)
 
 
-my_system.SetTimestep(0.001)
+for node in nodes:
+    sphere = chrono.ChSphereShape()
+    sphere.GetSphereGeometry().rad = 0.02
+    sphere.SetColor(chrono.ChColor(0, 0, 1))
+    node.AddAsset(sphere)
+
+for elem in elements:
+    n1 = elem.GetNodeA()
+    n2 = elem.GetNodeB()
+    line = chrono.ChLineShape()
+    line.SetPoints(n1.GetPos(), n2.GetPos())
+    line.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    line.SetThickness(0.005)
+    elem.AddAsset(line)
 
 
-vis.SetTimestep(0.001)
-vis.SetTryRealtime(True)
+simulation_time = 10.0
+time_step = 0.001
 
-while vis.Run():
-    my_system.DoStepDynamics(0.001)
+while vis.Run() and sys.GetChTime() < simulation_time:
+    sys.DoStepDynamics(time_step)
     vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as irr
-
-
-my_system = chrono.ChSystemMulticore()
-fea_system = fea.ChFEMintegrate(my_system)
-
-
-vis = irr.ChIrrApp(my_system, 'Beam Buckling Simulation', irr.dimension2du(800, 600))
-vis.AddFEAMesh(fea_system)
-vis.SetCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0, 0, 0))
-vis.SetSymbolscale(0.001)
-vis.SetShadowAll(0)
-vis.SetVideoframeCloud(0)
-vis.SetVideoframeSpheresize(0.001)
-vis.SetVideoframeLinesize(0.0005)
-
-
-beam_length = 2.0
-num_elements = 20
-num_nodes = num_elements + 1
-cross_section_width = 0.1  
-cross_section_height = 0.02  
-
-
-young_modulus = 2.1e9  
-poisson_ratio = 0.3
-density = 7850  
-
-
-nodes = []
-for i in range(num_nodes):
-    x = i * beam_length / num_elements
-    node = fea.ChNodeFEAxyzD()
-    node.SetPos(chrono.ChVectorD(x, 0, 0))
-    fea_system.AddNode(node)
-    nodes.append(node)
-
-
-nodes[0].SetFixed(True)
-
-
-for i in range(num_elements):
-    elem = fea.ChElementBeamANCF()
-    elem.SetNodes(nodes[i], nodes[i+1])
-    elem.Set_E(young_modulus)
-    elem.Set_nu(poisson_ratio)
-    elem.Set_rho(density)
-    
-    
-    area = cross_section_width * cross_section_height
-    Ixx = (cross_section_width * cross_section_height**3) / 12
-    Iyy = (cross_section_height * cross_section_width**3) / 12
-    elem.Set_A(area)
-    elem.Set_Ixx(Ixx)
-    elem.Set_Iyy(Iyy)
-    
-    fea_system.AddElement(elem)
-
-
-class CustomForceFunction(chrono.ChFunction):
-    def Get_y(self, time):
-        return -1e4 * time  
-
-force_func = CustomForceFunction()
-force = fea.ChLoadBodyForce()
-force.SetLoadDir(chrono.ChVectorD(-1, 0, 0))  
-force.SetF(force_func)
-force.SetNode(nodes[-1])
-fea_system.AddLoad(force)
-
-
-integrator = fea.ChFEMintegrateImplicit()
-integrator.SetTolerance(1e-6)
-integrator.SetMaxIterations(50)
-fea_system.SetIntegrator(integrator)
-
-
-my_system.SetTimestep(0.001)
-vis.SetTimestep(0.001)
-vis.SetTryRealtime(True)
-
-
-while vis.Run():
-    my_system.DoStepDynamics(0.001)
-    vis.BeginScene()
-    vis.Render()
+    vis.DrawAll()
     vis.EndScene()

@@ -1,76 +1,84 @@
 import pychrono as pychrono
 import pychrono.trajectory as trajectory
-import pychrono.visualization.irrlicht as irrlicht
+import pychronovisualization.irdock as irdock
+import pychrono.dynamics as dynamics
+import pychrono.gear as gear
+import pychrono.contact as contact
+import pychrono.math as math
 
-# Initialize PyChrono
-pychrono.initialize()
-simulation = pychrono.Simulation()
-visualization = pychrono.Visualization()
-renderer = visualization.createRenderer()
+# Initialize PyChrono and visualization
+pychrono.init()
+sim = pychrono.Simulation()
+sim.set_gfr(True)
+sim.set CONTACT_RESOLVER(True)
+sim.set_contact_resolver(contact.ContactResolver())
 
-# Ground body
+# Create ground body
 ground_body = pychrono.Body()
+ground_body.set_name("ground")
+ground_body.set_shape(pychrono.Shape.SPHERE)
 ground_body.set_mass(0)
-ground_body.set_position(pychrono.Vec3d(0, 0, 0))
-simulation.add_body(ground_body)
+ground_body.set_position(pychrono.Vec3(0, 0, 0))
+ground_body.set_inertia(dynamics.InertiaCube(mass=0, arm1=0, arm2=0, arm3=0))
+sim.add_body(ground_body)
 
-# Pendulum parameters
-mass = 1.0
-length = 5.0
-inertia = 1/5  # moment of inertia for a thin rod
-
-# Pendulum body
+# Create pendulum body
+pendulum_mass = 1.0
+length = 1.0
+moments_of_inertia = dynamics.InertiaCube(mass=pendulum_mass, arm1=length, arm2=length, arm3=0)
 pendulum_body = pychrono.Body()
-pendulum_body.set_mass(mass)
-pendulum_body.set_inertia(inertia)
-pendulum_body.set_position(pychrono.Vec3d(0, 5, 0))  # pivot point
+pendulum_body.set_name("pendulum")
+pendulum_body.set_shape(pychrono.Shape.SPHERE)
+pendulum_body.set_mass(pendulum_mass)
+pendulum_body.set_position(pychrono.Vec3(0, 0, length))
+pendulum_body.set_inertia(moments_of_inertia)
+sim.add_body(pendulum_body)
 
-# Revolute joint for pendulum
-joint = pychrono.RevoluteJoint()
-joint.set_damping(0.1)
-joint.set_rotation_limit(1.0)  # 90 degrees
-simulation.add_joint(joint)
-simulation.add_constraint(joint, pendulum_body, ground_body)
+# Create revolute joint between pendulum and ground
+joint = pychrono.Joint()
+joint.set_name("revolute")
+joint.set_parent_body(ground_body)
+joint.set_child_body(pendulum_body)
+joint.set_type(pychrono.Joint.ROTATION)
+joint.set_axis(pychrono.Vec3(0, 0, 1))
+sim.add_joint(joint)
 
-# Visualization setup
-visualization.set_renderer(renderer)
-camera = pychrono.Camera()
-camera.set_position(pychrono.Vec3d(0, 10, 30))
-camera.set_lookat(pychrono.Vec3d(0, 0, 0))
-renderer.set_camera(camera)
-renderer.set_light(0, pychrono.Vec3d(1, 1, 1), pychrono.Vec3d(0, 0, 0))
-renderer.set_light(1, pychrono.Vec3d(-1, -1, -1), pychrono.Vec3d(0, 0, 0))
+# Set up visualization
+renderer = irdock.IrrlichtRenderer()
+renderer.set_camera_position(pychrono.Vec3(5, 5, 5))
+renderer.set_background_color(pychrono.Color(0, 0, 0))
+renderer.set_light_color(pychrono.Color(1, 1, 1))
+renderer.set_light_position(pychrono.Vec3(5, 5, 5))
+sim.add_renderer(renderer)
 
-# Add forces and interactions
-simulation.add_force(pychrono.Vec3d(0, -9.81, 0), pendulum_body)
-simulation.add_torque(pychrono.Vec3d(0, 0, 0), pendulum_body, 1.0)
+# Define forces and interactions
+spring_force = dynamics.SpringForce()
+spring_force.set_name("spring")
+spring_force.set_type(dynamics.SpringForce.HARMONIC_POTENTIAL)
+spring_force.set_stiffness(100.0)
+spring_force.set_body1(pendulum_body)
+spring_force.set_body2(ground_body)
+spring_force.set_origin(ground_body.get_position())
+spring_force.set_target_position(ground_body.get_position())
+sim.add_force(spring_force)
 
-# Logging setup
-log = pychrono.Logging()
-log.set_path("pendulum_log")
-log.add_scalar("position_x", True)
-log.add_scalar("position_y", True)
-log.add_scalar("position_z", True)
-log.add_scalar("velocity_x", True)
-log.add_scalar("velocity_y", True)
-log.add_scalar("velocity_z", True)
+# Log positions and velocities
+log = pychrono.Logger("pendulum")
+log.set_period(0.1)
+log.add(pendulum_body)
 
-# Simulation loop
-while True:
-    simulation.step()
-    
-    # Check for collisions (replace with actual collision handling if needed)
-    # No collision handling required for this example
-    
-    # Log data
-    log.log()
-    
-    # Render visualization
-    visualization.render()
-    
-    # To exit the loop, press 'q'
-    if renderer.keys_pressed().get('q'):
-        break
+# Simulation setup
+sim.set_time_step(0.001)
+sim.set_number_of_steps(1000)
 
-# Clean up
-pychrono.finalize()
+# Function to log data
+def log_data():
+    log.log("Time: %.2f, Position: %.12f, Velocity: %.12f" % (
+        sim.get_time(),
+        pendulum_body.get_position().x,
+        pendulum_body.get_velocity().x
+    ))
+
+# Start simulation
+sim.start()
+sim.run()

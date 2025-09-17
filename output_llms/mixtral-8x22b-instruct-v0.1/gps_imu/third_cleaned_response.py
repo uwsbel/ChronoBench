@@ -185,7 +185,7 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-plt.plot([gps_data[i][0] for i in range(len(gps_data))], [gps_data[i][1] for i in range(len(gps_data))])
+plt.plot([coor[0] for coor in gps_data], [coor[1] for coor in gps_data])
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')
 plt.title('GPS Trajectory')

@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
 
 
 chrono.SetChronoDataPath('path/to/chrono/data')
@@ -10,94 +11,80 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-vehicle = veh.ChVehicleSystem()
-vehicle.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
-vehicle.Initialize()
+vehicle = veh.Gator()
 
 
-gator = veh.ChVehicleGator()
-gator.SetChassisBody(system.NewBody(chrono.ChBodyEasyBox(1, 1, 1, 1000)))
-gator.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-gator.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(0, 0, 1), chrono.CHRONO_PI / 2))
-gator.Initialize()
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vehicle.AddVehicle(gator)
+system.Add(vehicle.GetVehicle())
 
 
-terrain = chrono.ChTerrain()
-terrain.CreateRectangularPatch(system, 20, 20, 100, 100, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurface().SetFriction(0.9)
-terrain.GetMaterialSurface().SetRestitution(0.1)
-terrain.GetMaterialSurface().SetCompliance(0.00001)
-terrain.GetMaterialSurface().SetComplianceT(0.00001)
+terrain = veh.RigidTerrain(system)
+terrain.Initialize(100, 100, 0.1, chrono.ChVectorD(0, -0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC(0.7, 0.3, 0.01))
 
 
-system.Add(terrain)
+system.Add(terrain.GetGroundBody())
 
 
 driver = veh.ChDriver()
-driver.Initialize(gator, system)
-driver.SetSteeringDelta(0.0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0.0)
+driver.SetVehicle(vehicle)
+driver.SetSteeringController(veh.ChSteeringControllerPID(0.5, 0.1, 0.01))
+driver.SetThrottleController(veh.ChThrottleControllerPID(0.2, 0.1, 0.01))
 
 
-sensor_manager = veh.ChSensorManager()
-sensor_manager.Initialize(gator)
+sensor_manager = veh.ChSensorManager(vehicle)
+sensor_manager.Initialize()
 
 
-light1 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
-sensor_manager.AddLight(light1)
-
-light2 = chronoirr.ChIrrLightPoint(chrono.ChVectorD(-5, 5, 5), chrono.ChColorf(1.0, 1.0, 1.0), 100)
-sensor_manager.AddLight(light2)
+point_light = chronoirr.ChIrrLightPoint()
+point_light.SetRadius(100)
+point_light.SetDiffuseColor(chrono.ChColorf(1.0, 1.0, 1.0))
+sensor_manager.AddPointLight(point_light)
 
 
 camera = chronoirr.ChIrrCamera()
-camera.SetPosition(chrono.ChVectorD(0, -5, 2))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-camera.SetNearClip(0.1)
-camera.SetFarClip(100)
-camera.SetFOV(chrono.CHRONO_PI / 4)
+camera.SetPosition(chrono.ChVectorD(0, 2, -5))
+camera.SetLookAtPoint(chrono.ChVectorD(0, 0, 0))
 sensor_manager.AddCamera(camera)
 
 
-application = chronoirr.ChIrrApp(system, 'Gator Vehicle Simulation', chronoirr.dimension2du(1280, 720))
-application.AddVisualSystem('Vehicle', sensor_manager.GetVisualSystem())
-application.AddVisualSystem('Terrain', terrain.GetVisualSystem())
-application.AddVisualSystem('Driver', driver.GetVisualSystem())
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Gator Vehicle Simulation')
+
+
+vehicle.SetChassisVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetWheelVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetTireVisualizationType(veh.ChVisualizationType::MESH)
+
+
+postprocessor = postprocess.ChPostProcess()
+postprocessor.SetChronoDataPath('path/to/chrono/data')
+postprocessor.SetOutputDirectory('output')
+postprocessor.SetCamera(camera)
+postprocessor.SetSystem(system)
 
 
 step_size = 0.01
-max_time = 10.0
-time = 0.0
+end_time = 10.0
+current_time = 0.0
 
-while time < max_time:
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+while current_time < end_time:
+    driver.Synchronize(system.GetChTime())
+    terrain.Synchronize(system.GetChTime())
+    vehicle.Synchronize(system.GetChTime(), driver, terrain)
+    sensor_manager.Synchronize(system.GetChTime())
 
     system.DoStepDynamics(step_size)
 
-    
-    driver.Synchronize(step_size)
-    driver.Advance(step_size)
+    vis.Render()
+    postprocessor.Render()
 
-    
-    terrain.Synchronize(step_size)
-    terrain.Advance(step_size)
-
-    
-    vehicle.Synchronize(step_size)
-    vehicle.Advance(step_size)
-
-    
-    sensor_manager.Synchronize(step_size)
-    sensor_manager.Advance(step_size)
-
-    time += step_size
+    current_time += step_size
 
 
-application.Close()
+vis.Close()

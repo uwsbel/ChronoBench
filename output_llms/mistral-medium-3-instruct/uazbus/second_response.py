@@ -6,8 +6,8 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation (modified position)
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed from (0, 0, 0.5) to (-40, 0, 0.5)
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed from (0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -65,7 +65,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-# Changed terrain texture from tile4.jpg to concrete.jpg
+# Changed texture from tile4.jpg to concrete.jpg
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -107,54 +107,46 @@ render_frame = 0
 
 # Double lane change parameters
 lane_change_start_time = 2.0
-lane_change_duration = 3.0
-second_lane_change_time = 5.0
-braking_start_time = 8.0
+first_lane_change_duration = 1.5
+second_lane_change_start = lane_change_start_time + first_lane_change_duration + 1.0
+second_lane_change_duration = 1.5
+braking_start_time = second_lane_change_start + second_lane_change_duration + 1.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    # Double lane change maneuver logic
-    if time < lane_change_start_time:
-        # Initial straight driving
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.5
-    elif time < lane_change_start_time + lane_change_duration:
-        # First lane change (left)
-        progress = (time - lane_change_start_time) / lane_change_duration
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5 * progress
-        driver_inputs.m_throttle = 0.5
-    elif time < second_lane_change_time:
-        # Straight after first lane change
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5
-        driver_inputs.m_throttle = 0.5
-    elif time < second_lane_change_time + lane_change_duration:
-        # Second lane change (right)
-        progress = (time - second_lane_change_time) / lane_change_duration
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5 + 0.5 * progress
-        driver_inputs.m_throttle = 0.5
-    elif time < braking_start_time:
-        # Straight after second lane change
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.5
-    else:
-        # Braking
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.8
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Double lane change maneuver logic
+    driver_inputs = driver.GetInputs()
+
+    # First lane change (left)
+    if lane_change_start_time < time < lane_change_start_time + first_lane_change_duration:
+        driver_inputs.m_steering = -0.8  # Left turn
+        driver_inputs.m_throttle = 0.5
+
+    # Return to center
+    elif time > lane_change_start_time + first_lane_change_duration and time < second_lane_change_start:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.7
+
+    # Second lane change (right)
+    elif second_lane_change_start < time < second_lane_change_start + second_lane_change_duration:
+        driver_inputs.m_steering = 0.8  # Right turn
+        driver_inputs.m_throttle = 0.5
+
+    # Return to center and brake
+    elif time > second_lane_change_start + second_lane_change_duration:
+        driver_inputs.m_steering = 0.0
+        if time < braking_start_time:
+            driver_inputs.m_throttle = 0.7
+        else:
+            driver_inputs.m_throttle = 0.0
+            driver_inputs.m_braking = 1.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

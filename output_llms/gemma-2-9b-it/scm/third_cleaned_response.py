@@ -83,7 +83,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -127,9 +126,9 @@ render_frame = 0
 sensor_manager = chrono.ChSensorManager()
 vehicle_camera = chrono.ChCameraSensor()
 vehicle_camera.SetResolution(640, 480)
-vehicle_camera.SetFieldOfView(60)
-vehicle_camera.SetRelativePosition(chrono.ChVector3d(0, 0, 1.5))
-vehicle_camera.AttachToBody(vehicle.GetChassisBody())
+vehicle_camera.SetFieldOfView(chrono.deg2rad(60))
+vehicle_camera.SetPos(chrono.ChVector3d(0, 0, 1.5))
+vehicle_camera.SetTarget(chrono.ChVector3d(0, 0, 0))
 sensor_manager.AddSensor(vehicle_camera)
 
 
@@ -137,12 +136,18 @@ for i in range(5):
     light = chrono.ChPointLight()
     light.SetPos(chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), random.uniform(1, 5)))
     light.SetColor(chrono.ChColor(1, 1, 1))
-    sensor_manager.AddSensor(light)
+    sensor_manager.AddLight(light)
 
 
-filter = irr.ChCameraFilter()
-filter.SetCamera(vehicle_camera)
-vis.AddFilter(filter)
+vehicle_camera.AttachTo(vehicle.GetChassisBody())
+sensor_manager.AttachTo(vehicle.GetSystem())
+
+
+filter = chrono.ChCameraFilter()
+filter.SetType(chrono.ChCameraFilter.TYPE_GRAYSCALE) 
+sensor_manager.SetCameraFilter(filter)
+
+
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -162,14 +167,13 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Synchronize(time)
+    sensor_manager.Synchronize(time) 
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)
 
     
     step_number += 1

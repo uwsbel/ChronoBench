@@ -123,4 +123,4 @@ while chrono.IsIrrlichtRunning():
 
 
 
-chrono.UnInit()
+chrono.IrrlichtShutdown()

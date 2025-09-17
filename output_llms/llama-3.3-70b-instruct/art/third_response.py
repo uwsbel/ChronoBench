@@ -3,7 +3,10 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+# Set the Chrono data path
+chrono.SetChronoDataPath("/path/to/chrono/data")
+
+# Set the vehicle data path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -20,12 +23,11 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on the chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method
@@ -49,11 +51,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.SetMaxMotorVoltageRatio(0.26) # updated
-vehicle.SetStallTorque(0.4) # updated
-vehicle.SetTireRollingResistance(0.03) # updated
+vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated
+vehicle.SetStallTorque(0.4)  # Updated
+vehicle.SetTireRollingResistance(0.03)  # Updated
 
-vehicle.Initialize()
+try:
+    vehicle.Initialize()
+except Exception as e:
+    print("Error initializing vehicle:", str(e))
+    exit()
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
@@ -74,10 +80,13 @@ patch = terrain.AddPatch(patch_mat,
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
+try:
+    terrain.Initialize()
+except Exception as e:
+    print("Error initializing terrain:", str(e))
+    exit()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
@@ -99,19 +108,23 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.Initialize()
+try:
+    driver.Initialize()
+except Exception as e:
+    print("Error initializing driver:", str(e))
+    exit()
 
 # ---------------
 # Simulation loop
 # ---------------
 
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

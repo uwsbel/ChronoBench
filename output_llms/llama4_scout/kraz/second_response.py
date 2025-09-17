@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Set Chrono data path
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -96,13 +97,14 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver sequence
-maneuver_time = 10.0  # Duration of the maneuver
-lane_change_time = 2.0  # Time to start lane change
-lane_change_duration = 1.0  # Duration of lane change
+# Simulation loop with double lane change maneuver
+lane_change_time = 5.0  # Start lane change at 5 seconds
+lane_change_duration = 2.0  # Duration of lane change
+simulation_time = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+    simulation_time = time
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -115,12 +117,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Double lane change maneuver
-    if time > lane_change_time and time < lane_change_time + lane_change_duration:
-        driver_inputs.steering = 0.5
-    elif time > lane_change_time + lane_change_duration and time < lane_change_time + 2 * lane_change_duration:
-        driver_inputs.steering = -0.5
-    else:
-        driver_inputs.steering = 0.0
+    if simulation_time > lane_change_time and simulation_time < lane_change_time + lane_change_duration:
+        driver_inputs.steering = 0.5  # Change steering input for lane change
+    elif simulation_time > lane_change_time + lane_change_duration and simulation_time < lane_change_time + 2 * lane_change_duration:
+        driver_inputs.steering = -0.5  # Change steering input for returning to original lane
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

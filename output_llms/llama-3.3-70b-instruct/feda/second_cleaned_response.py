@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -82,35 +83,52 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path = veh.CreateDoubleLaneChangePath(0, 0, 0, 0, 0, 0, 0, 0)
+
+path = veh.CreateIsoDoubleLaneChangePath(0, 0, 0, 10.0, 3.5, 5.0, 15.0, 3.5, 5.0, 15.0)
 
 
-driver = veh.ChPathFollowerDriver(vehicle, path)
+driver = veh.ChPathFollowerDriver()
+driver.SetPath(path)
 driver.SetTargetSpeed(10.0)  
 driver.SetLookAheadDistance(5.0)  
-driver.SetSteeringGain(0.5)  
-driver.SetSpeedGain(0.1)  
+driver.SetSteeringGain(1.0)  
+driver.SetSteeringIntegralGain(0.1)  
+driver.SetSteeringDerivativeGain(0.0)  
+driver.SetSpeedGain(1.0)  
+driver.SetSpeedIntegralGain(0.1)  
+driver.SetSpeedDerivativeGain(0.0)  
+
+driver.Initialize()
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

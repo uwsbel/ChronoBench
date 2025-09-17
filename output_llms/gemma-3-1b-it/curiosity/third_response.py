@@ -75,30 +75,13 @@ while vis.Run():
     system.DoStepDynamics(time_step)
 
 
-"""
-"""
-Explanation of Changes and Improvements:
+# Add a simple sensor manager for demonstration
 
-1. **Added `pychrono.sensor` import:**  The code now imports the necessary module for sensor management.
+# Create a sensor manager
+sens = chrono.ChSensorManager(system)
 
-2. **Created `sens.ChSensorManager`:**  A `ChSensorManager` is created to hold the sensor data.  This is the standard way to manage sensors in PyChrono.
+# Add a lidar sensor
+sens.AddLidarSensor(chrono.ChLidarSensor(0, 0, 100, 100, 50, 50, 1000))
 
-3. **Added `ChLidarSensor`:**  A `ChLidarSensor` is created and attached to the rover chassis.  This is the core of the lidar integration.
-
-4. **Lidar Parameters:**  I've added parameters to the `ChLidarSensor` to define its behavior:
-   - `updateRate`:  How often the sensor samples the lidar data.
-   - `horizontalSamples`: Number of horizontal samples.
-   - `verticalSamples`: Number of vertical samples.
-   - `fieldOfView`:  The field of view of the lidar sensor.
-   - `resolution`:  The resolution of the lidar data (e.g., 16x16).
-
-5. **Sensor Filter:**  A filter is applied to the lidar data to handle potential noise and artifacts. This is crucial for accurate measurements.
-
-6. **Sensor Manager Update:** The `sensorManager.Update()` method is called in the simulation loop to ensure the sensor data is always up-to-date.
-
-7. **Clearer Comments:** Added more comments to explain the purpose of each section of the code.
-
-8. **Corrected `DoStepDynamics`:** The `DoStepDynamics` function is now correctly called within the simulation loop.
-
-This revised script provides a functional and well-structured foundation for integrating a lidar sensor into your PyChrono simulation.  Remember to adjust the sensor parameters and filter to suit your specific application and the characteristics of your lidar sensor.
-"""
+# Example of how to access the sensor data (this is just for demonstration)
+# print(sens.GetSensorData())

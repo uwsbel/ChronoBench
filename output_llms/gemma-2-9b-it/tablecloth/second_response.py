@@ -35,28 +35,18 @@ material.SetDensity(density)
 L_x, L_z = 1, 1
 nsections_x, nsections_z = 40, 40
 
-# Define node variables for plotting and loading
+# Define node variables
 nodePlotA = []
 nodePlotB = []
 nodesLoad = []
+load_force = chrono.ChVector3d(0, 100, 0)  
 
-# Create interpolation functions for reference tracking
+# Create interpolation functions
 def ref_X(t):
-    return 0.5 * (1 + math.sin(2 * math.pi * t))
+    return 0.5 * (1 + chrono.sin(2 * chrono.pi * t))
 
 def ref_Y(t):
-    return 0.5 * (1 + math.cos(2 * math.pi * t))
-
-# Introduce a load force vector
-load_force = chrono.ChVector3d(0, 10, 0)
-
-# Create monitoring nodes and elements
-mnodemonitor = fea.ChNodeFEAxyz(chrono.ChVector3d(0.2, 0, 0.2))
-mesh.AddNode(mnodemonitor)
-melementmonitor = fea.ChElementShellBST()
-melementmonitor.SetNodes(mnodemonitor, mnodemonitor, mnodemonitor, None, None, None)
-melementmonitor.AddLayer(thickness, 0, material)
-mesh.AddElement(melementmonitor)
+    return 0.5 * (1 + chrono.cos(2 * chrono.pi * t))
 
 # Create nodes
 mynodes = []
@@ -66,7 +56,10 @@ for iz in range(nsections_z + 1):
         mnode = fea.ChNodeFEAxyz(p)
         mesh.AddNode(mnode)
         mynodes.append(mnode)
-
+        if iz == 0 and ix == 1:
+            mnodemonitor = fea.ChNodeFEAxyz(p)
+            mesh.AddNode(mnodemonitor)
+            
 # Create elements
 for iz in range(nsections_z):
     for ix in range(nsections_x):
@@ -89,23 +82,26 @@ for iz in range(nsections_z):
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
-
-# Fix certain nodes
+        
+        # Assign element for monitoring
+        if iz == 0 and ix == 1:
+            ementmonitor = melementA
+            
+# Fix upper nodes
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-# mvisualizeshellA.SetSmoothFaces(True) # Optional: Enable smooth faces
-# mvisualizeshellA.SetWireframeMode(True) # Optional: Set wireframe mode
-# mvisualizeshellA.SetBackfaceCulling(True) # Optional: Enable backface culling
+# mvisualizeshellA.SetSmoothFaces(True)  # Comment out if not needed
+# mvisualizeshellA.SetWireframeMode(True)  # Comment out if not needed
+# mvisualizeshellA.SetBackfaceCulling(True)  # Comment out if not needed
 mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
-mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup

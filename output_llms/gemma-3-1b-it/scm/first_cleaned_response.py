@@ -1,64 +1,79 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visual as v
+import pychrono.core as chrono
+import pychrono.visual as visual
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual import Scene
 from pychrono.visual.mesh import Mesh
+from pychrono.visual.renderer import Renderer
+from pychrono.visual.scene import Scene
 
 
 vehicle_id = 1
-terrain_height = 1.0  
-terrain_slope = 0.01 
-terrain_density = 0.5 
-terrain_patch_size = 1.0 
-vehicle_speed = 1.0 
-simulation_rate = 50.0 
-
-
-terrain_data = np.zeros((terrain_height, 10), dtype=np.float32)
-terrain_data[0:5, 0] = 0.0  
-terrain_data[5:10, 0] = 0.0  
-
-
-vehicle_x = 0.0
-vehicle_y = 0.0
-vehicle_z = 0.0
-vehicle_orientation = 0.0
-vehicle_radius = 0.2
-vehicle_mass = 100.0
 vehicle_type = "HMMWV"
+terrain_type = "SCM"
+terrain_height = 0.1  
+terrain_slope = 0.02  
+vehicle_speed = 1.0  
+simulation_duration = 60  
+frame_rate = 50
 
 
-terrain_patch = v.Patch(
-    v.Color(0.5, 0.5, 0.5),
-    v.Mesh(
-        v.Plane(
-            v.Vector(0, 0),
-            v.Vector(vehicle_radius, vehicle_radius)
-        ),
-        v.Texture(
-            v.Color(0.8, 0.8, 0.8),
-            v.Uniform(0.0, 1.0, 0.0)
-        )
-    )
-)
+vehicle_position = (0, 0, 0)  
+vehicle_orientation = (0, 0, 0)  
+vehicle_rigid_tire_model = {
+    "tire": {"radius": 0.2, "height": 0.05},
+    "suspension": {"spring_rate": 0.05, "damping": 0.1}
+}
 
 
-scene = Scene(
-    vehicle_id,
-    terrain_data,
-    vehicle_type,
-    terrain_patch,
-    vehicle_x,
-    vehicle_y,
-    vehicle_z,
-    vehicle_orientation,
-    vehicle_radius,
-    simulation_rate,
-    v.Color(0.5, 0.5, 0.5)
-)
+terrain_patch_size = 10.0  
+terrain_patch_height = 0.05 
+terrain_slope_factor = 0.02 
+terrain_soil_parameters = {
+    "water_level": 0.0,
+    "soil_density": 0.001
+}
 
 
-v.draw(scene)
-v.show(scene)
+simulation = chrono.Simulation(vehicle_id, vehicle_type, terrain_type,
+                              vehicle_position, vehicle_orientation,
+                              vehicle_rigid_tire_model,
+                              terrain_patch_size, terrain_patch_height,
+                              terrain_slope_factor, terrain_soil_parameters)
+
+
+renderer = Renderer(vehicle_type=vehicle_type,
+                    vehicle_position=vehicle_position,
+                    vehicle_orientation=vehicle_orientation,
+                    vehicle_rigid_tire_model=vehicle_rigid_tire_model,
+                    terrain_patch_size=terrain_patch_size,
+                    terrain_patch_height=terrain_patch_height)
+scene = Scene(renderer=renderer)
+
+
+for frame in range(simulation.frames):
+    
+    vehicle_position += vehicle_speed * frame * 0.01  
+    vehicle_orientation += vehicle_speed * frame * 0.01  
+
+    
+    terrain_patch_height += terrain_slope_factor * frame * 0.01
+    terrain_patch_height = max(0.0, terrain_patch_height) 
+
+    
+    scene.render(renderer)
+    scene.update()
+    scene.display()
+
+    
+    print(f"Frame {frame}: {vehicle_position}, {vehicle_orientation}")
+
+    
+    simulation.update()
+    simulation.step()
+
+    
+    
+
+
+simulation.end()

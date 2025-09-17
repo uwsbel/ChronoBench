@@ -3,24 +3,22 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
-chrono.SetChronoDataPath("/path/to/chrono/data")
-
-
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVectorD(1, 0, 0.5)  
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(1, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES  
+vis_type = veh.VisualizationType_PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_MESH  
+chassis_collision_type = veh.CollisionType_MESH
 
 
-tire_model = veh.TireModelType_FIALA  
+tire_model = veh.TireModelType_FIALA
+
 
 
 terrainHeight = 0      
@@ -28,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVectorD(0.0, 0.0, 0.2)
+trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -48,7 +46,7 @@ vehicle = veh.ARTcar()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.16)
@@ -71,7 +69,7 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -108,7 +106,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)

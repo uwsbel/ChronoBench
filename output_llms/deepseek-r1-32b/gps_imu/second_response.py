@@ -41,9 +41,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Logging step size
-log_step_size = 1.0  # Log data every second
-log_steps = int(log_step_size / step_size)
-gps_data = []
+log_step_size = 100  # Log every 100 steps
+gps_data = []  # Initialize GPS data list
 
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
@@ -145,7 +144,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-log_counter = 0
 
 # Simulation loop
 while vis.Run():
@@ -159,9 +157,8 @@ while vis.Run():
         render_frame += 1
 
     # Get driver inputs
-    # driver_inputs = driver.GetInputs()
-    driver_inputs = get_driver_inputs(time)  # New function for specific inputs
-
+    driver_inputs = get_driver_inputs(time)  # Custom driver inputs
+    
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -177,10 +174,8 @@ while vis.Run():
     # Update sensor manager in each step
     manager.Update()
     
-    # Log GPS data
-    log_counter += 1
-    if log_counter >= log_steps:
-        log_counter = 0
+    # Log GPS data at specified intervals
+    if step_number % log_step_size == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
         if gps_buffer:
             gps_data.append(gps_buffer.GetGPSData())
@@ -193,3 +188,10 @@ while vis.Run():
 
 # Print GPS data after simulation
 print("GPS Data: ", gps_data)
+
+def get_driver_inputs(time):
+    # Example driver inputs: simple throttle and steering control
+    throttle = min(time / 5, 0.5)  # Increase throttle to 0.5 over 5 seconds
+    steering = 0.5 if time < 10 else -0.5  # Steer right for first 10 seconds, then left
+    braking = 1.0 if time > 6 else 0.0  # Apply braking after 6 seconds
+    return veh.DriverInputs(throttle, steering, braking, False)

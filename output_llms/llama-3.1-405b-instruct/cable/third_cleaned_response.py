@@ -45,16 +45,14 @@ class Model1:
 
             
             body = chrono.ChBody()
-            body.SetMass(1)
-            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
-            body.SetPos(builder.GetLastBeamNodes().back().GetPos())
+            body.SetPos(chrono.ChVector3d(0.5 - 0.5 * i, 0, -0.1))
             system.Add(body)
             self.bodies.append(body)
 
             
-            constraint_hinge = fea.ChLinkNodeFrame()
-            constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), body)
-            system.Add(constraint_hinge)  
+            constraint = chrono.ChLinkMateFix()
+            constraint.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):

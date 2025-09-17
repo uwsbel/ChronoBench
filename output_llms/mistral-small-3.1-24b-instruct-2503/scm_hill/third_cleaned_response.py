@@ -40,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,9 +61,10 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/flat_terrain.bmp"), terrainLength, terrainWidth, terrainHeight, 0.02)
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT))
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/flat.bmp"), 0, 0, 10, 10, 0.02)
 
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -109,7 +109,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

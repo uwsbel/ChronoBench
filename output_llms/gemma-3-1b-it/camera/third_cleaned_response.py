@@ -58,12 +58,12 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        mesh_body,              
-        update_rate,            
-        offset_pose,            
-        image_width,            
-        image_height,           
-        fov                     
+        mmesh,
+        update_rate,
+        offset_pose,
+        image_width,
+        image_height,
+        fov
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  

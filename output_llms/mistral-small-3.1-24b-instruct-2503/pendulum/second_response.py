@@ -5,8 +5,8 @@ import math
 # Initialize the Chrono simulation system
 sys = chrono.ChSystemNSC()
 
-# Set the gravitational acceleration for the system (in m/s^2) to simulate the moon's gravity
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 on the moon
+# Set the gravitational acceleration for the system (in m/s^2) for the moon
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2 (Moon's gravity)
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
@@ -16,7 +16,7 @@ ground.EnableCollision(False)  # Disable collision detection for the ground
 
 # Add a visualization cylinder to the ground
 cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
-ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
+ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
@@ -29,30 +29,31 @@ pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Set the inertia tensor 
 # Add a visualization cylinder to the pendulum
 cyl_2 = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Cylinder with radius 0.1 and height 1.5
 cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
-pend_1.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+pend_1.AddVisualShape(cyl_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 0.75), chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Add a visualization sphere to the joint
+sphere_1 = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
+sphere_1.SetColor(chrono.ChColor(1, 0, 0))  # Set the color of the sphere (RGB)
+ground.AddVisualShape(sphere_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
 
 # Set the initial position of the pendulum (center of mass) in the absolute frame
 # The pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
-# Set an initial angular velocity for the pendulum
-pend_1.SetWvel(chrono.ChVector3d(0, 0, 0.5))  # Angular velocity around the Z-axis
+# Set the initial angular velocity for the pendulum
+pend_1.SetWvel(chrono.ChVector3d(0, 0, 1))  # Initial angular velocity around the Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-spherical_joint = chrono.ChLinkLockSpherical()
-spherical_joint.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
-sys.AddLink(spherical_joint)
-
-# Add a visualization sphere to the joint
-joint_sphere = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
-joint_sphere.SetColor(chrono.ChColor(1, 0, 0))  # Set the color of the sphere (RGB)
-ground.AddVisualShape(joint_sphere, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
+# The spherical joint allows rotation around all three axes
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
+sys.AddLink(sph_1)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Modified Pendulum Demo')  # Set the window title
+vis.SetWindowTitle('Pendulum Simulation')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
@@ -72,6 +73,6 @@ while vis.Run():
         pos_1 = pend_1.GetPos()  # Get the position of the pendulum
         print("t = ", sys.GetChTime())
         print("     ", pos_1.x, "  ", pos_1.y)
-        lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the pendulum
+        lin_vel_1 = pend_1.GetPos_dt()  # Get the linear velocity of the pendulum
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
         log_info = False  # Disable further logging

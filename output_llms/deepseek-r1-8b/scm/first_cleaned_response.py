@@ -1,116 +1,91 @@
-import pychrono as pc
-import pychrono_osc as pcosc
+import pychrono as pyc
 import numpy as np
+import OpenCV as cv
+import time
 
 
-pc.init()
+pyc.init()
+cv.init()
 
 
-sim = pc.Simulation()
-sim.set_solver_type(pc.SolverType.NEWTON_RAPHSON, 1e-8)
+physics_server = pyc.PyPhysicsServer()
+visualization_server = pyc.VisualizationServer()
 
 
-renderer = pc.IrrlichtRenderer()
-renderer.set_frame_rate(50)  
-renderer.set_antialias(4)    
+vehicle_body = pyc.RigidBody("Vehicle Body", [0, 0, 0], [0, 0, 0], [1, 0, 0], 0, 0, 0, 0, 0, 0, 0)
 
 
-vehicle_frame = pc.RigidBody()
-vehicle_frame.set_mass(2000)    
-vehicle_frame.set_inertia(np.array([1000, 1000, 1000]))  
-vehicle_frame.set_size(np.array([4, 3, 2]))            
-vehicle_frame.set_position(pc.Vec3(0, 0, 0))          
-vehicle_frame.set_orientation(pc.Vec3(0, 0, 1))      
+wheel_radius = 0.4
+wheel_stiffness = 100000
+wheel_damping = 1000
 
 
-wheels = []
-suspension_length = 2.0  
+front_left_wheel = pyc.Wheel("Front Left Wheel", wheel_radius, wheel_stiffness, wheel_damping, [0.3, 0.5, 0.0], [0, 0, 0], [1, 0, 0])
+front_right_wheel = pyc.Wheel("Front Right Wheel", wheel_radius, wheel_stiffness, wheel_damping, [0.3, 0.5, 0.0], [0, 0, 0], [1, 0, 0])
+vehicle_body.add_component(front_left_wheel, 0.3, 0, 0)
+vehicle_body.add_component(front_right_wheel, 0.3, 0, 0)
 
-for i in range(4):
+
+rear_left_wheel = pyc.Wheel("Rear Left Wheel", wheel_radius, wheel_stiffness, wheel_damping, [0.7, 0.5, 0.0], [0, 0, 0], [1, 0, 0])
+rear_right_wheel = pyc.Wheel("Rear Right Wheel", wheel_radius, wheel_stiffness, wheel_damping, [0.7, 0.5, 0.0], [0, 0, 0], [1, 0, 0])
+vehicle_body.add_component(rear_left_wheel, -0.3, 0, 0)
+vehicle_body.add_component(rear_right_wheel, -0.3, 0, 0)
+
+
+vehicle_pose = pyc.RigidPose([10.0, 0.0, 0.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0])
+vehicle_body.set_pose(vehicle_pose)
+
+
+terrain = pyc.SCMTerrain("Deformable Terrain", "data/soil_parameters.txt")
+terrain.set_size(100, 100)
+terrain.set_patch_size(0.5)
+terrain.set_max_patch_speed(5.0)
+terrain.enable_sinkage_visualization()
+terrain.addVisualization(cv.createVideoWriter("output.mp4", 50))
+
+
+driver = pyc.Driver("Driver", [0, 0, 0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0])
+driver.add_control("steering", 0.0, 1.0, 2.0)
+driver.add_control("throttle", 0.0, 1.0, 0.1)
+driver.add_control("brake", 0.0, 0.0, 1.0)
+
+
+terrain.add_object(vehicle_body, vehicle_pose)
+
+
+physics_server.add_body(vehicle_body)
+physics_server.add_terrain(terrain)
+physics_server.set_gravity([0.0, 0.0, -9.81])
+
+
+visualization_server.add_terrain(terrain)
+visualization_server.add_body(vehicle_body, vehicle_pose)
+visualization_server.add_mesh("Vehicle Body", "data/vehicle_mesh.obj", 0.5, 0.5, 0.5)
+visualization_server.add_mesh("Front Left Wheel", "data/wheel_mesh.obj", wheel_radius, wheel_radius, wheel_radius)
+visualization_server.add_mesh("Front Right Wheel", "data/wheel_mesh.obj", wheel_radius, wheel_radius, wheel_radius)
+visualization_server.add_mesh("Rear Left Wheel", "data/wheel_mesh.obj", wheel_radius, wheel_radius, wheel_radius)
+visualization_server.add_mesh("Rear Right Wheel", "data/wheel_mesh.obj", wheel_radius, wheel_radius, wheel_radius)
+
+
+physics_server.start()
+visualization_server.start()
+
+
+steering = 0.0
+throttle = 0.0
+brake = 0.0
+
+while True:
     
-    wheel = pc.RigidBody()
-    wheel.set_mass(100)     
-    wheel.set_size(np.array([0.5, 0.5, 0.2]))     
-    wheel.set_position(pc.Vec3(
-        suspension_length * np.cos(np.pi * 2 * i / 4),
-        suspension_length * np.sin(np.pi * 2 * i / 4),
-        0.2))  
-    wheel.set_inertia(np.array([50, 50, 50]))   
-    wheel.set_friction(1000)                   
+    steering = driver.get_control("steering")
+    throttle = driver.get_control("throttle")
+    brake = driver.get_control("brake")
     
     
-    suspension = pc.RevolvingJoint()
-    suspension.set_pivot_point(vehicle_frame, wheel.get_position())
-    suspension.set_axis(pc.Vec3(1, 0, 0))       
-    suspension.set_angle(0)                   
-    wheel.set_parent(suspension)
+    vehicle_body.set_control([steering, throttle, brake])
     
-    wheels.append(wheel)
-
-
-for wheel in wheels:
-    vehicle_frame.add_child(wheel)
-
-
-terrain = pc.SCM_Terrain()
-terrain.set_shear_strength(100)    
-terrain.set_bulk_density(1000)    
-terrain.set_water_content(0.2)   
-terrain.set_clay_content(0.1)    
-terrain.set_initial_height(0.5)  
-terrain.set_size(pc.Vec3(1000, 1000, 0))  
-terrain.set_dynamic_patch(True)    
-terrain.set_sinkage_visualization(True)  
-terrain.set_sinkage_color_map(pc.SinkageVisualizer.COLORMAP_JET)  
-
-
-sim.add_object(terrain, "terrain")
-
-
-vehicle_dynamics = pc.VehicleDynamics()
-vehicle_dynamics.set_mass(2000)                 
-vehicle_dynamics.set_friction(1000)             
-vehicle_dynamics.set_roll摩擦(1000)             
-vehicle_dynamics.set驾驶类型(pc.VehicleDynamics.DRIVING_TYPE_4WD)  
-vehicle_dynamics.set_tire硬度(1e6)             
-vehicle_dynamics.set_damping(100)              
-sim.add_object(vehicle_dynamics, "vehicle_dynamics")
-
-
-driver = pc.Driver()
-driver.set_steering_range(pc.Vec3(1, 0, 0))  
-driver.set_throttle_range(pc.Vec3(1, 0, 0))  
-driver.set_braking_range(pc.Vec3(1, 0, 0))    
-driver.set_pid_values(
-    pc.PIDParams(
-        0.1,  
-        0.1,  
-        0.1  
-    ),
-    pc.DrivingControlType.STEERING,
-    pc.DrivingControlType.THROTTLE,
-    pc.DrivingControlType.BRAKING
-)
-sim.add_object(driver, "driver")
-
-
-sinkage_visualizer = pc.SinkageVisualizer()
-sinkage_visualizer.set_sinkage_color_map(pc.SinkageVisualizer.COLORMAP_JET)
-sim.add_object(sinkage_visualizer, "sinkage_visualization")
-
-
-camera = pc.PyChronoCamera()
-camera.set_position(pc.Vec3(0, 10, 20))  
-camera.set_lookat(pc.Vec3(0, 0, 0))       
-camera.set_up(pc.Vec3(0, 1, 0))           
-renderer.set_main_camera(camera)
-
-
-sim.set_renderer(renderer)
-sim.set_camera(camera)
-sim.set_driver(driver)
-sim.set_vehicle_dynamics(vehicle_dynamics)
-sim.set_terrain(terrain)
-
-
-sim.start()
+    
+    visualization_server.render()
+    
+    
+    time.sleep(1/50)

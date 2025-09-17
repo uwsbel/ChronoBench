@@ -58,7 +58,10 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM terrain parameters class
+# Create the SCM deformable terrain patch
+terrain = veh.SCMTerrain(vehicle.GetSystem())
+
+# Create a new class to manage and set the SCM terrain parameters
 class TerrainParameters:
     def __init__(self, Kphi, Kc, n, cohesion, friction, shear, stiffness, damping):
         self.Kphi = Kphi
@@ -70,24 +73,30 @@ class TerrainParameters:
         self.stiffness = stiffness
         self.damping = damping
 
-# Predefined terrain configurations
-soft_terrain = TerrainParameters(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
-mid_terrain = TerrainParameters(5e6, 0, 1.2, 0, 35, 0.015, 3e8, 4e4)
-hard_terrain = TerrainParameters(1e7, 0, 1.3, 0, 40, 0.02, 4e8, 5e4)
+    def set_parameters(self, terrain):
+        terrain.SetSoilParameters(
+            self.Kphi,
+            self.Kc,
+            self.n,
+            self.cohesion,
+            self.friction,
+            self.shear,
+            self.stiffness,
+            self.damping
+        )
 
-# Use predefined terrain configuration
-terrain_params = soft_terrain
-
-# Create the SCM deformable terrain patch
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(terrain_params.Kphi,
-                          terrain_params.Kc,
-                          terrain_params.n,
-                          terrain_params.cohesion,
-                          terrain_params.friction,
-                          terrain_params.shear,
-                          terrain_params.stiffness,
-                          terrain_params.damping)
+# Initialize terrain parameters using predefined configurations
+terrain_params = TerrainParameters(
+    2e6,   # Bekker Kphi
+    0,     # Bekker Kc
+    1.1,   # Bekker n exponent
+    0,     # Mohr cohesive limit (Pa)
+    30,    # Mohr friction limit (degrees)
+    0.01,  # Janosi shear coefficient (m)
+    2e8,   # Elastic stiffness (Pa/m), before plastic yield
+    3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+)
+terrain_params.set_parameters(terrain)
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -122,9 +131,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# ---------------
 # Simulation loop
-# ---------------
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

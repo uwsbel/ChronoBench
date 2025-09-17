@@ -1,65 +1,55 @@
 import pychrono as chrono
+import pychrono.collision as collision
+import pychrono.geometry as geometry
+import pychrono.dynamics as dynamics
+import pychrono.materials as materials
+import pychrono.ros as ros
 import rospy
-from pychrono.chrono_ros import ChronoROS
-from pychrono.chrono_ros.chrono_ros_manager import ChronoROSManager
-from pychrono.chrono_ros.chrono_ros_handler import ChronoROSHandler
-from pychrono.chrono_ros.chrono_ros_body import ChronoROSBody
-from pychrono.chrono_ros.chrono_ros_transform import ChronoROSTransform
+from pychrono.ros import ROSHandler
 
 # Initialize PyChrono
-chrono.Init()
+chrono.init()
 
-# Create a Chrono system
-chrono_system = chrono.System()
+# Define system parameters
+dt = 0.01  # Timestep size
+gravity = 9.81  # Gravitational acceleration
 
-# Define the gravitational acceleration
-g = chrono.Vector3D(0, -9.81, 0)
+# Create Chrono system
+chrono_system = chrono.ChronoSystem()
+chrono_system.setGravity(chrono.Vector3(0, -gravity, 0))
 
-# Define the physical material properties
-material_properties = chrono.MaterialProperties(
-    density=1000,
-    elasticity=1.0,
-    viscosity=0.0,
-    friction=0.1
-)
+# Define floor
+floor = geometry.Plane(chrono_system, geometry.Vector3(0, 0, 0), geometry.Vector3(0, 1, 0))
+floor.setMaterial(materials.Material(materials.Elasticity(1.0)))
 
-# Create the floor
-floor = chrono.RigidBody(chrono_system, material_properties, chrono.Vector3D(0, 0, 0))
-floor.SetGravity(g)
-floor.SetFixed()
+# Define box
+box = geometry.Box(chrono_system, geometry.Vector3(1, 1, 1), geometry.Vector3(0, 0, 0))
+box.setMaterial(materials.Material(materials.Elasticity(0.5)))
 
-# Create the box
-box = chrono.RigidBody(chrono_system, material_properties, chrono.Vector3D(0, 1, 0))
-box.SetGravity(g)
+# Set default properties for box
+box.setPosition(chrono.Vector3(0, 0, 0))
+box.setLinearVelocity(chrono.Vector3(0, 0, 0))
 
-# Create a ROS handler for publishing integer messages
-class BoxPublisher(ChronoROSHandler):
-    def __init__(self, name, topic):
-        super().__init__(name, topic)
+# Create ROS handler
+ros_handler = ROSHandler(chrono_system)
+ros_handler.setTopic("box_position")
+ros_handler.setCallback(lambda: print("Box position updated"))
 
-    def update(self, dt):
-        # Publish the integer message here
-        self.publish_integer(1)
+# Configure ROS manager
+chrono_system.setClockHandler(ros_handler)
+chrono_system.setBodyHandler(ros_handler)
+chrono_system.setTransformHandler(ros_handler)
 
-# Create a ROS manager
-ros_manager = ChronoROSManager(chrono_system)
-ros_manager.register_handler(BoxPublisher)
+# Register ROS handler
+chrono_system.registerHandler(ros_handler)
 
-# Set up the clock, body, and transform handlers
-clock = chrono.Clock()
-body = chrono.Body(chrono_system, material_properties)
-transform = chrono.Transform(chrono_system)
-
-# Run the simulation loop
+# Run simulation loop
 while True:
-    # Advance the system
-    chrono_system.Step(dt)
+    # Advance system
+    chrono_system.advance(dt)
 
     # Update ROS communication
-    ros_manager.Update()
+    ros_handler.update()
 
-    # Sleep for a short time
-    rospy.sleep(0.01)
-
-# Clean up PyChrono
-chrono.Finalize()
+    # Sleep to maintain real-time execution
+    rospy.sleep(1/100)

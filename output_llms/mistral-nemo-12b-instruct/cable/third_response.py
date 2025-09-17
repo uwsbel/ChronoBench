@@ -4,7 +4,7 @@ import pychrono.irrlicht as chronoirr
 
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
-        # Initialize the system and mesh
+        # Initialize parameters
         self.system = system
         self.mesh = mesh
         self.n_chains = n_chains
@@ -18,7 +18,7 @@ class Model1:
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
 
-        # Loop to generate multiple chains of beam elements with connected bodies
+        # Generate multiple chains
         for i in range(n_chains):
             # Create a truss body (a fixed reference frame in the simulation)
             mtruss = chrono.ChBody()
@@ -29,8 +29,8 @@ class Model1:
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
                 i + 2,  # Number of ANCF elements to create along the beam, increasing with each chain
-                chrono.ChVector3d(i * 0.5, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d((i + 1) * 0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+                chrono.ChVector3d(-0.1 * i, 0, -0.1),  # Starting point ('A' point) of the beam
+                chrono.ChVector3d(0.5 + 0.1 * i, 0, -0.1)  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
@@ -44,38 +44,35 @@ class Model1:
 
             # Create a chrono body (box) and establish further constraints between the beam endpoint and the box
             mbox = chrono.ChBody()
-            mbox.SetBodyFixed(True)
-            mbox.SetPos(chrono.ChVector3d((i + 1) * 0.5, 0, -0.1))
+            mbox.SetBodyFixed(False)
+            mbox.SetPos(chrono.ChVector3d(0.5 + 0.1 * i, 0, -0.1))
             system.Add(mbox)
 
-            # Connect each beam's endpoint to the box
-            constraint_box = fea.ChLinkNodeBody()
+            constraint_box = fea.ChLinkMateFrame()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), mbox)
             system.Add(constraint_box)
 
-        # Add visualization for the FEM mesh:
-        # This allows visualization of the forces/moments in the beam elements:
-        visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Display moments along the beam
-        visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
-        visualizebeamA.SetSmoothFaces(True)  # Enable smooth faces for better visualization
-        visualizebeamA.SetWireframe(False)  # Set to non-wireframe mode
-        mesh.AddVisualShapeFEA(visualizebeamA)  # Add the visualization shape to the mesh
+            # Add visualization for the FEM mesh:
+            visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+            visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  # Display moments along the beam
+            visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  # Set color scale for moment visualization
+            visualizebeamA.SetSmoothFaces(True)  # Enable smooth faces for better visualization
+            visualizebeamA.SetWireframe(False)  # Set to non-wireframe mode
+            mesh.AddVisualShapeFEA(visualizebeamA)  # Add the visualization shape to the mesh
 
-        # Add visualization for node positions:
-        visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Display nodes as dots
-        visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
-        visualizebeamB.SetSymbolsThickness(0.006)  # Set thickness of symbols
-        visualizebeamB.SetSymbolsScale(0.01)  # Set scale of symbols
-        visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
-        mesh.AddVisualShapeFEA(visualizebeamB)  # Add the node visualization to the mesh
+            # Add visualization for node positions:
+            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Display nodes as dots
+            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # No additional FEM data visualization
+            visualizebeamB.SetSymbolsThickness(0.006)  # Set thickness of symbols
+            visualizebeamB.SetSymbolsScale(0.01)  # Set scale of symbols
+            visualizebeamB.SetZbufferHide(False)  # Ensure symbols are not hidden by z-buffer
+            mesh.AddVisualShapeFEA(visualizebeamB)  # Add the node visualization to the mesh
 
     def PrintBodyPositions(self):
-        # Print the positions of the end bodies of each chain at each step of the simulation
         for i in range(self.n_chains):
-            mbox = self.system.GetBody(i + 1)
-            print(f"Position of chain {i + 1}: {mbox.GetPos()}")
+            mbox = self.system.Get_body(i)
+            print(f"Position of body {i}: {mbox.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
@@ -115,16 +112,15 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific posit
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
 # Set solver type and settings
-solver = chrono.ChSolverMINRES()  # Choose SparseQR solver
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")
-    sys.SetSolver(solver)
-    solver.SetMaxIterations(200)
-    solver.SetTolerance(1e-10)
-    solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
-    solver.SetVerbose(False)
-
+solver = chrono.ChSolverMINRES() # Choose SparseQR solver
+if solver.GetType()== chrono.ChSolver.Type_MINRES :
+	print( "Using MINRES solver" )
+	sys.SetSolver(solver)
+	solver.SetMaxIterations(200)
+	solver.SetTolerance(1e-10)
+	solver.EnableDiagonalPreconditioner(True)
+	solver.EnableWarmStart(True)  # IMPORTANT for convergence when using EULER_IMPLICIT_LINEARIZED
+	solver.SetVerbose(False)
 # Set the timestepper for the simulation
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)
@@ -135,4 +131,4 @@ while vis.Run():
     vis.Render()  # Render the scene
     vis.EndScene()  # End scene rendering
     sys.DoStepDynamics(0.01)  # Advance the simulation by one step with a time step of 0.01 seconds
-    model.PrintBodyPositions()  # Print the positions of the end bodies of each chain at each step of the simulation
+    model.PrintBodyPositions()  # Print body positions at each step

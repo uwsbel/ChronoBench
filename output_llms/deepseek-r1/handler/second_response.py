@@ -10,6 +10,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
+
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
@@ -24,9 +25,10 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
+        msg_text = self.message + str(self.ticker)  # Create concatenated string
+        print(f"Publishing: {msg_text}")
         msg = String()  # Create a message object of type String
-        msg.data = self.message + str(self.ticker)  # Create concatenated string
-        print(f"Publishing '{msg.data}' ...")
+        msg.data = msg_text  # Set the message data
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 

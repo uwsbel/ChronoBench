@@ -1,45 +1,38 @@
-from pychrono import ChSystem, ChBody, ChLinkLock, ChMaterialSurface, ChCoordsys, ChFunction
-from pychrono.irrlicht import ChIrrApp
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
-# Initialize Chrono environment
-system = ChSystem()
-app = ChIrrApp(system, 'Beam Simulation', 'data/media')
+# Initialize Chrono engine
+chrono.SetChronoDataPath("..")  # Set path to Chrono data
+system = chrono.ChSystemNSC()
 
-# Create beam material
-beam_material = ChMaterialSurface(0.5, 0.5, 0.5)
-
-# Define beam geometry and properties
-beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.1
+# Create ground
+ground = chrono.ChBodyEasyBox(10, 10, 1, 1000)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(ground)
 
 # Create beam nodes
-node1 = ChCoordsys(ChVectorD(0, 0, 0))
-node2 = ChCoordsys(ChVectorD(beam_length, 0, 0))
+node1 = chrono.ChBodyEasySphere(0.1, 1000)
+node1.SetPos(chrono.ChVectorD(0, 0, 1))
+system.Add(node1)
+
+node2 = chrono.ChBodyEasySphere(0.1, 1000)
+node2.SetPos(chrono.ChVectorD(1, 0, 1))
+system.Add(node2)
 
 # Create ANCF cable elements
-cable_element = ChFunction.CreateANCF(beam_material, node1, node2)
-cable_element.SetRestLength(beam_length)
+cable1 = chrono.ChLinkCable(node1, node2)
+cable1.SetMaterial(chrono.ChMaterialCableLinear(1e5, 0.01, 0.01))  # Adjust material properties
+system.Add(cable1)
 
-# Create beam body
-beam_body = ChBody(beam_material)
-beam_body.SetPos(node1.pos)
-beam_body.SetRot(node1.rot)
-beam_body.SetMass(1.0)  # Adjust mass as needed
+# Apply gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create hinge constraint
-hinge_constraint = ChLinkLock(beam_body, system.GetGround(), ChCoordsys(ChVectorD(0, 0, 0)))
-hinge_constraint.SetLockType(ChLinkLock.LOCK_XYZ)
-
-# Add beam to the system
-system.Add(beam_body)
-system.Add(cable_element)
-system.Add(hinge_constraint)
+# Create Irrlicht visualization
+vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
+vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
+vis.AssetBindAll()
 
 # Simulation loop
-while app.GetTimer() < 10:
-    app.DrawAll()
+while vis.Run():
     system.DoStepDynamics(0.01)
-
-# Terminate application
-app.Close()
+    vis.Render()

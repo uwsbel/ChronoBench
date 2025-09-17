@@ -1,48 +1,51 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-from pychrono.irrlicht import IrrlichtEngine
+import pychrono.irrlicht.irrlicht as irr
+import numpy as np
 
 
 chrono.init()
 
 
-chrono.create_system("chrono_system")
-chrono.set_gravity(chrono.Vector3(0, -9.81, 0))
+ground = chrono.Body(chrono.BodyType.GROUND)
+ground.setMass(1000)  
+ground.setPosition(chrono.Vec3(0, 0, 0))
+ground.setOrientation(chrono.Vec3(0, 0, 0))
+chrono.world.addBody(ground)
 
 
-ground = chrono.create_body("ground")
-ground.set_mass(1000)
-ground.set_inertia(chrono.Vector3(0, 0, 0))
-ground.set_material("rigid")
+turtlebot = chrono.Body(chrono.BodyType.ROBOT)
+turtlebot.setMass(10)  
+turtlebot.setPosition(chrono.Vec3(1, 0, 0))  
+turtlebot.setOrientation(chrono.Vec3(0, 0, 0))  
 
 
-turtlebot = chrono.create_body("turtlebot")
-turtlebot.set_mass(10)
-turtlebot.set_inertia(chrono.Vector3(0, 0, 0))
-turtlebot.set_position(chrono.Vector3(0, 0, 0))
-turtlebot.set_orientation(chrono.Vector3(0, 0, 0))
+
+turtlebot.setMotor(chrono.MotorType.LEFT, 100)  
+turtlebot.setMotor(chrono.MotorType.RIGHT, 100)  
 
 
-turtlebot.set_motor_max_torque(10)
-turtlebot.set_motor_max_speed(1)
+irr_world = irr.IrrlichtEngine.create()
+irr_world.setDevice(irr.IrrlichtDevice.get_default_device())
+irr_world.setWindowSize(800, 600)
+irr_world.setVSync(True)
 
 
-engine = IrrlichtEngine()
-engine.set_background_color(chrono.Color(0, 0, 0))
-engine.set_camera_position(chrono.Vector3(0, 0, 5))
-engine.set_camera_look_at(chrono.Vector3(0, 0, 0))
+camera = irr_world.getCamera()
+camera.setPosition(chrono.Vec3(0, 0, 5))  
+camera.setLookAt(chrono.Vec3(0, 0, 0))  
 
 
-engine.set_light_position(chrono.Vector3(0, 0, 1))
-engine.set_light_color(chrono.Color(1, 1, 1))
+irr_world.setAmbientLight(chrono.Vec3(0.2, 0.2, 0.2))  
+irr_world.setDirectionalLight(chrono.Vec3(1, 1, 1), chrono.Vec3(0, 0, 1))  
+
+
+chrono.world.setGravity(chrono.Vec3(0, -9.81, 0))  
+chrono.world.setTimeStep(0.01)  
+chrono.world.run()
 
 
 while True:
-    
-    chrono.update_simulation()
-
-    
-    engine.render()
-
-    
-    engine.wait_for_frame()
+    chrono.world.update()
+    irr_world.render()
+    irr_world.update()

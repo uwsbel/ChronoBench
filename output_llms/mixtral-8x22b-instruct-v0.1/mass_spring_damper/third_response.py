@@ -64,6 +64,9 @@ spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
+# Attach a visualization asset.
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
 # Create the spring between body_1 and body_2. The spring end points are
 # specified in the body relative frames.
 spring_2 = chrono.ChLinkTSDA()
@@ -72,6 +75,9 @@ spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_2)
+
+# Attach a visualization asset.
+spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 # Create the spring between body_2 and body_3. The spring end points are
 # specified in the body relative frames.
@@ -83,8 +89,6 @@ spring_3.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_3)
 
 # Attach a visualization asset.
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 vis = chronoirr.ChVisualSystemIrrlicht()

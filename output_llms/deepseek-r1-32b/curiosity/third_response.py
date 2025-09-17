@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  # Added sensor module import
 from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  # Added sensor module import
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -12,9 +12,6 @@ system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
 chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
-
-# Create sensor manager
-manager = sens.ChSensorManager(system)  # Added sensor manager
 
 # Create ground body with contact material and add it to the system
 ground_mat = chrono.ChContactMaterialNSC()
@@ -30,6 +27,7 @@ box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
+
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
@@ -42,25 +40,28 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Add lidar sensor to rover
+# Create sensor manager
+manager = sens.ChSensorManager(system)  # Created sensor manager
+
+# Configure and add lidar sensor
 lidar_params = sens.ChLidarSensorParams()
 lidar_params.m_update_rate = 10.0  # Hz
-lidar_params.m_horizontal_samples = 360  # Number of horizontal samples
-lidar_params.m_vertical_samples = 1  # Number of vertical samples
-lidar_params.m_horizontal_fov = chrono.CH_C_PI * 0.75  # 270 degrees
-lidar_params.m_vertical_fov = chrono.CH_C_PI  # 180 degrees
-lidar_params.m_max_range = 10.0  # Maximum range in meters
-lidar_params.m_resolution = 0.01  # Resolution in meters
+lidar_params.m_h_samples = 360  # Horizontal samples
+lidar_params.m_v_samples = 1  # Vertical samples
+lidar_params.m_h_field_of_view = chrono.CH_C_PI  # Horizontal FOV (radians)
+lidar_params.m_v_field_of_view = 0.1745  # Vertical FOV (radians)
+lidar_params.m_max_range = 10.0  # Maximum range (meters)
+lidar_params.m_resolution = 0.001  # Resolution (meters)
 
 lidar = sens.ChLidarSensor(lidar_params)
-lidar.SetName("rover_lidar")
-lidar.SetParentFrame(rover.GetChassis().GetFrame())  # Attach to rover's chassis
-lidar.SetPose(chrono.ChPose(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  # Position above rover
+lidar.SetName("lidar")
+lidar.SetPos(chrono.ChVector3d(0, 0, 0.5))  # Position relative to chassis
+lidar.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))  # Orientation
+lidar.AttachTo(rover.GetChassis().GetFrame_REF_to_abs())  # Attach to rover chassis
 
 # Add filter to lidar
-box_filter = sens.ChBoxFilter()
-box_filter.SetExtents(chrono.ChVector3d(5, 5, 5))  # Filter area dimensions
-lidar.AddFilter(box_filter)
+filter = sens.ChLidarSensorFilter()
+lidar.AddFilter(filter)
 
 # Add lidar to sensor manager
 manager.AddSensor(lidar)

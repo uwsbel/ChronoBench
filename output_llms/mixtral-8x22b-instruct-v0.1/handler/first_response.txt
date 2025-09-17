@@ -16,66 +16,47 @@ my_material.SetAdhesion(0)
 
 # Add a fixed floor to the system
 floor_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(10, 1, 10))
-floor_body = chrono.ChBodyEasyBox(1, 0.05, 1, 100, True, True, my_material)
+floor_body = chrono.ChBodyEasyBox(1, 1, 1, 1, True, True, my_material)
 floor_body.SetBodyFixed(True)
-floor_body.SetPos(chrono.ChVectorD(0, -0.05, 0))
+floor_body.SetPos(chrono.ChVectorD(0, -1, 0))
 my_system.Add(floor_body)
 
 # Add a movable box to the system
-box_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(0.5, 0.5, 0.5))
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 10, True, True, my_material)
-box_body.SetPos(chrono.ChVectorD(0, 2, 0))
-box_body.SetPos_dt(chrono.ChVectorD(0, -1, 0))
-box_body.SetWvel_loc(chrono.ChVectorD(0.1, 0.1, 0.1))
+box_geometry = chrono.ChBoxGeometry(chrono.ChVectorD(1, 1, 1))
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 1, True, True, my_material)
+box_body.SetPos(chrono.ChVectorD(0, 5, 0))
 my_system.Add(box_body)
 
 # Create a custom ROS handler to publish integer messages to a specified topic
 class CustomROSHandler(object):
     def __init__(self):
-        self.publisher = rospy.Publisher('/my_topic', Int32, queue_size=10)
+        self.publisher = rospy.Publisher('my_topic', Int32, queue_size=10)
 
-    def publish(self, msg):
-        self.publisher.publish(msg)
+    def publish(self, message):
+        self.publisher.publish(message)
 
-# Configure the ROS manager with clock, body, and transform handlers, and register the custom handler
-ros_manager = chrono.ChRosSystem(my_system)
-ros_manager.Initialize(rospy.get_name())
-ros_manager.AddHandler(chrono.ChRosClock(ros_manager))
-ros_manager.AddHandler(chrono.ChRosBody(ros_manager, box_body))
-ros_manager.AddHandler(chrono.ChRosTransform(ros_manager, box_body))
-custom_handler = CustomROSHandler()
-ros_manager.AddHandler(custom_handler)
+# Configure the ROS manager with clock, body, and transform handlers
+ros_manager = chrono.ChROSManager()
+ros_manager.Initialize(my_system)
+ros_manager.AddHandler(chrono.ChROSHandlerBody(box_body))
+ros_manager.AddHandler(chrono.ChROSHandlerTransformParent(box_body))
+ros_manager.AddHandler(CustomROSHandler())
 
-# Run a simulation loop, advancing the system and updating ROS communication at each timestep, while maintaining real-time execution
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetSolverMaxIterations(100)
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Run a simulation loop, advancing the system and updating ROS communication at each timestep
+my_application = chronoirr.ChIrrApp(my_system, 'PyChrono ROS Integration', chronoirr.dimension2du(800, 600))
+my_application.AddTypicalSky()
+my_application.AddTypicalLogo()
+my_application.AddTypicalCamera(chronoirr.vector3df(0, 4, -8))
 
-irrlicht_application = chronoirr.ChIrrApp(my_system, 'PyChrono ROS Integration', chronoirr.dimension_t(800, 600), False, False)
-irrlicht_application.AddTypicalLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
-irrlicht_application.AddTypicalSky()
-irrlicht_application.AddTypicalLights()
-irrlicht_application.AddTypicalCamera(chronoirr.vector3df(0, 4, -5))
+while my_application.GetDevice().run():
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.DoStep()
+    my_application.EndScene()
 
-ros_manager.SetIrrlichtApplication(irrlicht_application)
+    # Maintain real-time execution
+    chrono.ChSleep(0.01)
 
-while irrlicht_application.GetDevice().run():
-    irrlicht_application.BeginScene()
-    irrlicht_application.DrawAll()
-    irrlicht_application.DoStep()
-    irrlicht_application.EndScene()
-
+    # Update ROS communication
     ros_manager.Update()
-
-    custom_handler.publish(Int32(1))  # Publish an integer message to the topic
-
-    chrono.ChCollisionSystemBullet.CollideAll()
-    my_system.DoFrameDynamics(0.01)
-
-    irrlicht_application.SynchronizePhysicsToGUI()
-
-irrlicht_application.GetDevice().closeDevice()
 ```
-
-This script creates a PyChrono simulation integrated with ROS, setting up a Chrono system with gravitational acceleration and physical material properties. It adds a fixed floor and a movable box to the system, creates a custom ROS handler to publish integer messages to a specified topic, and configures the ROS manager with clock, body, and transform handlers, registering the custom handler. The simulation loop advances the system and updates ROS communication at each timestep, maintaining real-time execution.

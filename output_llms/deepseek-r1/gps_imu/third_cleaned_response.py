@@ -101,7 +101,11 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-imu_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+imu_offset_pose = chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+gps_offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  
                                  10,                       
                                  imu_offset_pose,          
@@ -115,7 +119,6 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
-gps_offset_pose = chrono.ChFrameD(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 gps = sens.ChGPSSensor(vehicle.GetChassisBody(),            
                        10,                                  
                        gps_offset_pose,                     
@@ -155,14 +158,19 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
+    
+    
     if step_number % log_steps == 0:
         
-        gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
+        buffer = gps.GetMostRecentGPSBuffer()
+        if buffer.HasData():
+            gps_coor = buffer.GetGPSData()
+            gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
     
-    driver.SetThrottle(0.5)  
-    driver.SetSteering(0.6)  
+    driver.SetThrottle(0.5)   
+    driver.SetSteering(0.6)   
+    driver.SetBraking(0.0)    
     
     driver_inputs = driver.GetInputs()
     
@@ -188,20 +196,24 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
+print("GPS Data: ", gps_data)
+
+
 if gps_data:
-    latitudes = [data[0] for data in gps_data]
-    longitudes = [data[1] for data in gps_data]
+    
+    longitudes = [point[0] for point in gps_data]
+    latitudes = [point[1] for point in gps_data]
     
     plt.figure(figsize=(10, 6))
     plt.plot(longitudes, latitudes, 'b-', linewidth=2)
-    plt.scatter(longitudes[0], latitudes[0], color='green', marker='o', s=100, label='Start')
-    plt.scatter(longitudes[-1], latitudes[-1], color='red', marker='x', s=100, label='End')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
+    plt.plot(longitudes[0], latitudes[0], 'go', markersize=8, label='Start')
+    plt.plot(longitudes[-1], latitudes[-1], 'ro', markersize=8, label='End')
+    plt.xlabel('Longitude (degrees)')
+    plt.ylabel('Latitude (degrees)')
     plt.title('Vehicle GPS Trajectory')
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
     plt.show()
-
-print("GPS Data: ", gps_data)
+else:
+    print("No GPS data collected")

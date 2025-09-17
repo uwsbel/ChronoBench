@@ -1,5 +1,5 @@
 
-Here's a complete PyChrono simulation that models gravitational attraction between particles with random shapes, positions, and velocities. The solution includes a custom gravity force calculation and particle emitter system:
+To model gravitational attraction between particles with a custom emitter in PyChrono, follow this solution. The script initializes the environment, creates particles with random shapes (spheres or boxes), applies pairwise gravitational forces, and visualizes the simulation using Irrlicht.
 
 ```python
 import pychrono as chrono
@@ -8,164 +8,156 @@ import random
 import math
 
 # Constants
-G = 0.1        # Gravitational constant (tuned for visible attraction)
+G = 0.1  # Gravitational constant (tuned for visible effects)
 MAX_PARTICLES = 50
-EMIT_INTERVAL = 0.1  # Seconds between particle emissions
-EMIT_RADIUS = 2.0    # Emission area radius
+EMIT_INTERVAL = 0.2  # Seconds between particle emissions
+EMIT_BOX_SIZE = chrono.ChVectorD(5, 1, 5)  # Emission area dimensions
 
-# Custom gravity force calculator
-class CustomGravity(chrono.Force):
+# Custom action to compute gravitational forces
+class GravitationalForce(chrono.ChAction):
     def __init__(self, particle_list):
         super().__init__()
-        self.particles = particle_list
+        self.particle_list = particle_list
         self.G = G
 
-    def Update(self, time, update_assets=True):
-        n = len(self.particles)
+    def ActionPerformed(self):
+        n = len(self.particle_list)
         for i in range(n):
-            body_i = self.particles[i]
+            body_i = self.particle_list[i]
+            pos_i = body_i.GetPos()
+            mass_i = body_i.GetMass()
             for j in range(i + 1, n):
-                body_j = self.particles[j]
+                body_j = self.particle_list[j]
+                pos_j = body_j.GetPos()
+                mass_j = body_j.GetMass()
                 
-                # Calculate distance between particles
-                r_vec = body_j.GetPos() - body_i.GetPos()
-                r = r_vec.Length()
+                # Calculate distance vector
+                r_vect = pos_j - pos_i
+                r_len = r_vect.Length()
                 
-                # Skip if particles are too close
-                if r < 1e-3:
-                    continue
-                
-                # Calculate gravitational force (F = G * m1 * m2 / r^2)
-                force_mag = self.G * body_i.GetMass() * body_j.GetMass() / (r * r)
-                force_dir = r_vec / r
-                force = force_dir * force_mag
-                
-                # Apply equal and opposite forces
-                body_i.AddForce(force)
-                body_j.AddForce(-force)
+                if r_len > 0.01:  # Avoid division by zero
+                    # Calculate gravitational force (F = G * m1 * m2 / r^2)
+                    force_mag = self.G * mass_i * mass_j / (r_len * r_len)
+                    force_dir = r_vect / r_len
+                    force = force_mag * force_dir
+                    
+                    # Apply equal and opposite forces
+                    body_i.Accumulate_force(force, pos_i, False)
+                    body_j.Accumulate_force(-force, pos_j, False)
 
 # Create physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
+particles = []  # Track particles for gravity calculation
 
-# Particle container
-particles = []
-gravity_force = CustomGravity(particles)
-system.Add(gravity_force)
-
-# Particle emitter function
-def create_particle():
-    # Random shape selection
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
-    density = 1000  # kg/m³
-    
-    # Create random-sized body
-    if shape_type == 'sphere':
-        radius = random.uniform(0.1, 0.3)
-        body = chrono.ChBodyEasySphere(radius, density, True, False)
-    elif shape_type == 'box':
-        size = chrono.ChVectorD(*[random.uniform(0.1, 0.3) for _ in range(3)])
-        body = chrono.ChBodyEasyBox(size.x, size.y, size.z, density, True, False)
-    else:  # cylinder
-        radius = random.uniform(0.1, 0.2)
-        height = random.uniform(0.2, 0.4)
-        body = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radius, height, density, True, False)
-    
-    # Random position in emission disk
-    angle = random.uniform(0, 2 * math.pi)
-    distance = random.uniform(0, EMIT_RADIUS)
-    pos = chrono.ChVectorD(
-        distance * math.cos(angle),
-        random.uniform(3, 5),
-        distance * math.sin(angle)
-    )
-    
-    # Random velocity and rotation
-    vel = chrono.ChVectorD(
-        random.uniform(-0.5, 0.5),
-        random.uniform(-1, 0),
-        random.uniform(-0.5, 0.5)
-    )
-    ang_vel = chrono.ChVectorD(
-        random.uniform(-2, 2),
-        random.uniform(-2, 2),
-        random.uniform(-2, 2)
-    )
-    
-    # Set body properties
-    body.SetPos(pos)
-    body.SetPos_dt(vel)
-    body.SetWvel_par(ang_vel)
-    body.GetVisualShape(0).SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
-    
-    # Add to system
-    system.Add(body)
-    particles.append(body)
-    return body
+# Add gravitational force action
+grav_force = GravitationalForce(particles)
+system.Add(grav_force)
 
 # Create Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle Gravity Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddTypicalLights()
+application = chronoirr.ChIrrApp(system, "Particle Gravity", chronoirr.dimension2du(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 14, -20), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(30, 30, -30), 100)
 
-# Create text GUI for particle count
-particle_text = vis.GetGUIEnvironment().addStaticText(
-    "Particles: 0", 
-    chronoirr.recti(10, 10, 400, 40), 
-    False
-)
+# Function to create random particles
+def create_particle():
+    # Random position in emission box
+    pos = chrono.ChVectorD(
+        random.uniform(-EMIT_BOX_SIZE.x/2, EMIT_BOX_SIZE.x/2),
+        random.uniform(0, EMIT_BOX_SIZE.y),
+        random.uniform(-EMIT_BOX_SIZE.z/2, EMIT_BOX_SIZE.z/2)
+    )
+    
+    # Random linear velocity
+    vel = chrono.ChVectorD(
+        random.uniform(-0.5, 0.5),
+        random.uniform(-0.5, 0.5),
+        random.uniform(-0.5, 0.5)
+    )
+    
+    # Random orientation
+    quat = chrono.ChQuaternionD()
+    quat.Q_from_AngAxis(random.uniform(0, 2 * math.pi), chrono.ChVectorD(0, 1, 0))
+    
+    # Random shape (sphere or box)
+    if random.choice([True, False]):
+        # Create sphere
+        radius = random.uniform(0.3, 0.6)
+        density = random.uniform(500, 1500)
+        body = chrono.ChBodyEasySphere(radius, density)
+    else:
+        # Create box
+        size = chrono.ChVectorD(
+            random.uniform(0.3, 0.6),
+            random.uniform(0.3, 0.6),
+            random.uniform(0.3, 0.6)
+        )
+        density = random.uniform(500, 1500)
+        body = chrono.ChBodyEasyBox(size.x, size.y, size.z, density)
+    
+    # Set particle properties
+    body.SetPos(pos)
+    body.SetPos_dt(vel)
+    body.SetRot(quat)
+    body.SetCollide(True)
+    
+    # Visual properties
+    body.GetVisualShape(0).SetColor(chrono.ChColor(
+        random.uniform(0.3, 1.0),
+        random.uniform(0.3, 1.0),
+        random.uniform(0.3, 1.0)
+    ))
+    
+    system.Add(body)
+    particles.append(body)
 
-# Simulation parameters
-time = 0.0
-next_emit_time = 0.0
-sim_time = 0
+# Simulation loop setup
+application.AssetBindAll()
+application.AssetUpdateAll()
+time_step = 0.002
+next_emit_time = 0
 
 # Main simulation loop
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    
-    # Update particle counter
-    particle_text.setText(f"Particles: {len(particles)} Time: {sim_time:.1f}s")
+while application.GetDevice().run():
+    current_time = system.GetChTime()
     
     # Emit new particles
-    if time >= next_emit_time and len(particles) < MAX_PARTICLES:
+    if current_time >= next_emit_time and len(particles) < MAX_PARTICLES:
         create_particle()
-        next_emit_time = time + EMIT_INTERVAL
+        next_emit_time = current_time + EMIT_INTERVAL
+        application.AssetBindAll()
+        application.AssetUpdateAll()
     
-    # Advance simulation
-    vis.EndScene()
-    system.DoStepDynamics(1e-3)
-    time += 1e-3
-    sim_time += 1
+    # Simulation step
+    application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.DoStepDynamics(time_step)
+    application.EndScene()
+
 ```
 
-Key features of this implementation:
-1. **Custom Gravity System**: Implements n-body gravitational attraction using Newton's law
-2. **Random Particle Emitter**:
-   - Generates spheres, boxes, and cylinders with random sizes
-   - Applies random positions within an emission disk
-   - Sets random linear/angular velocities
-   - Assigns random colors for visualization
+### Key Features:
+1. **Particle Emitter**: Creates particles at random positions within a defined box with:
+   - Random shapes (spheres or boxes)
+   - Random sizes, densities, and colors
+   - Random initial velocities and orientations
+   - Controlled emission rate (`EMIT_INTERVAL`)
+
+2. **Custom Gravity**:
+   - Disables default gravity (`Set_G_acc(0,0,0)`)
+   - Implements n-body gravitational attraction via `GravitationalForce` action
+   - Computes pairwise forces using Newton's law of gravitation
+
 3. **Visualization**:
-   - Real-time particle counter
-   - Camera positioned for optimal viewing
-   - Color-coded particles
-4. **Performance Controls**:
-   - Particle emission rate limit
-   - Maximum particle cap
-   - Collision detection disabled for efficiency
+   - 3D view with camera positioned to observe particle interactions
+   - Color-coded particles for visual distinction
+   - Skybox and lighting for enhanced visualization
 
-To adjust the simulation:
-- Modify `G` constant for stronger/weaker gravity
-- Change `MAX_PARTICLES` for more/fewer particles
-- Adjust `EMIT_INTERVAL` for faster/slower emission
-- Tweak `EMIT_RADIUS` to change emission area size
+4. **Parameters**:
+   - Adjust `G` to control attraction strength
+   - Modify `EMIT_INTERVAL` and `MAX_PARTICLES` for emission frequency/count
+   - Tune `EMIT_BOX_SIZE` to change emission area
 
-The particles will initially spread out from the emission zone, then gradually attract each other due to gravitational forces, forming clusters over time.
+Run the script to see particles emit from a box, interact through gravitational attraction, and form dynamic clusters!

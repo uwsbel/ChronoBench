@@ -1,5 +1,6 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.robot as robot
 import math
 
 # ---------------------------------------------------------------------
@@ -7,7 +8,7 @@ import math
 #  Create the simulation system and add items
 #
 
-# Create a Chrono system
+# Create a physical system
 my_system = chrono.ChSystemNSC()
 
 # Set gravitational acceleration
@@ -23,57 +24,60 @@ my_system.Add(ground)
 #  Create the Turtlebot robot
 #
 
-# Create the robot using Chrono's built-in Turtlebot model (or import your custom model)
-robot = chrono.ChTurtlebot()
+# Load the Turtlebot robot from an .obj file
+robot_path = "path/to/turtlebot.obj"
+robot_asset = robot.ChRobotAsset(robot_path)
+robot = robot.ChRobot(robot_asset)
 
-# Set the robot's initial position and orientation
+# Set initial position and orientation
 robot.SetPos(chrono.ChVectorD(0, 0.5, 0))
-robot.SetRot(chrono.Q_from_AngAxis(math.pi / 4, chrono.ChVectorD(0, 0, 1)))
+robot.SetRot(chrono.Q_from_AngAxis(math.pi / 2, chrono.ChVectorD(0, 0, 1)))
 
 # Add the robot to the system
 my_system.Add(robot)
 
 # ---------------------------------------------------------------------
 #
-#  Set up visualization
+#  Create the Irrlicht visualization
 #
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Turtlebot Simulation")
+# Create a Irrlicht application
+myapplication = chronoirr.ChIrrApp(my_system, "Turtlebot Simulation", chronoirr.dimension2du(1280, 720))
 
-# Set camera position and lighting
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(2, 2, 2))
-camera.SetLookAt(chrono.ChVectorD(0, 0.5, 0))
-vis.AddLight(chrono.ChLight(chrono.ChVectorD(2, 5, 2)))
+# Set camera position and orientation
+myapplication.AddTypicalCamera(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0, 0, 0))
+
+# Add a directional light
+myapplication.AddLightWithShadow(chronoirr.vector3df(1, 1, 1), chronoirr.vector3df(0, 0, 0), 1000, 50)
 
 # ---------------------------------------------------------------------
 #
 #  Simulation loop
 #
 
-# Set simulation parameters
-time_step = 0.01
+# Simulation settings
+timestep = 0.01
 simulation_time = 10
 
-# Motor control variables
-left_motor_speed = 10
-right_motor_speed = -10
-motor_change_time = 3
-
-# Simulation loop
-while my_system.GetChTime() < simulation_time:
-    # Apply motor speeds
-    if my_system.GetChTime() < motor_change_time:
-        robot.SetWheelSpeed(left_motor_speed, right_motor_speed)
+while myapplication.GetDevice().run() and my_system.GetChTime() < simulation_time:
+    # Control the robot's motors
+    if my_system.GetChTime() < 3:
+        robot.GetMotorizedLink("left_wheel").SetSpeed(10)
+        robot.GetMotorizedLink("right_wheel").SetSpeed(10)
+    elif my_system.GetChTime() < 6:
+        robot.GetMotorizedLink("left_wheel").SetSpeed(-10)
+        robot.GetMotorizedLink("right_wheel").SetSpeed(10)
     else:
-        robot.SetWheelSpeed(-left_motor_speed, -right_motor_speed)
+        robot.GetMotorizedLink("left_wheel").SetSpeed(0)
+        robot.GetMotorizedLink("right_wheel").SetSpeed(0)
 
-    # Advance the simulation
-    my_system.DoStepDynamics(time_step)
+    # Update the simulation
+    my_system.DoStepDynamics(timestep)
 
     # Render the scene
-    vis.Render()
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.EndScene()
+
+# End the Irrlicht application
+myapplication.GetDevice().closeDevice()

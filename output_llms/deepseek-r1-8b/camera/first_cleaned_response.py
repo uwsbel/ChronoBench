@@ -1,66 +1,55 @@
-import pychrono as pychrono
-import pychrono.visualizations as pyvis
+import pychrono as pc
+from pychrono import core, mesh, sensors, movement
 import numpy as np
 
 
-pychrono.init()
+pc.init()
 
 
-scene = pychrono.Scene()
-
-mesh = pychrono.Mesh("data/triangular_mesh.obj")
-
-body = pychrono.Body()
-body.set_mass(0)  
-body.set_name("Triangular Mesh")
-scene.add_body(body, mesh)
+mesh_path = "triangle_mesh.obj"
+mesh = pc.load_obj(mesh_path)
 
 
-sensor = pychrono.Sensors.CameraSensor(body)
-
-sensor_manager = pychrono.Sensors.SensorManager(sensor)
-
-noise_filter = pychrono.Sensors.NoiseFilters.GaussianNoiseFilter(sigma=0.1)
-sensor_manager.add_filter(noise_filter)
+body = pc.create_fixed_body(mesh, mass=0)  
 
 
-def update_camera(sim, body, time):
-    
-    radius = 5.0  
-    angle = time * 0.5  
-    
-    body_local_pos = body.get_local_position()
-    body_local_pos.x = radius * pychrono.maths.sin(angle)
-    body_local_pos.y = radius * pychrono.maths.cos(angle)
-    body.set_local_position(body_local_pos)
+sensor_manager = pc.SensorManager(body)
+sensor = pc.create_camera_sensor(sensor_manager, name="orbital_camera")
 
 
-sensor.set_resolution(256, 256)  
-sensor.set_focal_length(512.0)  
-sensor.set_depth_mode(pychrono.Sensors.CameraSensor.DepthMode.PHI)  
+from pychrono.sensors import gaussian_filter
+sensor.add_noise_filter(gaussian_filter)
 
 
-renderer = pyvis.Renderer()
-renderer.set_camera(sensor)
-renderer.set_antialiasing(16)  
+sensor.sensor_properties.sensor_type = pc.CAMERA_TYPE PINHOLE
+sensor.sensor_properties.resolution = 512  
+sensor.sensor_properties.frame_rate = 30  
 
 
-simulation_loop = pychrono.SimulationLoop()
-simulation_loop.set_timestep(0.1)  
+pivot_point = body.get_body_point("center")  
+rotational_motion = pc.create_rotational_movement(pivot_point, body, name="camera_orbit")
 
 
-simulation_loop.add_function(update_camera, body, 0.1)
+rotational_motion.set_rotation_axis(pc.Vec3d(0, 0, 1))
 
 
-simulation_loop.start()
+rotational_motion.set_rotation_speed(2)  
 
 
-while True:
-    
+time_step = 0.01
+
+
+simulation = pc.Simulation(body, time_step, max_time=1000, gui=True)
+
+
+def print_camera_data(frame):
     image = sensor.get_image()
-    
-    img_array = np.array(image)
-    print("Camera Image Data:")
-    print(img_array)
-    
-    pychrono.sleep(0.1)
+    print(f"Frame: {frame}")
+    print(f"Camera buffer data: {image}")
+    print("\n")
+
+
+simulation.add_event("camera_orbit", callback=print_camera_data, event_type=pc.SIM_EVENT_STEP)
+
+
+simulation.run()

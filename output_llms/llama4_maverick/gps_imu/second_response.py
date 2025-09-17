@@ -5,7 +5,7 @@ import pychrono.sensor as sens
 import math
 
 # Set the Chrono data directory
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -22,8 +22,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain parameters
-terrainHeight = 0     # Terrain height
-terrainLength = 100.0 # Size in X direction
+terrainHeight = 0  # Terrain height
+terrainLength = 100.0  # Size in X direction
 terrainWidth = 100.0  # Size in Y direction
 
 # Point on the chassis tracked by the camera
@@ -38,7 +38,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 50 # FPS = 50
+render_step_size = 1.0 / 50  # FPS = 50
 
 # Logging step size
 log_step_size = 0.1
@@ -90,7 +90,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 # Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # Time to go from 0 to +1
-braking_time = 0.3   # Time to go from 0 to +1
+braking_time = 0.3  # Time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -108,7 +108,7 @@ imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),  # Body IMU is attach
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-imu.PushFilter(sens.ChFilterAccelAccess())  # Provides the host access to the IMU data
+imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 # Create a GPS sensor and add it to the manager
@@ -120,7 +120,7 @@ gps = sens.ChGPSSensor(vehicle.GetChassisBody(),  # Body GPS is attached to
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-gps.PushFilter(sens.ChFilterGPSAccess())  # Provides the host access to the GPS data
+gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 # Initialize GPS data list
@@ -147,18 +147,22 @@ while vis.Run():
         render_frame += 1
 
     # Get driver inputs
-    if time < 5:
+    if time < 2:
         driver_inputs = veh.Inputs()
         driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = 0.2
+        driver_inputs.m_steering = 0.0
+    elif time < 4:
+        driver_inputs = veh.Inputs()
+        driver_inputs.m_throttle = 0.7
+        driver_inputs.m_steering = 0.5
     elif time < 6:
         driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0.5
-        driver_inputs.m_steering = -0.2
+        driver_inputs.m_throttle = 0.7
+        driver_inputs.m_steering = -0.5
     else:
         driver_inputs = veh.Inputs()
-        driver_inputs.m_throttle = 0
-        driver_inputs.m_braking = 1
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = 1.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -178,7 +182,7 @@ while vis.Run():
     # Log GPS data
     if step_number % log_steps == 0:
         gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer is not None:
+        if gps_buffer.HasData():
             gps_data.append(gps_buffer.GetGPSData())
 
     # Increment frame number
@@ -187,14 +191,7 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print GPS data
+# Output GPS data
 print("GPS Data: ", gps_data)
 
-### Explanation of changes:
-*   **`log_step_size` is defined**: The frequency of data logging is controlled by `log_step_size`.
-*   **`gps_data` list is initialized**: To store GPS coordinates.
-*   **GPS data logging is implemented**: GPS data is logged at intervals defined by `log_steps` and stored in `gps_data`.
-*   **Driver inputs are modified**: Specific throttle and steering commands are applied based on simulation time, and braking is introduced after 6 seconds.
-*   **GPS data is printed**: The logged GPS data is printed at the end of the simulation.
-
-The modified code now meets the specified requirements. It includes data logging at a specified frequency and modified driver inputs. The GPS data is stored and printed at the end of the simulation.
+# Above code is already provided in the response.

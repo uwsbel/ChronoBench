@@ -20,7 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain dimensions
+# Rigid terrain
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -63,68 +63,67 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Create a height map for one of the patches
-def create_height_map():
-    size = 100
-    height_map = np.zeros((size, size), dtype=np.float32)
-
-    # Create a ramp for gradability testing
-    for i in range(size):
-        for j in range(size):
-            if j < 50:
-                height_map[i, j] = 0.0
-            else:
-                height_map[i, j] = 0.5 * (j - 50) / 50  # Ramp up to 0.5 meters
-
-    # Add a bump in the middle
-    for i in range(size):
-        for j in range(size):
-            dist = np.sqrt((i-50)**2 + (j-50)**2)
-            if dist < 10:
-                height_map[i, j] += 0.3 * (1 - dist/10)
-
+# Create a height map for the first patch (gradability test)
+def create_height_map(width, length, resolution=100):
+    height_map = np.zeros((resolution, resolution))
+    for i in range(resolution):
+        for j in range(resolution):
+            x = (i / resolution - 0.5) * length
+            y = (j / resolution - 0.5) * width
+            # Create a slope from left to right
+            height_map[i, j] = 0.5 * (x / length + 0.5)
+            # Add a bump in the middle
+            if abs(x) < 5 and abs(y) < 5:
+                height_map[i, j] += 0.5 * np.exp(-(x*x + y*y)/4)
     return height_map
 
-height_map = create_height_map()
+height_map = create_height_map(50, 50)
 
-# Add 4 different terrain patches
-# Patch 1: Flat with texture 1
+# Add four terrain patches with different textures and properties
+# Patch 1: With height map (for gradability testing)
 patch1 = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT),
     50, 50)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 20, 20)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch1.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 20, 20)
+patch1.SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+patch1.SetHeightMap(height_map, 50, 50, 0.1)
 
-# Patch 2: Flat with texture 2
+# Patch 2: Flat with asphalt texture
 patch2 = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(50, -50, 0), chrono.QUNIT),
-    50, 50)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 20, 20)
-patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.4))
-
-# Patch 3: Height map patch with texture 3
-patch3 = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(-50, 50, 0), chrono.QUNIT),
     50, 50)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 20, 20)
-patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
-patch3.SetHeightMap(height_map, 50, 50, 0.5)  # Apply height map
+patch2.SetTexture(veh.GetDataFile("terrain/textures/asphalt2.jpg"), 20, 20)
+patch2.SetColor(chrono.ChColor(0.3, 0.3, 0.3))
 
-# Patch 4: Flat with texture 4 and added bump
+# Patch 3: Flat with grass texture and small bump
+patch3 = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(50, -50, 0), chrono.QUNIT),
+    50, 50)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 20, 20)
+patch3.SetColor(chrono.ChColor(0.2, 0.6, 0.2))
+
+# Add a bump to patch 3
+bump_height = 0.3
+bump_radius = 5.0
+bump_center = chrono.ChVector3d(50, -50, 0)
+for i in range(-10, 11):
+    for j in range(-10, 11):
+        x = bump_center.x + i
+        y = bump_center.y + j
+        if x >= 0 and x < 50 and y >= -50 and y < 0:
+            dist = math.sqrt(i*i + j*j)
+            if dist <= bump_radius:
+                height = bump_height * (1 - dist/bump_radius)
+                terrain.AddPatch(patch_mat,
+                    chrono.ChCoordsysd(chrono.ChVector3d(x, y, height), chrono.QUNIT),
+                    1, 1)
+
+# Patch 4: Flat with concrete texture
 patch4 = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0), chrono.QUNIT),
     50, 50)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 20, 20)
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
-
-# Add a bump to patch4
-bump_mat = chrono.ChContactMaterialNSC()
-bump_mat.SetFriction(0.9)
-bump_mat.SetRestitution(0.01)
-bump = terrain.AddPatch(bump_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(70, 70, 0), chrono.QUNIT),
-    10, 10)
-bump.SetHeightMap(height_map[30:60, 30:60], 10, 10, 0.3)  # Use a portion of the height map for the bump
+patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 20, 20)
+patch4.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
 
 terrain.Initialize()
 
@@ -160,13 +159,13 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

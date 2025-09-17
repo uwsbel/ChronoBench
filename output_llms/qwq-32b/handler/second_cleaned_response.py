@@ -24,7 +24,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.message}{self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  
         msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  
@@ -36,18 +36,18 @@ def main():
     sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  
 
     
-    material = ch.ChMaterialSurface()  
-    material.SetFriction(0.5)  
+    phys_mat = ch.ChContactMaterialNSC()
+    phys_mat.SetFriction(0.5)  
 
     
-    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, material)  
+    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
     floor.SetPos(ch.ChVectorD(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
     sys.Add(floor)  
 
     
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)  
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVectorD(0, 0, 5))  
     box.SetRot(ch.Q_from_AngAxis(0.2, ch.ChVectorD(1, 0, 0)))  
     box.SetName("box")  
@@ -69,22 +69,20 @@ def main():
     
     
     custom_handler = MyCustomHandler("~/my_topic")
-    ros_manager.RegisterHandler(custom_handler)  
+    ros_manager.RegisterPythonHandler(custom_handler)  
 
     
     ros_manager.Initialize()
 
     
-    time = 0
     time_step = 1e-3  
     time_end = 30  
 
     realtime_timer = ch.ChRealtimeStepTimer()  
-    while time < time_end:
+    while sys.GetChTime() < time_end:
         sys.DoStepDynamics(time_step)  
-        time = sys.GetChTime()  
 
-        if not ros_manager.Update(time, time_step):  
+        if not ros_manager.Update(sys.GetChTime(), time_step):  
             break  
 
         realtime_timer.Spin(time_step)  

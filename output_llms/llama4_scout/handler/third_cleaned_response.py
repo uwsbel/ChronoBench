@@ -77,22 +77,14 @@ def main():
     
     vis = ch.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
-    vis.SetWindowSize(ch.ChVector2i(800, 600))  
-    vis.SetWindowTitle("PyChrono Simulation")  
-    vis.EnableShadows()  
-    vis.EnableAntiAliasing()  
+    vis.SetWindowSize(ch.ChVector2i(800, 600))
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.EnableShadows()
+    vis.EnableSFX()
+    vis.SetCameraLocation(ch.ChVector3d(0, -10, 5))
+    vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
 
     
-    camera = vis.GetCamera()
-    camera.SetPosition(ch.ChVector3d(0, -10, 5))  
-    camera.LookAtPoint(ch.ChVector3d(0, 0, 0))  
-
-    
-    light = vis.AddDirectionalLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(-1, -1, -1))
-    light.SetIntensity(1.0)  
-
-    
-    time = 0
     time_step = 1e-3  
     time_end = 30  
     step_number = 0
@@ -102,22 +94,22 @@ def main():
     
     realtime_timer = ch.ChRealtimeStepTimer()
 
-    while time < time_end:
+    while time_end > sys.GetChTime():
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
-
-        
-        step_number += 1
-        if step_number % render_step_size == 0:
-            vis.Render()  
-            render_steps += 1
 
         if not ros_manager.Update(time, time_step):  
             break  
 
         realtime_timer.Spin(time_step)  
 
-    vis.Exit()  
+        
+        render_steps += 1
+        if render_steps >= render_step_size:
+            vis.Render()
+            render_steps = 0
+
+    vis.EndScene()
 
 if __name__ == "__main__":
     main()

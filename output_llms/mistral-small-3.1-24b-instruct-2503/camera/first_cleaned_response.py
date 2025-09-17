@@ -1,100 +1,86 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
+import pychrono.sensors as sensors
+import pychrono.postprocess as postprocess
+import numpy as np
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')  
-chrono.ChSystemNSC my_system()  
+chrono.SetChronoDataPath('../data/')  
 
 
-my_application = chronoirr.ChIrrApp(my_system, 'Triangular Mesh Simulation', chronoirr.dimension2du(800, 600))
-my_application.AddTypicalSky()
-my_application.AddTypicalLogo()
-my_application.AddTypicalLights()
-my_application.AddTypicalCamera(chrono.ChVectorD(0.5, -1.5, 1.5))
-my_application.SetSymbolScale(0.02)
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-mesh_body = chrono.ChBody()
-mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
-mesh_body.SetRot(chrono.Q_FROM_EULER(0, 0, 0))
-mesh_body.SetMass(1)  
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('PyChrono Triangular Mesh with Camera')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddLightWithShadow(chrono.ChCoordsysD(chrono.ChVectorD(2, 4, 5), chrono.Q_from_AngAxis(0.3, chrono.ChVectorD(0, 1, 0))), 4, 4, 10, 10, 100, 50)
+visualization.AddCamera(chrono.ChCoordsysD(chrono.ChVectorD(2, 2, 2), chrono.Q_from_AngAxis(0.1, chrono.ChVectorD(0, 1, 0))))
 
 
-mesh_shape = chrono.ChTriangleMeshShape()
-mesh_shape.LoadWavefrontMesh('path/to/your/mesh.obj')
-mesh_shape.SetName('TriangularMesh')
-mesh_body.AddAsset(mesh_shape)
-mesh_body.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))  
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('meshes/your_mesh.obj'), False, True)
 
 
-my_system.Add(mesh_body)
+body = chrono.ChBody()
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+body.GetVisualShape(0).SetMesh(mesh)
+system.Add(body)
 
 
-camera_sensor = sensors.ChCameraSensor()
-camera_sensor.SetName('CameraSensor')
-camera_sensor.SetCameraPosition(chrono.ChVectorD(1, 0, 0))
-camera_sensor.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-camera_sensor.SetCameraUpVector(chrono.ChVectorD(0, 0, 1))
-camera_sensor.SetClippingPlanes(0.1, 100.0)
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFieldOfView(60)
+camera = sensors.ChCameraSensor()
+camera.SetName("camera_sensor")
+camera.SetParentBody(body)
+camera.SetPos(chrono.ChVectorD(0, 0, 2))  
+camera.SetOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+camera.SetFov(chrono.CH_C_PI_4)
+camera.SetNearPlane(0.1)
+camera.SetFarPlane(100)
 
 
-noise_filter = sensors.ChNoiseFilter()
-noise_filter.SetName('NoiseFilter')
-camera_sensor.AddFilter(noise_filter)
+noise_filter = sensors.ChFilterGaussian()
+noise_filter.SetStdDev(0.01)
+camera.AddFilter(noise_filter)
 
 
-visualization = sensors.ChVisualizationSensor()
-visualization.SetName('VisualizationSensor')
-camera_sensor.AddVisualization(visualization)
+visualization_manager = sensors.ChVisualizationSensorManager()
+visualization_manager.AddSensor(camera)
 
 
-camera_sensor.AttachToBody(mesh_body)
+system.AddSensorManager(visualization_manager)
 
 
-sensor_manager = sensors.ChSensorManager()
-sensor_manager.AddSensor(camera_sensor)
+step_size = 0.01
+end_time = 10.0
+time = 0.0
+camera_orbit_radius = 2.0
+camera_orbit_speed = 0.5
 
 
-sensor_manager.Initialize(my_system)
-
-
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
-my_application.AddLog('Step: ')
-my_application.AddLog('Camera Buffer Data: ')
-
-
-orbit_radius = 2.0
-orbit_angle = 0.0
-orbit_speed = 0.02  
-
-
-step_size = 0.01  
-total_simulation_time = 10.0  
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
+while time < end_time:
+    
+    angle = camera_orbit_speed * time
+    camera.SetPos(chrono.ChVectorD(camera_orbit_radius * np.cos(angle), camera_orbit_radius * np.sin(angle), 2))
 
     
-    orbit_angle += orbit_speed
-    camera_position = chrono.ChVectorD(orbit_radius * chrono.ChCos(orbit_angle),
-                                        orbit_radius * chrono.ChSin(orbit_angle),
-                                        0)
-    camera_sensor.SetCameraPosition(camera_position)
+    system.DoStepDynamics(step_size)
 
     
-    my_system.DoStepDynamics(step_size)
+    buffer = camera.GetBuffer()
+    print("Camera buffer data:", buffer)
 
     
-    camera_buffer = camera_sensor.GetBuffer()
-    my_application.AddLog(f'Camera Buffer Data: {camera_buffer}')
-
-    my_application.EndScene()
+    visualization.Update()
+    visualization.Render()
 
     
-    if my_system.GetChTime() >= total_simulation_time:
-        break
+    time += step_size
+
+
+visualization.Close()

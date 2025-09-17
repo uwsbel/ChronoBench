@@ -112,9 +112,9 @@ class ChFunctionMyFun(chrono.ChFunction):
         else:
             return self.A2 * m.exp(-self.w * (x - self.T3))
 
-# Example usage of ChFunctionMyFun
-f_motor = ChFunctionMyFun(A1=0, A2=100, T1=1, T2=2, T3=3, w=0.5)
-rotmotor1.SetMotorFunction(f_motor)
+# Example usage:
+f_ramp = ChFunctionMyFun(A1=0, A2=100, T1=1, T2=2, T3=3, w=0.5)
+rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.
 
@@ -147,8 +147,6 @@ sys.SetSolver(msolver)
 
 sys.DoStaticLinear()
 
-# Optionally uncomment the following line for a more precise HHT timestepper
-# sys.SetTimestepperType(chrono.ChTimestepperHHT)
 while vis.Run():
     vis.BeginScene()
     vis.Render()

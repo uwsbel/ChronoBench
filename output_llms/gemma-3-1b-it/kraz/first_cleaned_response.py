@@ -1,101 +1,91 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visual as v
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from pychrono.objects import Vehicle, Terrain, Driver, Camera, Light
+from pychrono.simulation import Simulation
 
 
 try:
-    chrono = pc.chrono.Chrono()
+    simulation = pychrono.simulation.Simulation()
+    print("PyChrono simulation initialized.")
 except Exception as e:
-    print(f"Error initializing Chrono: {e}")
+    print(f"Error initializing PyChrono: {e}")
     exit()
 
 
 
-vehicle = pc.Vehicle(
-    x=0.0,
-    y=0.0,
-    vx=0.0,
-    vy=0.0,
-    mass=10.0,  
-    friction=0.8,
-    restitution=0.7,
-    initial_position=(0.0, 0.0) 
+
+vehicle = Vehicle()
+vehicle.name = "Kraz"
+vehicle.position = np.array([0.0, 0.0, 0.0])  
+vehicle.mass = 100.0
+vehicle.friction = 0.8
+vehicle.restitution = 0.7
+vehicle.initial_velocity = 0.0
+vehicle.rotation_rate = 0.0
+
+
+terrain = Terrain()
+terrain.name = "Rocky Terrain"
+terrain.friction = 0.9
+terrain.restitution = 0.8
+terrain.position = np.array([0.0, 0.0, 0.0])  
+terrain.initial_velocity = 0.0
+
+
+driver = Driver()
+driver.name = "Driver"
+driver.position = np.array([0.0, 0.0, 0.0])
+driver.mass = 50.0
+driver.rotation_rate = 0.0
+driver.acceleration = np.array([0.0, 0.0, 0.0])
+
+
+simulation.set_default_parameters(
+    vehicle_mass=100.0,
+    vehicle_friction=0.8,
+    vehicle_restitution=0.7,
+    terrain_friction=0.9,
+    terrain_restitution=0.8,
+    driver_mass=50.0,
+    driver_acceleration=0.0,
+    simulation_time=10.0  
 )
 
 
-terrain = pc.Terrain(
-    x_min=-10.0,
-    x_max=10.0,
-    y_min=-10.0,
-    y_max=10.0,
-    friction=0.9,
-    restitution=0.8,
-    initial_position=(0.0, 0.0)
-)
+
+camera = Camera()
+camera.name = "Irrlicht Camera"
+camera.resolution = 800  
+camera.rotation_angle = 0.0
+camera.lighting = Light()
+camera.lighting.color = (1.0, 1.0, 1.0)
+camera.lighting.intensity = 0.5
+camera.camera_settings = {
+    "camera_resolution": camera.resolution,
+    "camera_rotation": camera.rotation_angle,
+    "camera_lighting": camera.lighting
+}
 
 
-driver = pc.Driver(
-    vehicle=vehicle,
-    initial_position=(0.0, 0.0),
-    control_method="manual", 
-    max_speed=5.0, 
-    acceleration=0.1, 
-    deceleration=0.1, 
-    max_deceleration=1.0, 
-    simulation_time=10.0 
-)
+
+try:
+    simulation.run(
+        vehicle,
+        terrain,
+        driver,
+        camera
+    )
+except Exception as e:
+    print(f"Simulation failed: {e}")
+    exit()
 
 
-chrono.set_default_parameters(
-    time_step=0.01, 
-    initial_velocity=0.0, 
-    gravity=9.81,
-    friction=0.8,
-    restitution=0.7
-)
 
 
-fig, ax = v.figure(width=800, height=600)
-scene = v.Scene()
 
 
-camera = v.Camera(
-    x=0.0,
-    y=0.0,
-    z=0.0,
-    width=800,
-    height=600,
-    fov=60.0,
-    aspect=2.0,
-    near=-10.0,
-    far=10.0,
-    color=(1.0, 1.0, 1.0),  
-    animation=True
-)
 
 
-def animate(i):
-    camera.set_position(camera.position)
-    camera.set_rotation(camera.rotation)
-    
-    
-    camera.update()
-    
-    return scene.animate(camera,  
-                     lambda i=i:  
-                     animate(i))
 
-
-ani = v.FuncAnimation(fig, animate, frames=chrono.get_frame_count(),
-                      interval=10,
-                      repeat=False)
-
-
-v.show(fig, scene, title="Kraz Simulation")
-
-
-chrono.save_animation(ani, "kraz_simulation.mp4")
-print("Simulation complete. Animation saved to kraz_simulation.mp4")
+print("Simulation complete.")

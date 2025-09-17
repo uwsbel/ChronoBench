@@ -3,11 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# SetChronoDataPath is only needed once
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  # Changed initial position to (-15, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -20,13 +21,14 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+# Camera track point and chase camera settings
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  # Changed track point to (3, 0, 2.1)
+chaseCamDistance = 25.0
+chaseCamHeight = 10.5  # Changed from 1.5 to 10.5
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -40,7 +42,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
-
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -73,13 +74,12 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, chaseCamDistance, chaseCamHeight)  # Updated chase camera settings
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -95,7 +95,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,11 +105,22 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+def lane_change_steering(time):
+    """Double lane change maneuver"""
+    if time < 5:
+        return math.sin(time * math.pi / 2) * 0.3  # First turn
+    elif time < 10:
+        return math.sin((time - 5) * math.pi / 2) * (-0.3)  # Second turn
+    elif time < 15:
+        return math.sin((time - 10) * math.pi / 2) * 0.3  # Third turn
+    else:
+        return 0
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -117,16 +128,12 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    
-    # Double lane change maneuver sequence
-    if time >= 2.0 and time < 4.0:  # First lane change left
-        driver.SetSteering(-0.5)  # Negative steering angle for left turn
-    elif time >= 4.0 and time < 6.0:  # Straighten
-        driver.SetSteering(0)
-    elif time >= 6.0 and time < 8.0:  # Second lane change right
-        driver.SetSteering(0.5)  # Positive steering angle for right turn
-    elif time >= 8.0:  # Straighten after lane changes
-        driver.SetSteering(0)
+
+    # Implement double lane change maneuver
+    if time < 15:
+        driver_inputs.steering = lane_change_steering(time)
+    else:
+        driver_inputs.steering = 0  # Reset steering after maneuver
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

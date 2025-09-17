@@ -8,20 +8,18 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
+initLoc = chrono.ChVector3d(0, 0, 1.0)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
-
-
 chassis_collision_type = veh.CollisionType_NONE
-
-
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -31,15 +29,9 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 0.5e-3
+step_size = 5e-4  
 tire_step_size = step_size
-
-
 render_step_size = 1.0 / 100  
-
-
-
-
 
 
 vehicle = veh.BMW_E90()
@@ -49,15 +41,14 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
+
 
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -65,24 +56,20 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddMesh(
-    patch_mat, 
-    chrono.GetChronoDataFile("vehicle/terrain/meshes/highway.obj"),
-    chrono.ChVector3d(0, 0, 0),
-    chrono.QUNIT,
-    1.0,  
-    "highway",  
-    True,  
-    True,  
-    0.01   
-)
+
+patch = terrain.AddMesh(patch_mat, 
+                        veh.GetDataFile("terrain/meshes/highway.obj"),
+                        100,  
+                        0,    
+                        chrono.ChVector3d(0, 0, 0), 
+                        chrono.QUNIT)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan with PID Speed Control')
+vis.SetWindowTitle('Sedan with PID Control')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -95,37 +82,28 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-
 steering_time = 5.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
-
-
+ref_speed = 10.0  
+Kp_throttle = 0.5  
+Ki_throttle = 0.1  
+Kp_brake = 0.5     
+integral = 0.0     
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-
-target_speed = 10.0  
-pid = chrono.ChPID()
-pid.SetGains(0.4, 0.1, 0.0)  
-pid.SetSetpoint(target_speed)
-pid.SetOutputLimits(-1.0, 1.0)  
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -139,19 +117,20 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    control_signal = pid.Advance(current_speed, step_size)
     
-    if control_signal >= 0:
-        
-        driver_inputs.m_throttle = min(control_signal, 1.0)
+    speed = vehicle.GetVehicle().GetSpeed()
+    error = ref_speed - speed
+    
+    if error > 0:  
+        integral += error * step_size
+        throttle = Kp_throttle * error + Ki_throttle * integral
+        driver_inputs.m_throttle = min(throttle, 1.0)
         driver_inputs.m_braking = 0.0
-    else:
-        
+    else:  
         driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = min(-control_signal, 1.0)
+        driver_inputs.m_braking = min(Kp_brake * -error, 1.0)
+        integral = 0  
 
     
     driver.Synchronize(time)
@@ -167,6 +146,4 @@ while vis.Run():
     
     
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

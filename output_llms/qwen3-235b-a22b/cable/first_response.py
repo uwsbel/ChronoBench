@@ -1,68 +1,61 @@
 import pychrono as chrono
 import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
 
-# Initialize the PyChrono system with non-smooth contact dynamics
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity in Y-direction
-
-# Create FEA mesh for the beam
-mesh = fea.ChMesh()
+# Initialize the PyChrono system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # Beam parameters
 L = 1.0  # Length of the beam
-num_elements = 10  # Number of elements
-radius = 0.01  # Radius of the cable
-E = 2e5  # Young's modulus (Pa)
-density = 1000  # Density (kg/m^3)
-area = chrono.CH_C_PI * radius**2  # Cross-sectional area
-I = chrono.CH_C_PI * radius**4 / 4  # Area moment of inertia
+N = 10   # Number of elements
+A = 0.01**2  # Cross-sectional area (m^2)
+E = 2e5      # Young's modulus (Pa)
+rho = 7800   # Density (kg/m^3)
+
+# Create FEA mesh
+mesh = fea.ChMesh()
 
 # Create nodes along the beam
-for i in range(num_elements + 1):
-    pos = chrono.ChVectorD(L * i / num_elements, 0, 0)
+nodes = []
+for i in range(N + 1):
+    pos = chrono.ChVectorD(i * L / N, 0, 0)
     node = fea.ChNodeFEAxyz(pos)
     mesh.AddNode(node)
+    nodes.append(node)
 
 # Create ANCF cable elements
-for i in range(num_elements):
+for i in range(N):
     element = fea.ChElementCableANCF()
-    element.SetNodes(mesh.GetNode(i), mesh.GetNode(i+1))
-    element.SetDiameter(2 * radius)
-    element.SetMaterialYoungModulus(E)
-    element.SetArea(area)
-    element.SetI(I)
-    element.SetDensity(density)
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSectionProperties(A, E, rho)  # Area, Young's modulus, density
     mesh.AddElement(element)
 
-# Add the mesh to the system
-system.Add(mesh)
+# Fix the first node to the ground
+constraint = fea.ChLinkPointFrame()
+constraint.Initialize(nodes[0], chrono.ChFrameD())
+sys.Add(constraint)
 
-# Fix the first node to the ground using a generic constraint
-node0 = mesh.GetNode(0)
-constraint = chrono.ChLinkMateGeneric(True, True, True, True, True, True)
-constraint.Initialize(node0, system.GetGroundBody(), False, chrono.ChFrameD(), chrono.ChFrameD())
-system.Add(constraint)
+# Set up visualization for the mesh
+vis_beam = chrono.ChVisualShapeFEA(mesh)
+vis_beam.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+vis_beam.SetWireframe(True)
+vis_beam.SetDrawInUndeformedState(False)  # Show deformation
+mesh.AddVisualShapeFEA(vis_beam)
 
-# Set up Irrlicht visualization
-application = irrlicht.ChIrrApp(system, 'ANCF Beam Simulation', irrlicht.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(irrlicht.vector3df(0.5, 0.5, -1.5))  # Adjusted camera position
+# Add mesh to the system
+sys.Add(mesh)
 
-# Add FEA mesh visualization assets
-vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-vis_mesh.SetWireframe(True)
-vis_mesh.SetShowNodes(True)
-vis_mesh.SetNodeSize(0.01)
-mesh.AddAsset(vis_mesh)
-
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Initialize Irrlicht visualization
+vis = irr.ChIrrApp(sys, 'ANCF Beam Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalSky()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+vis.Run()
 
 # Simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    system.DoStepDynamics(1e-4)  # Smaller timestep for stability
+while vis.GetDevice().run():
+    sys.DoStepDynamics(0.001)  # Step the simulation
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

@@ -1,45 +1,42 @@
+# Initialize PyChrono
 import PyChrono as pc
 
-# Initialize PyChrono environment
-simulation = pc.Simulation()
-simulation.set_physics_solver(pc.TSDA())
-simulation.set_time_step(0.01)
-simulation.set_VisualStyleDefaults()
-
-# Create mass
-mass = pc.Body()
-mass.set_shape(pc.Sphere(0.05, 0.05, 0.05))
-mass.set_density(1)
-mass.set_position(pc.Vec3(0, 0, 0))
+# Create simulation
+sim = pc.Simulation(pc.ODESolver())
+sim.set_time_step(0.001)  # 1ms time step
 
 # Create ground
-ground = pc.Body()
-ground.set_shape(pc.Box(10, 10, 0.1))
-ground.set_position(pc.Vec3(0, 0, -0.5))
+ground_body = pc.Body(pc.Vec3(0, 0, 0), pc.Vec3(0, 0, 0))
+ground_body.set_mass(0)  # Ground is static
+ground_link = pc.ChLinkTSDA(sim, ground_body)
 
-# Create spring-damper connection
-spring = pc.ChLinkTSDA(mass, ground)
-spring.set_spring_constant(1000)
-spring.set_damping_ratio(0.5)
-spring.set_equilibrium_position(mass.get_position())
+# Create mass and spring
+mass_body = pc.Body(pc.Vec3(0, 1, 0))  # Position at (0,1,0)
+spring_link = pc.ChLinkTSDA(sim, mass_body, ground_body)
 
-# Setup visualization
-simulation.set_visualize_irenderer_enabled(True)
-simulation.set_lighting(pc.DirectionalLight(pc.Vec3(0, 0, 5), 5.0))
-simulation.set_camera(pc.Camera(pc.Vec3(5, 5, 10), pc.Vec3(0, 0, 0), 1000))
+# Set spring parameters
+spring_constant = 1.0 / (2 * pc.PI) ** 2  # Natural frequency 2π Hz
+damping_ratio = 0.5  # Damping ratio
+spring_link.set_stiffness(spring_constant)
+spring_link.set_damping(damping_ratio * spring_constant)
+
+# Set up Irrlicht visualization
+scene = pc.IrrlichtScene()
+camera = scene.create_camera(pc.Vec3(5, 5, 5), pc.Vec3(0, 0, 0), pc.Vec3(-1, -1, -1), 45, 16/9, 0.1)
+light = scene.add_light(pc.Vec3(10, 10, 10), pc.Vec3(0, 0, 0), pc.Color(255, 255, 255))
 
 # Add visual shapes
-mass.add_shape(pc.SphereVisual(0.05, 0.05, 0.05, pc.Color(1, 0, 0)))
-spring.add_shape(pc.ConeVisual(0.1, 0.2, 0.1, pc.Color(0, 1, 0)))
+mass_shape = scene.add_sphere(mass_body, radius=0.5, color=pc.Color(0, 0.5, 0.5))
+spring_shape = scene.add_cylinder(spring_link, radius=0.1, length=1.0, color=pc.Color(0, 1, 0))
 
-# Set gravity
-simulation.set_gravity(pc.Vec3(0, 0, -9.81))
+# Set camera position and lighting
+scene.set_camera_position(camera.get_position())
+scene.set_light_position(light.get_position())
 
-# Setup simulation
-simulation.add_solver(pc.TSDA.SolverConfig()
-                 .set_max_iterations(10)
-                 .set_tolerance(1e-6)
-                 .set_time_step(0.01))
+# Finalize simulation setup
+spring_link.set_ground(ground_body)
+sim.add_body(mass_body)
+sim.add_link(spring_link)
 
-# Start simulation
-simulation.start()
+# Run simulation
+sim.run(1000)  # Let system reach equilibrium

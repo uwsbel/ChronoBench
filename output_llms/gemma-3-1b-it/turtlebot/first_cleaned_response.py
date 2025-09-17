@@ -1,95 +1,87 @@
 import pychrono
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import time
+import random
+import numpy as np
+from pychrono.simulation import Simulation
+from pychrono.visualize import Irrlicht
 
 
-simulation_time = 60  
-dt = 0.1  
-gravity = 9.81
-ground_body_x = 0
-ground_body_y = 0
-turtlebot_x = 0
-turtlebot_y = 0
-velocity_x = 0
-velocity_y = 0
-angle_x = 0
-angle_y = 0
-rotation_speed = 0.5  
+SIM_NAME = "TurtlebotSimulation"
+GRAVITY = 9.81
+GROUND_BODY_MASS = 1000  
+GROUND_BODY_RADIUS = 0.5  
+GROUND_BODY_AREA = np.pi * (GROUND_BODY_RADIUS**2)
+GROUND_BODY_CENTER_X = 0.0
+GROUND_BODY_CENTER_Y = 0.0
+INITIAL_POSITION = (10, 10)
+INITIAL_ORIENTATION = 0.0  
+SIM_TIME_STEP = 0.1  
+SIM_DURATION = 60  
 
 
-chrono = pychrono.Chrono()
+simulation = Simulation(SIM_NAME)
 
 
-turtlebot = chrono.Turtlebot(
-    x=turtlebot_x,
-    y=turtlebot_y,
-    radius=0.5,
-    speed=1,
-    orientation=chrono.Orientation.RIGHT,
-    color="white",
-    texture="white"
-)
+try:
+    turtlebot = simulation.create_turtlebot(
+        initial_position=INITIAL_POSITION,
+        initial_orientation=INITIAL_ORIENTATION,
+        mass=GROUND_BODY_MASS,
+        radius=GROUND_BODY_RADIUS,
+        area=GROUND_BODY_AREA,
+        center_x=GROUND_BODY_CENTER_X,
+        center_y=GROUND_BODY_CENTER_Y
+    )
+except Exception as e:
+    print(f"Error creating Turtlebot: {e}")
+    exit()
 
 
-turtlebot.set_position(ground_body_x, ground_body_y)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(ground_body_x, ground_body_y, 0)
+
+irrlicht = Irrlicht()
+irrlicht.initialize(800, 600)
+irrlicht.color = (1, 1, 1)  
+irrlicht.set_camera_position(100, 100, 200)  
+irrlicht.set_camera_brightness(1.0)
+irrlicht.set_camera_fov(45)
+irrlicht.set_camera_location(100, 100)
+irrlicht.set_camera_orientation(0, 0, 0)  
+irrlicht.set_background_color(0)
+irrlicht.set_title("Turtlebot Simulation")
 
 
-ground_body = chrono.GroundBody(
-    x=0,
-    y=0,
-    radius=0.5,
-    color="brown",
-    texture="brown"
-)
-
-
-camera = chrono.Camera(
-    x=0,
-    y=0,
-    width=50,
-    height=50,
-    color="white",
-    texture="white"
-)
-
-
-def update_animation(frame_num):
+def set_motor_speeds(left_speed, right_speed):
+    print(f"Setting left motor speed: {left_speed}, right motor speed: {right_speed}")
     
-    global turtlebot, ground_body, camera
-
     
-    turtlebot.set_position(turtlebot.position[0], turtlebot.position[1], 0)
-    turtlebot.set_orientation(chrono.Orientation.RIGHT)
-    turtlebot.set_translation(turtlebot.position[0], turtlebot.position[1], 0)
+    time.sleep(0.1)  
+    left_speed = left_speed * 0.5  
+    right_speed = right_speed * 0.5
 
+
+def update_turtlebot():
+    left_speed = 0
+    right_speed = 0
     
-    camera.set_position(turtlebot.position[0], turtlebot.position[1], 0)
-
     
-    plt.clf()  
-    plt.imshow(camera.image, cmap='gray')
-    plt.pause(0.01)
-
-    return camera
-
-
-for frame_num in range(simulation_time):
-    update_animation(frame_num)
-    time.sleep(dt)  
+    time.sleep(SIM_TIME_STEP)
+    left_speed = 0.5 * (1 - left_speed)
+    right_speed = 0.5 * (1 - right_speed)
+    
+    
+    turtlebot.set_position(INITIAL_POSITION + (left_speed, right_speed))
 
 
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_position(0, 0)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_position(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_rotation(chrono.Rotation.NONE) 
-plt.close()
+try:
+    while True:
+        update_turtlebot()
+        irrlicht.clear()
+        irrlicht.display(turtlebot)
+        irrlicht.close()
+        time.sleep(SIM_DURATION)
+
+except KeyboardInterrupt:
+    print("Simulation stopped by user.")
+    irrlicht.close()
+    simulation.destroy()
+    exit()

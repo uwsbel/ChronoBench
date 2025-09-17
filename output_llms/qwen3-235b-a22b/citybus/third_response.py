@@ -16,15 +16,16 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PACEJKA)
-tire_model = veh.TireModelType_PACEJKA  # Modified: Changed to Pacejka 89
+# Type of tire model (RIGID, TMEASY, PACEJKA89)
+tire_model = veh.TireModelType_PACEJKA89  # Modified: Changed to Pacejka 89 tire model
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
@@ -33,7 +34,7 @@ contact_vis = False
 
 # Simulation step sizes
 step_size = 5e-4  # Modified: Reduced step size for stability
-tire_step_size = 5e-4  # Modified: Reduced tire step size
+tire_step_size = step_size  # Modified: Tire step size matches simulation step
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -66,8 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-# Modified: Changed texture to dirt.jpg
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Modified: Changed to dirt texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -98,10 +98,10 @@ driver.Initialize()
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Number of simulation steps between rendering frames
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Simulation loop
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -109,8 +109,8 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Render scene
-    if step_number % render_steps == 0:
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -119,17 +119,20 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update modules
+    # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Advance simulation
+    # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     
+    # Increment frame number
     step_number += 1
+    
+    # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)

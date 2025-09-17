@@ -170,18 +170,18 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 # create depth camera
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+depth_cam_offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
+    depth_cam_offset_pose,
     image_width,
     image_height,
     fov,
-    30
+    30.0
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Camera"))
 manager.AddSensor(depth_cam)
 
 # ---------------
@@ -207,7 +207,7 @@ while time < end_time:
 
     # Log vehicle state
     vehicle_pos = gator.GetChassisBody().GetPos()
-    vehicle_heading = gator.GetChassisBody().GetRot().EulerAngles().z
+    vehicle_heading = gator.GetChassisBody().GetRot().GetEuler123()[2]
     print(f"Time: {time}, Position: ({vehicle_pos.x():.2f}, {vehicle_pos.y():.2f}, {vehicle_pos.z():.2f}), Heading: {vehicle_heading:.2f}")
 
     # Advance simulation for one timestep for all modules

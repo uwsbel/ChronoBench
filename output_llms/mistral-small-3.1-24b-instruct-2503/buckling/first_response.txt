@@ -1,101 +1,70 @@
-Certainly! Below is a Python script that sets up a PyChrono simulation for a beam buckling scenario. This script includes finite element analysis (FEA) for the beam elements, custom motor functions, and constraints between different parts of the system. The simulation is visualized using the Irrlicht visualization module.
+Certainly! Below is a Python script that sets up a PyChrono simulation involving a beam buckling scenario with finite element analysis (FEA), custom motor functions, and constraints. The script also includes visualization using the Irrlicht module.
 
 ```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fem as chronofem
-import pychrono.solver as chronosolver
-import pychrono.fea as chronofea
+import pychrono.fem as fem
 
-# Initialize the Chrono::Engine system
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to the Chrono data directory
-
-# Create a Chrono::Engine system
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Set the path to the Chrono data directory
 system = chrono.ChSystemNSC()
 
-# Set the time step
-time_step = 0.01
-system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
-system.GetTimestepper().SetAlpha(-0.2)
-system.SetMaxPenetrationRecoverySpeed(1.0)
+# Create a finite element mesh for the beam
+beam_mesh = fem.ChElementBeamFEMigA()
+beam_mesh.SetLength(1.0)  # Length of the beam
+beam_mesh.SetCrossSectionArea(0.01)  # Cross-sectional area
+beam_mesh.SetYoungModulus(210e9)  # Young's modulus
+beam_mesh.SetDensity(7800)  # Density
 
-# Create the ground
-ground = chrono.ChBodyEasyBox(10, 1, 0.5, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
-ground.SetBodyFixed(True)
-system.Add(ground)
-
-# Create the beam using FEA elements
-beam_length = 2.0
-beam_width = 0.1
-beam_height = 0.1
-beam_material = chronofem.ChMaterialShellFea()
-beam_material.SetYoungModulus(210e9)
-beam_material.SetPoissonRatio(0.3)
-beam_material.SetDensity(7800)
-
-beam_mesh = chronofem.ChElementBeamFEM()
-beam_mesh.SetLength(beam_length)
-beam_mesh.SetCrossSectionArea(beam_width * beam_height)
-beam_mesh.SetYoungModulus(beam_material.GetYoungModulus())
-beam_mesh.SetDensity(beam_material.GetDensity())
-
-beam = chronofem.ChNodeFEAbeam()
-beam.AddElement(beam_mesh)
-beam.SetPos(chrono.ChVectorD(0, 0.5, 0))
-
-system.Add(beam)
-
-# Add constraints
-constraint = chrono.ChLinkLockLock()
-constraint.Initialize(ground, beam.GetVisualModel().GetBody())
-system.Add(constraint)
+# Create a beam body and add the mesh to it
+beam_body = chrono.ChBody()
+beam_body.AddElement(beam_mesh)
+beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
+beam_body.SetMass(10)  # Set the mass of the beam
+beam_body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))  # Set the inertia tensor
+system.Add(beam_body)
 
 # Define custom motor functions
-motor = chrono.ChFunction_Ramp(0, 10000)
-motor_function = chrono.ChFunction_Constant(10000)
-motor.SetStartPoint(0)
-motor.SetEndPoint(1)
+def custom_motor_func(time):
+    return chrono.ChFunction_Const(0.1)  # Constant torque of 0.1 Nm
 
-# Apply motor to the beam
-motor_force = chrono.ChForce()
-motor_force.SetMotionType(chrono.ChForce.MotionType_FORCE)
-motor_force.SetForce(chrono.ChVectorD(0, -1000, 0))
-beam.GetVisualModel().GetBody().AddForce(motor_force)
+motor = chrono.ChFunction_Const(0.1)
+beam_body.AddForce(chrono.ChVectorD(0, 0, -9.81 * beam_body.GetMass()))  # Apply gravity
 
-# Create the Irrlicht visualization
-visualization = chronoirr.ChIrrApp(system, 'Beam Buckling Simulation', chronoirr.dimension2du(800, 600))
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_chrono_small.png')
-visualization.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0.5, 0.5, 0.5), 1000, 500, 500, 40, 512)
+# Add constraints between different parts of the system
+constraint = chrono.ChLinkLockRevolute()
+constraint.Initialize(beam_body, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(constraint)
 
-# Add the beam to the visualization
-visualization.Add(beam.GetVisualModel())
+# Set up the solver and timestepper
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+system.SetTimestepperType(chrono.ChTimestepper.HBM)
 
-# Run the simulation
-visualization.SetTimestep(time_step)
-visualization.SetTryRealTime(True)
+# Visualization setup
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('Beam Buckling Simulation')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddCamera(chrono.ChVectorD(1, -1, 1), chrono.ChVectorD(0, 0, 0))
 
 # Simulation loop
 while visualization.Run():
-    visualization.BeginScene()
+    system.DoStepDynamics(0.01)  # Time step of 0.01 seconds
     visualization.Render()
-    system.DoStepDynamics(time_step)
-    visualization.EndScene()
 
-# Close the visualization
+# Clean up
 visualization.Close()
 ```
 
-### Explanation:
-1. **Initialization**: The script initializes the Chrono::Engine system and sets the time step.
-2. **Ground**: A ground body is created and fixed in place.
-3. **Beam**: A beam is created using FEA elements with specified material properties.
-4. **Constraints**: A constraint is added to lock the beam to the ground.
-5. **Motor Functions**: Custom motor functions are defined and applied to the beam.
-6. **Visualization**: The Irrlicht visualization module is used to visualize the simulation.
-7. **Simulation Loop**: The simulation runs in a loop, updating the dynamics and rendering the scene.
+### Notes:
+1. Replace `'/path/to/chrono/data'` with the actual path to your Chrono data directory.
+2. The `custom_motor_func` is defined as a constant torque function. You can modify this function to implement more complex motor behaviors.
+3. The beam is subject to gravity, and a revolute constraint is applied at the origin.
+4. The `ChSolverMINRES` and `ChTimestepper.HBM` are used for the solver and timestepper, respectively. You can adjust these based on your specific requirements.
+5. The visualization is set up using the Irrlicht module, with a camera positioned to view the beam.
 
-Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono data directory.
-
-This script provides a basic framework for a beam buckling simulation. You can further customize the material properties, constraints, and motor functions as needed.
+This script should provide a good starting point for your beam buckling simulation with FEA, custom motor functions, and constraints in PyChrono.

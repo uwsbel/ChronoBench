@@ -1,123 +1,107 @@
 import pychrono
 import pychrono.core as pc
 import pychrono.visuals as v
+import pychrono.physics as ph
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.events import Event
-from pychrono.visuals.mesh import Mesh
-from pychrono.visuals.scene import Scene
-from pychrono.visuals.ui import UI
+from pychrono.visuals import Mesh
 
 
-terrain_heightmap = 100  
-patch_size = 50  
-vehicle_speed = 1.0  
-driving_mode = 'throttle'  
-timestep = 1.0  
-vehicle_type = 'engine'  
-engine_speed = 1.5  
-drivetrain_type = 'drivetrain' 
+terrain_heightmap = np.array([[0.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0],
+                            [0.0, 0.0, 1.0]])
+terrain_texture = np.array([[0.0, 0.0, 0.0],
+                            [0.0, 0.0, 0.0],
+                            [0.0, 0.0, 1.0]])
+vehicle_type = 'engine'
+vehicle_id = 1  
+vehicle_speed = 1.0
+vehicle_throttle = 0.5
+vehicle_brake = 0.0
+vehicle_max_speed = 2.0
+vehicle_acceleration = 0.1
 
 
-chrono = pc.Chronos()
-chrono.init()
+simulation_time = 10  
+timestep = 0.01
+simulation_start_time = 0
+simulation_end_time = simulation_time
 
 
-vehicle = pc.Vehicle(
-    vehicle_type=vehicle_type,
-    drivetrain_type=drivetrain_type,
-    engine_speed=engine_speed,
-    vehicle_speed=vehicle_speed,
-    position=pc.Vector(0, 0, 0),  
+vehicle_position = (0.0, 0.0, 0.0)  
+vehicle_velocity = (0.0, 0.0, 0.0) 
+vehicle_acceleration = 0.0
+vehicle_throttle = 0.0
+vehicle_brake = 0.0
+
+
+terrain_heightmap = terrain_heightmap
+terrain_texture = terrain_texture
+
+
+mesh = Mesh(vehicle_id, terrain_heightmap, terrain_texture, vehicle_type)
+mesh.set_position(vehicle_position)
+mesh.set_velocity(vehicle_velocity)
+mesh.set_acceleration(vehicle_acceleration)
+mesh.set_brake(vehicle_brake)
+mesh.set_throttle(vehicle_throttle)
+mesh.set_speed(vehicle_speed)
+mesh.set_position_relative(vehicle_position)
+mesh.set_position_relative(vehicle_position)
+mesh.set_position_relative(vehicle_position)
+
+
+terrain = np.zeros((10, 10))
+for i in range(10):
+    for j in range(10):
+        terrain[i, j] = terrain_heightmap[i, j]
+
+
+chrono = pychrono.core.Chrono(
+    simulation_time=simulation_time,
+    timestep=timestep,
+    simulation_start_time=simulation_start_time,
+    simulation_end_time=simulation_end_time,
+    vehicle_id=vehicle_id,
     terrain_heightmap=terrain_heightmap,
-    
+    terrain_texture=terrain_texture,
+    vehicle_type=vehicle_type,
+    vehicle_speed=vehicle_speed,
+    vehicle_throttle=vehicle_throttle,
+    vehicle_brake=vehicle_brake,
+    vehicle_max_speed=vehicle_max_speed,
+    vehicle_acceleration=vehicle_acceleration
 )
 
 
-terrain = pc.Terrain(
-    terrain_heightmap,
-    patch_size,
+for i in range(simulation_time):
     
-    patch_type = 'flat',
-    
-    patch_texture = 'grass',
-    
-    heightmap_patch = pc.Heightmap(
-        heightmap=terrain_heightmap,
-        resolution=100,
-        color_scale=pc.ColorScale(0.5, 1.0) 
-    )
-)
-
-
-scene = pc.Scene(
-    vehicle,
-    terrain,
-    
-    width=1000,
-    height=1000,
-    
-    camera_position=pc.Vector(0, 0, 0),
-    camera_orientation=pc.Vector(0, 0, 0)
-)
-
-
-v.render(scene, vehicle)
-
-
-
-driver_interface = pc.Driver(
-    vehicle,
-    
-    throttle_control = pc.Control(
-        throttle_value=0.0,
-        throttle_type="linear",
-        max_value=1.0,
-        min_value=0.0,
-        step_size=0.1
-    ),
-    brake_control = pc.Control(
-        brake_value=0.0,
-        brake_type="linear",
-        max_value=1.0,
-        min_value=0.0,
-        step_size=0.1
-    ),
-    steering_control = pc.Control(
-        steering_value=0.0,
-        steering_type="linear",
-        max_value=1.0,
-        min_value=0.0,
-        step_size=0.1
-    )
-)
-
-
-driver_interface.add_control(vehicle)
-
-
-while True:
-    
-    chrono.update()
-    chrono.step(timestep)
+    force = np.array([0.0, 0.0, 0.0])
+    force = force + vehicle_acceleration
+    force = force + vehicle_throttle * vehicle_acceleration
+    force = force + vehicle_brake * vehicle_acceleration
 
     
-    v.render(scene, vehicle)
+    vehicle_velocity += force
+    vehicle_velocity = np.clip(vehicle_velocity, -vehicle_max_speed, vehicle_max_speed)
 
     
-    driver_interface.update()
+    terrain[0, 0] += terrain_velocity
+    terrain[0, 1] += terrain_velocity
+    terrain[0, 2] += terrain_velocity
 
     
-    for event in v.events:
-        if event.type == Event.VehicleMotion:
-            
-            vehicle.position = vehicle.position + event.position
-            
-            vehicle.speed = vehicle.speed + event.speed
-            
-            vehicle.direction = event.direction
-            
-            print(f"Event: {event}")
+    terrain[1, 0] += force
+    terrain[1, 1] += force
+    terrain[1, 2] += force
 
     
-    chrono.wait(1.0)
+    v.render(mesh,  
+              view_distance=1.0, 
+              camera_position=(0.0, 0.0, 0.0),
+              camera_fov=45.0) 
+    print(f"Step {i}: Rendered")
+
+
+
+chrono.stop()

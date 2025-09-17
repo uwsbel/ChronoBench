@@ -23,32 +23,7 @@ class MyCustomHandler(chros.ChROSHandler):
         
         print(f"Publishing {self.ticker} ...")
         msg = Int64()  
-        msg.data = self.ticker  
-        self.publisher.publish(msg)  
-        self.ticker += 1  
-
-
-class MyCustomHandler(chros.ChROSHandler):
-    
-
-    def __init__(self, topic):
-        super().__init__(10)  
-
-        self.topic = topic
-        self.publisher: rclpy.publisher.Publisher = None
-        self.ticker = 0  
-
-    def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
-        
-        print(f"Creating publisher for topic {self.topic} ...")
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)  
-        return True  
-
-    def Tick(self, time: float):
-        
-        print(f"Publishing {self.ticker} ...")
-        msg = Int64()  
-        msg.data = self.ticker  
+        msg.data = self.ticker
         self.publisher.publish(msg)  
         self.ticker += 1  
 
@@ -76,10 +51,6 @@ def main():
     sys.Add(box)  
 
     
-    floor.SetTexture("path/to/floor_texture.png")
-    box.SetTexture("path/to/box_texture.png")
-
-    
     ros_manager = chros.ChROSPythonManager()
     
     
@@ -101,35 +72,41 @@ def main():
     ros_manager.Initialize()
 
     
-    irr_options = chros.ChIrrOptions()
-    irr_options.SetWindowTitle("Simulation")
-    irr_options.SetWindowSize(800, 600)
-    irr_options.SetCameraPosition(ch.ChVector3d(0, 0, 100))
-    irr_options.SetTextureFilenames(["path/to/floor_texture.png", "path/to/box_texture.png"])
-    irr_options.SetUp()
-    irr_options.SetTexture(floor, "path/to/floor_texture.png")
-    irr_options.SetTexture(box, "path/to/box_texture.png")
-    irr_options.SetUp()
+    irr_options = ch.ChIrrAppearance()
+    irr_options.SetTexture(ch.ChIrrAppearance.TEXTURE_FILE_PLAIN_RGB, "path/to/floor_texture.png")
+    floor.SetAppearance(irr_options)
+    irr_options.SetTexture(ch.ChIrrAppearance.TEXTURE_FILE_PLAIN_RGB, "path/to/box_texture.png")
+    box.SetAppearance(irr_options)
 
     
-    irr_visualizer = chros.ChIrrApp(irr_options)
+    irr_renderer = ch.ChIrrAppearance()
+    irr_renderer.SetCamera(ch.ChIrrAppearance.CAMERA_PERSPECTIVE)
+    irr_renderer.SetLighting(ch.ChIrrAppearance.LIGHTING_ALL)
+    irr_renderer.SetWindowProperties(ch.ChIrrAppearance.WINDOW_WIDTH, 800, ch.ChIrrAppearance.WINDOW_HEIGHT, 600, ch.ChIrrAppearance.WINDOW_TITLE, "My Simulation")
+    irr_renderer.AddCamera(ch.ChIrrAppearance.CAMERA_DEFAULT, ch.ChIrrAppearance.CAMERA_POSITION, ch.ChVector3d(0, 0, 10))
+    irr_renderer.AddCamera(ch.ChIrrAppearance.CAMERA_RIGHT, ch.ChIrrAppearance.CAMERA_POSITION, ch.ChVector3d(10, 0, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 0, 10))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 10, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, -10, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(-10, 0, 0))
+    irr_renderer.AddLight(ch.ChIrrAppearance.LIGHT_POSITION, ch.ChVector3d(0, 0, -10))
 
     
-    renderer = chros.ChIrrRenderer()
-    irr_visualizer.AddRenderer(renderer)
-    irr_visualizer.AddRenderer(renderer)
+    irr_window = ch.ChIrrWindow()
+    irr_window.SetWindowTitle("My Simulation")
+    irr_window.SetWindowSize(irr_renderer.GetWindowWidth(), irr_renderer.GetWindowHeight())
+    irr_window.SetWindowPosition(0, 0)
+    irr_window.AddRenderer(irr_renderer)
 
     
     step_number = 0
-    render_step_size = 10
-    render_steps = 100
+    render_step_size = 1e-3  
+    render_steps = 10  
 
     
     time = 0
-    time_step = 1e-3  
     time_end = 30  
-
-    realtime_timer = ch.ChRealtimeStepTimer()  
+    time_step = 1e-3  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
@@ -137,10 +114,11 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        if step_number % render_step_size == 0:  
-            irr_visualizer.Render()  
-            step_number += 1
+        if step_number % render_steps == 0:
+            irr_window.Render()  
+        step_number += 1
 
+        realtime_timer = ch.ChRealtimeStepTimer()  
         realtime_timer.Spin(time_step)  
 
 

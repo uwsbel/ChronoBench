@@ -102,10 +102,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Simulation logic for a double lane change maneuver
-lane_change_1_time = 2.0  # Time to start first lane change
-lane_change_2_time = 5.0  # Time to start second lane change
-brake_time = 8.0  # Time to start braking
+# Simulation logic for double lane change maneuver
+maneuver_time = 10.0  # total maneuver time
+lane_change_1_time = 2.0  # time to start first lane change
+lane_change_2_time = 5.0  # time to start second lane change
+brake_time = 7.0  # time to start braking
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -120,20 +121,20 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Double lane change maneuver logic
+    if time >= lane_change_1_time and time < lane_change_1_time + 1.0:
+        driver_inputs.steering = 0.5
+    elif time >= lane_change_2_time and time < lane_change_2_time + 1.0:
+        driver_inputs.steering = -0.5
+    elif time >= brake_time:
+        driver_inputs.throttle = 0.0
+        driver_inputs.braking = 1.0
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Double lane change maneuver logic
-    if time >= lane_change_1_time and time < lane_change_1_time + 1.0:
-        driver_inputs.steering = 0.5  # Steer to the left
-    elif time >= lane_change_2_time and time < lane_change_2_time + 1.0:
-        driver_inputs.steering = -0.5  # Steer to the right
-    elif time >= brake_time:
-        driver_inputs.throttle = 0.0  # Release throttle
-        driver_inputs.braking = 1.0  # Apply brake
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

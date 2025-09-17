@@ -41,7 +41,6 @@ for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
         p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
         mnode = fea.ChNodeFEAxyz(p)
-        mesh.AddNode(mnode)
         mynodes.append(mnode)
 
 # Create elements
@@ -67,35 +66,14 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-
-# Define node variables
-nodePlotA = None
-nodePlotB = None
-nodesLoad = []
-
-# Create interpolation functions
-ref_X = lambda x: x
-ref_Y = lambda y: y
-
-# Load force vector
-load_force = chrono.ChVector3d(0, 1000, 0)
-
-# Monitoring nodes and elements
-mnodemonitor = None
-ementmonitor = None
-
-# Fix upper nodes
-for j in range(30):
-    for k in range(30):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
-# Visualization shapes
+# Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 # Irrlicht visualization system setup
@@ -109,12 +87,12 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
-# Solver adjustment
+# Change solver to PardisoMKL
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)
+mkl_solver.LockSparsityPattern(True)  # Set to True for optimization
 sys.SetSolver(mkl_solver)
 
-# Time step adjustment
+# Define time step for simulation
 timestep = 0.005
 
 # Final setup and system updates

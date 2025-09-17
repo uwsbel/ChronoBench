@@ -26,25 +26,24 @@ def main():
     # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    terrain_mat = chrono.ChContactMaterialNSC()
-    terrain_mat.SetFriction(0.9)
-    terrain_mat.SetRestitution(0.01)
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
 
-    terrain_patch = terrain.AddPatch(terrain_mat,
-                                     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                                     veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                                     collision_enabled=True,
-                                     material_thickness=0.01)
+    terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                     veh.GetDataFile("terrain/meshes/Highway_col.obj"), 1, 1, 0.01, 0.01, True)
 
-    terrain_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    # Create a visual mesh for the terrain
+    terrain_mesh = chrono.ChTriangleMeshConnected()
+    terrain_mesh.LoadFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+    terrain_mesh.ComputeBoundingBox()
+    terrain_mesh.ComputeBoundingSphere()
 
-    # Create and add a visual mesh for the terrain
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.GetMesh().LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 6.0, 6.0)
-    visual_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-    terrain.GetGroundBody().AddVisualShape(visual_shape)
+    terrain_vis = chrono.ChVisualShapeTriangleMesh()
+    terrain_vis.SetMesh(terrain_mesh)
+    terrain_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+    terrain_vis.SetBackFaceCull(false)
+    terrain.GetGroundBody().AddVisualShape(terrain_vis)
 
     terrain.Initialize()
 

@@ -1,8 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import math
 import numpy as np
-import pychrono.sensor as sensor
 
 """
 !!!! Set this path before running the demo!
@@ -44,8 +44,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
 
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -63,44 +63,16 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create 5 random box obstacles
-for _ in range(5):
-    obstacle_name = f"obstacle_{_}"
-    position = chrono.ChVector3d(
-        np.random.uniform(-100, 100),
-        np.random.uniform(-100, 100),
-        np.random.uniform(0, 5)
-    )
-    size = chrono.ChVector3d(
-        np.random.uniform(1, 2),
-        np.random.uniform(1, 2),
-        np.random.uniform(0.5, 1)
-    )
-    orientation = chrono.ChQuaterniond(
-        np.random.uniform(0, 1),
-        np.random.uniform(0, 1),
-        np.random.uniform(0, 1),
-        np.random.uniform(0, 1)
-    )
-    vehicle.GetSystem().AddRigidBody(
-        veh.RigidBody.Box(
-            name=obstacle_name,
-            position=position,
-            size=size,
-            orientation=orientation
-        )
-    )
-
 # Create the SCM deformable terrain patch
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   # Bekker Kphi
-                        0,     # Bekker Kc
-                        1.1,   # Bekker n exponent
-                        0,     # Mohr cohesive limit (Pa)
-                        30,    # Mohr friction limit (degrees)
-                        0.01,  # Janosi shear coefficient (m)
-                        2e8,   # Elastic stiffness (Pa/m), before plastic yield
-                        3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+                            0,     # Bekker Kc
+                            1.1,   # Bekker n exponent
+                            0,     # Mohr cohesive limit (Pa)
+                            30,    # Mohr friction limit (degrees)
+                            0.01,  # Janosi shear coefficient (m)
+                            2e8,   # Elastic stiffness (Pa/m), before plastic yield
+                            3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
 )
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
@@ -109,7 +81,7 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 # Set plot type for SCM (false color plotting)
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
-# Initialize the SCM terrain with default parameters
+# Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
@@ -138,25 +110,38 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create sensor manager and lidar sensor
-sensor_manager = sensor.ChSensorManager(vis.GetSensorInterface())
-lidar = vehicle.AddLidarSensor(
-    name="lidar",
-    position=chrono.ChVector3d(0, 0, 5),
-    rotation_speed=20,  # degrees per second
-    num_rays=100,
-    ray_length=5,
-    filter_alpha=0.5,  # transparency filter
-    filter_color=chrono.ChColor(1, 0, 1)  # pink points
+# Create sensor manager
+sensor_manager = veh.ChSensorManager()
+sensor_manager.AddLidarSensor(
+    vehicle.GetVehicle(),
+    "Lidar",
+    0,
+    0,
+    0,
+    45,
+    0,
+    180,
+    100,
+    True,
+    1
 )
-lidar.SetVisualization(vis, "lidar_points", chrono.ChColor(0, 0, 1), 1, 1)
 
-# ---------------
+# Add obstacles
+obstacles = []
+for _ in range(5):
+    obstacle = veh.ChBoxObstacle()
+    # Random position for each obstacle
+    obstacle.SetPosition(chrono.ChVector3d(
+        np.random.uniform(-50, 50),
+        np.random.uniform(-50, 50),
+        0
+    ))
+    obstacle.SetCollisionType(veh.CollisionType_NONE)
+    vehicle.GetSystem().AddObstacle(obstacle)
+    obstacles.append(obstacle)
+
 # Simulation loop
-# ---------------
-
-# output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+output_vehicle_mass = True
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -184,14 +169,13 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Update sensor manager with latest data
     sensor_manager.Update()
 
     # Increment frame number
@@ -200,5 +184,7 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Visualization for lidar points
-    vis.AddPointCloud(lidar.GetPoints(), chrono.ChColor(0, 0, 1), 1, 1, 1, 1)
+    # Print vehicle mass once at startup
+    if output_vehicle_mass and step_number > 100:
+        print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+        output_vehicle_mass = False

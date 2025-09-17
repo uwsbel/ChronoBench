@@ -4,39 +4,34 @@ import pychrono.vehicle as veh
 import math
 
 
-class SCMTerrainConfig:
+class SCMParameters:
     def __init__(self, preset="mid"):
         
-        if preset == "soft":
+        self.presets = {
+            "soft": (1e6,   
+                     0,      
+                     1.1,    
+                     0,      
+                     20,     
+                     0.02,   
+                     1e8,    
+                     2e4),   
             
-            self.Kphi = 4e5    
-            self.Kc = 0        
-            self.n = 1.1       
-            self.coh = 0       
-            self.phi = 20      
-            self.J = 0.01      
-            self.E = 2e7       
-            self.damping = 3e4 
-        elif preset == "hard":
+            "mid": (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4),
             
-            self.Kphi = 5e6
-            self.Kc = 0
-            self.n = 1.1
-            self.coh = 0
-            self.phi = 40
-            self.J = 0.01
-            self.E = 5e8
-            self.damping = 3e4
-        else:  
-            
-            self.Kphi = 2e6
-            self.Kc = 0
-            self.n = 1.1
-            self.coh = 0
-            self.phi = 30
-            self.J = 0.01
-            self.E = 2e8
-            self.damping = 3e4
+            "hard": (5e6, 
+                     0, 
+                     1.1, 
+                     0, 
+                     40, 
+                     0.005, 
+                     5e8, 
+                     5e4)
+        }
+        self.params = self.presets.get(preset, self.presets["mid"])
+    
+    def apply(self, terrain):
+        terrain.SetSoilParameters(*self.params)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -75,15 +70,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -99,17 +92,8 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 
 
-terrain_config = SCMTerrainConfig("mid")
-terrain.SetSoilParameters(
-    terrain_config.Kphi,   
-    terrain_config.Kc,     
-    terrain_config.n,      
-    terrain_config.coh,    
-    terrain_config.phi,    
-    terrain_config.J,      
-    terrain_config.E,      
-    terrain_config.damping 
-)
+terrain_params = SCMParameters("mid")  
+terrain_params.apply(terrain)
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -121,7 +105,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -131,7 +114,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -151,7 +133,7 @@ driver.Initialize()
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -161,11 +143,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -191,3 +173,5 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
+
+terrain_params = SCMParameters("mid")

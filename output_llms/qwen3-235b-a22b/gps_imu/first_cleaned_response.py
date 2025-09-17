@@ -1,7 +1,7 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
+import pychrono.sensor as sensor
 
 
 system = chrono.ChSystemNSC()
@@ -9,7 +9,7 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 vehicle = veh.HMMWV_Full()
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.QUNIT))
+vehicle.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.QUNIT))
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
 vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
@@ -17,64 +17,70 @@ vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
 
 
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200))
-patch.SetMaterial(chrono.ChMaterialSurfaceNSC())
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"))
+patch = terrain.AddPatch(chrono.ChCoordsysD(), chrono.ChVectorD(200, 1, 200), 0.8)
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
 terrain.Initialize()
 
 
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), None, "my_path", 5.0)
+app = irrlicht.ChIrrApp(system, 'HMMWV Simulation', irrlicht.dimension2du(1024, 768))
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 1, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+
+driver = veh.ChIrrGuiDriver(app)
 driver.Initialize()
 
 
-application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
+imu = sensor.ChIMU(vehicle.GetChassisBody(), 100, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+imu.SetName("IMU Sensor")
+gps = sensor.ChGPS(vehicle.GetChassisBody(), 10, chrono.ChFrameD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+gps.SetName("GPS Sensor")
 
 
-manager = sens.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVectorF(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
-
-imu = sens.ChIMU(vehicle.GetChassisBody(), 100, chrono.ChFrameD())
+manager = sensor.ChSensorManager(system)
 manager.AddSensor(imu)
-
-gps = sens.ChGPS(vehicle.GetChassisBody(), 10, chrono.ChFrameD(), chrono.ChVectorD(0, 0, 0))
 manager.AddSensor(gps)
 
 
-step_size = 1e-3
-render_step = 1.0 / 50
-next_render_time = 0
-print("Vehicle mass:", vehicle.GetTotalMass())
+print(f"Vehicle mass: {vehicle.GetVehicle().GetMass()} kg")
 
 
-while application.GetDevice().run():
+step_size = 1e-3  
+time = 0.0
+
+while app.GetDevice().run():
+    
     time = system.GetChTime()
     
     
     driver_inputs = driver.GetInputs()
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    application.Synchronize("HMMWV Simulation", driver_inputs)
-    manager.Synchronize(time)
+
     
+    vehicle.GetVehicle().Synchronize(driver_inputs)
+    terrain.Synchronize(driver_inputs)
+    driver.Synchronize("")
+    manager.Synchronize("", time)
+
     
-    driver.Advance(step_size)
-    vehicle.Advance(step_size)
+    vehicle.GetVehicle().Advance(step_size)
     terrain.Advance(step_size)
+    driver.Advance(step_size)
     manager.Advance(step_size)
-    
+
     
     system.DoStepDynamics(step_size)
-    
+
     
     manager.Update()
+
     
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
     
-    if time >= next_render_time:
-        application.BeginScene()
-        application.DrawAll()
-        application.EndScene()
-        next_render_time += render_step
+    if int((time / 0.1) * 10) % 10 == 0:
+        print(f"IMU Acceleration: {imu.GetMostRecentAccel()}")
+        print(f"GPS Position: {gps.GetMostRecentPos()}")

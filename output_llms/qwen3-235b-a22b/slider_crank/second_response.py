@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.ticker as ticker  # Required for custom tick formatting
 
 # Initialize the Chrono simulation system with non-smooth contact (NSC) method
 sys = chrono.ChSystemNSC()
@@ -27,7 +26,7 @@ sys.Add(mcrank)  # Add the crank to the simulation system
 
 # Create the connecting rod, which is a box
 mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)  # Create a box with dimensions 1.5x0.1x0.1 meters and density 1000 kg/m^3
-mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))  # Position the rod at (x=-0.6 + 0.75, y=0.5, z=0)
+mrod.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0))  # Position the rod at (x=-0.4, y=0.5, z=0)
 sys.Add(mrod)  # Add the rod to the simulation system
 
 # Create the piston, which is a cylinder
@@ -80,56 +79,41 @@ while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
-
-    # Collect instantaneous data
+    sys.DoStepDynamics(1e-3)
+    
+    # Collect data
     current_time = sys.GetChTime()
     array_time.append(current_time)
-    array_angle.append(my_motor.GetMotorAngle())  # Get crank angle from motor
-    array_pos.append(mpiston.GetPos().x)  # Get piston position along X-axis
-    array_speed.append(mpiston.GetPos_dt().x)  # Get piston speed along X-axis
-
+    array_angle.append(my_motor.GetMotorAngle())
+    array_pos.append(mpiston.GetPos().x)
+    array_speed.append(mpiston.GetPos_dt().x)
+    
     # Stop simulation after 20 seconds
-    if current_time > 20:
+    if current_time >= 20.0:
         break
 
-# Define custom tick formatter for π-based intervals
-def pi_formatter(x, pos):
-    if x == 0:
-        return "0"
-    elif x == np.pi:
-        return "π"
-    elif x == 2*np.pi:
-        return "2π"
-    elif x == np.pi/2:
-        return "π/2"
-    elif x == 3*np.pi/2:
-        return "3π/2"
-    else:
-        return f"{x/np.pi:.1f}π"
+vis.Close()
 
-formatter = ticker.FuncFormatter(pi_formatter)
-
-# Create subplots for position and speed vs crank angle
+# Generate plots
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
 # Position vs crank angle
-ax1.plot(array_angle, array_pos, 'b-', label='Piston Position')
+ax1.plot(array_angle, array_pos, 'b-')
 ax1.set_xlabel('Crank Angle [rad]')
 ax1.set_ylabel('Position [m]')
-ax1.xaxis.set_major_formatter(formatter)
-ax1.xaxis.set_major_locator(ticker.MultipleLocator(base=np.pi/2))
-ax1.grid(True)
-ax1.legend()
 
 # Speed vs crank angle
-ax2.plot(array_angle, array_speed, 'r-', label='Piston Speed')
+ax2.plot(array_angle, array_speed, 'r-')
 ax2.set_xlabel('Crank Angle [rad]')
 ax2.set_ylabel('Speed [m/s]')
-ax2.xaxis.set_major_formatter(formatter)
-ax2.xaxis.set_major_locator(ticker.MultipleLocator(base=np.pi/2))
-ax2.grid(True)
-ax2.legend()
+
+# Set x-axis ticks to π-based intervals
+xticks = np.arange(0, max(array_angle) + np.pi/2, np.pi/2)
+for ax in [ax1, ax2]:
+    ax.set_xticks(xticks)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(
+        lambda x, pos: f'{x/np.pi:.1f}$\pi$' if x != 0 else '0'
+    ))
 
 plt.tight_layout()
 plt.show()

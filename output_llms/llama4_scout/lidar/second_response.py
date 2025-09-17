@@ -41,15 +41,14 @@ def main():
     divergence_angle = 0.003
 
     # ---------------------
-    # Create a box object
+    # Mesh and Box Objects
     # ---------------------
     side = 5.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 2))
-    box_shape = box_body.GetVisualShape(0)
-    box_shape.SetTexture(chrono.GetChronoDataFile("textures/skin.jpg"))
+    mbox = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mbox.SetPos(chrono.ChVector3d(0, 0, 2 * side))
 
-    mphysicalSystem.Add(box_body)
+    # Add box to the physical system
+    mphysicalSystem.Add(mbox)
 
     # -----------------------
     # Create a sensor manager
@@ -64,7 +63,7 @@ def main():
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,  # Body lidar is attached to
+        mbox,  # Body lidar is attached to
         update_rate,  # Scanning rate in Hz
         offset_pose,  # Offset pose
         horizontal_samples,  # Number of horizontal samples
@@ -91,7 +90,6 @@ def main():
     elif noise_model == "NONE":
         pass
 
-    vis = True
     if vis:
         # Visualize the raw lidar data
         lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
@@ -108,15 +106,15 @@ def main():
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
-    # ------------------------------------------------
-    # Create a 2D lidar sensor and add it to the sensor manager
-    # ------------------------------------------------
+    # ---------------------------------------------------
+    # Create a 2D lidar sensor and add it to the manager
+    # ---------------------------------------------------
     offset_pose_2d = chrono.ChFramed(
         chrono.ChVector3d(-12, 0, 1),
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
-        box_body,  # Body lidar is attached to
+        mbox,  # Body lidar is attached to
         update_rate,  # Scanning rate in Hz
         offset_pose_2d,  # Offset pose
         horizontal_samples,  # Number of horizontal samples
@@ -164,12 +162,20 @@ def main():
     ch_time = 0.0
     render_time = 0
     t1 = time.time()
+    vis = True  # Flag to control visualization
     while ch_time < end_time:
         # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate),
-                                   -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+                                  -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate),
+                                  -orbit_radius * math.sin(ch_time * orbit_rate), 1),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )

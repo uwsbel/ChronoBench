@@ -3,12 +3,11 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVectorD(-5, 0, 0.5)
+initLoc = chrono.ChVectorD(-5, 0, 0.5) # Modified initial location
 initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -18,11 +17,12 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Poon chassis tracked by the camera
 trackPoint = chrono.ChVectorD(0.0, 0.0, 0.1)
 
 # Contact method
@@ -96,27 +96,24 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
+# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# Output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# output vehicle mass
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
 
 # Create a long box to test vehicle mobility
-box_mat = chrono.ChContactMaterialSMC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 1, 1, 1000, True, box_mat)
+box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 1, 1, 1000, True, False)
 box.SetPos(chrono.ChVectorD(0, 0, 0.5))
-box.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-box.SetBodyFixed(True)
+box.SetMaterial(chrono.ChMaterialSurfaceNSC())
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()

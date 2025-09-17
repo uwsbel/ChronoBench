@@ -83,34 +83,16 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver_data = veh.DataDriverEntry()
-driver_data.SetTime(0.0)
-driver_data.SetThrottle(0.0)
-driver_data.SetSteering(0.0)
-driver_data.SetBraking(0.0)
+driver = veh.ChDataDriver(vis)
 
-driver_data2 = veh.DataDriverEntry()
-driver_data2.SetTime(0.1)
-driver_data2.SetThrottle(1.0)
-driver_data2.SetSteering(0.0)
-driver_data2.SetBraking(0.0)
+# Define driver input data
+driver_data = [
+    veh.vector_Entry(0.0, 0.0, 0.0),  # Throttle, Steering, Braking at time 0.0
+    veh.vector_Entry(1.0, 0.0, 0.0),  # Throttle, Steering, Braking at time 0.1
+    veh.vector_Entry(1.0, 0.7, 0.0)   # Throttle, Steering, Braking at time 0.5
+]
 
-driver_data3 = veh.DataDriverEntry()
-driver_data3.SetTime(0.5)
-driver_data3.SetThrottle(1.0)
-driver_data3.SetSteering(0.7)
-driver_data3.SetBraking(0.0)
-
-driver_data_list = veh.vector_Entry(driver_data, driver_data2, driver_data3)
-driver = veh.ChDataDriver(driver_data_list)
-driver.Initialize()
-driver.AttachVehicle(vehicle.GetVehicle())
-
-# output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-# Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+driver.SetData(driver_data)
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -121,7 +103,7 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % math.ceil(render_step_size / step_size) == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -21,7 +21,7 @@ mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
 sys.Add(mfloor)
 
-mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
 
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
@@ -48,26 +48,15 @@ my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 
-mjointA = chrono.ChLinkLockRevolute()
-mjointA.Initialize(mrod,
-                   mcrank,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
-sys.Add(mjointA)
+my_spherical_joint = chrono.ChLinkSpherical(mrod, mcrank, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+sys.Add(my_spherical_joint)
 
 
-mjointB = chrono.ChLinkLockRevolute()
-mjointB.Initialize(mpiston,
-                   mrod,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
-sys.Add(mjointB)
+my_spherical_joint_rod_piston = chrono.ChLinkSpherical(mpiston, mrod, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+sys.Add(my_spherical_joint_rod_piston)
 
 
-mjointC = chrono.ChLinkPlanePlane()
-mjointC.Initialize(mpiston,
-                   mfloor,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+mjointC = chrono.ChLinkPlanePlane(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))
 sys.Add(mjointC)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -111,7 +100,7 @@ ax1.set(ylabel='position [m]')
 ax1.grid()
 
 ax2.plot(array_angle, array_speed, 'r--')
-ax2.set(ylabel='speed [m]', xlabel='angle [rad]')
+ax2.set(ylabel='speed [m/s]', xlabel='angle [rad]')
 ax2.grid()
 
 

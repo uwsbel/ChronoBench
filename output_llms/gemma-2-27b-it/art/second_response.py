@@ -14,10 +14,10 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_PRIMITIVES  # Changed visualization type
 
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
-chassis_collision_type = veh.CollisionType_MESH  # Changed chassis collision type
+chassis_collision_type = veh.CollisionType_MESH  # Changed collision type
 
 # Type of tire model (RIGID, TMEASY, FIALA)
-tire_model = veh.TireModelType_FIALA  # Changed tire model type
+tire_model = veh.TireModelType_FIALA  # Changed tire model
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX

@@ -6,7 +6,7 @@ import math
 sys = chrono.ChSystemNSC()
 
 # Set the gravitational acceleration for the system (in m/s^2) to simulate the pendulum on the moon
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))  # g = 1.62 m/s^2
 
 # Create the ground body and add it to the simulation
 ground = chrono.ChBody()
@@ -20,7 +20,7 @@ ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, +1)))
 
 # Create a pendulum body and add it to the simulation
 pend_1 = chrono.ChBody()
-sys.Add(pend_1)
+sys.AddBody(pend_1)
 pend_1.SetFixed(False)  # The pendulum can move
 pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
 pend_1.SetMass(2)  # Set the mass of the pendulum (in kg)
@@ -45,7 +45,7 @@ sph_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chr
 sys.AddLink(sph_1)
 
 # Add a visualization sphere to the joint
-sph_vis = chrono.ChVisualShapeSphere(2)  # Sphere with radius 2
+sph_vis = chrono.ChVisualShapeSphere(0.02)  # Sphere with radius 0.02
 sph_vis.SetColor(chrono.ChColor(0, 1, 0))  # Set the color of the sphere (RGB)
 sph_1.AddVisualShape(sph_vis)
 

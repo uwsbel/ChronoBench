@@ -17,7 +17,6 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -37,7 +36,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -49,6 +47,7 @@ vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
+# Set visualization for vehicle parts
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -57,23 +56,22 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
 # Create the terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
+# Create a long box for testing vehicle mobility
+long_box_patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    200, 200, 10, 10, 10)  # Dimensions: length, width, height
 
+patch = long_box_patch  # Use the long box patch for visualization
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('M113 Demo')
 vis.SetWindowSize(1280, 1024)
@@ -87,13 +85,12 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
+# Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 0.2  # time to go from 0 to +1
+throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(0.8)  # Hardcoded throttle value
-driver.SetBrakingDelta(render_step_size / braking_time)
+# Hard-coded throttle value
+driver.SetThrottleDelta(render_step_size / 0.8)
 
 driver.Initialize()
 
@@ -107,7 +104,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)

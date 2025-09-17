@@ -1,51 +1,58 @@
 import pychrono as chrono
-import pychrono_ros as ros_chrono
 import rospy
+from std_msgs.msg import Int32
 
-# Initialize ROS node
-rospy.init_node('pychrono_ros_example')
+# Initialize PyChrono
+chrono.SetChronoThread(chrono.CHRONO_THREAD_ROS)
 
-# Initialize Chrono system
+# Create a Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
-# Create physical material properties
+# Set gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Define physical material properties
 material = chrono.ChMaterialSurfaceNSC()
 material.SetFriction(0.5)
 material.SetRestitution(0.2)
 
-# Add fixed floor
+# Add a fixed floor
 floor = chrono.ChBodyEasyBox(10, 10, 0.1, material)
-floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.SetPos(chrono.ChVectorD(0, 0, -0.5))
 floor.SetBodyFixed(True)
-system.Add(floor)
+system.AddBody(floor)
 
-# Add movable box
+# Add a movable box
 box = chrono.ChBodyEasyBox(1, 1, 1, material)
-box.SetPos(chrono.ChVectorD(0, 1, 0))
-system.Add(box)
+box.SetPos(chrono.ChVectorD(0, 0, 0.5))
+system.AddBody(box)
 
-# Create ROS manager
-ros_manager = ros_chrono.RosManager(system)
+# Custom ROS handler
+class MyRosHandler(chrono.ChRosHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        self.topic_name = topic_name
+        self.pub = rospy.Publisher(self.topic_name, Int32, queue_size=10)
 
-# Create custom ROS handler
-class MyRosHandler(ros_chrono.RosBodyHandler):
-    def __init__(self, body):
-        super().__init__(body)
-        self.topic = rospy.Publisher('my_topic', rospy.Int32, queue_size=10)
+    def OnUpdate(self, time):
+        # Publish an integer message to the specified topic
+        msg = Int32()
+        msg.data = int(time)
+        self.pub.publish(msg)
 
-    def update(self):
-        self.topic.publish(int(self.body.GetPos().y))
+# Configure ROS manager
+ros_manager = chrono.ChRosManager()
+ros_manager.SetClockHandler(chrono.ChRosClockHandler())
+ros_manager.SetBodyHandler(chrono.ChRosBodyHandler())
+ros_manager.SetTransformHandler(chrono.ChRosTransformHandler())
+ros_manager.AddHandler(MyRosHandler("my_topic"))
 
-# Register custom handler
-ros_manager.RegisterHandler(MyRosHandler(box))
+# Run the simulation loop
+rospy.init_node("chrono_ros_node")
+ros_manager.Start()
 
-# Configure ROS manager with clock, body, and transform handlers
-ros_manager.AddClockHandler()
-ros_manager.AddBodyHandler(box)
-ros_manager.AddTransformHandler(box)
-
-# Run simulation loop
 while not rospy.is_shutdown():
-    system.DoStepDynamics(chrono.ChTime(0.01))  # Advance system by 0.01 seconds
-    ros_manager.RosUpdate()  # Update ROS communication
+    system.DoStepDynamics(0.01)
+    ros_manager.DoStep()
+
+ros_manager.Stop()

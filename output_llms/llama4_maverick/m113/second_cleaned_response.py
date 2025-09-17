@@ -4,11 +4,23 @@ import pychrono.vehicle as veh
 import math
 
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
 initLoc = chrono.ChVector3d(-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
 vis_type = veh.VisualizationType_MESH
+
+
+chassis_collision_type = veh.CollisionType_NONE
+
+
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 contact_method = chrono.ChContactMethod_SMC
@@ -40,29 +52,30 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-terrain = veh.SCMTerrain(vehicle.GetSystem(), 0.1, 0.5, 5, 5)
+
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain.SetContactMaterial(patch_mat)
+
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(
+    2e6,     
+    0,       
+    1.1,     
+    0,       
+    30,      
+    1e4,     
+    4e7,     
+    3e4      
+)
 
 
-terrain.SetSoilParameters(2e6,  
-                           0,      
-                           1.1,    
-                           0,      
-                           30,     
-                           0,      
-                           4e7,    
-                           3e4     
-                          )
+terrain.Initialize(chrono.GetChronoDataFile("vehicle/terrain/height_maps/test64.bmp"), 16, 16, 0, 0.16)
 
 
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/test64.bmp"), 1.6, 0, 0.1, 3.5)
-
-
-terrain.SetPlotType(veh.SCMTerrain::PLOT_PRESSURE, 0, 40000)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 20000)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -112,17 +125,14 @@ while vis.Run():
         render_frame += 1
 
     
-    
-    driver_inputs = veh.Inputs()
-    driver_inputs.m_throttle = 0.8
-    driver_inputs.m_steering = driver.GetSteering()
-    driver_inputs.m_braking = driver.GetBraking()
+    driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = 0.8  
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
-    vis.Synchronize("", driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

@@ -1,11 +1,10 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens  # Added sensor module
-import numpy as np  # Added numpy module
+import pychrono.sensor as sens
+import numpy as np
 import math
 
-# Set data paths
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -64,40 +63,54 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(
-    patch_mat, 
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth
-)
+    terrainLength, terrainWidth)
 
-# Changed terrain texture to grass.jpg
+# Changed texture from tile4.jpg to grass.jpg
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create random boxes
-system = vehicle.GetSystem()
-box_list = []
-for i in range(10):
-    pos = chrono.ChVector3d(
-        np.random.uniform(-10, 10),
-        np.random.uniform(-5, 5),
-        np.random.uniform(0.5, 2)
-    )
-    rot = chrono.Q_from_Euler123(chrono.ChVector3d(
-        np.random.uniform(0, 2 * math.pi),
-        np.random.uniform(0, 2 * math.pi),
-        np.random.uniform(0, 2 * math.pi)
-    ))
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # Dimensions: 1x1x1, Density: 1000 kg/m³
-    box.SetPos(pos)
-    box.SetRot(rot)
-    system.Add(box)
-    box_list.append(box)
+box_mat = chrono.ChContactMaterialNSC()
+for i in range(20):
+    x = np.random.uniform(-20, 20)
+    y = np.random.uniform(-10, 10)
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(x, y, 0.5))
+    box.SetFixed(True)
+    vehicle.GetSystem().Add(box)
 
-# Create the vehicle Irrlicht interface
+# Create sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
+
+# Create lidar sensor
+lidar_pos = chrono.ChVector3d(0, 0, 1.0)
+lidar_rot = chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),    # body lidar is attached to
+    10,                          # scanning rate in Hz
+    chrono.ChFramed(lidar_pos, lidar_rot),  # offset pose
+    900,                         # horizontal samples
+    30,                          # vertical channels
+    math.radians(360),           # horizontal field of view
+    math.radians(30),            # vertical field of view
+    100.0                        # max distance
+)
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.1)
+lidar.SetCollectionWindow(0.01)
+
+# Add lidar filters
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
+manager.AddSensor(lidar)
+
+# Create vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 10t Demo with Sensors')
+vis.SetWindowTitle('MAN 10t with Sensors')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -106,10 +119,10 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
+# Create driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for inputs
+# Set time response for inputs
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -118,45 +131,13 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Create sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
-
-# Create and configure lidar sensor
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  # Attach to vehicle chassis
-    10,                         # Scanning rate (Hz)
-    offset_pose,                # Offset position
-    200,                        # Horizontal samples
-    100,                        # Vertical samples
-    math.radians(90),           # Horizontal FOV
-    math.radians(30),           # Vertical FOV
-    0.1,                        # Min distance
-    100.0                       # Max distance
-)
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.02)
-
-# Add noise model
-noise_model = sens.ChNoiseNormal(0.0, 0.01)
-lidar.AddFilter(sens.ChFilterLidarNoise(noise_model))
-
-# Add processing filters
-lidar.AddFilter(sens.ChFilterPCfromDepth())
-lidar.AddFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
-# Add sensor to manager
-manager.AddSensor(lidar)
-
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-# Number of simulation steps between render events
+# Number of simulation steps between renders
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize counters
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -189,7 +170,7 @@ while vis.Run():
     # Update sensor manager (added as per instructions)
     manager.Update()
 
-    # Increment frame number
+    # Increment step count
     step_number += 1
 
     # Spin for real-time synchronization

@@ -3,50 +3,59 @@ import pychrono.sensor as sens
 import numpy as np
 
 
-chrono_system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath("/path/to/chrono/data/")  
 
 
-
-mesh = chrono.ChTriangleMesh()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/tractor_body.obj"))
-mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+sys = chrono.ChSystemNSC()
 
 
 body = chrono.ChBody()
 body.SetBodyFixed(True)
-mesh_asset = chrono.ChTriangleMeshShape()
-mesh_asset.SetMesh(mesh)
-body.AddAsset(mesh_asset)
-chrono_system.Add(body)
 
 
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "models/tractor.obj")  
+mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))  
 
-manager = sens.ChSensorManager(chrono_system)
+
+vis_shape = chrono.ChTriangleMeshShape()
+vis_shape.SetMesh(mesh)
+body.AddVisualShape(vis_shape)
+
+
+sys.Add(body)
+
+
+manager = sens.ChSensorManager(sys)
 
 
 offset_pose = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0)))
-lidar = sens.ChLidarSensor(body, 10, offset_pose, 100, chrono.ChVectorD(0, 0, 0))
+lidar = manager.AddLidarSensor(body, offset_pose, 100, chrono.ChInterval_D(1e-3))
+lidar.SetRayCount(1000)
 lidar.SetHorizontalFOV(chrono.CH_C_PI)
 lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
-lidar.SetLag(0)
-lidar.SetCollectionWindow(0.1)
+lidar.SetMaxDistance(10)
+lidar.SetMinDistance(0.1)
 
 
-
+lidar.PushFilter(sens.ChFilterDIArea(1000 * 1000))
 lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
 
 
 
 
 
-manager.AddSensor(lidar)
+time_step = 1e-3
+time_end = 10
 
 
-orbit_angle = 0
-while chrono_system.GetChTime() < 10:
+for time in np.arange(0, time_end, time_step):
     
-    orbit_angle += 0.01
-    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(5 * np.cos(orbit_angle), 0, 5 * np.sin(orbit_angle)), chrono.Q_from_AngAxis(0, chrono.ChVectorD(1, 0, 0))))
+    radius = 5
+    angle = time * 0.1
+    x = radius * np.cos(angle)
+    z = radius * np.sin(angle)
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(x, 0, z), chrono.Q_from_AngAxis(angle, chrono.ChVectorD(0, 1, 0))))
     
     
     manager.Update()
@@ -54,7 +63,7 @@ while chrono_system.GetChTime() < 10:
     
     buffer = lidar.GetMostRecentBuffer()
     if buffer.HasData():
-        print("Lidar Buffer Size:", buffer.Size)
+        print(buffer.GetTime(), buffer.GetData().shape)
 
     
-    chrono_system.DoStepDynamics(0.01)
+    sys.DoStepDynamics(time_step)

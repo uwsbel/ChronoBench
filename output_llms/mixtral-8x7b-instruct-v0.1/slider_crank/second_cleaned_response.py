@@ -13,12 +13,6 @@ crank_thick = 0.1
 rod_length = 1.5  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
 mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)  
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))  
 mfloor.SetFixed(True)  
@@ -64,6 +58,12 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -75,41 +75,43 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
-sim_time = 0
-stop_time = 20
-while sim_time < stop_time and vis.Run():
+t_end = 20  
+t = 0  
+dt = 1e-3  
+while vis.Run() and t < t_end:
     
     vis.BeginScene()  
     vis.Render()  
     vis.EndScene()  
-    sys.DoStepDynamics(1e-3)  
+    sys.DoStepDynamics(dt)  
 
     
-    array_time.append(sim_time)
-    array_angle.append(mcrank.GetRot().Q_angle())
-    array_pos.append(mpiston.GetPos().x)
-    array_speed.append(mpiston.GetPos_dt().x)
+    angle = mcrank.GetRotAngle_X()  
+    pos = mjointC.GetPos().x  
+    speed = mjointC.GetPos_dt().x  
 
-    sim_time += sys.GetTimestep()
+    array_time.append(t)
+    array_angle.append(angle)
+    array_pos.append(pos)
+    array_speed.append(speed)
+
+    t += dt  
 
 
-fig, axs = plt.subplots(2)
-fig.suptitle('Crankshaft Simulation Results')
+fig, axs = plt.subplots(2)  
 
 
 axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
+axs[0].set_xlabel('Crank angle [rad]')
 axs[0].set_ylabel('Position [m]')
-axs[0].grid()
 
 
 axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
+axs[1].set_xlabel('Crank angle [rad]')
 axs[1].set_ylabel('Speed [m/s]')
-axs[1].grid()
 
 
-x_ticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+x_ticks = np.linspace(0, np.max(array_angle), 6)
 axs[0].set_xticks(x_ticks)
 axs[1].set_xticks(x_ticks)
 

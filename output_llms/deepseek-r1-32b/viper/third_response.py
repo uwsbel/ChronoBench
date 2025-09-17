@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
+import pychrono.vehicle as veh  # Added import statement
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -14,20 +14,29 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-soil_mat = veh.ChSoilMaterialNSC()
-soil_mat.SetYoungModulus(1e7)
-soil_mat.SetPoissonRatio(0.3)
-soil_mat.SetFriction(0.5)
-soil_mat.SetRestitution(0.1)
+# Define soil properties
+soil = veh.ChSoil()
+soil.SetProperties(1000,  # density
+                   1e6,   # Young's modulus
+                   0.3,   # Poisson's ratio
+                   1e4,   # damping coefficient
+                   0.001) # cohesion
 
+# Create terrain
 terrain = veh.ChDeformableTerrain()
-terrain.SetPlane(chrono.ChVector3d(0, 0, -1),  # Normal direction
-                100,  # Plane length
-                100,  # Plane width
-                0.1,  # Mesh resolution
-                soil_mat)
-terrain.Initialize()
+terrain.SetSoil(soil)
+terrain.SetPlane(chrono.ChVector3d(0, 0, -1),  # normal vector
+                chrono.ChVector3d(0, 0, 0))    # plane offset
+terrain.SetLength(20)  # length in x-direction
+terrain.SetWidth(20)   # width in y-direction
+terrain.SetHeight(1)   # thickness
+terrain.SetMeshSize(0.2)  # resolution of the mesh
+
+# Add terrain to system
 system.Add(terrain)
+
+# Set terrain as contact material for rover wheels
+rover.Get WheeLs().SetContactMaterial(soil.GetMaterial())
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover
@@ -62,7 +71,7 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step  # Increment the simulation time
-    steering = 0.0  # Constant steering value
+    steering = 0.0  # Set constant steering to 0.0
     
     driver.SetSteering(steering)  # Set the steering for the rover
 

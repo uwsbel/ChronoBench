@@ -57,16 +57,4 @@ from chrono.rdf import *
 # Initialize the ROS node
 rospy.init_node('chrono_ros_simulation')
 
-# Create a ROS service server for initializing the Chrono system
-initialize_srv = rospy.Service('chrono_initialize', ChronoInitialize, handle_chrono_initialize)
-
-# Create a ROS service server for stepping the simulation
-step_srv = rospy.Service('chrono_step', ChronoStep, handle_chrono_step)
-
-# Create a ROS publisher for the system state
-system_state_pub = rospy.Publisher('chrono_system_state', ChronoSystemState, queue_size=10)
-
-# Define the custom ROS handler
-class CustomROSHandler:
-    def __init__(self):
-        self.system_state_
+##

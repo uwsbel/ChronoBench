@@ -40,6 +40,9 @@ def main():
     ros_manager.Initialize()  
 
     
+    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/') 
+
+    
     time = 0
     time_step = 1e-3  
     time_end = 30  
@@ -65,15 +68,9 @@ def main():
 
     
     chronoirr.ChVisualSystemIrrlicht()
-    
-    
-    chronoirr.SetRenderMode(chronoirr.RenderMode_OPENGL)
-    chronoirr.SetRenderResolution(1280, 720)  
-    chronoirr.SetRenderFrameRate(60)  
-    chronoirr.SetRenderBackgroundColor(ch.ColorRGBA(0, 0, 0, 1))  
 
     
-    chronoirr.Render()  
+    chronoirr.ChRenderLoop() 
     
 if __name__ == "__main__":
     main()

@@ -81,9 +81,27 @@ bearing.Initialize(builder.GetLastBeamNodes().back(),
 sys.Add(bearing)
 
 
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+        self.x = 0.0
+
+    def GetVal(self, x):
+        if self.x <= self.T1:
+            return self.A1 * (self.x / self.T1) + self.A2
+        elif self.T1 < self.x <= self.T2:
+            return self.A1 * (1.0 - (self.x - self.T1) / (self.T2 - self.T1)) + self.A2
+        elif self.T2 < self.x <= self.T3:
+            return self.A1 * (1.0 - (self.x - self.T2) / (self.T3 - self.T2)) + self.A2
+        else:
+            return self.A1 * (1.0 - (self.x - self.T3) / (self.T4 - self.T3)) + self.A2
+
 rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-
-
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
                      truss,  
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
@@ -93,26 +111,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
 sys.Add(rotmotor1)
 
 
-class ChFunctionMyFun(chrono.ChFunction):
-    def __init__(self, A1, A2, T1, T2, T3, w):
-        self.A1 = A1
-        self.A2 = A2
-        self.T1 = T1
-        self.T2 = T2
-        self.T3 = T3
-        self.w = w
-        self.current_time = 0.0
-
-    def GetVal(self, x):
-        if x < self.T1:
-            return self.A1 * m.sin(self.w * x)
-        elif self.T1 <= x < self.T2:
-            return self.A2 * m.sin(self.w * x)
-        else:
-            return 0.0  
-
-
-motor_func = ChFunctionMyFun(1.0, 1.0, 0.0, 0.2, 0.0, 10.0)
+motor_func = ChFunctionMyFun(A1=0.1, A2=0.1, T1=0.2, T2=0.4, T3=0.6, w=5.0)
 rotmotor1.SetMotorFunction(motor_func)
 
 
@@ -140,8 +139,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
 vis.AddTypicalLights()
-
-
 
 
 

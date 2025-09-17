@@ -6,7 +6,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
+# Initial vehicle location and orientation (modified)
 initLoc = chrono.ChVector3d(-50, 0, 0.5)  # Changed from (0, 0, 0.5) to (-50, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -80,30 +80,27 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower driver system
+# Create the path-follower driver system (replaces interactive driver)
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
 
-# Create ISO 3888-2 double lane change path
+# Create ISO double lane change path
 path = veh.ChBezierCurve()
-path.AddPoint(chrono.ChVector3d(0, 0, 0))
-path.AddPoint(chrono.ChVector3d(15, 3.5, 0))
-path.AddPoint(chrono.ChVector3d(30, 0, 0))
-path.AddPoint(chrono.ChVector3d(45, -3.5, 0))
-path.AddPoint(chrono.ChVector3d(60, 0, 0))
-path.AddPoint(chrono.ChVector3d(75, 3.5, 0))
-path.AddPoint(chrono.ChVector3d(90, 0, 0))
-path.AddPoint(chrono.ChVector3d(100, 0, 0))
+path.AddPoint(chrono.ChVector3d(-50, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-30, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(-15, 3.5, 0.5))
+path.AddPoint(chrono.ChVector3d(0, 3.5, 0.5))
+path.AddPoint(chrono.ChVector3d(15, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(30, 0, 0.5))
+path.AddPoint(chrono.ChVector3d(50, 0, 0.5))
 
-# Set up the path-follower driver
 driver.SetPath(path)
-driver.SetTargetSpeed(10.0)  # Target speed of 10.0 m/s
 
-# Set up the steering controller
+# Set target speed and controller gains
+driver.SetTargetSpeed(10.0)
 driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0.0, 0.0)  # Proportional gain only
+driver.GetSteeringController().SetGains(0.5, 0.0)
+driver.GetSpeedController().SetGains(0.5, 0.1, 0.0)
 
-# Set up the speed controller
-driver.GetSpeedController().SetGains(0.5, 0.1, 0.0)  # PID gains
 driver.Initialize()
 
 # output vehicle mass
@@ -127,14 +124,11 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

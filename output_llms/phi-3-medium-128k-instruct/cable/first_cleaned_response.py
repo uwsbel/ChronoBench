@@ -1,122 +1,76 @@
-from pychrono import ChSystem, ChBodyA, ChQuaternionA, ChVectorA, ChCableA
+from pychrono import ChSystemNSC, IrrlichtSpace, ChBeam, ChBody, Vector3d
 
-import irrlicht
+import pychrono.pychrono as pch
 
-from pychrono.modelling import ChBeamA
+import pychrono.irrlicht as chrono
 
 
 
 
-system = ChSystemNSC()
+ch = ChSystemNSC()
 
+ch.SetSpaceType(IrrlichtSpace)
 
 
 
-beam = ChBeamA(system)
 
-beam.SetBodyFixed(True)
+ground = ChBody()
 
-beam.SetMass(1.0)
+ground.SetBodyType(ChBody::STATIC_MASS)
 
-beam.SetLength(1.0)
+ground.SetName("Ground")
 
-beam.SetWidth(0.1)
+ch.AddBody(ground)
 
-beam.SetHeight(0.1)
 
 
 
+beam = ChBeam(10, 10, 10)  
 
-cable = ChCableA(system)
+beam.SetName("Beam")
 
-cable.SetLength(1.0)
+beam.SetMass(1000)
 
-cable.SetMass(0.1)
+beam.SetRestAngle(Vector3d(0, 0, 0))
 
-cable.SetDensity(1000.0)
+ch.AddBody(beam)
 
-cable.SetStiffness(10000.0)
 
 
 
+beam.AddAnchor(ground, Vector3d(0, 0, 0))
 
-hinge = ChRigidBodyA(system)
 
-hinge.SetMass(0.0)
 
-hinge.SetPosition(ChVectorA(0.0, 0.0, 0.0))
 
-hinge.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
+ch.SetGravity(Vector3d(0, -9.81, 0))
 
 
 
 
-cable.Attach(hinge, ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0), ChVectorA(0.0, 0.0, 0.0))
+def render(body):
 
+    if body.GetName() == "Beam":
 
+        for i in range(beam.GetNumSegments()):
 
+            segment = beam.GetSegment(i)
 
-system.SetGravity(ChVectorA(0.0, 0.0, -9.81))
+            p1 = segment.GetStart().GetPos()
 
+            p2 = segment.GetEnd().GetPos()
 
+            print(f"Segment {i}: ({p1.x:.2f}, {p1.y:.2f}, {p1.z:.2f}) to ({p2.x:.2f}, {p2.y:.2f}, {p2.z:.2f})")
 
 
-cable.SetInitialPosition(ChVectorA(0.0, 0.0, 0.0))
 
 
+while(1):
 
+    ch.DoStepDynamics(0.01)
 
-cable.SetInitialVelocity(ChVectorA(0.0, 0.0, 0.0))
+    render(ground)
 
+    render(beam)
 
-
-
-beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
-
-
-
-
-beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
-
-
-
-
-beam.SetVelocity(ChVectorA(0.0, 0.0, 0.0))
-
-
-
-
-irr = irrlicht.IrrEngine()
-
-driver = irr.createDevice()
-
-driver.initialize(core.get_option("irrlicht.core.path"))
-
-sceneManager = driver.getSceneManager()
-
-rMaterial = sceneManager.createMaterial("rMaterial")
-
-rMaterial.setColor(irr.video.SColor(255, 0, 0, 255))
-
-
-
-
-while driver.run() == irrlicht.core.ESEL_CONTINUE:
-
-    system.DoStepDynamics(0.01)
-
-    beam.SetPosition(ChVectorA(0.0, 0.0, 0.0))
-
-    beam.SetRotation(ChQuaternionA(1.0, 0.0, 0.0, 0.0))
-
-
-    
-
-    beam.Draw(rMaterial)
-
-    cable.Draw(rMaterial)
-
-
-
-
-driver.drop()
+    chrono.draw(ch)

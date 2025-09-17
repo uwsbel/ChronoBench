@@ -1,8 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor
 import numpy as np
+import pychrono.sensor as sensor
+import math
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -40,6 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.MAN_10t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -47,7 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-vehicle.InitializeSuspension()
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -72,6 +74,7 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
@@ -83,34 +86,17 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sensor_manager = veh.ChSensorManagerIRR()
-lidar = veh.ChLidarSensor(vehicle.GetVehicle().GetChassis(), "front")
-lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))
-lidar.Initialize()
-sensor_manager.AddSensor(lidar)
-
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-def AddRandomBoxes(terrain, x, y, num_boxes):
-    for _ in range(num_boxes):
-        box_mat = chrono.ChContactMaterialNSC()
-        box_mat.SetFriction(0.9)
-        box_mat.SetRestitution(0.01)
-        box_patch = terrain.AddPatch(box_mat, 
-            chrono.ChCoordsysd(chrono.ChVector3d(x, y, 0), chrono.QUNIT),
-            1.0, 1.0)
-        box_patch.SetSize(0.5, 0.5, 0.5)
-        box_patch.SetRotation(chrono.ChQuaterniond(1, 0, 0, 0))
-        box_patch.SetColor(chrono.ChColor(1.0, 0.5, 0.5))
-        terrain.Initialize()
-
-AddRandomBoxes(terrain, -5.0, -5.0, 5)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -123,6 +109,20 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+
+sensor_manager = sensor.ChSensorManager()
+lidar_sensor = sensor.ChLidarSensor(sensor_manager, "LIDAR", 0, 0, 0, 10.0)
+
+def AddRandomBoxes():
+    num_boxes = np.random.randint(5, 10)
+    for _ in range(num_boxes):
+        box_size = np.random.uniform(1.0, 2.0)
+        box_pos = chrono.ChVector3d(np.random.uniform(-5.0, 5.0), np.random.uniform(-5.0, 5.0), 0.0)
+        box_rot = chrono.ChQuaterniond(np.random.uniform(0.0, 4.0), np.random.uniform(0.0, 4.0), np.random.uniform(0.0, 4.0), np.random.uniform(0.0, 4.0))
+        vehicle.GetVehicle().AddAttachedObject(chrono.ChBoxd(box_size, box_pos, box_rot))
+
+AddRandomBoxes()
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
@@ -132,7 +132,7 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
         render_frame += 1
-        
+    
     
     driver_inputs = driver.GetInputs()
     
@@ -146,8 +146,10 @@ while vis.Run():
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    
+    
     sensor_manager.Update()
+    lidar_sensor.Update()
     
     
     step_number += 1

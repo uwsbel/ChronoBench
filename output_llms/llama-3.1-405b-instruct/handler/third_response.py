@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture("path/to/floor/texture.png")  # Set texture for the floor.
+    floor.SetTexture("ground.jpg")  # Set the texture for the floor.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture("path/to/box/texture.png")  # Set texture for the box.
+    box.SetTexture("wood.jpg")  # Set the texture for the box.
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
@@ -71,33 +71,23 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    publish_rate = 10  # Set the publishing rate to 10 Hz.
+    publish_rate = 10
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Create an Irrlicht application.
-    myapplication = chronoirr.ChIrrApp(sys, 'PyChrono and Irrlicht', chronoirr.dimension2du(800, 600))
-
-    # Set up the Irrlicht camera.
-    myapplication.AddCamera(chronoirr.vector3df(0, 0, 5), chronoirr.vector3df(0, 0, 0))
-
-    # Set up the Irrlicht lights.
-    myapplication.AddLight(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 2, 1, 1)
-    myapplication.AddLight(chronoirr.vector3df(-2, -2, -2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 2, 1, 1)
-
-    # Set up the Irrlicht window properties.
-    myapplication.AssetBindAll()
-    myapplication.AssetUpdateAll()
-    myapplication.AddShadowAll()
+    # Create an Irrlicht application
+    myapplication = chronoirr.ChIrrApp(sys, 'PyChrono and Irrlicht', chronoirr.dimension2du(800, 600), False, True)
+    myapplication.AddTypicalSky()
+    myapplication.AddTypicalCamera(chronoirr.vector3df(0, 0, 10))
+    myapplication.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 40, 512)
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-
     step_number = 0
     render_step_size = 1e-2
     render_steps = int(render_step_size / time_step)
@@ -110,7 +100,6 @@ def main():
             break  # Exit the loop if the ROS manager indicates a problem.
 
         step_number += 1
-
         if step_number % render_steps == 0:
             myapplication.BeginScene()
             myapplication.DrawAll()

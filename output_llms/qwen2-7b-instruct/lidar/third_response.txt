@@ -1,0 +1,163 @@
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import numpy as np
+import time
+import math
+
+class ARTcar:
+    def __init__(self, wheel_diameter, wheel_separation, wheel_radius, max_speed, max_acc, max_steering_angle):
+        self.wheel_diameter = wheel_diameter
+        self.wheel_separation = wheel_separation
+        self.wheel_radius = wheel_radius
+        self.max_speed = max_speed
+        self.max_acc = max_acc
+        self.max_steering_angle = max_steering_angle
+        self.speed = 0
+        self.steering_angle = 0
+
+    def update(self, dt):
+        self.speed += self.max_acc * dt
+        self.speed = min(self.speed, self.max_speed)
+        self.steering_angle += self.max_steering_angle * dt
+        self.steering_angle = min(self.steering_angle, self.max_steering_angle)
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    system = chrono.ChSystemNSC()
+
+    # Initialize the ARTcar vehicle
+    car = ARTcar(0.25, 0.5, 0.05, 20.0, 1.0, math.pi / 6)
+    car_pos = chrono.ChVectorD(0, 0, 0)
+    car_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    car_body = chrono.ChBody()
+    car_body.SetPos(car_pos)
+    car_body.SetRot(car_rot)
+    car_body.SetBodyFixed(False)
+    car_body.SetCollide(True)
+    car_body.SetMass(1000)
+    car_body.SetInertiaXX(chrono.ChVectorD(10, 10, 10))
+    car_body.SetBodyType(chrono.ChBodyType.DYNAMIC)
+    system.Add(car_body)
+
+    # Add the vehicle driver
+    driver = chrono.ChDriverSteeringWheelsDynamics()
+    driver.Initialize(car_body, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.Q_from_AngAxis(math.pi / 6, chrono.ChVectorD(0, 1, 0))))
+    driver.SetMaxSteeringAngle(math.pi / 6)
+    driver.SetMaxSpeed(20.0)
+    driver.SetMaxAcceleration(1.0)
+    system.Add(driver)
+
+    # Create terrain
+    terrain = chrono.ChTerrain()
+    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    terrain.SetHeight(0.05)
+    terrain.SetWidth(10.0)
+    terrain.SetLength(10.0)
+    terrain.SetNumXCells(200)
+    terrain.SetNumYCells(200)
+    system.Add(terrain)
+
+    # Attach lidar sensors to the vehicle
+    lidar_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 0, 1), chrono.Q_from_AngleAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0)))
+    lidar_3d = sens.ChLidarSensor(car_body, 5.0, lidar_offset, 800, 300, 2 * math.pi, 0.0, math.pi / 12, 100.0, sens.LidarBeamShape_RECTANGULAR, 1, 0.003, sens.LidarReturnMode_STRONGEST_RETURN)
+    lidar_3d.SetName("Lidar Sensor 3D")
+    lidar_3d.SetLag(0)
+    lidar_3d.SetCollectionWindow(1.0 / 5.0)
+    lidar_3d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar_3d.PushFilter(sens.ChFilterVisualize(800, 300, "Raw Lidar Depth Data"))
+    lidar_3d.PushFilter(sens.ChFilterDIAccess())
+    lidar_3d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar_3d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    lidar_3d.PushFilter(sens.ChFilterXYZIAccess())
+    system.AddSensor(lidar_3d)
+
+    lidar_2d = sens.ChLidarSensor(car_body, 5.0, lidar_offset, 800, 1, 2 * math.pi, 0.0, 0.0, 100.0, sens.LidarBeamShape_RECTANGULAR, 1, 0.003, sens.LidarReturnMode_STRONGEST_RETURN)
+    lidar_2d.SetName("Lidar Sensor 2D")
+    lidar_2d.SetLag(0)
+    lidar_2d.SetCollectionWindow(1.0 / 5.0)
+    lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar_2d.PushFilter(sens.ChFilterVisualize(800, 1, "Raw 2D Lidar Depth Data"))
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+    system.AddSensor(lidar_2d)
+
+    # Add a third person view camera sensor
+    cam_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.Q_from_AngleAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0)))
+    camera = sens.ChCameraSensor(car_body, cam_offset, 800, 600)
+    camera.SetName("Camera Sensor")
+    camera.SetCollectionWindow(1.0)
+    camera.PushFilter(sens.ChFilterVisualize(800, 600, "Camera Image"))
+    system.AddSensor(camera)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        # Update ARTcar vehicle, driver, and terrain
+        dt = 1e-3
+        car.update(dt)
+        driver.Update(dt)
+        terrain.Update(dt)
+
+        # Set lidar to orbit around the vehicle
+        lidar_3d.SetOffsetPose(lidar_offset)
+        lidar_2d.SetOffsetPose(lidar_offset)
+
+        # Access the XYZI buffer from lidar
+        xyzi_buffer_3d = lidar_3d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_3d.HasData():
+            xyzi_data_3d = xyzi_buffer_3d.GetXYZIData()
+            print('XYZI buffer received from lidar 3D. Lidar resolution: {0}x{1}'.format(xyzi_buffer_3d.Width, xyzi_buffer_3d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_3d)))
+
+        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('XYZI buffer received from lidar 2D. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
+
+        # Update sensor manager (will render/save/filter automatically)
+        system.DoStepDynamics(step_size)
+
+        # Get the current time of the simulation
+        ch_time = system.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+# Simulation parameters
+wheel_diameter = 0.25
+wheel_separation = 0.5
+wheel_radius = 0.05
+max_speed = 20.0
+max_acc = 1.0
+max_steering_angle = math.pi / 6
+end_time = 40.0
+step_size = 1e-3
+noise_model = "NONE"
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+horizontal_samples = 800
+vertical_samples = 300
+horizontal_fov = 2 * math.pi
+max_vert_angle = math.pi / 12
+min_vert_angle = -math.pi / 6
+lag = 0
+collection_time = 1.0 / 5.0
+sample_radius = 1
+divergence_angle = 0.003
+
+main()
+```

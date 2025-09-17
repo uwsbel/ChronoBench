@@ -1,140 +1,58 @@
-import chrono as chrono
-from chrono import ChVector, ChFrame
+import chrono as c
+import chrono.ros as ros
 import time
-import roslib
-import rospy
-import numpy as np
 
-# Step 1: Initialize the PyChrono environment and core components
-# Create a new simulation object
-sim = chrono.Simulation()
+# Initialize the PyChrono environment
+c.init()
 
-# Create a new world object
-world = chrono.ChWorld()
-sim.SetWorld(world)
+# Create a world object
+world = c.ChWorld()
 
-# Step 2: Add the required physical systems and objects as specified
-# Create an HMMWV vehicle object
-hmmwv = chrono.ChBody()
-hmmwv.SetName("HMMWV")
-hmmwv.SetPos(ChVector(0, 0, 0))
-hmmwv.SetMass(500)
-hmmwv.SetInertia(ChVector(100, 100, 100))
-hmmwv.SetBodyFixed(True)
+# Set gravity
+world.SetGravity(c.Vec3(0.0, 0.0, -9.81))
 
-# Create a terrain object with defined friction and restitution
-terrain = chrono.ChBody()
-terrain.SetName("Terrain")
-terrain.SetPos(ChVector(0, -10, 0))
+# Create a terrain object with friction and restitution
+terrain = c.ChBodyEasyBox(m=0, l=100, w=100, h=1)
+terrain.SetPos(c.Vec3(0, 0, -10))
+terrain.SetRot(c.Vec3(0, 0, 0))
 terrain.SetFriction(0.5)
-terrain.SetRestitution(0.5)
-terrain.SetBodyFixed(True)
+terrain.SetRestitution(0.2)
+
+# Add the terrain to the world
+world.Add(terrain)
+
+# Create an HMMWV vehicle object with specified parameters
+vehicle = c.ChBodyEasyBox(m=1500, l=4.5, w=2.5, h=1.5)
+vehicle.SetPos(c.Vec3(0, 0, 0))
+vehicle.SetRot(c.Vec3(0, 0, 0))
+vehicle.SetContactMethod(c.CM_Geom)
+vehicle.SetEngineType(c.ET_Hydro)
+vehicle.SetTireModel(c.TM_Fiala)
+
+# Add the vehicle to the world
+world.Add(vehicle)
 
 # Create a driver system for vehicle control
-driver = chrono.ChDriver()
-driver.SetName("Driver")
-driver.SetPos(ChVector(0, 0, 0))
+driver = c.ChDriver()
+driver.SetVehicle(vehicle)
 
-# Step 3: Set necessary default parameters such as positions, forces, and interactions
-# Set contact method for the vehicle and terrain
-hmmwv.SetContactMethod(chrono.ChContactMethod.COPLANAR)
+# Initialize ROS for communication
+ros.init()
+ros.set_clock_synchronization_handler(ros.ClockSynchronizationHandler())
+ros.set_driver_input_handler(ros.DriverInputHandler())
+ros.set_vehicle_state_handler(ros.VehicleStateHandler())
 
-# Set engine type for the vehicle
-hmmwv.SetEngineType(chrono.ChEngineType.VEHICLE_ENGINE)
-
-# Set tire model for the vehicle
-hmmwv.SetTireModel(chrono.ChTireModel.VEHICLE_TIRE)
-
-# Initialize the vehicle's state
-hmmwv.SetState(chrono.ChState.STOPPED)
-
-# Step 4: Integrate ROS for communication, registering handlers for clock synchronization, driver inputs, and vehicle state
-# Initialize ROS
-roslib.load_manifest('pychrono_ros')
-rospy.init_node('pychrono_ros_node', anonymous=True)
-
-# Register handlers for clock synchronization, driver inputs, and vehicle state
-rospy.Timer(rospy.Duration(0.01), handler=chrono_ros_clock_synchronization)
-rospy.Timer(rospy.Duration(0.01), handler=chrono_ros_driver_inputs)
-rospy.Timer(rospy.Duration(0.01), handler=chrono_ros_vehicle_state)
-
-# Step 5: Implement a simulation loop that synchronizes and advances the vehicle, terrain, and driver systems at each timestep, updating the ROS manager for data publishing
-# Define the simulation loop
-def simulation_loop():
-    # Synchronize the vehicle, terrain, and driver systems
-    sim.Step()
-
+# Create a simulation loop
+while True:
+    # Synchronize and advance the vehicle, terrain, and driver systems
+    world.DoStepDynamics(1e-3)
+    
     # Update the ROS manager for data publishing
-    ros_manager.update()
+    ros.update_manager()
 
-# Run the simulation loop
-while not rospy.is_shutdown():
-    simulation_loop()
-    time.sleep(0.01)
+    # Check for termination condition
+    if world.GetStop():
+        break
 
-# Define the ROS clock synchronization handler
-def chrono_ros_clock_synchronization(event):
-    # Synchronize the clock
-    chrono_ros_clock_synchronize()
-
-# Define the ROS driver inputs handler
-def chrono_ros_driver_inputs(event):
-    # Get driver inputs
-    driver_inputs = get_driver_inputs()
-
-    # Update the vehicle's state
-    hmmwv.SetState(chrono.ChState.MOVING, driver_inputs)
-
-# Define the ROS vehicle state handler
-def chrono_ros_vehicle_state(event):
-    # Get the vehicle's state
-    vehicle_state = get_vehicle_state()
-
-    # Publish the vehicle's state
-    ros_manager.publish_vehicle_state(vehicle_state)
-
-# Define the ROS manager
-class ROSManager:
-    def __init__(self):
-        self.publisher = rospy.Publisher('vehicle_state', VehicleState, queue_size=10)
-
-    def update(self):
-        # Update the ROS manager
-        self.publisher.publish(get_vehicle_state())
-
-# Define the vehicle state message
-class VehicleState:
-    def __init__(self):
-        self.position = ChVector(0, 0, 0)
-        self.velocity = ChVector(0, 0, 0)
-        self.acceleration = ChVector(0, 0, 0)
-
-# Define the driver inputs message
-class DriverInputs:
-    def __init__(self):
-        self.steering_angle = 0
-        self.accelerator = 0
-        self.brake = 0
-
-# Define the function to get driver inputs
-def get_driver_inputs():
-    # Get driver inputs from ROS
-    driver_inputs = DriverInputs()
-    driver_inputs.steering_angle = rospy.get_param('steering_angle')
-    driver_inputs.accelerator = rospy.get_param('accelerator')
-    driver_inputs.brake = rospy.get_param('brake')
-    return driver_inputs
-
-# Define the function to get vehicle state
-def get_vehicle_state():
-    # Get the vehicle's state from PyChrono
-    vehicle_state = VehicleState()
-    vehicle_state.position = hmmwv.GetPos()
-    vehicle_state.velocity = hmmwv.GetVelocity()
-    vehicle_state.acceleration = hmmwv.GetAcceleration()
-    return vehicle_state
-
-# Define the function to synchronize the clock
-def chrono_ros_clock_synchronize():
-    # Synchronize the clock with ROS
-    rospy.Time.sync()
+    # Sleep for a short duration to control the simulation speed
+    time.sleep(1e-3)

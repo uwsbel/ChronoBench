@@ -80,25 +80,26 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-# Removed interactive driver as we will implement a path follower
+# Removed interactive driver since we will implement a path follower
 
-# PID controller parameters (assuming saturation limits and PID gains)
-kp = 1.0
-ki = 0.1
-kd = 0.01
-pid_controller = chrono.ChPIDController(vehicle.GetVehicle())
+# PID controller parameters (example values)
+kp = 1.0  # Proportional gain
+ki = 0.1  # Integral gain
+kd = 0.05  # Derivative gain
+
+# Initialize the PID controller
+pid_controller = chrono.ChPIDController(vehicle.GetSystem())
 pid_controller.SetP(kp)
 pid_controller.SetI(ki)
 pid_controller.SetD(kd)
-pid_controller.SetSaturationLimits(0.0, 1.0)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 
 # Constant throttle value
 throttle_value = 0.3
-
-# Path follower
-path_radius = 10.0
-sentinel_pos = chrono.ChVector3d(0, 0, 0.5)
-target_pos = chrono.ChVector3d(0, 0, 0.5)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -107,6 +108,17 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+# Circular path parameters
+path_radius = 50.0
+path_center = chrono.ChVector3d(0, 0, 0.5)
+sentinel_point = chrono.ChVector3d(path_center.X() + path_radius, path_center.Y(), path_center.Z())
+target_point = chrono.ChVector3d(path_center.X() + path_radius, path_center.Y() + path_radius, path_center.Z())
+
+# Initialize the path follower
+path_follower = chrono.ChPathFollower(vehicle.GetSystem())
+path_follower.SetPath(chrono.ChPath())
+path_follower.AddCircularPath(path_center, path_radius, 0.0, 2.0 * math.pi)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -118,19 +130,18 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    # Removed driver inputs since we are using a path follower
+
     # Update modules (process inputs from other modules)
-    # Removed driver.GetInputs() as we are using a path follower
-    # Update path follower
-    target_pos.z = path_radius * math.sin(time)
-    target_pos.x = path_radius * math.cos(time)
-    driver_inputs = [throttle_value, pid_controller.ComputeSteering(sentinel_pos, target_pos)]
+    # Update the path follower
+    path_follower.Update(step_size)
+    vehicle.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vis.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
+    path_follower.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
@@ -140,6 +151,9 @@ while vis.Run() :
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Visualize sentinel and target points
-    vis.AddSphere(sentinel_pos, 0.1, chrono.ChColor(1, 0, 0))  # Sentinel point (initial position)
-    vis.AddSphere(target_pos, 0.1, chrono.ChColor(0, 0, 1))  # Target point (current position)
+    # Update the PID controller
+    steering_input = pid_controller.Compute(vehicle.GetSystem().GetChVelocity(vehicle.GetSystem().GetChVelocity(vehicle.GetVehicle()))
+    vehicle.GetSystem().SetSteering(steering_input)
+
+    # Update the throttle value
+    vehicle.GetSystem().SetThrottle(throttle_value)

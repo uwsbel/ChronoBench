@@ -1,100 +1,86 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
+import pychrono.sensors as sensors
+import pychrono.postprocess as postprocess
+import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono::Engine data directory
-chrono.ChSystemNSC my_system()  # Create a multi-body system
+# Initialize the PyChrono system
+chrono.SetChronoDataPath('../data/')  # Set the path to the Chrono data directory
 
-# Create an Irrlicht visualization system
-my_application = chronoirr.ChIrrApp(my_system, 'Triangular Mesh Simulation', chronoirr.dimension2du(800, 600))
-my_application.AddTypicalSky()
-my_application.AddTypicalLogo()
-my_application.AddTypicalLights()
-my_application.AddTypicalCamera(chrono.ChVectorD(0.5, -1.5, 1.5))
-my_application.SetSymbolScale(0.02)
+# Create a Chrono::Engine physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Load the triangular mesh from a .obj file
-mesh_body = chrono.ChBody()
-mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
-mesh_body.SetRot(chrono.Q_FROM_EULER(0, 0, 0))
-mesh_body.SetMass(1)  # Set mass to a non-zero value to avoid issues with the solver
+# Create the Irrlicht visualization system
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('PyChrono Triangular Mesh with Camera')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddLightWithShadow(chrono.ChCoordsysD(chrono.ChVectorD(2, 4, 5), chrono.Q_from_AngAxis(0.3, chrono.ChVectorD(0, 1, 0))), 4, 4, 10, 10, 100, 50)
+visualization.AddCamera(chrono.ChCoordsysD(chrono.ChVectorD(2, 2, 2), chrono.Q_from_AngAxis(0.1, chrono.ChVectorD(0, 1, 0))))
 
-# Load the mesh
-mesh_shape = chrono.ChTriangleMeshShape()
-mesh_shape.LoadWavefrontMesh('path/to/your/mesh.obj')
-mesh_shape.SetName('TriangularMesh')
-mesh_body.AddAsset(mesh_shape)
-mesh_body.AddAsset(chrono.ChColorAsset(0.5, 0.5, 0.5))  # Set the color of the mesh
+# Load the triangular mesh from a Wavefront .obj file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('meshes/your_mesh.obj'), False, True)
 
-# Add the mesh body to the system
-my_system.Add(mesh_body)
+# Create a fixed body and attach the mesh
+body = chrono.ChBody()
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)
+body.GetVisualShape(0).SetMesh(mesh)
+system.Add(body)
 
 # Create a camera sensor
-camera_sensor = sensors.ChCameraSensor()
-camera_sensor.SetName('CameraSensor')
-camera_sensor.SetCameraPosition(chrono.ChVectorD(1, 0, 0))
-camera_sensor.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-camera_sensor.SetCameraUpVector(chrono.ChVectorD(0, 0, 1))
-camera_sensor.SetClippingPlanes(0.1, 100.0)
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFieldOfView(60)
+camera = sensors.ChCameraSensor()
+camera.SetName("camera_sensor")
+camera.SetParentBody(body)
+camera.SetPos(chrono.ChVectorD(0, 0, 2))  # Initial position of the camera
+camera.SetOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+camera.SetFov(chrono.CH_C_PI_4)
+camera.SetNearPlane(0.1)
+camera.SetFarPlane(100)
 
 # Add noise filters to the camera sensor
-noise_filter = sensors.ChNoiseFilter()
-noise_filter.SetName('NoiseFilter')
-camera_sensor.AddFilter(noise_filter)
+noise_filter = sensors.ChFilterGaussian()
+noise_filter.SetStdDev(0.01)
+camera.AddFilter(noise_filter)
 
-# Add visualization to the camera sensor
-visualization = sensors.ChVisualizationSensor()
-visualization.SetName('VisualizationSensor')
-camera_sensor.AddVisualization(visualization)
+# Add visualizations to the camera images
+visualization_manager = sensors.ChVisualizationSensorManager()
+visualization_manager.AddSensor(camera)
 
-# Attach the camera sensor to the mesh body
-camera_sensor.AttachToBody(mesh_body)
+# Add the sensor manager to the system
+system.AddSensorManager(visualization_manager)
 
-# Add the camera sensor to the sensor manager
-sensor_manager = sensors.ChSensorManager()
-sensor_manager.AddSensor(camera_sensor)
-
-# Initialize the sensor manager
-sensor_manager.Initialize(my_system)
+# Simulation parameters
+step_size = 0.01
+end_time = 10.0
+time = 0.0
+camera_orbit_radius = 2.0
+camera_orbit_speed = 0.5
 
 # Simulation loop
-my_application.AssetBindAll()
-my_application.AssetUpdateAll()
-my_application.AddLog('Step: ')
-my_application.AddLog('Camera Buffer Data: ')
-
-# Define the orbit parameters
-orbit_radius = 2.0
-orbit_angle = 0.0
-orbit_speed = 0.02  # radians per step
-
-# Simulation step
-step_size = 0.01  # seconds
-total_simulation_time = 10.0  # seconds
-
-while my_application.GetDevice().run():
-    my_application.BeginScene()
-    my_application.DrawAll()
-
-    # Update the camera position in an orbit around the mesh
-    orbit_angle += orbit_speed
-    camera_position = chrono.ChVectorD(orbit_radius * chrono.ChCos(orbit_angle),
-                                        orbit_radius * chrono.ChSin(orbit_angle),
-                                        0)
-    camera_sensor.SetCameraPosition(camera_position)
+while time < end_time:
+    # Update the camera's position in an orbit around the mesh
+    angle = camera_orbit_speed * time
+    camera.SetPos(chrono.ChVectorD(camera_orbit_radius * np.cos(angle), camera_orbit_radius * np.sin(angle), 2))
 
     # Step the simulation
-    my_system.DoStepDynamics(step_size)
+    system.DoStepDynamics(step_size)
 
-    # Get the camera buffer data
-    camera_buffer = camera_sensor.GetBuffer()
-    my_application.AddLog(f'Camera Buffer Data: {camera_buffer}')
+    # Print out camera buffer data
+    buffer = camera.GetBuffer()
+    print("Camera buffer data:", buffer)
 
-    my_application.EndScene()
+    # Update the visualization
+    visualization.Update()
+    visualization.Render()
 
-    # Exit if the total simulation time is reached
-    if my_system.GetChTime() >= total_simulation_time:
-        break
+    # Increment time
+    time += step_size
+
+# Close the visualization
+visualization.Close()

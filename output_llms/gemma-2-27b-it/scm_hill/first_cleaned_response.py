@@ -5,75 +5,81 @@ import numpy as np
 
 
 
-chrono.SetChronoDataPath("data/")
-
-
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
+my_system = chrono.ChSystemNSC()
 
 
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-vehicle = chrono.ChBodyEasyBox(
-    2.5, 1.5, 0.8, 1000, True, True, chrono.ChVectorD(0, 1, 0)
-)
+
+vehicle = chrono.ChBody()
+vehicle.SetBodyFixed(False)
+vehicle.SetMass(2500)
+vehicle.SetInertiaXX(chrono.ChVectorD(1000, 1500, 1000))
+my_system.Add(vehicle)
+
+
 vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-sys.Add(vehicle)
+vehicle.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1)))
+
+
+
 
 
 terrain = chrono.ChTerrainSCM()
-terrain.SetSize(chrono.ChVectorD(100, 100, 1))
+terrain.SetSize(chrono.ChVectorD(50, 50, 1))
+terrain.SetLevel(0)
+terrain.SetSmooth(True)
 
 
 height_map = np.loadtxt("height_map.txt")
-terrain.Initialize(height_map, 1.0)
+terrain.SetHeightMap(height_map)
 
 
 terrain.SetFriction(0.5)
 terrain.SetRestitution(0.2)
-terrain.SetSpringStiffness(1000)
-terrain.SetDamping(10)
 
-sys.Add(terrain)
+my_system.Add(terrain)
 
 
-driver = chrono.ChDriver(vehicle)
-
-
-
-
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("HMMWV Simulation")
-
-
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(10, 5, 5))
-camera.SetTarget(chrono.ChVectorD(0, 1, 0))
-
-vis.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
-vis.SetDirectionalLight(chrono.ChVectorD(1, -1, 0), chrono.ChColor(1, 1, 1))
+driver = chrono.ChDriver()
+driver.SetVehicle(vehicle)
 
 
 
 
 
 
-dt = 0.01
+
+
+vis = chronoirr.ChIrrApp(my_system)
+vis.SetWindowSize(1280, 720)
+vis.SetStep(1.0 / 60)
+vis.SetShowProfiler(True)
+
+
+vis.GetCamera().SetPos(chrono.ChVectorD(10, 5, 5))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 1, 0))
+
+
+vis.AddLight(chrono.ChLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1)))
+
+
+
+
+
 
 while vis.Run():
     
-    sys.DoStepDynamics(dt)
+    driver.Update()
 
     
-    driver.Update(dt)
+    my_system.DoStepDynamics(vis.GetTimeStep())
 
     
-    vis.BeginScene()
+    vis.Synchronize(vehicle.GetPos(), vehicle.GetRot())
+
+    
     vis.Render()
-    vis.EndScene()

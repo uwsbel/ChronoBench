@@ -1,143 +1,119 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-from pychrono.vehicle import ChVehicleModelData
-import math
+from pychrono.vehicle.utils import ChVehicleVisualizationType
+from pychrono.vehicle.wheeled_vehicle import ChWheeledVehicleVisualSystemType
 
-# ==============================================================================
-# Simulation parameters
-# ==============================================================================
+# =============================================================================
+# Create the simulation system
+# =============================================================================
 
-# Simulation step size
-step_size = 0.02
+# Create the Chrono physical system
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
-# Simulation end time
-tend = 100
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV()
+hmmwv.SetContactMethod(veh.ChContactMethod::NSC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetInitFwdVel(10)  # Initial forward velocity in m/s
 
-# Point on chassis tracked by the camera
-trackPoint = chrono.ChVectorD(0.0, 0.0, 1.75)
+# Set tire model (TMEASY)
+tire = veh.ChTMeasyTire("tmeasy_tire")
+hmmwv.SetTireType(tire)
 
-# ==============================================================================
-# Create the vehicle system
-# ==============================================================================
+# Initialize the vehicle at the specified position
+hmmwv.Initialize(sys, veh.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
 
-# Create the vehicle system
-vehicle = veh.Vehicle()
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-vehicle.SetInitFwdVel(10)
-
-# Create the vehicle model
-vehicle_model = ChVehicleModelData()
-vehicle_model.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle_model.SetTireModelType(veh.TMeasyTire)
-vehicle_model.SetChassisMass(2500)
-vehicle_model.SetChassisInertiaXX(chrono.ChVectorD(1000, 1500, 2000))
-vehicle_model.SetChassisCOM(chrono.ChVectorD(0, 0, 0.5))
-vehicle_model.SetChassisDimensions(2.5, 1.5, 1.0)
-
-# Create and initialize the tires
-tire = veh.ChTMeasyTire("tire_R16")
-tire.SetTireType("P235/85R16")
-vehicle_model.SetTire(tire)
-
-# Create the vehicle subsystem and add it to the system
-vehicle.SetVehicleModel(vehicle_model)
-vehicle.Initialize()
-
-# ==============================================================================
+# =============================================================================
 # Create the terrain
-# ==============================================================================
+# =============================================================================
 
 # Create a rigid terrain
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetContactFrictionCoefficient(0.8)
-terrain.SetContactRestitutionCoefficient(0.1)
+terrain = veh.RigidTerrain(sys)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitution(0.1)
 terrain.SetContactMaterialProperties(2e7, 0.3)
 
-# Create a large box as terrain
-terrain_box = chrono.ChBody()
-terrain_box.SetBodyFixed(True)
-terrain_box.GetCollisionModel().AddBox(10, 10, 0.1)
-terrain_box.GetVisualModel().AddBox(10, 10, 0.1)
-terrain_box.SetPos(chrono.ChVectorD(0, 0, -0.1))
-terrain_box.SetCollide(True)
-terrain_box.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-vehicle.GetSystem().AddBody(terrain_box)
+# Create a flat terrain patch
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 100))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# ==============================================================================
-# Create the visualization system
-# ==============================================================================
+# =============================================================================
+# Visualization system
+# =============================================================================
 
-# Create the Irrlicht application
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
+vis.AttachSystem(sys)
+vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
-vis.SetCameraTracking(vehicle.GetChassisBody(), trackPoint, chrono.ChVectorD(0, 0, 2))
-vis.SetUserCameraTracking(vehicle.GetChassisBody(), trackPoint, chrono.ChVectorD(0, 0, 2))
-vis.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10)
-vis.AddLight(chrono.ChVectorD(-10, -10, 10), chrono.ChVectorD(0, 0, 0), 10)
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+vis.AddCamera(chrono.ChVectorD(5, 2, 5), chrono.ChVectorD(0, 0.5, 0))
+vis.SetCameraMovementMode(chronoirr.ChCameraMovementMode::TRACKBALL)
+vis.SetCameraAngle(chrono.ChVectorD(0.7, 0, 0))
 
-# ==============================================================================
-# Create the driver system
-# ==============================================================================
+# Set vehicle visualization type (primitive)
+hmmwv.SetVisualizationType(ChVehicleVisualizationType::PRIMITIVES)
+
+# Create the vehicle Irrlicht interface
+vehicle_irr = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vehicle_irr.SetWheeledVehicle(hmmwv)
+vehicle_irr.SetChassisVisualizationType(ChWheeledVehicleVisualSystemType::PRIMITIVES)
+vehicle_irr.SetSuspensionVisualizationType(ChWheeledVehicleVisualSystemType::PRIMITIVES)
+vehicle_irr.SetSteeringVisualizationType(ChWheeledVehicleVisualSystemType::PRIMITIVES)
+vehicle_irr.SetWheelVisualizationType(ChWheeledVehicleVisualSystemType::MESH)
+vehicle_irr.Initialize()
+
+# =============================================================================
+# Driver system
+# =============================================================================
 
 # Create a simple driver
-driver = veh.ChDriver()
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
+driver = veh.ChInteractiveDriverIRR(vehicle_irr)
 driver.Initialize()
 
-# ==============================================================================
+# =============================================================================
 # Simulation loop
-# ==============================================================================
+# =============================================================================
 
-# Number of simulation steps between two 3D view render frames
-render_steps = math.ceil(1.0 / (step_size * 50))
+# Simulation step size
+step_size = 0.02  # 50 FPS (1/50)
 
-# Initialize simulation frame counter
-step_number = 0
+# Number of simulation steps
+num_steps = 1000
 
-# Simulation loop
+# Perform the simulation loop
 while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
+    time = sys.GetChTime()
 
-    # End simulation
-    if time >= tend:
+    # Update the driver inputs
+    driver.Synchronize(time)
+    driver.SetThrottle(0.5)  # Default throttle
+    driver.SetSteering(0)    # Default steering
+    driver.SetBraking(0)     # Default braking
+
+    # Update the vehicle state
+    hmmwv.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+
+    # Advance simulation by one step
+    vis.BeginScene()
+    vis.Render()
+    vehicle_irr.Synchronize(time)
+    vehicle_irr.Render()
+    vis.EndScene()
+
+    # Advance simulation by one step
+    sys.DoStepDynamics(step_size)
+
+    # Exit if ESC key is pressed
+    if vis.GetDevice().GetKeyState(chronoirr.irr::KEY_ESCAPE):
         break
 
-    # Render scene
-    if step_number % render_steps == 0:
-        vis.BeginScene()
-        vis.Render()
-        vis.EndScene()
-
-    # Driver inputs
-    steering = driver.GetSteering()
-    throttle = driver.GetThrottle()
-    braking = driver.GetBraking()
-
-    # Update vehicle state
-    vehicle.Synchronize(time)
-    vehicle.Update()
-
-    # Advance simulation for one timestep for all modules
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Advance(step_size)
-
-    # Increment frame number
-    step_number += 1
-
-# ==============================================================================
-# Clean up
-# ==============================================================================
-
-vis.Close()
+    # Check if simulation time has exceeded
+    if time > num_steps * step_size:
+        break

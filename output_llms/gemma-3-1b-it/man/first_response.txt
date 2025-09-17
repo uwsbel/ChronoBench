@@ -1,96 +1,147 @@
 ```python
 import pychrono
+import pychrono.core as pc
+import pychrono.visuals as v
+import pychrono.physics as pcf
+import pychrono.utils as u
 import numpy as np
-from pychrono.core import System, Object
-from pychrono.visuals import Irrlicht
 import matplotlib.pyplot as plt
-from matplotlib.colors import Listed
+from matplotlib import cm
 
-# --- Simulation Parameters ---
-TERRAIN_WIDTH = 100
-TERRAIN_HEIGHT = 50
-TERRAIN_SCALE = 10  # Adjust for terrain size
-TERRAIN_TEXTURE_NAME = "terrain.png" # Replace with your terrain image path
-DRIVER_SPEED = 5  # m/s
-DRIVER_BRAKING_FORCE = 10  # N
-DRIVER_STEERING_FORCE = 2  # N
-INITIAL_POSITION = [0, 0, 0]  # Initial truck position (x, y, z)
-INITIAL_SPEED = 0  # Initial speed (m/s)
-INITIAL_BRAKING_FORCE = 0  # Initial braking force (N)
-INITIAL_STEERING_FORCE = 0  # Initial steering force (N)
-INITIAL_TIME = 0.0
-
-# --- System Setup ---
-system = System(
-    name="truck_simulation",
-    time_step=0.1,
-    time_limit=10.0,
-    physics_system=True,
-    visual_system=True,
-    visual_settings=True,
-    visualization_settings=True,
-    # Add more visual settings as needed, e.g., camera, lighting
+# --- Configuration ---
+# Define the truck model
+truck_model = pc.VehicleModel(
+    model_id="truck_model",
+    max_speed=10,
+    acceleration=0.5,
+    deceleration=0.5,
+    max_steering_angle=30,
+    max_throttle=0.8,
+    max_brake=0.3,
+    mass=1000.0,
+    # Add more parameters as needed for realistic truck behavior
 )
 
-# --- Physical Systems ---
-vehicle = Object(
-    name="truck",
-    model="man10t",
-    position=[INITIAL_POSITION[0], INITIAL_POSITION[1], INITIAL_POSITION[2]],
-    speed=INITIAL_SPEED,
-    steering=INITIAL_STEERING_FORCE,
-    braking=INITIAL_BRAKING_FORCE,
-    # Add other vehicle properties as needed (e.g., mass, friction)
+# Define the TMEASY tire model
+tmeasy_model = pc.TMEASY(
+    model_id="tmeasy_model",
+    tire_radius=0.4,
+    tire_width=0.6,
+    tire_pressure=0.8,
+    max_speed=10,
+    # Add more parameters as needed for realistic tire behavior
 )
 
-# --- Tire Model ---
-tmeier = TMEASY(
-    name="tmeier",
-    model="tmeier",
-    # Add more tire parameters as needed (e.g., rolling resistance, friction)
-    # Example:
-    #  rolling_resistance = 0.01,
-    #  friction = 0.9,
+# Define the terrain
+terrain = pc.Terrain(
+    name="mountain_terrain",
+    heightmap=u.HeightMap(
+        heightmap=np.random.rand(100, 100),
+        heightmap_scale=1.0,
+        # Add more parameters for terrain details
+    ),
+    # Example: Add a simple slope for visual effect
+    slope_range=np.random.rand(100, 100),
+    # Add more parameters for terrain details
 )
 
-# --- Terrain ---
-terrain = np.zeros((TERRAIN_WIDTH, TERRAIN_HEIGHT))
-terrain[TERRAIN_WIDTH // 2:TERRAIN_WIDTH // 2 + TERRAIN_HEIGHT, :] = 1.0  # Create a simple terrain
+# Define the simulation parameters
+simulation_time = 60  # seconds
+time_step = 0.1 # seconds
+simulation_start_time = u.Time(year=2024, month=10, day=26) # Start simulation on October 26, 2024
+
+# --- Simulation Setup ---
+# Initialize PyChrono
+simulation = pc.Simulation(
+    time_step=time_step,
+    simulation_start_time=simulation_start_time,
+    time_limit=simulation_time,
+    vehicle=truck_model,
+    tmeasy=tmeasy_model,
+    terrain=terrain,
+    # Add more parameters as needed for simulation setup
+)
 
 # --- Visualization ---
-irrlicht = Irrlicht()
-irrlicht.initialize_figure()
-irrlicht.rotate_figure(np.pi / 2) # Rotate the view
-irrlicht.set_camera(Irrlicht.Camera(position=[0, 0, 0]))
-irrlicht.set_background_color(np.array([0.2, 0.2, 0.2])) # Dark gray background
+# Create Irrlicht visualization
+fig = v.figure(figsize=(8, 6))
+fig.set_window_title("MAN 10t Truck Simulation")
+fig.set_ările(range(1, 1 + simulation.time_limit))
+
+# Initialize Irrlicht
+plt = plt.subplots()
+plt.imshow(terrain.heightmap, cmap=cm.jet, interpolation='nearest')
+plt.title("Terrain")
+plt.colorbar(label="Height")
+plt.show()
 
 # --- Camera Setup ---
-camera = Irrlicht.Camera(position=[0, 0, 0])
-camera.set_color(np.array([0.5, 0.5, 0.5]))
-camera.set_rotation(np.pi / 2)
+camera = v.Camera(
+    width=800,
+    height=600,
+    # Add more camera parameters as needed
+)
+camera.set_position(0, 0, 5)  # Camera position
+camera.set_rotation(0, 90, 0)  # Camera rotation
+camera.set_focal_length(1000)  # Focal length
 
-# --- Chase Camera ---
-camera.set_camera_type(Irrlicht.ChaseCamera)
-camera.set_color(np.array([0.7, 0.7, 0.7]))
-camera.set_position([0, 0, 0])
-camera.set_rotation(np.pi / 2)
+# --- Driver Controls ---
+steering_control = v.SteeringControl(
+    # Example steering control - adjust as needed
+    max_steering_angle=30,
+    min_steering_angle=0,
+    max_steering_speed=0.5,
+    min_steering_speed=0
+)
 
-# --- Main Simulation Loop ---
-while True:
-    # --- Update ---
-    system.update()
+throttle_control = v.ThrottleControl(
+    max_throttle=0.8,
+    min_throttle=0.2,
+    max_throttle_speed=0.7,
+    min_throttle_speed=0.3
+)
 
-    # --- Visualize ---
-    irrlicht.clear()
-    irrlicht.set_camera(camera)
-    irrlicht.set_background_color(np.array([0.2, 0.2, 0.2]))
-    irrlicht.draw_voronoi(vehicle.position)
-    irrlicht.draw_polygon(vehicle.position)
+brake_control = v.BrakeControl(
+    max_brake=0.3,
+    min_brake=0.1,
+    max_brake_speed=0.6,
+    min_brake_speed=0.2
+)
 
-    # --- Render ---
-    irrlicht.display()
+# --- Simulation Loop ---
+for i in range(simulation.time_limit):
+    # Update vehicle position and orientation
+    truck_position = truck_model.position
+    truck_orientation = truck_model.orientation
 
-    # --- Wait ---
-    import time
-    time.sleep(1/system.time_step)
+    # Apply steering control
+    steering_control.apply_control(truck_position, truck_orientation)
+
+    # Apply throttle control
+    throttle_control.apply_control(truck_position, truck_orientation)
+
+    # Apply braking control
+    brake_control.apply_control(truck_position, truck_orientation)
+
+    # Update terrain
+    terrain.update(
+        heightmap=u.HeightMap(
+            heightmap=u.HeightMap(
+                heightmap_scale=1.0,
+                # Add more parameters for terrain details
+            ),
+            # Add more parameters for terrain details
+        ),
+        # Add more parameters for terrain details
+    )
+
+    # Render the simulation
+    v.render(fig, camera, truck_position, truck_orientation, terrain)
+
+    # Print simulation status
+    print(f"Time: {i * time_step:.2f} seconds")
+
+# --- Cleanup ---
+simulation.close()
+plt.close()
 ```

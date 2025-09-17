@@ -2,48 +2,91 @@ import pychrono as chrono
 import pychrono.physics as physics
 import pychrono.visualization as visualization
 import pychrono.sensors as sensors
-import pychrono.ros_manager as ros_manager
-import pychrono.ros_publisher as ros_publisher
+import pychrono.ros as ros
 
 
-chrono.init()
+chrono.Init()
 
 
-chrono_system = chrono.System()
+world = chrono.World()
 
 
 mesh = visualization.Mesh("ground_mesh.obj")
-chrono_system.add(mesh)
+world.Add(mesh)
 
 
-ground_body = physics.Body(chrono_system, "ground")
-ground_body.add_constraint(physics.Constraint(ground_body, physics.Point(0, 0, 0), physics.Point(1, 1, 0)))  
+ground_body = physics.RigidBody(
+    name="ground",
+    mass=100.0,
+    inertia_matrix=chrono.Matrix4x4(),
+    position=chrono.Vector3(0, 0, 0),
+    velocity=chrono.Vector3(0, 0, 0)
+)
+world.Add(ground_body)
 
 
-camera = sensors.Camera("camera")
-lidar = sensors.Lidar("lidar")
-gps = sensors.GPS("gps")
-accelerometer = sensors.Accelerometer("accelerometer")
-gyroscope = sensors.Gyroscope("gyroscope")
-magnetometer = sensors.Magnetometer("magnetometer")
+ground_body.SetLinearVelocity(chrono.Vector3(1, 0, 0))
 
 
-sensor_manager = sensors.SensorManager(chrono_system)
-sensor_manager.add_sensor(camera)
-sensor_manager.add_sensor(lidar)
-sensor_manager.add_sensor(gps)
-sensor_manager.add_sensor(accelerometer)
-sensor_manager.add_sensor(gyroscope)
-sensor_manager.add_sensor(magnetometer)
+sensor_manager = sensors.SensorManager()
 
 
-ros_manager = ros_manager.ROSManager()
-ros_manager.register_sensor(camera, "camera_topic")
-ros_manager.register_sensor(lidar, "lidar_topic")
-ros_manager.register_sensor(gps, "gps_topic")
-ros_manager.register_sensor(accelerometer, "accelerometer_topic")
-ros_manager.register_sensor(gyroscope, "gyroscope_topic")
-ros_manager.register_sensor(magnetometer, "magnetometer_topic")
+camera = sensors.Camera(name="camera")
+lidar = sensors.Lidar(name="lidar")
+gps = sensors.GPS(name="gps")
+accelerometer = sensors.Accelerometer(name="accelerometer")
+gyroscope = sensors.Gyroscope(name="gyroscope")
+magnetometer = sensors.Magnetometer(name="magnetometer")
+
+sensor_manager.Add(camera)
+sensor_manager.Add(lidar)
+sensor_manager.Add(gps)
+sensor_manager.Add(accelerometer)
+sensor_manager.Add(gyroscope)
+sensor_manager.Add(magnetometer)
 
 
-chrono_system.run()
+ros_manager = ros.ROSManager()
+sensor_manager.Register(ros_manager)
+
+
+camera_topic = "camera_image"
+lidar_topic = "lidar_scan"
+gps_topic = "gps_data"
+accelerometer_topic = "accelerometer_data"
+gyroscope_topic = "gyroscope_data"
+magnetometer_topic = "magnetometer_data"
+
+
+while True:
+    
+    sensor_manager.Update()
+
+    
+    world.Step(1.0 / 60.0)
+
+    
+    ros_manager.Publish(
+        camera_topic,
+        camera.GetImage()
+    )
+    ros_manager.Publish(
+        lidar_topic,
+        lidar.GetData()
+    )
+    ros_manager.Publish(
+        gps_topic,
+        gps.GetData()
+    )
+    ros_manager.Publish(
+        accelerometer_topic,
+        accelerometer.GetData()
+    )
+    ros_manager.Publish(
+        gyroscope_topic,
+        gyroscope.GetData()
+    )
+    ros_manager.Publish(
+        magnetometer_topic,
+        magnetometer.GetData()
+    )

@@ -15,28 +15,24 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 terrain = veh.SCMDeformableTerrain(system)
-terrain.SetPlane(veh.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
-terrain.Initialize(20, 20, 0.1)  
+terrain.SetPlane(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, -0.5), chrono.QUNIT))
+
+terrain.Initialize(20.0, 20.0, 0.2)  
 
 
-Kphi = 0.82e6  
-Kc = 0.14e4    
-n = 1.0         
-coh = 3e4       
-mu = 0.3        
-H = 0.2         
-m = 0.2         
-Kn = 4e6        
-Gn = 5e7        
-Kt = 2e4        
-Gt = 5e4        
-
-terrain.SetSoilParameters(Kphi, Kc, n, coh, mu, H, m, Kn, Gn, Kt, Gt)
+terrain.SetSoilParameters(
+    Bekker_Kphi=0.82e6,
+    Bekker_Kc=0.14e4,
+    Bekker_n=1.0,
+    Mohr_cohesion=0.3e4,
+    Mohr_friction=30.0,
+    Janosi_shear=0.01,
+    elastic_K=4e7,
+    damping_R=3e4
+)
 
 
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 30000)
-texture_file = chrono.GetChronoDataFile("textures/grass.jpg")
-terrain.SetTexture(texture_file, 20, 20)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
 
 
 rover = viper.Viper(system)  
@@ -44,7 +40,7 @@ driver = viper.ViperDCMotorControl()
 rover.SetDriver(driver)  
 
 
-init_pos = chrono.ChVector3d(0, 0.2, 0)
+init_pos = chrono.ChVector3d(0, 0.2, 0.3)  
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 

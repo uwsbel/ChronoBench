@@ -1,107 +1,111 @@
-Here's a PyChrono simulation script that meets your requirements. It loads a triangular mesh from a Wavefront .obj file, visualizes it as a fixed body, adds a camera sensor with noise filters, and simulates the system with the camera orbiting the mesh:
+Here's a PyChrono simulation script that meets your requirements. This script loads a triangular mesh from a Wavefront .obj file, visualizes it as a fixed body, adds a camera sensor with noise filters, and simulates an orbiting camera around the mesh while printing camera buffer data.
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensors
 import numpy as np
 import os
 
 # Set the path to the Chrono data directory
-chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), '../../data/'))
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
 
 # Create a Chrono physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for this simulation
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Mesh with Orbiting Camera')
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Orbiting Camera Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.AddCamera(chrono.ChVectorD(0, 0, 6))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1.5, 1.5, 5), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.SetCameraVertical(chrono.ChVectorD(0, 0, 0))
 
-# Load a mesh from a Wavefront .obj file (using the built-in Chrono mesh)
+# Load the triangular mesh from an .obj file
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('models/obj/torus.obj'), False, True)
+mesh.LoadWavefrontMesh("path_to_your_mesh.obj")  # Update this path
 
 # Create a body with the mesh
 body = chrono.ChBody()
-body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.SetBodyFixed(True)  # Make the body fixed
-body.GetVisualModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33<>(1), True)
+body.SetBodyFixed(True)
+body.GetVisualModel().AddTriangleMesh(mesh)
 system.Add(body)
 
-# Create a camera sensor
-camera = chrono.ChCameraSensor()
-camera.SetName("orbiting_camera")
-camera.SetCameraUp(chrono.ChVectorD(0, 0, 1))
-camera.SetCameraLocation(chrono.ChVectorD(2, 0, 0))
-camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-camera.SetFocalLength(0.035)  # 35mm focal length
-camera.SetResolution(640, 480)
-camera.SetFPS(30)
-camera.SetAntiAliasing(chrono.ChCameraSensor::ANTIALIASING_4X)
-
-# Add noise filters to the camera
-camera.AddNoise(chrono.ChNoiseWhite(0.01))  # Small white noise
-camera.AddNoise(chrono.ChNoiseGaussian(0.005))  # Small Gaussian noise
-
 # Create a sensor manager
-sensor_manager = chrono.ChSensorManager(system)
+sensor_manager = sensors.ChSensorManager(system)
+
+# Create a camera sensor
+camera = sensors.ChCameraSensor(
+    body,                     # parent body
+    10,                       # update rate in Hz
+    chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),  # initial position and orientation
+    640,                      # horizontal resolution
+    480,                      # vertical resolution
+    1.4,                      # focal length
+    1.4                       # lens aperture
+)
+camera.SetName("camera_sensor")
+camera.SetLag(0.1)            # lag in seconds
+camera.SetNoise(sensors.ChNoiseWhite(0.05))  # add white noise
 sensor_manager.AddSensor(camera)
 
-# Add visualization of the camera images
-vis.AddSensor(camera)
-vis.EnableSensor(camera, True)
+# Create a filter for the camera
+filter = sensors.ChFilterRGBD()
+camera.PushFilter(filter)
+
+# Create a visualizer for the camera images
+visualizer = sensors.ChVisualizerSensor("camera_visualizer", 800, 600)
+visualizer.AddSensor(camera)
+visualizer.SetActiveCamera(camera)
+sensor_manager.AddVisualizer(visualizer)
 
 # Simulation parameters
 time_step = 0.01
-end_time = 10.0
-output_step = 0.1
+simulation_time = 10.0
+current_time = 0.0
 
 # Simulation loop
-current_time = 0
-while vis.Run() and current_time < end_time:
+while current_time < simulation_time:
     # Update the camera position in an orbit around the mesh
-    angle = current_time * 0.5  # Orbit speed
-    radius = 2.0
-    camera_x = radius * np.cos(angle)
-    camera_y = radius * np.sin(angle)
-    camera.SetCameraLocation(chrono.ChVectorD(camera_x, camera_y, 0.5))
-
-    # Update the camera look-at point to always point at the mesh
-    camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+    angle = 2 * np.pi * current_time / simulation_time
+    radius = 3.0
+    camera_pos = chrono.ChVectorD(radius * np.cos(angle), 0, radius * np.sin(angle))
+    camera_frame = chrono.ChFrameD(camera_pos, chrono.Q_from_AngAxis(angle, chrono.ChVectorD(0, 1, 0)))
+    camera.SetOffsetPose(camera_frame)
 
     # Advance the simulation
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    # Print camera buffer data (simplified for this example)
-    if current_time % output_step < time_step:
-        print(f"Time: {current_time:.2f}s - Camera position: ({camera_x:.2f}, {camera_y:.2f}, 0.5)")
-
-    # Advance the simulation time
     system.DoStepDynamics(time_step)
     current_time += time_step
 
     # Update the sensor manager
     sensor_manager.Update()
+
+    # Print camera buffer data
+    if camera.HasData():
+        data = camera.GetMostRecentBuffer()
+        print(f"Time: {current_time:.2f}s - Camera buffer size: {len(data)} bytes")
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update the visualizer
+    visualizer.Update()
+
+# Clean up
+vis.Run()
 ```
 
-Notes about this implementation:
-1. The script loads a torus mesh from Chrono's built-in data (you can replace this with your own .obj file)
-2. The camera orbits the mesh at a radius of 2 units with a speed of 0.5 radians per second
-3. Two types of noise are added to the camera: white noise and Gaussian noise
-4. The camera images are visualized in the Irrlicht window
-5. Camera position data is printed at regular intervals
-6. The simulation runs for 10 seconds with a time step of 0.01 seconds
+### Important Notes:
+1. **Paths**: You need to update `PATH_TO_CHRONO_DATA` and the path to your `.obj` file.
+2. **Dependencies**: Ensure you have PyChrono and its dependencies (like Irrlicht) properly installed.
+3. **Camera Orbit**: The camera orbits the mesh in a circular path with a radius of 3 units.
+4. **Sensor Data**: The script prints the camera buffer size at each step. You can modify this to print more detailed data if needed.
 
-To use your own .obj file, replace the path in `LoadWavefrontMesh()` with your file path. Make sure the file is in a location accessible to the script.
-
-The camera visualization will appear in the Irrlicht window, and you'll see the camera orbiting the mesh while the position data is printed to the console.
+This script provides a complete simulation with visualization, sensor management, and dynamic camera movement. Adjust parameters like the orbit radius, simulation time, or noise levels as needed.

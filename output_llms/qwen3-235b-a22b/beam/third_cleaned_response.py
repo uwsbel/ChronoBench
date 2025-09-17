@@ -12,6 +12,7 @@ mesh = fea.ChMesh()
 
 
 msection = fea.ChBeamSectionEulerAdvanced()
+
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
@@ -20,7 +21,8 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45.0)  
+
+msection.SetSectionRotation(45.0)
 
 
 beam_L = 0.1
@@ -73,7 +75,10 @@ builder.GetLastBeamNodes().back().SetFixed(True)
 builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-builder.BuildBeam(mesh, msection, 5, chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0.2, 0.1, -0.1), chrono.ChVector3d(0, 1, 0))
+prev_nodes = builder.GetLastBeamNodes()
+beam_A = prev_nodes.back().GetPos()  
+beam_B = chrono.ChVector3d(0.2, 0.1, -0.1)  
+builder.BuildBeam(mesh, msection, 5, beam_A, beam_B, chrono.ChVector3d(0, 1, 0))  
 
 
 mesh.SetAutomaticGravity(False)

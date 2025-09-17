@@ -25,15 +25,18 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG)
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)
 
 
 beam_L = 0.1
 
 
-hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
+hnode1 = fea.ChNodeFEAxyzrot()
+hnode1.SetPos(chrono.ChVector3d(0, 0, 0))
+hnode2 = fea.ChNodeFEAxyzrot()
+hnode2.SetPos(chrono.ChVector3d(beam_L, 0, 0))
+hnode3 = fea.ChNodeFEAxyzrot()
+hnode3.SetPos(chrono.ChVector3d(beam_L * 2, 0, 0))
 
 
 mesh.AddNode(hnode1)
@@ -54,6 +57,8 @@ mesh.AddElement(belement2)
 
 
 hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+
+
 hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
 
 
@@ -63,31 +68,34 @@ sys.Add(mtruss)
 
 
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
+constr_bc.Initialize(hnode3, mtruss, False, hnode3.GetFrame(), mtruss.GetFrame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
 
 
 constr_d = chrono.ChLinkMateGeneric()
-constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+constr_d.Initialize(hnode1, mtruss, False, hnode1.GetFrame(), mtruss.GetFrame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True, False, False, False)
 
 
 builder = fea.ChBuilderBeamEuler()
+builder.SetNodesPerElement(5)
 builder.SetSection(msection)
-builder.SetNodes(5)
-builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
-builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
-builder.SetUpY()
-builder.BuildBeam(mesh)
+builder.BuildBeam(
+    chrono.ChVector3d(0, 0, -0.1),
+    chrono.ChVector3d(0.2, 0, -0.1),
+    chrono.ChVector3d(0, 1, 0)
+)
+mesh.AddNodes(builder.GetNodes())
+mesh.AddElements(builder.GetElements())
 
 
 last_node = builder.GetLastBeamNodes().back()
 last_node.SetFixed(True)
 
 
-first_node = builder.GetFirstBeamNodes().back()
+first_node = builder.GetFirstBeamNodes().front()
 first_node.SetForce(chrono.ChVector3d(0, -1, 0))
 
 

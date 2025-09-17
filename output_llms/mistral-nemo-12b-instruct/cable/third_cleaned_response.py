@@ -29,8 +29,8 @@ class Model1:
                 mesh,  
                 msection_cable2,  
                 i + 2,  
-                chrono.ChVector3d(i * 0.5, 0, -0.1),  
-                chrono.ChVector3d((i + 1) * 0.5, 0, -0.1)  
+                chrono.ChVector3d(-0.1 * i, 0, -0.1),  
+                chrono.ChVector3d(0.5 + 0.1 * i, 0, -0.1)  
             )
 
             
@@ -44,38 +44,35 @@ class Model1:
 
             
             mbox = chrono.ChBody()
-            mbox.SetBodyFixed(True)
-            mbox.SetPos(chrono.ChVector3d((i + 1) * 0.5, 0, -0.1))
+            mbox.SetBodyFixed(False)
+            mbox.SetPos(chrono.ChVector3d(0.5 + 0.1 * i, 0, -0.1))
             system.Add(mbox)
 
-            
-            constraint_box = fea.ChLinkNodeBody()
+            constraint_box = fea.ChLinkMateFrame()
             constraint_box.Initialize(builder.GetLastBeamNodes().back(), mbox)
             system.Add(constraint_box)
 
-        
-        
-        visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-        visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-        visualizebeamA.SetSmoothFaces(True)  
-        visualizebeamA.SetWireframe(False)  
-        mesh.AddVisualShapeFEA(visualizebeamA)  
+            
+            visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+            visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+            visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
+            visualizebeamA.SetSmoothFaces(True)  
+            visualizebeamA.SetWireframe(False)  
+            mesh.AddVisualShapeFEA(visualizebeamA)  
 
-        
-        visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-        visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-        visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-        visualizebeamB.SetSymbolsThickness(0.006)  
-        visualizebeamB.SetSymbolsScale(0.01)  
-        visualizebeamB.SetZbufferHide(False)  
-        mesh.AddVisualShapeFEA(visualizebeamB)  
+            
+            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
+            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
+            visualizebeamB.SetSymbolsThickness(0.006)  
+            visualizebeamB.SetSymbolsScale(0.01)  
+            visualizebeamB.SetZbufferHide(False)  
+            mesh.AddVisualShapeFEA(visualizebeamB)  
 
     def PrintBodyPositions(self):
-        
         for i in range(self.n_chains):
-            mbox = self.system.GetBody(i + 1)
-            print(f"Position of chain {i + 1}: {mbox.GetPos()}")
+            mbox = self.system.Get_body(i)
+            print(f"Position of body {i}: {mbox.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()
@@ -115,16 +112,15 @@ vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES()  
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")
-    sys.SetSolver(solver)
-    solver.SetMaxIterations(200)
-    solver.SetTolerance(1e-10)
-    solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)  
-    solver.SetVerbose(False)
-
+solver = chrono.ChSolverMINRES() 
+if solver.GetType()== chrono.ChSolver.Type_MINRES :
+	print( "Using MINRES solver" )
+	sys.SetSolver(solver)
+	solver.SetMaxIterations(200)
+	solver.SetTolerance(1e-10)
+	solver.EnableDiagonalPreconditioner(True)
+	solver.EnableWarmStart(True)  
+	solver.SetVerbose(False)
 
 ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
 sys.SetTimestepper(ts)

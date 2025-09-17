@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -61,7 +62,7 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain = veh.RigidTerrain()
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
@@ -82,25 +83,17 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+path = veh.ChPathFollower()
+path.SetPath(veh.CreateDoubleLaneChangePath(10.0))  
+vehicle.Attach(path)
 
-path = veh.ChDoubleLaneChangePath()
-path.SetGlobalPosition(chrono.ChVector3d(-50, 0, 0.5))  
 
-driver = veh.ChPathFollowerDriver(path)
+driver = veh.ChPathFollowerDriver()
+driver.SetPath(path)
 driver.SetTargetSpeed(10.0)  
-
-
-steering_controller = driver.GetSteeringController()
-steering_controller.SetLookAheadDistance(5.0)
-steering_controller.SetKp(5.0)  
-steering_controller.SetKi(0.1)  
-steering_controller.SetKd(0.5)  
-
-
-speed_controller = driver.GetSpeedController()
-speed_controller.SetKp(5.0)  
-speed_controller.SetKi(0.1)  
-speed_controller.SetKd(0.5)  
+driver.SetLookAheadDistance(5.0)  
+driver.SetSteeringGain(1.5)  
+driver.SetSpeedGain(0.5)  
 
 driver.Initialize()
 

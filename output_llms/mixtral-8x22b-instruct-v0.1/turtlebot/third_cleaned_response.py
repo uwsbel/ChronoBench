@@ -31,16 +31,19 @@ robot.Initialize()
 sensor_manager = sens.ChSensorManager(system)
 
 
-lidar_sensor = sens.ChLidarSensor(robot, 0.5, 100, 0.02, 0.02, 1, 10, 10, 1, 0, 10, 0.1, 0.1, 0.1, 0.1)
-lidar_sensor.SetFilter(sens.ChFilterAccess::FILTER_NONE)
-lidar_sensor.SetFilter(sens.ChFilterAccess::FILTER_LINEAR_KALMAN)
-lidar_sensor.SetFilter(sens.ChFilterAccess::FILTER_NEAREST_NEIGHBOR)
+lidar_sensor = sens.ChLidarSensor(robot,  
+                                  sens.ChLidarSensorParams(0.5,  
+                                                           100,  
+                                                           0.01,  
+                                                           0,  
+                                                           0,  
+                                                           sens.ChLidarSensorParams.Filter_None))  
 sensor_manager.AddSensor(lidar_sensor)
 
 
-for _ in range(5):
+for i in range(5):
     box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.3))
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-2, 2), np.random.uniform(-2, 2), 0.1))
     system.Add(box)
 
 
@@ -77,8 +80,11 @@ time_step = 2e-3
 
 time = 0
 while vis.Run():
-    move('straight')  
-    sensor_manager.Update()  
+    
+    move('straight')
+
+    
+    sensor_manager.Update()
 
     
     vis.BeginScene()

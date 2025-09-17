@@ -6,8 +6,9 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
+import sys
 
-# Define a custom motor function class
+# Define the custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         super(ChFunctionMyFun, self).__init__()
@@ -22,9 +23,9 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A2 * m.sin(self.w * (x - self.T1))
+            return self.A2 * m.cos(self.w * (x - self.T1))
         else:
-            return self.A1 * m.sin(self.w * (x - self.T2))
+            return self.A1 * m.sin(self.w * (x - self.T2)) + self.A2 * m.cos(self.w * (x - self.T3))
 
 sys = chrono.ChSystemSMC()
 
@@ -40,6 +41,7 @@ beam_ri = 0.045
 CH_PI = 3.141592653589793  # Corrected value of PI
 
 # Create a section, i.e. thickness and material properties for beams. This will be shared among some beams.
+
 minertia = fea.ChInertiaCosseratSimple()
 minertia.SetDensity(7800)
 minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
@@ -59,6 +61,7 @@ msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)  # SetAsCircularSection(..) would overwrite Ixx Iyy J etc.
 
 # Use the ChBuilderBeamIGA tool for creating a straight rod divided in Nel elements:
+
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,  # the mesh to put the elements in
                   msection,  # section of the beam
@@ -68,9 +71,10 @@ builder.BuildBeam(mesh,  # the mesh to put the elements in
                   chrono.VECT_Y,  # suggested Y direction of section
                   3)  # order (3 = cubic, etc)
 
-node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
+node_mid = builder.GetLastBeamNodes()[int(builder.GetLastBeamNodes().size() / 2)]
 
 # Create the flywheel and attach it to the center of the beam
+
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  # R, h, density
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
@@ -109,10 +113,11 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
 sys.Add(rotmotor1)
 
 # Define the custom motor function
-f_custom = ChFunctionMyFun(A1=1.0, A2=0.5, T1=1.0, T2=2.0, T3=3.0, w=2.0)
+f_custom = ChFunctionMyFun(A1=10, A2=5, T1=2, T2=4, T3=6, w=2)
 rotmotor1.SetMotorFunction(f_custom)
 
 # Attach a visualization of the FEM mesh.
+
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -140,10 +145,9 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-sys.DoStaticLinear()
+sys.SetTimestepperType(chrono.ChTimestepper.HHT)  # Uncomment for HHT timestepper
 
-# Uncomment the following line to set up a more precise HHT timestepper
-# sys.SetTimestepperType(chrono.ChTimestepperType.HHT)
+sys.DoStaticLinear()
 
 while vis.Run():
     vis.BeginScene()
@@ -152,10 +156,8 @@ while vis.Run():
     sys.DoStepDynamics(0.002)
 ```
 
-### Changes and Fixes:
-1. **Corrected the value of PI**: Changed `CH_PI` from `3.1456` to `3.141592653589793` for accuracy.
-2. **Custom Motor Function**: Implemented the `ChFunctionMyFun` class with the specified piecewise conditions.
-3. **Fixed the order of the beam**: Changed the order from `1` to `3` to ensure cubic interpolation.
-4. **Commented out the HHT timestepper line**: Included a commented line for setting up the HHT timestepper for optional use.
-5. **Removed unnecessary imports**: Removed `sys` import as it is not used in the script.
-6. **Ensured correct method calls**: Verified that all method calls and parameters are correct and consistent with PyChrono's API.
+### Summary of Changes:
+1. **Corrected the value of PI**: Changed `CH_PI = 3.1456` to `CH_PI = 3.141592653589793`.
+2. **Custom Motor Function**: Defined a custom motor function class `ChFunctionMyFun` that inherits from `chrono.ChFunction` and implemented the `GetVal` method.
+3. **Fixed Integer Division**: Changed `node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]` to `node_mid = builder.GetLastBeamNodes()[int(builder.GetLastBeamNodes().size() / 2)]`.
+4. **Uncommented HHT Timestepper**: Added `sys.SetTimestepperType(chrono.ChTimestepper.HHT)` to set the HHT timestepper.

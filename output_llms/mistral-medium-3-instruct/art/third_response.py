@@ -25,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method

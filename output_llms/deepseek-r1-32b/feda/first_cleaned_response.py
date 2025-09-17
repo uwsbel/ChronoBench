@@ -1,112 +1,68 @@
 importchrono
-import pygame
-import os
+importchrono.vehicle as veh
+importchrono.visualization irrlicht as vis
 
 
-pygame.init()
-
-
+chrono.ChSystem.SetRootPath("chrono_data/")
 system = chrono.ChSystem()
-system.SetSolverType(chrono.ChSolverType_SCHUR)
-system.SetSolverMaxIterations(100)
-system.Set timestep(1/50)
+system.SetSolverType(chrono.ChSolverType.Baraff)
+system.SetSolverMaxIterations(10)
+system.SetTimestep(0.01)
 
 
-vis = chrono.ChIrrApp(system, "FEDA Vehicle Simulation", chrono.CHIRR.dimension(800,600))
-vis.SetCamPosition(chrono.ChVector(0, 5, 5))
-vis.SetCamLookat(chrono.ChVector(0,0,0))
-vis.AddTypicalLights()
+vehicle = veh.ChVehicleFEDA()
+vehicle.SetLocation(chrono.ChVectorD(0, 0.5, 0.5))
+vehicle.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chrono.ChContactMethod.NS_C)
+vehicle.SetTireModel(veh.ChTireModel.RIGID_TIRE)
+vehicle.SetDriverType(veh.ChDriverType.INTERACTIVE)
 
 
-terrain = chrono.ChRigidTerrain(system)
-terrain.SetDimensions(chrono.ChVector(20, 20, 1))
-terrain.SetPosition(chrono.ChVector(0, 0, 0))
-terrain.SetMaterial(chrono.ChMaterialSurface())
-terrain.GetMaterial().SetFriction(0.8)
-terrain.GetMaterial().SetRestitution(0.2)
+terrain = veh.ChRigidTerrain(system)
+terrain.SetDimensions(chrono.ChVectorD(20, 1, 20))
+terrain.SetHeight(0)
+terrain.SetMaterial(chrono.ChVisualMaterial())
+terrain.GetMaterial().AddTexture(chrono.ChTexture("terrain_texture.png", 1, 1))
+system.Add(terrain)
 
 
-texture_path = os.path.join("textures", "gravel.jpg")
-terrain_texture = chrono.ChTexture()
-terrain_texture.SetTextureFilename(texture_path)
-terrain_texture.SetRepeatX(10)
-terrain_texture.SetRepeatY(10)
-terrain.GetAssets().push_back(terrain_texture)
+application = vis.ChIrrApp(system, "FEDA Vehicle Simulation", 800, 600)
+application.AddLight(chrono.ChVectorD(0, 10, 10), chrono.ChVectorD(0.8, 0.8, 0.8))
+application.AddLight(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0.8, 0.8, 0.8))
 
 
-vehicle = chrono.ChFEDAVehicle()
-vehicle.SetChassisMass(1500)
-vehicle.SetChassisInertia(chrono.ChVector(1000, 1000, 1000))
-vehicle.SetChassisDimensions(chrono.ChVector(4, 2, 1))
-vehicle.SetWheelMass(20)
-vehicle.SetWheelInertia(chrono.ChVector(0.1, 0.1, 0.1))
-vehicle.SetWheelRadius(0.3)
-vehicle.SetWheelWidth(0.2)
-vehicle.SetSuspensionStiffness(100000)
-vehicle.SetSuspensionDamping(5000)
-vehicle.SetSteeringAngle(chrono.CH_DEG_TO_RAD(45))
-vehicle.SetTireType(chrono.ChTireType_TREAD_BELT)
-vehicle.SetContactMethod(chrono.ChContactMethod_NSM)
-vehicle.SetVisualizationType(chrono.ChVisualizationType_MESH)
+camera = application.GetCamera()
+camera.SetPosition(chrono.ChVectorD(0, 1, 5))
+camera.SetLookAt(chrono.ChVectorD(0, 0.5, 0.5))
 
 
-vehicle.SetPosition(chrono.ChVector(0, 0, 1))
-vehicle.SetRotation(chrono.ChQuaternion(1, 0, 0, 0))
+application.Add(vehicle.GetChassis())
+for part in vehicle.GetParts():
+    application.Add(part)
 
 
-system.Add(vehicle)
-
-
-driver = chrono.ChIrrGuiDriver()
-driver.SetVehicle(vehicle)
+driver = vehicle.GetDriver()
 driver.SetThrottle(0)
 driver.SetSteering(0)
 driver.SetBraking(0)
 
 
-camera = vis.GetCamera()
-camera.SetFocalLength(5)
-camera.SetPosition(chrono.ChVector(-5, 5, 5))
-camera.SetLookAt(chrono.ChVector(0, 0, 0))
-
-
-while vis.Run():
+application.Begin()
+while application.GetDevice().Run():
+    application.BeginScene()
     
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
-                driver.SetThrottle(1)
-            if event.key == pygame.K_DOWN:
-                driver.SetBraking(1)
-            if event.key == pygame.K_LEFT:
-                driver.SetSteering(-1)
-            if event.key == pygame.K_RIGHT:
-                driver.SetSteering(1)
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_UP:
-                driver.SetThrottle(0)
-            if event.key == pygame.K_DOWN:
-                driver.SetBraking(0)
-            if event.key == pygame.K_LEFT:
-                driver.SetSteering(0)
-            if event.key == pygame.K_RIGHT:
-                driver.SetSteering(0)
-
     
     driver.Update()
-
     
-    vehicle.Update()
-
     
-    camera.SetPosition(chrono.ChVector(vehicle.GetPosition().x - 5, vehicle.GetPosition().y + 5, vehicle.GetPosition().z + 5))
-    camera.SetLookAt(chrono.ChVector(vehicle.GetPosition().x, vehicle.GetPosition().y, vehicle.GetPosition().z))
-
+    system.DoStepDynamics()
     
-    vis.Render()
-
     
-    system.DoStepDynamics(system.GetTimestep())
-
-
-vis.Close()
+    application.Render()
+    
+    
+    if application.GetDevice().GetKeyboard().KeyDown(chrono.CH_KEY_ESCAPE):
+        break
+        
+    application.EndScene()
+application.End()

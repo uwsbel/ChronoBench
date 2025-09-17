@@ -27,6 +27,7 @@ box.SetPos(chrono.ChVector3d(0, 0, 0.0))
 box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
+
 # Create Curiosity rover and add it to the system
 rover = robot.Curiosity(system)
 
@@ -38,6 +39,23 @@ rover.SetDriver(driver)
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# Create the sensor manager
+sens = ChSensorManager(system)
+
+# Create lidar sensor
+lidar = ChLidarSensor(
+    update_rate=100,  # Hz
+    horizontal_samples=360,
+    vertical_samples=64,
+    fov=60,  # degrees
+    range=10.0,  # meters
+    )
+sens.AddSensor(lidar)
+lidar.SetBody(rover.GetChassis())  # Attach lidar to the rover's chassis
+
+# Set up filters for lidar data (optional)
+# ...
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -58,23 +76,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 1e-3
 
-# Create sensor manager
-sens = ChSensorManager(system)
-
-# Create lidar sensor
-lidar = ChLidarSensor()
-lidar.SetUpdateRate(100)  # Update rate in Hz
-lidar.SetHorizontalSamples(360)  # Number of horizontal samples
-lidar.SetVerticalSamples(30)  # Number of vertical samples
-lidar.SetFieldOfView(np.pi / 2)  # Field of view in radians
-lidar.AttachToBody(rover.GetChassis())  # Attach to rover's chassis
-
-# Set up filters for lidar data (example)
-lidar.SetFilter(ChGaussianFilter(stdDev=0.1))
-
-# Add lidar sensor to the sensor manager
-sens.AddSensor(lidar)
-
 # Simulation loop
 time = 0
 while vis.Run():
@@ -87,7 +88,7 @@ while vis.Run():
     rover.Update()
 
     # Update sensor manager
-    sens.Update()
+    manager.Update() 
 
     # Render the scene
     vis.BeginScene()

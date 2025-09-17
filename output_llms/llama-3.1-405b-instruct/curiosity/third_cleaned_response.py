@@ -37,7 +37,25 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+
+manager = sens.ChSensorManager(system)
+
+
+lidar_params = sens.ChLidarSensorParameters()
+lidar_params.update_rate = 100.0
+lidar_params.horizontal_samples = 100
+lidar_params.vertical_samples = 1
+lidar_params.horizontal_fov = chrono.CH_C_PI / 2
+lidar_params.min_range = 0.1
+lidar_params.max_range = 100.0
+lidar_params.resolution = 0.1
+lidar = sens.ChLidarSensor(lidar_params, rover.GetChassisBody(), chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5)))
+lidar.SetName("LidarSensor")
+lidar.AddFilter(sens.ChFilterShade())
+lidar.AddFilter(sens.ChFilterDenoise())
+manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -54,39 +72,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
-
-
-manager = sens.ChSensorManager(system)
-
-
-lidar_update_rate = 100.0
-lidar_horizontal_samples = 1000
-lidar_vertical_samples = 16
-lidar_horizontal_fov = chrono.CH_C_PI
-lidar_vertical_fov = chrono.CH_C_PI / 3
-
-
-lidar = sens.ChLidarSensor(
-    lidar_update_rate,
-    lidar_horizontal_samples,
-    lidar_vertical_samples,
-    lidar_horizontal_fov,
-    lidar_vertical_fov,
-    100.0,  
-    0.05,   
-    0.1     
-)
-
-
-lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
-rover.GetChassisBody().AddVisualShape(lidar)
-
-
-lidar.AddFilter(sens.ChFilterShadows())
-lidar.AddFilter(sens.ChFilterRanges())
-
-
-manager.AddSensor(lidar)
 
 
 time_step = 1e-3

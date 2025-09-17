@@ -19,14 +19,11 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain with hills
+# Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
-terrain_height_map = veh.HeightMap()
-terrain_height_map.SetSize(terrainLength, terrainWidth)
-terrain_height_map.SetHeight(terrainHeight)
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -43,8 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
-
-vehicle = veh.MAN_5t()  # Change from MAN_10t to MAN_5t
+vehicle = veh.MAN_5t() # Changed from MAN_10t to MAN_5t
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -66,15 +62,10 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(terrain_height_map)
-
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.RigidHillTerrain(vehicle.GetSystem()) # Changed from RigidTerrain to RigidHillTerrain
+terrain.SetHeightMap(veh.GetDataFile("terrain/heightmap.txt")) # Added height map
+terrain.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg")) # Changed texture to "grass.jpg"
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -103,7 +94,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -113,10 +104,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

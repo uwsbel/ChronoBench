@@ -55,9 +55,6 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
 
-# Use Pacejka 89 tire model
-vehicle.SetTirePacejkaFile("Pacejka89.tir")
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -67,7 +64,7 @@ patch_mat.SetRestitution(0.01)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed to "dirt.jpg"
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Changed texture to "dirt.jpg"
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 

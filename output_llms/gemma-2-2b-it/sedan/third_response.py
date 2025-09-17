@@ -2,11 +2,14 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-
+print(veh)
+"""
+!!!! Set this path before running the demo!
+"""
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
+# Initial vehicle location and orientation adjusted
 initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -33,7 +36,7 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
-step_size = 1e-4  # smaller step size for finer control
+step_size = 1e-4  
 tire_step_size = step_size
 
 # Time interval between two render frames
@@ -71,7 +74,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.png"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -93,7 +96,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 5.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 5.0  # time to go from 0 to +1
+throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)

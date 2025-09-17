@@ -1,60 +1,42 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.irrlicht.irrlicht_utils as irrutils
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.irrlicht as irr
 
 
 chrono.init()
 
 
-engine = irrlicht.IrrlichtEngine()
-
-
+engine = irr.IrrlichtEngine()
 scene = engine.createScene()
 
 
-terrain = irrutils.createTerrain(scene, "terrain.irr", "heightmap.png")
-terrain.setSurfaceType("grass")
+terrain = chrono.Terrain()
+terrain.createPatch("flat", chrono.Point3D(0, 0, 0), chrono.Vector3D(10, 10, 0), chrono.Material("flat"))
+terrain.createPatch("bump", chrono.Point3D(5, 5, 0), chrono.Vector3D(10, 10, 0), chrono.Material("bump"))
+terrain.createPatch("elevation", chrono.Point3D(0, 0, 0), chrono.Vector3D(10, 10, 0), chrono.Material("elevation"))
 
 
-bump_patch = irrutils.createPatch(scene, "bump.irr", "bump.png")
-bump_patch.setSurfaceType("dirt")
-bump_patch.setElevation(0.5)
+hmwv = chrono.Vehicle()
+hmwv.setEngineType("diesel")
+hmwv.setDrivetrainType("four-wheel")
 
 
-flat_patch = irrutils.createPatch(scene, "flat.irr", "flat.png")
-flat_patch.setSurfaceType("sand")
+hmwv.setPosition(chrono.Point3D(0, 0, 0))
+hmwv.setMass(1000)
+hmwv.setWheelRadius(0.5)
 
 
-vehicle = chrono.Vehicle(scene)
-vehicle.setMass(1000)
-vehicle.setEngineType("diesel")
-vehicle.setDrivetrainType("4x4")
+hmwv.addMesh("hmwv_body", "hmwv_body.obj")
+hmwv.addMesh("hmwv_wheels", "hmwv_wheels.obj")
 
 
-vehicle.setPosition(chrono.Vector3(0, 0, 0))
+driver = chrono.Driver()
+driver.setSteeringSensitivity(0.5)
+driver.setThrottleSensitivity(1.0)
+driver.setBrakingSensitivity(0.5)
 
 
-vehicle.addComponent(chrono.Wheel(vehicle, 0, chrono.WheelType.FrontLeft))
-vehicle.addComponent(chrono.Wheel(vehicle, 1, chrono.WheelType.FrontRight))
-vehicle.addComponent(chrono.Wheel(vehicle, 2, chrono.WheelType.RearLeft))
-vehicle.addComponent(chrono.Wheel(vehicle, 3, chrono.WheelType.RearRight))
-
-
-vehicle.meshVisualization = True
-
-
-engine.setRenderMode(chrono.RenderMode.REALTIME)
-
-
-driver = chrono.Driver(vehicle)
-
-
-driver.setThrottle(0.5)
-driver.setBrake(0.0)
-
-
-dt = 0.01  
-fps = 60  
+chrono.setTimestep(0.01)
 
 
 engine.run()

@@ -1,6 +1,6 @@
-import chrono
-import chrono.irrlicht as chronoirr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 
 
 
@@ -11,58 +11,52 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
-system.SetStepTime(0.005)  
-system.SetMaxIterationSteps(50)
-
-
-
-
 
 
 terrain = chrono.ChRigidBody()
 terrain.SetBodyFixed(True)
 terrain.SetMass(0)
 terrain.SetCollide(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-
-
-terrain_shape = chrono.ChMesh()
-terrain_shape.SetFilename("terrain.obj")  
-terrain.AddAsset(terrain_shape)
+terrain.SetVisualizationType(chrono.ChVisualizationType.MESH)
+terrain.GetCollisionModel().ClearModel()
+terrain.GetCollisionModel().AddBox(chrono.ChVectorD(100, 1, 100))
 terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
 system.Add(terrain)
 
 
-
-
-
-
-vehicle = veh.ChHMMWV()
-
-
-vehicle.SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetTransform(chrono.ChQuaternionD(0, 0, 0))
-
-
-vehicle.SetContactMethod(veh.ChContactMethod.SMC)
-
-
-vehicle.SetTireModel(veh.ChTireModel.TMEASY)
-
-
-system.Add(vehicle)
+texture = chrono.ChTexture()
+texture.SetFilename("textures/terrain/grass.png")
+texture.SetRepeatX(10)
+texture.SetRepeatY(10)
+terrain.SetTexture(texture)
 
 
 
 
 
+hmmwv = veh.HMMWV()
 
-driver = veh.ChIrrAppDriver()
-driver.SetVehicle(vehicle)
-driver.SetLookAtPoint(chrono.ChVectorD(0, 1, -5))
-driver.SetChassisViewPoint(chrono.ChVectorD(0, 1.5, 0))
 
+hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
+hmmwv.SetTransform(chrono.ChQuaternionD(0, 0, 0))
+
+
+hmmwv.SetContactMethod(veh.ChContactMethod.SMC)
+
+
+hmmwv.SetTireModel(veh.ChTireModel.TMEASY)
+
+
+system.Add(hmmwv)
+
+
+
+
+driver = veh.ChIrrDriver(hmmwv)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
 
 
 
@@ -73,13 +67,13 @@ vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('HMMWV Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 1, -5))
+vis.AddCamera(chrono.ChVectorD(0, 10, -15))
 vis.AddTypicalLights()
 
 
 
 
-
+timestep = 1.0 / 50.0  
 
 while vis.Run():
     vis.BeginScene()
@@ -87,7 +81,7 @@ while vis.Run():
     vis.EndScene()
 
     
-    system.DoStepDynamics()
+    system.DoStepDynamics(timestep)
 
     
-    driver.Synchronize(system.GetChTime())
+    driver.Synchronize(timestep)

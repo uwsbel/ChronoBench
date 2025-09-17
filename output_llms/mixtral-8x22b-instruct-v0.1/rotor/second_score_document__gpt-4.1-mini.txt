@@ -4,22 +4,24 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly uses `chrono.ChSystemSMC()`. ✔️  
-- **Mesh and FEA Setup:** The mesh is created and added to the system. The beam section is defined with inertia and elasticity, and the beam is built using `ChBuilderBeamIGA`. ✔️  
-- **Body Creation:** The flywheel body is created using `ChBodyEasyCylinder` and added to the system. A fixed truss body is also created and added. ✔️  
-- **Joints and Motors:** Joints (`ChLinkMateFix`, `ChLinkMateGeneric`) and a motor (`ChLinkMotorRotationSpeed`) are created and initialized properly. ✔️  
-- **Visualization:** Visualization system is set up with Irrlicht, visual shapes for the mesh are added, and standard visualization elements (logo, skybox, camera, lights) are included. ✔️  
-- **Solver:** Pardiso MKL solver is set and assigned to the system. ✔️  
-- **Simulation Loop:** Present with visualization and time stepping. ✔️  
+- **System Initialization:** Present and correct (`chrono.ChSystemSMC()` used). No deduction.
+- **Mesh and FEA Setup:** The mesh is created and added to the system. Beam section properties are defined with inertia and elasticity. The beam is built using `ChBuilderBeamIGA`. This is complete.
+- **Gravity:** Gravity is set both via `mesh.SetAutomaticGravity(True, 2)` and `sys.SetGravitationalAcceleration(...)`. This is somewhat redundant but not incorrect. No deduction here.
+- **Body Creation:** The flywheel body is created using `ChBodyEasyCylinder` and added to the system. The truss is created and fixed. Both are added. Complete.
+- **Joints and Links:** The fixed joint between flywheel and beam node, bearing joint, and motor joint are created and added. Complete.
+- **Visualization:** Visualization system is set up with Irrlicht, visual shapes for the beam are added, and typical visualization elements (logo, skybox, camera, lights) are included. Complete.
+- **Solver:** Pardiso MKL solver is set and assigned. Present.
+- **Simulation Loop:** Present with visualization and dynamics stepping.
 
-**Minor omissions or deviations:**  
-- The gravitational acceleration is set twice: once via `mesh.SetAutomaticGravity(True, 2)` and again via `sys.SetGravitationalAcceleration(...)`. This is redundant and may cause confusion. Minor deduction.  
-- The constant `CH_PI` is manually defined as `3.1456` instead of using `math.pi` or `chrono.CH_C_PI`. This is a minor deviation from best practices.  
-- No explicit material properties (friction, damping) are assigned to bodies or contacts, but since this is an FEA beam simulation, it may be acceptable.  
-- No explicit collision models or collision enabling/disabling on bodies; however, this may be intentional since the beam is FEA and the flywheel is likely non-colliding.  
+**Minor omissions:**
 
-**Deductions:**  
-- 5 points for minor deviations (redundant gravity setting, manual pi definition).  
+- The constant `CH_PI` is defined as 3.1456 instead of using `math.pi` or `chrono.CH_C_PI` (which is available in PyChrono). This is a minor deviation from best practice.
+
+- The `mesh.SetAutomaticGravity(True, 2)` call uses `2` as the second argument, which is undocumented in the provided API doc and unclear in purpose. This might be a minor deviation or misuse.
+
+**Deductions:**
+
+- Minor omission for `CH_PI` definition and `SetAutomaticGravity` usage: **-5 points**
 
 **Completeness score:** 40 - 5 = **35**
 
@@ -27,120 +29,172 @@
 
 ### 2. Correctness (30 points)
 
-- **API usage correctness:**  
-  - `mesh.SetAutomaticGravity(True, 2)` is used, but the second argument is undocumented in the provided docs and unclear. The official API typically uses `SetAutomaticGravity(True)` without a second argument. This could be an incorrect or deprecated usage. Deduct 15 points for potentially incorrect API usage that could affect gravity application.  
-  - `myjoint.Initialize(node_mid, mbodyflywheel)` is called without a frame argument. According to the docs, `Initialize` for joints requires `(body1, body2, frame)`. This is a logical error and will likely cause runtime errors or incorrect joint behavior. Deduct 10 points.  
-  - `bearing.Initialize(...)` uses `chrono.ChFramed(...)`, but the docs specify `chrono.ChCoordsysD` (note the capital D). This may be a typo or incorrect class usage. Deduct 10 points for logical error.  
-  - `rotmotor1.SetMotorFunction(f_ramp)` is called, but the correct method per docs is `SetSpeedFunction`. Deduct 15 points for incorrect API usage that will prevent the motor from working as intended.  
-- **Other correctness points:**  
-  - The use of `m.floor(builder.GetLastBeamNodes().size() / 2.0)` is correct, but `size()` is a C++ method; in Python, it should be `len()`. This is a logical error that will cause runtime failure. Deduct 10 points.  
-  - The flywheel's coordinate system is set with `chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)`, which is acceptable.  
-  - The simulation loop calls `sys.DoStaticLinear()` before the dynamic stepping loop. This is acceptable but unusual; no deduction.  
+- **System and mesh setup:** Correct usage of `ChSystemSMC`, `ChMesh`, and beam section classes.
 
-**Deductions:**  
-- 15 (incorrect gravity API usage)  
-- 15 (incorrect motor function method)  
-- 10 (missing frame argument in joint initialization)  
-- 10 (incorrect `ChFramed` usage instead of `ChCoordsysD`)  
-- 10 (incorrect use of `.size()` instead of `len()`)  
+- **Inertia and elasticity:** The formulas for area and moments of inertia are correct for a hollow circular cross-section.
 
-Total deductions: 60 points, but max is 30, so cap at 30.
+- **Beam building:** `ChBuilderBeamIGA.BuildBeam` is used correctly with proper arguments.
 
-**Correctness score:** 30 - 30 = **0**
+- **Node indexing:** The middle node is correctly obtained using `m.floor` and `.size()` (though `.size()` is a C++ method; in Python, it should be `len()`). This is a **significant error** because `builder.GetLastBeamNodes()` returns a Python list, and `.size()` is not a valid method in Python. It should be `len(builder.GetLastBeamNodes())`. This will cause a runtime error.
+
+- **Flywheel body creation:** `ChBodyEasyCylinder` is called with `chrono.ChAxis_Y` as the first argument, but according to PyChrono API, `ChBodyEasyCylinder` constructor signature is:
+
+  ```python
+  ChBodyEasyCylinder(radius, height, density, visualize=True, collision=True, material=None)
+  ```
+
+  The first argument should be radius, not an axis. The code passes `chrono.ChAxis_Y` (an enum or vector) as the first argument, which is incorrect.
+
+  This is a **major API misuse** that will cause the flywheel body to be incorrectly created or cause an error.
+
+- **Joint initialization:**
+
+  - `ChLinkMateFix` is initialized with `(node_mid, mbodyflywheel)`. According to the API, `Initialize(body1, body2)` expects two `ChBody` objects, but `node_mid` is a beam node (likely a `ChNodeFEAxyzrot`), not a `ChBody`. This is a **logical error**.
+
+  - Similarly, the bearing joint is initialized with `builder.GetLastBeamNodes().back()` (again, `.back()` is a C++ method, not Python; should be `[-1]`) and `truss`. The first argument is a node, not a body. This is incorrect.
+
+  - The motor joint is initialized with `builder.GetLastBeamNodes().front()` (again, `.front()` is C++ style; in Python, it should be `[0]`) and `truss`. Same issue.
+
+- **Motor function:** `rotmotor1.SetMotorFunction(f_ramp)` is called, but the API uses `SetSpeedFunction()`. This is a **minor API misuse**.
+
+- **Visualization:** No major correctness issues.
+
+- **Simulation loop:** Correct.
+
+**Deductions:**
+
+- Incorrect use of `.size()`, `.back()`, `.front()` on Python lists: **-10 points** (logical error)
+
+- Incorrect arguments to `ChBodyEasyCylinder`: **-15 points** (major API misuse)
+
+- Incorrect joint initialization with nodes instead of bodies: **-15 points** (major logical error)
+
+- Use of `SetMotorFunction` instead of `SetSpeedFunction`: **-5 points** (minor API misuse)
+
+**Correctness score:** 30 - (10 + 15 + 15 + 5) = 30 - 45 = **0** (minimum 0)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Variable names are mostly meaningful (`mesh`, `msection`, `builder`, `mbodyflywheel`, `myjoint`, etc.).  
-- Formatting is acceptable but inconsistent spacing (e.g., semicolons at line ends, inconsistent blank lines).  
-- Lack of comments explaining key steps or rationale.  
-- Use of `CH_PI` instead of `math.pi` or `chrono.CH_C_PI` is a minor style issue.  
-- Imports alias `math` as `m` but then uses `m.floor` only once; could use `math` directly or `from math import floor`.  
-- Some lines are long and could be broken for readability.  
+- Variable names are mostly meaningful (`mesh`, `msection`, `builder`, `mbodyflywheel`, `myjoint`, `rotmotor1`).
 
-**Deductions:**  
-- 5 points for insufficient comments and minor style issues.  
-- 3 points for inconsistent formatting and minor readability issues.  
+- The code lacks comments explaining the purpose of sections or variables.
 
-**Code Quality score:** 10 - 8 = **2**
+- Formatting is inconsistent: e.g., inconsistent indentation in some places, inconsistent spacing around operators.
+
+- Use of magic numbers (e.g., `2` in `SetAutomaticGravity(True, 2)`), and redefining `CH_PI` instead of using standard constants.
+
+- Imports alias `math` as `m` but then uses `m.floor` only once; better to use `import math` or `from math import floor`.
+
+- Some lines are unnecessarily long or split oddly.
+
+**Deductions:**
+
+- Lack of comments: **-5 points**
+
+- Minor readability and formatting issues: **-3 points**
+
+**Code Quality score:** 10 - 5 - 3 = **2**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- Redundant gravity setting (both automatic gravity on mesh and system gravity set).  
-- Manual calculation of pi instead of using built-in constants.  
-- Using `pow()` instead of `**` operator for powers; `**` is more Pythonic and efficient.  
-- The loop calls `sys.DoStaticLinear()` once before dynamic stepping, which may be unnecessary if the simulation is dynamic.  
-- No obvious heavy inefficiencies or redundant calculations inside the simulation loop.  
+- The code recalculates the same expressions multiple times, e.g., `(pow(beam_ro, 4) - pow(beam_ri, 4))` is computed repeatedly instead of storing in a variable.
 
-**Deductions:**  
-- 5 points for redundant gravity setting and manual pi.  
-- 3 points for using `pow()` instead of `**`.  
+- The gravity is set twice: once via `mesh.SetAutomaticGravity(True, 2)` and again via `sys.SetGravitationalAcceleration(...)`. This is redundant.
 
-**Efficiency score:** 10 - 8 = **2**
+- Use of `pow()` instead of `**` is less Pythonic but not inefficient.
+
+- The simulation loop uses a fixed time step of 0.002 without explanation; no adaptive stepping or performance considerations.
+
+**Deductions:**
+
+- Redundant gravity setting: **-5 points**
+
+- Minor inefficiency in repeated calculations: **-3 points**
+
+**Efficiency score:** 10 - 5 - 3 = **2**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No try-except blocks or error handling.  
-- No checks for node list size before accessing middle node.  
-- No validation of inputs or parameters.  
-- This is common in simulation scripts but still a best practice to include minimal error handling or assertions.  
+- No error handling or checks for invalid inputs.
 
-**Deductions:**  
-- 5 points for lack of any error handling or robustness checks.  
+- No try-except blocks or validation of node indices.
 
-**Error Handling score:** 0
+- No checks for empty node lists before accessing middle or end nodes.
+
+- No handling of possible failures in visualization initialization.
+
+**Deductions:**
+
+- Lack of basic error handling: **-5 points**
+
+- No edge case handling: **-3 points**
+
+**Error Handling score:** 0 (minimum 0)
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly initialized and attached.  
-- Window size and title are set.  
-- Logo, skybox, camera, and typical lights are added.  
-- Visual shapes for the mesh are added with appropriate data types and glyphs.  
-- No obvious visualization misconfigurations.  
-- Minor: The camera position is fixed and may not optimally show the entire beam and flywheel, but this is subjective and minor.  
+- Visualization system is properly created and attached.
 
-**Deductions:**  
-- 0 points (no significant issues).  
+- Window size, title, logo, skybox, camera, and lights are set.
 
-**Visualization score:** 5
+- Visual shapes for the beam are added with appropriate data types and glyphs.
 
----
+- Minor issue: The camera is added with position `(0, 2, 8)` and target `(beam_L / 2, 0, 0)`, which is reasonable.
 
-### **Summary of Scores:**
+- No color or material settings for the flywheel or truss bodies, which might improve visualization.
 
-| Criterion                  | Max Points | Deductions | Score |
-|----------------------------|------------|------------|-------|
-| Completeness               | 40         | 5          | 35    |
-| Correctness                | 30         | 30 (capped)| 0     |
-| Code Quality               | 10         | 8          | 2     |
-| Efficiency                 | 10         | 8          | 2     |
-| Error Handling & Robustness| 5          | 5          | 0     |
-| Visualization             | 5          | 0          | 5     |
-| **Total**                 | **100**    | **56**     | **44**|
+- No explicit call to `vis.Run()` inside the loop condition is correct.
+
+**Deductions:**
+
+- Minor visualization issue: no colors or materials on bodies: **-2 points**
+
+**Visualization score:** 5 - 2 = **3**
 
 ---
 
-### **Final Score:**
+### **Summary of deductions:**
 
-[[44]]
+| Criterion                  | Points | Deduction | Score |
+|----------------------------|--------|-----------|-------|
+| Completeness               | 40     | 5         | 35    |
+| Correctness               | 30     | 30 (capped at 30) | 0     |
+| Code Quality              | 10     | 8         | 2     |
+| Efficiency                | 10     | 8         | 2     |
+| Error Handling & Robustness | 5      | 5         | 0     |
+| Visualization             | 5      | 2         | 3     |
+| **Total**                 | 100    | 58        | **42**|
 
 ---
 
-### **Explanation of Deductions:**
+### **Final score:**
 
-- The most severe issues are incorrect API usage that would cause runtime errors or incorrect simulation behavior, such as missing frame arguments in joint initialization, wrong method names (`SetMotorFunction` instead of `SetSpeedFunction`), and incorrect use of `.size()` instead of `len()`. These are critical and led to a full deduction in correctness.
+[[42]]
 
-- Minor but notable issues include redundant gravity settings, manual pi definition, and inefficient use of Python operators.
+---
 
-- Lack of comments and error handling reduce code quality and robustness scores.
+### **Explanation:**
 
-- Visualization is well done and follows best practices.
+The script includes all major components expected in a PyChrono simulation: system initialization, mesh and beam setup, bodies, joints, visualization, solver, and simulation loop. However, there are significant correctness issues, especially with the misuse of PyChrono API functions:
 
-- Overall, the script shows a good understanding of PyChrono concepts but contains critical errors that would prevent it from running correctly without fixes.
+- Using C++ style list methods (`.size()`, `.back()`, `.front()`) in Python, which will cause runtime errors.
+
+- Incorrect arguments to `ChBodyEasyCylinder`.
+
+- Incorrect joint initialization using beam nodes instead of bodies.
+
+- Minor API misuse in motor function setting.
+
+These errors are critical and would prevent the simulation from running correctly.
+
+Code quality is lowered by lack of comments and minor formatting issues. Efficiency suffers from redundant gravity settings and repeated calculations. There is no error handling or robustness checks. Visualization is mostly correct but could be improved with colors/materials.
+
+Overall, the script demonstrates a reasonable understanding of PyChrono but requires significant corrections to be functional and robust.

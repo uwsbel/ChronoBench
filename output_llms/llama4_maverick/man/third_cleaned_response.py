@@ -6,7 +6,8 @@ import numpy as np
 import math
 
 
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+chrono.SetChronoDataPath('./chrono_data/')
+veh.SetDataPath('./chrono_data/vehicle/')
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -93,42 +94,32 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = np.ceil(render_step_size / step_size).astype(int)
 
 
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.Add(patch)
+manager = sens.SensorManager(vehicle.GetSystem())
+manager.scene.AddSkyBox()
 
 
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),
-    10,
-    chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
-    100,
-    chrono.ChVector3d(0, 0, 0.5),
-    60,
-    -60,
-    100,
-    0.1,
-    200,
-    sens.ChLidarBeamShape_RECTANGULAR,
-    True,
-)
+lidar = sens.SensorLidar(vehicle.GetChassisBody(),  
+                         10,  
+                         chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
+                         100,  
+                         10,  
+                         chrono.CH_C_PI,  
+                         chrono.CH_C_PI / 4,  
+                         0.1,  
+                         100  
+                         )
 lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterLidarXYZ())
-lidar.PushFilter(sens.ChFilterLidarIntensity())
+lidar.PushFilter(sens.SensorFilterDIA())
 manager.AddSensor(lidar)
 
 
-np.random.seed(1)
-for _ in range(10):
-    x = np.random.uniform(-terrainLength / 2, terrainLength / 2)
-    y = np.random.uniform(-terrainWidth / 2, terrainWidth / 2)
-    z = 1
-    box_body = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, patch_mat)
-    box_body.SetPos(chrono.ChVector3d(x, y, z))
-    vehicle.GetSystem().AddBody(box_body)
-    manager.scene.Add(box_body)
+for i in range(10):
+    box_body = chrono.ChBodyEasyBox(1, 1, 1, 1, True, True)
+    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(0, 5)))
+    vehicle.GetSystem().Add(box_body)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

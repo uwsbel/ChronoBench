@@ -21,11 +21,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
-
-
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
@@ -40,7 +35,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -61,12 +56,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(
-    chrono.CSYSNORM, 
+    chrono.ChCoordsysd(),  
     veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-    "my_terrain", 
-    40, 40,   
-    -1, 1,    
-    0.02      
+    "field_mesh",  
+    40, 40,        
+    -1, 1          
 )
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 terrain.Initialize()
@@ -125,7 +119,7 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -140,17 +134,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-contact_method = chrono.ChContactMethod_NSC
-
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddPatch(
-       chrono.CSYSNORM, 
-       veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-       "my_terrain", 
-       40, 40,   
-       -1, 1,    
-       0.02      
-   )
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-   terrain.Initialize()

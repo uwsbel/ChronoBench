@@ -74,8 +74,10 @@ terrain.Initialize()
 
 box_shape = chrono.ChBoxShape()
 box_shape.SetDimensions(chrono.ChVector(0.5, 5, 0.2))
-box_body = chrono.ChBodyEasyBox(1, True, True, box_shape)
-box_body.SetPos(chrono.ChVector(5, 0, 0.1))
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+box_body.AddShape(box_shape)
+box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
+box_body.SetCollisionType(chrono.ChCollisionType.CS_RIGID)
 vehicle.GetSystem().AddBody(box_body)
 
 
@@ -100,10 +102,10 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-
-driver.SetThrottle(0.5)
-
 driver.Initialize()
+
+
+vehicle.SetThrottle(0.5)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

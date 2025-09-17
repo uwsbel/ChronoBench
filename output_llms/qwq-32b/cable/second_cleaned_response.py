@@ -24,14 +24,14 @@ class Model1:
             mesh,  
             msection_cable2,  
             10,  
-            chrono.ChVectorD(0, 0, -0.1),  
-            chrono.ChVectorD(0.5, 0, -0.1)  
+            chrono.ChVector3d(0, 0, -0.1),  
+            chrono.ChVector3d(0.5, 0, -0.1)  
         )
 
         
         
         front_node = builder.GetLastBeamNodes().front()
-        front_node.SetForce(chrono.ChVectorD(0, -0.7, 0))  
+        front_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
         
         mtruss = chrono.ChBody()
@@ -77,19 +77,18 @@ vis.SetWindowTitle('FEA cables')
 vis.Initialize()  
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
 vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVectorD(0, 0.6, -1))  
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  
 vis.AddTypicalLights()  
 
 
-solver = chrono.ChSolverMINRES()
+solver = chrono.ChSolverMINRES()  
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-solver.EnableWarmStart(True)
-solver.SetVerbose(False)
-
+solver.SetMaxIterations(200)  
+solver.SetTolerance(1e-10)  
+solver.EnableDiagonalPreconditioner(True)  
+solver.EnableWarmStart(True)  
+solver.SetVerbose(False)  
 sys.SetSolver(solver)
 
 

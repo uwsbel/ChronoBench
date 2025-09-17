@@ -1,134 +1,75 @@
 import chrono as ch
-import chrono.irrlicht as chirr
+import math
 
 
-ch.ChEngine.Initialize()
+ch.ChronoEnvironment.set_GEAR()
 
 
 system = ch.ChSystemNSC()
 
 
-system.SetGravitationalAcceleration(ch.ChVector3d(0, -9.81, 0))
+system.set_G_acc(0, -9.81, 0)
 
 
-ground = ch.ChBodyEasyTerrain(
-    "ground",
-    1000,  
-    1000,  
-    20,   
-    ch.ChVector3d(0, -10, 0),  
-    ch.ChQuaterniond(1, 0, 0, 0),  
-    False  
-)
-
-
+ground = ch.ChBodyEasyBodyBox(ch.ChFrame(ch.Vector(0, -1, 0), ch.Quaternion()),
+                               10, 0.1, 10,  // x, y, z dimensions
+                               1000,         // density
+                               True)         // fixed
+ground.SetPos(ch.Vector(0, -1, 0))
 system.AddBody(ground)
 
 
-class Turtlebot:
-    def __init__(self, name, pos, rot):
-        self.name = name
-        self.pos = pos
-        self.rot = rot
-        self.system = system
-
-        
-        self.chassis = ch.ChBodyEasyBox(
-            name + "_chassis",
-            0.5,  
-            0.3,  
-            0.2,  
-            1000,  
-            ch.ChVector3d(pos.x, pos.y, pos.z),  
-            ch.ChQuaterniond(rot.x, rot.y, rot.z, rot.w)  
-        )
-        self.chassis.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-        self.system.AddBody(self.chassis)
-
-        
-        self.left_wheel = ch.ChBodyEasyCylinder(
-            name + "_left_wheel",
-            0.1,  
-            0.05,  
-            1000,  
-            ch.ChVector3d(pos.x - 0.2, pos.y, pos.z - 0.1),  
-            ch.ChQuaterniond(rot.x, rot.y, rot.z, rot.w)  
-        )
-        self.left_wheel.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-        self.system.AddBody(self.left_wheel)
-
-        
-        self.right_wheel = ch.ChBodyEasyCylinder(
-            name + "_right_wheel",
-            0.1,  
-            0.05,  
-            1000,  
-            ch.ChVector3d(pos.x + 0.2, pos.y, pos.z - 0.1),  
-            ch.ChQuaterniond(rot.x, rot.y, rot.z, rot.w)  
-        )
-        self.right_wheel.SetInertiaXX(ch.ChVector3d(1, 1, 1))
-        self.system.AddBody(self.right_wheel)
-
-        
-        self.left_joint = ch.ChLinkLockRevolute()
-        self.left_joint.Initialize(self.chassis, self.left_wheel, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-        self.system.AddLink(self.left_joint)
-
-        self.right_joint = ch.ChLinkLockRevolute()
-        self.right_joint.Initialize(self.chassis, self.right_wheel, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-        self.system.AddLink(self.right_joint)
-
-        
-        self.left_motor = ch.ChLinkMotorRotationSpeed()
-        self.left_motor.Initialize(self.chassis, self.left_wheel, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-        self.system.AddLink(self.left_motor)
-
-        self.right_motor = ch.ChLinkMotorRotationSpeed()
-        self.right_motor.Initialize(self.chassis, self.right_wheel, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
-        self.system.AddLink(self.right_motor)
+Turtlebot = ch.ChBodyEasyBodyAssimp("models/Turtlebot.obj",
+                                     1,  // density
+                                     False)  // not fixed
+Turtlebot.SetPos(ch.Vector(0, 0.5, 0))
+Turtlebot.SetRot(ch.Quaternion(1, 0, 0, 0))  // Reset rotation
+system.AddBody(Turtlebot)
 
 
-turtlebot = Turtlebot("Turtlebot", ch.ChVector3d(0, 0, 0.5), ch.ChQuaterniond(1, 0, 0, 0))
+irrApp = ch.IrrlichtApplication(system)
+irrApp.SetTimestep(0.02)
+irrApp.SetRenderMode(ch.IrrlichtApplication.RM_TIRE)
 
 
-app = chirr.IrrlichtApplication(system, ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, -10, -10))
+irrApp.SetCameraPos(ch.Vector(0, 0, -5))
+irrApp.SetCameraTarget(ch.Vector(0, 0, 0))
 
 
-app.SetCameraPosition(ch.ChVector3d(0, -5, 5))
-app.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+irrApp.AddLight(ch.IrrlichtLight(0, 0, 10, ch.Vector(0, 0, 10), ch.Vector(1, 1, 1)))
 
 
-app.EnableSunLight()
+def Simulate():
+    time = 0
+    turn_time_left = 5
+    turn_time_right = 10
+    turn_duration = 2
+
+    left_motor = ch.ChMotorSimpleSpeed()
+    right_motor = ch.ChMotorSimpleSpeed()
+
+    left_motor.Initialize(Turtlebot.GetBodyPartDynamics(0), ground.GetBody(), ch.ChFrame(ch.Vector(-0.2, 0.4, 0), ch.Quaternion()))
+    right_motor.Initialize(Turtlebot.GetBodyPartDynamics(0), ground.GetBody(), ch.ChFrame(ch.Vector(0.2, 0.4, 0), ch.Quaternion()))
+
+    system.AddMotor(left_motor)
+    system.AddMotor(right_motor)
+
+    while irrApp.Run():
+        if time > turn_time_left and time <= turn_time_left + turn_duration:
+            left_motor.SetSpeed(-0.5)
+            right_motor.SetSpeed(0.5)
+        elif time > turn_time_right and time <= turn_time_right + turn_duration:
+            left_motor.SetSpeed(0.5)
+            right_motor.SetSpeed(-0.5)
+        else:
+            left_motor.SetSpeed(0)
+            right_motor.SetSpeed(0)
+
+        system.Update()
+        irrApp.Synchronize("", 0)
+        irrApp.Render()
+
+        time += irrApp.GetTimestep()
 
 
-time_step = 0.01
-t_end = 10.0
-t = 0
-
-while t < t_end:
-    
-    if t < 2:
-        turtlebot.left_motor.SetSpeed(ch.ChRadians(10))
-        turtlebot.right_motor.SetSpeed(ch.ChRadians(10))
-    elif t < 4:
-        turtlebot.left_motor.SetSpeed(ch.ChRadians(-10))
-        turtlebot.right_motor.SetSpeed(ch.ChRadians(10))
-    else:
-        turtlebot.left_motor.SetSpeed(ch.ChRadians(0))
-        turtlebot.right_motor.SetSpeed(ch.ChRadians(0))
-
-    
-    system.Update(time_step)
-
-    
-    app.Render()
-
-    
-    t += time_step
-
-    
-    if app.GetInputReceiver().IsKeyDown(irr.K_ESCAPE):
-        break
-
-
-app.Exit()
+Simulate()

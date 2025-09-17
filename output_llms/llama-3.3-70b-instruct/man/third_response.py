@@ -52,7 +52,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Initialize vehicle
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -88,6 +88,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -104,6 +105,31 @@ driver.Initialize()
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
+# Create sensor manager
+sensor_manager = sens.ChSensorManager()
+
+# Create lidar sensor
+lidar_sensor = sens.ChLidarSensor()
+lidar_sensor.SetName("LidarSensor")
+lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 2))
+lidar_sensor.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar_sensor.SetRange(10)
+lidar_sensor.SetFrequency(10)
+sensor_manager.AddSensor(lidar_sensor)
+
+# Create and add random boxes to the simulation
+np.random.seed(0)
+for _ in range(10):
+    box_mass = np.random.uniform(100, 500)
+    box_size = chrono.ChVector3d(np.random.uniform(1, 5), np.random.uniform(1, 5), np.random.uniform(1, 5))
+    box_position = chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(1, 5))
+    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), box_size, 1000, True)
+    box.SetMass(box_mass)
+    box.SetPos(box_position)
+    box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    box.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    vehicle.GetSystem().Add(box)
+
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
@@ -111,27 +137,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Create sensor manager
-sensor_manager = sens.ChSensorManager()
-
-# Create lidar sensor
-lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetName("LidarSensor")
-lidar_sensor.SetFrequency(10)
-lidar_sensor.SetRange(100)
-lidar_sensor.SetResolution(360)
-sensor_manager.AddSensor(lidar_sensor)
-
-# Add sensor to vehicle
-vehicle.AddSensor(sensor_manager)
-
-# Create and add random boxes to the simulation
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
-    box.SetMaterial(chrono.ChMaterialSurfaceNSC())
-    vehicle.GetSystem().Add(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -149,9 +154,7 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Update sensor manager
-    sensor_manager.Synchronize(time)
+    sensor_manager.Update(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

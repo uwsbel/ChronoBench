@@ -2,11 +2,12 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-def main():
-    
-    step_size = 2e-3
-    tire_step_size = 1e-3
 
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+step_size = 2e-3
+tire_step_size = 1e-3
+
+def main():
     
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
@@ -30,7 +31,6 @@ def main():
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    
     patch1_mat = chrono.ChContactMaterialNSC()
     patch1_mat.SetFriction(0.9)
     patch1_mat.SetRestitution(0.01)
@@ -80,7 +80,6 @@ def main():
     driver.SetBrakingDelta(0.06)
     driver.Initialize()
 
-    hmmwv.GetVehicle().GetSystem().SetSolverMaxIterations(100)
     hmmwv.GetVehicle().EnableRealtime(True)
 
     while vis.Run():
@@ -108,5 +107,4 @@ def main():
 
     return 0
 
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 main()

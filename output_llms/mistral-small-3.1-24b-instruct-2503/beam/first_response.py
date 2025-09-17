@@ -1,59 +1,54 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Initialize the Chrono::Engine system
-chrono.ChSystemNSC my_system
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono::Engine data directory
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('PyChrono Beam Elements Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+# Create the physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# Create a mesh with beam elements and nodes
+# Create a material for the beams
 beam_material = chrono.ChMaterialBeam()
-beam_material.SetYoungModulus(210e9)  # Young's modulus in Pascals
-beam_material.SetG(80e9)              # Shear modulus in Pascals
-beam_material.SetDensity(7800)        # Density in kg/m^3
+beam_material.SetYoungModulus(210e9)  # Young's modulus (steel)
+beam_material.SetDensity(7800)  # Density (steel)
+beam_material.SetDampingRatio(0.02)  # Damping ratio
 
-beam1 = chrono.ChBeamSectionCircular()
-beam1.SetRadius(0.01)  # Radius of the beam in meters
-beam1.SetMaterial(beam_material)
+# Create nodes for the beam elements
+nodes = []
+for i in range(5):
+    node = chrono.ChNodeFEMbeam()
+    node.SetFrame_COG_to_REF(chrono.ChFrameD(chrono.ChVectorD(0, i, 0)))
+    node.SetMaterial(beam_material)
+    node.SetBeamRadius(0.01)  # Beam radius
+    system.Add(node)
+    nodes.append(node)
 
-# Create nodes
-node1 = chrono.ChNodeFEAbeam()
-node1.SetPos(chrono.ChVectorD(0, 0, 0))
-my_system.Add(node1)
+# Create beam elements connecting the nodes
+for i in range(len(nodes) - 1):
+    beam = chrono.ChElementBeam()
+    beam.SetNodes(nodes[i], nodes[i + 1])
+    beam.SetLength(1)  # Length of each beam segment
+    beam.SetCrossArea(0.01)  # Cross-sectional area
+    beam.SetYoungModulus(210e9)  # Young's modulus
+    beam.SetDensity(7800)  # Density
+    system.Add(beam)
 
-node2 = chrono.ChNodeFEAbeam()
-node2.SetPos(chrono.ChVectorD(1, 0, 0))
-my_system.Add(node2)
+# Create an Irrlicht application for visualization
+application = chronoirr.ChIrrApp(system, 'Beam FEM Simulation', chrono.ChVectorD(0.2, 0.2, 0.9))
 
-# Create beam elements
-beam_element = chrono.ChElementBeam()
-beam_element.SetNodes(node1, node2)
-beam_element.SetBeamSection(beam1)
-beam_element.SetLength(1)  # Length of the beam in meters
-my_system.Add(beam_element)
-
-# Add visualization shapes
-vis_shape = chrono.ChVisualShapeSphere(0.02)
-vis_shape.GetMaterial().SetEmissivity(chrono.ChColorf(0.1, 0.1, 0.1))
-node1.AddVisualShape(vis_shape)
-
-vis_shape = chrono.ChVisualShapeSphere(0.02)
-vis_shape.GetMaterial().SetEmissivity(chrono.ChColorf(0.1, 0.1, 0.1))
-node2.AddVisualShape(vis_shape)
+# Add a floor to the scene
+floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True, chrono.ChMaterialSurfaceNSC())
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+system.Add(floor)
+application.AddVisualSystem(floor)
 
 # Run the simulation loop
-while vis.Run():
-    my_system.DoStepDynamics(0.01)  # Time step of 0.01 seconds
-    vis.Render()
+application.SetTimestep(0.01)  # Set the simulation timestep
+application.SetTryRealTime(True)  # Try to run in real-time
+application.SetWindowSize(800, 600)  # Set the window size
+application.SetShowInfoText(True)  # Show info text in the window
+application.SetShowStats(True)  # Show statistics in the window
 
-# Clean up
-vis.Close()
+application.Initialize()
+application.Run()

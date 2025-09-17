@@ -1,81 +1,83 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fem as fem
-import pychrono.solver as solver
-import pychrono.engine as engine
 
-# Create the system
+# Initialize the Chrono::Engine
+chrono.SetChronoDataPath('../data/')
+
+# Create a Chrono::Engine system
 system = chrono.ChSystemNSC()
-
-# Create the ground body
-ground = chrono.ChBody()
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetMass(1)
-system.AddBody(ground)
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 # Create the IGA beam
-beam_material = fem.ChContinuumMaterialElastic()
-beam_material.SetE(210e9)  # Young's modulus
-beam_material.Setv(0.3)    # Poisson's ratio
-
 beam = fem.ChElementBeamIGA()
-beam.SetMaterial(beam_material)
-beam.SetLength(1.0)  # Length of the beam
-beam.SetCrossSectionArea(0.01)  # Cross-sectional area
-beam.SetCrossSectionMoment(0.0001)  # Cross-sectional moment of inertia
+beam.SetN(10)  # Number of control points along the beam
+beam.SetP(3)   # Polynomial degree
 
+# Define the beam's material properties
+beam.SetYoungModulus(210e9)  # Young's modulus (Pa)
+beam.SetDensity(7800)        # Density (kg/m^3)
+beam.SetCrossArea(0.01)      # Cross-sectional area (m^2)
+beam.SetAsymmetry(0.5)       # Asymmetry factor (dimensionless)
+
+# Define the beam's geometry
+beam.SetLength(1.0)          # Length of the beam (m)
+
+# Add the beam to the system
 system.Add(beam)
 
-# Attach the beam to the ground at one end
-beam_fixed = chrono.ChLinkLock()
-beam_fixed.Initialize(ground, beam)
-system.AddLink(beam_fixed)
-
-# Create the flywheel
+# Create a flywheel and attach it to the center of the beam
 flywheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 1000, True, True)
 flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))  # Position at the center of the beam
-system.AddBody(flywheel)
+system.Add(flywheel)
 
-# Attach the flywheel to the beam
-flywheel_link = chrono.ChLinkLock()
-flywheel_link.Initialize(beam, flywheel)
-system.AddLink(flywheel_link)
+# Create a rotational motor to drive one end of the beam
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(beam.GetMarker('END'), flywheel.GetMarker('END'))
+motor.SetMotorFunction(chrono.ChFunction_Const(chrono.ChVectorD(10)))  # Constant speed of 10 rad/s
+system.Add(motor)
 
-# Create the rotational motor
-rotational_motor = chrono.ChLinkMotorRotationSpeed()
-rotational_motor.Initialize(ground, beam, chrono.ChFrameD(beam.GetFrame_REF_to_abs()))
-rotational_motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.ChVectorD(0, 0, 1)))  # Rotational speed around z-axis
-system.AddLink(rotational_motor)
+# Create an Irrlicht visualization
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle('Jeffcott Rotor Simulation')
+visualization.Initialize()
+visualization.AddLogo()
+visualization.AddSkyBox()
+visualization.AddTypicalLights()
+visualization.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
 
-# Create the Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Jeffcott Rotor Simulation')
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-
-# Add FEM visualization
-vis.AddElementFEMbeam(beam, 10, chrono.ChColor(1, 0, 0))
-vis.AddBodySystem(system)
+# Create FEM visualization
+fem_visualization = fem.ChVisualizationFEMmesh()
+fem_visualization.SetMeshType(fem.ChVisualizationFEMmesh.E_LESS_LINES)
+fem_visualization.SetSmoothFaces(True)
+fem_visualization.SetWireframe(True)
+fem_visualization.SetDrawContacts(True)
+fem_visualization.SetDrawBeams(True)
+fem_visualization.SetDrawElements(True)
+fem_visualization.SetDrawNodes(True)
+fem_visualization.SetColorScaleMin(0)
+fem_visualization.SetColorScaleMax(1)
+beam.AddVisualization(fem_visualization)
 
 # Run the simulation
-system.SetSolverType(solver.ChSolverMINRES())
-system.SetSolverWarmStarting(False)
-system.SetSolverMaxIterations(100)
-system.SetSolverTolerance(1e-10)
+system.SetSolverType(chrono.ChSolver.MINRES)
+system.SetMaxPenetrationRecoverySpeed(1.0)
+system.SetTimestepperType(chrono.ChTimestepper.HHT)
+system.SetLcpSolverType(chrono.ChSolver.PARDISO)
+system.SetMaxIterationsLcp(100)
+system.SetMaxPenetrationRecoverySpeed(0.1)
+system.SetLcpSolverMaxIterations(100)
 
-run_time = 10.0  # Total simulation time in seconds
-time_step = 0.01  # Time step size
+# Simulation parameters
+step_size = 0.01
+total_time = 10.0
 
-current_time = 0.0
-while current_time < run_time:
-    system.DoStepDynamics(time_step)
-    vis.Render()
-    current_time += time_step
+# Simulation loop
+while visualization.Run():
+    system.DoStepDynamics(step_size)
+    visualization.Render()
 
-# Close the visualization
-vis.Close()
+# Clean up
+visualization.Close()

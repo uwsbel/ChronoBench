@@ -13,8 +13,8 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 initLoc1 = chrono.ChVector3d(0, 0, 0.5)
 initRot1 = chrono.ChQuaterniond(1, 0, 0, 0)
 
-initLoc2 = chrono.ChVector3d(10, 0, 0.5)
-initRot2 = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc2 = chrono.ChVector3d(10, 0, 0.5)  
+initRot2 = chrono.ChQuaterniond(1, 0, 0, 0)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -84,9 +84,9 @@ vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle1.GetSystem())
+terrain = veh.RigidTerrain(vehicle1.GetSystem())  
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -100,7 +100,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle1.GetVehicle())
-vis.AttachVehicle(vehicle2.GetVehicle())
+vis.AttachVehicle(vehicle2.GetVehicle())  
 
 
 driver1 = veh.ChInteractiveDriverIRR(vis)
@@ -110,17 +110,16 @@ driver2 = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
-
 driver1.SetSteeringDelta(render_step_size / steering_time)
 driver1.SetThrottleDelta(render_step_size / throttle_time)
 driver1.SetBrakingDelta(render_step_size / braking_time)
+driver1.Initialize()
 
 driver2.SetSteeringDelta(render_step_size / steering_time)
 driver2.SetThrottleDelta(render_step_size / throttle_time)
 driver2.SetBrakingDelta(render_step_size / braking_time)
-
-driver1.Initialize()
 driver2.Initialize()
+
 
 
 
@@ -158,19 +157,22 @@ while vis.Run():
 
     
     driver1.Synchronize(time)
-    driver2.Synchronize(time)
     terrain.Synchronize(time)
     vehicle1.Synchronize(time, driver_inputs1, terrain)
-    vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs1)
+
+    driver2.Synchronize(time)
+    vehicle2.Synchronize(time, driver_inputs2, terrain)
+    vis.Synchronize(time, driver_inputs2)
 
     
     driver1.Advance(step_size)
-    driver2.Advance(step_size)
     terrain.Advance(step_size)
     vehicle1.Advance(step_size)
-    vehicle2.Advance(step_size)
     vis.Advance(step_size)
+
+    driver2.Advance(step_size)
+    vehicle2.Advance(step_size)
 
     
     step_number += 1

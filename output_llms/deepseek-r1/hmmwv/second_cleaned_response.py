@@ -7,13 +7,14 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
+terrainHeight = 0      
 terrainLength = 200.0  
-terrainWidth = 100.0
-terrainHeight = 0
+terrainWidth = 100.0   
 
 
-radius = 20.0  
-initLoc = chrono.ChVector3d(radius, 0, 0.5)  
+path_radius = 20.0
+path_center = chrono.ChVector3d(0, 0, 0.5)
+initLoc = chrono.ChVector3d(path_radius, 0, 0.5)  
 initRot = chrono.Q_from_AngZ(math.pi/2)  
 
 
@@ -27,8 +28,12 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
+
+
 step_size = 1e-3
 tire_step_size = step_size
+
+
 render_step_size = 1.0 / 50  
 
 
@@ -41,12 +46,12 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -62,7 +67,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Path Following Demo')
+vis.SetWindowTitle('HMMWV Circular Path Following')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -72,41 +77,54 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_points = []
-for i in range(10):
-    angle = 2 * math.pi * i / 9
-    x = radius * math.cos(angle)
-    y = radius * math.sin(angle)
-    path_points.append(chrono.ChVector3d(x, y, 0.5))
-path = chrono.ChBezierCurve(path_points, True)  
+npoints = 50
+points = []
+for i in range(npoints):
+    angle = i * 2 * math.pi / (npoints - 1)
+    x = path_center.x + path_radius * math.cos(angle)
+    y = path_center.y + path_radius * math.sin(angle)
+    points.append(chrono.ChVector3d(x, y, path_center.z))
+path = chrono.ChBezierCurve(points)
 
 
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "my_path", 0, 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)  
-driver.GetSpeedController().SetGains(0.4, 0, 0)     
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "circular_path", 0.0, 10.0)
+driver.GetSteeringController().SetGains(0.5, 0.0, 0.0)  
 driver.Initialize()
 
 
+ball_radius = 0.5
+ball1 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball1.SetPos(chrono.ChVector3d(path_radius, 0, path_center.z))
+ball1.SetFixed(True)
+ball1.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))  
+vehicle.GetSystem().Add(ball1)
 
-sphere_target = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sphere_target.SetPos(driver.GetSteeringController().GetTargetPoint())
-sphere_target.SetBodyFixed(True)
-sphere_target.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))
-vehicle.GetSystem().Add(sphere_target)
+ball2 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball2.SetPos(chrono.ChVector3d(0, path_radius, path_center.z))
+ball2.SetFixed(True)
+ball2.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))  
+vehicle.GetSystem().Add(ball2)
 
 
-sphere_sentinel = chrono.ChBodyEasySphere(0.5, 1000, True, True)
-sphere_sentinel.SetPos(driver.GetSteeringController().GetSentinelPoint())
-sphere_sentinel.SetBodyFixed(True)
-sphere_sentinel.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0))
-vehicle.GetSystem().Add(sphere_sentinel)
+sentinel_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+sentinel_ball.SetPos(path_center)
+sentinel_ball.SetFixed(True)
+sentinel_ball.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  
+vehicle.GetSystem().Add(sentinel_ball)
+
+target_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+target_ball.SetPos(path_center)
+target_ball.SetFixed(True)
+target_ball.GetVisualShape(0).SetColor(chrono.ChColor(1, 1, 0))  
+vehicle.GetSystem().Add(target_ball)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -122,19 +140,20 @@ while vis.Run():
         render_frame += 1
 
     
+    driver.Synchronize(time)
     driver_inputs = driver.GetInputs()
     driver_inputs.m_throttle = 0.3  
-    driver_inputs.m_braking = 0.0   
+    
+    
+    sentinel = driver.GetSteeringController().GetSentinelLocation()
+    target = driver.GetSteeringController().GetTargetLocation()
+    sentinel_ball.SetPos(sentinel)
+    target_ball.SetPos(target)
 
     
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    sphere_target.SetPos(driver.GetSteeringController().GetTargetPoint())
-    sphere_sentinel.SetPos(driver.GetSteeringController().GetSentinelPoint())
 
     
     driver.Advance(step_size)
@@ -144,4 +163,6 @@ while vis.Run():
 
     
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

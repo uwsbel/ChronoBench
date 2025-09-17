@@ -20,10 +20,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 200.0  
-terrainWidth = 200.0   
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -38,7 +37,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.HMMWV_Full() 
@@ -83,12 +81,13 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-driver = veh.ChInteractiveDriverIRR(vis)
+driver = veh.ChPathFollowerDriverIRR(vis)  
 
 
 steering_time = 1.0  
-throttle_time = 1.0  
+throttle_time = 0.3  
 braking_time = 0.3   
+
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -136,9 +135,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-
-sentinel_point = chrono.ChVector3d(0, 0, 0)
-target_point = chrono.ChVector3d(0, 0, 0)
-vis.AddSphere(sentinel_point, 0.2, chrono.ChColor(1, 0, 0))
-vis.AddSphere(target_point, 0.2, chrono.ChColor(0, 1, 0))

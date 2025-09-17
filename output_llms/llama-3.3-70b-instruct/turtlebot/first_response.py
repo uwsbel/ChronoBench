@@ -9,48 +9,54 @@ sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChMaterialSurfaceNSC())
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
-sys.Add(ground)
 
 # Initialize the Turtlebot with a specific position and orientation
-turtlebot = veh.TurtleBot(sys, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-sys.Add(turtlebot)
+turtlebot = veh.TurtleBot()
+turtlebot.SetChassisPos(chrono.ChVectorD(0, 1, 0))
+turtlebot.SetChassisRot(chrono.Q_from_AngX(0))
+
+# Add the Turtlebot to the system
+sys.Add(turtlebot.GetChassisBody())
+sys.Add(ground)
 
 # Create a real-time visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), 35)
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddCamera(chrono.ChVectorD(0, 5, 10))
+vis.AddTypicalLights()
+
+# Set the visualization window title and size
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle("Turtlebot Simulation")
-vis.AddTypicalCameraMovements()
 
-# Set the simulation time step and duration
-time_step = 0.01
-duration = 10
-
-# Simulation loop
+# Implement a simulation loop where the Turtlebot's motors control left and right turns at specified times
 time = 0
-while time < duration:
+dt = 0.01
+while time < 10:
     # Update the simulation
-    sys.DoStepDynamics(time_step)
+    sys.DoStepDynamics(dt)
 
     # Control the Turtlebot's motors
     if time < 2:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(10, 10))
+        turtlebot.SetMotorTorque(10, 10)
     elif time < 4:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(-10, 10))
+        turtlebot.SetMotorTorque(-10, 10)
     elif time < 6:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(10, -10))
+        turtlebot.SetMotorTorque(10, -10)
     else:
-        turtlebot.SetMotorTorque(chrono.ChVectorD(0, 0))
+        turtlebot.SetMotorTorque(0, 0)
 
-    # Render the scene
+    # Render the simulation
     vis.DrawAll()
+    vis.EndDraw()
 
-    # Increment the simulation time
-    time += time_step
+    # Update the time
+    time += dt
 
-    # Render the scene at 60 Hz
-    chronoirr.ChSleep(1 / 60)
+    # Wait for the next frame
+    chrono.ChSleep(0.01)

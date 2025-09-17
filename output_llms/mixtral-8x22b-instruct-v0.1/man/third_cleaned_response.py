@@ -67,7 +67,7 @@ sensor_manager = sen.ChSensorManager()
 
 lidar_sensor = sen.ChLidarSensor(vehicle.GetVehicle(), 50, 0.001, 0.01, 0.001, 0.01, 0.001, 0.01)
 lidar_sensor.SetName("Lidar")
-lidar_sensor.SetUpdateRate(100)
+lidar_sensor.SetUpdateRate(1 / render_step_size)
 
 
 sensor_manager.AddSensor(lidar_sensor)
@@ -137,15 +137,14 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    sensor_manager.Update()
+    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1

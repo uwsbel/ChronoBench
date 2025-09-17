@@ -75,20 +75,22 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a c
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Run the interactive simulation loop
-time_step = 0
-while vis.Run() and time_step < 20:
+t = 0
+while vis.Run() and t < 20:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
-    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
     
     # Collect data during simulation
-    time_step += 1
-    array_time.append(time_step * 1e-3)
-    array_angle.append(mcrank.GetRot().GetAngleX())
-    array_pos.append(mcrank.GetPos().x)
-    array_speed.append(mcrank.GetAngularVel().x)
+    array_time.append(t)
+    array_angle.append(mcrank.GetAngle())
+    array_pos.append(mcrank.GetPos().y)
+    array_speed.append(mcrank.GetSpeed())
+    
+    # Advance the simulation by a time step of 0.001 seconds (1 ms)
+    sys.DoStepDynamics(1e-3)
+    t += 1e-3
 
 # Matplotlib plotting
 plt.figure(figsize=(10, 5))
@@ -98,14 +100,16 @@ plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.title('Position vs. Crank Angle')
-plt.xticks(np.linspace(0, 2 * np.pi, 5))
+plt.xticks(np.linspace(0, 2*np.pi, 5))
+plt.grid(True)
 
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Speed [m/s]')
 plt.title('Speed vs. Crank Angle')
-plt.xticks(np.linspace(0, 2 * np.pi, 5))
+plt.xticks(np.linspace(0, 2*np.pi, 5))
+plt.grid(True)
 
 plt.tight_layout()
 plt.show()

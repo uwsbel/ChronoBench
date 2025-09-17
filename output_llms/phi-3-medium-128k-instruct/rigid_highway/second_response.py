@@ -154,15 +154,56 @@ while vis.Run() :
     bump_vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/textures/dirt.jpg"))
     bump_vis_shape = chrono.ChVisualShapeTriangleMesh()
     bump_vis_shape.SetMesh(bump_vis_mesh)
-    bump_vis_shape.SetColor(chrono.ChVector3d(0.5, 0.5, 0.8))
+    bump_vis_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+    bump_vis_shape.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
     bump_vis_shape.SetScale(chrono.ChVector3d(6.0, 6.0, 1.0))
     bump_patch = terrain.AddPatch(patch_mat, 
         chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
-        bump_vis_shape, False, 0.01, True)
-    bump_patch.GetGroundBody().AddVisualShape(bump_vis_shape)
+        bump_vis_shape, True, 0.01, False)
+    terrain.Initialize()
 
-    # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    vehicle.Advance(step_size)
-    vis.Advance(step_size)
+    # ---------------
+    # Simulation loop
+    # ---------------
+
+    # output vehicle mass
+    print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+    # Number of simulation steps between miscellaneous events
+    render_steps = math.ceil(render_step_size / step_size)
+
+    # Initialize simulation frame counter s
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    step_number = 0
+    render_frame = 0
+
+    while vis.Run() :
+        time = vehicle.GetSystem().GetChTime()
+
+        # Render scene and output POV-Ray data
+        if (step_number % render_steps == 0) :
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
+            render_frame += 1
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        vehicle.Advance(step_size)
+        vis.Advance(step_size)
+
+        # Increment frame number
+        step_number += 1
+
+        # Spin in place for real time to catch up
+        realtime_timer.Spin(step_size)

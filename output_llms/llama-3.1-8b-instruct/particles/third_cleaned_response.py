@@ -28,18 +28,6 @@ msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/conc
 sys.Add(msphereBody)
 
 
-msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetPos_dt(chrono.ChVector3d(0.5, 0, 0.1))
-sys.Add(msphereBody2)
-
-
-msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
-msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))
-sys.Add(msphereBody3)
-
-
 emitter = chrono.ChParticleEmitter()
 emitter.SetParticlesPerSecond(2000)
 emitter.SetUseParticleReservoir(True)
@@ -83,6 +71,21 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+
+
+mbody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+mbody2.SetPos(chrono.ChVector3d(-10, -10, 0))
+mbody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(mbody2)
+
+mbody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+mbody3.SetPos(chrono.ChVector3d(0, 20, 0))
+mbody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(mbody3)
+
+
+mbody2.SetPos_dt(chrono.ChVector3d(-0.5, 0, -0.1))
+mbody3.SetPos_dt(chrono.ChVector3d(0, -0.5, 0.2))
 
 
 stepsize = 1e-2

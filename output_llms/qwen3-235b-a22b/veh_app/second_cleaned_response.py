@@ -96,38 +96,34 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 
-box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box_body.SetBodyFixed(True)
-box_body.SetCollide(True)
-box_body.GetCollisionModel().ClearModel()
-box_body.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  
-box_body.GetCollisionModel().BuildModel()
-box_vis = chrono.ChVisualShapeBox(1, 1, 1)
+
+
+box = chrono.ChBody()
+box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetFixed(True)
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  
+box.GetCollisionModel().BuildModel()
+box.SetCollide(True)
+gator.GetSystem().Add(box)
+box_vis = chrono.ChVisualShape()
 box_vis.SetColor(chrono.ChColor(0, 0, 1))  
-box_body.AddVisualShape(box_vis)
-gator.GetSystem().Add(box_body)
+box.AddVisualShape(box_vis)
 
 
-cyl_body = chrono.ChBody()
-cyl_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cyl_body.SetBodyFixed(True)
-cyl_body.SetCollide(True)
-cyl_body.GetCollisionModel().ClearModel()
-cyl_body.GetCollisionModel().AddCylinder(0.5, 0.5, 0.5)  
 
-cyl_body.GetCollisionModel().AddCylinder(0.5, 0.5, 0.5)  
 
-cyl_body.GetCollisionModel().ClearModel()
-cyl_collision = chrono.ChCollisionShape(chrono.ChCollisionShape_Cylinder, 0.5, 0.5)  
-cyl_body.GetCollisionModel().AddShape(cyl_collision)
-cyl_body.GetCollisionModel().BuildModel()
-cyl_vis = chrono.ChVisualShapeCylinder(0.5, 1)
+cyl = chrono.ChBody()
+cyl.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cyl.SetFixed(True)
+cyl.GetCollisionModel().ClearModel()
+cyl.GetCollisionModel().AddCylinder(0.5, 0.5)  
+cyl.GetCollisionModel().BuildModel()
+cyl.SetCollide(True)
+gator.GetSystem().Add(cyl)
+cyl_vis = chrono.ChVisualShape()
 cyl_vis.SetColor(chrono.ChColor(0, 0, 1))  
-
-cyl_body.SetRot(chrono.ChQuaterniond(chrono.Q_from_AngAxis(chrono.CH_PI_2, chrono.ChVector3d(1, 0, 0))))
-cyl_body.AddVisualShape(cyl_vis)
-gator.GetSystem().Add(cyl_body)
+cyl.AddVisualShape(cyl_vis)
 
 
 driver = veh.ChDriver(gator.GetVehicle())
@@ -156,27 +152,29 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-offset_pose_lidar = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))  
+
+
+offset_pose_lidar = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
     offset_pose_lidar,
-    800,
-    300,
+    800,          
+    300,          
     2 * chrono.CH_PI,  
-    chrono.CH_PI / 12,  
-    -chrono.CH_PI / 6,  
-    100.0,  
-    sens.LidarBeamShape_RECTANGULAR,
-    2,  
-    0.003,  
-    sens.LidarReturnMode_STRONGEST_RETURN
+    chrono.CH_PI / 12, 
+    -chrono.CH_PI / 6, 
+    100.0,        
+    sens.LidarBeamShape_RECTANGLE,
+    2,            
+    0.003,        
+    sens.LidarReturnMode_STRONGEST
 )
 lidar.SetName("Lidar Sensor")
 lidar.PushFilter(sens.ChFilterD())  
-lidar.PushFilter(sens.ChFilterIntensity())  
+lidar.PushFilter(sens.ChFilterI())  
 lidar.PushFilter(sens.ChFilterXYZI())  
-lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Visualization"))  
+lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
 manager.AddSensor(lidar)
 
 
@@ -184,8 +182,7 @@ manager.AddSensor(lidar)
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
-while time < end_time:
+while time < tend:  
     time = gator.GetSystem().GetChTime()
     
     driver.SetSteering(0.5)
@@ -197,7 +194,6 @@ while time < end_time:
     driver.Synchronize(time)
     terrain.Synchronize(time)
     gator.Synchronize(time, driver_inputs, terrain)
-
     manager.Update()
 
     

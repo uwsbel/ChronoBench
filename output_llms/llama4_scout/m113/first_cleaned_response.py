@@ -1,58 +1,49 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
+import chrono.vehicle as chvehicle
 
 
-ch.CH_Environment().Set_G_acc(ch.ChVector3d(0, 0, -9.81))
+ch.ChEngine.Initialize()
 
 
-vehicle = ch.ChVehicle()
+vehicle = chvehicle.ChM113()
 
 
-chassis = ch.ChBody()
-chassis.SetName('chassis')
-chassis.SetPos(ch.ChVector3d(0, 0, 1))
-vehicle.SetChassis(chassis)
+vehicle.SetPos(ch.ChVector3d(0, 0, 1.1))
+vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
 
 
-
-
-
-terrain = ch.ChTerrain()
-terrain.SetName('terrain')
+terrain = chvehicle.ChTerrainRigid()
 terrain.SetFrictionCoefficient(0.8)
 terrain.SetRestitutionCoefficient(0.3)
-terrain.SetDimensions(100, 100)
+terrain.SetPlane(ch.ChPlane(0, 0, 1, 0))
 
 
-driver = ch.ChDriver()
-driver.SetVehicle(vehicle)
-driver.SetMode(ch.DriverMode_Autonomous())
+terrain.SetSize(ch.ChVector3d(100, 100, 0))
 
 
-vis = irr.ChVisualSystemIrrlicht()
+driver = chvehicle.ChDriver(vehicle)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
+
+
+vis = chirr.ChVisualSystemIrrlicht()
 vis.AttachVehicle(vehicle)
-vis.SetCameraVerticalDir(ch.ChVector3d(0, 0, 1))
-vis.SetCameraPos(ch.ChVector3d(0, -10, 5))
-vis.EnableStatsDisplay()
-vis.EnableRealTime(False)
+vis.SetCameraVerticalDir(ch.ChVector3d(0, 0, -1))
+vis.SetCameraPos(ch.ChVector3d(0, -10, 1))
+vis.EnableDirectionalLights()
 
 
-vis.SetLight(0, ch.ChVector3d(10, 10, 10), ch.ChColor(1, 1, 1), True)
-
-
-step_size = 0.01
-end_time = 10.0
-
-
-while vis.GetChTime() < end_time:
+while vis.Run() and not vis.ExitRequested():
     
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
-    driver.Advance(step_size)
+    vehicle.Synchronize(vis.GetChTimeStep())
+    terrain.Synchronize(vis.GetChTimeStep())
+    driver.Synchronize(vis.GetChTimeStep())
+
     
+    vehicle.Advance(vis.GetChTimeStep())
+    terrain.Advance(vis.GetChTimeStep())
+    driver.Advance(vis.GetChTimeStep())
+
     
-    vis.Synchronize('', vehicle.GetChTime())
     vis.Render()
-
-    
-    vis.SpinEventLoop()

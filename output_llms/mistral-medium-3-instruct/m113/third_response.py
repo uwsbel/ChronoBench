@@ -6,7 +6,7 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation - changed to (-5, 0, 0.5)
+# Initial vehicle location and orientation (changed from (0, 0, 1.1) to (-5, 0, 0.5))
 initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
@@ -70,23 +70,18 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create a long box obstacle to test vehicle mobility
+# Add a long box to test vehicle mobility
 box_body = chrono.ChBody()
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.25))
-box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box_body.SetRot(chrono.QUNIT)
 box_body.SetBodyFixed(True)
-
-box_geometry = chrono.ChBoxShape()
-box_geometry.GetBoxGeometry().SetLengths(chrono.ChVector3d(10, 2, 0.5))  # Long box dimensions
-box_body.AddVisualShape(box_geometry)
-
-box_mat = chrono.ChContactMaterialSMC()
-box_mat.SetFriction(0.9)
-box_mat.SetRestitution(0.01)
-box_body.GetCollisionModel().AddBox(box_mat, 5, 1, 0.25)  # Slightly smaller collision box
+box_body.GetCollisionModel().ClearModel()
+box_body.GetCollisionModel().AddBox(5, 0.5, 0.5)
 box_body.GetCollisionModel().BuildModel()
-
-vehicle.GetSystem().AddBody(box_body)
+box_body.GetVisualModel().ClearModel()
+box_body.GetVisualModel().AddBox(5, 0.5, 0.5)
+box_body.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+vehicle.GetSystem().Add(box_body)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -138,7 +133,7 @@ while vis.Run():
 
     # Get driver inputs and hard-code throttle to 0.8
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = 0.8  # Hard-coded throttle value
+    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

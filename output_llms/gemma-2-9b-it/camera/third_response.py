@@ -15,12 +15,11 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box shape
-    side = 1.0  # Side length of the box
-    box_shape = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_shape.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
-    box_shape.SetTexture(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.png"))  # Set the texture of the box
-    mphysicalSystem.Add(box_shape)  # Add the box to the physical system
+    side = 1.0  # Define the side length of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create a box body
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
+    box_body.SetBodyFixed(True)  # Fix the box in space
+    mphysicalSystem.Add(box_body)  # Add the box to the physical system
 
     # -----------------------
     # Create a sensor manager
@@ -40,11 +39,11 @@ def main():
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
     # Define the camera offset pose relative to the box it is attached to
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box_shape,              # Body the camera is attached to
+        box_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
         offset_pose,            # Offset pose of the camera
         image_width,            # Image width in pixels
@@ -121,3 +120,6 @@ def main():
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
         # Update the sensor manager (render/save/filter data automatically)
+        manager.Update()
+
+        # Perform a step of dynamics simulation

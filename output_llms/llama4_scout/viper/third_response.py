@@ -15,26 +15,22 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
-terrain = veh.ChTerrain(system)
-terrain.Initialize(chrono.ChVector3d(0, 0, 0))  # plane origin
-terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  # plane equation
-terrain.SetLength(20)  # terrain length
-terrain.SetWidth(20)  # terrain width
+terrain = veh.ChTerrainSCM(system)
+terrain.Initialize(chrono.ChVector3d(0, 0, 0))  # plane in world coordinates
+terrain.SetPlane(chrono.ChVector3d(0, 0, 1), 0)  # z = 0 plane
+terrain.SetDimensions(20, 20)  # length and width
 terrain.SetMeshResolution(1)  # mesh resolution
-
-# SCM soil parameters
-soil = veh.ChSoilSCM()
-soil.SetFriction(0.9)  # friction coefficient
-soil.SetRestitution(0.3)  # restitution coefficient
-soil.SetDamping(0.5)  # damping coefficient
-soil.SetCohesion(1e4)  # cohesion
-soil.SetFrictionAngle(math.pi / 4)  # friction angle
-soil.SetDilationAngle(math.pi / 6)  # dilation angle
-soil.SetErodibility(0.01)  # erodibility
-
-terrain.SetSoil(soil)
+terrain.SetSoilParameters(
+    1e5,   # stiffness
+    0.3,   # damping
+    0.9,   # friction
+    1.0,   # cohesion
+    0.01,  # dilatancy
+    30     # internal friction angle (degrees)
+)
 
 system.Add(terrain.GetGroundBody())  # add terrain ground body to the system
+terrain.AddToSystem()
 
 # Create Viper rover
 rover = viper.Viper(system)  # Instantiate the Viper rover

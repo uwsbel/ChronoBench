@@ -1,69 +1,65 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as chronoirr
+import pychrono.postprocess as postprocess
+import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')  
+chrono.SetChronoDataPath('path_to_chrono_data')
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-terrain = veh.SCMDeformableTerrain(system)
-terrain.SetTerrainSize(chrono.ChVectorD(100, 100))
-terrain.SetTerrainResolution(chrono.ChVectorD(0.5, 0.5))
-terrain.SetTerrainHeightMap('path/to/heightmap.png')
-terrain.SetTerrainMaterialProperties(chrono.ChMaterialSurfaceSCM::SCM_MAT_SAND, 0.01, 0.001, 0.01, 0.1)
 
 
 vehicle = veh.HMMWV()
-vehicle.SetChassisBody(system)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
+vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType::MESH)
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetInitFwdVelocity(5)  
+vehicle.Initialize(system)
 
 
-driver = veh.ChDriver()
-driver.Initialize(vehicle.GetVehicle(), system)
-driver.SetSteeringController(veh.ChDriver::STEERING_CONTROLLER_SIMPLE)
-driver.SetSteeringControllerGain(1.0)
-driver.SetSteeringControllerTimeConst(0.5)
-driver.SetThrottleController(veh.ChDriver::THROTTLE_CONTROLLER_SIMPLE)
-driver.SetThrottleControllerGain(0.5)
-driver.SetThrottleControllerTimeConst(0.5)
-driver.SetBrakeController(veh.ChDriver::BRAKE_CONTROLLER_SIMPLE)
-driver.SetBrakeControllerGain(0.5)
-driver.SetBrakeControllerTimeConst(0.5)
+terrain = veh.SCMDeformableTerrain()
+terrain.SetSize(chrono.ChVectorD(100, 100))
+terrain.SetResolution(200, 200)
+terrain.SetMaterialProperties(2e6, 30, 0.4, 20, 10)
+terrain.SetContactMaterial(0.8, 0.2, 0.01, 0.01, 1.0, 1.0, 0.02)
+terrain.SetHeightFunction(lambda x, y: 0.0)  
+terrain.Initialize(system)
 
 
-visualization = chronoirr.ChIrrApp(system, 'HMMWV on SCM Terrain', chrono.ChVectorD(1024, 768))
+driver = veh.DriverHMMWV()
+driver.Initialize(vehicle, system)
+
+
+visualization = chronoirr.ChIrrApp(system, 'HMMWV on SCM Terrain', chronoirr.dimension2du(800, 600))
 visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_white.png'))
-visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 0.0, 1.0), chrono.ChVectorD(1.0, -1.0, 1.0), 1.0, 1.0, 50, 50, chrono.ChColor(1, 1, 1))
-visualization.SetSymbolScale(0.003)
-visualization.SetContactPointRadius(0.005)
-visualization.SetCameraVertical(chrono.ChVectorD(0, 0, 1))
-visualization.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+visualization.AddTypicalLogo(chrono.GetChronoDataPath() + 'logo_chrono_small.png')
+visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 0.0, 1.0),
+                                 chrono.ChVectorD(0.5, 0.5, 0.5),
+                                 1000,
+                                 10,
+                                 50,
+                                 50,
+                                 150,
+                                 512,
+                                 chronoirr.SColorf(1, 1, 1))
+visualization.SetSymbolScale(0.1)
+visualization.SetPaused(False)
+visualization.SetTimestep(0.01)
+visualization.SetTryRealTime(True)
 
 
-visualization.AddVisualSystem(vehicle.GetVehicle())
-visualization.AddVisualSystem(terrain)
+camera = visualization.GetSceneManager().addCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(10, -10, 5))
+camera.lookAt(chrono.ChVectorD(0, 0, 0))
 
 
-step_size = 0.01
-end_time = 10.0
-current_time = 0.0
-
-while current_time < end_time:
+while visualization.Run():
     visualization.BeginScene()
     visualization.Render()
-
-    system.DoStepDynamics(step_size)
-
-    current_time += step_size
-
     visualization.EndScene()
 
-    chrono.ChSystemNSC.Synchronize(system, chrono.GetChronoRealTime())
-
-visualization.Close()
+    
+    system.DoStepDynamics(visualization.GetTimestep())
+    driver.Synchronize(visualization.GetTimestep())
+    visualization.Synchronize('HMMWV', vehicle.GetChassisBody().GetPos())

@@ -84,24 +84,24 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 # Custom Driver Class
 class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay=0.0):
-        super().__init__(vehicle)
+    def __init__(self, system, delay=0.0):
+        super().__init__(system)
         self.delay = delay
-        self.start_time = 0
+        self.start_time = system.GetChTime()
 
     def Synchronize(self, time):
-        self.start_time = time
-
-        if time > self.delay:
-            throttle = 0.7 * (time - self.delay) / (2 - self.delay)
-            if throttle > 0.7:
-                throttle = 0.7
-            steering = 0.5 * math.sin(2 * math.pi * (time - 2))
-            self.SetThrottle(throttle)
-            self.SetSteering(steering)
+        if time - self.start_time >= self.delay:
+            if time - self.start_time >= 0.2:
+                self.SetThrottle(0.7)
+            else:
+                self.SetThrottle(0.0)
+            if time - self.start_time >= 2:
+                self.SetSteering(math.sin(time - self.start_time))
+            else:
+                self.SetSteering(0.0)
 
 # Initialize the custom driver
-driver = MyDriver(vehicle.GetVehicle(), delay=0.5)
+driver = MyDriver(vehicle.GetSystem(), delay=0.5)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -128,11 +128,14 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

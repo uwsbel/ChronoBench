@@ -47,8 +47,8 @@ application.SetWindowSize(1024, 768)
 application.SetWindowTitle('Beam Simulation')
 application.AddTypicalLights()
 application.AddSkyBox()
-application.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
-application.SetShowFPS(True)
+application.AddCamera(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0, 0, 0))
+application.AddCamera(chrono.ChVectorD(0, 10, 0), chrono.ChVectorD(0, 0, 0))
 
 # Simulation loop
 while application.Run():
@@ -56,8 +56,3 @@ while application.Run():
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    # Visualize the beam's deformation and nodal positions
-    for i in range(beam_num_elements):
-        node_pos = beam.GetNodePosition(i)
-        application.DrawSphere(chrono.ChVectorD(node_pos.x(), node_pos.y(), node_pos.z()), 0.1, chrono.ChVectorD(1, 0, 0))

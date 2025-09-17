@@ -82,19 +82,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
-driver = veh.ChDataDriver()
+# Create the data-driven driver system
+driver_inputs = veh.vector_Entry()
+driver_inputs.Add(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # throttle, steering, braking, time
+driver_inputs.Add(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))  # throttle, steering, braking, time
+driver_inputs.Add(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))  # throttle, steering, braking, time
 
-# Define a sequence of driver inputs
-driver_inputs = []
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
-driver_inputs.append(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))  # time, throttle, steering, braking
-driver_inputs.append(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))  # time, throttle, steering, braking
-
-# Set the driver inputs
-driver.SetInputs(driver_inputs)
-
-driver.Initialize()
+driver = veh.ChDataDriver(vis, driver_inputs)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

@@ -1,58 +1,49 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
+import chrono.vehicle as chvehicle
 
 # 1. Initialize the PyChrono environment and core components
-ch.CH_Environment().Set_G_acc(ch.ChVector3d(0, 0, -9.81))
+ch.ChEngine.Initialize()
 
 # 2. Create the M113 vehicle
-vehicle = ch.ChVehicle()
+vehicle = chvehicle.ChM113()
 
-# Create the chassis
-chassis = ch.ChBody()
-chassis.SetName('chassis')
-chassis.SetPos(ch.ChVector3d(0, 0, 1))
-vehicle.SetChassis(chassis)
-
-# Add wheels and other vehicle components
-# For simplicity, this example omits detailed vehicle setup
+# Set initial conditions
+vehicle.SetPos(ch.ChVector3d(0, 0, 1.1))
+vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
 
 # 3. Create a rigid terrain
-terrain = ch.ChTerrain()
-terrain.SetName('terrain')
+terrain = chvehicle.ChTerrainRigid()
 terrain.SetFrictionCoefficient(0.8)
 terrain.SetRestitutionCoefficient(0.3)
-terrain.SetDimensions(100, 100)
+terrain.SetPlane(ch.ChPlane(0, 0, 1, 0))
+
+# Set terrain size and position
+terrain.SetSize(ch.ChVector3d(100, 100, 0))
 
 # 4. Initialize a driver system for vehicle control
-driver = ch.ChDriver()
-driver.SetVehicle(vehicle)
-driver.SetMode(ch.DriverMode_Autonomous())
+driver = chvehicle.ChDriver(vehicle)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
 
 # 5. Create a real-time visualization using Irrlicht
-vis = irr.ChVisualSystemIrrlicht()
+vis = chirr.ChVisualSystemIrrlicht()
 vis.AttachVehicle(vehicle)
-vis.SetCameraVerticalDir(ch.ChVector3d(0, 0, 1))
-vis.SetCameraPos(ch.ChVector3d(0, -10, 5))
-vis.EnableStatsDisplay()
-vis.EnableRealTime(False)
+vis.SetCameraVerticalDir(ch.ChVector3d(0, 0, -1))
+vis.SetCameraPos(ch.ChVector3d(0, -10, 1))
+vis.EnableDirectionalLights()
 
-# Set up lighting
-vis.SetLight(0, ch.ChVector3d(10, 10, 10), ch.ChColor(1, 1, 1), True)
+# 6. Simulation loop
+while vis.Run() and not vis.ExitRequested():
+    # Synchronize subsystems
+    vehicle.Synchronize(vis.GetChTimeStep())
+    terrain.Synchronize(vis.GetChTimeStep())
+    driver.Synchronize(vis.GetChTimeStep())
 
-# Simulation parameters
-step_size = 0.01
-end_time = 10.0
+    # Advance subsystems
+    vehicle.Advance(vis.GetChTimeStep())
+    terrain.Advance(vis.GetChTimeStep())
+    driver.Advance(vis.GetChTimeStep())
 
-# Simulation loop
-while vis.GetChTime() < end_time:
-    # Advance the simulation
-    vehicle.Advance(step_size)
-    terrain.Advance(step_size)
-    driver.Advance(step_size)
-    
-    # Synchronize and update the visual system
-    vis.Synchronize('', vehicle.GetChTime())
+    # Render visualization
     vis.Render()
-
-    # Ensure real-time execution
-    vis.SpinEventLoop()

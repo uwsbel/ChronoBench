@@ -1,40 +1,51 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-
-
-chrono.SetChronoDataPath("..")  
+import pychrono.irrlicht as vis
 
 
 system = chrono.ChSystemNSC()
 
 
+ground = chrono.ChBodyEasyBox(10, 10, 5, 1000)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(ground)
+
 
 beam_material = chrono.ChMaterialSurfaceNSC()
-beam_material.SetFriction(0.5, 0.5)
-beam_material.SetRestitution(0.0)
-
-beam_cross_section = chrono.ChBeamSectionSolidCircle(0.05)  
+beam_material.SetFriction(0.5)
+beam_material.SetRestitution(0.1)
 
 
-node1 = chrono.ChNodeBodyEasyMotion(system)
+beam = chrono.ChBeamElement()
+beam.SetMaterial(beam_material)
+beam.SetCrossSection(chrono.ChBeamCrossSectionCircular(0.1))
+beam.SetLength(2)
+
+
+node1 = chrono.ChNodeBodyFixed(system)
+node2 = chrono.ChNodeBodyFixed(system)
+
+
+beam.AddNode(node1)
+beam.AddNode(node2)
+
+
 node1.SetPos(chrono.ChVectorD(0, 0, 0))
-
-node2 = chrono.ChNodeBodyEasyMotion(system)
-node2.SetPos(chrono.ChVectorD(1, 0, 0))
+node2.SetPos(chrono.ChVectorD(2, 0, 0))
 
 
-beam1 = chrono.ChBeam(beam_material, beam_cross_section)
-beam1.SetName("Beam1")
-beam1.SetBody(node1)
-beam1.SetOtherBody(node2)
+system.Add(beam)
 
 
-system.Add(beam1)
+vis_app = vis.ChVisualSystemIrrlicht(
+    width=800, height=600,
+    vSync=True,
+    title="PyChrono Beam Simulation",
+)
 
 
-vis = chronoirr.ChIrrApp(system, 'Beam Simulation')
-vis.AddCamera(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis_app.Add(system)
 
 
-vis.Run()
+while vis_app.Run():
+    system.DoStepDynamics(chrono.ChTime(0.01))
+    vis_app.Render()

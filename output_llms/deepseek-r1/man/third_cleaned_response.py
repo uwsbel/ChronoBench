@@ -1,10 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens  
-import numpy as np  
+import pychrono.sensor as sens
+import numpy as np
 import math
-
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -64,11 +63,9 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(
-    patch_mat, 
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth
-)
+    terrainLength, terrainWidth)
 
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
@@ -76,28 +73,44 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-system = vehicle.GetSystem()
-box_list = []
-for i in range(10):
-    pos = chrono.ChVector3d(
-        np.random.uniform(-10, 10),
-        np.random.uniform(-5, 5),
-        np.random.uniform(0.5, 2)
-    )
-    rot = chrono.Q_from_Euler123(chrono.ChVector3d(
-        np.random.uniform(0, 2 * math.pi),
-        np.random.uniform(0, 2 * math.pi),
-        np.random.uniform(0, 2 * math.pi)
-    ))
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)  
-    box.SetPos(pos)
-    box.SetRot(rot)
-    system.Add(box)
-    box_list.append(box)
+box_mat = chrono.ChContactMaterialNSC()
+for i in range(20):
+    x = np.random.uniform(-20, 20)
+    y = np.random.uniform(-10, 10)
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(x, y, 0.5))
+    box.SetFixed(True)
+    vehicle.GetSystem().Add(box)
+
+
+manager = sens.ChSensorManager(vehicle.GetSystem())
+manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
+
+
+lidar_pos = chrono.ChVector3d(0, 0, 1.0)
+lidar_rot = chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),    
+    10,                          
+    chrono.ChFramed(lidar_pos, lidar_rot),  
+    900,                         
+    30,                          
+    math.radians(360),           
+    math.radians(30),            
+    100.0                        
+)
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.1)
+lidar.SetCollectionWindow(0.01)
+
+
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
+manager.AddSensor(lidar)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 10t Demo with Sensors')
+vis.SetWindowTitle('MAN 10t with Sensors')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
@@ -117,38 +130,6 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
-
-
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.AddPointLight(chrono.ChVector3d(100, 100, 100), chrono.ChColor(1, 1, 1), 1000)
-
-
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  
-    10,                         
-    offset_pose,                
-    200,                        
-    100,                        
-    math.radians(90),           
-    math.radians(30),           
-    0.1,                        
-    100.0                       
-)
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.02)
-
-
-noise_model = sens.ChNoiseNormal(0.0, 0.01)
-lidar.AddFilter(sens.ChFilterLidarNoise(noise_model))
-
-
-lidar.AddFilter(sens.ChFilterPCfromDepth())
-lidar.AddFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
-
-manager.AddSensor(lidar)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

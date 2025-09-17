@@ -48,38 +48,28 @@ tire_model.SetLateralStiffness(100000)
 tire_model.SetCamberStiffness(10000)
 vehicle.SetTireType(tire_model)
 
-# Add the vehicle's mesh visualization
-vehicle_mesh = chrono.ChTriangleMeshConnected()
-vehicle_mesh.LoadWavefrontMesh('/path/to/gator/mesh.obj')
-vehicle.GetVisualShape().AddAsset(vehicle_mesh)
+# Add mesh visualization for all vehicle components
+vehicle.GetVisualShape().AddAsset(chrono.ChVisualShapeMesh('/path/to/gator/mesh.obj'))
 
 # Create an interactive driver system
-driver = chrono.ChIrrNode(sys, vehicle,  # Vehicle body
-                          chronoirr.TrackballCamera())  # Camera type
-driver.SetCameraPosition(chrono.ChVectorD(0, -5, 2))
-driver.SetCameraTarget(chrono.ChVectorD(0, 0, 1))
+driver = chrono.ChIrrNode(sys,  # Parent system
+                          vehicle,  # Vehicle
+                          chronoirr.ChIrrNodeDriver())  # Driver type
+driver.SetSteeringIncrement(0.1)
+driver.SetThrottleIncrement(0.1)
+driver.SetBrakingIncrement(0.1)
 
-# Simulation loop
-time_step = 1e-3  # Time step
-fps = 50  # Frames per second
-while sys.GetChTime() < 100:
-    # Update vehicle dynamics
-    sys.DoStepDynamics(time_step)
-    
-    # Update rendering
-    driver.Render()
-    chronoirr.ChIrrTools.DrawAllCOGs(sys, driver.GetVideoDriver())
-    driver.GetVideoDriver().EndScene()
-    driver.GetDevice().run()
-    
-    # Control the vehicle's steering, throttle, and braking
-    steering = 0.5 * np.sin(sys.GetChTime())
-    throttle = 0.5 * np.cos(sys.GetChTime())
-    braking = 0.2 * np.sin(sys.GetChTime())
-    vehicle.SetSteering(steering)
-    vehicle.SetThrottle(throttle)
-    vehicle.SetBraking(braking)
-    
-    # Limit the simulation to 50 frames per second
-    while driver.GetDevice().getTimer().getRealTime() < 1.0 / fps:
-        pass
+# Create an Irrlicht application
+app = chronoirr.ChIrrApp(sys,  # Parent system
+                         'Gator Vehicle Simulation',  # Window title
+                         chronoirr.dimension2du(800, 600))  # Window dimensions
+
+# Set the simulation loop to update at 50 frames per second in real time
+app.SetTimestep(1 / 50)
+app.SetTryRealtime(True)
+
+# Run the simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()

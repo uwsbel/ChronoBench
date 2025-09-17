@@ -54,8 +54,6 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 
-
-
 manager = sens.ChSensorManager(system)
 
 
@@ -64,6 +62,7 @@ lidar_horizontal_samples = 360
 lidar_vertical_samples = 64
 lidar_fov = math.pi / 2  
 lidar_range = 50  
+lidar_sigma = 0.01
 
 
 lidar = sens.ChLidarSensor(
@@ -71,16 +70,16 @@ lidar = sens.ChLidarSensor(
     lidar_horizontal_samples,
     lidar_vertical_samples,
     lidar_fov,
-    lidar_range
+    lidar_range,
+    lidar_sigma
 )
 
 
-lidar.GetSensorNode().Attach(rover.GetChassis().GetLink("base_link"))
-lidar.GetSensorNode().SetPos(chrono.ChVector3d(0.0, 0.0, 1.0))  
-lidar.GetSensorNode().SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.GetSensorNode().Attach(rover.GetChassis())
+lidar.GetSensorNode().SetPos(chrono.ChVector3d(0, 0, 1.5))  
 
 
-lidar.AddFilter(sens.ChLidarFilterRange(0.1, lidar_range))  
+
 
 
 manager.AddSensor(lidar)

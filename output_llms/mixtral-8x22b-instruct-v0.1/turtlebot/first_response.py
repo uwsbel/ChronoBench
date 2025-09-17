@@ -11,40 +11,55 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 # Create a ground body
-ground = chrono.ChBodyEasyBox(20, 1, 20, 1000, False, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.1))
 system.AddBody(ground)
 
 # Initialize the Turtlebot with a specific position and orientation
-turtlebot = chrono.ChBodyEasyBox(0.2, 0.1, 0.2, 1, True, True)
-turtlebot.SetPos(chrono.ChVectorD(0, 0, 0))
+turtlebot = chrono.ChBodyEasyCylinder(0.2, 0.1, 1000, True, True)
+turtlebot.SetPos(chrono.ChVectorD(0, 0, 0.1))
 turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 system.AddBody(turtlebot)
 
 # Create a real-time visualization using Irrlicht with camera settings and lighting
-visualizer = chronoirr.ChIrrApp(system, "Turtlebot Simulation", chronoirr.dimension2d(800, 600))
-visualizer.AddTypicalSky()
-visualizer.AddTypicalLogo()
-visualizer.AddTypicalCamera(chronoirr.vector3df(0, 0, -5))
-visualizer.AddLightWithShadow(chronoirr.vector3df(2, 2, 2), chronoirr.vector3df(0.5, 0.5, 0.5), 10)
+visualizer = chronoirr.ChVisualSystemIrrlicht()
+visualizer.SetWindowSize(800, 600)
+visualizer.SetWindowTitle("Turtlebot Simulation")
+visualizer.Initialize()
+visualizer.AddLightDirectional()
+visualizer.AddTypicalCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+visualizer.AddSkyBox()
+visualizer.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
 
-# Set up the simulation loop
-t = 0
-while visualizer.Run():
+# Create a simulation loop
+t_end = 10.0  # Simulation end time
+time_step = 0.01  # Time step
+total_steps = int(t_end / time_step)
+
+# Implement motor control for left and right turns
+left_turn_start = 2.0  # Start time for left turn
+left_turn_duration = 1.0  # Duration of left turn
+right_turn_start = 4.0  # Start time for right turn
+right_turn_duration = 1.0  # Duration of right turn
+
+for i in range(total_steps):
+    # Update the system
+    system.DoStepDynamics(time_step)
+
+    # Apply motor control for left and right turns
+    current_time = i * time_step
+    if left_turn_start <= current_time < left_turn_start + left_turn_duration:
+        turtlebot.SetPos(chrono.ChVectorD(0, 0, 0.1))
+        turtlebot.SetRot(chrono.ChQuaternionD(math.cos(current_time * math.pi / 2), 0, math.sin(current_time * math.pi / 2), 0))
+    elif right_turn_start <= current_time < right_turn_start + right_turn_duration:
+        turtlebot.SetPos(chrono.ChVectorD(0, 0, 0.1))
+        turtlebot.SetRot(chrono.ChQuaternionD(math.cos(current_time * math.pi / 2), 0, -math.sin(current_time * math.pi / 2), 0))
+
+    # Render the robot at each timestep
     visualizer.BeginScene()
     visualizer.DrawAll()
     visualizer.EndScene()
 
-    # Update and render the robot at each timestep
-    system.DoStepDynamics(1/60)
-    t += 1/60
-
-    # Implement motor control for left and right turns at specified times
-    if t >= 5 and t <= 10:
-        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, -1))
-    elif t >= 15 and t <= 20:
-        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
-    else:
-        turtlebot.SetWvel_loc(chrono.ChVectorD(0, 0, 0))
-
-chrono.ChEnd()
+# Finalize the visualization
+visualizer.Close()
+chrono.EndChrono()

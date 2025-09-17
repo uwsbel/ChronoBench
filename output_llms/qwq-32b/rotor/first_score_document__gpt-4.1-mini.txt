@@ -4,172 +4,169 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), gravity set properly. **No deduction.**
-- **Body Creation:**  
-  - Ground body created and fixed.  
-  - Beam body created and added.  
-  - Flywheel created using `ChBodyEasySphere`.  
-  All bodies are added to the system. **No deduction.**
-- **Material and Beam Section:**  
-  - Material created with E, G, density set.  
-  - Cross-section defined.  
-  - Beam element created with curve, cross-section, and material.  
-  - Beam element added to beam body.  
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
   **No deduction.**
-- **Curve Definition:**  
-  - NURBS curve created with control points, knots, weights, degree.  
-  - However, the knot vector `[0, 0, 1, 2, 2]` is suspicious for degree 1 and 3 control points.  
-  - Typically, for degree p and n control points, knot vector length = n + p + 1 = 3 + 1 + 1 = 5, which matches here.  
-  - But knots should be non-decreasing and usually normalized or consistent. The jump from 1 to 2 is unusual but not necessarily wrong.  
-  - No explicit error, so **no deduction** here.
-- **Joint Creation:**  
-  - Revolute joint initialized between ground and beam at origin.  
-  - Motor joint initialized between ground and beam, but the `Initialize` call uses `False` and two zero vectors instead of a `ChCoordsysD` frame. According to the API, `Initialize` expects `(body1, body2, frame)` or `(body1, body2, dof, pos1, pos2)` where `dof` is a boolean indicating if the motor is aligned with the coordinate system or not. The usage here is ambiguous and likely incorrect (see correctness below).  
-  - Spherical joint between beam and flywheel at (0.5, 0, 0) is correctly initialized.  
-  **No deduction here for completeness, but correctness issue noted below.**
-- **Visualization:**  
-  - Visualization system created and configured with window size, title, shadows, light direction.  
-  - Visualization system set to the system via `SetVisualSystem`.  
-  - Assets added to beam and flywheel bodies for visualization.  
-  - However, `vis.Initialize()` is missing, which is essential to prepare the visualization system before running.  
-  - Also, no camera or skybox added, which are typical for a complete visualization setup.  
-  **Deduct 5 points for minor omission of `vis.Initialize()` and incomplete visualization setup.**
-- **Postprocessing:**  
-  - Postprocess object created, path set, fps, number of files, bytes per var set.  
-  - FEM visualization added for beam element mesh.  
-  - Postprocess initialized.  
-  **No deduction.**
-- **Simulation Loop:**  
-  - Uses `application = chronoirr.ChIrrApp(system, vis)` which is correct.  
-  - Adds typical lights and all visualization.  
-  - Sets timestep and realtime flag.  
-  - Loop runs while device is active, with BeginScene, DrawAll, post.Export(), DoStep, EndScene.  
-  - However, `application.Initialize()` is missing, which is required to initialize Irrlicht application before running the loop.  
-  **Deduct 15 points for missing `application.Initialize()`, which is essential.**
 
-**Completeness deductions: 5 + 15 = 20 points**
+- **Gravity Setting:** Uses `system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))`.  
+  According to the API, the method is `Set_G_acc` or `Set_G_acceleration`? The official API uses `Set_G_acceleration`. The code uses `Set_G_acc`, which is not a documented method. This is an incorrect method name (likely a typo).  
+  **Deduct 15 points** for incorrect API usage here (also affects correctness).
+
+- **Body Creation:** Ground body created with fixed and no collision, added to system.  
+  **No deduction.**
+
+- **Curve Definition:** Uses `chrono.ChNurbsCurve()` with degree, control points, knots, and weights set.  
+  This is consistent with PyChrono's IGA beam setup.  
+  **No deduction.**
+
+- **Beam Section:** Uses `chrono.ChBeamSectionIga()` with material properties and cross-section parameters set.  
+  **No deduction.**
+
+- **Beam Initialization:** `chrono.ChBeamIga()` initialized with curve, section, and 1 integration point.  
+  The number of integration points is set to 1, which is minimal and might be insufficient for accuracy. Usually, more integration points are recommended for better accuracy (e.g., 5 or more).  
+  This is a minor omission or suboptimal detail.  
+  **Deduct 5 points** for slight deviation from best practices.
+
+- **Motor Joint:** Uses `chrono.ChLinkMotorRotationSpeed()`.  
+  However, the method to set the speed function is `SetSpeedFunction()`, but the code uses `SetSpeed()`. This is an incorrect API call.  
+  **Deduct 15 points** for incorrect API usage (significant correctness issue).
+
+- **Flywheel Body:** Created with `chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000)`.  
+  The constructor signature is `(lengthX, lengthY, lengthZ, density, visualize=True, collision=True, material=None)`. The code passes only 4 arguments, missing `visualize` and `collision` flags. This will cause an error or unexpected behavior.  
+  **Deduct 15 points** for incorrect body initialization.
+
+- **Joint between flywheel and beam:** Uses `chrono.ChLinkLockPointFrame()`.  
+  The API documentation shows `Initialize(body1, body2, frame)` where `frame` is a `ChCoordsysD`. The code passes a `ChVectorD` instead of a `ChCoordsysD`. This is incorrect.  
+  **Deduct 15 points** for incorrect joint initialization.
+
+- **Visualization:** Uses `irr.ChIrrApp` with window size, adds typical lights, camera, and event handlers.  
+  However, the API documentation suggests using `ChVisualSystemIrrlicht()` and attaching the system, then initializing, adding skybox, logo, etc. The code uses `irr.ChIrrApp` which is a higher-level wrapper, acceptable but less flexible.  
+  The visualization setup is minimal but functional.  
+  **No deduction.**
+
+- **Postprocessing:** Adds FEM mesh for beam and sets it in the application.  
+  This is consistent with the API.  
+  **No deduction.**
+
+- **Simulation Loop:** Uses `application.GetDevice().run()` instead of `application.Run()`. The API docs show `vis.Run()` for loop condition. This is acceptable since `ChIrrApp` exposes Irrlicht device.  
+  The time step is 1e-3, which is reasonable.  
+  **No deduction.**
+
+**Total Completeness deductions:**  
+- 15 (gravity method incorrect)  
+- 5 (integration points minimal)  
+- 15 (motor speed method incorrect)  
+- 15 (flywheel body constructor incorrect)  
+- 15 (joint initialization incorrect)  
+= 65 points deducted (over 40 max, so capped at 40).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **System Gravity:** Correctly set with `Set_G_acc`.  
-- **Beam Element Creation:**  
-  - Uses `chrono.iga.ChIgaBeamElement`, but `iga` module is not imported explicitly. The script imports `pychrono.igabase as igabase` but never imports `pychrono.iga`.  
-  - This will cause an AttributeError at runtime.  
-  **Deduct 15 points for incorrect module usage (missing import of `pychrono.iga`).**
-- **Motor Initialization:**  
-  - `motor.Initialize(ground, beam_body, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))`  
-  - According to the documentation, `Initialize` for `ChLinkMotorRotationSpeed` expects `(body1, body2, frame)` or `(body1, body2, dof, pos1, pos2)`.  
-  - Here, `False` is passed as `dof`, which is acceptable, but the two positions are both zero vectors, which means the motor axis is zero-length or undefined.  
-  - This is likely incorrect because the motor axis should be defined properly to control rotation.  
-  - Also, no speed function is set; instead, `motor.SetSpeed(10)` is called, but `SetSpeed` is not a documented method; instead, `SetSpeedFunction` should be used with a `ChFunction` object.  
-  **Deduct 15 points for incorrect motor initialization and incorrect speed setting.**
-- **Beam Body Properties:**  
-  - `beam_body.SetBodyFixed(False)` is used, but the correct method is `SetFixed(False)` according to the documentation.  
-  - `SetBodyFixed` is not a documented method.  
-  **Deduct 15 points for incorrect method call on beam_body.**
-- **Ground Body:**  
-  - `ground.SetBodyFixed(True)` used instead of `SetFixed(True)`.  
-  - Same issue as above.  
-  **Deduct 15 points for incorrect method call on ground.**
-- **Visualization System:**  
-  - `system.SetVisualSystem(vis)` is used, but the documentation shows `vis.AttachSystem(system)` as the proper way to link visualization and system.  
-  - `SetVisualSystem` is not a documented method of `ChSystemNSC`.  
-  **Deduct 15 points for incorrect visualization system attachment.**
-- **Postprocessing:**  
-  - `beam_element.GetMesh()` is called, but `ChIgaBeamElement` may not have `GetMesh()` method or it may require the mesh to be created separately.  
-  - This is unclear, but assuming it works as intended. No deduction here.
-- **Simulation Loop:**  
-  - Uses `application.DoStep()` instead of `system.DoStepDynamics(timestep)` or `application.DoStep()`.  
-  - According to the documentation, `ChIrrApp` has `DoStep()` method, so this is acceptable.  
-  - However, missing `application.Initialize()` before the loop is a correctness issue already deducted.
-- **Imports:**  
-  - `pychrono.igabase` is imported but never used.  
-  - Minor issue, no deduction here.
+- **Gravity method:** `Set_G_acc` does not exist; should be `Set_G_acceleration`. This will cause the gravity not to be set.  
+  **Deduct 15 points.**
 
-**Correctness deductions: 15 (iga import) + 15 (motor init and speed) + 15 (SetBodyFixed) + 15 (SetBodyFixed on ground) + 15 (visualization attachment) = 75 points**
+- **Motor speed setting:** Uses `SetSpeed()` instead of `SetSpeedFunction()`. This will cause the motor speed not to be set correctly.  
+  **Deduct 15 points.**
 
-Since the total correctness points are 30, and deductions exceed that, the maximum deduction is 30 points.
+- **Flywheel body constructor:** Missing required parameters for visualization and collision; may cause errors or no visualization/collision.  
+  **Deduct 10 points.**
+
+- **Joint initialization:** Passing `ChVectorD` instead of `ChCoordsysD` to `Initialize()` will cause runtime error or incorrect joint setup.  
+  **Deduct 15 points.**
+
+- **Minor logical error:** The motor is attached between beam and ground at origin with rotation axis along X (pi/2 about X). This is plausible but not clearly documented or explained. No deduction here as it can be valid.
+
+- **Use of `SetCollide(False)` on ground:** Correct usage. No deduction.
+
+**Total Correctness deductions:**  
+- 15 (gravity)  
+- 15 (motor speed)  
+- 10 (flywheel body)  
+- 15 (joint init)  
+= 55 points deducted (over 30 max, capped at 30).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:**  
-  - Variable names are meaningful (`system`, `ground`, `beam_body`, `motor`, `flywheel`).  
-  - Code is mostly well structured.  
-  - However, inconsistent method naming (`SetBodyFixed` instead of `SetFixed`) suggests lack of attention to API naming conventions.  
-  - No comments at all, which reduces understandability.  
-  **Deduct 5 points for lack of comments and minor naming inconsistencies.**
-- **Formatting:**  
-  - Reasonable indentation and spacing.  
-  - No major issues.  
+- **Readability:** The code is reasonably structured with blank lines separating logical blocks. Variable names are meaningful.  
   **No deduction.**
+
+- **Comments:** The code lacks any comments explaining the purpose of blocks or parameters.  
+  **Deduct 5 points** for insufficient comments.
+
+- **Formatting:** PEP8 generally followed, though some lines could be wrapped for readability (e.g., long lines). Minor issue.  
+  **Deduct 2 points** for minor formatting issues.
+
+**Total Code Quality deductions:** 7 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.  
-- The motor speed is set directly via `SetSpeed(10)`, which is not the recommended way; better to use `SetSpeedFunction` with a constant function.  
-- The visualization assets are minimal but acceptable.  
-- No obvious missing optimizations.  
-**No deduction.**
+- **Redundant imports:** `import pychrono.igabase as igabase` is imported but never used.  
+  **Deduct 5 points** for unnecessary import.
+
+- **Use of 1 integration point in beam:** Suboptimal for accuracy, could be improved.  
+  **Deduct 3 points** for missed optimization.
+
+- **No other obvious inefficiencies.**
+
+**Total Efficiency deductions:** 8 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (try-except blocks, checks for initialization success, etc.).  
-- While not always mandatory in simple scripts, best practice is to include at least minimal error handling or assertions.  
-- No checks for mesh creation or joint initialization success.  
-**Deduct 5 points for lack of any error handling or robustness measures.**
+- No try-except blocks or checks for errors.  
+- No validation of inputs or simulation parameters.  
+- While not always mandatory, basic error handling is recommended for robustness.  
+- No handling of edge cases (e.g., empty control points, invalid parameters).  
+
+**Deduct 5 points** for lack of error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and configured, but missing `vis.Initialize()`.  
-- No camera added, no skybox, which are typical for a good visualization setup.  
-- Light direction set, shadows enabled, typical lights added via `application.AddTypicalLights()`.  
-- Assets added to bodies for visualization.  
-- The method `system.SetVisualSystem(vis)` is incorrect; should be `vis.AttachSystem(system)`.  
-- Minor suboptimal lighting setup (light direction along z-axis may not be ideal).  
-**Deduct 3 points for incomplete visualization setup and incorrect system-visualization linking.**
+- Visualization setup is minimal but functional.  
+- Does not add skybox or logo, which are recommended for better visualization experience.  
+- Uses `AddTypicalLights()` and `AddTypicalCamera()`, which is good.  
+- Uses `application` interface rather than `ChVisualSystemIrrlicht()`, which is acceptable but less flexible.  
+- No explicit call to `application.Initialize()` or `application.SetTimestep()` (though not always mandatory).  
+- Minor visualization setup omissions.
+
+**Deduct 2 points** for minor visualization issues (lack of skybox, logo, and explicit initialization).
 
 ---
 
-### Summary of Deductions
+### Summary of deductions:
 
-| Category                    | Points | Deduction | Notes                                      |
-|-----------------------------|--------|-----------|--------------------------------------------|
-| Completeness                | 40     | 20        | Missing `vis.Initialize()`, missing `application.Initialize()` |
-| Correctness                | 30     | 30        | Incorrect imports, method calls, motor init, visualization linking |
-| Code Quality               | 10     | 5         | No comments, minor naming inconsistencies  |
-| Efficiency                 | 10     | 0         | No significant inefficiencies               |
-| Error Handling and Robustness | 5      | 5         | No error handling present                    |
-| Visualization Tools        | 5      | 3         | Missing camera, skybox, incorrect linking   |
+| Criterion                  | Max Points | Deduction | Notes                              |
+|----------------------------|------------|-----------|----------------------------------|
+| Completeness               | 40         | 40        | Multiple incorrect/missing parts |
+| Correctness                | 30         | 30        | Incorrect API usage               |
+| Code Quality               | 10         | 7         | Lack of comments, minor formatting|
+| Efficiency                 | 10         | 8         | Unused import, suboptimal params |
+| Error Handling & Robustness| 5          | 5         | No error handling                 |
+| Visualization              | 5          | 2         | Minor omissions                  |
+| **Total Deductions**       |            | 92        |                                  |
 
-**Total deductions: 20 + 30 + 5 + 0 + 5 + 3 = 63**
-
-**Final score: 100 - 63 = 37**
-
----
-
-### Final score output:
-
-[[37]]
+**Final score = 100 - 92 = 8**
 
 ---
 
-### Brief explanation of deductions:
+### Final score:
 
-- Major correctness issues with missing imports (`pychrono.iga`), incorrect method calls (`SetBodyFixed` instead of `SetFixed`), improper motor initialization and speed setting, and incorrect visualization system linking caused a full deduction in correctness points.
-- Missing essential initialization calls for visualization (`vis.Initialize()`) and Irrlicht application (`application.Initialize()`) led to significant completeness deductions.
-- Lack of comments and minor naming inconsistencies reduced code quality.
-- No error handling was implemented, which is a best practice even in simple scripts.
-- Visualization setup was incomplete, missing camera and skybox, and used incorrect method to attach visualization to the system.
-- No major efficiency issues were found.
+[[8]]
 
-Overall, the script demonstrates a reasonable structure and intent but contains critical API misuse and missing initialization steps that would prevent it from running correctly or producing the expected simulation behavior.
+---
+
+### Explanation:
+
+The script includes the main components of a PyChrono simulation but suffers from several critical API misuse issues that would prevent it from running correctly (e.g., wrong method names for gravity and motor speed, incorrect joint initialization). The flywheel body is not properly constructed due to missing parameters. These are significant correctness and completeness problems.
+
+The code quality is acceptable but lacks comments, reducing clarity. Efficiency is impacted by an unused import and minimal integration points for the beam. There is no error handling, which is a best practice omission. Visualization setup is minimal but functional, with minor missing enhancements.
+
+Overall, the script requires substantial corrections and improvements to be a fully functional and robust PyChrono simulation.

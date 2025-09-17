@@ -1,49 +1,59 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import time
 
 # Initialize Chrono
-chrono.SetChronoThread(chrono.CHRONO_THREAD_MULTITHREADED)
+chrono.SetChronoMode(chrono.CHRONO_MODE_SIMULATION)
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 # Create ground body
-ground = chrono.ChBodyEasySphere(10, 1000)
-ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-system.Add(ground)
+ground = chrono.ChBodyEasySphere(10, 10000)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+system.AddBody(ground)
 
 # Initialize Viper rover
-viper_path = "path/to/viper_model.urdf"  # Replace with actual path to your Viper model
-viper = chrono.ChBodyEasyLoadURDF(viper_path)
-viper.SetPos(chrono.ChVectorD(0, 0.1, 0))
-system.Add(viper)
+viper_path = "models/viper/"  # Replace with actual path to Viper model
+viper = chrono.ChBodyEasyCylinder(0.5, 1, 1000)
+viper.SetPos(chrono.ChVectorD(0, 0, 0.5))
+viper.SetBodyFixed(True)  # Fix the rover to the ground
+system.AddBody(viper)
 
-# Create driver (example: simple PID controller)
-# ... (Implement your driver logic here) ...
+# Load Viper model
+viper_model = chrono.ChModelFile(viper_path + "viper.obj")
+viper.AddModel(viper_model)
 
-# Visualization setup
-vis = chronoirr.ChIrrApp(system, 'Viper Rover Simulation')
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-vis.SetCamera(vis.GetActiveCamera())
-vis.SetSunPosition(chrono.ChVectorD(10, 10, 10))
-vis.SetAmbientLight(chrono.ChColor(0.2, 0.2, 0.2))
-vis.SetDirectionalLight(chrono.ChColor(0.8, 0.8, 0.8))
+# Initialize driver
+driver = chrono.ChDriverIrrlicht(
+    system, chronoirr.IrrlichtApplication(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+)
+
+# Set camera settings
+driver.GetCam().SetPos(chrono.ChVectorD(5, 5, 5))
+driver.GetCam().SetTarget(chrono.ChVectorD(0, 0, 0))
+
+# Set lighting
+driver.GetIrrlichtDevice().getSceneManager().addLight(chrono.ChLight(chrono.ChLight.LIGHT_DIRECTIONAL))
 
 # Simulation loop
+steering_angle = 0
+steering_rate = 0.1
 dt = 0.01
-steering_target = 0  # Initial steering angle
-steering_change_rate = 0.1  # Rate of steering change
 
-for i in range(1000):
+while True:
     # Update steering angle
-    steering = steering_target - steering_change_rate * i
+    steering_angle += steering_rate * dt
+    
+    # Apply steering to rover (replace with actual implementation)
+    # ...
 
-    # Apply steering to driver
-    # ... (Update driver with steering value) ...
-
-    # Integrate and simulate
+    # Update simulation
     system.DoStepDynamics(dt)
 
-    # Render visualization
-    vis.Render()
+    # Render scene
+    driver.Render()
 
-vis.Close()
+    # Control loop
+    time.sleep(dt)

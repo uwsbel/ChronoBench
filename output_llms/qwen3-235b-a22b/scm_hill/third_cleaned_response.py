@@ -29,7 +29,7 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
-contact_method = chrono.ChContactMethod_NSC
+contact_method = chrono.ChContactMethod_NSC  
 contact_vis = False
 
 
@@ -59,8 +59,21 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysd(), veh.GetDataFile("terrain/height_maps/bump64.bmp"), -1, 1)
+
+
+patch = terrain.AddPatch(
+    chrono.CSYSNORM,  
+    veh.RigidTerrain.HEIGHTMAP,  
+    veh.GetDataFile("terrain/height_maps/bump64.bmp"),  
+    terrainLength,  
+    terrainWidth,   
+    0.02            
+)
+
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+
+
 terrain.Initialize()
 
 
@@ -90,29 +103,39 @@ driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

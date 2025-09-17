@@ -52,7 +52,7 @@ def main():
     # Create a camera and add it to the sensor manager
     # ------------------------------------------------
     # Define the camera offset pose relative to the body it is attached to
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(0.1, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
@@ -117,4 +117,4 @@ def main():
     orbit_rate = 0.1   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
 
-    t1 = time.time()  # Record the start time of the simulation
+    t1 = time.time()  # Record the start time of

@@ -111,35 +111,16 @@ step_number = 0
 render_frame = 0
 
 # Double lane change maneuver
-lane_change_time = 5.0  # time for one lane change
-lane_change_steering = 0.5  # steering angle for lane change
-lane_change_throttle = 0.5  # throttle for lane change
-lane_change_braking = 0.5  # braking for lane change
+lane_change_time = 5.0  # seconds
+steering_interval = lane_change_time / 3.0  # seconds
+throttle_interval = lane_change_time / 2.0  # seconds
+braking_interval = lane_change_time / 3.0  # seconds
+steering_start_time = 0.0
+throttle_start_time = 0.0
+braking_start_time = 0.0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-    
-    # Double lane change maneuver
-    if time < lane_change_time:
-        driver.SetSteeringDelta(lane_change_steering)
-        driver.SetThrottleDelta(lane_change_throttle)
-    elif time < 2 * lane_change_time:
-        driver.SetSteeringDelta(-lane_change_steering)
-        driver.SetThrottleDelta(lane_change_throttle)
-    elif time < 3 * lane_change_time:
-        driver.SetSteeringDelta(lane_change_steering)
-        driver.SetThrottleDelta(lane_change_throttle)
-    elif time < 4 * lane_change_time:
-        driver.SetSteeringDelta(-lane_change_steering)
-        driver.SetThrottleDelta(lane_change_throttle)
-    elif time < 5 * lane_change_time:
-        driver.SetSteeringDelta(lane_change_steering)
-        driver.SetThrottleDelta(lane_change_throttle)
-    else:
-        driver.SetSteeringDelta(0.0)
-        driver.SetThrottleDelta(0.0)
-        driver.SetBrakingDelta(lane_change_braking)
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0) :
         vis.BeginScene()
@@ -161,6 +142,20 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+
+    # Double lane change maneuver
+    if time < steering_start_time + steering_interval:
+        driver_inputs.steering = 1.0
+        driver_inputs.throttle = 0.5
+    elif time < steering_start_time + steering_interval + throttle_interval:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 0.5
+    elif time < steering_start_time + steering_interval + throttle_interval + braking_interval:
+        driver_inputs.steering = -1.0
+        driver_inputs.throttle = 0.0
+    else:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 0.0
 
     # Increment frame number
     step_number += 1

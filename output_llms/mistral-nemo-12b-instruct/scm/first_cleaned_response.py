@@ -7,60 +7,59 @@ chrono.Initialize()
 
 driver = irr.createIrrlichtDevice(irr.EDT_OPENGL, 0, 0, 0, 0)
 scene = driver.getSceneManager()
-environment = scene.addEmptySceneNode()
+env = scene.addEmptySceneNode()
 
 
 vehicle = chrono.ChVehicle()
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(1.5, 2.5, 1.2, 1000, True))
-vehicle.SetChassisVisualization(chrono.ChVisualShapeBox(1.5, 2.5, 1.2))
-vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
-environment.add(vehicle.GetSystem())
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(0.5, 1, 0.5, 1000, True, True))
+vehicle.SetChassisVisualizationType(chrono.ChVehicle.VISUALIZATION_TYPE_MESH)
+vehicle.SetChassisMesh("hmmwv.chassis.dae")
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
 tire = chrono.ChTire()
 tire.SetTireType(chrono.ChTire.TIRE_TYPE_RIGID)
-vehicle.Attach(tire, 0, chrono.ChVectorD(0.75, 1.25, 0.25), chrono.ChQuaternionD(0, 0, 0, 1))
-vehicle.Attach(tire, 1, chrono.ChVectorD(0.75, -1.25, 0.25), chrono.ChQuaternionD(0, 0, 0, 1))
+tire.SetTireRadius(0.2)
+tire.SetTireWidth(0.1)
+tire.SetTireFrontalArea(0.05)
+vehicle.AttachTire(tire, chrono.ChVectorD(0.25, -0.5, 0.5), chrono.ChVectorD(0, -1, 0))
 
 
 terrain = chrono.ChTerrainSCM()
-terrain.SetSoilModel(chrono.ChTerrainSCM.SOIL_MODEL_SPRING)
-terrain.SetSoilParams(chrono.ChTerrainSCM.SOIL_PARAMS_DEFAULT)
-terrain.SetMovingPatch(True)
-terrain.SetMovingPatchFollowVehicle(vehicle.GetChassis())
-terrain.SetMovingPatchSize(2, 2)
-terrain.SetMovingPatchUpdateDistance(1)
-environment.add(terrain)
+terrain.SetSoilDensity(1000)
+terrain.SetSoilYoungModulus(1e6)
+terrain.SetSoilPoissonRatio(0.3)
+terrain.SetMovingPatchFeature(True)
+terrain.SetMovingPatchRadius(1)
+terrain.SetMovingPatchOffset(chrono.ChVectorD(0, 0, 0))
+terrain.SetMovingPatchFollowBody(vehicle.GetChassisBody())
+terrain.SetVisualizationType(chrono.ChTerrain.VISUALIZATION_TYPE_SINKAGE)
 
 
-terrain.SetVisualization(chrono.ChVisualShapeTerrainSCM(chrono.ChColor(1, 0, 0), False))
+driver_system = chrono.ChVehicleDriverSystem()
+driver_system.SetSteeringInput(0)
+driver_system.SetThrottleInput(0)
+driver_system.SetBrakeInput(0)
 
 
-driver = chrono.ChVehicleDriver()
-driver.SetSteering(0.5)
-driver.SetThrottle(0.5)
-driver.SetBrake(0)
-vehicle.SetDriver(driver)
+system = chrono.ChSystemSMC()
+system.SetSolverType(chrono.ChSolver.SolverType_SOR)
+system.SetSolverMaxIterations(50)
+system.SetSolverTolerance(1e-3)
 
 
-system = chrono.ChSystemNSC()
-system.SetSolverType(chrono.ChSolver.Type_SOR)
-system.SetSolverSOR(0.5, 1.01)
-system.SetTimestepperType(chrono.ChTimestepper.Type_Euler)
-system.SetTimestepperEuler(0.01)
-system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BVH)
-system.SetCollisionSystemBVH(chrono.ChCollisionModel.Neptune)
-system.SetMaxPenetrationRecoverySpeed(100)
-system.SetMaxPenetrationRecoveryTime(0.1)
-
-system.Add(vehicle.GetSystem())
+system.Add(vehicle)
 system.Add(terrain)
+system.Add(driver_system)
 
 
-while driver.Run():
+vehicle.SetChassisVisualizationSceneNode(scene.addChBodyVisualization(vehicle.GetChassisBody(), chrono.ChColor(0.2, 0.8, 0.2)))
+tire.SetTireVisualizationSceneNode(scene.addChBodyVisualization(tire.GetTireBody(), chrono.ChColor(0.2, 0.2, 0.8)))
+terrain.SetTerrainVisualizationSceneNode(scene.addChTerrainVisualization(terrain))
+
+
+while driver.run():
     system.DoStepDynamics(0.01)
-    system.DoStepGraphics(0.01)
-    driver.PumpMessages()
-
-chrono.Terminate()
+    scene.doUpdate(0.01)
+    driver.renderOneFrame()

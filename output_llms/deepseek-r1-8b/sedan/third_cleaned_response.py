@@ -21,8 +21,8 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0.0  
-terrainLength = 100.0   
+terrainHeight = 0.1  
+terrainLength = 100.0  
 terrainWidth = 100.0   
 
 
@@ -33,9 +33,13 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 0.0001  
+step_size = 1e-4  
 tire_step_size = step_size
-render_step_size = step_size  
+render_step_size = 1.0 / 50  
+
+
+
+
 
 
 vehicle = veh.BMW_E90()
@@ -45,6 +49,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 
@@ -58,21 +63,14 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-
-patches = []
-for i in range(int(terrainLength / 2) + 1):
-    for j in range(int(terrainWidth / 2) + 1):
-        patch = terrain.AddPatch(patch_mat,
-            chrono.ChCoordsysd(chrono.ChVector3d(i, j, 0), chrono.QUNIT),
-            5, 5)  
-        patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-        patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-        patches.append(patch)
-
+patch = terrain.CreateHighwayMesh(
+    terrainLength, terrainWidth, terrainHeight,
+    20, 20, 1  
+)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
@@ -90,17 +88,16 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-kp = 0.1
-ki = 0.01
-kd = 0.1
-ref_speed = 25.0  
+target_speed = 10.0  
+kp = 0.1  
+ki = 0.05  
+kd = 0.01  
+speed_error = 0.0
 
 
 steering_time = 5.0  
-throttle_time = 0.5  
-braking_time = 0.3
-
-
+throttle_time = 1.0  
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -108,19 +105,41 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+def calculate_throttle(speed):
+    global speed_error
+    speed_error = speed - target_speed
+    throttle = kp * speed_error + ki * speed_error + kd * (speed - speed_error)
+    return max(0, min(1, throttle))
+
+
+def driver_speed_control():
+    speed = vehicle.GetVehicle().GetSpeed()
+    throttle = calculate_throttle(speed)
+    driver.SetSpeed(chrono.ChInputSPEEDX, throttle)
+    
+
+driver.RegisterCallback(driver_speed_control)
+
+
+
+
+
+
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
-render_frame = 0
-step_number = 0
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -140,22 +159,11 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
-    speed = vehicle.GetVehicle().GetSpeed()
-    speed_error = ref_speed - speed
-
-    
-    if abs(speed_error) > 0.01:
-        throttle = (kp * speed_error) + (ki * sum(speed_errors) * step_size) + (kd * (speed_error - speed_errors[-1]))
-        if throttle > 1.0:
-            throttle = 1.0
-        elif throttle < 0.0:
-            throttle = 0.0
-        vehicle.SetThrottle(throttle)
-    
-    
-    speed_errors.append(speed_error)
-
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)
+
+    
+    driver_speed_control()

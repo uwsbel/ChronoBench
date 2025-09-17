@@ -1,59 +1,75 @@
 importchrono
-importchrono.core as chrono
-importchrono.irrlicht as chronoirr
-importchrono.vehicle as vehicle
-importchrono.geometry as geometry
+importchrono.vehicle as veh
+importchrono.visualization as vis
+importchrono.sensor as sens
+importchrono_irrlicht as irr
 
-# Initialize the Chrono system
-system = chrono.ChSystem()
+# Initialize simulation
+system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetTimeStep(0.002)
 
-# Create the Irrlicht visualization application
-application = chronoirr.ChIrrApp(system, "CityBus Simulation", chronoirr.dimension2du(800, 600))
-application.AddTypicalLights()
-application.AddTypicalSky()
-
-# Create the terrain
-terrain = geometry.ChTerrain()
-terrain.SetSize(100, 100)
-terrain.SetHeight(0)
-terrain.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-system.Add(terrain)
-
-# Create the city bus
-bus = vehicle.ChCityBus()
-bus.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
-bus.SetTireType(vehicle.ChTireType.TEXTURE)
+# Create city bus vehicle
+bus = veh.ChCityBus()
+bus.SetChassisFixed(False)
+bus.SetInitPosition(chrono.ChVectorD(0, 0, 1))
+bus.SetInitOrientation(chrono.ChQuaternionD(0, 90, 0))
+bus.SetTireType(veh.ChTireModelType.RIGID_TIRE)
+bus.SetTireRadius(0.3)
+bus.SetTireWidth(0.2)
+bus.SetSuspensionStiffness(20000)
+bus.SetSuspensionDamping(4000)
+bus.SetSteeringAngle(0.5)
+bus.SetThrottle(0.5)
+bus.SetBraking(0)
 system.Add(bus)
 
-# Add the bus to the Irrlicht application
-application.Add(bus.GetVisualShape())
+# Create terrain
+terrain = veh.ChRigidTerrain(system)
+terrain.SetSize(100, 100)
+terrain.SetHeight(0)
+terrain.SetTexture("terrain_texture.jpg")
+system.Add(terrain)
 
-# Create a driver for interactive control
-driver = vehicle.ChDriver()
-driver.SetUserInput(application.GetKeyboard())
-bus.AddDriver(driver)
+# Visualization
+application = irr.ChIrrApp(system, "City Bus Simulation", irr.VEC2i(800, 600))
+application.AddTypicalLights()
+application.AddTypicalLogo()
+application.SetCameraPosition(chrono.ChVectorD(10, 0, 10))
+application.SetCameraRotation(chrono.ChQuaternionD(0, 0, 0, 1))
 
-# Set up camera to follow the bus
-application.SetFollowMode(bus.GetBody(), chronoirr.ChFrame(chrono.ChVectorD(-5, 0, 2), chrono.ChQuaternionD(1, 0, 0, 0)))
+# Add vehicle visualization
+renderer = vis.ChIrrRenderer(application)
+renderer.AttachVehicle(bus)
+renderer.SetRenderMode(vis.ChIrrRenderer.RENDER_MODE_RGB)
+renderer.SetWindowTitle("City Bus Simulation")
 
-# Set simulation parameters
-application.SetTimestep(0.02)
-application.SetRealTimeFactor(1)
+# Add driver controls
+driver = veh.ChDriver()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+bus.SetDriver(driver)
 
-# Main simulation loop
+# Simulation loop
+application.Begin()
 while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
-
-    # Update driver controls
-    driver.Update()
-
-    # Check for exit condition
-    if application.GetDevice().isKeyDown(chronoirr.KEY_ESCAPE):
+    # Update driver inputs
+    key = application.GetDevice().getKey()
+    if key == irr.KEY_ESCAPE:
         break
-
-# Close the application
-application.GetDevice().close()
+    if key == irr.KEY_UP:
+        driver.SetThrottle(0.5)
+    if key == irr.KEY_DOWN:
+        driver.SetThrottle(-0.5)
+    if key == irr.KEY_LEFT:
+        driver.SetSteering(0.5)
+    if key == irr.KEY_RIGHT:
+        driver.SetSteering(-0.5)
+    if key == irr.KEY_SPACE:
+        driver.SetBraking(1)
+    
+    # Update simulation
+    system.DoStepDynamics(0.002)
+    renderer.Render()
+application.End()

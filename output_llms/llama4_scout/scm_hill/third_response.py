@@ -31,8 +31,7 @@ terrainWidth = 100.0  # size in Y direction
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
-contact_method = chrono.ChContactMethod_NSC  # Changed from SMC to NSC
-
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -63,7 +62,13 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain with a single patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+terrain.Initialize(terrainHeight, terrainLength, terrainWidth)
+
+# Use a height map for the terrain
+height_map = veh.GetDataFile("terrain/height_maps/bump64.bmp")
+terrain.SetHeightMap(height_map, 40, 40, -1, 1, 0.02)
+
+# Set texture for the terrain
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface

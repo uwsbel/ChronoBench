@@ -49,7 +49,6 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -93,15 +92,15 @@ class MyDriver(veh.ChDriver):
     def Synchronize(self, time):
         self.time = time
         throttle = 0
-        if time > 0.2:
-            throttle = min(0.7, (time - 0.2) / 0.5)
         steering = 0
-        if time > 2:
-            steering = math.sin((time - 2) * 2 * math.pi)
         braking = 0
-        self.SetThrottle(throttle)
-        self.SetSteering(steering)
-        self.SetBraking(braking)
+
+        if time > self.delay:
+            throttle = min(0.7, (time - self.delay) / 0.2)
+            if time > 2:
+                steering = math.sin((time - 2) * math.pi)
+
+        return veh.DriverInputs(throttle, steering, braking)
 
 
 
@@ -109,7 +108,7 @@ driver = MyDriver(0.5)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -119,11 +118,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -146,10 +145,6 @@ while vis.Run() :
 
     
     step_number += 1
-
-    
-    if time > 4:
-        break
 
     
     realtime_timer.Spin(step_size)

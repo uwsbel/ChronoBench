@@ -128,8 +128,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
-    driver.SetSteering(0.5)  # Updated driver inputs
-    driver.SetThrottle(0.2)
+    driver.SetSteering(0.5)  # Updated steering input
+    driver.SetThrottle(0.2)  # Updated throttle input
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 
@@ -148,34 +148,35 @@ while time < end_time:
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # Create a box object
-    box = chrono.ChBoxShape(chrono.ChVector3d(1, 1, 1))
-    box.SetBody(gator.GetSystem())
-    box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-    box.SetColor(chrono.ChColor(0, 0, 1))
+# Added Box Object
+box = chrono.ChBoxGeom(chrono.ChVector3d(1, 1, 1))
+    box.SetColor(chrono.ChColor(0, 0, 1))  # Added blue texture
     gator.GetSystem().AddBody(box)
 
-    # Create a cylinder object
-    cylinder = chrono.ChCylinderShape(chrono.ChVector3d(0.5, 0, 1))
-    cylinder.SetBody(gator.GetSystem())
-    cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-    cylinder.SetColor(chrono.ChColor(0, 0, 1))
+# Added Cylinder Object
+cylinder = chrono.ChCylinderGeom(chrono.ChVector3d(0, 0, 1.5), 0.5, 1)
+    cylinder.SetColor(chrono.ChColor(0, 0, 1))  # Added blue texture
     gator.GetSystem().AddBody(cylinder)
 
-    # Create a Lidar sensor
-    lidar = sens.ChLidarSensor(gator.GetSystem())
-    lidar.SetOffset(chrono.ChVector3d(0.0, 0, 2))
-    lidar.SetNumH(800)
-    lidar.SetNumV(300)
-    lidar.SetHorFov(2 * chrono.CH_PI)
-    lidar.SetMinHorFov(-chrono.CH_PI / 6)
-    lidar.SetMaxHorFov(chrono.CH_PI / 12)
-    lidar.SetMaxRange(100.0)
-    lidar.SetBeamShape(sens.ChBeamShape_RECTANGLE)
-    lidar.SetSampleRadius(2)
-    lidar.SetDivergence(0.003)
-    lidar.SetMode(sens.ChLidarMode_STRONGEST_RETURN)
-    lidar.SetFilters(sens.ChFilter_DEPTH, sens.ChFilter_INTENSITY, sens.ChFilter_XYZI)
+# Added Lidar Sensor
+lidar = sens.ChLidarSensor(
+    gator.GetSystem(),
+    update_rate,
+    chrono.ChVector3d(0.0, 0, 2),
+    chrono.ChVector3d(0, 0, 2),
+    800,
+    300,
+    2 * chrono.CH_PI,
+    -chrono.CH_PI / 6,
+    100.0,
+    chrono.ChVector3d(0, 0, 0),
+    chrono.CH_PI / 12,
+    chrono.CH_PI / 6,
+    chrono.ChVector3d(2, 0, 0),
+    sens.ChFilterType_XYZI,
+    sens.ChFilterType_DEPTH,
+    sens.ChFilterType_INTENSITY,
+    sens.ChFilterType_XYZI
+)
+    lidar.SetName("Lidar Sensor")
     manager.AddSensor(lidar)
-
-    manager.Update()

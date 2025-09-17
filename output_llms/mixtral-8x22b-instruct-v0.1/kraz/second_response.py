@@ -131,11 +131,11 @@ while vis.Run() :
 
     # Introduce a double lane change maneuver sequence controlled by the driver system within the simulation loop based on the simulation time.
     if time > 0 and time < 5:
-        driver.SetSteering(0.5)
+        driver.SetSteering(1)
     elif time > 5 and time < 10:
-        driver.SetSteering(-0.5)
+        driver.SetSteering(-1)
     elif time > 10 and time < 15:
-        driver.SetSteering(0.5)
+        driver.SetSteering(1)
     else:
         driver.SetSteering(0)
 

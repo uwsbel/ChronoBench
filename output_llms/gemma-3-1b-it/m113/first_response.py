@@ -3,80 +3,124 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
-# Simulation parameters
-simulation_time = 100  # Simulation duration in seconds
-time_step = 0.1  # Time step for simulation
-initial_position = np.array([0.0, 0.0, 0.0])
-initial_velocity = 2.0  # Initial velocity in m/s
-friction_coefficient = 0.8  # Friction coefficient
-restitution_coefficient = 0.7  # Rebound coefficient
-terrain_friction = 0.01  # Friction coefficient for terrain
-terrain_restitution = 0.8  # Rebound coefficient
-terrain_mass = 100.0 # Mass of the terrain in kg
-terrain_density = 1.0 # Density of the terrain in kg/m^3
+# --- Simulation Parameters ---
+vehicle_mass = 1000  # kg
+vehicle_acceleration = 2.0  # m/s^2
+vehicle_velocity = 10.0  # m/s
+terrain_friction = 0.9  # Coefficient of friction (0.0 to 1.0)
+terrain_restitution = 0.7  # Coefficient of restitution (0.0 to 1.0)
+time_step = 0.1  # seconds
+simulation_duration = 60  # seconds
 
-# Create PyChrono environment
-env = pychrono.Environment(
-    time_step=time_step,
-    simulation_time=simulation_time,
-    initial_position=initial_position,
-    initial_velocity=initial_velocity,
-    friction_coefficient=friction_coefficient,
-    restitution_coefficient=restitution_coefficient,
-    terrain_friction=terrain_friction,
-    terrain_restitution=terrain_restitution,
-    terrain_mass=terrain_mass,
-    terrain_density=terrain_density
-)
+# --- Initial Conditions ---
+initial_position = [0.0, 0.0]
+initial_velocity = [0.0, 0.0]
 
-# Define terrain
-terrain = env.create_terrain(
-    height_map=np.zeros((simulation_time, 3), dtype=np.float32),
-    height_map_size=100.0,
-    terrain_density=terrain_density
-)
+# --- Terrain Setup ---
+terrain_heightmap = np.zeros((100, 100))  # Example heightmap - adjust as needed
+terrain_heightmap[20:80, 20:80] = 5.0  # Example terrain height
 
-# Create driver system
-driver = env.create_driver(
-    vehicle_type="M113",
-    initial_position=initial_position,
-    initial_velocity=initial_velocity,
-    max_speed=20.0,
-    acceleration_rate=0.1
-)
+# --- Driver System ---
+driver_control_parameters = {
+    'acceleration': [0.0, 0.0],
+    'steering': [0.0, 0.0]
+}
 
-# Create visualization
+# --- Visualization ---
 fig, ax = plt.subplots()
-scene = ax.scene()
-ax.set_xlim(0, terrain.size)
-ax.set_ylim(0, terrain.size)
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 100)
 ax.set_aspect('equal')
-ax.set_xlabel("X")
-ax.set_ylabel("Y")
-ax.set_title("M113 Simulation")
+ax.set_title('M113 Vehicle Simulation')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
 
-# Initialize camera
-camera = ax.figure()
-camera.set_xlim(0, terrain.size)
-camera.set_ylim(0, terrain.size)
-camera.set_aspect('equal')
-camera.set_title("Camera")
+# Initialize the camera
+camera_x, camera_y = 0.0, 0.0
+camera_z = 0.0
+camera_fov = 90.0
+camera_resolution = 200
+camera_color = (0, 0, 0)  # Black
 
-# Create a function to update the scene
+def init_camera(fig, camera_x, camera_y, camera_z, camera_fov, camera_resolution):
+    """Initializes the camera for the animation."""
+    camera_x = camera_x
+    camera_y = camera_y
+    camera_z = camera_z
+    camera_fov = camera_fov
+    camera_resolution = camera_resolution
+
+    fig.canvas.draw_idle()
+
 def update(frame):
-    # Update the terrain
-    terrain.update(frame)
+    """Updates the animation frame."""
+    global vehicle_velocity, vehicle_acceleration
 
-    # Update the driver
-    driver.update(frame)
+    # Update vehicle velocity
+    vehicle_velocity = vehicle_velocity + driver_control_parameters['acceleration'][0] * time_step
+
+    # Update vehicle position
+    vehicle_velocity = (vehicle_velocity - vehicle_velocity) / terrain_friction
+    vehicle_position = [vehicle_velocity[0], vehicle_velocity[1]]
+
+    # Update terrain height
+    terrain_heightmap[vehicle_position[0], vehicle_position[1]] = 0.0
+
+    # Update camera position
+    camera_x = camera_x
+    camera_y = camera_y
+    camera_z = camera_z
+    camera_fov = camera_fov
+    camera_resolution = camera_resolution
+
+    # Update camera color
+    camera_color = (0, 0, 0)
 
     # Update the visualization
-    scene.update(frame)
+    update_camera(camera_x, camera_y, camera_z, camera_fov, camera_resolution, camera_color)
 
-    return scene
+def update_camera(x, y, z, fov, resolution, color):
+    """Updates the camera's position, color, and FOV."""
+    # Calculate the camera's position
+    camera_x = x
+    camera_y = y
+    camera_z = z
 
-# Animation loop
-ani = FuncAnimation(fig, update, frames=simulation_time, interval=10)
+    # Update the camera color
+    color = (0, 0, 0)
 
-# Display the animation
+    # Update the camera's FOV
+    fov = fov
+
+    # Update the camera's position
+    camera_x = x
+    camera_y = y
+    camera_z = z
+
+    # Update the camera's color
+    color = (0, 0, 0)
+
+    # Update the camera's FOV
+    fov = fov
+
+    return color
+
+# --- Main Simulation Loop ---
+for frame_num in range(simulation_duration):
+    # Update the vehicle position
+    vehicle_position = [vehicle_velocity[0], vehicle_velocity[1]]
+
+    # Update the terrain height
+    terrain_heightmap[vehicle_position[0], vehicle_position[1]] = 0.0
+
+    # Update the camera position
+    camera_x, camera_y, camera_z, camera_fov, camera_resolution = update(frame_num)
+
+    # Update the visualization
+    update_camera(camera_x, camera_y, camera_z, camera_fov, camera_resolution, camera_color)
+
+    # Display the animation
+    plt.pause(0.01)  # Adjust for animation speed
+
+# --- End of Simulation ---
 plt.show()

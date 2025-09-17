@@ -30,8 +30,9 @@ def main():
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
     terrain.Initialize()  
+
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -54,14 +55,22 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, hmmwv.GetSystem()))  
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, hmmwv.GetVehicle()))  
     ros_manager.Initialize()  
 
     
     sens_manager = sens.ChSensorManager()
-    sens_manager.RegisterSensor(ch.ChLidarSensor(hmmwv.GetSystem()))
-    sens_manager.RegisterFilter(ch.ChFilterSensorFilter(hmmwv.GetSystem(), ch.ChFilterSensorFilterType_LIDAR_FILTER))
-    sens_manager.Initialize()  
+    lidar = sens.ChLidarSensor(hmmwv.GetVehicle())  
+    
+    lidar.SetMinRange(0.1)  
+    lidar.SetMaxRange(100)  
+    lidar.SetSensorType(sens.ChSensorType_LIDAR)  
+    lidar.SetSensorStepSize(1e-3)  
+    lidar.SetSensorVisualizationType(sens.VisualizationType_MESH)
+    sens_manager.AddSensor(lidar)  
+
+    
+    driver.Initialize()  
 
     
     time = 0
@@ -93,9 +102,8 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  
         step_number += 1
-
         
-        sens_manager.Update(time, time_step)
+        sens_manager.Update(time, time_step)  
 
 if __name__ == "__main__":
     main()

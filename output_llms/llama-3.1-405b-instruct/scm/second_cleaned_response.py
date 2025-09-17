@@ -22,22 +22,23 @@ class SCMTerrainParams:
             self.mohr_cohesive_limit = 0
             self.mohr_friction_limit = 30
             self.janosi_shear_coefficient = 0.01
-            self.elastic_stiffness = 4e8
-            self.damping = 6e4
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
         elif config == "hard":
-            self.bekker_Kphi = 4e6
+            self.bekker_Kphi = 3e6
             self.bekker_Kc = 0
             self.bekker_n = 1.1
             self.mohr_cohesive_limit = 0
             self.mohr_friction_limit = 30
             self.janosi_shear_coefficient = 0.01
-            self.elastic_stiffness = 8e8
-            self.damping = 1e5
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
         else:
             raise ValueError("Invalid terrain configuration")
 
     def set_params(self, terrain):
         terrain.SetSoilParameters(self.bekker_Kphi, self.bekker_Kc, self.bekker_n, self.mohr_cohesive_limit, self.mohr_friction_limit, self.janosi_shear_coefficient, self.elastic_stiffness, self.damping)
+
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -76,7 +77,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -84,7 +84,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -113,7 +112,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(20, 20, 0.02)
 
 
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -123,7 +121,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

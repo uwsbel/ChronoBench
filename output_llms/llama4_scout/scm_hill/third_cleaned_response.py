@@ -29,8 +29,7 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 
-contact_method = chrono.ChContactMethod_NSC  
-
+contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
@@ -61,7 +60,13 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+terrain.Initialize(terrainHeight, terrainLength, terrainWidth)
+
+
+height_map = veh.GetDataFile("terrain/height_maps/bump64.bmp")
+terrain.SetHeightMap(height_map, 40, 40, -1, 1, 0.02)
+
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 

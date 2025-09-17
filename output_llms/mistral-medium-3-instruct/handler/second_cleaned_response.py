@@ -2,7 +2,7 @@ import pychrono as ch
 import pychrono.ros as chros
 
 import rclpy.publisher
-from std_msgs.msg import String  
+from std_msgs.msg import String
 
 
 class MyCustomHandler(chros.ChROSHandler):
@@ -20,7 +20,7 @@ class MyCustomHandler(chros.ChROSHandler):
         
         print(f"Creating publisher for topic {self.topic} ...")
         
-        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)  
+        self.publisher = interface.GetNode().create_publisher(String, self.topic, 1)
         return True  
 
     def Tick(self, time: float):

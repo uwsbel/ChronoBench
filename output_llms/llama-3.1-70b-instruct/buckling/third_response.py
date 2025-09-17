@@ -9,7 +9,7 @@ import os  # Import the OS library for file and directory operations
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
         chrono.ChFunction.__init__(self)
-    def Get_y(self, x):
+    def GetVal(self, x):
         if x > 0.5:
             return chrono.CH_PI
         else:
@@ -43,7 +43,7 @@ sys.AddBody(body_crank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrameD(chrono.ChVectorD(vG)))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -120,13 +120,13 @@ node_crankB = builderB.GetLastBeamNodes()[-1]
 
 # Create a constraint between the crank beam and the body crank
 constr_cbd = chrono.ChLinkMatePrismatic()
-constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
+constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), body_crank.Frame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 # Create a constraint between the vertical beam and the crank beam
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+constr_bc.Initialize(node_down, node_crankB, False, node_down.Frame(), node_crankB.Frame())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 

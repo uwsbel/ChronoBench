@@ -1,5 +1,5 @@
 import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrono  # Import the main PyChrono library
+import pychrono as chrno  # Import the main PyChrono library
 import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
 import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
 import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
@@ -70,7 +70,7 @@ melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(72.0e9)
 melasticity.SetShearModulusFromPoisson(0.35)
 melasticity.SetAsRectangularSection(beam_wy, beam_wz)
-msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection1 = fea.ChMassSectionCosserat(minertia, melasticity)
 msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
 
 # Build the IGA beam
@@ -83,7 +83,7 @@ node_tip = builder_iga.GetLastBeamNodes()[65]
 node_mid = builder_iga.GetLastBeamNodes()[32]
 
 # Define vertical beam parameters using Euler beams
-section2 = fea.ChBeamSectionEuler()
+section2 = fea.ChBeamSectionAdvancedEuler()
 hbeam_d = 0.05
 section2.SetDensity(2500)
 section2.SetYoungModulus(75.0e9)
@@ -110,7 +110,7 @@ sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
-section3 = fea.ChBeamSectionEuler()
+section3 = fea.ChBeamSectionEulerAdvanced()
 crankbeam_d = 0.06
 section3.SetDensity(2800)
 section3.SetYoungModulus(75.0e9)
@@ -177,7 +177,7 @@ vis.AddTypicalLights()
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
 # Use the HHT timestepper for less numerical damping and higher accuracy
-ts = chrono.ChTimestepperHHT()
+ts = chrono.ChTimestepperEulerExplicit(sys)
 ts.SetStepControl(True)
 sys.SetTimestepper(ts)
 

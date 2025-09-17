@@ -6,56 +6,56 @@ import pychrono.vehicle as veh
 # Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Create the Irrlicht visualization
+# Create the Irrlicht visualization module
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetTitle("ARTcar Simulation")
 vis.AddSkyBox()
 vis.AddTypicalLights()
 
 # Create the vehicle
 vehicle = veh.ChVehicle()
 
-# Initialize vehicle parameters
-vehicle_pos = chrono.ChVectorD(0, 0, 1.5)  # initial position
-vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # initial orientation
-contact_material = chrono.ChMaterialSurfaceNSC()
-vehicle.SetContactMaterial(contact_material)
-vehicle.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+# Initialize the vehicle with specific parameters
+vehicle.SetChassisFixed(False)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetCollide(True)
+vehicle.SetVisualization(chrono.ChVisualizationType_PRIMITIVES)
 
-# Add vehicle to the system
-sys.Add(vehicle)
+# Set the vehicle's location and orientation
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisRotation(chrono.Q_from_AngX(0))
 
-# Create the rigid terrain
+# Create the RigidTerrain
 terrain = veh.ChRigidTerrain()
-terrain.SetPlane(chrono.ChVectorD(0, 1, 0), 0)  # terrain plane
-terrain.SetTexture(chrono.GetChronoDataFile("terrain.txt"), 10, 10)
+terrain.SetSize(100, 100, 1)
+terrain.SetTexture(veh.ChTexture("terrain_texture.jpg"))
+terrain.SetFriction(0.7)
+terrain.SetRestitution(0.1)
+
+# Add the terrain to the system
 sys.Add(terrain)
 
-# Create the interactive driver system
+# Add the vehicle to the system
+sys.Add(vehicle)
+
+# Create an interactive driver system
 driver = veh.ChIrrlichtDriver()
 driver.SetVehicle(vehicle)
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
+driver.SetSteeringGain(0.1)
+driver.SetThrottleGain(0.1)
+driver.SetBrakingGain(0.1)
 
-# Add driver to the system
-sys.Add(driver)
-
-# Set simulation parameters
-time_step = 0.01
-vis.SetCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-vis.SetCameraUp(chrono.ChVectorD(0, 1, 0))
-
-# Simulation loop
+# Create the simulation loop
 while vis.Run():
-    # Update vehicle dynamics
-    sys.DoStepDynamics(time_step)
+    # Update the vehicle dynamics
+    sys.DoStepDynamics(0.02)
     
-    # Update visualization
+    # Update the visualization
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
     
-    # Limit simulation speed to 50 frames per second
-    chrono.ChSleep(1 / 50)
+    # Display the simulation at 50 frames per second
+    chrono.ChSleep(0.02)
+
+# Clean up
+vis.CloseWindow()

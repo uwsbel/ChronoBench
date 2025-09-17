@@ -1,64 +1,71 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
+from pychrono import *
+from pychrono.irrlicht import IrrlichtEngine
+import pychrono.irrlicht as irr
+from pychrono.irrlicht import IrrlichtScene, IrrlichtEngine
 
-# PyChrono environment setup
-chrono.Init()
+# Initialize PyChrono
+app = PyChronoApp()
 
-# Create the world
-world = chrono.World()
+# Define simulation parameters
+dt = 0.01  # timestep
+gravity = 9.81
+friction = 0.5
+restitution = 0.8
 
-# Create the terrain
-terrain = chrono.Terrain()
-terrain.SetFriction(0.5)
-terrain.SetRestitution(0.8)
-terrain.SetSize(chrono.Vector3(10, 10, 10))
-world.Add(terrain)
+# Create the environment
+terrain = Terrain(
+    size=100,
+    position=Vec3(0, 0, 0),
+    friction=friction,
+    restitution=restitution,
+)
 
-# Create the M113 vehicle
-vehicle = chrono.Vehicle()
-vehicle.SetModel("models/m113.stl")  # Replace with your M113 model path
-vehicle.SetMass(1000)  # Replace with your vehicle mass
-vehicle.SetPosition(chrono.Vector3(0, 0, 0))  # Replace with your vehicle initial position
-vehicle.SetOrientation(chrono.Quaternion(1, 0, 0, 0))  # Replace with your vehicle initial orientation
-
-# Add the vehicle to the world
-world.Add(vehicle)
+# Create the vehicle
+vehicle = M113(
+    position=Vec3(0, 0, 0),
+    mass=1000,
+    friction=friction,
+    restitution=restitution,
+)
 
 # Create the driver system
-driver = chrono.Driver()
-driver.SetModel("models/driver.stl")  # Replace with your driver model path
-driver.SetPosition(chrono.Vector3(0, 0, 0))  # Replace with your driver initial position
-driver.SetOrientation(chrono.Quaternion(1, 0, 0, 0))  # Replace with your driver initial orientation
+driver = Driver(
+    vehicle=vehicle,
+    acceleration_factor=1.0,
+    max_speed=50.0,
+)
 
-# Add the driver to the world
-world.Add(driver)
+# Create Irrlicht engine and scene
+engine = IrrlichtEngine()
+scene = IrrlichtScene(engine)
 
-# Initialize Irrlicht visualization
-irr = irrlicht.Irrlicht()
-irr.Init()
+# Set camera settings
+camera = IrrlichtCamera(scene)
+camera.position = Vec3(0, 0, 10)
+camera.lookAt = Vec3(0, 0, 0)
+camera.fov = 60.0
 
-# Set Irrlicht camera and lighting
-camera = irr.CreateCamera()
-camera.SetPosition(chrono.Vector3(0, 0, 5))
-camera.SetLookAt(chrono.Vector3(0, 0, 0))
-irr.SetCamera(camera)
+# Set lighting
+light = IrrlichtLight(scene)
+light.position = Vec3(0, 10, 0)
+light.color = Vec3(1, 1, 1)
 
-# Set Irrlicht light
-light = irr.CreateLight()
-light.SetPosition(chrono.Vector3(0, 1, 0))
-light.SetDirection(chrono.Vector3(0, 1, 0))
-irr.SetLight(light)
+# Add visual elements to the scene
+scene.add(terrain)
+scene.add(vehicle)
+scene.add(driver)
+scene.add(light)
+scene.add(camera)
 
 # Simulation loop
 while True:
-    # Update the simulation
-    world.Update()
-
-    # Render the scene
-    irr.Render()
-
-    # Update the Irrlicht visualization
-    irr.Update()
-
-    # Wait for the next timestep
-    chrono.Sleep(1/60)  # 1/60 seconds per timestep
+    # Update simulation
+    driver.update(dt)
+    vehicle.update(dt)
+    terrain.update(dt)
+    
+    # Synchronize and advance all systems
+    app.update()
+    
+    # Render scene
+    engine.render(scene)

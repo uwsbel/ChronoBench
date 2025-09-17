@@ -9,27 +9,15 @@ sys = chrono.ChSystemNSC()
 mat = chrono.ChContactMaterialNSC()
 sys.AddContactMaterial(mat)
 
-# Create truss with new dimensions
+# Create the truss
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)
 sys.Add(mbody_truss)
 mbody_truss.SetFixed(True)
 mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))
 
-# Visualization setup
+# Visualization material
 vis_mat = chrono.ChVisualMaterial()
 vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Gears and pulleys')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(12, 15, -20))
-vis.AddTypicalLights()
-
-# Set integrator
-sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
 
 # Create rotating bar support
 mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 1000, True, False, mat)
@@ -41,7 +29,7 @@ link_revoluteTT = chrono.ChLinkLockRevolute()
 link_revoluteTT.Initialize(mbody_truss, mbody_train, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 sys.AddLink(link_revoluteTT)
 
-# Create first gear with new radius
+# Create first gear
 radA = 1.5
 mbody_gearA = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radA, 0.5, 1000, True, False, mat)
 sys.Add(mbody_gearA)
@@ -53,15 +41,15 @@ mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
 mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0), chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
-# Set gear A motor speed
+# Create motor link
 link_motor = chrono.ChLinkMotorRotationSpeed()
 link_motor.Initialize(mbody_gearA, mbody_truss, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))
 sys.AddLink(link_motor)
 
-# Create second gear with new radius
-radB = 3.5
+# Create second gear
 interaxis12 = radA + radB
+radB = 3.5
 mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radB, 0.4, 1000, True, False, mat)
 sys.Add(mbody_gearB)
 mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))
@@ -92,7 +80,21 @@ link_gearBC.SetTransmissionRatio(radB / radC)
 link_gearBC.SetEpicyclic(True)
 sys.AddLink(link_gearBC)
 
-# Run simulation loop
+# Create visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gears and pulleys')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(12, 15, -20))
+vis.AddTypicalLights()
+
+# Set integrator
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
+
+# Simulation loop
 while vis.Run():
     vis.BeginScene()
     vis.Render()

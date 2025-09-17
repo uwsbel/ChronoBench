@@ -4,54 +4,45 @@ import pychrono.ros as pros
 import numpy as np
 
 
-pc.init()
-
-
+env = pc.Environment()
 sys = pc.System()
+sim = pc.Simulation(env, sys)
 
 
-mesh = pc.Mesh("ground.obj")
+mesh = pc.Mesh('ground.obj')
 sys.add(mesh)
 
 
-ground_body = pc.Body()
-ground_body.set_position([0, 0, -1])
-ground_body.set_velocity([0, 0, 0])
-sys.add(ground_body)
+ground = sys.add(pc.Body(name='ground'))
+ground.set_position([0, 0, -1])
+ground.set_velocity([0, 0, 0])
+ground.set_force([0, 0, -9.81])
 
 
 sensor_manager = ps.SensorManager()
-camera = ps.Camera()
-lidar = ps.Lidar()
-gps = ps.GPS()
-accelerometer = ps.Accelerometer()
-gyroscope = ps.Gyroscope()
-magnetometer = ps.Magnetometer()
-
-sensor_manager.add_sensors([camera, lidar, gps, accelerometer, gyroscope, magnetometer])
+camera = sensor_manager.add(ps.Camera())
+lidar = sensor_manager.add(ps.Lidar())
+gps = sensor_manager.add(ps.GPS())
+accelerometer = sensor_manager.add(ps.Accelerometer())
+gyroscope = sensor_manager.add(ps.Gyroscope())
+magnetometer = sensor_manager.add(ps.Magnetometer())
 
 
 ros_manager = pros.ROSManager()
-ros_manager.add_sensors(sensor_manager.sensors)
+ros_manager.register_camera(camera, '/camera/image_raw')
+ros_manager.register_lidar(lidar, '/lidar/points')
+ros_manager.register_gps(gps, '/gps/fix')
+ros_manager.register_accelerometer(accelerometer, '/imu/data')
+ros_manager.register_gyroscope(gyroscope, '/imu/data')
+ros_manager.register_magnetometer(magnetometer, '/imu/mag')
 
 
-dt = 0.01  
-sim_time = 0.0  
-while sim_time < 10.0:  
+while not sim.is_finished():
     
     sensor_manager.update()
 
     
-    sys.integrate(dt)
+    sim.advance()
 
     
-    ros_manager.publish()
-
-    
-    pc.sleep(0.01)
-
-    
-    sim_time += dt
-
-
-pc.shutdown()
+    sim.wait_for_real_time()

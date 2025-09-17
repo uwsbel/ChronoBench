@@ -70,29 +70,38 @@ camera_sensor_manager.SetCameraSensor(camera_sensor)
 
 camera_sensor_manager.SetCameraTarget(body)
 
-camera_sensor_manager.SetCameraField(chrono.ChCameraField())
+camera_sensor_manager.SetCameraType(chrono.ChCameraSensor.Type_Perspective)
 
-camera_sensor_manager.SetCameraField(chrono.ChCameraField())
-
-
+camera_sensor_manager.SetCameraParams(chrono.ChVectorD(45, 30, 10), chrono.ChVectorD(1, 1, 1))
 
 
-timer = chrono.ChTimer()
 
-while chrono.GetChronoBool(timer.IsDone()):
 
-    chrono.ChronoIncrementReference()
+orbit_radius = 5.0
 
-    camera_sensor_manager.Update()
+orbit_speed = 0.1
+
+orbit_angle = 0.0
+
+
+
+
+while pychrono.GetSimulation().GetPhysicalSystem().GetSolver().GetStep() < 1000:
+
+    
+
+    orbit_angle += orbit_speed
+
+    camera_sensor_manager.SetCameraSensorPosition(chrono.ChVectorD(orbit_radius * math.cos(orbit_angle), orbit_radius * math.sin(orbit_angle), 0))
 
 
     
 
-    camera_buffer = camera_sensor_manager.GetCameraBuffer()
-
-    print("Camera buffer data:", camera_buffer)
+    pychrono.DoMainLoop()
 
 
+    
 
+    buffer = camera_sensor.GetBuffer()
 
-chrono.ChApplication.GetInstance().Shutdown()
+    print("Camera buffer data:", buffer)

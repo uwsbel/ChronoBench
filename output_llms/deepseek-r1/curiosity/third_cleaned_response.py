@@ -38,36 +38,36 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
 
 
 manager = sens.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChVector3f(2, 2, 2), 5000)
+manager.scene.AddPointLight(chrono.ChVector3d(2, 2.5, 5), chrono.ChColor(1, 1, 1), 500.0)
 
 
-chassis = rover.GetChassis().GetBody()
-lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.2, 0, 0.4), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+lidar_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 0, 1)))
 lidar = sens.ChLidarSensor(
-    chassis,
-    10,  
-    lidar_offset_pose,
-    3600,  
-    32,    
-    chrono.CH_PI,  
-    chrono.CH_PI / 9,  
-    100.0  
+    rover.GetChassisBody(),  
+    10,                      
+    lidar_offset_pose,       
+    1000,                    
+    64,                      
+    chrono.CH_PI,            
+    chrono.CH_PI / 9,        
+    100.0,                   
 )
-lidar.SetName("Lidar")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.01)
+lidar.SetName("Rover Lidar")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(0.0)
 
 
 noise_model = sens.ChNoiseNormalDist(0.0, 0.01)
 lidar.SetNoiseModel(noise_model)
 
 
-pc_filter = sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud")
-lidar.PushFilter(pc_filter)
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualize(1000, 64, "Lidar Point Cloud"))
+
 
 manager.AddSensor(lidar)
 
@@ -76,7 +76,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover with Lidar')
+vis.SetWindowTitle('Curiosity Rover with Lidar Sensor')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -97,7 +97,7 @@ while vis.Run():
 
     
     rover.Update()
-    
+
     
     manager.Update()
 

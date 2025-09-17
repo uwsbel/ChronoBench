@@ -1,51 +1,41 @@
-import pychrono as chrono
-import pychrono.irrlicht as vis
+from pychrono import ChSystem, ChBody, ChMaterialSurface, ChContactMethod
+from pychrono.irrlicht import IrrlichtVisualizer
+import pychrono.postprocess as postprocess
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
-chrono.SetUseRealTime(True)
+system = ChSystem()
 
 
-world = chrono.ChSystemNSC()
+terrain_mat = ChMaterialSurface()
+terrain_mat.SetFriction(0.8)  
+terrain_mat.SetRestitution(0.2)  
 
+terrain_body = ChBody(mass=1e6)  
+terrain_body.SetPos(ChVectorD(0, 0, 0))
+terrain_body.SetBodyFixed(True)  
+terrain_body.SetMaterialSurface(terrain_mat)
 
-terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(chrono.ChMaterialSurface())
-terrain.GetMaterialSurface().SetFriction(0.8)  
-terrain.GetMaterialSurface().SetRestitution(0.2)  
-world.AddBody(terrain)
-
-
-
-kraz = chrono.ChBodyEasyLoad("path/to/kraz/model.urdf")  
-kraz.SetPos(chrono.ChVectorD(0, 0, 1))
-world.AddBody(kraz)
+system.AddBody(terrain_body)
 
 
 
-driver = chrono.ChDriver()  
+kraz_body = ChBody(mass=1000)  
+kraz_body.SetPos(ChVectorD(0, 0, 1))  
+kraz_body.SetBodyFixed(False)  
+kraz_body.SetMaterialSurface(terrain_mat)
+
+system.AddBody(kraz_body)
 
 
-vis_app = vis.ChIrrApp(world, "Kraz Simulation")
-vis_app.AddCamera(
-    vis.IrrlichtCamera(
-        vis_app.GetSceneManager(),
-        vis_app.GetVideoDriver(),
-        pos=chrono.ChVectorD(5, 5, 5),
-        target=chrono.ChVectorD(0, 0, 0),
-    )
-)
-vis_app.AddLight(vis.IrrlichtDirectionalLight(vis_app.GetSceneManager()))
 
 
-while not vis_app.GetQuit():
-    
-    driver.Update()
 
-    
-    world.DoStepDynamics(chrono.ChTime(0.01))
 
-    
-    vis_app.Render()
+vis = IrrlichtVisualizer(system)
+vis.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))  
+vis.SetAmbientLight(ChColor(0.5, 0.5, 0.5))  
+
+
+while True:
+    system.DoStepDynamics(0.01)  
+    vis.Render()

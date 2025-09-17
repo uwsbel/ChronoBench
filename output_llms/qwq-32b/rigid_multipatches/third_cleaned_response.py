@@ -2,6 +2,10 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
+
+step_size = 2e-3
+tire_step_size = 1e-3
+
 def main():
     
     hmmwv = veh.HMMWV_Full()
@@ -47,7 +51,7 @@ def main():
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
     patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysD(chrono.ChVectorD(5, -45, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/meshes/bump.obj"))
+                             veh.GetDataFile("terrain/meshes/bump.obj"))
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
@@ -56,7 +60,7 @@ def main():
     patch4_mat.SetFriction(0.9)
     patch4_mat.SetRestitution(0.01)
     patch4 = terrain.AddPatch(patch4_mat, chrono.ChCoordsysD(chrono.ChVectorD(10, 40, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
+                             veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64.0, 64.0, 0.0, 3.0)
     patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 6.0, 6.0)
 
     terrain.Initialize()
@@ -106,10 +110,7 @@ def main():
 
     return 0
 
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
-step_size = 2e-3
-tire_step_size = 1e-3
 
 main()

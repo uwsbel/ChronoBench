@@ -25,7 +25,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -99,6 +98,7 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -113,16 +113,21 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Create sensor manager
-sensor_manager = sensor.SensorManager()
+sensor_manager = sensor.ChSensorManager()
+vehicle.GetSystem().Add(sensor_manager)
 
-# Add a lidar sensor to the vehicle
-lidar = sensor.LidarSensor(
+# Create lidar sensor
+lidar = sensor.ChLidarSensor(
     vehicle.GetChassisBody(),
-    range=50.0,  # Range of the lidar sensor
+    sensor_manager,
+    range=10.0,  # Range of the lidar sensor
     angle_resolution=0.1,  # Angular resolution of the lidar sensor
-    num_beams=360,  # Number of beams in the lidar sensor
-    fov=180.0,  # Field of view of the lidar sensor
+    num_rays=360,  # Number of rays emitted by the lidar sensor
+    visualize=True,  # Whether to visualize the lidar data
+    color_map="jet"  # Color map for visualization
 )
+
+# Add lidar to the sensor manager
 sensor_manager.AddSensor(lidar)
 
 # ---------------
@@ -139,14 +144,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Create 5 random box obstacles
-for i in range(5):
-    pos = chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.5)
-    size = chrono.ChVector3d(1, 1, 1)
-    obstacle = chrono.ChBodyEasyBox(size, 1000)
-    obstacle.SetPos(pos)
-    vehicle.GetSystem().Add(obstacle)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -166,8 +163,9 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    # Update the sensor manager
-    sensor_manager.Update(time)
+    
+    # Update sensor manager
+    sensor_manager.Update() 
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

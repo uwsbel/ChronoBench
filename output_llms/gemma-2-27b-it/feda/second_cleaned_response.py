@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+
 terrainHeight = 0      
 terrainLength = 200.0  
 terrainWidth = 100.0   
@@ -46,6 +47,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -61,8 +63,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -85,31 +87,26 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle())
 
 
-path = veh.ChBezierCurve()
-path.addPoint(chrono.ChVector3d(-40, 0, 0))
-path.addPoint(chrono.ChVector3d(-20, 2, 0))
-path.addPoint(chrono.ChVector3d(0, 0, 0))
-path.addPoint(chrono.ChVector3d(20, -2, 0))
-path.addPoint(chrono.ChVector3d(40, 0, 0))
+path = veh.ChPath()
+path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-30, 3, 0))
+path.AddPoint(chrono.ChVector3d(-10, 0, 0))
+path.AddPoint(chrono.ChVector3d(10, -3, 0))
+path.AddPoint(chrono.ChVector3d(30, 0, 0))
+path.AddPoint(chrono.ChVector3d(50, 0, 0))
 driver.SetPath(path)
 
 
 driver.SetTargetSpeed(10.0)
 
 
-steering_controller = veh.ChPIDController()
-steering_controller.SetKp(1.0)  
-steering_controller.SetKd(0.1)
-steering_controller.SetKi(0.01)
-steering_controller.SetLookAheadDistance(5.0)
-driver.SetSteeringController(steering_controller)
+driver.SetSteeringGain(1.0)
+driver.SetLookAheadDistance(5.0)
 
 
-speed_controller = veh.ChPIDController()
-speed_controller.SetKp(1.0)
-speed_controller.SetKd(0.1)
-speed_controller.SetKi(0.01)
-driver.SetSpeedController(speed_controller)
+driver.SetSpeedGain(1.0)
+driver.SetSpeedIntegralGain(0.1)
+driver.SetSpeedDerivativeGain(0.01)
 
 driver.Initialize()
 
@@ -135,13 +132,10 @@ while vis.Run() :
         render_frame += 1
 
     
-    driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     
     driver.Advance(step_size)

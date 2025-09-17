@@ -1,55 +1,59 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
-import roslib
-import rospy
+import pychrono_ros  
 
 
-chrono.SetChronoDataPath("./")  
+chrono.SetChronoDataPath("path/to/chrono/data")  
 system = chrono.ChSystemNSC()
 
 
 
-vehicle = chrono.ChBodyEasyCylinder(1.5, 1.5, 2.0, 1000)  
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5)) 
-vehicle.SetBodyFixed(True)
+vehicle_model = chrono.ChBodyEasyBox(1.5, 2.5, 1.8, 1000)  
+vehicle_model.SetName("HMMWV")
+system.Add(vehicle_model)
 
 
-contact_method = 'contact_point'
-
-
-engine_type = 'internal_combustion'
-
-
-tire_model = 'pavement'
+vehicle_model.SetCollide(True)  
+vehicle_model.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SMC_RUBBER))  
 
 
 
-terrain = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-
-
-terrain.SetFriction(0.8, 0.6)
-terrain.SetRestitution(0.2)
-
-
-
-driver = chrono.ChDriver()  
-
-
-rospy.init_node('pychrono_sim')
+terrain_shape = chrono.ChBoxShape(5, 5, 1)  
+terrain_body = chrono.ChBodyEasyBox(1, 1, 1, 1000)  
+terrain_body.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain_body.SetCollide(True)
+terrain_body.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SMC_GROUND))  
+terrain_body.SetFriction(0.8)  
+terrain_body.SetRestitution(0.2)  
+system.Add(terrain_body)
 
 
 
+driver = DriverSystem()  
 
 
-dt = 0.01  
+ros_manager = pychrono_ros.ROSManager(system)
+ros_manager.Start()
 
-while not rospy.is_shutdown():
-    
-    
+
+ros_manager.RegisterClockSyncHandler(clock_sync_callback)
+ros_manager.RegisterDriverInputHandler(driver_input_callback)
+ros_manager.RegisterVehicleStateHandler(vehicle_state_callback)
+
+
+while True:
+    system.DoStepDynamics(0.01)  
+    ros_manager.Update()  
 
     
-    
+    def clock_sync_callback(ros_time):
+        
+        pass
 
-    
-    system.DoStepDynamics(dt)
+    def driver_input_callback(inputs):
+        
+        pass
+
+    def vehicle_state_callback(vehicle_state):
+        
+        pass

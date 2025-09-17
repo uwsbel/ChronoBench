@@ -12,8 +12,8 @@ mat = chrono.ChContactMaterialNSC()               # Creating a contact material 
 # Create all rigid bodies with specific dimensions
 radA = 1.5                                        # Modified radius for the first gear
 radB = 3.5                                        # Modified radius for the second gear
-radD = 5                
-radE = 2
+radD = 5.0                                       # Radius for the bevel gear D
+radE = 2.0                                        # Radius for the pulley E
 
 # Create the truss
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,      # Modified box-shaped truss body with dimensions 15x8x2
@@ -65,7 +65,4 @@ link_motor.Initialize(mbody_gearA, mbody_truss,                     # Initializi
                       chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   # Positioning the motor at origin
                                       chrono.QUNIT))                # No initial rotation
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              # Modified constant rotation speed to 3 rad/s
-sys.AddLink(link_motor)                                             # Adding the motor link to the system
-
-# Create the second gear
-interaxis12 = radA + radB
+sys.AddLink(link_motor)                                             # Adding the motor link

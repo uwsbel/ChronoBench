@@ -1,43 +1,52 @@
-import pychrono as chrono
-import pychrono.irr as irr
+import pychrono as pch
+import pychrono.physics as pchphys
+import pychrono.visualization as pchvis
 
 
-chrono.init()
+p = pch.PyChrono()
 
 
-engine = irr.IrrlichtEngine()
+world = pch.World()
 
 
-world = chrono.World()
+mesh = pch.Mesh()
+mesh.SetMeshType(pch.MeshType.BEAM)
+mesh.SetMeshFilename("beam_mesh.obj")
 
 
-beam_length = 1.0
-beam_width = 0.1
-beam_material = chrono.Material("beam", 1.0, 0.0, 0.0)
+beam = pch.BeamElement(mesh)
+beam.SetBeamMaterial(pch.Material(0.0, 0.0, 0.0))
 
 
-beam_mesh = chrono.Mesh()
-beam_mesh.add_vertices([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-beam_mesh.add_faces([0, 1, 2, 3])
+node = pch.Node(mesh)
+node.SetNodeMaterial(pch.Material(0.0, 0.0, 0.0))
 
 
-beam_nodes = chrono.Nodes()
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
-beam_nodes.add_node(chrono.Node(beam_mesh, 0.0, 0.0, 0.0))
+world.AddObject(beam)
+world.AddObject(node)
 
 
-beam_material.set_density(1000.0)
-beam_material.set_elasticity(200.0)
-beam_material.set_poisson_ratio(0.3)
+beam.SetPosition(pch.Vector3(0.0, 0.0, 0.0))
+node.SetPosition(pch.Vector3(0.0, 0.0, 0.0))
 
 
-world.add_mesh(beam_mesh)
-world.add_nodes(beam_nodes)
+beam.SetForce(pch.Vector3(0.0, 0.0, 0.0))
+node.SetForce(pch.Vector3(0.0, 0.0, 0.0))
 
 
-world.set_gravity(chrono.Vector(0.0, -9.81, 0.0))
-world.set_time_step(0.01)
+irr = pch.Irrlicht()
 
 
-engine.run()
+irr.CreateIrrlichtScene()
+
+
+while True:
+    
+    world.Update(0.01)
+
+    
+    irr.Render()
+
+    
+    if input("Press any key to exit: ") == "":
+        break

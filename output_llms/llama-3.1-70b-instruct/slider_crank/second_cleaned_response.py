@@ -86,8 +86,8 @@ while vis.Run() and sim_time < 20:
     
     array_time.append(sim_time)
     array_angle.append(my_motor.GetMotorFunction().Get_y())
-    array_pos.append(mjointC.GetPosRel().x())
-    array_speed.append(mjointC.GetVelRel().x())
+    array_pos.append(mjointC.GetRelPos().x())
+    array_speed.append(mjointC.GetRelSpeed().x())
 
     sim_time += 1e-3
 

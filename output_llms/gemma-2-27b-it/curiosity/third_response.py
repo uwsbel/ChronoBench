@@ -41,25 +41,32 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create sensor manager
-manager = sens.ChSensorManager(system)
+sens_manager = sens.ChSensorManager(system)
+
+# Lidar sensor parameters
+lidar_update_rate = 100  # Hz
+lidar_horizontal_samples = 360
+lidar_vertical_samples = 1
+lidar_fov = 180  # degrees
+lidar_range = 50  # meters
 
 # Create lidar sensor
-lidar = sens.ChLidarSensor()
-lidar.SetUpdateRate(100)  # Update rate in Hz
-lidar.SetHorizontalSamples(100)
-lidar.SetVerticalSamples(20)
-lidar.SetFieldOfView(chrono.ChRad(120))
-lidar.SetSensorPosition(rover.GetChassis().GetPos())
-lidar.SetSensorDirection(rover.GetChassis().GetRot().GetYaxis())
-
-# Add lidar filters (optional)
-# lidar.AddFilter(sens.ChFilterLidarDistance(0.1, 50))
+lidar = sens.ChLidarSensor(
+    lidar_update_rate,
+    lidar_horizontal_samples,
+    lidar_vertical_samples,
+    lidar_fov,
+    lidar_range,
+)
 
 # Attach lidar to rover chassis
-rover.GetChassis().AddSensor(lidar)
+lidar.AttachToBody(rover.GetChassisBody())
+
+# Set up lidar filters (example: remove points below a certain height)
+# lidar.AddFilter(sens.ChFilterHeight(0.1))
 
 # Add lidar to sensor manager
-manager.AddSensor(lidar)
+sens_manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -92,7 +99,7 @@ while vis.Run():
     rover.Update()
 
     # Update sensor manager
-    manager.Update()
+    sens_manager.Update()
 
     # Render the scene
     vis.BeginScene()

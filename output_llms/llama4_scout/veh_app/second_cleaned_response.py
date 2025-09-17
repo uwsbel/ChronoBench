@@ -121,25 +121,23 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, True)
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, False, False)
 box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box_body.SetColor(chrono.ChColor(0, 0, 1))
 box_mat = chrono.ChContactMaterialNSC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
 box_body.AddContactMaterial(box_mat)
-box_body.AddVisualizationAsset(chrono.ChVisualShapeBox(1, 1, 1))
-box_body.GetVisualizationShape(0).SetTexture(veh.GetDataFile("textures/blue.png"), 1, 1)
 gator.GetSystem().AddBody(box_body)
 
 
-cyl_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True, True)
+cyl_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, False, False)
 cyl_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cyl_body.SetColor(chrono.ChColor(0, 0, 1))
 cyl_mat = chrono.ChContactMaterialNSC()
 cyl_mat.SetFriction(0.9)
 cyl_mat.SetRestitution(0.01)
 cyl_body.AddContactMaterial(cyl_mat)
-cyl_body.AddVisualizationAsset(chrono.ChVisualShapeCylinder(0.5, 1))
-cyl_body.GetVisualizationShape(0).SetTexture(veh.GetDataFile("textures/blue.png"), 1, 1)
 gator.GetSystem().AddBody(cyl_body)
 
 
@@ -161,8 +159,8 @@ lidar = sens.ChLidarSensor(
 )
 lidar.SetName("Lidar Sensor")
 lidar.PushFilter(sens.ChFilterLidarToPointCloud())
-lidar.PushFilter(sens.ChFilterXYZIToIntensity())
-lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar Data"))
+lidar.PushFilter(sens.ChFilterVisualize(800, 300, "Lidar Point Cloud"))
+lidar.PushFilter(sens.ChFilterXYZIToCSV("Lidar_PointCloud.csv"))
 manager.AddSensor(lidar)
 
 

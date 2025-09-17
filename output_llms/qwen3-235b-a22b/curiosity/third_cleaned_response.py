@@ -16,8 +16,8 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
-ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
+ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
@@ -41,35 +41,23 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)  
+manager = sens.ChSensorManager(system)
 
 
-chassis = rover.GetChassis().GetBody()
-
-
-offset = chrono.ChFramed(chrono.ChVector3d(0.5, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
-    chassis,
+    rover.GetChassis(),  
     10,  
-    offset,
+    chrono.ChFrame(chrono.ChVector3d(0.5, 0, 0.2), chrono.ChQuaterniond(1, 0, 0, 0)),  
     360,  
     1,    
-    chrono.CH_C_PI,  
-    chrono.CH_C_PI / 12,  
-    100,  
-    sens.LidarBeamShape_RECTANGULAR,
-    2,    
-    0.003,  
-    sens.LidarReturnMode_STRONGEST_RETURN
+    chrono.CH_C_PI * 2,  
+    0.0,  
+    100.0  
 )
-
-
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, "Lidar Point Cloud"))
-
-
-manager.AddSensor(lidar)
+lidar.PushFilter(sens.ChFilterDIAccess())  
+lidar.PushFilter(sens.ChFilterPCfromDepth())  
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(360, 1, "Lidar Point Cloud"))  
+manager.AddSensor(lidar)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

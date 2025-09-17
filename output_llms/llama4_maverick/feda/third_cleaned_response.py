@@ -2,7 +2,7 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import pychrono.sensor as sens
-import numpy as np
+import math
 
 
 initLoc = chrono.ChVector3d(0, 0, 0.5)
@@ -45,21 +45,25 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
 terrain.Initialize()
 
 
@@ -89,30 +93,41 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = int(np.ceil(render_step_size / step_size))
-
-
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-sensor_manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 10), chrono.ChColor(1, 1, 1), 100)  
-sensor_manager.scene.AddPointLight(chrono.ChVector3f(-10, 0, 5), chrono.ChColor(1, 1, 1), 100)  
-
-
-offset_pose = chrono.ChFrame3d(chrono.ChVector3d(-1, 0, 1.5))
-cam = sens.ChCameraSensor(vehicle.GetChassisBody(),  
-                          30,  
-                          offset_pose,  
-                          1280,  
-                          720,  
-                          90  
-                          )
-cam.SetName("Camera Sensor")
-cam.PushFilter(sens.ChFilterVisualize(1280, 720, "FOV Camera"))  
-sensor_manager.AddSensor(cam)
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+
+light1 = chrono.ChLight()
+light1.SetLightType(chrono.ChLight.LightType_POINT)
+light1.SetPosition(chrono.ChVector3d(0, 0, 10))
+light1.SetIntensity(10)
+vehicle.GetSystem().AddLight(light1)
+
+light2 = chrono.ChLight()
+light2.SetLightType(chrono.ChLight.LightType_POINT)
+light2.SetPosition(chrono.ChVector3d(10, 0, 10))
+light2.SetIntensity(10)
+vehicle.GetSystem().AddLight(light2)
+
+
+camera = sens.ChCameraSensor(
+    vehicle.GetChassisBody(),
+    30,
+    chrono.ChFrame(chrono.ChVector3d(0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),
+    1280,
+    720,
+    90
+)
+camera.SetName("Camera Sensor")
+manager.AddSensor(camera)
+
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -134,7 +149,7 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
-    sensor_manager.Update()
+    manager.Update()
 
     
     driver.Advance(step_size)

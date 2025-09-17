@@ -8,7 +8,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation adjusted
-initLoc = chrono.ChVector3d(0, 0, 0.8)  # Slightly higher initial position
+initLoc = chrono.ChVector3d(0, 0, 1.0)  # Increased height
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -33,19 +33,11 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 # Simulation step sizes - decreased for finer control
-step_size = 5e-4  # Reduced from 1e-3
+step_size = 1e-4
 tire_step_size = step_size
 
 # Time interval between two render frames - decreased for smoother visualization
-render_step_size = 1.0 / 60  # FPS = 60 (increased from 50)
-
-# Reference speed for PID controller (m/s)
-reference_speed = 10.0  # 10 m/s ≈ 36 km/h
-
-# PID controller parameters
-Kp = 0.5  # Proportional gain
-Ki = 0.1  # Integral gain
-Kd = 0.05 # Derivative gain
+render_step_size = 1.0 / 100  # FPS = 100
 
 # --------------
 # Create systems
@@ -71,19 +63,22 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain - initialized with highway mesh
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.AddPatch(chrono.ChContactMaterialNSC(),
-                chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth)
 
-# Load highway texture
-terrain.GetPatch(0).SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
-terrain.GetPatch(0).SetColor(chrono.ChColor(0.4, 0.4, 0.4))  # Darker color for highway
+# Use highway texture instead of tile
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan with PID Speed Control')
+vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -95,8 +90,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 5.0  # Increased from 1.0 to 5.0 seconds
+# Set the time response for steering and throttle keyboard inputs - increased steering response time
+steering_time = 5.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
@@ -105,9 +100,13 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# PID controller variables
-integral_error = 0
-prev_error = 0
+# Reference speed input (m/s)
+reference_speed = 10.0  # 10 m/s ≈ 36 km/h
+
+# PID controller for throttle control
+pid_throttle = chrono.ChPIDController(0.5, 0.1, 0.01)  # P=0.5, I=0.1, D=0.01
+pid_throttle.SetMode(chrono.ChPIDController.MODE_POSITION)
+pid_throttle.SetSetpoint(reference_speed)
 
 # ---------------
 # Simulation loop
@@ -130,21 +129,14 @@ while vis.Run():
     # Get current vehicle speed
     current_speed = vehicle.GetVehicle().GetSpeed()
 
-    # PID controller implementation
-    error = reference_speed - current_speed
-    integral_error += error * step_size
-    derivative_error = (error - prev_error) / step_size
+    # Update PID controller
+    pid_throttle.SetSetpoint(reference_speed)
+    pid_throttle.SetProcessVariable(current_speed)
+    throttle_input = pid_throttle.GetOutput()
 
-    # Calculate PID output (throttle control)
-    pid_output = Kp * error + Ki * integral_error + Kd * derivative_error
-    prev_error = error
-
-    # Clamp the PID output to valid throttle range [0,1]
-    throttle = max(0, min(1, pid_output))
-
-    # Get driver inputs (steering from keyboard, throttle from PID)
+    # Get driver inputs and apply PID-controlled throttle
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle
+    driver_inputs.m_throttle = throttle_input
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -170,7 +162,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Print speed information periodically
-    if step_number % 100 == 0:
-        print(f"Time: {time:.2f}s | Current speed: {current_speed:.2f}m/s | Throttle: {throttle:.2f}")

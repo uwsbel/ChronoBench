@@ -51,15 +51,14 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
-    # Set up visualization using Irrlicht.
+    # Setup runtime visualization using Irrlicht.
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.SetWindowSize(800, 600)
     vis.SetWindowTitle('HMMWV Simulation')
     vis.Initialize()
-    vis.AddLogo(chronoirr.ChLogo::Type_Chrono, chronoirr.ChLogo::Location_TopLeft)
-    vis.AddLogo(chronoirr.ChLogo::Type_Irrlicht, chronoirr.ChLogo::Location_TopRight)
+    vis.AddLogo(chronoirr.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, 0, 1.6))
+    vis.AddCamera(ch.ChVector3d(0, 0, 10))
     vis.AddTypicalLights()
     vis.AttachSystem(hmmwv.GetSystem())
 
@@ -87,7 +86,7 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene.
+        # Render the visualization.
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

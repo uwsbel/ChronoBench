@@ -3,101 +3,93 @@ import math
 import time
 
 # Initialize the Chrono system
-system =chrono.ChSystemNSC()
+system = chrono.ChSystem()
 system.SetSolverType(chrono.ChSolverType.SOLVER_BARZILAI_BORWEIN)
 system.SetSolverMaxIterations(100)
 system.SetSolverTolerance(1e-6)
-system.SetRealTimeSimulation(True)
 
 # Initialize Irrlicht visualization
-application =chrono.ChIrrApp(system, "HMMWV on Deformable Terrain", chrono.CH,dimensions=(800,600))
-application.SetCameraPosition(chrono.ChVectorD(5,5,2))
-application.SetCameraRotation(chrono.ChVectorD(0,0,0))
+irr = chrono.ChIrrApp(system, "HMMWV on Deformable Terrain", chrono.CHT,dimensions=(800,600))
+irr.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+irr.SetCameraRotation(chrono.ChVectorD(-45, 45, 0))
 
 # Create the HMMWV vehicle
-hmmwv =chrono.ChHMMWV()
-hmmwv.SetChassisPos(chrono.ChVectorD(0,0,1))
-hmmwv.SetChassisRot(chrono.ChQuaternionD(1,0,0,0))
-hmmwv.Initialize()
+hmmwv = chrono.ChHMMWV()
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetRigidTires()
+hmmwv.SetVisualizationType(chrono.ChVisualizationType.Mesh)
+system.Add(hmmwv)
 
-# Create the SCM terrain
-terrain =chrono.ChSCMTerrain()
-terrain.SetSize(20,20)  # Size in meters (x,z)
-terrain.SetPosition(chrono.ChVectorD(0,0,0))
-terrain.SetSoilParameters(
-    density=1500,  # kg/m³
-    friction=0.5,
-    cohesion=1000,
-    tangent_modulus=1e6,
-    damping=0.1
-)
-terrain.EnableMovingPatch(True)
-terrain.SetMovingPatchDimensions(5,5)  # Moving patch size (x,z)
-terrain.SetMovingPatchOffset(0,0)  # Initial offset
+# Create SCM terrain
+terrain = chrono.ChSCMTerrain()
+terrain.SetSize(20, 20)
+terrain.SetPosition(chrono.ChVectorD(0, 0, 0))
+terrain.SetSoilParameters(1e3, 0.5, 1e6, 1e3, 1e3)
+terrain.SetMovingPatch(True, chrono.ChVectorD(2, 2, 0.5))
 terrain.EnableSinkageVisualization(True)
-terrain.SetSinkageColorRange(0,0.3)  # Color range for sinkage visualization
-terrain.Initialize()
+system.Add(terrain)
 
-# Add vehicle components with mesh visualization
-hmmwv.GetChassis().SetCollide(True)
-hmmwv.GetChassis().SetRender(True)
-for wheel in hmmwv.GetWheelSet().GetWheelList():
-    wheel.Get Rim().SetCollide(True)
-    wheel.Get Rim().SetRender(True)
-    wheel.Get Tire().SetCollide(True)
-    wheel.Get Tire().SetRender(True)
+# Create interactive driver
+driver = chrono.ChInteractiveDriverIRR()
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+driver.SetVehicle(hmmwv)
 
-# Create driver system
-driver =chrono.ChDriver(hmmwv.GetDriver())
-driver.SetMaxThrottle(1)
-driver.SetMaxSteering(1)
-driver.SetMaxBraking(1)
+# Key event handlers
+def on_key_press(key):
+    if key == 'left':
+        driver.SetSteering(-0.5)
+    elif key == 'right':
+        driver.SetSteering(0.5)
+    elif key == 'up':
+        driver.SetThrottle(0.5)
+    elif key == 'down':
+        driver.SetBraking(0.5)
 
-# Set up interactive controls
-def on_key_press(event):
-    if event.key == 'w':
-        driver.SetThrottle(1)
-    elif event.key == 's':
-        driver.SetThrottle(-1)
-    elif event.key == 'a':
-        driver.SetSteering(1)
-    elif event.key == 'd':
-        driver.SetSteering(-1)
-    elif event.key == 'q':
-        driver.SetBraking(1)
-    elif event.key == 'e':
-        driver.SetBraking(-1)
+def on_key_release(key):
+    if key in ['left', 'right']:
+        driver.SetSteering(0)
+    elif key in ['up', 'down']:
+        driver.SetThrottle(0)
+        driver.SetBraking(0)
 
-application.SetKeyDownCallback(on_key_press)
+# Add callbacks
+irr.AddKeyDownCallback(on_key_press)
+irr.AddKeyUpCallback(on_key_release)
 
-# Add lighting
-light =chrono.ChLight()
-light.SetPosition(chrono.ChVectorD(5,5,5))
-light.SetIntensity(1)
-application.AddLight(light)
-
-dir_light =chrono.ChDirLight()
-dir_light.SetDirection(chrono.ChVectorD(-1,-1,-1))
-dir_light.SetIntensity(0.5)
-application.AddLight(dir_light)
-
-# Run simulation
-application.Begin()
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    
-    # Update vehicle and terrain
+# Simulation loop
+dt = 0.02
+time_step = 0
+while irr.Run():
+    # Update driver inputs
     driver.Update()
-    system.DoStepDynamics(1/50)  # 50 FPS
     
-    # Update moving patch position
-    chassis_pos =hmmwv.GetChassis().GetPos()
-    terrain.SetMovingPatchOffset(chassis_pos.x, chassis_pos.z)
+    # Advance simulation
+    system.DoStepDynamics(dt)
     
     # Update visualization
-    terrain.UpdateVisualization()
-    time.sleep(0.02)  # Sleep to maintain real-time
+    irr.DrawAll()
+    irr.DrawSCMTerrain(terrain)
     
-application.End()
+    # Print status
+    time_step += 1
+    if time_step % 50 == 0:
+        print(f"Time: {system.GetChTime():.2f}s")
+    
+    # Throttle control
+    if irr.GetKey(chrono.KEY_UP):
+        driver.SetThrottle(0.5)
+    elif irr.GetKey(chrono.KEY_DOWN):
+        driver.SetBraking(0.5)
+    else:
+        driver.SetThrottle(0)
+        driver.SetBraking(0)
+    
+    # Steering control
+    if irr.GetKey(chrono.KEY_LEFT):
+        driver.SetSteering(-0.5)
+    elif irr.GetKey(chrono.KEY_RIGHT):
+        driver.SetSteering(0.5)
+    else:
+        driver.SetSteering(0)

@@ -9,74 +9,73 @@ sys = chrono.ChSystemNSC()
 
 contact_material = chrono.ChMaterialSurfaceNSC()
 contact_material.SetFriction(0.5)
-contact_material.SetRestitution(0.5)
-contact_material.SetYoungModulus(1e6)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(0.0001)
+contact_material.SetComplianceT(0.0001)
 
 
 class ParticleEmitter:
-    def __init__(self, sys):
-        self.sys = sys
+    def __init__(self, num_particles):
+        self.num_particles = num_particles
         self.particles = []
 
-    def emit_particle(self):
-        
-        shape = np.random.choice(['sphere', 'box', 'cylinder'])
-        pos = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10))
-        vel = chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
-        rot = chrono.Q_from_AngXAxis(np.random.uniform(0, np.pi))
+    def emit_particles(self):
+        for _ in range(self.num_particles):
+            
+            shape = np.random.choice(['sphere', 'box', 'cylinder'])
+            position = np.random.uniform(-10, 10, 3)
+            velocity = np.random.uniform(-1, 1, 3)
+            orientation = np.random.uniform(0, np.pi, 3)
 
-        
-        if shape == 'sphere':
-            particle = chrono.ChBodyEasySphere(self.sys, 1, 1000, contact_material)
-        elif shape == 'box':
-            particle = chrono.ChBodyEasyBox(self.sys, 1, 1, 1, 1000, contact_material)
-        elif shape == 'cylinder':
-            particle = chrono.ChBodyEasyCylinder(self.sys, 1, 1, 1000, contact_material)
+            
+            body = chrono.ChBodyEasySphere(sys, 0.1, 1000, contact_material)
+            body.SetPos(chrono.ChVectorD(*position))
+            body.SetLinearVel(chrono.ChVectorD(*velocity))
+            body.SetRot(chrono.Q_from_Euler123(chrono.ChVectorD(*orientation), 1))
 
-        
-        particle.SetPos(pos)
-        particle.SetPos_dt(vel)
-        particle.SetRot(rot)
-
-        
-        self.sys.Add(particle)
-        self.particles.append(particle)
+            
+            sys.Add(body)
+            self.particles.append(body)
 
 
-emitter = ParticleEmitter(sys)
-for _ in range(100):
-    emitter.emit_particle()
+emitter = ParticleEmitter(100)
+emitter.emit_particles()
 
 
-class CustomGravitationalForce(chrono.ChForce):
-    def __init__(self):
-        super().__init__()
+def apply_gravitational_forces():
+    for i in range(len(emitter.particles)):
+        for j in range(i + 1, len(emitter.particles)):
+            particle1 = emitter.particles[i]
+            particle2 = emitter.particles[j]
 
-    def ComputeF(self, x, v, m):
-        force = chrono.ChVectorD(0, 0, 0)
-        for particle in emitter.particles:
-            if particle != self.GetBody():
-                distance = (particle.GetPos() - self.GetBody().GetPos()).Length()
-                force += (particle.GetPos() - self.GetBody().GetPos()) / distance * 0.1
-        return force
+            
+            distance = (particle2.GetPos() - particle1.GetPos()).Length()
 
+            
+            force = 0.1 * particle1.GetMass() * particle2.GetMass() / (distance ** 2)
 
-for particle in emitter.particles:
-    force = CustomGravitationalForce()
-    particle.AddForce(force)
+            
+            direction = (particle2.GetPos() - particle1.GetPos()).GetNormalized()
+            particle1.ApplyForce(chrono.ChForce(direction * force))
+            particle2.ApplyForce(chrono.ChForce(-direction * force))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 20))
-vis.AddTypicalCameraTracks()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
 vis.SetWindowSize(1024, 768)
-vis.SetLogo("")
+vis.SetWindowTitle("PyChrono Simulation")
 
 
 while vis.Run():
+    
+    apply_gravitational_forces()
+
+    
     sys.DoStepDynamics(0.01)
+
+    
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()

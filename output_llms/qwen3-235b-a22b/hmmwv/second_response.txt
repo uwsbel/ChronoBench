@@ -10,9 +10,10 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+# Initial vehicle location and orientation (on the circular path)
+initLoc = chrono.ChVector3d(20, 0, 0.5)  # Start at (20, 0) on the circle
+initRot = chrono.ChQuaterniond()
+initRot.SetFromRotationAroundZ(math.pi / 2)  # Face along positive Y-axis
 
 # Visualization type for vehicle parts
 vis_type = veh.VisualizationType_PRIMITIVES
@@ -20,12 +21,12 @@ vis_type = veh.VisualizationType_PRIMITIVES
 # Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
 
-# Tire model type
+# Tire model
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
+# Terrain dimensions (increased length to 200)
 terrainHeight = 0
-terrainLength = 200.0  # Increased from 100.0
+terrainLength = 200.0  # Changed from 100 to 200
 terrainWidth = 100.0
 
 # Camera tracking point
@@ -41,7 +42,7 @@ tire_step_size = step_size
 # Render frame rate
 render_step_size = 1.0 / 50
 
-# Create the HMMWV vehicle
+# Create vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -57,17 +58,6 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create circular path
-path = chrono.ChPath()
-R = 30.0  # Radius of the circular path
-n_points = 50  # Number of points to discretize the circle
-for i in range(n_points):
-    angle = 2 * math.pi * i / n_points
-    x = R * math.cos(angle)
-    y = R * math.sin(angle)
-    path.AddPoint(chrono.ChVector3d(x, y, 0.6))  # z=0.6 to be above terrain
-path.SetClosed(True)
-
 # Create terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
@@ -78,9 +68,28 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create Irrlicht visualization
+# Create circular path
+path = chrono.ChPath()
+arc = chrono.ChLineArc(chrono.ChVector2d(0, 0), 20.0, 0, 2 * math.pi, False)  # Radius 20m
+path.AddLine(arc)
+path.SetNumPoints(100)
+
+# Add two balls to visualize the path
+path_ball1 = chrono.ChBody()
+path_ball1.SetBodyFixed(True)
+path_ball1.SetPos(chrono.ChVector3d(20, 0, 0.5))
+path_ball1.AddVisualShape(chrono.ChVisualShapeSphere(0.5))
+vehicle.GetSystem().Add(path_ball1)
+
+path_ball2 = chrono.ChBody()
+path_ball2.SetBodyFixed(True)
+path_ball2.SetPos(chrono.ChVector3d(0, 20, 0.5))
+path_ball2.AddVisualShape(chrono.ChVisualShapeSphere(0.5))
+vehicle.GetSystem().Add(path_ball2)
+
+# Create the vehicle visualization
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Path Following')
+vis.SetWindowTitle('HMMWV Path Following Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -90,50 +99,27 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create path follower driver
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 5.0)  # Target speed 5 m/s
+driver = veh.ChPathFollowerDriver(vehicle, path, "path", 5.0)  # Target speed 5 m/s
+steeringPID = driver.GetSteeringPID()
+steeringPID.SetKp(0.8)   # Proportional gain
+steeringPID.SetKi(0.0)   # Integral gain
+steeringPID.SetKd(0.02)  # Derivative gain
 driver.Initialize()
 
-# Set PID gains for steering
-steeringPID = driver.GetSteeringPID()
-steeringPID.SetKp(0.8)
-steeringPID.SetKi(0.0)
-steeringPID.SetKd(0.2)
+# Create sentinel and target visualization spheres
+sentinel_sphere = chrono.ChVisualShapeSphere(0.3)
+sentinel_sphere.SetColor(chrono.ChColor(1, 0, 0))  # Red
+sentinel_body = chrono.ChBody()
+sentinel_body.SetBodyFixed(True)
+sentinel_body.AddVisualShape(sentinel_sphere)
+vehicle.GetSystem().Add(sentinel_body)
 
-# Add path visualization spheres
-sphere1 = chrono.ChBody()
-sphere1.SetBodyFixed(True)
-sphere1.SetCollide(False)
-vis_shape1 = chrono.ChVisualShapeSphere(0.5)
-vis_shape1.SetColor(chrono.ChColor(1, 0, 0))
-sphere1.AddVisualShape(vis_shape1)
-sphere1.SetPos(path.GetPoint(0))
-vehicle.GetSystem().Add(sphere1)
-
-sphere2 = chrono.ChBody()
-sphere2.SetBodyFixed(True)
-sphere2.SetCollide(False)
-vis_shape2 = chrono.ChVisualShapeSphere(0.5)
-vis_shape2.SetColor(chrono.ChColor(0, 1, 0))
-sphere2.AddVisualShape(vis_shape2)
-sphere2.SetPos(path.GetPoint(n_points // 2))
-vehicle.GetSystem().Add(sphere2)
-
-# Add sentinel and target visualization spheres
-sentinel_sphere = chrono.ChBody()
-sentinel_sphere.SetBodyFixed(True)
-sentinel_sphere.SetCollide(False)
-sentinel_vis = chrono.ChVisualShapeSphere(0.3)
-sentinel_vis.SetColor(chrono.ChColor(0, 0, 1))
-sentinel_sphere.AddVisualShape(sentinel_vis)
-vehicle.GetSystem().Add(sentinel_sphere)
-
-target_sphere = chrono.ChBody()
-target_sphere.SetBodyFixed(True)
-target_sphere.SetCollide(False)
-target_vis = chrono.ChVisualShapeSphere(0.3)
-target_vis.SetColor(chrono.ChColor(1, 0, 1))
-target_sphere.AddVisualShape(target_vis)
-vehicle.GetSystem().Add(target_sphere)
+target_sphere = chrono.ChVisualShapeSphere(0.3)
+target_sphere.SetColor(chrono.ChColor(0, 0, 1))  # Blue
+target_body = chrono.ChBody()
+target_body.SetBodyFixed(True)
+target_body.AddVisualShape(target_sphere)
+vehicle.GetSystem().Add(target_body)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -152,16 +138,18 @@ while vis.Run():
         vis.Render()
         vis.EndScene()
 
-    # Synchronize driver and get inputs
-    driver.Synchronize(time)
+    # Get driver inputs and override throttle
     driver_inputs = driver.GetInputs()
-    driver_inputs.m_throttle = 0.3  # Constant throttle
+    driver_inputs.throttle = 0.3  # Constant throttle
 
+    # Update modules
+    driver.Synchronize(time)
     # Update sentinel and target visualization
-    sentinel_sphere.SetPos(driver.GetSentinelLocation())
-    target_sphere.SetPos(driver.GetTargetLocation())
-
-    # Synchronize other modules
+    sentinel_pos = driver.GetSentinelLocation()
+    target_pos = driver.GetTargetLocation()
+    sentinel_body.SetPos(sentinel_pos)
+    target_body.SetPos(target_pos)
+    
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)

@@ -21,10 +21,10 @@ ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.
 system.Add(ground)
 
 # Create Turtlebot Robot
-init_pos = chrono.ChVector3d(0, 0.2, 0)  
-init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
-robot = turtlebot.TurtleBot(system, init_pos, init_rot)  
-robot.Initialize()  
+init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -39,17 +39,20 @@ vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-# Move function to control the robot's movement
+# Move the robot
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(0, 0)  
-        robot.SetMotorSpeed(0, 0)  
+        robot.SetMotorSpeed(0, 0)  # Set motor speed to 0
+        robot.SetMotorSpeed(0, 1)  # Set motor speed to 0
+        print(f"Robot is moving straight")
     elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, 0)
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(-math.pi, 0)  # Set motor speed to -pi
+        robot.SetMotorSpeed(math.pi, 1)  # Set motor speed to pi
+        print(f"Robot is turning left")
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(math.pi, 0)  # Set motor speed to pi
+        robot.SetMotorSpeed(-math.pi, 1)  # Set motor speed to -pi
+        print(f"Robot is turning right")
     else:
         raise ValueError("Invalid mode. Choose from 'straight', 'left', or 'right'.")
 
@@ -57,29 +60,31 @@ def move(mode):
 time = 0
 while vis.Run():
     print(f"Time: {time}")
+    move('straight')
+    time += 0.1
     
-    # Move the robot straight for 5 seconds
-    if time < 5.0:
-        move('straight')
-        time += 0.01
-    
-    # Turn left for 5 seconds
-    elif time < 10.0:
+    # Move the robot straight for the first 5 seconds
+    if abs(time - 5.0) < 1e-4:
         move('left')
-        time += 0.01
+        time += 0.1
     
-    # Turn right for 5 seconds
-    elif time < 15.0:
+    # Turn the robot left for the next 5 seconds
+    if abs(time - 10.0) < 1e-4:
         move('right')
-        time += 0.01
+        time += 0.1
+    
+    # Turn the robot right thereafter
+    if abs(time - 15.0) < 1e-4:
+        move('straight')
+        time += 0.1
     
     # Increment time counter
-    time += 0.01
+    time += 0.1
     
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     # Advance the simulation by one time step
     system.DoStepDynamics(0.001)

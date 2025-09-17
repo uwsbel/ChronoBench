@@ -180,7 +180,8 @@ depth_cam = sens.ChDepthCameraSensor(
     30.0
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+
+depth_cam.PushFilter(sens.ChFilterVisualizeDepth(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
 
@@ -205,8 +206,14 @@ while time < end_time:
     manager.Update()
 
     
-    print(f"Time: {time}, Position: ({gator.GetChassisBody().GetPos().x}, {gator.GetChassisBody().GetPos().y}, {gator.GetChassisBody().GetPos().z}), Heading: {gator.GetChassisBody().GetRot().GetAngle()}")
-    
+    print("Time: {:.2f}, Position: ({:.2f}, {:.2f}, {:.2f}), Heading: {:.2f}".format(
+        time,
+        gator.GetChassisBody().GetPos().x,
+        gator.GetChassisBody().GetPos().y,
+        gator.GetChassisBody().GetPos().z,
+        math.degrees(gator.GetChassisBody().GetRot().GetAngle(chrono.ChVector3d(0, 1, 0)))
+    ))
+
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

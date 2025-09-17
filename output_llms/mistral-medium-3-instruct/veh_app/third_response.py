@@ -169,19 +169,19 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 # Added Depth Camera
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
-depth_camera = sens.ChDepthCamera(
+depth_cam_offset = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+depth_cam = sens.ChDepthCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose,
+    depth_cam_offset,
     image_width,
     image_height,
     fov,
     30.0  # Maximum depth
 )
-depth_camera.SetName("Depth Camera")
-depth_camera.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
-manager.AddSensor(depth_camera)
+depth_cam.SetName("Depth Camera")
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, "Depth Map"))
+manager.AddSensor(depth_cam)
 
 # ---------------
 # Simulation loop
@@ -189,42 +189,36 @@ manager.AddSensor(depth_camera)
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
+while time < end_time:
+    time = gator.GetSystem().GetChTime()
 
-# Open a file for logging vehicle state
-with open("vehicle_state_log.csv", "w") as log_file:
-    log_file.write("Time,X,Y,Z,Heading\n")
+    # Get vehicle state
+    chassis_pos = gator.GetChassisBody().GetPos()
+    chassis_rot = gator.GetChassisBody().GetRot()
+    # Calculate heading (yaw angle in degrees)
+    heading = math.degrees(math.atan2(2 * (chassis_rot.w * chassis_rot.z + chassis_rot.x * chassis_rot.y),
+                                     1 - 2 * (chassis_rot.y**2 + chassis_rot.z**2)))
 
-    while time < end_time:
-        time = gator.GetSystem().GetChTime()
+    # Log vehicle state
+    print(f"Time: {time:.2f}s | Position: X={chassis_pos.x:.2f}, Y={chassis_pos.y:.2f}, Z={chassis_pos.z:.2f} | Heading: {heading:.2f}°")
 
-        # Get vehicle state
-        chassis_pos = gator.GetChassisBody().GetPos()
-        chassis_rot = gator.GetChassisBody().GetRot()
+    # set driver inputs
+    driver.SetSteering(0.5)
+    driver.SetThrottle(0.2)
+    # Collect output data from modules (for inter-module communication)
+    driver_inputs = driver.GetInputs()
 
-        # Calculate heading (yaw angle)
-        heading = math.degrees(chrono.ChQuaterniond(chassis_rot).Q_to_Yaw())
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    gator.Synchronize(time, driver_inputs, terrain)
 
-        # Log vehicle state
-        log_file.write(f"{time},{chassis_pos.x},{chassis_pos.y},{chassis_pos.z},{heading}\n")
+    manager.Update()
 
-        # set driver inputs
-        driver.SetSteering(0.5)
-        driver.SetThrottle(0.2)
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    gator.Advance(step_size)
 
-        # Collect output data from modules (for inter-module communication)
-        driver_inputs = driver.GetInputs()
-
-        # Update modules (process inputs from other modules)
-        driver.Synchronize(time)
-        terrain.Synchronize(time)
-        gator.Synchronize(time, driver_inputs, terrain)
-
-        manager.Update()
-
-        # Advance simulation for one timestep for all modules
-        driver.Advance(step_size)
-        terrain.Advance(step_size)
-        gator.Advance(step_size)
-
-        # Spin in place for real time to catch up
-        realtime_timer.Spin(step_size)
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

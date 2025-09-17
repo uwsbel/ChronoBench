@@ -1,5 +1,5 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
 
 # Initialize the PyChrono system
 system = chrono.ChSystemNSC()
@@ -10,43 +10,65 @@ ground.SetBodyFixed(True)
 system.Add(ground)
 
 # Create the pendulum body
-pendulum = chrono.ChBodyEasyBox(0.1, 1.0, 0.1, 1000)  # Width, Length, Height, Density
-pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Position pendulum's center at (0, -0.5, 0)
-pendulum.SetRot(chrono.ChQuaternionD(chrono.ChAngleAxisD(chrono.CH_C_PI / 4, chrono.ChVectorD(0, 0, 1))))  # 45-degree initial rotation
-system.Add(pendulum)
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
 
-# Create revolute joint connecting ground and pendulum
-joint = chrono.ChRevoluteJoint(
-    ground, pendulum,
-    chrono.ChVectorD(0, 0, 0),  # Joint position in ground
-    chrono.ChVectorD(0, 0.5, 0)  # Joint position in pendulum (local coordinates)
-)
-system.Add(joint)
+# Set inertia for the pendulum (thin rod of length 1m, radius 0.05m)
+# Inertia calculated about the center of mass (aligned along Y-axis)
+Ixx = (1.0 / 12.0) * (1.0**2 + 0.1**2)  # Approximate for a thin rod with small radius
+Iyy = (1.0 / 12.0) * (0.1**2 + 0.1**2)
+Izz = Ixx  # Symmetric along X and Z axes
+pendulum.SetInertiaXX(chrono.ChVectorD(Ixx, Iyy, Izz))
 
-# Set up Irrlicht visualization
-application = chronoirr.ChIrrApp(system, 'PyChrono Pendulum Simulation', chronoirr.dimension2du(1024, 768))
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, 0, 0))
+# Position the pendulum's center of mass at (0, -0.5, 0)
+pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))
+
+# Add visualization assets to the pendulum
+box = chrono.ChBoxShape()
+box.GetBoxGeometry().Size = chrono.ChVectorD(0.05, 0.5, 0.05)  # Half-lengths for X, Y, Z
+pendulum.AddAsset(box)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.6, 0, 0)))  # Red color
+
+# Add visualization assets to the ground
+ground_box = chrono.ChBoxShape()
+ground_box.GetBoxGeometry().Size = chrono.ChVectorD(0.1, 0.1, 0.1)
+ground.AddAsset(ground_box)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 0)))  # Black color
+
+# Create and configure the revolute joint
+joint = chrono.ChLinkRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+system.AddLink(joint)
+
+# Set up the Irrlicht visualization
+application = irrlicht.ChIrrApp(system, 'Pendulum Simulation', irrlicht.dimension2du(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irrlicht.vector3df(0, 0, 3), irrlicht.vector3df(0, 0, 0))
+application.AddTypicalLight()
+
 application.AssetBindAll()
 application.AssetUpdateAll()
 
-# Simulation loop parameters
-step_size = 0.01
-log_interval = 0.5
-current_log_time = 0
+# Simulation loop
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+step_size = 1e-3
+log_interval = 0.1
+current_log_time = 0.0
 
-# Run simulation loop
 while application.GetDevice().run():
+    time = system.GetChTime()
+    
+    # Log pendulum's angular position and velocity at intervals
+    if time >= current_log_time:
+        angle = pendulum.GetRot().Q_to_Euler123().z  # Extract rotation about Z-axis
+        ang_vel = pendulum.GetWvel_loc().z  # Angular velocity in local coordinates
+        print(f"Time: {time:.3f}, Angle: {angle:.3f} rad, Angular velocity: {ang_vel:.3f} rad/s")
+        current_log_time += log_interval
+    
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+    
+    # Render the scene
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
-
-    system.DoStepDynamics(step_size)
-
-    current_log_time += step_size
-    if current_log_time >= log_interval:
-        pos = pendulum.GetPos()
-        ang_vel = pendulum.GetWvel_loc()
-        print(f"Time: {system.GetChTime():.2f}s | Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | Angular Velocity: ({ang_vel.x:.3f}, {ang_vel.y:.3f}, {ang_vel.z:.3f})")
-        current_log_time = 0

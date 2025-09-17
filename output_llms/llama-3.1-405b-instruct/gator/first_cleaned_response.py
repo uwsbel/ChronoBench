@@ -49,37 +49,27 @@ tire_model.SetCamberStiffness(10000)
 vehicle.SetTireType(tire_model)
 
 
-vehicle_mesh = chrono.ChTriangleMeshConnected()
-vehicle_mesh.LoadWavefrontMesh('/path/to/gator/mesh.obj')
-vehicle.GetVisualShape().AddAsset(vehicle_mesh)
+vehicle.GetVisualShape().AddAsset(chrono.ChVisualShapeMesh('/path/to/gator/mesh.obj'))
 
 
-driver = chrono.ChIrrNode(sys, vehicle,  
-                          chronoirr.TrackballCamera())  
-driver.SetCameraPosition(chrono.ChVectorD(0, -5, 2))
-driver.SetCameraTarget(chrono.ChVectorD(0, 0, 1))
+driver = chrono.ChIrrNode(sys,  
+                          vehicle,  
+                          chronoirr.ChIrrNodeDriver())  
+driver.SetSteeringIncrement(0.1)
+driver.SetThrottleIncrement(0.1)
+driver.SetBrakingIncrement(0.1)
 
 
-time_step = 1e-3  
-fps = 50  
-while sys.GetChTime() < 100:
-    
-    sys.DoStepDynamics(time_step)
-    
-    
-    driver.Render()
-    chronoirr.ChIrrTools.DrawAllCOGs(sys, driver.GetVideoDriver())
-    driver.GetVideoDriver().EndScene()
-    driver.GetDevice().run()
-    
-    
-    steering = 0.5 * np.sin(sys.GetChTime())
-    throttle = 0.5 * np.cos(sys.GetChTime())
-    braking = 0.2 * np.sin(sys.GetChTime())
-    vehicle.SetSteering(steering)
-    vehicle.SetThrottle(throttle)
-    vehicle.SetBraking(braking)
-    
-    
-    while driver.GetDevice().getTimer().getRealTime() < 1.0 / fps:
-        pass
+app = chronoirr.ChIrrApp(sys,  
+                         'Gator Vehicle Simulation',  
+                         chronoirr.dimension2du(800, 600))  
+
+
+app.SetTimestep(1 / 50)
+app.SetTryRealtime(True)
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()

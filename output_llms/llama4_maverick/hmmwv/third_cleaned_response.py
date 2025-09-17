@@ -66,7 +66,6 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
 terrain.Initialize()
 
 
@@ -87,19 +86,13 @@ class MyDriver(veh.ChDriver):
         self.delay = delay
 
     def Synchronize(self, time):
-        throttle = 0.0
-        steering = 0.0
-        braking = 0.0
-
-        if time > self.delay + 0.2:
-            throttle = min((time - self.delay - 0.2) / 1.0, 0.7)
-
-        if time > self.delay + 2.0:
-            steering = 0.5 * np.sin(2 * np.pi * (time - self.delay - 2.0))
-
-        self.SetThrottle(throttle)
-        self.SetSteering(steering)
-        self.SetBraking(braking)
+        if time > self.delay:
+            throttle = min((time - self.delay - 0.2) / 1.0, 0.7) if time > self.delay + 0.2 else 0
+            steering = np.sin(2 * np.pi * (time - 2)) if time > 2 else 0
+            braking = 0
+            self.SetThrottle(throttle)
+            self.SetSteering(steering)
+            self.SetBraking(braking)
 
 
 driver = MyDriver(0.5)
@@ -110,7 +103,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() and vehicle.GetSystem().GetChTime() < 4.0:
+while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
     time = vehicle.GetSystem().GetChTime()
 
     

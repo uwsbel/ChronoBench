@@ -68,678 +68,616 @@ Let me outline the steps in code:
 
 Wait, the order might be: create all the bodies and joints first, then add visualization assets, then setup simulation.
 
-Wait, in PyChrono, you can add visualization assets to the bodies. So each body (floor, crank, rod, piston) will have their own assets like geometry and textures.
+Wait, in PyChrono, you can add visualization assets to the bodies. So each body (floor, crank, rod, piston) will have their own assets like meshes, textures, colors.
 
-For the floor's texture, perhaps load an image (like a wood texture) and apply it to the box. The piston could have a different color or texture.
-
-Now, code structure:
+Let me start coding step by step.
 
 First, the imports:
 
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import pychrono.postprocess as postproc
+import pychrono.postprocess as post
 
-Then, create the system:
+Then create the system:
 
 system = chrono.ChSystemNSC()
 
 Visualization:
 
-visualizer = irr.ChVisualSystemIrrlicht()
-visualizer.SetWindowSize(1024, 768)
-visualizer.SetWindowTitle('Crank-Slider Mechanism')
-visualizer.SetSymbolscale(0.01)
-visualizer.SetShadows(True)
-visualizer.SetLightDirection(chrono.ChVectorD(0.7, -0.2, -0.3))
-visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
-system.SetVisualSystem(visualizer)
+visualiz = irr.ChIrrApp(system, 'Crank-Slider Mechanism', irr.dimension2du(800,600))
+visualiz.AddTypicalSky()
+visualiz.AddTypicalLogo()
+visualiz.AddTypicalCamera(chronor, position, rotation)
+Wait, need to set camera position and orientation. Maybe position at (2, 2, 2) looking towards the origin?
 
-Wait, the camera position and rotation can be set here. Maybe the user wants customizable settings, so perhaps parameters could be variables, but for now, set some defaults.
+Wait, in code:
 
-Now, the floor. Create a box:
+camera_pos = chrono.ChVectorD(2, 2, 2)
+camera_rot = chrono.ChQuaternionD()
+camera_rot.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))  # rotate around Y by 90 degrees?
+
+Wait, perhaps setting the camera with SetCamera:
+
+visualiz.SetCamera(chronor, position, target, up). Hmm, maybe better to set the camera position and direction.
+
+Alternatively, use SetCameraLocation and SetCameraRotation.
+
+Alternatively, use typical camera functions but adjust parameters.
+
+Alternatively, set the camera to a specific position and orientation.
+
+Alternatively, the user wants customizable camera settings, so maybe set some initial values.
+
+Also, add typical lights. The user mentioned lighting, so adding some.
+
+Then, create the floor:
 
 floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
-floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))  # position at bottom
 floor.SetBodyFixed(True)
 system.Add(floor)
 
-Add a texture to the floor. To do that, need to load an image. Let's assume there's a texture file like "wood.jpg". Maybe use a billboard texture:
+Add a texture to the floor. For that, create a texture asset.
 
-texture_floor = chrono.ChTexture()
-texture_floor.SetTextureFilename(chrono.GetChronoDataFile('textures/wood.jpg'))
-floor.AddAsset(texture_floor)
+texture_floor = irr.ChTexture()
+texture_floor.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+floor.GetAssets().append(texture_floor)
 
-Alternatively, if the user expects a specific texture, but perhaps using a default.
+Then the crankshaft. Let's model it as a cylinder. Let's say radius 0.1, length 0.5.
 
-Crankshaft:
-
-crank = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
-crank.SetPos(chrono.ChVectorD(0, 0, 0))
+crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True)
+crank.SetPos(chrono.ChVectorD(0, 0.25, 0))  # position at center
 system.Add(crank)
 
-Wait, the cylinder's dimensions: radius 0.1, length 0.3. Position at (0,0,0). The revolute joint between floor and crank.
+Now, the revolute joint between crank and floor. The revolute's frame on the floor is at (0,0,0), and on the crank at its center (0,0,0). The rotation axis is along Y (assuming the crank spins around Y).
 
-The revolute joint: between floor and crank. The joint is at the center of the crank (since it's a cylinder, center is at (0,0,0)), and the floor is at (0,-0.05,0). So the joint axis is along Y (since the crank rotates around its own Y-axis? Wait, the cylinder's orientation. The cylinder's axis is along the Y-axis if created with ChBodyEasyCylinder, since the first parameter is radius, second is length. So the cylinder's length is along Y. So rotating around Y would spin it.
+rev_crank_floor = chrono.ChLinkLockRevolute()
+rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+system.AddLink(rev_crank_floor)
 
-Wait, the ChBodyEasyCylinder function parameters are radius, length, density, etc. The cylinder's local coordinate system has its axis along the Y-axis. So the rotation axis for the revolute joint should be along Y.
-
-So the revolute joint between floor and crank:
-
-rev_crank = chrono.ChLinkLockRevolute()
-rev_crank.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
-rev_crank.SetName("crank_revolute")
-system.AddLink(rev_crank)
-
-Then, the motor. The motor is applied to the revolute joint to spin it. So:
+Then the motor. Apply a motor to the revolute joint to spin the crank at constant angular speed.
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(crank, floor, chrono.ChFrameD(chrono.VNULL, chrono.QUNIT))
+motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  # angular speed pi rad/s
 system.Add(motor)
 
-Wait, need to set the angular speed. Let's say 2 rad/s.
+Wait, but the motor needs to be added to the system. Wait, the motor is a link, so adding via system.Add(motor).
 
-motor.SetSpeedFunction(lambda: 2.0)
+Alternatively, perhaps the motor is part of the link. Let me check the API. ChLinkMotorRotationSpeed is a link that can be added to the system.
 
-Wait, in PyChrono, the motor's speed function can be set with a lambda. Alternatively, use a constant speed.
+So system.Add(motor).
 
-Wait, the ChLinkMotorRotationSpeed requires a function that returns the desired angular speed. So setting it to a constant function.
+Next, the connecting rod. Let's model it as a cylinder. Let's say length 1.0, radius 0.05.
 
-Now, the connecting rod. Let's model it as a cylinder. Suppose length 0.5, radius 0.05.
+rod = chrono.ChBodyEasyCylinder(0.05, 1.0, 1000, True, True)
+rod.SetPos(chrono.ChVectorD(0.5, 0.25, 0))  # initial position? Maybe need to calculate based on crank position?
 
-rod = chrono.ChBodyEasyCylinder(0.05, 0.5, 1000, True, True)
-rod.SetPos(chrono.ChVectorD(0.3, 0, 0))  # initial position aligned with crank's end?
+Wait, perhaps better to position it relative to the crank's end. Since the crank is a cylinder of length 0.5, its end is at (0.25, 0.25, 0) in its local frame? Wait, the cylinder's axis is along the X-axis by default? Or depends on how it's created.
 
-Wait, the crank is a cylinder of length 0.3 (radius 0.1), so its end is at (0, 0.15, 0)? Wait, no. Wait, the cylinder's length is along Y-axis. The cylinder's length is 0.3, so from -0.15 to +0.15 along Y. So the end is at (0, 0.15, 0). The connecting rod's initial position should be such that it connects the end of the crank to the piston. Maybe start with the rod's center at (0.3, 0, 0)? Not sure yet. Maybe better to set it based on the joints.
+Wait, when creating a cylinder with ChBodyEasyCylinder(radius, length, ...), the cylinder is aligned along the X-axis. So the crank's length is 0.5, so from -0.25 to +0.25 along X. So the center is at (0,0.25,0) in world, so the end of the crank (positive X) is at (0.25, 0.25, 0). The rod should connect there. But the rod's revolute joint with the crank is at that point.
 
-The rod needs to be connected via a revolute joint to the crank. Let's see:
+Hmm, perhaps better to set the rod's position based on the crank's end. Alternatively, the joints will handle the positions.
 
-The rod's revolute joint with the crank: the point on the crank is at its end (since the crank is rotating, the rod is attached to the end of the crank). The crank's end is at (0, 0.15, 0) (since length is 0.3, so half is 0.15). Wait, the cylinder's length is along Y-axis, so the center is at (0,0,0), so the ends are at (0, +/- 0.15, 0). So the rod is attached to the crank's end (say, the positive Y end).
+Wait, perhaps the rod's joint with the crank is at the end of the crank. Let's see:
 
-Wait, but the crank's rotation is around its own Y-axis. So the crank's rotation would cause the end to move in the X-Z plane? Wait, no. Wait, the rotation axis is along Y. So when the crank rotates, the end (which is along Y) would move in the X-Z plane? Wait, no. Wait, the cylinder's axis is Y. Rotating around Y would cause the ends to move in the X-Z plane. Wait, actually, if the cylinder is along Y, then rotating around Y would spin it, but the end points along Y would stay in their Y position, but the direction of the cylinder would rotate. Hmm, maybe I need to think in terms of the joint's coordinate frames.
+The revolute joint between crank and rod is at the end of the crank. The crank's end is at (0.25, 0.25, 0) in world coordinates (since crank's center is at (0,0.25,0), and length 0.5 along X).
 
-Alternatively, perhaps the crank is a circular disk? Wait, no, a cylinder. Maybe I should model the crank as a circular disk to make it easier for the joint. Alternatively, perhaps the crank is a rod with a circular cross-section. Hmm, maybe better to model the crank as a cylinder of radius 0.1 and length 0.3. The end of the crank (the tip) is at (0, 0.15, 0). The connecting rod's revolute joint is attached to that point.
+So the rod's revolute joint with the crank is at that point. The rod's own position can be set accordingly.
 
-So the rod's revolute joint with the crank is at (0, 0.15, 0). The rod's initial position is such that it points towards the piston.
+Wait, perhaps it's better to create the joints first. Let me think.
 
-The piston is connected via a prismatic joint to the floor. Let's say the piston is constrained to move along the X-axis. So the prismatic joint's axis is along X.
+The rod is connected to the crank via a revolute joint. The crank's end point is (0.25, 0.25, 0). So the revolute joint between crank and rod is at that position. The rod's joint frame on the crank is at (0.25,0,0) in the crank's local frame (since crank's X-axis is along its length). The rod's joint frame is at (0,0,0) in the rod's local frame.
 
-Piston:
+Wait, the crank's local coordinate system has X along its length, so the end is at +0.25 in X. So the joint between crank and rod is at (0.25,0,0) in crank's frame.
 
-piston = chrono.ChBodyEasyCylinder(0.15, 0.2, 1000, True, True)
-piston.SetPos(chrono.ChVectorD(0.5, 0, 0))  # initial position along X
+So the revolute joint between crank and rod is:
 
-Wait, but the piston's movement is along X. The prismatic joint connects it to the floor. The joint is along X.
+rev_rod_crank = chrono.ChLinkLockRevolute()
+rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25,0,0), chrono.QUNIT))
+system.AddLink(rev_rod_crank)
+
+Then, the rod's other end connects to the piston. The piston is constrained to move along the X-axis (prismatic joint to the floor). The rod's other end is connected via a revolute joint to the piston.
+
+The piston's prismatic joint is along the X-axis. Let's model the piston as a cylinder of length 0.3, radius 0.1, positioned along the X-axis.
+
+piston = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
+piston.SetPos(chrono.ChVectorD(1.0, 0.25, 0))  # initial position? Maybe need to think about initial configuration.
+
+Wait, the piston's prismatic joint is attached to the floor. Let's set up the prismatic joint first.
 
 prismatic = chrono.ChLinkLockPrismatic()
-prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), chrono.VECT_X)
+prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0,0.25,0), chrono.QUNIT), chrono.ChVectorD(1,0,0))
 system.AddLink(prismatic)
 
-Wait, the prismatic joint allows movement along the X-axis. The piston is attached at the origin (floor's position?), but piston's initial position is along X.
+So the piston can move along the X-axis. The prismatic joint's frame on the floor is at (0,0.25,0), and the piston's frame is at its center. The direction is along X.
 
-Now, connecting rod's other end connected to the piston via a revolute joint. The rod's other end is connected to the piston's center.
+Now, the rod's other end connects to the piston. The revolute joint between rod and piston is at the piston's end. Let's say the piston's center is at (x,0.25,0), so the end of the piston along X is at (x + 0.15, 0.25, 0) (since the piston's length is 0.3, so half is 0.15). Wait, the cylinder's length is 0.3, so from -0.15 to +0.15 along its X-axis (assuming aligned along X). So the piston's end is at (piston's center X + 0.15, 0.25, 0).
 
-The rod's length is 0.5, so if the rod is attached at (0, 0.15,0), then the other end would be at (0.5, 0.15,0) if aligned along X? Not sure, but need to set the revolute joints properly.
+The rod's other end should connect there. The rod's joint with the piston is at the piston's end point.
 
-Wait, the rod is a cylinder of length 0.5. Its orientation is such that it connects the crank's end to the piston. Let me think of the rod's center. Suppose the rod's center is at (0.25, 0.15, 0), with length 0.5 along X-axis. Then the rod's ends are at (0, 0.15,0) and (0.5, 0.15,0). But the crank's end is at (0,0.15,0), so that would be one end of the rod. The other end is connected to the piston. The piston's position is (0.5, 0, 0). Hmm, but the piston's center would be at (0.5, 0,0), but the rod's end is at (0.5,0.15,0). That might not align. Maybe the piston's revolute joint is at (0.5,0,0), so the rod's end needs to be there.
-
-Alternatively, perhaps the piston's position is along the X-axis, and the rod's other end is connected to the piston's center. So the rod's revolute joint with the piston is at the piston's center.
-
-So, the rod's revolute joint with piston is at the piston's position. Let me structure this:
-
-Rod's first revolute joint is attached to the crank's end (0,0.15,0). The rod's second revolute joint is attached to the piston's center (say, piston is at (0.5,0,0)). So the rod's length is 0.5, so distance between those points is sqrt( (0.5)^2 + (0.15)^2 ), but maybe need to adjust the initial positions so that the rod is straight.
-
-Alternatively, set the rod's initial position so that it's aligned with the crank's end and piston's position.
-
-Alternatively, perhaps the piston's initial position is along X, so that the rod is straight. Let me set:
-
-Crank's end is at (0,0.15,0).
-
-Piston's initial position is (0.5,0,0).
-
-The rod's length should be sqrt( (0.5)^2 + (0.15)^2 ) ≈ 0.519. To make it 0.5, maybe adjust the piston's initial position to (0.5, 0,0) and crank's end at (0,0.15,0). The rod's length would need to be that distance. Alternatively, adjust the crank's length to make it easier. Maybe the crank's length is 0.3 (so half is 0.15), but the rod length is 0.5. So the distance between (0,0.15,0) and (0.5,0,0) is sqrt(0.5^2 +0.15^2) ≈0.519, so the rod's length can be 0.5, but then the initial position would not be exactly aligned. Hmm, maybe it's better to set the piston's initial position so that the rod is straight. Let me see.
-
-Suppose the piston is at (0.5,0,0). The crank's end is at (0,0.15,0). The rod's length is 0.5. So the distance between those points is ~0.519, which is longer than 0.5. That would mean the rod is initially stretched. Not good. So perhaps the piston's initial position is (0.4,0,0). Then distance is sqrt(0.4^2 +0.15^2)= ~0.427, so rod length 0.5 would have some slack. Alternatively, maybe adjust the crank's length to 0.2, so the end is at (0,0.1,0). Then distance to (0.5,0,0) is 0.509, which is close to 0.5. Maybe better.
-
-Alternatively, perhaps set the crank's length to 0.2 (radius 0.1, length 0.2), so end at (0,0.1,0). Then piston at (0.5,0,0). Distance is sqrt(0.5^2 +0.1^2)= ~0.5099. So rod length 0.5 would be slightly shorter, but perhaps acceptable for initial setup. Maybe that's manageable.
-
-Alternatively, adjust the initial positions to make the rod's length exactly the distance. Let me compute:
-
-Suppose rod length is 0.5. The crank's end is at (0, y,0), and piston at (x,0,0). Then distance is sqrt(x² + y²)=0.5. Let me choose y=0.3, then x= sqrt(0.25 -0.09)=sqrt(0.16)=0.4. So if crank's length is 0.6 (radius 0.3?), but that might be too big. Alternatively, set y=0.15, then x would be sqrt(0.25 -0.0225)= sqrt(0.2275)= ~0.477. So piston at (0.477,0,0). Maybe that's okay.
-
-Alternatively, perhaps set the crank's length to 0.3 (so end at 0.15 along Y), piston at (0.5,0,0). Then rod length is sqrt(0.5² +0.15²)= ~0.519. To have rod length 0.519, set rod's length to that. Maybe that's better.
-
-So the rod's parameters would be radius 0.05, length 0.519. But maybe it's easier to just set the length as needed.
-
-Alternatively, perhaps the rod is a box instead of a cylinder for simplicity? Maybe a box with dimensions 0.5 (length along X), 0.05 (Y), 0.05 (Z). Then the length is 0.5. So if the crank's end is at (0,0.15,0), and the piston is at (0.5,0,0), then the box's center is at (0.25, 0.075,0), and the box is aligned along X, but rotated to reach the piston. Hmm, but the revolute joints need to be at the ends.
-
-Alternatively, perhaps it's better to use cylinders and adjust the positions.
-
-Let me proceed with code.
-
-First, the crank:
-
-crank = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
-crank.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(crank)
-
-Crank's end is at (0, 0.15,0).
-
-The connecting rod:
-
-rod_length = 0.5  # desired length between crank's end and piston's position
-rod = chrono.ChBodyEasyCylinder(0.05, rod_length, 1000, True, True)
-rod.SetPos(chrono.ChVectorD(0.25, 0.075, 0))  # center position between (0,0.15) and (0.5,0)
-system.Add(rod)
-
-Wait, the center of the rod would be at (0.25, 0.075,0) if the rod is aligned between (0,0.15) and (0.5,0). But the cylinder's length is along its own Y-axis. Hmm, maybe this is getting too complicated. Alternatively, set the rod's orientation so that it points from crank's end to piston.
-
-Alternatively, perhaps the rod's coordinate system is set such that its local Y-axis is along the rod's length. So when creating the revolute joints, we need to set the coordinate frames properly.
-
-Alternatively, let's proceed step by step.
-
-First, the rod's revolute joint with the crank:
-
-The revolute joint between crank and rod is at the crank's end (0,0.15,0). The rod's end should be attached here.
-
-The revolute joint between crank and rod:
-
-rev_crank_rod = chrono.ChLinkLockRevolute()
-rev_crank_rod.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0,0.15,0), chrono.QUNIT))
-system.AddLink(rev_crank_rod)
-
-Similarly, the rod's other end is connected to the piston's center (say, piston is at (0.5,0,0)). So the revolute joint between rod and piston is at (0.5,0,0).
+So the revolute joint between rod and piston:
 
 rev_rod_piston = chrono.ChLinkLockRevolute()
-rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(0.5,0,0), chrono.QUNIT))
-system.AddLink(rev_rod_piston)
+rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(-0.5,0,0), chrono.QUNIT))
+Wait, the rod's length is 1.0, so its own center is at the middle. The rod's joint with the crank is at +0.5 along its own X-axis (since length 1.0, so from -0.5 to +0.5). Wait, no, the rod is a cylinder of length 1.0, so its center is at (0,0,0) in its local frame, and the ends at ±0.5 along X.
 
-Wait, but the rod's position and orientation must be such that these joints are placed correctly. The rod's length should be the distance between (0,0.15,0) and (0.5,0,0), which is sqrt(0.5² +0.15²)= ~0.519. So the rod's length should be set to that.
+Wait, the rod's revolute joint with the crank is at (0.25,0,0) in the crank's frame. But the rod's own frame's position relative to the crank's end?
 
-So rod = chrono.ChBodyEasyCylinder(0.05, 0.519, 1000, True, True)
+Hmm, perhaps this is getting too complicated. Maybe I should adjust the positions so that the initial configuration is valid.
 
-But perhaps better to calculate it:
+Alternatively, perhaps the rod's length is set such that in the initial position (crank at 0 degrees), the rod connects the crank's end to the piston's end. Let's assume initial crank angle is 0, so pointing along X. The crank's end is at (0.25, 0.25, 0). The rod's length is 1.0, so the other end of the rod (after connecting to crank) should reach the piston's end. The piston's prismatic joint allows movement along X, so initial position could be at (0.25 + 1.0, 0.25, 0) but constrained by the piston's prismatic joint.
 
-distance = math.sqrt(0.5**2 +0.15**2)
-rod_length = distance
-rod = chrono.ChBodyEasyCylinder(0.05, rod_length, 1000, True, True)
+Wait, perhaps the piston's initial position is set so that the rod is straight. Let me think numerically:
 
-Wait, but in code, I can compute it:
+Crank's end is at (0.25, 0.25, 0). The rod is length 1.0, so the other end of the rod (connected to piston) would be at (0.25 + 1.0, 0.25, 0) = (1.25, 0.25, 0). But the piston's center would be at (1.25 - 0.15, 0.25, 0) since the piston's cylinder has length 0.3 (so half is 0.15). Wait, the piston's cylinder is along its own X-axis, so if the piston's end is at (1.25, 0.25, 0), its center is at (1.25 - 0.15, ...) ?
 
-import math
+Alternatively, maybe the piston's prismatic joint is set so that its center can move along X. Let's set the piston's initial position such that in the initial configuration, the rod is straight.
 
-rod_length = math.sqrt(0.5**2 +0.15**2)
-rod = chrono.ChBodyEasyCylinder(0.05, rod_length, 1000, True, True)
+Alternatively, perhaps it's better to use the joints to automatically handle the positions through constraints. Maybe the initial positions don't need to be perfect as the system will find the equilibrium.
 
-Then, the rod's position. Since the rod is between (0,0.15,0) and (0.5,0,0), its center is at (0.25,0.075,0). So:
+Now, the piston's revolute joint with the rod. The joint is at the piston's end. Let's say the piston's cylinder is aligned along its X-axis, so its end is at (piston_pos.x + 0.15, ...). The rod's other end's position is at that point.
 
-rod.SetPos(chrono.ChVectorD(0.25, 0.075,0))
+The revolute joint between rod and piston would be at that point. The rod's local frame for that joint is at the end of the rod (since the rod's length is 1.0, so the other end is at -0.5 along its X-axis (since the rod's center is at (0,0,0), so the end is at -0.5 along its own X).
 
-Hmm, but when creating the cylinder, its length is along its own Y-axis. So to have the cylinder aligned along the direction from (0,0.15,0) to (0.5,0,0), we need to rotate it.
+Wait, the rod's joint with the piston is at its own -0.5 along X (since the rod's length is 1.0). So the rod's frame for that joint is at (-0.5,0,0). The piston's frame for the joint is at its end point, which is (0.15,0,0) in the piston's local frame (since the piston's cylinder is 0.3 long, so half is 0.15).
 
-The direction vector is (0.5, -0.15,0). The cylinder's local Y-axis should point along this direction. So compute the rotation needed.
+Wait, perhaps the piston's cylinder is along its X-axis, so the end is at +0.15 in local coordinates. So the joint between rod and piston would be at that point on the piston.
 
-The direction vector is (0.5, -0.15,0). The length is rod_length.
+Thus, the revolute joint between rod and piston is initialized as:
 
-The unit vector is (0.5/rod_length, -0.15/rod_length,0). To align the cylinder's Y-axis with this direction, we need a rotation.
+rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(-0.5,0,0), chrono.QUNIT), chrono.ChFrameD(chrono.ChVectorD(0.15,0,0), chrono.QUNIT))
 
-Alternatively, perhaps it's easier to set the rod's orientation using a coordinate frame.
+Hmm, that might be necessary. The first frame is on the rod at -0.5 along its X, the second frame on the piston at +0.15 along its X.
 
-The rod's coordinate system's Y-axis is along the direction from crank to piston.
+Alternatively, maybe I need to adjust these positions to ensure correct connection.
 
-So the rotation can be computed with a quaternion.
+This is getting a bit complex. Maybe I should proceed with code and see if it works, then adjust if needed.
 
-Alternatively, maybe use ChFrameD for the rod's position and orientation.
+Now, adding all bodies to the system:
 
-Alternatively, maybe it's better to use a revolute joint with the correct frames.
+system.Add(crank)
+system.Add(rod)
+system.Add(piston)
 
-Wait, perhaps I'm overcomplicating. Since the joints are using the specified points, the rod will automatically be positioned correctly as the simulation runs, but in the initial setup, perhaps the rod's initial position and orientation can be set appropriately.
+Wait, the floor was already added.
 
-Alternatively, maybe the rod's initial orientation can be set via a rotation.
+Now, the visualization assets:
 
-The direction vector is (0.5, -0.15,0). To align the cylinder's Y-axis along this direction:
+For the crank, perhaps a blue cylinder. The rod could be red, piston green.
 
-The desired Y-axis is (0.5, -0.15,0). Normalize it:
+crank.GetVisualShape(0).SetTexture(chrono.GetChronoDataPath() + 'textures/blue.jpg')
+rod.GetVisualShape(0).SetTexture(chrono.GetChronoDataPath() + 'textures/red.jpg')
+piston.GetVisualShape(0).SetTexture(chrono.GetChronoDataPath() + 'textures/green.jpg')
 
-unit_dir = chrono.ChVectorD(0.5, -0.15,0)/rod_length
+Alternatively, set colors:
 
-The cylinder's local Y-axis is along unit_dir. The X and Z axes can be arbitrary, but to define the rotation, perhaps compute a quaternion.
+crank.GetVisualShape(0).SetColor(chrono.ChColor(0,0,1))
+rod.GetVisualShape(0).SetColor(chrono.ChColor(1,0,0))
+piston.GetVisualShape(0).SetColor(chrono.ChColor(0,1,0))
 
-Alternatively, create a rotation matrix where Y is unit_dir, and X and Z are perpendicular.
+Adding a logo as a billboard. The Irrlicht app has a typical logo, but maybe adding another one.
 
-Alternatively, use the ChFrameD to set the orientation.
+billboard = irr.ChBillboard()
+billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+billboard.SetSize(0.5)
+billboard.SetPos(chrono.ChVectorD(0,1,0))
+visualiz.AddBillboard(billboard)
 
-Alternatively, perhaps it's better to not worry about the initial orientation and let the joints position it correctly. Since the joints are set between the points, the rod will be connected properly even if the initial orientation is not perfect.
+Now, setting up the simulation loop:
 
-Hmm, perhaps proceed with code as follows:
+visualiz.SetTimestep(0.005)
+visualiz.SetTryRealtime(True)
 
-After creating the rod, set its position to the midpoint between the two points (0.25, 0.075,0). The cylinder's length is rod_length, so the cylinder will extend from the center along its local Y-axis. To have the local Y-axis aligned with the direction between the two points, the rotation is needed.
+visualiz.AddAllTypicalLights()
 
-The direction vector is (0.5, -0.15,0). The cylinder's local Y is along that vector. The X-axis could be along Z, but perhaps compute the rotation.
+Wait, need to add lights. The user mentioned lighting, so perhaps:
 
-Alternatively, use a helper function to compute the rotation.
+visualiz.AddLightWithShadow(chrono.ChVectorD(2,5,2), chrono.ChVectorD(0,0,0), 3, 100, 55, 80)
+Or use typical lights.
 
-Wait, perhaps this is getting too involved. Maybe the code can proceed without worrying about the initial orientation, as the joints will constrain it properly. The initial positions of the bodies can be set such that the rod is connected properly.
+Alternatively, call AddTypicalLights().
 
-Alternatively, set the rod's position to the midpoint between the two points, and set its orientation so that its local Y-axis points towards the piston.
+visualiz.AddTypicalLights()
 
-The rod's local Y-axis should point from crank's end to piston's position. The vector is (0.5, -0.15,0). So the direction is (0.5, -0.15,0). To align the cylinder's Y-axis with this, we can compute the rotation.
+Then, the main loop:
 
-The cylinder's initial orientation can be set using a rotation matrix.
+while visualiz.Run():
+    system.DoStepDynamics()
+    visualiz.BeginScene()
+    visualiz.DrawAll()
+    visualiz.EndScene()
 
-Let me compute the rotation:
+Wait, but the standard Irrlicht loop is handled by the Run() function, so perhaps the code is:
 
-The desired Y-axis is (0.5, -0.15,0). Let's call this vector 'y'.
+visualiz.SetTimestep(0.005)
+visualiz.SetTryRealtime(True)
+visualiz.MainLoop()
 
-We need to create a rotation matrix where the Y-axis is along y, and the other axes are orthogonal.
+Wait, yes, the MainLoop() is the standard way.
 
-First, normalize y:
+Putting it all together, but need to check for any missing parts.
 
-y_length = math.sqrt(0.5**2 + (-0.15)**2)
-y_normalized = chrono.ChVectorD(0.5/y_length, -0.15/y_length, 0)
+Wait, the piston's prismatic joint is along X, so the piston can only move along X. The rod's revolute joint with the piston allows rotation.
 
-Then, choose an arbitrary Z-axis, say (0,0,1), then compute X = Y cross Z.
+Wait, the piston's cylinder is aligned along its X-axis, so the prismatic joint's direction is along X. The piston's movement is constrained along X.
 
-Wait, but cross product with Z (0,0,1):
+Now, possible issues: the initial positions might not be correct, leading to overlapping bodies or incorrect connections. Maybe the crank's initial position is okay, but the rod and piston need to be positioned such that the system is in a valid state.
 
-X = y_normalized.cross(chrono.ChVectorD(0,0,1))
+Alternatively, the joints will handle the constraints, so the initial positions can be approximate.
 
-Then, the rotation matrix is formed by X, Y, Z.
+Testing the code:
 
-Wait, perhaps easier to use ChQuaternion to align the Y-axis.
+Wait, in the code, the crank's revolute joint is between floor and crank, at (0,0,0) for floor (which is at (0,-0.1,0) position?), but the floor's position is (0,-0.1,0). The crank's position is (0,0.25,0), so the joint's location is at (0,0,0) in the floor's frame? Wait, the floor's position is (0,-0.1,0). The revolute joint's frame on the floor is at (0,0,0) in the floor's local frame, which would be (0, -0.1, 0) in world coordinates. But the crank's position is (0,0.25,0), so the joint is at (0, -0.1,0) plus the local frame's position? Wait, no, the joint's position is in the global frame.
 
-Alternatively, use the ChFrameD's constructor with the desired orientation.
+Wait, the ChLinkLockRevolute's Initialize function takes the two bodies and the frame on the first body (floor) and the frame on the second body (crank). Wait, no, the function is Initialize(first_body, second_body, frame_on_first_body). So the frame_on_first_body is expressed in the first body's frame. So the joint's location in global is first_body.GetPos() + frame_on_first_body's position.
 
-Alternatively, in code:
+So for the rev_crank_floor joint between floor and crank:
 
-y_dir = chrono.ChVectorD(0.5, -0.15, 0)
-y_dir.Normalize()
+floor's position is (0,-0.1,0). The frame_on_floor is (0,0,0), so the joint's position is (0,-0.1,0) + (0,0,0) = (0,-0.1,0). But the crank's position is (0,0.25,0). The crank's joint is at its own local frame's position, which is (0,0,0) in crank's frame, so global position is (0,0.25,0) + (0,0,0) = (0,0.25,0). Wait, but the joint must have both bodies connected at the same global position. Wait, the revolute joint requires that the two bodies are connected at the same point. So the frame_on_floor and frame_on_second_body must result in the same global position.
 
-z_dir = chrono.ChVectorD(0,0,1)
-x_dir = y_dir.Cross(z_dir)
-x_dir.Normalize()
+Wait, the Initialize function for ChLinkLockRevolute takes the first body (floor), second body (crank), and the frame on the first body (floor). The second body's frame is determined by the joint's constraints. Hmm, perhaps I need to make sure that the frames are set so that the two bodies' connection points coincide.
 
-rot = chrono.ChMatrix33D()
-rot.Set_A_Xaxis(x_dir)
-rot.Set_A_Yaxis(y_dir)
-rot.Set_A_Zaxis(z_dir.Cross(x_dir))  # or something?
+Alternatively, perhaps the crank's position is set such that its center is at (0,0.25,0), and the joint is at (0,0,0) in the crank's frame, so the joint's position is (0,0.25,0). But the floor's joint frame is at (0,0,0) in floor's frame (which is at (0,-0.1,0)), so the joint position is (0,-0.1,0). These are different, so that's a problem.
 
-Wait, maybe better to use ChQuaternion:
+Ah, here's an error. The revolute joint between floor and crank must have their frames positioned so that the joint's position is the same in both bodies.
 
-The rotation from the default Y-axis (0,1,0) to the desired Y-axis.
+So the floor's joint frame should be at (0,0.35,0) in its own frame (since floor's position is (0,-0.1,0), so to reach (0,0.25,0), the frame_on_floor would be (0,0.35,0) in floor's local coordinates).
 
-The default Y is (0,1,0). The desired Y is y_dir.
+Wait, let's think:
 
-The rotation can be computed using the rotation between two vectors.
+The joint must have the same global position for both bodies. The floor's joint frame's position in global is floor_pos + frame_on_floor's position. The crank's joint frame's position in global is crank_pos + frame_on_crank's position.
 
-The axis of rotation is the cross product of the two vectors, and the angle is the angle between them.
+To have them equal:
 
-Let me compute:
+floor_pos + frame_floor_pos = crank_pos + frame_crank_pos.
 
-current_y = chrono.ChVectorD(0,1,0)
-desired_y = y_dir
+Assuming the frame_on_crank is (0,0,0) (since the crank's revolute is at its center), then:
 
-cross = current_y.Cross(desired_y)
-angle = current_y.Angle(desired_y)
+floor's joint position is (0,-0.1,0) + frame_floor's position (say, (0,0.35,0)) → (0,0.25,0).
 
-if angle < 1e-6:
-    q = chrono.QUNIT
-else:
-    axis = cross / cross.Length()
-    q = chrono.Q_from_AngAxis(angle, axis)
+Crank's position is (0,0.25,0), so crank_pos + (0,0,0) = (0,0.25,0). So that works.
 
-Then, the rotation quaternion is q.
+Therefore, the frame_on_floor for the revolute joint between floor and crank should be at (0,0.35,0) in floor's frame.
 
-So in code:
+So:
 
-current_y = chrono.ChVectorD(0, 1, 0)
-desired_y = y_dir
-cross = current_y.Cross(desired_y)
-angle = current_y.Angle(desired_y)
+rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0.35,0), chrono.QUNIT))
 
-if angle < 1e-6:
-    q_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-else:
-    axis = cross / cross.Length()
-    q_rot = chrono.Q_from_AngAxis(angle, axis)
+Ah, that's a crucial correction.
 
-Then, set the rod's rotation:
+Similarly, the rod's revolute joint with the crank must have their frames aligned.
 
-rod.SetRot(q_rot)
+The crank's end is at (0.25,0.25,0) in global (since crank's center is at (0,0.25,0), and its X-axis is along its length. So the end is at (0.25,0.25,0).
 
-Hmm, but this requires more code. Maybe for simplicity, the code can proceed without setting the rotation explicitly, assuming that the joints will handle it. The initial positions might be slightly off, but the simulation will correct it.
+The rod's joint with the crank is at that point. The frame on the crank is at (0.25,0,0) in the crank's local frame (since the crank's X-axis is along its length, so moving +0.25 along X from center gives the end).
 
-Alternatively, maybe the rod's initial position is set to the midpoint between the two joints.
+So rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25,0,0), chrono.QUNIT))
 
-Anyway, proceeding with the code steps.
+Then, the rod's other end connects to the piston. The piston's prismatic joint is along X, so the piston can move along X.
 
-After creating all the bodies and joints, adding visualization assets.
+The rod's other end (in its local frame) is at -0.5 along its X (since length 1.0, so from -0.5 to +0.5). So the rod's joint with the piston is at (-0.5,0,0) in rod's local frame.
 
-For example, the crank can have a color:
+The piston's end (where the joint is) is at +0.15 along its X (since its cylinder is 0.3 long, so half is 0.15). So the frame on the piston is at (0.15,0,0).
 
-crank.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8,0.8,0.8)))  # silver
+Thus, rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(-0.5,0,0), chrono.QUNIT), chrono.ChFrameD(chrono.ChVectorD(0.15,0,0), chrono.QUNIT))
 
-The rod can be blue:
+Wait, the Initialize function for revolute joints between two bodies requires the first body's frame and the second body's frame. So the first argument is rod, second is piston, then the frame on rod and frame on piston.
 
-rod.AddAsset(chrono.ChColorAsset(chrono.ChColor(0,0,1)))
+This should correctly position the joint.
 
-The piston red:
+Now, the piston's initial position: since it's connected via prismatic joint to the floor, which allows movement along X. The initial position could be set such that the rod is straight. Let's see:
 
-piston.AddAsset(chrono.ChColorAsset(chrono.ChColor(1,0,0)))
+The crank's end is at (0.25,0.25,0). The rod's length is 1.0, so the other end should be at (0.25 + 1.0*cos(theta)), but initially theta is 0 (crank along X). So the rod's other end is at (0.25 + 1.0, 0.25,0) = (1.25, 0.25,0). The piston's end (where the joint is) must be at that point.
 
-The floor has the wood texture as before.
+The piston's cylinder is along its X-axis, so its center is at (1.25 - 0.15, 0.25,0) = (1.1, 0.25,0). Because the joint on the piston is at +0.15 from its center.
 
-Additionally, adding a logo as a billboard. For example, a Chrono logo in the corner.
+Therefore, the piston's initial position should be (1.1, 0.25,0).
 
-billboard = chrono.ChBillboard()
-billboard.SetTexture(chrono.GetChronoDataFile('logo_chrono.png'))
-billboard.SetSize(0.2)
-billboard.SetPosition(chrono.ChVectorD(-2, 1, 2))  # position in world coordinates
-visualizer.AddBillboard(billboard)
+So piston.SetPos(chrono.ChVectorD(1.1, 0.25,0)).
 
-Wait, but billboards are part of the visual system. Alternatively, using a ChSprite.
+The prismatic joint is initialized with the frame on the floor at (0,0.25,0), and the piston's frame at (0,0,0). Wait, the prismatic joint's initialization:
 
-Alternatively, using ChAssetSprite:
+prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0,0.25,0), chrono.QUNIT), chrono.ChVectorD(1,0,0))
 
-Wait, perhaps using the Irrlicht API to add a logo to the screen. But that's more complex. Alternatively, add a static billboard at a position.
+Wait, the frame on the floor is at (0,0.25,0) (since floor's position is (0,-0.1,0)), so that point in global is (0, -0.1 + 0.35? No, the frame_on_floor is (0,0.25 + floor's position? Wait, no. The frame_on_floor is expressed in the floor's local coordinates. So if the floor's position is (0,-0.1,0), then the frame_on_floor's position (0,0.25,0) in floor's local frame would translate to (0, -0.1 +0.25, 0) in global, which is (0,0.15,0). Wait, no, the frame's position is added to the body's position. So floor's position is (0,-0.1,0). The frame_on_floor's position is (0,0.25,0), so the joint's position is (0,-0.1) + (0,0.25) → (0,0.15,0). But the piston's center is at (1.1,0.25,0). That's not along the prismatic direction.
 
-Alternatively, use a static body with a texture billboard.
+Hmm, this is getting complicated. Maybe it's better to set the prismatic joint's frame on the floor to (0,0.25,0) in global coordinates. To do that, the frame_on_floor would be (0,0.35,0) in floor's local frame (since floor's position is (0,-0.1,0)). Because:
 
-But maybe that's beyond the scope. The user mentioned "additional visual elements like textures and logos", so adding a billboard is acceptable.
+floor's position is (0,-0.1,0). Adding (0,0.35,0) gives (0,0.25,0) in global.
 
-Now, setting up the simulation loop.
+So the prismatic joint's frame on the floor is set to (0,0.35,0) in floor's local frame.
 
-The user wants to visualize using Irrlicht, so the loop would be:
+Thus:
 
-visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))  # as before
+prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0,0.35,0), chrono.QUNIT), chrono.ChVectorD(1,0,0))
 
-while visualizer.Run():
-    system.DoStepDynamics(1e-3)
-    visualizer.BeginScene()
-    visualizer.DrawAll()
-    visualizer.EndScene()
+Then, the piston's center can be at (1.1,0.25,0), so its frame on piston (the piston's frame is at (0,0,0) in its own frame, so the joint's position is (1.1,0.25,0) + (0,0,0) = (1.1,0.25,0). But the prismatic joint's frame on the floor is at (0,0.25,0). Wait, no, the joint's frame on the floor is at (0,0.25,0), and the piston's frame is at (0,0,0) in piston's frame. So the piston's position must be such that its own frame's position (its center) is at (x,0.25,0), so that the joint's position (floor's frame) is (0,0.25,0) and piston's frame is at (x,0.25,0) + (0,0,0) = (x,0.25,0). The prismatic joint allows movement along X, so the piston can move along X-axis from (0,0.25,0).
 
-Wait, but the exact loop might depend on Irrlicht's event loop. Alternatively, using the standard loop:
+Therefore, the piston's initial position can be set to (1.0,0.25,0), so that the rod's length is 1.0 (from (0.25,0.25,0) to (1.25,0.25,0)), but piston's end is at (1.0 +0.15, ...) → 1.15, which is 1.0 +0.15 =1.15, so the rod's other end is at (1.25, ...) which would be further than the piston's end. Hmm, perhaps initial positions need to be adjusted.
 
-visualizer.SetVideoframeSave(True)
-visualizer.SetVideoframeSaveInterval(1)
-visualizer.SetVideoframeCloudResolution(1024, 768)
+Alternatively, maybe it's better to let the system compute the initial positions through constraints. Since all joints are locked except the prismatic and the motor, the system might settle into a valid configuration.
 
-But perhaps the standard code:
+Alternatively, set the piston's initial position to (0.25 + 1.0, 0.25, 0) minus the piston's half-length.
 
-while visualizer.Run():
-    system.DoStepDynamics(1e-3)
-    visualizer.BeginScene()
-    visualizer.DrawAll()
-    visualizer.EndScene()
+Wait, the rod's length is 1.0, so from crank's end at (0.25,0.25,0), the rod's other end is at (0.25 +1.0, 0.25,0) = (1.25,0.25,0). The piston's end must be at that point. The piston's cylinder has length 0.3, so its center is at (1.25 -0.15, 0.25,0) = (1.1,0.25,0). So piston's position is (1.1,0.25,0).
 
-Wait, but in PyChrono, the Irrlicht visual system has its own event loop. The code might look like this:
+So piston.SetPos(chrono.ChVectorD(1.1, 0.25,0)).
 
-visualizer.AddLogo(chrono.GetChronoDataFile('logo_chrono.png'))  # adds a small logo in the corner
+Now, the prismatic joint's frame on the floor is at (0,0.25,0) (global), which is achieved by setting the frame_on_floor to (0,0.35,0) in floor's local (since floor's position is (0,-0.1,0)).
 
-Then, the simulation loop:
+So the prismatic joint is set correctly.
 
-while visualizer.Run():
-    system.DoStepDynamics(1e-3)
-    visualizer.BeginScene()
-    visualizer.DrawAll()
-    visualizer.EndScene()
+Putting all this into code:
 
-Alternatively, perhaps the code can be written with the standard setup.
+Now, coding all these steps.
 
-Putting it all together, here's the code outline:
+Also, the camera settings:
 
+visualiz.SetCamera(chronor, position, target, up). Wait, perhaps using SetCameraLocation and SetCameraRotation.
+
+Alternatively, in the code:
+
+visualiz.SetCamera(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
+
+Wait, maybe:
+
+camera_location = chrono.ChVectorD(3, 3, 3)
+camera_target = chrono.ChVectorD(0,0,0)
+camera_up = chrono.ChVectorD(0,1,0)
+visualiz.SetCameraLocation(camera_location)
+visualiz.SetCameraRotation(camera_target, camera_up)
+
+Alternatively, using SetCamera:
+
+visualiz.SetCamera(chrono.ChVectorD(3,3,3), chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
+
+Wait, the SetCamera function takes position, target, up.
+
+Hmm, perhaps:
+
+visualiz.SetCamera(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
+
+That should position the camera at (3,3,3) looking towards the origin, with up direction Y.
+
+Adding lights:
+
+visualiz.AddTypicalLights()
+
+Adding a billboard for a logo:
+
+billboard = irr.ChBillboard()
+billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+billboard.SetSize(0.5)
+billboard.SetPos(chrono.ChVectorD(0,1,0))  # Position above the mechanism
+visualiz.AddBillboard(billboard)
+
+Now, putting all the code together:
+
+Wait, also, the motor's speed is set to a constant angular velocity. The user wants the crankshaft driven by a motor to spin at constant angular speed. The code uses ChLinkMotorRotationSpeed with a constant function.
+
+motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  # 1 rad/s? Wait, CH_C_PI is pi, so angular speed of pi rad/s (~3.14 rad/s). Maybe adjust to a slower speed for visualization, like 1 rad/s.
+
+Alternatively, the user didn't specify speed, so maybe leave as is.
+
+Now, compiling all the code steps into a script.
+
+Potential mistakes to check:
+
+- Correct initialization of joints with proper frames.
+
+- Correct positioning of bodies.
+
+- Adding all bodies and links to the system.
+
+- Visualization assets applied correctly.
+
+Now, the complete code:
+
+```python
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import math
 
-def main():
-    # Create the physical system
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-    # Visualization setup
-    visualizer = irr.ChVisualSystemIrrlicht()
-    visualizer.SetWindowSize(1024, 768)
-    visualizer.SetWindowTitle('Crank-Slider Mechanism')
-    visualizer.SetSymbolscale(0.01)
-    visualizer.SetShadows(True)
-    visualizer.SetLightDirection(chrono.ChVectorD(0.7, -0.2, -0.3))
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
-    system.SetVisualSystem(visualizer)
+# Visualization setup
+visualiz = irr.ChIrrApp(system, 'Crank-Slider Mechanism', irr.dimension2du(800,600))
+visualiz.AddTypicalSky()
+visualiz.AddTypicalLogo()
+visualiz.AddTypicalLights()
 
-    # Add a logo billboard
-    billboard = chrono.ChBillboard()
-    billboard.SetTexture(chrono.GetChronoDataFile('logo_chrono.png'))
-    billboard.SetSize(0.2)
-    billboard.SetPosition(chrono.ChVectorD(-2, 1, 2))
-    visualizer.AddBillboard(billboard)
+# Camera settings
+camera_location = chrono.ChVectorD(3, 3, 3)
+camera_target = chrono.ChVectorD(0, 0, 0)
+visualiz.SetCamera(camera_location, camera_target, chrono.ChVectorD(0, 1, 0))
 
-    # Floor (truss)
-    floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
-    floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
-    floor.SetBodyFixed(True)
-    system.Add(floor)
+# Floor (truss)
+floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+floor.SetBodyFixed(True)
+system.Add(floor)
 
-    # Texture for floor
-    texture_floor = chrono.ChTexture()
-    texture_floor.SetTextureFilename(chrono.GetChronoDataFile('textures/wood.jpg'))
-    floor.AddAsset(texture_floor)
+# Texture for floor
+texture_floor = irr.ChTexture()
+texture_floor.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+floor.GetAssets().append(texture_floor)
 
-    # Crankshaft
-    crank_length = 0.3
-    crank_radius = 0.1
-    crank = chrono.ChBodyEasyCylinder(crank_radius, crank_length, 1000, True, True)
-    crank.SetPos(chrono.ChVectorD(0, 0, 0))
-    system.Add(crank)
-    crank.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.8, 0.8)))
+# Crankshaft
+crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True)
+crank.SetPos(chrono.ChVectorD(0, 0.25, 0))
+system.Add(crank)
 
-    # Revolute joint for crank
-    rev_crank = chrono.ChLinkLockRevolute()
-    rev_crank.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
-    system.AddLink(rev_crank)
+# Revolute joint between floor and crank
+rev_crank_floor = chrono.ChLinkLockRevolute()
+rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT))
+system.AddLink(rev_crank_floor)
 
-    # Motor for crank rotation
-    motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.VNULL, chrono.QUNIT))
-    motor.SetSpeedFunction(lambda: 2.0)  # 2 rad/s
-    system.Add(motor)
+# Motor to spin crankshaft
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  # Angular speed π rad/s
+system.Add(motor)
 
-    # Connecting rod
-    rod_length = math.sqrt(0.5**2 + 0.15**2)  # distance between crank end and piston
-    rod_radius = 0.05
-    rod = chrono.ChBodyEasyCylinder(rod_radius, rod_length, 1000, True, True)
-    rod.SetPos(chrono.ChVectorD(0.25, 0.075, 0))  # midpoint between crank and piston
-    system.Add(rod)
-    rod.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 1)))
+# Connecting rod
+rod = chrono.ChBodyEasyCylinder(0.05, 1.0, 1000, True, True)
+rod.SetPos(chrono.ChVectorD(0.5, 0.25, 0))
+system.Add(rod)
 
-    # Revolute joint between crank and rod
-    rev_crank_rod = chrono.ChLinkLockRevolute()
-    rev_crank_rod.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0, 0.15, 0), chrono.QUNIT))
-    system.AddLink(rev_crank_rod)
+# Revolute joint between crank and rod
+rev_rod_crank = chrono.ChLinkLockRevolute()
+rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.QUNIT))
+system.AddLink(rev_rod_crank)
 
-    # Piston
-    piston_radius = 0.15
-    piston_length = 0.2
-    piston = chrono.ChBodyEasyCylinder(piston_radius, piston_length, 1000, True, True)
-    piston.SetPos(chrono.ChVectorD(0.5, 0, 0))
-    system.Add(piston)
-    piston.AddAsset(chrono.ChColorAsset(chrono.ChColor(1, 0, 0)))
+# Piston
+piston = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
+piston.SetPos(chrono.ChVectorD(1.1, 0.25, 0))
+system.Add(piston)
 
-    # Prismatic joint for piston
-    prismatic = chrono.ChLinkLockPrismatic()
-    prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), chrono.VECT_X)
-    system.AddLink(prismatic)
+# Prismatic joint between floor and piston (along X-axis)
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT), chrono.ChVectorD(1, 0, 0))
+system.AddLink(prismatic)
 
-    # Revolute joint between rod and piston
-    rev_rod_piston = chrono.ChLinkLockRevolute()
-    rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0), chrono.QUNIT))
-    system.AddLink(rev_rod_piston)
+# Revolute joint between rod and piston
+rev_rod_piston = chrono.ChLinkLockRevolute()
+rev_rod_piston.Initialize(rod, piston, 
+                        chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(0.15, 0, 0), chrono.QUNIT))
+system.AddLink(rev_rod_piston)
 
-    # Simulation loop
-    visualizer.AddLogo(chrono.GetChronoDataFile('logo_chrono.png'))  # adds a small logo in the corner
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
+# Visualization assets
+crank.GetVisualShape(0).SetColor(chrono.ChColor(0,0,1))
+rod.GetVisualShape(0).SetColor(chrono.ChColor(1,0,0))
+piston.GetVisualShape(0).SetColor(chrono.ChColor(0,1,0))
 
-    while visualizer.Run():
-        system.DoStepDynamics(1e-3)
-        visualizer.BeginScene()
-        visualizer.DrawAll()
-        visualizer.EndScene()
+# Add a billboard for logo
+billboard = irr.ChBillboard()
+billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+billboard.SetSize(0.5)
+billboard.SetPos(chrono.ChVectorD(0, 1, 0))
+visualiz.AddBillboard(billboard)
 
-if __name__ == '__main__':
-    main()
+# Simulation settings
+visualiz.SetTimestep(0.005)
+visualiz.SetTryRealtime(True)
 
-Hmm, but there might be some errors here. Let me check:
+# Run the simulation
+visualiz.MainLoop()
+```
 
-First, the piston's prismatic joint is connected between floor and piston. The ChLinkLockPrismatic's initialization parameters are:
+Wait, but I need to make sure that all the joints are correctly initialized with the right frames. Also, check the piston's initial position.
 
-Initialize(body1, body2, framesys, direction).
+Testing this code might reveal any errors, but given the time constraints, this should be a good start.
 
-Wait, the parameters for ChLinkLockPrismatic are:
+Another thing: the prismatic joint's direction is along the X-axis (chrono.ChVectorD(1,0,0)), which is correct.
 
-ChLinkLockPrismatic.Initialize(body1, body2, framesys, direction)
+The motor is applied to the crank's revolute joint, so it should spin the crank.
 
-Where framesys is the coordinate system of body1 (floor) where the joint is attached. The direction is the axis along which the prismatic movement is allowed.
+Adding the billboard's texture path is important; using the Chrono data path.
 
-In this case, the piston should be constrained to move along the X-axis. So:
+The colors are set for each body.
 
-prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), chrono.VECT_X)
+The camera is positioned at (3,3,3) looking towards the origin.
 
-This should fix the piston's movement along X.
-
-The rod's revolute joint with piston is at (0.5,0,0), which is the piston's initial position. But the piston is constrained to move along X, so that point is correct.
-
-The rod's length is calculated as sqrt(0.5^2 +0.15^2) ≈0.519, which is set as the cylinder's length.
-
-The crank's end is at (0,0.15,0) (since crank_length is 0.3, so half is 0.15 along Y).
-
-The rod's position is set to (0.25,0.075,0), which is the midpoint between (0,0.15) and (0.5,0).
-
-The rod's orientation: since it's a cylinder, its length is along its local Y-axis. To align with the direction between the two points, the rotation needs to be set. But in the code above, it's not set, so the cylinder's local Y-axis is along its initial orientation (along world Y). This might cause the rod to not be aligned correctly initially, but the joints will constrain it, so it should work once the simulation starts.
-
-Alternatively, perhaps the rod's rotation should be set using the direction vector. But adding that would require calculating the rotation as I thought earlier.
-
-Alternatively, perhaps the code is okay as is, and the joints will position the rod correctly.
-
-Testing this code might have some issues, but given the time constraints, this is a reasonable approach.
-
-Also, note that the ChLinkLockRevolute is used for the revolute joints, which are locked (i.e., they enforce the joint constraints without allowing any relative motion except rotation). Since we want the crank to rotate freely except for the motor's imposed speed, the motor is connected to the crank's revolute joint.
-
-The motor is added as a ChLinkMotorRotationSpeed, which applies a torque to achieve the desired angular speed.
-
-Potential issues:
-
-- The piston's initial position might not be exactly at (0.5,0,0) if the rod's length is slightly off. But with the calculated rod_length, it should be okay.
-
-- The rotation of the rod's cylinder might not look right initially, but the joints will adjust it.
-
-- The camera settings and lighting should provide a decent view.
-
-Overall, this should form a working simulation of a crank-slider mechanism with the required components and visualization.
+This should create the desired crank-slider mechanism with visualization elements.
 </think>
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import math
 
 def main():
-    # Create the physical system
+    # Initialize the Chrono system
     system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
     # Visualization setup
-    visualizer = irr.ChVisualSystemIrrlicht()
-    visualizer.SetWindowSize(1024, 768)
-    visualizer.SetWindowTitle('Crank-Slider Mechanism')
-    visualizer.SetSymbolscale(0.01)
-    visualizer.SetShadows(True)
-    visualizer.SetLightDirection(chrono.ChVectorD(0.7, -0.2, -0.3))
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
-    system.SetVisualSystem(visualizer)
+    visualiz = irr.ChIrrApp(system, 'Crank-Slider Mechanism', irr.dimension2du(800, 600))
+    visualiz.AddTypicalSky()
+    visualiz.AddTypicalLogo()
+    visualiz.AddTypicalLights()
 
-    # Add a Chrono logo billboard
-    billboard = chrono.ChBillboard()
-    billboard.SetTexture(chrono.GetChronoDataFile('logo_chrono.png'))
-    billboard.SetSize(0.2)
-    billboard.SetPosition(chrono.ChVectorD(-2, 1, 2))
-    visualizer.AddBillboard(billboard)
+    # Camera settings
+    camera_location = chrono.ChVectorD(3, 3, 3)
+    camera_target = chrono.ChVectorD(0, 0, 0)
+    visualiz.SetCamera(camera_location, camera_target, chrono.ChVectorD(0, 1, 0))
 
     # Floor (truss)
     floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
-    floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
+    floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
     floor.SetBodyFixed(True)
     system.Add(floor)
 
     # Texture for floor
-    texture_floor = chrono.ChTexture()
-    texture_floor.SetTextureFilename(chrono.GetChronoDataFile('textures/wood.jpg'))
-    floor.AddAsset(texture_floor)
+    texture_floor = irr.ChTexture()
+    texture_floor.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+    floor.GetAssets().append(texture_floor)
 
     # Crankshaft
-    crank_length = 0.3
-    crank_radius = 0.1
-    crank = chrono.ChBodyEasyCylinder(crank_radius, crank_length, 1000, True, True)
-    crank.SetPos(chrono.ChVectorD(0, 0, 0))
+    crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True)
+    crank.SetPos(chrono.ChVectorD(0, 0.25, 0))
     system.Add(crank)
-    crank.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.8, 0.8)))
 
-    # Revolute joint for crank
-    rev_crank = chrono.ChLinkLockRevolute()
-    rev_crank.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
-    system.AddLink(rev_crank)
+    # Revolute joint between floor and crank
+    rev_crank_floor = chrono.ChLinkLockRevolute()
+    rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT))
+    system.AddLink(rev_crank_floor)
 
-    # Motor for crank rotation
+    # Motor to spin crankshaft
     motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.VNULL, chrono.QUNIT))
-    motor.SetSpeedFunction(lambda: 2.0)  # 2 rad/s
+    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  # Angular speed π rad/s
     system.Add(motor)
 
     # Connecting rod
-    rod_length = math.sqrt(0.5**2 + 0.15**2)  # Distance between crank end and piston
-    rod_radius = 0.05
-    rod = chrono.ChBodyEasyCylinder(rod_radius, rod_length, 1000, True, True)
-    rod.SetPos(chrono.ChVectorD(0.25, 0.075, 0))  # Midpoint between crank and piston
+    rod = chrono.ChBodyEasyCylinder(0.05, 1.0, 1000, True, True)
+    rod.SetPos(chrono.ChVectorD(0.5, 0.25, 0))
     system.Add(rod)
-    rod.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 1)))
 
     # Revolute joint between crank and rod
-    rev_crank_rod = chrono.ChLinkLockRevolute()
-    rev_crank_rod.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0, 0.15, 0), chrono.QUNIT))
-    system.AddLink(rev_crank_rod)
+    rev_rod_crank = chrono.ChLinkLockRevolute()
+    rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.QUNIT))
+    system.AddLink(rev_rod_crank)
 
     # Piston
-    piston_radius = 0.15
-    piston_length = 0.2
-    piston = chrono.ChBodyEasyCylinder(piston_radius, piston_length, 1000, True, True)
-    piston.SetPos(chrono.ChVectorD(0.5, 0, 0))
+    piston = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
+    piston.SetPos(chrono.ChVectorD(1.1, 0.25, 0))
     system.Add(piston)
-    piston.AddAsset(chrono.ChColorAsset(chrono.ChColor(1, 0, 0)))
 
-    # Prismatic joint for piston
+    # Prismatic joint between floor and piston (along X-axis)
     prismatic = chrono.ChLinkLockPrismatic()
-    prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), chrono.VECT_X)
+    prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT), chrono.ChVectorD(1, 0, 0))
     system.AddLink(prismatic)
 
     # Revolute joint between rod and piston
     rev_rod_piston = chrono.ChLinkLockRevolute()
-    rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0), chrono.QUNIT))
+    rev_rod_piston.Initialize(
+        rod, piston,
+        chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 0), chrono.QUNIT),
+        chrono.ChFrameD(chrono.ChVectorD(0.15, 0, 0), chrono.QUNIT)
+    )
     system.AddLink(rev_rod_piston)
 
-    # Simulation loop
-    visualizer.AddLogo(chrono.GetChronoDataFile('logo_chrono.png'))
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
+    # Visualization assets
+    crank.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue
+    rod.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))    # Red
+    piston.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0)) # Green
 
-    while visualizer.Run():
-        system.DoStepDynamics(1e-3)
-        visualizer.BeginScene()
-        visualizer.DrawAll()
-        visualizer.EndScene()
+    # Add a billboard for logo
+    billboard = irr.ChBillboard()
+    billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    billboard.SetSize(0.5)
+    billboard.SetPos(chrono.ChVectorD(0, 1, 0))
+    visualiz.AddBillboard(billboard)
+
+    # Simulation settings
+    visualiz.SetTimestep(0.005)
+    visualiz.SetTryRealtime(True)
+
+    # Run the simulation
+    visualiz.MainLoop()
 
 if __name__ == '__main__':
     main()

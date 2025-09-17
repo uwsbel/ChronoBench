@@ -57,12 +57,6 @@ mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
 mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0) with rotation aligning the Z-axis to the X-axis
 sys.Add(mjointC)  # Add the joint to the simulation system
 
-# Initialize arrays for storing values to be plotted
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
 # Set up the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()  # Create the Irrlicht visualization system
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
@@ -74,11 +68,15 @@ vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
-# Simulation time
-t = 0
+# Initialize arrays for storing values to be plotted
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
 
 # Run the interactive simulation loop
-while vis.Run() and t < 20:
+time = 0
+while vis.Run() and time < 20:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
@@ -86,31 +84,29 @@ while vis.Run() and t < 20:
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
     # Collect data during simulation
-    array_time.append(t)
-    array_angle.append(my_motor.GetMotorRot())
-    array_pos.append(mpiston.GetPos().x())
-    array_speed.append(my_motor.GetMotorSpeed())
+    array_time.append(time)
+    array_angle.append(mcrank.GetRot().EulerAngles()[2])  # Get the Z-axis rotation angle of the crank
+    array_pos.append(mpiston.GetPos().x())  # Get the X-axis position of the piston
+    array_speed.append(my_motor.GetMotorSpeed())  # Get the motor speed
 
-    # Increment simulation time
-    t += 1e-3
+    time += 1e-3  # Increment the simulation time
 
 # Matplotlib plotting
-fig, axs = plt.subplots(2, figsize=(10, 6))
+fig, axs = plt.subplots(2, figsize=(8, 6))
 
 axs[0].plot(array_angle, array_pos)
-axs[0].set_title('Position vs. Crank Angle')
 axs[0].set_xlabel('Crank Angle [rad]')
-axs[0].set_ylabel('Position [m]')
+axs[0].set_ylabel('Piston Position [m]')
+axs[0].set_title('Position vs. Crank Angle')
+axs[0].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[0].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
 axs[1].plot(array_angle, array_speed)
-axs[1].set_title('Speed vs. Crank Angle')
 axs[1].set_xlabel('Crank Angle [rad]')
-axs[1].set_ylabel('Speed [m/s]')
-
-# Adjust x-axis ticks to display π-based intervals
-xticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
-axs[0].set_xticks(xticks)
-axs[1].set_xticks(xticks)
+axs[1].set_ylabel('Motor Speed [rad/s]')
+axs[1].set_title('Speed vs. Crank Angle')
+axs[1].set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+axs[1].set_xticklabels(['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
 
 plt.tight_layout()
 plt.show()

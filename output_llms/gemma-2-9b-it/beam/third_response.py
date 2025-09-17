@@ -95,13 +95,15 @@ builder.BuildBeam(mesh,                   # the mesh where to put the created no
                     chrono.ChVector3d(0.2, 0, -0.1), # the 'B' point in space (end of beam)
                     chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
 
-# Add another beam segment
-builder.BuildBeam(mesh, 
-                    msection, 
-                    5, 
-                    builder.GetLastBeamNodes().back(),  # Starting point is the last node created
-                    chrono.ChVector3d(0.2, 0.1, -0.1),  # End point
-                    chrono.ChVector3d(0, 1, 0))      
+# Add another beam segment:
+builder.BuildBeam(mesh,                   # the mesh where to put the created nodes and elements
+                    msection,                  # the ChBeamSectionEulerAdvanced to use for the ChElementBeamEuler elements
+                    5,                         # the number of ChElementBeamEuler to create
+                    builder.GetLastBeamNodes().back(),   # the 'A' point is the last node of the previous beam
+                    chrono.ChVector3d(0.2, 0.1, -0.1), # the 'B' point in space (end of beam)
+                    chrono.ChVector3d(0, 1, 0))      # the 'Y' up direction of the section for the beam
+
+
 
 ## After having used BuildBeam(), you can retrieve the nodes used for the beam,
 ## For example say you want to fix the A end and apply a force to the B end:

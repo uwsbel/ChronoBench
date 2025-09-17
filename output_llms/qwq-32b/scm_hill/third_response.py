@@ -4,7 +4,7 @@ import pychrono.vehicle as veh
 import math
 
 """
-!!!! Set this path before running the demo!
+Set this path before running the demo!
 """
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -22,7 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Rigid terrain parameters
+# Terrain parameters
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -30,7 +30,7 @@ terrainWidth = 100.0   # size in Y direction
 # Camera tracking point
 trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
 
-# Contact method (changed to NSC)
+# Contact method changed to NSC
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
@@ -49,7 +49,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -58,18 +57,10 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 
-# Create rigid terrain
+# Create rigid terrain with height map and texture
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
-# Define terrain material (NSC)
-material = chrono.ChMaterialSurfaceNSC()
-terrain.AddPatch(material,
-                terrainLength, terrainWidth, terrainHeight,
-                0.8,  # friction coefficient
-                veh.GetDataFile("terrain/textures/dirt.jpg"),
-                6.0, 6.0,
-                veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-                0.02)  # height scale
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainLength, terrainWidth, 0.02)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -85,20 +76,16 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set input time response parameters
+# Set driver input response times
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
-# ---------------
 # Simulation loop
-# ---------------
-
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -109,7 +96,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -117,11 +104,12 @@ while vis.Run():
 
     driver_inputs = driver.GetInputs()
 
+    # Update modules
     driver.Synchronize(time)
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation
     driver.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

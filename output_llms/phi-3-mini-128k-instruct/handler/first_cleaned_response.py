@@ -53,17 +53,3 @@ from chrono.rdf import *
 
 
 rospy.init_node('chrono_ros_simulation')
-
-
-initialize_srv = rospy.Service('chrono_initialize', ChronoInitialize, handle_chrono_initialize)
-
-
-step_srv = rospy.Service('chrono_step', ChronoStep, handle_chrono_step)
-
-
-system_state_pub = rospy.Publisher('chrono_system_state', ChronoSystemState, queue_size=10)
-
-
-class CustomROSHandler:
-    def __init__(self):
-        self.system_state_

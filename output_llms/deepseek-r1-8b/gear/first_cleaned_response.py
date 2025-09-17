@@ -1,127 +1,161 @@
-import pychrono as pc
-import pychrono.guitools as gui
-from pychrono.objects import *
-from pychrono.mesh import *
-from pychrono.dynamics import *
-from pychronovisualization import *
-from pychronoinput import *
-from pychronomaterials import *
+import pychrono as pyc
+import numpy as np
 
 
-pc.setGlobalCoordinateSystem(pc.COORDINATE_SYSTEM 世界)
+pyc.init()
+scene = pyc.Scene()
+camera = pyc.Camera()
+renderer = pyc.IrrlichtRenderer()
+renderer.set_shadow_map_enabled(True)
+renderer.set_light_color(1, 1, 1)  
 
 
-scene = pc.Scene()
-scene.setAmbientLightColor(1, 1, 1)  
+light = pyc.Light()
+light.set_position(pyc.Vector3(5, 5, 5))
+light.set_color(pyc.Vector3(1, 1, 1))
+light.set_radius(5)
+scene.add_light(light)
 
 
-ground = pc.RigidBody()
-ground.setMass(0)
-ground.setShape(pc.Sphere(0, 0, 0, 1, 1, 1))  
-ground.setPosition(pc.Vector(0, 0, -1))  
+dir_light = pyc.DirectionalLight()
+dir_light.set_position(pyc.Vector3(5, 5, 5))
+dir_light.set_color(pyc.Vector3(1, 1, 1))
+dir_light.set_radius(5)
+scene.add_light(dir_light)
 
 
-camera = pc.Camera()
-camera.setPos(pc.Vector(0, 0, 5))  
+truss = pyc.RigidBody()
+truss.set_geometry(pyc.Box3d(1, 1, 1))
+truss.set_position(pyc.Vector3(0, 0, 0))
+truss.set_color(pyc.Color(0.5, 0.5, 0.5))
+scene.add_body(truss)
 
 
-truss = pc.RigidBody()
-truss.setMass(0)
-truss.setShape(pc.Box(0.5, 0.5, 0.5))  
-truss.setPosition(pc.Vector(0, 0, 0))  
+rotating_bar = pyc.RigidBody()
+rotating_bar.set_geometry(pyc.Cylinder(0.1, 0.1, 1))
+rotating_bar.set_position(pyc.Vector3(0, 0, 2))
+rotating_bar.set_color(pyc.Color(0, 1, 0))
+
+joint = pyc.RevolteJoint()
+joint.set_parent(truss)
+joint.set_child(rotating_bar)
+joint.set_rotation(pyc.Vector3(0, 0, 1))  
+joint.set_axis(pyc.Vector3(1, 0, 0))  
+joint.set_properties(pyc.RevolteJoint.ROTX, 0.0, 0.0, 0.0, 0.0, 1.0)  
 
 
-rotating_bar = pc.RigidBody()
-rotating_bar.setMass(0)
-rotating_bar.setShape(pc.Sphere(0.5, 0.5, 0.5))  
-rotating_bar.setPosition(pc.Vector(1, 0, 0))  
+
+gear1 = pyc.RigidBody()
+gear1.set_geometry(pyc.Cylinder(0.1, 0.1, 1))
+gear1.set_position(pyc.Vector3(0, 0, 1))
+gear1.set_color(pyc.Color(0, 1, 0))
+
+joint_gear1 = pyc.RevolteJoint()
+joint_gear1.set_parent(rotating_bar)
+joint_gear1.set_child(gear1)
+joint_gear1.set_rotation(pyc.Vector3(0, 0, 1))  
+joint_gear1.set_axis(pyc.Vector3(1, 0, 0))  
+joint_gear1.set_properties(pyc.RevolteJoint.ROTX, 0.0, 0.0, 0.0, 0.0, 1.0)  
 
 
-gear_motor = pc.Motor()
-gear_motor.setGearRatio(10)  
+gear2 = pyc.RigidBody()
+gear2.set_geometry(pyc.Cylinder(0.1, 0.1, 1))
+gear2.set_position(pyc.Vector3(0, 0, -1))
+gear2.set_color(pyc.Color(0, 1, 0))
+
+joint_gear2 = pyc.RevolteJoint()
+joint_gear2.set_parent(rotating_bar)
+joint_gear2.set_child(gear2)
+joint_gear2.set_rotation(pyc.Vector3(0, 0, 1))  
+joint_gear2.set_axis(pyc.Vector3(1, 0, 0))  
+joint_gear2.set_properties(pyc.RevolteJoint.ROTX, 0.0, 0.0, 0.0, 0.0, 1.0)  
 
 
-gear1 = pc.Gear()
-gear1.setNumber Teeth(20)
-gear1.setRadius(0.5)
-gear1.setPosition(pc.Vector(0, 0, 0))
+motor = pyc.RigidBody()
+motor.set_geometry(pyc.Box3d(0.5, 0.5, 0.5))
+motor.set_position(pyc.Vector3(0, 0, 0.5))
+motor.set_color(pyc.Color(1, 0, 0))
 
-gear2 = pc.Gear()
-gear2.setNumber Teeth(20)
-gear2.setRadius(0.6)
-gear2.setPosition(pc.Vector(0, 0, 0))
-
-
-joint_rotating_bar = pc.FixedJoint()
-joint_rotating_bar.setAttachPoint1(rotating_bar, pc.Vector(0, 0, 0))
-joint_rotating_bar.setAttachPoint2(gear_motor, pc.Vector(0, 0, 0))
-joint_rotating_bar.setAxis(pc.Vector(0, 0, 1))  
+joint_motor = pyc.RevolteJoint()
+joint_motor.set_parent(gear1)
+joint_motor.set_child(motor)
+joint_motor.set_rotation(pyc.Vector3(0, 0, 1))  
+joint_motor.set_axis(pyc.Vector3(1, 0, 0))  
+joint_motor.set_properties(pyc.RevolteJoint.ROTX, 0.0, 0.0, 0.0, 0.0, 1.0)  
+motor.set_rotational_speed(1.0)  
 
 
-joint_gear1 = pc.EpicyclicJoint()
-joint_gear1.setAttachPoint1(gear1, pc.Vector(0, 0, 0))
-joint_gear1.setAttachPoint2(rotating_bar, pc.Vector(0, 0, 0))
-joint_gear1.setAxis(pc.Vector(0, 0, 1))  
-joint_gear1.setNumber Teeth(20)
-joint_gear1.setRadius1(gear1.getRadius())
-joint_gear1.setRadius2(gear_motor.getRadius())
+ground = pyc.Plane3d()
+ground.set_position(pyc.Vector3(0, 0, -1))
+ground.set_rotation(pyc.Vector3(0, 1, 0))
+scene.add_body(ground)
 
 
-joint_gear2 = pc.EpicyclicJoint()
-joint_gear2.setAttachPoint1(gear2, pc.Vector(0, 0, 0))
-joint_gear2.setAttachPoint2(rotating_bar, pc.Vector(0, 0, 0))
-joint_gear2.setAxis(pc.Vector(0, 0, 1))  
-joint_gear2.setNumber Teeth(20)
-joint_gear2.setRadius1(gear2.getRadius())
-joint_gear2.setRadius2(gear_motor.getRadius())
+camera.set_position(pyc.Vector3(0, 0, 3))
+camera.set.look_at(pyc.Vector3(0, 0, 0))
 
 
-scene.add(gear_motor)
-scene.add(rotating_bar)
-scene.add(truss)
-scene.add(gear1)
-scene.add(gear2)
-scene.add(joint_gear1)
-scene.add(joint_gear2)
-scene.add(joint_rotating_bar)
+material_truss = pyc.Material()
+material_truss.set_diffuse_color(pyc.Color(0.5, 0.5, 0.5))
+truss.set_material(material_truss)
+
+material_gear = pyc.Material()
+material_gear.set_diffuse_color(pyc.Color(0, 1, 0))
+gear1.set_material(material_gear)
+gear2.set_material(material_gear)
+
+material_motor = pyc.Material()
+material_motor.set_diffuse_color(pyc.Color(1, 0, 0))
+motor.set_material(material_motor)
 
 
-renderer = pc.Renderer()
-renderer.setClearColor(0.5, 0.5, 0.5)  
-renderer.setCamera(camera)
-renderer.setLightDirection(pc.Vector(0, 0, 1))  
+scene.add_body(truss)
+scene.add_body(rotating_bar)
+scene.add_body(gear1)
+scene.add_body(gear2)
+scene.add_body(motor)
 
 
-truss_material = pc.Material()
-truss_material.setDiffuseColor(0.5, 0.5, 0.5)  
-rotating_bar_material = pc.Material()
-rotating_bar_material.setDiffuseColor(1, 0, 0)  
-gear_material = pc.Material()
-gear_material.setDiffuseColor(0.5, 0.5, 0.5)  
+t = 0.001
 
 
-truss.setMaterial(truss_material)
-rotating_bar.setMaterial(rotating_bar_material)
-gear1.setMaterial(gear_material)
-gear2.setMaterial(gear_material)
+renderer.set_shadow_map_enabled(True)
+renderer.set_light_color(1, 1, 1)
+renderer.set_light_radius(5)
 
 
-visualization = pc.Visualization(scene, renderer)
+ground_plane = pyc.Plane3d()
+ground_plane.set_position(pyc.Vector3(0, 0, -1))
+ground_plane.set_rotation(pyc.Vector3(0, 1, 0))
+scene.add_body(ground_plane)
 
 
-simulation = pc.Simulation(scene, 1e-10)  
+scene.add_camera(camera)
 
 
-gravity = pc.Force()
-gravity.setGravity(pc.Vector(0, 0, -9.81))
-simulation.addForce(gear1, gravity)
-simulation.addForce(gear2, gravity)
-simulation.addForce(rotating_bar, gravity)
-simulation.addForce(truss, gravity)
+def key_pressed_callback(key):
+    if key == 'r':
+        
+        pyc.reset()
+        
+        motor.set_rotational_speed(1.0)
+
+pyc.add_key_press_hook(key_pressed_callback)
 
 
-def draw():
-    visualization.render()
-
-
-simulation.run(0, 10)
+while True:
+    pyc.step(t)
+    renderer.render(scene, camera, 256, 256)
+    
+    
+    
+    
+    
+    
+    
+    print(f"Simulation Time: {pyc.get_time()}")
+    
+    
+    if pyc.is_key_pressed('r'):
+        pyc.reset()
+        motor.set_rotational_speed(1.0)

@@ -58,18 +58,18 @@ def main():
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        mesh_body,              # Body the camera is attached to
-        update_rate,            # Camera update rate in Hz
-        offset_pose,            # Offset pose of the camera
-        image_width,            # Image width in pixels
-        image_height,           # Image height in pixels
-        fov                     # Camera's horizontal field of view in radians
+        mmesh,
+        update_rate,
+        offset_pose,
+        image_width,
+        image_height,
+        fov
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
     cam.SetCollectionWindow(exposure_time)  # Set the exposure time for the camera
 
-    # ------------------------------------------------
+    # --------------------------------------------------
     # Create a filter graph for post-processing the data from the camera
     # --------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
@@ -114,7 +114,7 @@ def main():
 
     # ---------------------
     # Simulate system
-    # ---------------------
+    # -----------------
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.5   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
@@ -167,7 +167,7 @@ exposure_time = 0
 
 # -----------------------------------
 # Simulation parameters
-# -----------------------------------
+# ---------------------
 
 # Simulation step size
 step_size = 1e-3

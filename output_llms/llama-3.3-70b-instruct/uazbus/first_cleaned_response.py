@@ -3,17 +3,19 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-sys = chrono.ChSystemNSC()
+sys = chrono.ChSystem()
 
 
 ua_zbus = veh.UAZBUS()
-ua_zbus.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-ua_zbus.Suspend(0.1)
-ua_zbus.AddDriver()
+ua_zbus.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+ua_zbus.AddDrivers()
+ua_zbus.AddTires()
+ua_zbus.AddRigidBodies()
+ua_zbus.AddMarkers()
 sys.Add(ua_zbus)
 
 
-terrain = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+terrain = chrono.ChBodyEasyBox(sys, 10, 10, 0.1, 1000, True, True)
 terrain.SetPos(chrono.ChVectorD(0, -1, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
 terrain.GetMaterial().SetFriction(0.9)
@@ -21,30 +23,29 @@ terrain.GetMaterial().SetRestitution(0.1)
 sys.Add(terrain)
 
 
-ua_zbus.SetChassisFixed(False)
-ua_zbus.SetSuspensionHeight(0.5)
-ua_zbus.SetTireFriction(0.8)
-ua_zbus.SetTireRestitution(0.1)
-
-
-driver = veh.ChIrrVehicleDriver(ua_zbus.GetPart(0))
-driver.Set SteeringGain(2)
-driver.SetThrottleGain(2)
-sys.Add(driver)
+driver = veh.ChIrrlichtDriver()
+driver.Initialize(ua_zbus)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 5, 10))
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
 vis.AddTypicalLights()
 vis.SetWindowSize(1024, 768)
-vis.SetCameraDistance(10)
+vis.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
+vis.SetLogo("")
 
 
 time = 0
 dt = 0.01
 while time < 10:
+    
+    ua_zbus.Synchronize(dt)
+    terrain.Synchronize(dt)
+    driver.Synchronize(dt)
+    vis.Synchronize(dt)
+    
     
     sys.DoStepDynamics(dt)
     
@@ -54,13 +55,8 @@ while time < 10:
     vis.EndScene()
     
     
-    driver.Synchronize(time)
-    
-    
     time += dt
-
-    
-    chrono.ChRealtimeStep(sys)
 
 
 sys.Delete()
+vis.Delete()

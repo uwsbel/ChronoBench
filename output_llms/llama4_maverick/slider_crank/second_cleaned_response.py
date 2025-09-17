@@ -85,18 +85,12 @@ while vis.Run() and time < 20:
     
     
     array_time.append(time)
-    array_angle.append(mcrank.GetRot().Q_to_Euler123().z)
+    array_angle.append(mcrank.GetRot().Q_to_Euler123().x)
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos_dt().x)
 
 
-array_time = np.array(array_time)
-array_angle = np.array(array_angle)
-array_pos = np.array(array_pos)
-array_speed = np.array(array_speed)
-
-
-plt.figure(figsize=(12, 6))
+plt.figure(figsize=(10, 5))
 
 plt.subplot(1, 2, 1)
 plt.plot(array_angle, array_pos)

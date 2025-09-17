@@ -2,68 +2,66 @@ import pychrono as chrono
 import pychrono.postprocess as postprocess
 
 
-chrono.SetChronoDataPath("..")  
+chrono.SetChronoDataPath("path/to/chrono/data")  
 system = chrono.ChSystemNSC()
 
 
-terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain = chrono.ChBodyEasyBox(10, 10, 0.5)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
 terrain.SetBodyFixed(True)
-system.AddBody(terrain)
+system.Add(terrain)
 
 
-gator = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  
-gator.SetPos(chrono.ChVectorD(0, 0, 1))
-system.AddBody(gator)
+gator = chrono.ChBodyEasyCylinder(0.5, 1.5, 10)
+gator.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(gator)
 
 
-wheel_front_left = chrono.ChBodyEasyCylinder(0.2, 0.1, 100)
-wheel_front_left.SetPos(chrono.ChVectorD(-0.8, 0.5, 0))
+
+wheel_front_left = chrono.ChBodyEasyCylinder(0.2, 0.1, 10)
+wheel_front_left.SetPos(chrono.ChVectorD(-0.7, 0.3, -0.2))
 wheel_front_left.SetBodyFixed(True)
-gator.AddChild(wheel_front_left)
+gator.Add(wheel_front_left)
+wheel_front_left.SetVisualizationType(chrono.VisualizationType.VT_WIREFRAME)
 
 
 
 
-
-gator.SetCollideShape(chrono.ChCollisionShapeSphere(0.5))  
-gator.SetBodyFixed(True)  
-wheel_front_left.SetVisShape(chrono.ChVisualShapeSphere(0.2, chrono.ChColor(1, 0, 0)))  
-
-
-
+driver = chrono.ChDriver()  
 
 
 sensor_manager = chrono.ChSensorManager()
 
 
-point_light1 = chrono.ChPointLight()
-point_light1.SetPos(chrono.ChVectorD(5, 5, 5))
-sensor_manager.AddSensor(point_light1)
+point_light = chrono.ChPointLight()
+point_light.SetPos(chrono.ChVectorD(5, 5, 5))
+sensor_manager.Add(point_light)
 
 
 camera = chrono.ChCamera()
-camera.SetPos(chrono.ChVectorD(0, 1, 2))
+camera.SetPos(chrono.ChVectorD(0, 0, 1))
 camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(camera)
+sensor_manager.Add(camera)
 
 
-step_size = 0.01
-for i in range(1000):
+while True:
     
-    
-
-    
-    
+    driver.Update()
 
     
     
+
+    
+    gator.SetBodyFixed(False)  
+    gator.AddTorque(chrono.ChVectorD(0, 1, 0))  
+    gator.SetBodyFixed(True)
 
     
     sensor_manager.Update()
 
     
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(0.01)  
+    system.Render()  
 
-
-postprocess.ChPostprocessGLVisualizer(system, sensor_manager.GetCamera())
+    
+    camera_image = sensor_manager.GetCameraImage()

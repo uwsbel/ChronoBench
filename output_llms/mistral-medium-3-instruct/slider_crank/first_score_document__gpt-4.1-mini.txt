@@ -4,139 +4,139 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()` and gravity set). No deduction.
-- **Body Creation:** All bodies (floor, crank, rod, piston) are created with mass, inertia, position, collision, and visual models. However:
-  - Collision models are added but **collision model building is missing** (`BuildModel()` is not called after adding collision shapes). According to best practices and PyChrono API, after adding collision shapes, one must call `GetCollisionModel().BuildModel()` to finalize the collision model before enabling collision.
-  - Also, collision is enabled by `SetCollide(True)` on floor, but for other bodies, collision enabling is missing (should use `EnableCollision(True)` or `SetCollide(True)` consistently).
-  - The floor body uses `SetCollide(True)` which is deprecated; the API recommends `EnableCollision(True)`.
-  - No contact material is assigned to any body, which is important for realistic contact behavior.
-  
-  Deduct **15 points** for missing collision model building and incomplete collision setup.
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), with gravity set properly. No deduction.
+- **Body Creation:** Floor, crank, rod, piston bodies are created using `ChBodyEasy*` classes with reasonable parameters. All bodies are added to the system. No deduction.
+- **Body Properties:** Positions and orientations are set. The floor is fixed. No mass or inertia explicitly set, but `ChBodyEasy*` sets these internally based on density and size, which is acceptable. No deduction.
+- **Joints:** Revolute joints for crank-ground, crank-rod, rod-piston are created and initialized correctly. Prismatic joint for piston-ground is created and initialized properly. Motor joint is created and initialized correctly.
+- **Motor Function:** Uses `ChFunction_Const(1.0)` to set constant speed, which is correct.
+- **Visualization:** Uses `chronoirr.ChIrrApp` for visualization, adds logo, skybox, typical lights, and a shadow light. Binds and updates assets. Sets camera position and target. Visualization loop is implemented.
+- **Simulation Loop:** Properly uses `app.GetDevice().run()` as loop condition, with `BeginScene()`, `DrawAll()`, `DoStep()`, and `EndScene()` calls in correct order.
 
-- **Joints and Links:** All joints are created and initialized properly with correct frames. No deduction.
+**Minor omissions:**
 
-- **Motor:** Properly created and initialized with a constant speed function. No deduction.
+- The system does not explicitly set collision system type or contact material properties. While not strictly required, setting collision system type (e.g., Bullet) or contact materials can improve simulation realism and stability. Deduct 5 points for this minor omission.
+- The motor joint uses `SetMotorFunction()` instead of the documented `SetSpeedFunction()`. This is a minor API naming inconsistency (see correctness below), but completeness-wise, the motor is present and configured.
 
-- **Visualization:** Visualization system is created and attached to the system, window size and title set, initialized, and typical visual elements added. No deduction.
-
-- **Simulation Loop:** Present and correct. No deduction.
-
-**Subtotal Completeness: 40 - 15 = 25**
+**Completeness deduction:** 5 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of API:**
-  - `Set_G_acc` is used instead of `Set_G_acc` (underscore is correct but the API documentation uses `Set_G_acc` or `Set_G_acceleration`? The documentation shows `sys.Set_G_acc(...)` is acceptable, so no deduction here.)
-  - The collision model is not built after adding collision shapes, which will cause no collision detection. This is a significant error.
-  - `SetCollide(True)` is used on floor body, but the API recommends `EnableCollision(True)`. This is a minor API misuse but could cause issues.
-  - The collision shapes are added without specifying material or density, which might be acceptable but not best practice.
-  - The `chrono.ChVectorD` is used, but the API documentation uses `chrono.ChVector3d` (or `ChVectorD` is an alias?). This is minor and likely acceptable.
-  - The rotation quaternion for crank is set as `chrono.ChQuaternionD(1, 0, 0, 0)` which is identity quaternion, acceptable.
-  - The prismatic joint initialization uses `chrono.Q_from_AngX(chrono.CH_PI_2)`, but the API documentation uses `chrono.ChCoordsysD(position, rotation)`. `Q_from_AngX` is not listed in the documentation, but it is a known PyChrono function. This is acceptable but could be replaced by `chrono.ChQuaternionD` or `chrono.Q_from_AngAxis`. Minor issue.
-  
-- **Logical errors:**
-  - The crank-rod joint is initialized at `(0.2, 0.5, 0)`, but the rod is positioned at `(0.5, 0.5, 0)` and crank at `(0, 0.5, 0)`. The joint position seems off relative to body positions, which might cause unrealistic joint behavior.
-  - The rod-piston joint is initialized at `(1.0, 0.5, 0)`, which matches the piston position, so that is okay.
-  - The prismatic joint frame is rotated by 90 degrees around X, which is correct to align the sliding axis.
-  
-- **Minor inaccuracies:**
-  - The floor body is created with `chrono.ChBody()` instead of `chrono.ChBodyAuxRef()` or `ChBodyEasyBox` which could simplify code.
-  - The visual and collision models are added directly, but the API documentation suggests using `ChBodyEasyBox` or similar for quick setup.
-  
-Deduct **15 points** for missing collision model build (significant API misuse).
+- **API Usage:**
 
-Deduct **10 points** for logical inconsistency in joint positions (crank-rod joint frame seems misplaced).
+  - `system.Set_G_acc(...)` is used instead of `system.Set_G_acc(...)` or `system.SetGravity(...)`. According to the documentation, the method to set gravity is `Set_G_acc()`. This is correct.
 
-Deduct **5 points** for minor API misuse (`SetCollide` vs `EnableCollision`, and minor style issues).
+  - The motor joint uses `motor.SetMotorFunction(chrono.ChFunction_Const(1.0))`. The documentation specifies `motor.SetSpeedFunction(func)`. This is an incorrect API call and will likely cause an error or no effect. Deduct 15 points for incorrect API usage.
 
-**Subtotal Correctness: 30 - 15 - 10 - 5 = 0**
+- **Joint Initialization:**
+
+  - All joints are initialized with `chrono.ChCoordsysD(chrono.ChVectorD(...))` without specifying rotation. This defaults to identity rotation, which is acceptable if the joint axis aligns with the global axes. The crank is rotated by 90 degrees about X, so the revolute joint at the origin should have its axis aligned accordingly. The code does not specify rotation in the joint frames, which could cause misalignment of joint axes.
+
+  - For example, the crank-ground revolute joint is initialized at (0,0,0) with no rotation frame specified. Since the crank is rotated by 90 degrees about X, the joint axis might not align with the crank's rotation axis. This is a logical error that can affect simulation behavior. Deduct 10 points for logical error in joint initialization.
+
+- **Prismatic joint:**
+
+  - The prismatic joint is initialized at the piston position with no rotation frame specified. The piston moves along the X-axis, so the prismatic joint axis should be aligned accordingly. Without specifying rotation, it defaults to identity, which aligns with X-axis, so this is correct.
+
+- **Body Fixed Setting:**
+
+  - The floor uses `SetBodyFixed(True)`. The documentation uses `SetFixed(True)`. This is an incorrect method name and will cause an error or no effect. Deduct 15 points for incorrect API usage.
+
+- **Use of `SetPos` and `SetRot`:**
+
+  - Correctly used.
+
+- **Use of `app.DoStep()` in simulation loop:**
+
+  - The documentation specifies `sys.DoStepDynamics(time_step)` or `app.DoStep()`. The code uses `app.DoStep()` without specifying a time step. This is acceptable as `app.DoStep()` internally advances the simulation by the fixed time step set in the Irrlicht app. No deduction.
+
+**Correctness deductions:**
+
+- 15 points for incorrect motor API call (`SetMotorFunction` instead of `SetSpeedFunction`).
+- 15 points for incorrect `SetBodyFixed` method (should be `SetFixed`).
+- 10 points for logical error in joint frame rotations (missing rotation in revolute joints where crank is rotated).
+
+Total correctness deduction: 40 points (but max deduction is 30, so capped at 30).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code uses meaningful variable names (`floor_body`, `crank`, `rod`, `piston`, `joint_crank_ground`, etc.).
-- The code is well structured and readable.
-- However, **there are no comments** explaining the purpose of each block or step.
-- Some lines are long and could be formatted better for readability.
-- The code lacks docstrings or any form of documentation.
+- The code is mostly readable with meaningful variable names (`floor_body`, `crank_body`, etc.).
+- However, there are no comments explaining the purpose of code blocks or parameters.
+- The code formatting is acceptable but could be improved with blank lines between logical sections.
+- The use of magic numbers (e.g., densities, sizes) without explanation reduces clarity.
+- Deduct 5 points for lack of comments.
+- Deduct 3 points for minor formatting/readability improvements possible.
 
-Deduct **5 points** for lack of comments/documentation.
-
-No deduction for readability or variable names.
-
-**Subtotal Code Quality: 10 - 5 = 5**
+Total code quality deduction: 8 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No redundant code or unnecessary calculations.
-- Could be more efficient by using `ChBodyEasyBox` or `ChBodyEasyCylinder` to reduce code verbosity.
-- Collision model building is missing, which is a correctness issue but also affects efficiency.
-- Visualization setup is standard and efficient.
+- No obvious redundant calculations or API calls.
+- The code uses `ChBodyEasy*` classes which internally handle inertia and mass efficiently.
+- The visualization setup is standard.
+- Minor optimization: The repeated calls to `app.GetDevice().getSceneManager().getActiveCamera()` could be stored in a variable to avoid repeated calls. Deduct 3 points for missing this minor optimization.
 
-Deduct **3 points** for missing optimization opportunity (using easy body constructors).
-
-**Subtotal Efficiency: 10 - 3 = 7**
+Total efficiency deduction: 3 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling present (e.g., try-except blocks).
-- No checks on file paths or system initialization.
-- No handling of edge cases or invalid inputs.
-- However, basic PyChrono scripts often omit explicit error handling.
-
-Deduct **5 points** for lack of any error handling.
-
-**Subtotal Error Handling: 0**
+- No error handling is present.
+- No checks for valid paths (e.g., `PATH_TO_CHRONO_DATA` is a placeholder and not validated).
+- No try-except blocks or validation of inputs.
+- Deduct 5 points for lack of basic error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is properly created and attached.
-- Window size and title set.
-- Logo, skybox, camera, typical lights, and shadowed light added.
-- Symbol scale and shadows enabled.
-- No obvious visualization issues.
-
-No deduction.
-
-**Subtotal Visualization: 5**
+- Visualization is set up with logo, skybox, typical lights, and a shadow light.
+- Camera is set with FPS node and positioned properly.
+- However, the code uses `app.AssetBindAll()` and `app.AssetUpdateAll()` before the simulation loop but does not call `app.Initialize()` or `app.Start()`, which are typical in `ChIrrApp` usage to initialize the visualization system. This might cause issues.
+- The lighting setup is good but could be improved by adding more typical lights or adjusting parameters.
+- Deduct 3 points for incomplete visualization initialization and minor suboptimal lighting.
 
 ---
 
-### **Final Score Calculation**
+### Summary of deductions:
 
-| Category                  | Points | Deduction | Score |
-|---------------------------|--------|-----------|-------|
-| Completeness              | 40     | 15        | 25    |
-| Correctness               | 30     | 30        | 0     |
-| Code Quality              | 10     | 5         | 5     |
-| Efficiency                | 10     | 3         | 7     |
-| Error Handling & Robustness | 5      | 5         | 0     |
-| Visualization             | 5      | 0         | 5     |
-| **Total**                 | **100**| **58**    | **42**|
+| Criterion                  | Deduction Points |
+|----------------------------|------------------|
+| Completeness               | 5                |
+| Correctness               | 30 (capped)      |
+| Code Quality              | 8                |
+| Efficiency                | 3                |
+| Error Handling & Robustness | 5                |
+| Visualization             | 3                |
+| **Total Deduction**       | **54**           |
 
 ---
 
-### **Summary of deductions:**
+### Final score:
 
-- Missing collision model building after adding collision shapes (major correctness and completeness issue).
-- Inconsistent collision enabling methods (`SetCollide` vs `EnableCollision`).
-- Logical inconsistency in joint initialization positions.
-- Lack of comments/documentation.
-- Missing error handling.
-- Minor inefficiency by not using easy body constructors.
-- Minor API misuse in collision enabling and joint rotation specification.
+Starting from 100 points:
+
+100 - 54 = 46
+
+---
+
+### Explanation:
+
+- The script includes all essential components but misses some minor completeness aspects.
+- Major correctness issues arise from incorrect API calls (`SetBodyFixed` instead of `SetFixed`, `SetMotorFunction` instead of `SetSpeedFunction`) and logical errors in joint frame initialization.
+- Code quality suffers from lack of comments and minor formatting issues.
+- Efficiency is mostly fine but could be slightly improved.
+- No error handling is present.
+- Visualization setup is mostly correct but misses some initialization steps and could be improved.
 
 ---
 
 **Final score:**
 
-[[42]]
+[[46]]

@@ -9,50 +9,44 @@ print("Copyright (c) 2023 Project Chrono")
 # Create the system
 sys = chrono.ChSystemNSC()
 
-# Create the fixed ground with collision properties
-ground_mat = chrono.ChMaterialSurfaceNSC()
-ground_mat.SetFriction(0.9)
-ground_mat.SetRestitution(0.0)
+# Create the terrain
+terrain = veh.RigidTerrain(sys)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI_2)))
+terrain.Initialize()
 
-ground_body = chrono.ChBody()
-ground_body.SetBodyFixed(True)
-ground_body.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape = chrono.ChBoxShape()
-ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(100, 1, 100)
-ground_body.AddVisualShape(ground_shape)
-ground_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-sys.Add(ground_body)
+# Create the Curiosity rover
+init_loc = chrono.ChVector3d(0, 0.2, 0)
+init_rot = chrono.Q_from_AngY(chrono.CH_C_PI_2)
+rover = veh.Curiosity(sys, init_loc, init_rot)
 
-# Create the Curiosity rover model
-curiosity_init_pos = chrono.ChFrameD(chrono.ChVectorD(0, 1, 0))
-curiosity = veh.Curiosity(sys, curiosity_init_pos)
-
-# Set the default driver controls
-driver = veh.ChDriver(curiosity.GetVehicle())
-driver.SetSteering(0.0)
-driver.SetThrottle(0.3)
-
-# Create the Irrlicht visualization system
+# Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-vis.SetWindowSize(1280, 720)
+vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Curiosity Rover Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVector3d(5, 5, 5), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(10, 15, 10), chrono.ChVectorD(0, 0, 0), 30, 5, 15, 60)
+vis.AddLightWithShadow(chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(0, 0, 0), 10, 1, 10, 40)
 vis.EnableShadows()
 
 # Simulation loop
 while vis.Run():
     time = sys.GetChTime()
-    driver_inputs = driver.GetInputs()
-    curiosity.SetDriverInputs(driver_inputs)
     sys.DoStepDynamics(1e-3)
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-# No additional Python code is needed outside the provided code block.
+    # Steering input (example: simple sine wave steering)
+    steering = 0.5 * chrono.sin(time)
+    rover.SetSteering(steering)
+
+# Clean up
+del vis
+

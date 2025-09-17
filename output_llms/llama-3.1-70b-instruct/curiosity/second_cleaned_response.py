@@ -22,8 +22,8 @@ system.Add(ground)
 
 
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(5, 1, 2, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(2, 0, 1))  
+obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  
 obstacle.SetFixed(True)  
 system.Add(obstacle)
 
@@ -40,8 +40,8 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
-driver.SetSpeed(1.0)  
-driver.SetSteering(0.0)  
+driver.SetSpeed(0.5)  
+driver.SetSteering(0)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

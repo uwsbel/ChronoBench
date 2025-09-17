@@ -78,9 +78,9 @@ vis.AttachVehicle(vehicle.GetTractor())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3  
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -127,11 +127,16 @@ while vis.Run():
 
     
     if 20 < time < 30:
-        driver.SetSteering(0.5)
+        driver.SetSteering(0.5)  
     elif 30 < time < 40:
-        driver.SetSteering(-0.5)
+        driver.SetSteering(-0.5)  
     else:
-        driver.SetSteering(0)
+        driver.SetSteering(0)  
+
+    if 10 < time < 20:
+        driver.SetThrottle(1.0)  
+    else:
+        driver.SetThrottle(0.5) 
 
     
     s.Spin(step_size)

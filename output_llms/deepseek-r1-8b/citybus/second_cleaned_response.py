@@ -83,12 +83,28 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_inputs = [
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),  
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),  
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)   
+driver = veh.ChDataDriver()
+
+
+driver_input_sequence = [
+    veh.DataDriverEntry(0.0, veh.ChVehicleInput(
+        throttle=0.0,
+        steering=0.0,
+        braking=0.0
+    )),
+    veh.DataDriverEntry(0.1, veh.ChVehicleInput(
+        throttle=1.0,
+        steering=0.0,
+        braking=0.0
+    )),
+    veh.DataDriverEntry(0.5, veh.ChVehicleInput(
+        throttle=1.0,
+        steering=0.7,
+        braking=0.0
+    )),
 ]
-driver = veh.ChDataDriver(driver_inputs)
+
+driver.Initialize(driver_input_sequence)
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,16 +128,15 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     
-    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    driver.Advance(step_size)
     
     step_number += 1
     

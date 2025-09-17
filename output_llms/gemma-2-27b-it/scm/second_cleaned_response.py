@@ -70,7 +70,7 @@ class SCMTerrainParameters:
             self.n = 1.2
             self.cohesion = 0
             self.friction = 25
-            self.shear_coeff = 0.015
+            self.shear = 0.02
             self.elastic_stiffness = 1e8
             self.damping = 2e4
         elif config == "mid":
@@ -79,7 +79,7 @@ class SCMTerrainParameters:
             self.n = 1.1
             self.cohesion = 0
             self.friction = 30
-            self.shear_coeff = 0.01
+            self.shear = 0.01
             self.elastic_stiffness = 2e8
             self.damping = 3e4
         elif config == "hard":
@@ -88,22 +88,25 @@ class SCMTerrainParameters:
             self.n = 1.0
             self.cohesion = 0
             self.friction = 35
-            self.shear_coeff = 0.005
+            self.shear = 0.005
             self.elastic_stiffness = 5e8
-            self.damping = 1e5
+            self.damping = 5e4
         else:
-            raise ValueError("Invalid terrain configuration.")
-
-    def get_params(self):
-        return self.Kphi, self.Kc, self.n, self.cohesion, self.friction, self.shear_coeff, self.elastic_stiffness, self.damping
+            raise ValueError("Invalid terrain configuration. Choose from 'soft', 'mid', or 'hard'.")
 
 
-terrain_params = SCMTerrainParameters(config="mid")
-Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping = terrain_params.get_params()
-
+terrain_params = SCMTerrainParameters(config="mid")  
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(Kphi, Kc, n, cohesion, friction, shear_coeff, elastic_stiffness, damping)
+terrain.SetSoilParameters(terrain_params.Kphi,
+                            terrain_params.Kc,
+                            terrain_params.n,
+                            terrain_params.cohesion,
+                            terrain_params.friction,
+                            terrain_params.shear,
+                            terrain_params.elastic_stiffness,
+                            terrain_params.damping
+)
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

@@ -8,67 +8,52 @@ from ros_chrono.msg import VehicleState, DriverInputs
 chrono.SetChronoDataPath('/path/to/chrono/data')
 
 
-sys = chrono.ChSystemNSC()
+vehicle_sys = veh.ChVehicleSystem()
 
 
-vehicle = veh.ChPart('HMMWV')
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
-vehicle.SetChassisMass(3500)
-vehicle.SetEngineType(veh.ChEngineType_SIMPLE)
-vehicle.SetTireModel(veh.ChTireModel_RIGID)
-vehicle.SetTireRadius(0.4)
-vehicle.SetTireWidth(0.2)
+vehicle = veh.ChHMMWV()
+vehicle.SetContactMethod(veh.ChHMMWV::ContactMethod::NODES)
+vehicle.SetEngineType(veh.ChHMMWV::EngineType::SIMPLE)
+vehicle.SetTireModel(veh.ChHMMWV::TireModel::RIGID)
+vehicle_sys.AddVehicle(vehicle)
 
 
 terrain = veh.ChTerrain()
-terrain.SetFriction(0.7)
-terrain.SetRestitution(0.1)
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.2)
+vehicle_sys.AddTerrain(terrain)
 
 
-driver = veh.ChDriver()
-driver.SetSteeringSpeed(2.0)
-driver.SetThrottleSpeed(1.0)
-driver.SetBrakingSpeed(1.0)
+driver_sys = veh.ChDriverSystem()
+driver_sys.SetSteeringController(veh.ChDriverSystem::SteeringController::PID)
+driver_sys.SetThrottleController(veh.ChDriverSystem::ThrottleController::PID)
+driver_sys.SetBrakeController(veh.ChDriverSystem::BrakeController::PID)
+vehicle_sys.AddDriverSystem(driver_sys)
 
 
-rospy.init_node('pychrono_simulation')
+rospy.init_node('chrono_simulation')
 
 
-def clock_sync_handler(msg):
-    sys.SetChTime(msg.clock)
-
-def driver_inputs_handler(msg):
-    driver.SetSteering(msg.steering)
-    driver.SetThrottle(msg.throttle)
-    driver.SetBraking(msg.braking)
-
-def vehicle_state_handler(msg):
-    vehicle.SetPos(msg.position)
-    vehicle.SetRot(msg.orientation)
-
-
-rospy.Subscriber('clock', Clock, clock_sync_handler)
-rospy.Subscriber('driver_inputs', DriverInputs, driver_inputs_handler)
-rospy.Subscriber('vehicle_state', VehicleState, vehicle_state_handler)
-
-
+clock_pub = rospy.Publisher('clock', rospy.Time, queue_size=10)
+driver_inputs_sub = rospy.Subscriber('driver_inputs', DriverInputs, driver_sys.SetDriverInputs)
 vehicle_state_pub = rospy.Publisher('vehicle_state', VehicleState, queue_size=10)
 
 
 while not rospy.is_shutdown():
     
-    sys.DoStepDynamics(0.01)
-    vehicle.Advance(0.01)
-    terrain.Advance(0.01)
-    driver.Advance(0.01)
+    vehicle_sys.DoStepDynamics(chrono.ChTimeStep(0.01))
+    terrain.DoStepDynamics(chrono.ChTimeStep(0.01))
+    driver_sys.DoStepDynamics(chrono.ChTimeStep(0.01))
 
     
-    vehicle_state_msg = VehicleState()
-    vehicle_state_msg.position = vehicle.GetPos()
-    vehicle_state_msg.orientation = vehicle.GetRot()
-    vehicle_state_pub.publish(vehicle_state_msg)
+    clock_pub.publish(rospy.Time.now())
+    vehicle_state_pub.publish(VehicleState(
+        vehicle.GetVehicleSpeed(),
+        vehicle.GetVehicleAcceleration(),
+        vehicle.GetSteeringAngle(),
+        vehicle.GetThrottlePosition(),
+        vehicle.GetBrakePosition()
+    ))
 
     
-    clock_msg = Clock()
-    clock_msg.clock = sys.GetChTime()
-    rospy.publish('clock', clock_msg)
+    rospy.spinOnce()

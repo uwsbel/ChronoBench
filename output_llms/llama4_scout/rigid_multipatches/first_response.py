@@ -1,77 +1,91 @@
 import chrono as ch
 import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 # 1. Initialize the PyChrono environment and core components
-ch.set_default_contact_material(ch.ContactMaterial())
-ch.set_gravity(0, 0, -9.81)
+ch.ChEngine.Initialize()
 
-# 2. Create the Irrlicht application
-app = irr.IrrlichtApplication()
+# 2. Set up the Irrlicht application for visualization
+app = irr.ChIrrApp()
 
 # 3. Create the HMMWV vehicle
-vehicle = ch.Vehicle()
+veh_system = veh.ChVehicle()
+veh_system.SetChassisCollisionShape(veh.ChCollisionShapeBox(2.5, 1.2, 0.5))
+veh_system.SetChassisMass(2000)
+veh_system.SetChassisInertia(ch.ChMatrix33D(1000, 1000, 1000))
 
-# Initialize HMMWV with specific parameters
-vehicle.Initialize(ch.Vector3d(0, 0, 1),  # position
-                  ch.EngineType_SHAFTS,
-                  ch.DrivetrainType_AWD)
+# Initialize vehicle with engine and drivetrain
+engine = veh.ChEngineSimple()
+engine.SetMaxTorque(500)
+engine.SetMaxRPM(4000)
+veh_system.SetEngine(engine)
 
-# Add vehicle components with mesh visualization
-ch.ChVehicleGeometry(vehicle).CreateAndSetGeometryFile('path/to/hmmwv.obj')
-vehicle.SetChassisVisualizationType(ch.ChassisVisualizationType_MESH)
-vehicle.SetWheelVisualizationType(ch.WheelVisualizationType_MESH)
+drivetrain = veh.ChDrivetrainSimpleAWD()
+drivetrain.SetGearRatio(4)
+veh_system.SetDrivetrain(drivetrain)
 
-# 4. Construct the terrain
-terrain = ch.Terrain()
+# Add wheels and axles
+for i in range(4):
+    wheel = veh.ChWheel()
+    wheel.SetRadius(0.5)
+    wheel.SetWidth(0.2)
+    veh_system.AddWheel(wheel)
 
-# Add flat patches with different textures
-patch1 = ch.TerrainPatch(terrain, ch.Vector3d(0, 0, 0), ch.Vector3d(10, 10, 0))
-patch1.SetTexture('path/to/texture1.jpg')
+# Mesh visualization for vehicle components
+ch.ChVisualShapeBox().SetBox(veh_system.GetChassisCollisionShape().GetBox()).SetColor(ch.ChColor(1, 0, 0)).AddTo(veh_system.GetChassisBody())
+for wheel in veh_system.GetWheels():
+    ch.ChVisualShapeSphere().SetRadius(wheel.GetRadius()).SetColor(ch.ChColor(0, 1, 0)).AddTo(wheel.GetBody())
 
-patch2 = ch.TerrainPatch(terrain, ch.Vector3d(10, 0, 0), ch.Vector3d(10, 10, 0))
-patch2.SetTexture('path/to/texture2.jpg')
+# 4. Construct complex terrain with multiple patches
+terrain = ch.ChTerrain()
 
-# Add a mesh-based patch for a bump
+# Flat patch with texture
+flat_patch = ch.ChTerrainPatch()
+flat_patch.SetTexture(ch.ChTexture(chrono.GetChronoDataPath() + "textures/grass.jpg"))
+flat_patch.SetPos(0, 0)
+flat_patch.SetSize(10, 10)
+terrain.AddPatch(flat_patch)
+
+# Mesh-based patch for bump
 bump_mesh = ch.ChTriangleMeshConnected()
-bump_mesh.LoadWavefrontMesh('path/to/bump.obj')
-bump_patch = ch.TerrainMeshPatch(terrain, bump_mesh, ch.Vector3d(0, 0, 0), ch.Vector3d(1, 1, 1))
-bump_patch.SetTexture('path/to/bump_texture.jpg')
+bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "models/bump.obj")
+bump_patch = ch.ChTerrainMeshPatch(bump_mesh)
+bump_patch.SetPos(5, 5)
+terrain.AddPatch(bump_patch)
 
-# Add a heightmap-based patch for varying elevations
-heightmap = ch.TerrainHeightmap()
-heightmap.LoadHeightmap('path/to/heightmap.png')
-heightmap_patch = ch.TerrainHeightmapPatch(terrain, heightmap, ch.Vector3d(0, 0, 0), ch.Vector3d(10, 10, 10))
-heightmap_patch.SetTexture('path/to/heightmap_texture.jpg')
+# Heightmap-based patch for varying elevations
+heightmap = ch.ChHeightmapData()
+heightmap.InitializeFromDEM(chrono.GetChronoDataPath() + "models/heightmap DEM.dat", 1, 1)
+heightmap_patch = ch.ChTerrainHeightmapPatch(heightmap)
+heightmap_patch.SetPos(-5, -5)
+terrain.AddPatch(heightmap_patch)
 
-# 5. Add interactive driver system
-driver = ch.Driver()
-driver.Initialize(vehicle, app)
-
-# Set steering, throttle, and braking
+# 5. Interactive driver system
+driver = veh.ChInteractiveDriverIRR()
+driver.AttachVehicle(veh_system)
 driver.SetSteering(0.5)
-driver.SetThrottle(0.2)
-driver.SetBraking(0.1)
+driver.SetThrottle(0.5)
+driver.SetBraking(0)
 
 # Simulation parameters
 step_size = 0.01
-end_time = 10.0
+timestep = ch.ChTimestep(step_size)
 
-# Run simulation
-while app.GetDevice().run() and (driver.GetTime() < end_time):
-    # Update simulation
-    vehicle.Update(step_size)
-    terrain.Update(step_size)
-    driver.Update(step_size)
+# Main simulation loop
+while app.Run():
+    # Update vehicle and terrain
+    veh_system.Update(timestep)
+    terrain.Update(timestep)
 
     # Render scene
     app.BeginScene()
-    app.DrawTerrain(terrain)
-    app.DrawVehicle(vehicle)
+    app.Render(veh_system)
+    app.Render(terrain)
     app.EndScene()
 
     # Advance time
-    driver.Advance(step_size)
+    timestep.advance(step_size)
 
-# Cleanup
-app.GetDevice().drop()
+# Clean up
+ch.ChEngine.Finalize()
 del app

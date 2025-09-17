@@ -187,15 +187,21 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 # Plot GPS data
-if gps_data:
-    gps_lat = [data[0] for data in gps_data]
-    gps_lon = [data[1] for data in gps_data]
-    plt.figure(figsize=(10, 8))
-    plt.plot(gps_lon, gps_lat)
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('GPS Trajectory')
-    plt.grid(True)
-    plt.show()
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.plot([data[0] for data in gps_data], [data[1] for data in gps_data])
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.title('GPS Trajectory')
+
+plt.subplot(1, 2, 2)
+plt.plot([data[0] for data in gps_data])
+plt.xlabel('Step')
+plt.ylabel('Longitude')
+plt.title('Longitude Over Time')
+
+plt.tight_layout()
+plt.show()
 
 print("GPS Data: ", gps_data)

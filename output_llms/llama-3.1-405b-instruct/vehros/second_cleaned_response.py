@@ -6,7 +6,7 @@ from pychrono import irrlicht as chronoirr
 def main():
     
     hmmwv = veh.HMMWV_Full()
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
     hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
     hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
     hmmwv.SetChassisFixed(False)  
@@ -17,14 +17,14 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
-
+    
     
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
-
+    
     hmmwv.Initialize()  
 
     
@@ -52,9 +52,12 @@ def main():
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    vis.SetWindowSize(800, 600)
+    vis.SetWindowSize(1024, 768)
     vis.SetWindowTitle("HMMWV Simulation")
     vis.Initialize()
+    vis.AddTypicalLights()
+    vis.AddCamera(chronoirr.vector3df(0, -15, 5))
+    vis.AddCamera(chronoirr.vector3df(0, 0, 2), True)
 
     
     time = 0
@@ -84,6 +87,7 @@ def main():
         vis.BeginScene()
         vis.DrawAll()
         vis.EndScene()
+        vis.RunTimestep(time_step)
 
 if __name__ == "__main__":
     main()

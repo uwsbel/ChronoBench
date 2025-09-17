@@ -1,154 +1,97 @@
 import pychrono as pychrono
 import pychrono.render as pyrender
-import pychrono.input as pyinput
-import numpy as np
+import pychrono.input as input
+import pychronovehicles as veh
 
 
 pychrono.init()
+renderer = pyrender.Renderer()
+renderer.setClearColor(0, 0, 0, 1)
+renderer.setSize(1024, 768)
 
 
-simulation = pychrono.Simulation("PyChrono", window_size=(800, 600))
-physics = simulation.get_physics()
-physics.set_physics_engine("Bullet", 1e6)
-scene = simulation.get_scene()
-
-
-renderer = pyrender.IrrlichtRenderer()
-renderer.set_background_color(pyrender.Color(0, 0, 0))
-renderer.set_fbo_size(800, 600)
-simulation.get_window().set_renderer(renderer)
-
-
-car_body = pychrono.RigidBody("car_body")
-car_body.set_mass(1000)
-car_body.set_size(4, 2, 2)
-car_body.set_position(pychrono.Vector3(0, 0, 0))
-car_body.set_color(pychrono.Color(0, 0, 0))  
-
-
-wheels = []
-for i in range(4):
-    wheel = pychrono.RigidBody("wheel")
-    wheel.set_mass(10)
-    wheel.set_size(0.5, 0.5, 0.5)
-    wheel.set_position(pychrono.Vector3(
-        -1.5, -1, 0.5  
-    ) if i < 2 else 1.5, -1, 0.5)
-    wheel.set_color(pychrono.Color(0, 0, 0))
-    wheels.append(wheel)
-
-
-car_body.add_child(wheels[0], pychrono.Vector3(1.5, 0, 0))
-car_body.add_child(wheels[1], pychrono.Vector3(-1.5, 0, 0))
-car_body.add_child(wheels[2], pychrono.Vector3(1.5, 0, 0))
-car_body.add_child(wheels[3], pychrono.Vector3(-1.5, 0, 0))
-
-
-terrain = pychrono.RigidBody("terrain")
-terrain.set_mass(0)
-terrain.set_size(100, 100, 5)
-terrain.set_position(pychrono.Vector3(0, -5, 0))
-terrain.set_color(pychrono.Color(1, 1, 1))  
-
-
-terrain.add_texture("grass", "grass.png")
-terrain.add_texture("logo", "bmw.png")
-terrain.apply_textures()
-
-
-car_body.add_constraint(pychrono.HingeConstraint(
-    pychrono.Vector3(1, 0, 0),  
-    pychrono.Vector3(0, 0, 0),  
-    pychrono.Vector3(0, 1, 0),  
-    pychrono.Vector3(0, 0, 0)  
+car = veh.createVehicle(veh.VehicleType.TEAMS_2010, "E90", pychrono.VehicleProperties(
+    name="BMW E90",
+    mass=1200,
+    inertia=pychrono.VehicleInertia(
+        xx=500,
+        yy=400,
+        zz=1000
+    ),
+    width=2.0,
+    height=1.4,
+    ground Clearance=0.5
 ))
 
 
-steering = pyinput.ActionNode("steering", pyinput.InputType.Slider, range(-1, 1))
-throttle = pyinput.ActionNode("throttle", pyinput.InputType.Slider, range(-1, 1))
-braking = pyinput.ActionNode("braking", pyinput.InputType.Slider, range(-1, 1))
+terrain = pychrono.createRigidBody(pychrono.RigidBodyProperties(
+    mass=0,
+    inertia=pychrono.Inertia(0, 0, 0)
+))
+terrainShape = pychrono.Box(50, 50, 0.1)
+terrain_body = pychrono.createRigidBody(pychrono.RigidBodyProperties(
+    mass=0,
+    inertia=pychrono.Inertia(0, 0, 0)
+))
+terrain_body.setShape(terrainShape)
+terrain_body.setCollision(True)
+terrain_body.setFriction(1.0)
+terrain_body.setGround(True)
 
 
-physics.setVehicleFriction(1, 1, 1)
-physics.setVehicleDamping(0.5, 0.5, 0.5)
-physics.setVehicleRestitution(0.3)
+driver = pychrono.DriverSystem("Driver")
+driver.addInputHandler(input.Keyboard())
+driver.setVehicle(car)
 
 
-tire = pychrono.RigidBody("tire")
-tire.set_mass(10)
-tire.set_size(0.1, 0.1, 0.1)
-tire.set_position(pychrono.Vector3(0, 0, 0))
-tire.set_model("TMEASY")
-tire.add_scalar(0, "damping", 0.5)
-tire.add_scalar(0, "num_segments", 50)
-tire.add_scalar(0, "hardness", 0.8)
+renderer.addSkyBox("sky", "assets/skybox/ceiling1.tga", "assets/skybox/floor1.tga")
+renderer.addDirectionalLight(0, 0, 1, 0.5, 0.5, 0.5)
+renderer.setChaseCamera(car, 50, 50, 5)
 
 
-wheels[0].add_child(tire, pychrono.Vector3(0, 0, 0))
-wheels[1].add_child(tire, pychrono.Vector3(0, 0, 0))
-wheels[2].add_child(tire, pychrono.Vector3(0, 0, 0))
-wheels[3].add_child(tire, pychrono.Vector3(0, 0, 0))
+car.getWheels()[0].setTireModel(veh.TireType.TMEASY)
 
 
-camera = scene.add_camera("chase_camera", pychrono.RendererCameraType.Perspective)
-camera.set_position(pychrono.Vector3(0, 5, 10))
-camera.set.look_at(pychrono.Vector3(0, 0, 0))
-renderer.set_camera(camera)
+car.setForce(0, 0, 0)
+car.setTorque(0, 0, 0)
+car.setAngularVelocity(0, 0, 0)
 
 
-light = pyrender.DirectionalLight(
-    pyrender.Color(1, 1, 1),
-    pyrender.Vector3(10, 10, 10)
+car.setPosition(pychrono.Vector3(0, 0.5, 0))
+car.setRotation(pychrono.Vector3(0, 0, 0))
+
+
+simulation = pychrono.Simulation(
+    dt=0.001,
+    maxSteps=10000,
+    thread=0,
+    gui=True
 )
-renderer.add_light(light)
 
 
-skybox = pyrender.CubeTexture("sky", "skybox.png")
-skybox.set_size(100, 100, 100)
-skybox.set_position(pychrono.Vector3(0, 0, 0))
-renderer.add_sphere(skybox)
+renderer.addVehicle(car, "BMW E90", "assets/vehicles/2010_BMW_E90.tga")
+renderer.addTerrain(terrain_body, "Road", "assets/terrain/road_1.tga", 0, 0, 0, 50, 50)
 
 
-simulation.get_window().set_key_callback(pyinput.KeyboardEvent, "KEY_PRESSED", "ToggleBrake")
-simulation.get_window().set_mouse_callback(pyinput.MouseEvent, "MOUSE_DRAG", "CameraPan")
-simulation.get_window().set_mouse_wheel_callback(pyinput.MouseWheelEvent, "CameraZoom")
-
-
-car_body.add_collision_detector()
-terrain.add_collision_detector()
-
-
-physics.setVehicleSteerRatio(0.5)
-physics.setVehicleThrottleRatio(0.5)
-physics.setVehicleBrakeRatio(0.5)
-
-
-simulation.start()
-
-
-def handle_input():
-    global steering, throttle, braking
-    speed = physics.getVehicleLinearVelocity()
-    angle = physics.getVehicleAngularVelocity()
+while simulation.getStep() <= 0:
+    
+    inputs = input.getInputs()
     
     
-    steering.set_value(steering.get_value() * speed[0] * 0.5)
+    if inputs.keyboard[0].isPressed:
+        car.setForce(0, 0, 100)
+    if inputs.keyboard[1].isPressed:
+        car.setForce(0, 0, -100)
+    if inputs.keyboard[3].isPressed:
+        car.setBrake(0, 0, 100)
+    if inputs.keyboard[2].isPressed:
+        car.setForce(0, 0, 0)
     
     
-    if speed[0] < 0.5:
-        throttle.set_value(throttle.get_value() * (0.5 - speed[0]))
+    simulation.updatePhysics()
     
     
-    if speed[0] > 0.5:
-        braking.set_value(braking.get_value() * (speed[0] - 0.5))
-    
-    
-    steering.update()
-    throttle.update()
-    braking.update()
-
-
-simulation.run_loop():
-    handle_input()
-    physics.update()
     renderer.render()
+    
+    
+    simulation.step()

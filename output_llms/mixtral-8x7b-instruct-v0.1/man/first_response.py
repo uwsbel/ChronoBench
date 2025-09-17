@@ -1,61 +1,95 @@
 import chrono
-from chrono import ChVector, ChCoordsys, ChFrame, ChMatrix33
-from chrono.collision import ChCollisionModel
-from chrono.vehicle import ChVehicleModel, ChTMeasyTire
+from chrono import ChSystemNSC, ChVisualization, ChMaterialSurfaceNSC, ChContactMethod, ChLoadContainer
+from chrono.vehicle import ChVehicleModelRoad, ChTMeasyTire, ChSteering, ChWheel, ChDriver, ChAssimpImporter
 from chrono.irrlicht import ChIrrApp
-from chrono.irrlicht.ChIrrSimpleVisualSystem import ChIrrSimpleVisualSystem
-from chrono.irrlicht.ChIrrDriver import ChIrrDriver
+from pychrono.irrlicht import ChIrrTools
 
 # Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath('path/to/chrono/data')
-chrono.SetChronoRunTime(0)
+my_system = ChSystemNSC()
 
-# Create the Irrlicht visualization system
-my_vis = ChIrrSimpleVisualSystem(True)
-my_vis.SetChaseCamera(ChVectorD(10, 10, 10), ChVectorD(0, 0, 0))
-my_vis.AddSkyBox()
-my_vis.AddDirectionalLight(ChVector(10, 10, -10), ChVector(0.5, 0.5, 0.5))
-my_vis.AddLogo('path/to/your/logo.png')
+# Add the required physical systems and objects as specified
+# Create ground body
+ground = my_system.AddBody(ChBody.BOX(100, 1, 100, 1000, 1000, 1000))
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
 
-# Create the Irrlicht driver for real-time control
-my_driver = ChIrrDriver(my_vis.GetDevice(), True)
+# Create tire material
+tire_mat = ChMaterialSurfaceNSC(1e6, # young modulus
+                                1.0, # poisson ratio
+                                0.1, # friction coefficient
+                                0.1) # restitution coefficient
 
-# Create the PyChrono simulation
-my_system = chrono.ChSystem()
-my_system.Set_G_acc(ChVectorD(0, 0, -9.81))
+# Create road body
+road = ChBody.Box(20, 0.2, 50, 1000, 1000, 1000)
+road.SetPos(chrono.ChVectorD(0, -4.9, 0))
+road.SetBodyFixed(True)
+road.SetMaterialSurface(tire_mat)
+my_system.AddBody(road)
 
-# Add the rigid terrain
-terrain = chrono.ChHeightfield()
-terrain.SetDataPath('path/to/your/terrain/data.txt')
-terrain.SetMaterialSurface(chrono.ChMaterialSurface().SetFriction(0.5).SetRestitution(0.1))
-terrain_shape = my_system.AddCollisionModel(terrain)
-terrain_shape.SetPos(ChVectorD(0, 0, 0))
+# Create vehicle
+assimp_imp = ChAssimpImporter()
+vehicle_model = assimp_imp.ImportFile('path/to/MAN_10t_truck.dae')
+vehicle_model.SetName('vehicle')
+vehicle_model.SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle_model.SetBodyFixed(False)
+my_system.Add(vehicle_model)
 
-# Add the vehicle model
-vehicle = ChVehicleModel()
-vehicle.SetChassisCollision(chrono.ChCollisionModel())
-vehicle.SetChassisVisualization(True)
-vehicle.SetChassisGeometry(chrono.ChBoxShape().SetDimensions(ChVectorD(2.5, 1.5, 0.6)))
-vehicle.SetSuspensionType(ChVehicleModel.SUSPENSION_TYPE_DEPENDENT)
-vehicle.SetTireType(ChVehicleModel.TIRE_TYPE_TMEASY)
-vehicle.SetTire(0, ChTMeasyTire())
-vehicle.SetTire(1, ChTMeasyTire())
-vehicle.SetTire(2, ChTMeasyTire())
-vehicle.SetTire(3, ChTMeasyTire())
-vehicle.Initialize(my_system, terrain_shape)
+# Add visualization and collision settings for the vehicle
+for part in vehicle_model.GetSubSystems():
+    if isinstance(part, ChVisual):
+        part.SetCollide(False)
+    elif isinstance(part, ChCollisionModel):
+        part.SetCollide(True)
 
-# Set necessary default parameters
-vehicle.SetSteeringValue(0.5)
-vehicle.SetThrottleValue(0.3)
-vehicle.SetBrakeValue(0.1)
+# Create tire model
+tire_radius = 1.0
+tire_width = 0.4
+tire_positions = [(1.8, -1.2), (-1.8, -1.2), (1.8, 1.2), (-1.8, 1.2)]
+tire_axles = [0, 0, 1, 1]
+tire_chassis_connections = [(0, 0), (1, 1), (2, 0), (3, 1)]
+tire_names = ['FL', 'FR', 'RL', 'RR']
+for i in range(4):
+    tire_body = my_system.AddBody(ChBody.BOX(tire_width, tire_radius, tire_width, 1000, 1000, 1000))
+    tire_body.SetPos(chrono.ChVectorD(*tire_positions[i]))
+    tire_body.SetBodyFixed(False)
+    tire_body.SetCollide(True)
+    tire_body.SetMaterialSurface(tire_mat)
 
-# Add the vehicle to the simulation
-my_system.Add(vehicle.GetChassisBody())
+    tire_model = ChTMeasyTire()
+    tire_model.SetTireWidth(tire_width)
+    tire_model.SetTireRadius(tire_radius)
+    tire_model.SetChassisConnectionPoint(chrono.ChVectorD(*tire_chassis_connections[i]))
+    tire_model.Initialize(my_system, tire_body, vehicle_model, tire_axles[i])
+    my_system.Add(tire_model)
+
+# Set necessary default parameters such as positions, forces, and interactions
+# Create driver
+steering = ChSteering()
+steering.SetSteerAngle(0)
+steering.SetSteerRate(1)
+throttle = 0
+brake = 0
+driver = ChDriver(steering, throttle, brake)
+vehicle_model.SetDriver(driver)
+
+# Create visualization system
+my_vis = ChIrrApp(my_system, 'MAN 10t Truck Simulation', 800, 600, False)
+
+# Add chase camera
+cam_pos = chrono.ChVectorD(0, 10, -15)
+cam_target = chrono.ChVectorD(0, 0, 0)
+my_vis.AddCamera(cam_pos, cam_target)
+
+# Add directional lighting
+dir_light = chrono.ChVector(1, -1, -1)
+dir_light.Normalize()
+my_vis.AddLight(dir_light, 0.8, 0.8, 0.8)
+
+# Add skybox
+my_vis.AddSkyBox(chrono.ChColor(0.8, 0.9, 1.0))
+
+# Add customizable terrain textures and logos
+# ...
 
 # Run the simulation
-while my_driver.Run():
-    my_system.DoStepDynamics(chrono.ChTime(1./240))
-    vehicle.Synchronize(my_system.GetStep(), my_driver.GetTimer().GetRealTime())
-    my_vis.BeginScene()
-    my_vis.DrawAll()
-    my_vis.EndScene()
+my_vis.Run()

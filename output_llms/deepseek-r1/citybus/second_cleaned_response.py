@@ -83,12 +83,13 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver_data = []
-driver_data.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))   
-driver_data.append(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
-driver_data.append(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
+driver_data = veh.vector_Entry()
+driver_data.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  
+driver_data.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
+driver_data.push_back(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
 
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+
+driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data, False, True)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

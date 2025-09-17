@@ -4,79 +4,123 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 
-simulation_time = 100  
+vehicle_mass = 1000  
+vehicle_acceleration = 2.0  
+vehicle_velocity = 10.0  
+terrain_friction = 0.9  
+terrain_restitution = 0.7  
 time_step = 0.1  
-initial_position = np.array([0.0, 0.0, 0.0])
-initial_velocity = 2.0  
-friction_coefficient = 0.8  
-restitution_coefficient = 0.7  
-terrain_friction = 0.01  
-terrain_restitution = 0.8  
-terrain_mass = 100.0 
-terrain_density = 1.0 
+simulation_duration = 60  
 
 
-env = pychrono.Environment(
-    time_step=time_step,
-    simulation_time=simulation_time,
-    initial_position=initial_position,
-    initial_velocity=initial_velocity,
-    friction_coefficient=friction_coefficient,
-    restitution_coefficient=restitution_coefficient,
-    terrain_friction=terrain_friction,
-    terrain_restitution=terrain_restitution,
-    terrain_mass=terrain_mass,
-    terrain_density=terrain_density
-)
+initial_position = [0.0, 0.0]
+initial_velocity = [0.0, 0.0]
 
 
-terrain = env.create_terrain(
-    height_map=np.zeros((simulation_time, 3), dtype=np.float32),
-    height_map_size=100.0,
-    terrain_density=terrain_density
-)
+terrain_heightmap = np.zeros((100, 100))  
+terrain_heightmap[20:80, 20:80] = 5.0  
 
 
-driver = env.create_driver(
-    vehicle_type="M113",
-    initial_position=initial_position,
-    initial_velocity=initial_velocity,
-    max_speed=20.0,
-    acceleration_rate=0.1
-)
+driver_control_parameters = {
+    'acceleration': [0.0, 0.0],
+    'steering': [0.0, 0.0]
+}
 
 
 fig, ax = plt.subplots()
-scene = ax.scene()
-ax.set_xlim(0, terrain.size)
-ax.set_ylim(0, terrain.size)
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 100)
 ax.set_aspect('equal')
-ax.set_xlabel("X")
-ax.set_ylabel("Y")
-ax.set_title("M113 Simulation")
+ax.set_title('M113 Vehicle Simulation')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
 
 
-camera = ax.figure()
-camera.set_xlim(0, terrain.size)
-camera.set_ylim(0, terrain.size)
-camera.set_aspect('equal')
-camera.set_title("Camera")
+camera_x, camera_y = 0.0, 0.0
+camera_z = 0.0
+camera_fov = 90.0
+camera_resolution = 200
+camera_color = (0, 0, 0)  
 
+def init_camera(fig, camera_x, camera_y, camera_z, camera_fov, camera_resolution):
+    
+    camera_x = camera_x
+    camera_y = camera_y
+    camera_z = camera_z
+    camera_fov = camera_fov
+    camera_resolution = camera_resolution
+
+    fig.canvas.draw_idle()
 
 def update(frame):
     
-    terrain.update(frame)
+    global vehicle_velocity, vehicle_acceleration
 
     
-    driver.update(frame)
+    vehicle_velocity = vehicle_velocity + driver_control_parameters['acceleration'][0] * time_step
 
     
-    scene.update(frame)
+    vehicle_velocity = (vehicle_velocity - vehicle_velocity) / terrain_friction
+    vehicle_position = [vehicle_velocity[0], vehicle_velocity[1]]
 
-    return scene
+    
+    terrain_heightmap[vehicle_position[0], vehicle_position[1]] = 0.0
+
+    
+    camera_x = camera_x
+    camera_y = camera_y
+    camera_z = camera_z
+    camera_fov = camera_fov
+    camera_resolution = camera_resolution
+
+    
+    camera_color = (0, 0, 0)
+
+    
+    update_camera(camera_x, camera_y, camera_z, camera_fov, camera_resolution, camera_color)
+
+def update_camera(x, y, z, fov, resolution, color):
+    
+    
+    camera_x = x
+    camera_y = y
+    camera_z = z
+
+    
+    color = (0, 0, 0)
+
+    
+    fov = fov
+
+    
+    camera_x = x
+    camera_y = y
+    camera_z = z
+
+    
+    color = (0, 0, 0)
+
+    
+    fov = fov
+
+    return color
 
 
-ani = FuncAnimation(fig, update, frames=simulation_time, interval=10)
+for frame_num in range(simulation_duration):
+    
+    vehicle_position = [vehicle_velocity[0], vehicle_velocity[1]]
+
+    
+    terrain_heightmap[vehicle_position[0], vehicle_position[1]] = 0.0
+
+    
+    camera_x, camera_y, camera_z, camera_fov, camera_resolution = update(frame_num)
+
+    
+    update_camera(camera_x, camera_y, camera_z, camera_fov, camera_resolution, camera_color)
+
+    
+    plt.pause(0.01)  
 
 
 plt.show()

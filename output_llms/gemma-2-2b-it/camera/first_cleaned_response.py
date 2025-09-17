@@ -1,8 +1,7 @@
 import pychrono as chrono
 import pychrono.visualization as vis
-import pychrono.core as core
 import pychrono.sensor as sensor
-import numpy as np
+import pychrono.math as math
 
 
 chrono.init()
@@ -11,39 +10,36 @@ chrono.init()
 world = chrono.World()
 
 
-mesh_path = "mesh.obj"  
-mesh = chrono.Mesh.Load(mesh_path)
+mesh_path = "your_mesh.obj"  
+mesh = chrono.Mesh.load(mesh_path)
 
 
-body = chrono.Body(mesh)
-body.SetMass(1.0)  
-body.SetInertiaTensor(chrono.InertiaTensor(mesh.vertices, mesh.faces))
+mesh_body = chrono.Body(mesh)
+mesh_body.set_fixed(True)
 
 
-camera_sensor = sensor.Sensor(body)
+camera_sensor = sensor.CameraSensor(mesh_body)
+camera_sensor.set_noise_filter(sensor.NoiseFilter.Mean)
+camera_sensor.set_visualization(vis.CameraVisualization())
 
 
-camera_sensor.SetFocalLength(100)
-camera_sensor.SetAperture(1)
-camera_sensor.SetNoiseFilter(sensor.NoiseFilter.Gaussian(sigma=0.1))
+camera_sensor.set_position(chrono.Vector3(0, 0, 10))
+camera_sensor.set_orientation(chrono.Quaternion(0, 0, 0, 1))
 
 
-camera_sensor.SetPosition(chrono.Vec3(0, 0, 0))
-camera_sensor.SetOrientation(chrono.Quaternion(0, 0, 0, 1))
+sensor_manager = sensor.SensorManager()
+sensor_manager.add_sensor(camera_sensor)
 
 
-sensor_manager = sensor.SensorManager(camera_sensor)
+world.run(chrono.SimulationStep(1000))
 
 
-chrono.Simulate(world, 1000)
-
-
-for i in range(100):
+for step in range(1000):
     
-    camera_buffer = camera_sensor.GetBuffer()
-
+    camera_buffer = camera_sensor.get_buffer()
     
-    print(f"Camera Buffer at step {i}: {camera_buffer}")
+    
+    print(f"Camera Buffer: {camera_buffer}")
+    
 
-
-chrono.Finalize()
+world.clear()

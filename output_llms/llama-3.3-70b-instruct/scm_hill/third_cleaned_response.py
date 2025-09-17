@@ -60,11 +60,12 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain()
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, -terrainHeight, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-terrain.SetBox(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(terrainLength, terrainWidth, 1), chrono.ChMaterialSurfaceNSC())
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, terrainHeight), chrono.ChQuaternionD(1, 0, 0, 0)))
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
 
 
-terrain.Initialize()
+terrain.Initialize(terrainLength, terrainWidth, 40, 40, 0.02)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -95,7 +96,7 @@ driver.Initialize()
 
 
 
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,11 +106,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

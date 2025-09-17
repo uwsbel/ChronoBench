@@ -101,35 +101,18 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 obstacles = []
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+    obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 2, 2, 2, 1000)
     obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
     obstacles.append(obstacle)
-    vis.Add(obstacle)
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),
-    100,  
-    chrono.ChVector3d(0, 0, 2),  
-    chrono.ChQuaterniond(1, 0, 0, 0),  
-    100,  
-    100,  
-    chrono.CH_C_PI / 2,  
-    chrono.CH_C_PI / 2,  
-    100  
-)
+lidar = sens.ChLidarSensor(vehicle.GetChassisBody(), 100, chrono.ChVector3d(0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0), 100, 0.1, 100)
+lidar.SetVisualizationMode(sens.ChLidarSensor.VISUALIZATION_MODE_ALL)
+lidar.SetVisualizationFilter(0.5)
 manager.AddSensor(lidar)
-
-
-vis.AddSensorFilter(lidar, sens.ChLidarSensorFilterVisualize(
-    1,  
-    1,  
-    chrono.ChVector3d(0, 0, 0),  
-    chrono.ChQuaterniond(1, 0, 0, 0)  
-))
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -177,8 +160,6 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
     manager.Update()
 
     
@@ -186,6 +167,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    manager.Advance(step_size)
 
     
     step_number += 1

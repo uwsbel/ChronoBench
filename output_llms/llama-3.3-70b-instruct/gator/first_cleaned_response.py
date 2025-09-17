@@ -3,56 +3,62 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-sys = chrono.ChSystemNSC()
+sys = chrono.ChSystem()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetTitle("Gator Vehicle Simulation")
 vis.AddSkyBox()
 vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 100))
+vis.SetWindowSize(1024, 768)
+vis.SetTitle("Gator Vehicle Simulation")
 
 
 gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_NSC)
-gator.SetTireModel(veh.TireModelType.TMEASY)
-gator.SetTireProperties(veh.TireProperties())
-gator.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+gator.SetTireModel(veh.TireModel_TMEASY)
+gator.SetChassisMass(1500)
+gator.SetChassisInertia(chrono.ChVectorD(1, 1, 1))
+gator.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+gator.SetChassisOrientation(chrono.Q_from_AngX(0))
 
 
 sys.Add(gator)
 
 
-terrain = veh.RigidTerrain(sys)
-terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
-terrain.SetTexture(chrono.GetChronoDataFile("terrain.txt"))
+terrain = chrono.ChBodyEasyBox(sys, 100, 10, 100, 1000, True, True)
+terrain.SetPosition(chrono.ChVectorD(0, -10, 0))
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-
-
+terrain.SetCollide(True)
 sys.Add(terrain)
+
+
+texture = chronoirr.ChTexture()
+texture.SetTextureFile("terrain_texture.png")
+vis.AddTexture(terrain, texture)
 
 
 driver = veh.ChIrrlichtDriver()
 driver.SetVehicle(gator)
-driver.AddTypicalInputs()
+driver.SetSteeringMin(-0.5)
+driver.SetSteeringMax(0.5)
+driver.SetThrottleMin(0)
+driver.SetThrottleMax(1000)
+driver.SetBrakingMin(0)
+driver.SetBrakingMax(1000)
 
-
-stepping = chrono.ChTimestepperHHT(sys)
-stepping.SetMaxiters(50)
-stepping.SetMindt(1e-6)
-stepping.SetMaxdt(1.0 / 50.0)
 
 while vis.Run():
     
-    sys.DoStepDynamics(1.0 / 50.0)
-
+    sys.DoStepDynamics(0.02)
+    
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
     
-    driver.Synchronize(1.0 / 50.0)
-
     
-    sys.GetTime()
+    driver.Synchronize(0.02)
+    
+    
+    chrono.ChSleep(0.02)

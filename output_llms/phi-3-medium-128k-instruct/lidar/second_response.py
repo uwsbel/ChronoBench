@@ -13,18 +13,22 @@ def main():
     # ----------------------------------
     # Create a box to be sensed by a lidar
     # ----------------------------------
-    side = 1.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetMass(1000)
-    mphysicalSystem.Add(box_body)
+    side = 2.0
+    mbox = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mbox.SetPos(chrono.ChVector3d(0, 0, 0))
+    # No mesh loading or scaling required
 
     # Create a visual representation of the box
-    box_shape = chrono.ChVisualShapeBox(side, side, side)
-    box_shape.SetBody(box_body)
-    box_shape.SetName("Box")
+    box_shape = chrono.ChVisualShapeBox(side)
+    box_shape.SetName("Box Visual")
+    box_shape.SetColor(chrono.ChColor(1, 0, 0))  # Red box
+    mphysicalSystem.Add(mbox)
+    mphysicalSystem.AddVisualShape(box_shape)
+    mphysicalSystem.AddBody(mbox)
 
+    # -----------------------
     # Create a sensor manager
+    # -----------------------
     manager = sens.ChSensorManager(mphysicalSystem)
 
     # ------------------------------------------------
@@ -34,7 +38,7 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to
+        mbox,              # Body lidar is attached to the box
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
@@ -53,6 +57,17 @@ def main():
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
+    # Create a filter graph for post-processing the data from the lidar
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        # Don't add any noise models
+        pass
+
+    if vis:
+        # Visualize the raw lidar data
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+
     # Provides the host access to the Depth, Intensity data
     lidar.PushFilter(sens.ChFilterDIAccess())
 
@@ -63,30 +78,25 @@ def main():
         # Visualize the point cloud
         lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 
+    # Provides the host access to the XYZI data
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+
     # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
     # -----------------------------------------------------------------
-    # Create a filter graph for post-processing the data from the lidar
+    # Create a 2D lidar sensor and add it to the sensor manager
     # -----------------------------------------------------------------
-    if noise_model == "CONST_NORMAL_XYZI":
-        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    elif noise_model == "NONE":
-        # Don't add any noise models
-        pass
-
-    # Provides the host access to the XYZI data
-    lidar.PushFilter(sens.ChFilterXYZIAccess())
-
-    # Create an additional 2D lidar sensor
     lidar_2d = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to
+        mbox,              # Body lidar is attached to the box
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         1,                     # Number of vertical channels
         horizontal_fov,         # Horizontal field of view
         max_vert_angle,         # Maximum vertical field of view
         min_vert_angle,         # Minimum vertical field of view
+        100.0,                  # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,          # Sample radius
         divergence_angle,       # Divergence angle
         divergence_angle,       # Divergence angle (again, typically same value)
@@ -98,10 +108,22 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Data"))
 
-    # Add the lidar to the sensor manager
-    manager.AddSensor(lidar)
+    # Provides the host access to the Depth, Intensity data
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+
+    # Convert Depth, Intensity data to XYZI point cloud data
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        # Visualize the point cloud
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    # Provides the host access to the XYZI data
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    # Add the 2D lidar to the sensor manager
     manager.AddSensor(lidar_2d)
 
     # ---------------
@@ -134,11 +156,12 @@ def main():
             print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
-        # Access the 2D lidar buffer
+        # Access the XYZI buffer from 2D lidar
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
             print('2D Lidar buffer received. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         # Update sensor manager (will render/save/filter automatically)
         manager.Update()
@@ -157,7 +180,6 @@ def main():
 
 # Noise model attached to the sensor
 # TODO: Noise models haven't been implemented in python
-# noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and standard deviation
 noise_model = "NONE"  # No noise model
 
 # Lidar return mode

@@ -4,9 +4,10 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import errno
 import os
+import numpy as np
 
 
-out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
+out_dir = "FEA_SHELLS_BST"
 try:
     os.mkdir(out_dir)
 except OSError as exc:
@@ -48,8 +49,18 @@ for iz in range(nsections_z + 1):
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[nsections_x // 2]
 nodesLoad = []
+for iz in range(nsections_z + 1):
+    nodesLoad.append(mynodes[iz * (nsections_x + 1) + nsections_x])
 
 
+ref_X = lambda node: node.GetPos().x
+ref_Y = lambda node: node.GetPos().y
+
+
+load_force = chrono.ChVector3d(0, -100, 0)
+
+
+melementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
@@ -59,9 +70,9 @@ for iz in range(nsections_z):
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
-
+        
         if iz == 0 and ix == 1:
-            ementmonitor = melementA
+            melementmonitor = melementA
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if (ix >= 0) else None

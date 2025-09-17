@@ -81,8 +81,8 @@ path.AddPoint(50, 0, 0.5)
 
 driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, 10.0)  
 driver.SetLookAheadDistance(5)
-driver.SetGains(0.1, 0.01, 0.0)  
-driver.SetSpeedGains(0.2, 0.01, 0.0)  
+driver.SetGains(0.1, 0.01, 0.01)  
+driver.SetSpeedGains(0.2, 0.01, 0.01)  
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

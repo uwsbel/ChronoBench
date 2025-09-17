@@ -6,64 +6,54 @@ import pychrono.vehicle as veh
 sys = chrono.ChSystemNSC()
 
 
-truck = veh.ChVehicle()
-
-
+truck = veh.VehicleMAN10t()
 truck.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-truck.SetChassisFixed(False)
-truck.SetSuspensionEnabled(True)
-truck.SetTireType(veh.ChTireType.TMEASY)
-truck.SetTireProperties(veh.ChTirePropertiesTMEASY())
+truck.SetChassisCollisionBox(chrono.ChBox(chrono.ChVectorD(2, 1, 1), chrono.ChVectorD(1, 1, 1)))
+truck.SetChassisVisualization(chrono.ChVisualization(chrono.ChVisualMaterial(), chrono.ChVisualBox(chrono.ChVectorD(2, 1, 1), chrono.ChVectorD(1, 1, 1))))
 
 
 sys.Add(truck)
 
 
-terrain = chrono.ChBodyEasyBox(sys, 100, 10, 1000, 1000, chrono.ChVectorD(0, -10, 0))
-terrain.SetBodyFixed(True)
+terrain = chrono.ChTerrain()
+terrain.SetPlane(chrono.ChVectorD(0, 1, 0), 0)
 terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetVisualizationMode(chrono.ChVisualizationMode.VISUALIZATION_WIREFRAME)
-
-
 sys.Add(terrain)
 
 
-driver = veh.ChIrrlichtDriver()
+tire_model = veh.TMEASY()
+truck.SetTireModel(tire_model)
 
 
-driver.SetVehicle(truck)
-driver.SetSteeringMode(veh.ChSteeringMode.STEERING_WHEEL)
-driver.SetThrottleMode(veh.ChThrottleMode.THROTTLE_PEDAL)
-driver.SetBrakingMode(veh.ChBrakingMode.BRAKING_PEDAL)
+truck.SetSteering(0)
+truck.SetThrottle(0)
+truck.SetBraking(0)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-
-
 vis.SetWindowSize(1024, 768)
-vis.SetCamera(chronoirr.ChCamera())
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddLogo()
-vis.SetLogoPosition(chronoirr.ChVectorD(0.7, 0.1, 0))
-vis.SetLogoSize(0.1)
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+vis.SetLogo(chrono.ChVectorD(0.5, 0.9))
+vis.SetTypicalLighting()
 
 
-camera = chronoirr.ChCamera()
-camera.SetPosition(chronoirr.ChVectorD(0, 10, -20))
-camera.SetLookAt(chronoirr.ChVectorD(0, 0, 0))
+chase_cam = vis.AddCamera()
+chase_cam.SetFollowNode(truck.GetChassisBody())
+chase_cam.SetDistance(5)
+chase_cam.SetElevation(10)
 
 
-vis.AddCamera(camera)
+driver = veh.DriverRealtime()
+driver.SetVehicle(truck)
+driver.SetSteeringGain(1)
+driver.SetThrottleGain(1)
+driver.SetBrakingGain(1)
 
 
-sys.SetVisualizationSystem(vis)
-
-
-sys.SetTimeStep(0.01)
-
-
-while sys.GetChTime() < 100:
+while vis.Run():
     sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()

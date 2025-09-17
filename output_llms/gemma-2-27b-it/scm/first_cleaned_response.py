@@ -3,115 +3,71 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as chronovehicle
 
 
+chrono.SetChronoDataPath("data/")
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 
-
-
-my_system = chrono.ChSystemNSC()
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-my_system.SetSolverMaxIterations(100)
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-
-
-
-
-
-terrain_heightmap = chrono.ChHeightmap(
-    "terrain_heightmap.png",  
-    100,  
-    100,  
-    5,  
-)
-
-terrain_material = chrono.ChMaterialSurfaceNSC()
-terrain_material.SetFriction(0.8)
-terrain_material.SetRestitution(0.2)
-
-terrain = chrono.ChTerrain(terrain_heightmap, terrain_material)
-my_system.Add(terrain)
-
-
-
-
-
-
-
-vehicle = chronovehicle.ChVehicle("HMMWV", my_system)
+vehicle = chronovehicle.ChVehicle(system)
 vehicle.SetChassisFixed(False)
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 1.0, 0.8, 1000))
 
 
-vehicle.SetVehicleModel(chronovehicle.ChVehicleModelHMMWV())
-vehicle.Initialize()
+tire_radius = 0.4
+tire_width = 0.2
+for i in range(4):
+    tire = chronovehicle.ChTire(chrono.ChMaterialSurfaceNSC())
+    tire.SetRadius(tire_radius)
+    tire.SetWidth(tire_width)
+    tire.SetFriction(2.0)
+    vehicle.AddTire(tire)
 
 
+terrain = chrono.ChTerrainSCM(system)
+terrain.SetSize(20, 20)
+terrain.SetBottomLevel(0)
+terrain.SetTexture("textures/terrain.png")
 
 
+terrain.SetYoungModulus(1e6)
+terrain.SetPoissonRatio(0.3)
+terrain.SetFriction(0.5)
 
 
-
-for i in range(vehicle.GetNumWheels()):
-    wheel = vehicle.GetWheel(i)
-    wheel.SetVisualizationType(chronovehicle.ChWheelVisualizationType_MESH)
-    wheel.SetTireModel(chronovehicle.ChTireModelRigid())
-
-
-
-
-
-
-
-scm_patch = chrono.ChSCMDeformableTerrainPatch(terrain, 10, 10)
-scm_patch.SetMaterial(chrono.ChMaterialSurfaceNSC())
-scm_patch.SetSinkageFactor(0.5)
-scm_patch.SetStiffness(1000)
-scm_patch.SetDamping(100)
-scm_patch.SetMovingPatch(True)
-
-
-scm_patch.SetTargetBody(vehicle.GetChassis())
+terrain.SetMovingPatch(True)
+terrain.SetPatchSize(5, 5)
+terrain.SetPatchCenter(vehicle.GetChassis().GetPos())
 
 
 
 
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono.png')
 
 
-
-vis = chronoirr.ChIrrApp(my_system, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalLights()
-vis.AddSkyBox()
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, 5))
-vis.SetCameraLookAt(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisVisualizationType(chrono.VisualizationType_MESH)
+for tire in vehicle.GetTires():
+    tire.SetVisualizationType(chrono.VisualizationType_MESH)
 
 
-vehicle.SetChassisVisualizationType(chronovehicle.ChChassisVisualizationType_MESH)
-for i in range(vehicle.GetNumWheels()):
-    vehicle.GetWheel(i).SetVisualizationType(chronovehicle.ChWheelVisualizationType_MESH)
-
-
-scm_patch.SetVisualizationType(chrono.ChVisualizationType_SCM_DEFORMABLE_TERRAIN)
-scm_patch.SetSinkageVisualization(True)
+terrain.SetSinkageVisualization(True)
 
 
 
 
 
+while vis.Run():
+    
+    system.DoStepDynamics(0.01)
 
+    
+    terrain.SetPatchCenter(vehicle.GetChassis().GetPos())
 
-driver = chronovehicle.ChInteractiveDriver(vehicle)
-vis.SetDriver(driver)
-
-
-
-
-
-
-
-while vis.GetDevice().run():
-    vis.BeginScene()
+    
     vis.Render()
-    my_system.DoStepDynamics(0.02)
-    vis.EndScene()

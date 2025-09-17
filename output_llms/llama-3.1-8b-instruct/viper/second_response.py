@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -73,10 +73,8 @@ while vis.Run():
     driver.SetSteering(steering)  # Set the steering for the rover
 
     rover.Update()  # Update the rover's state
-
-    # Update the sensor manager
-    manager.Update()
-
+    manager.Update()  # Update the sensor manager
+    
     # Render the scene at specific intervals
     if (step_number % render_steps == 0):
         vis.BeginScene()

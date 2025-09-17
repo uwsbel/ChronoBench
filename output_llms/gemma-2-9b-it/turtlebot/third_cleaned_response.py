@@ -31,20 +31,18 @@ robot.Initialize()
 sensor_manager = SensManager(system)
 
 
-lidar = chrono.ChSensorLidar()
-lidar.SetRange(5)  
-lidar.SetAngleRes(math.pi / 180 * 10)  
-lidar.SetNumAngles(360)  
-lidar.SetFilterType(chrono.ChSensorLidar.FilterType_GAUSSIAN)  
-lidar.SetFilterSigma(0.2)  
-sensor_manager.AddSensor(lidar, robot.GetBody())  
-
-
-for i in range(5):
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 1)))
-    box.SetBodyFixed(False)
-    system.Add(box)
+lidar = SensLidar(
+    system,
+    robot.GetBody(),
+    position=chrono.ChVector3d(0, 0, 0.1),
+    rotation=chrono.ChQuaterniond(1, 0, 0, 0),
+    range=5.0,
+    angle_resolution=0.1,
+    num_rays=360,
+    filter_type=SensLidar.FilterType_GAUSSIAN,
+    filter_sigma=0.2,
+)
+sensor_manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -66,8 +64,24 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 2e-3
 
 
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
+time = 0
+while vis.Run():
+    
+    sensor_manager.Update()
+
+    
+    move('straight')  
+
+    
+    time += time_step
+
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    
+    system.DoStepDynamics(time_step)
 
 
 def move(mode):
@@ -80,22 +94,3 @@ def move(mode):
     elif mode == 'right':
         robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
-
-
-time = 0
-while vis.Run():
-    move('straight')  
-
-    
-    sensor_manager.Update()
-
-    
-    time += time_step
-
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    
-    system.DoStepDynamics(time_step)

@@ -108,45 +108,51 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
-@classmethod
-def load(cls, filename):
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
     
-    pass
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
-class Mesh:
     
+    driver_inputs = driver.GetInputs()
 
-    def calculate_surface_area(self):
-        
-        
-        
-        total_area = 0
-        for i in range(len(self.triangles)):
-            
-            
-            area = self.calculate_triangle_area(self.triangles[i])
-            total_area += area
-        return total_area
-
-    def calculate_triangle_area(self, triangle):
-        
-        
-        pass
-
-import numpy as np
-
-class Mesh:
     
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
-    def apply_transformation(self, transformation_matrix):
-        
-        for i, vertex in enumerate(self.vertices):
-            self.vertices[i] = np.dot(transformation_matrix, np.append(vertex, 1))[:3]
-
-class Mesh:
     
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
-    def save(self, filename):
-        with open(filename, 'w') as file:
-            for vertex in self.vertices:
-                file.write('{} {} {}\n'.format(vertex[0], vertex[1], vertex[2]))
+    
+    step_number += 1
+
+    
+    realtime_timer.Spin(step_size)
+
+
+
+bump_patch_mat = chrono.ChContactMaterialNSC()
+bump_patch_mat.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
+bump_patch_mat.SetTexture("dirt.jpg", 6.0, 6.0)
+bump_patch = terrain.AddPatch(bump_patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
+    chrono.GetChronoDataFile('vehicle/terrain/bump.obj'),
+    True, 0.01, False)
+bump_patch.SetGroundBody().AddVisualShape(tri_mesh_shape)
+bump_patch.Initialize()

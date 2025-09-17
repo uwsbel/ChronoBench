@@ -4,139 +4,130 @@ import random
 import math
 
 
-G = 0.1        
+G = 0.1  
 MAX_PARTICLES = 50
-EMIT_INTERVAL = 0.1  
-EMIT_RADIUS = 2.0    
+EMIT_INTERVAL = 0.2  
+EMIT_BOX_SIZE = chrono.ChVectorD(5, 1, 5)  
 
 
-class CustomGravity(chrono.Force):
+class GravitationalForce(chrono.ChAction):
     def __init__(self, particle_list):
         super().__init__()
-        self.particles = particle_list
+        self.particle_list = particle_list
         self.G = G
 
-    def Update(self, time, update_assets=True):
-        n = len(self.particles)
+    def ActionPerformed(self):
+        n = len(self.particle_list)
         for i in range(n):
-            body_i = self.particles[i]
+            body_i = self.particle_list[i]
+            pos_i = body_i.GetPos()
+            mass_i = body_i.GetMass()
             for j in range(i + 1, n):
-                body_j = self.particles[j]
+                body_j = self.particle_list[j]
+                pos_j = body_j.GetPos()
+                mass_j = body_j.GetMass()
                 
                 
-                r_vec = body_j.GetPos() - body_i.GetPos()
-                r = r_vec.Length()
+                r_vect = pos_j - pos_i
+                r_len = r_vect.Length()
                 
-                
-                if r < 1e-3:
-                    continue
-                
-                
-                force_mag = self.G * body_i.GetMass() * body_j.GetMass() / (r * r)
-                force_dir = r_vec / r
-                force = force_dir * force_mag
-                
-                
-                body_i.AddForce(force)
-                body_j.AddForce(-force)
+                if r_len > 0.01:  
+                    
+                    force_mag = self.G * mass_i * mass_j / (r_len * r_len)
+                    force_dir = r_vect / r_len
+                    force = force_mag * force_dir
+                    
+                    
+                    body_i.Accumulate_force(force, pos_i, False)
+                    body_j.Accumulate_force(-force, pos_j, False)
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+particles = []  
 
 
-particles = []
-gravity_force = CustomGravity(particles)
-system.Add(gravity_force)
+grav_force = GravitationalForce(particles)
+system.Add(grav_force)
+
+
+application = chronoirr.ChIrrApp(system, "Particle Gravity", chronoirr.dimension2du(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 14, -20), chrono.ChVectorD(0, 0, 0))
+application.AddLight(chrono.ChVectorD(30, 30, -30), 100)
 
 
 def create_particle():
     
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
-    density = 1000  
-    
-    
-    if shape_type == 'sphere':
-        radius = random.uniform(0.1, 0.3)
-        body = chrono.ChBodyEasySphere(radius, density, True, False)
-    elif shape_type == 'box':
-        size = chrono.ChVectorD(*[random.uniform(0.1, 0.3) for _ in range(3)])
-        body = chrono.ChBodyEasyBox(size.x, size.y, size.z, density, True, False)
-    else:  
-        radius = random.uniform(0.1, 0.2)
-        height = random.uniform(0.2, 0.4)
-        body = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radius, height, density, True, False)
-    
-    
-    angle = random.uniform(0, 2 * math.pi)
-    distance = random.uniform(0, EMIT_RADIUS)
     pos = chrono.ChVectorD(
-        distance * math.cos(angle),
-        random.uniform(3, 5),
-        distance * math.sin(angle)
+        random.uniform(-EMIT_BOX_SIZE.x/2, EMIT_BOX_SIZE.x/2),
+        random.uniform(0, EMIT_BOX_SIZE.y),
+        random.uniform(-EMIT_BOX_SIZE.z/2, EMIT_BOX_SIZE.z/2)
     )
     
     
     vel = chrono.ChVectorD(
         random.uniform(-0.5, 0.5),
-        random.uniform(-1, 0),
+        random.uniform(-0.5, 0.5),
         random.uniform(-0.5, 0.5)
     )
-    ang_vel = chrono.ChVectorD(
-        random.uniform(-2, 2),
-        random.uniform(-2, 2),
-        random.uniform(-2, 2)
-    )
+    
+    
+    quat = chrono.ChQuaternionD()
+    quat.Q_from_AngAxis(random.uniform(0, 2 * math.pi), chrono.ChVectorD(0, 1, 0))
+    
+    
+    if random.choice([True, False]):
+        
+        radius = random.uniform(0.3, 0.6)
+        density = random.uniform(500, 1500)
+        body = chrono.ChBodyEasySphere(radius, density)
+    else:
+        
+        size = chrono.ChVectorD(
+            random.uniform(0.3, 0.6),
+            random.uniform(0.3, 0.6),
+            random.uniform(0.3, 0.6)
+        )
+        density = random.uniform(500, 1500)
+        body = chrono.ChBodyEasyBox(size.x, size.y, size.z, density)
     
     
     body.SetPos(pos)
     body.SetPos_dt(vel)
-    body.SetWvel_par(ang_vel)
-    body.GetVisualShape(0).SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
+    body.SetRot(quat)
+    body.SetCollide(True)
     
+    
+    body.GetVisualShape(0).SetColor(chrono.ChColor(
+        random.uniform(0.3, 1.0),
+        random.uniform(0.3, 1.0),
+        random.uniform(0.3, 1.0)
+    ))
     
     system.Add(body)
     particles.append(body)
-    return body
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Particle Gravity Simulation')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddTypicalLights()
+application.AssetBindAll()
+application.AssetUpdateAll()
+time_step = 0.002
+next_emit_time = 0
 
 
-particle_text = vis.GetGUIEnvironment().addStaticText(
-    "Particles: 0", 
-    chronoirr.recti(10, 10, 400, 40), 
-    False
-)
-
-
-time = 0.0
-next_emit_time = 0.0
-sim_time = 0
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
+while application.GetDevice().run():
+    current_time = system.GetChTime()
     
     
-    particle_text.setText(f"Particles: {len(particles)} Time: {sim_time:.1f}s")
-    
-    
-    if time >= next_emit_time and len(particles) < MAX_PARTICLES:
+    if current_time >= next_emit_time and len(particles) < MAX_PARTICLES:
         create_particle()
-        next_emit_time = time + EMIT_INTERVAL
+        next_emit_time = current_time + EMIT_INTERVAL
+        application.AssetBindAll()
+        application.AssetUpdateAll()
     
     
-    vis.EndScene()
-    system.DoStepDynamics(1e-3)
-    time += 1e-3
-    sim_time += 1
+    application.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.DoStepDynamics(time_step)
+    application.EndScene()

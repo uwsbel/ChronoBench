@@ -96,7 +96,7 @@ class MyDriver(veh.ChDriver):
             throttle = min(0.7, self.time * 0.7 / 0.2)  
 
         if self.time > 2.0:
-            steering = math.sin(self.time * 2) * 0.2  
+            steering = math.sin(self.time)  
 
         self.SetThrottle(throttle)
         self.SetSteering(steering)
@@ -107,9 +107,9 @@ class MyDriver(veh.ChDriver):
 driver = MyDriver(delay=0.5)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3  
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -159,5 +159,5 @@ while vis.Run():
     s.Spin(step_size)
 
     if time >= simulation_end_time:
-        print("Simulation finished at time:", time)
+        print("Simulation finished at time:", simulation_end_time)
         break

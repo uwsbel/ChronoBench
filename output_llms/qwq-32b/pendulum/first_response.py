@@ -1,69 +1,69 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirrl
+import pychrono.irrlicht as chronoirr
 
-def main():
-    # Create the Chrono system
-    my_system = chrono.ChSystemNSC()
+# Create the Chrono system with gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    # Create ground body (pivot point)
-    ground = chrono.ChBody()
-    ground.SetBodyFixed(True)
-    ground.SetPos(chrono.ChVectorD(0, 0, 0))
-    # Add a small sphere for visualization
-    ground_shape = chrono.ChSphereShape()
-    ground_shape.GetSphereGeometry().rad = 0.05
-    ground.AddAsset(ground_shape)
-    ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5, 0.5, 0.5)))  # Grey color
-    my_system.Add(ground)
+# Create ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
 
-    # Create pendulum body
-    pendulum_radius = 0.1  # meters
-    pendulum_mass = 1.0    # kg
-    # Calculate density to achieve desired mass
-    density = pendulum_mass / ( (4/3)*chrono.CH_C_PI*(pendulum_radius**3) )
-    pendulum = chrono.ChBodyEasySphere(pendulum_radius, density, True, True)
-    pendulum.SetPos(chrono.ChVectorD(0.5, 0, -chrono.sqrt(3)/2))  # Displaced initial position
-    pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0, 0)))  # Red color
-    my_system.Add(pendulum)
+# Collision and visualization for ground (a flat box)
+ground.GetCollisionModel().AddBox(1, 0.05, 1)  # Half extents: x=1, y=0.05, z=1
+ground.GetCollisionModel().BuildModel()
+ground.AddAsset(chrono.ChVisualShape(chrono.ChBox(chrono.ChVectorD(1, 0.05, 1)),
+                                    False, chrono.ChColorAsset(0.3, 0.3, 0.3)))
 
-    # Create revolute joint between ground and pendulum
-    revolute = chrono.ChLinkLockRevolute()
-    revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
-    # Set rotation axis to Y-axis (allows rotation in X-Z plane)
-    revolute.SetAxis(chrono.ChVectorD(0, 1, 0))
-    my_system.AddLink(revolute)
+# Create pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetPos(chrono.ChVectorD(0, -0.5, 0))  # Center of cylinder
 
-    # Setup visualization
-    vis = chronoirrl.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Simple Pendulum Simulation')
-    vis.SetAntialiasing(0)
-    vis.SetCameraPosition(chrono.ChVectorD(0, 3, 3))
-    vis.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI/4, chrono.ChVectorD(1,0,0)))
-    my_system.SetVisualSystem(vis)
+mass = 1.0
+pendulum.SetMass(mass)
 
-    # Initialize the simulation
-    my_system.SetupSimulation()
-    my_system.DoStepDynamics(0)  # Initialize
+# Compute inertia for cylinder (radius=0.1, length=1.0 along Y-axis)
+radius = 0.1
+length = 1.0
+inertia = chrono.ChVectorD()
+chrono.ChBodyAuxiliary.CylinderInertia(mass, radius, length, chrono.VECT_Y, inertia)
+pendulum.SetInertiaXX(inertia)
 
-    # Start visualization
-    vis.BEGIN()
+# Collision and visualization for pendulum (cylinder along Y-axis)
+pendulum.GetCollisionModel().AddCylinder(radius, length, chrono.VECT_Y)
+pendulum.GetCollisionModel().BuildModel()
+pendulum.AddAsset(chrono.ChVisualShape(chrono.ChCylinder(radius, length),
+                                      False, chrono.ChColorAsset(0.8, 0.2, 0.2)))
 
-    # Simulation loop
-    step = 0
-    while vis.Run() and my_system.GetChTime() < 10:
-        my_system.DoStepDynamics(0.005)  # Time step of 5ms
+# Create revolute joint between ground and pendulum
+joint = chrono.ChLinkRevolute()
+joint.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+joint.SetAxis(chrono.ChVectorD(1, 0, 0))  # Rotation axis along global X
+system.AddLink(joint)
 
-        # Log data every 10 steps (~0.05 seconds)
-        if step % 10 == 0:
-            pos = pendulum.GetPos()
-            vel = pendulum.GetPos_dt()  # Linear velocity
-            print(f"Time: {my_system.GetChTime():.2f}s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}) | Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+# Add bodies to the system
+system.Add(ground)
+system.Add(pendulum)
 
-        vis.Render()
-        step += 1
+# Initialize Irrlicht visualization
+app = chronoirr.ChIrrApp(system, 'Pendulum Simulation', chronoirr.dimension2du(1024, 768))
+app.AddAllTypicalLights()
+app.AddTypicalCamera(chronoirr.ChVectorD(2, 2, 2), chronoirr.ChVectorD(0, 0, 0))
+app.AssetBind()
+app.AssetUpdate()
+app.SetTimestep(0.005)
 
-    vis.END()
-
-if __name__ == '__main__':
-    main()
+# Simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStepDynamics()
+    
+    current_time = system.GetChTime()
+    if current_time % 0.1 < app.GetSystem().GetStep():
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPos_dt()
+        print(f"Time: {current_time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+    
+    app.EndScene()

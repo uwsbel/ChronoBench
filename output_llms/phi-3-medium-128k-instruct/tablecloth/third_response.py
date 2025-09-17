@@ -1,9 +1,8 @@
-import pychrono.core as chrono  # Import core Chrono functionality
-import pychrono.irrlicht as chronoirr  # Import Irrlicht visualization
-import pychrono.fea as fea  # Import Finite Element Analysis components
-import pychrono.pardisomkl as mkl  # Import PardisoMKL solver
-import errno  # Import standard error numbers
-import os  # Import system operations for file handling
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import errno
+import os
 
 # Output directory
 out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  # Define the output directory path
@@ -13,15 +12,13 @@ try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print("Error creating output directory")
+        print("Error creating output directory ")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
 
-# Create a mesh, a container for groups of elements and their referenced nodes
-mesh = fea.ChMesh()  # Instantiate the mesh
-
 # Add the created mesh to the physical system
+mesh = fea.ChMesh()  # Instantiate the mesh
 sys.Add(mesh)
 
 # Disable gravity for the system (options)

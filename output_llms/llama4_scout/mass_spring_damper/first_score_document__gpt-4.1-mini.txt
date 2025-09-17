@@ -4,130 +4,152 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:**  
-  Present and correct (`sys = ch.ChSystemNSC()`). No deduction.
+- **System Initialization:** Present and correct (`sys = ch.ChSystemNSC()`). No deduction.
+- **Body Creation:** Two bodies created: `ground` and `mass`. However:
+  - The `ground` body is created but never fixed or set as immovable. Usually, the ground should be fixed (`SetFixed(True)`) to prevent it from moving under forces. This is an important omission.
+  - No collision is enabled on either body (`EnableCollision` is never called). While not always mandatory, it is common practice to enable collision if interaction is expected.
+  - No contact material or collision model is defined or assigned to bodies, which is important for realistic contact behavior.
+  - The `mass` body has mass and inertia set, but no collision or visualization material is assigned.
+- **Joint/Link Creation:** A `ChLinkTSDA` (spring-damper) is created and initialized between `ground` and `mass`. The initialization uses two identical frames at the origin (0,0,0) for both bodies, which is unusual and likely incorrect because the `mass` is at (1,1,0). The spring anchor points should be defined relative to each body’s frame, typically at the connection points.
+- **Visualization:** 
+  - A sphere visual shape is added to `mass` (good).
+  - A line shape is created for the spring visualization, but the method `SetSegmentPositions(link.GetPointsInBodyA(), link.GetPointsInBodyB())` is called. According to PyChrono API, `GetPointsInBodyA()` and `GetPointsInBodyB()` return vectors of points, but `SetSegmentPositions` expects two `ChVector3d` points defining the line ends. This is likely incorrect usage.
+  - The visualization app is created with Irrlicht, camera is set, and default lights enabled. However, the visualization system is not properly initialized or started (e.g., no calls to `app.Initialize()`, `app.BeginScene()`, `app.Render()`, `app.EndScene()`, or `sys.DoStepDynamics()`).
+- **Simulation Loop:** The loop calls `app.Run()` and `sys.Update()`. According to the API, the system should be advanced with `sys.DoStepDynamics(time_step)`. Also, the visualization loop should include scene begin, render, and end calls.
 
-- **Body Creation:**  
-  Two bodies created: `ground` and `mass`. However:  
-  - The `ground` body is created but not fixed or collision enabled. Usually, the ground should be fixed (`SetFixed(True)`) and collision enabled (`EnableCollision(True)`) to act as a static reference and interact properly with other bodies. Missing these is a significant omission.  
-  - The `mass` body has mass and inertia set, and position assigned. No collision or visualization material is assigned to the ground or mass (except visual shapes).  
-  Deduct **15 points** for missing essential configuration of the ground body (fixed and collision).
+**Deductions:**
 
-- **Joint/Link Creation:**  
-  The `ChLinkTSDA` (spring-damper) is created and added to the system. However, **it is not initialized** with the two bodies it connects. According to the API, links must be initialized with `Initialize(body1, body2, frame)` or equivalent. Here, `SetPoints` is called, but no `Initialize` call is made, which is essential.  
-  Deduct **15 points** for missing essential joint initialization.
+- Missing fixing the ground body: **-15 points** (essential for correct simulation).
+- Missing collision enabling and material setup: **-15 points** (essential for realistic contact).
+- Incorrect or incomplete spring anchor points initialization: **-10 points** (present but incorrectly configured).
+- Visualization setup incomplete (missing initialization and rendering calls): **-15 points** (essential for visualization).
+- Minor omission: no time step specified or used in simulation loop: **-5 points**.
 
-- **Visualization:**  
-  Visual shapes are added to the mass and the spring link. The visualization app is created with `irr.ChIrrApp`, camera position and target set, and default lights enabled. However, the visualization system is not initialized (`app.Initialize()`), nor is there a proper simulation loop to update and render the scene. Instead, `app.Run()` is called directly, which is not part of the documented API.  
-  Deduct **15 points** for missing essential visualization setup and simulation loop.
-
-- **Simulation Loop:**  
-  No explicit simulation loop advancing the system dynamics (`sys.DoStepDynamics(time_step)`) is present. This is a critical omission for a dynamic simulation.  
-  Deduct **15 points** for missing essential simulation loop.
-
-- **Summary for Completeness:**  
-  - Ground body missing fixed and collision setup: -15  
-  - Link missing initialization: -15  
-  - Visualization missing initialization and simulation loop: -15  
-  - Simulation loop missing: -15  
-  Total deductions: 60 points (but max deduction is 40, so capped at 40).
+**Subtotal Completeness:** 40 - (15+15+10+15+5) = **-20 points** (so 20 points remain).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of PyChrono API:**  
-  - `ch.CH_INIT()` is called at the start, but this function does not exist in PyChrono API documentation and is unnecessary. Deduct **5 points** for minor incorrect/unnecessary API call.  
-  - `link_tsda.SetPoints()` is used without `Initialize()`. This is incorrect usage and will cause the link not to function properly. Deduct **15 points** for incorrect joint initialization.  
-  - `app.Run()` is called directly instead of the documented simulation loop with `while app.Run(): ...`. Deduct **10 points** for logical error in visualization loop.  
-  - `mass_shape = ch.ChSphereShape(0.2)` is used, but the documentation specifies `ChVisualShapeSphere(radius)` for visualization shapes. This is a naming inconsistency and likely incorrect class usage. Deduct **10 points** for incorrect visualization shape class usage.
+- **API Usage:**
+  - `ch.CH_INIT()` is called, but this is not a standard PyChrono API function according to the documentation. Possibly a user-defined or deprecated call. No mention in docs. This is unnecessary or incorrect.
+  - `link.Initialize()` uses `ch.ChFrame3d` with `ChVector3d` and `ChQuaterniond`. The docs show `Initialize` typically uses `ChCoordsysD` or `ChFrame` but this is acceptable if `ChFrame3d` is valid. However, the frames are both at the origin, which is logically incorrect given the bodies’ positions.
+  - `link.RegisterVisualization(True)` is called, but the documentation does not mention this method for `ChLinkTSDA`. Visualization is usually handled by adding visual shapes.
+  - The spring visualization uses `SetSegmentPositions` with two lists of points, which is incorrect.
+  - The simulation loop calls `sys.Update()`, which is not the correct method to advance the simulation. The correct method is `sys.DoStepDynamics(time_step)`.
+- **Logical Errors:**
+  - Ground body is not fixed, so it will move under forces.
+  - Spring anchor points are both at the origin, not matching the bodies’ relative positions.
+  - Visualization loop is incomplete and will not render frames properly.
+  - No time stepping or time step size specified.
+  
+**Deductions:**
 
-- **Body properties:**  
-  - Ground body is not fixed, which is a logical error. Deduct **10 points** (already counted in completeness, but here for correctness).  
-  - Mass body has no collision enabled or material assigned, which may be acceptable if collision is not needed, but usually collision is enabled for dynamic bodies. Minor issue, no deduction.
+- Incorrect use of `CH_INIT()`: **-5 points** (minor inaccuracy).
+- Incorrect spring anchor points initialization: **-15 points** (significant logical error).
+- Incorrect visualization setup for spring: **-10 points** (incorrect API usage).
+- Incorrect simulation loop (`sys.Update()` instead of `sys.DoStepDynamics()` and missing rendering calls): **-15 points** (major error).
+- Ground not fixed: **-10 points** (logical error affecting simulation correctness).
 
-- **Summary for Correctness:**  
-  - `CH_INIT()` unnecessary: -5  
-  - Link missing Initialize: -15  
-  - Visualization loop incorrect: -10  
-  - Visualization shape class incorrect: -10  
-  Total deductions: 40 points (capped at 30).
+**Subtotal Correctness:** 30 - (5+15+10+15+10) = **-25 points** (so 5 points remain).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  - Variable names are meaningful (`ground`, `mass`, `link_tsda`, `mass_shape`, `spring_shape`, `app`).  
-  - Code is mostly well structured but lacks comments explaining steps.  
-  - Minor formatting issues: no blank lines between logical blocks, no docstrings or comments.  
-  Deduct **5 points** for lack of comments and minor readability issues.
+- Variable names are meaningful (`sys`, `ground`, `mass`, `link`, `mass_shape`, `spring_shape`, `app`).
+- Code is mostly readable and structured.
+- However, there are no comments explaining the purpose of code blocks or parameters.
+- Formatting is acceptable but could be improved (e.g., line breaks in `link.Initialize`).
+- No docstrings or inline comments.
 
-- **Comments:**  
-  - No comments at all. Deduct **5 points** for insufficient comments.
+**Deductions:**
 
-- **Total Code Quality deduction:** 10 points.
+- Lack of comments/documentation: **-5 points**.
+- Minor readability issues (e.g., long lines, inconsistent spacing): **-2 points**.
+
+**Subtotal Code Quality:** 10 - 7 = **3 points**.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or inefficient API usage.  
-- However, `link_tsda.SetMinDistance(0.1)` is set but no explanation or context; this is acceptable.  
-- `mass_shape` and `spring_shape` are created and added correctly (except for the class name issue).  
-- No optimization opportunities missed.  
-- Deduct **0 points**.
+- No obvious redundant calculations.
+- However, the spring visualization setup is inefficient and incorrect.
+- The simulation loop does not advance the simulation properly, so no efficiency in time stepping.
+- No use of `ChBodyEasySphere` or other helper functions that could simplify code.
+- No reuse of variables or functions.
+
+**Deductions:**
+
+- Inefficient or incorrect visualization setup: **-5 points**.
+- Missing time step and proper simulation advancement: **-3 points**.
+
+**Subtotal Efficiency:** 10 - 8 = **2 points**.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for initialization success.  
-- No try-except blocks or validation of inputs.  
-- While not always mandatory, basic error handling is recommended.  
-- Deduct **5 points** for lack of error handling.
+- No error handling or checks.
+- No try-except blocks or validation of inputs.
+- No handling of edge cases (e.g., zero mass, invalid frames).
+- This is common in simple scripts but still a deduction applies.
+
+**Deductions:**
+
+- Lack of basic error handling: **-5 points**.
+
+**Subtotal Error Handling:** 0 points.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but not initialized (`app.Initialize()` missing).  
-- No skybox, no logo, no typical lights (only `EnableDefaultLights()` which is not in the documented API; the documented method is `AddTypicalLights()`).  
-- Camera setup is minimal but acceptable.  
-- Visualization loop is missing; `app.Run()` is not a documented method.  
-- Deduct **5 points** for inadequate visualization setup.
+- Uses Irrlicht app (`irr.ChIrrApp`), sets camera position and target, enables default lights.
+- Missing calls to `app.Initialize()`, `app.BeginScene()`, `app.Render()`, `app.EndScene()`.
+- The spring visualization is incorrectly set up.
+- No skybox, no typical lights added explicitly (only `EnableDefaultLights()`).
+- Visualization will not function properly as is.
+
+**Deductions:**
+
+- Incomplete visualization setup: **-5 points**.
+
+**Subtotal Visualization:** 0 points.
 
 ---
 
-### Summary of deductions:
+### **Summary of deductions:**
 
-| Criterion                  | Points | Deduction | Notes                                  |
-|----------------------------|--------|-----------|----------------------------------------|
-| Completeness               | 40     | 40        | Missing fixed ground, link init, loop  |
-| Correctness               | 30     | 30        | Incorrect API calls, missing init       |
-| Code Quality              | 10     | 10        | No comments, minor readability issues  |
-| Efficiency                | 10     | 0         | No issues                              |
-| Error Handling & Robustness| 5      | 5         | No error handling                      |
-| Visualization Tools       | 5      | 5         | Missing init, incorrect lighting call  |
-| **Total Deductions**       |        | **90**    | Max score is 100, so final score is 10|
-
----
-
-### Final score:
-
-[[10]]
+| Criterion                 | Points | Deductions | Remaining |
+|---------------------------|--------|------------|-----------|
+| Completeness              | 40     | 20         | 20        |
+| Correctness               | 30     | 25         | 5         |
+| Code Quality              | 10     | 7          | 3         |
+| Efficiency                | 10     | 8          | 2         |
+| Error Handling            | 5      | 5          | 0         |
+| Visualization             | 5      | 5          | 0         |
+| **Total**                 | 100    | 70         | **30**    |
 
 ---
 
-### Explanation:
+### **Final Score:**
 
-The script shows a basic understanding of PyChrono usage but misses several essential components required for a functional and correct simulation:
+[[30]]
 
-- The ground body is not fixed or collision-enabled, which is critical for a static reference.  
-- The spring-damper link is not properly initialized with the two bodies it connects, which will prevent it from functioning.  
-- The visualization system is not properly initialized, and the simulation loop is missing, so the simulation will not run or render correctly.  
-- Some API calls are incorrect or unnecessary (`CH_INIT()`, `app.Run()`, `ChSphereShape` instead of `ChVisualShapeSphere`).  
-- The code lacks comments and error handling, reducing maintainability and robustness.  
-- Visualization setup is incomplete and uses non-documented methods.
+---
 
-These issues severely impact the correctness and completeness of the simulation script, resulting in a low score.
+### **Explanation:**
+
+The script includes the basic components of a PyChrono simulation: system creation, bodies, a spring-damper link, and visualization setup. However, critical elements are missing or incorrectly implemented:
+
+- The ground body is not fixed, which will cause unrealistic simulation behavior.
+- Collision and contact materials are not set, limiting physical realism.
+- The spring anchor points are both at the origin, not matching the bodies’ positions, which is a major logical error.
+- Visualization setup is incomplete and incorrectly implemented, especially for the spring.
+- The simulation loop does not advance the system properly and lacks rendering calls.
+- The use of `CH_INIT()` is not documented and likely unnecessary.
+- No comments or error handling reduce code quality and robustness.
+
+These issues significantly impair the correctness and completeness of the simulation, resulting in a low overall score.

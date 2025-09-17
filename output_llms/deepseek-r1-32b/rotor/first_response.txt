@@ -10,99 +10,108 @@ A rotational motor is needed to drive one end of the beam. I think I can use a t
 
 For visualization, I need to enable FEM visualization. I recall that in PyChrono, you can set FEM visualization properties on the beam to show deformation. Also, setting up the Irrlicht window is straightforward—just create a ChIrrApp and set up the camera and lighting.
 
-I should also add some forces. The beam needs gravity, so I'll add a gravitational force to the system. Maybe some damping to prevent excessive oscillations. Oh, and a torque motor to apply the driving force.
+I should also add some forces. The beam needs gravity, so I'll add a gravitational force to the system. Maybe some damping to prevent excessive oscillations. Oh, and a fixed constraint at one end of the beam to anchor it.
 
-Putting it all together, I'll structure the code step by step: import modules, create the system, add the beam, attach the flywheel, add the motor, set up the renderer, and run the simulation loop.
+Putting it all together, I'll structure the code step by step: create the system, add the beam, attach the flywheel, add the motor, set up the renderer, and run the simulation loop.
 
-Wait, I need to make sure all the parameters are correctly set. The beam's length, number of elements, control points—those should be chosen to model the Jeffcott rotor accurately. The flywheel's mass and radius should be appropriate to cause dynamic effects.
+Wait, I should check if all the necessary modules are imported. I'll need ChronoEngine, ChronoIrrlicht, and ChronoIGA. Also, make sure to set the solver parameters correctly, like the number of iterations and tolerance.
 
-I might have missed some steps, like setting up the constraints properly or initializing the motor correctly. Also, I should check if the FEM visualization is enabled and if the Irrlicht window displays everything correctly.
-
-I think that's the general approach. Now, I'll try to write the code, making sure each part is implemented as per the instructions.
+I think I've covered all the points. Now, I'll write the code, making sure each part is correctly implemented and that the simulation runs smoothly.
 </think>
 
 ```python
 importchrono
-importchrono_IGA
-importchrono_postprocess
-importnumpy as np
-importpyrr
+importchrono.IGA as chrono_iga
+importchrono irrlicht as chrono_irr
 
 # Initialize the Chrono::Engine core
 system = chrono.ChSystemNSC()
-solver = chrono.ChLCPGSolver()
+solver = chrono.ChIterativeSolverLS()
 system.SetSolver(solver)
-application = chrono.ChIrrApp(system, "Jeffcott Rotor Simulation", chronoirr.dimension2D(800, 600))
+system.SetMax iteration(100)
+system.SetTolerance(1e-6)
 
-# Set up the Irrlicht window
-application.SetCameraPosition(pyrr.Vector3([0, 2, 2]))
-application.SetCameraRotation(pyrr.Vector3([60, 0, 0]))
+# Create the Irrlicht application
+application = chrono_irr.ChIrrApp(system, "Jeffcott Rotor Simulation", chrono_irr.dimension2D(800, 600))
 application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 0.5, 1), chrono.ChVectorD(0, 0, 0))
 
 # Create the IGA beam
-beam = chrono.IgaChIgaBeamElement()
+beam = chrono_iga.ChIgaBeamElement()
 beam.SetYoungModulus(2.1e11)  # Young's modulus
 beam.SetPoissonRatio(0.3)     # Poisson's ratio
-beam.SetArea(0.01)            # Cross-sectional area
-beam.SetMoment(0.0001)        # Moment of inertia
-beam.SetLength(1.0)           # Length of the beam
-beam.SetNumElements(10)        # Number of beam elements
-beam.SetNumControlPoints(4)    # Number of control points
+beam.SetAreaMoment(0.001)     # Cross-sectional area moment
+beam.SetArea(0.0001)         # Cross-sectional area
+beam.SetLength(1.0)          # Beam length
+beam.SetNumElements(10)       # Number of beam elements
+beam.SetNumControlPoints(4)   # Number of control points
 
 # Add the beam to the system
 system.Add(beam)
 
 # Create and attach the flywheel
-flywheel = chrono.IgaChIgaFlywheel()
-flywheel.SetMass(1.0)          # Mass of the flywheel
-flywheel.SetRadius(0.1)        # Radius of the flywheel
-flywheel.SetPosition(pyrr.Vector3([0, 0, 0]))  # Position at the center of the beam
+flywheel = chrono_iga.ChIgaFlywheel()
+flywheel.SetMass(1.0)        # Flywheel mass
+flywheel.SetRadius(0.1)      # Flywheel radius
+flywheel.SetWidth(0.02)      # Flywheel width
 
-# Attach the flywheel to the beam using a UJT constraint
-ujt = chrono.ChUJT()
-ujt.Initialize(beam.GetNode(5), flywheel, pyrr.Matrix33.identity())
-system.Add(ujt)
+# Attach flywheel to the center of the beam
+constraint = chrono.ChUJT()
+constraint.Initialize(beam.GetNode(beam.GetNumNodes()//2), flywheel)
+system.Add(constraint)
+system.Add(flywheel)
 
 # Create and attach the rotational motor
 motor = chrono.ChMotorRotation()
-motor.SetTorque(10.0)          # Torque applied by the motor
-motor.SetTargetVelocity(pyrr.Vector3([0, 0, 10]))  # Target angular velocity
-motor.Initialize(beam.GetNode(0), None, pyrr.Matrix33.identity())
+motor.SetTorque(10.0)        # Motor torque
+motor.SetSpeedTarget(10.0)   # Target angular velocity
+
+# Attach motor to the end of the beam
+motor_constraint = chrono.ChUJT()
+motor_constraint.Initialize(beam.GetNode(beam.GetNumNodes()-1), motor)
+system.Add(motor_constraint)
 system.Add(motor)
 
 # Add gravitational force
-gravity = chrono.ChGravity()
-gravity.SetGravity(pyrr.Vector3([0, -9.81, 0]))
-system.Add(gravity)
+gravity = chrono.ChForce()
+gravity.SetF(chrono.ChVectorD(0, -9.81, 0))
+beam.AddForce(gravity)
 
 # Enable FEM visualization
 beam.SetFEMVisualization(True)
 beam.SetFEMVisualizationScale(0.1)
 
 # Add damping to the system
-damping = chrono.ChDamping()
-damping.SetDampingFactors(0.1, 0.1)
-system.Add(damping)
+system.SetDamping(0.1)
+
+# Add fixed constraint at one end
+fixed_constraint = chrono.ChFixed()
+fixed_constraint.Initialize(beam.GetNode(0))
+system.Add(fixed_constraint)
 
 # Run the simulation
 application.AssetBindAll()
 application.AssetUpdateAll()
-application.AddAllTypicalLights()
 
-while application.GetDevice().run():
+while application.Run():
+    system.DoStepDynamics(0.001)
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()
 ```
 
-This script creates a Jeffcott rotor simulation using an Isogeometric Analysis (IGA) beam. The simulation includes:
-- An IGA beam with specified material properties and geometry
-- A flywheel attached at the center of the beam
-- A rotational motor driving one end of the beam
-- FEM visualization of the beam's deformation
-- An Irrlicht window for real-time visualization
-- Gravitational and damping forces
-- A rotational motor applying torque to the beam
+This script creates a Jeffcott rotor simulation with:
+1. An IGA beam with specified mechanical properties
+2. A flywheel attached at the center of the beam
+3. A rotational motor driving one end of the beam
+4. FEM visualization enabled for observing deformations
+5. Irrlicht window for real-time visualization
 
-The simulation can be run to observe the dynamic behavior of the Jeffcott rotor system.
+The simulation includes:
+- Gravitational forces
+- Damping
+- Fixed constraint at one end
+- FEM visualization of beam deformation
+- Irrlicht renderer for 3D visualization
+
+You can adjust the parameters (Young's modulus, beam length, motor torque, etc.) to study different dynamic behaviors of the Jeffcott rotor system.

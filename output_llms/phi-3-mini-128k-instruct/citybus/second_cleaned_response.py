@@ -1,4 +1,5 @@
 import pychrono.core as chrono
+import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
@@ -83,16 +84,19 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDataDriver()  
+driver = veh.ChDataDriver()
 
 
-driver_inputs = veh.vector_Entry()  
-driver_inputs.Add(chrono.ChVector3d(0.0, 0.0, 0.0))  
-driver_inputs.Add(chrono.ChVector3d(1.0, 0.0, 0.0))  
-driver_inputs.Add(chrono.ChVector3d(1.0, 0.7, 0.0))  
+driver_inputs = veh.vector_Entry()
+driver_inputs.Add(chrono.ChDataDriverEntry(0.0, 0.0, 0.0))
+driver_inputs.Add(chrono.ChDataDriverEntry(0.1, 1.0, 0.0))
+driver_inputs.Add(chrono.ChDataDriverEntry(0.5, 1.0, 0.7))
 
 
+driver.SetDriverInputs(driver_inputs)
 
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -127,6 +131,3 @@ while vis.Run() :
     step_number += 1
     
     realtime_timer.Spin(step_size)
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

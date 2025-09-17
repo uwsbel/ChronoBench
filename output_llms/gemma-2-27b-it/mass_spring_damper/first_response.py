@@ -8,21 +8,17 @@ import pychrono.irrlicht as chronoirr
 
 mysystem = chrono.ChSystemNSC()
 
-# Set gravitational acceleration
+# Set the simulation parameters
 mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# ---------------------------------------------------------------------
-#
-#  Create the Irrlicht visualization system
-#
-
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(mysystem)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Mass-Spring-Damper System')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))  # Camera position
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))  # Light source
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
 
 # ---------------------------------------------------------------------
 #
@@ -31,34 +27,34 @@ vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))  # Light source
 
 # Create the ground body
 ground = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
 mysystem.AddBody(ground)
 
 # Create the mass body
-mass = chrono.ChBodyEasySphere(0.5, 1000)
+mass = chrono.ChBodyEasySphere(0.2, 10)
 mass.SetPos(chrono.ChVectorD(0, 2, 0))
 mysystem.AddBody(mass)
 
 # Create the spring-damper connection
 spring = chrono.ChLinkTSDA()
-spring.Initialize(ground, mass, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+spring.Initialize(mass, ground, chrono.ChCoordsysD(chrono.ChVectorD(0, 2, 0)))
 mysystem.AddLink(spring)
 
 # ---------------------------------------------------------------------
 #
-#  Set visualization properties
+#  Create the visualization assets
 #
 
-# Create a sphere shape for the mass
-mass_shape = chrono.ChSphereShape()
-mass_shape.GetSphereGeometry().rad = 0.5
+# Create a visual shape for the mass
+mass_shape = chronoirr.ChVisualShapeSphere(0.2)
+mass_shape.SetTexture(chronoirr.ChTexture(
+    chrono.GetChronoDataPath() + 'textures/blue.png'))
 mass.AddVisualShape(mass_shape)
 
-# Create a cylinder shape for the spring
-spring_shape = chrono.ChCylinderShape()
-spring_shape.GetCylinderGeometry().rad = 0.1
-spring_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0)
-spring_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, -2, 0)
+# Create a visual shape for the spring
+spring_shape = chronoirr.ChVisualShapeSpring(0.05, 1.5, 100)
+spring_shape.SetTexture(chronoirr.ChTexture(
+    chrono.GetChronoDataPath() + 'textures/green.png'))
 spring.AddVisualShape(spring_shape)
 
 # ---------------------------------------------------------------------

@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
@@ -22,7 +22,6 @@ ground.SetFixed(True)
 
 
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-
 system.Add(ground)
 
 
@@ -96,7 +95,7 @@ while vis.Run():
     manager.Update()
 
     
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -3,13 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.5)  
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -21,9 +20,10 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+
+terrainHeight = 0      
+terrainLength = 100.0  
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(3, 0, 2.1)  
@@ -45,15 +45,13 @@ vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)
-vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle.SetWheelVisualizationType(vis_type, vis_type)
+vehicle.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -63,35 +61,51 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Kraz Double Lane Change Demo')
+vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())  
+vis.AttachVehicle(vehicle.GetTractor())
 
 
-driver = veh.ChDriver(vehicle.GetVehicle())
+
+points = [
+    chrono.ChVector3d(-15, 0, 0.5),
+    chrono.ChVector3d(0, 0, 0.5),
+    chrono.ChVector3d(20, 3.5, 0.5),
+    chrono.ChVector3d(40, 0, 0.5),
+    chrono.ChVector3d(60, -3.5, 0.5),
+    chrono.ChVector3d(80, 0, 0.5),
+    chrono.ChVector3d(100, 0, 0.5)
+]
+path = chrono.ChBezierCurve(points)
+driver = veh.ChPathFollowerDriver(vehicle.GetTractor(), path, "DoubleLaneChange", 10.0)
+driver.GetSteeringController().SetGains(0.5, 0, 0)
+driver.GetSpeedController().SetGains(0.4, 0, 0)
+driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -104,26 +118,6 @@ while vis.Run():
         render_frame += 1
 
     
-    steering = 0.0
-    throttle = 0.5
-    braking = 0.0
-    
-    
-    if 2.0 <= time < 3.0:       
-        steering = 0.5
-    elif 3.0 <= time < 4.0:     
-        steering = -0.5
-    elif 4.0 <= time < 5.0:     
-        steering = 0.5
-    elif 5.0 <= time < 6.0:     
-        steering = -0.5
-    elif time >= 6.0:           
-        steering = 0.0
-
-    
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
     driver_inputs = driver.GetInputs()
 
     

@@ -1,48 +1,45 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
 
-# Create a Chrono::Engine instance
+# 1. Initialize the PyChrono environment and core components.
+chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
 my_system = chrono.ChSystemNSC()
 
-# Create a mesh composed of beams and nodes
-mesh = chrono.ChMesh()
+# 2. Add the required physical systems and objects as specified.
+mesh = fea.ChMesh()
 
-# Add nodes to the mesh
-node1 = mesh.AddNode(chrono.ChVectorD(0, 0, 0))
-node2 = mesh.AddNode(chrono.ChVectorD(1, 0, 0))
+# Add nodes
+node1 = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node2 = fea.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0))
+mesh.AddNode(node1)
+mesh.AddNode(node2)
 
-# Set node mass
-node1.SetMass(1)
-node2.SetMass(1)
+# Add beams
+beam = fea.ChElementBeamIGA()
+beam.SetNodes(node1, node2)
+beam.SetYoungModulus(73e9)
+beam.SetGwithPoissonRatio(0.3)
+beam.SetBeamRaleyghDamping(0.005)
+mesh.AddElement(beam)
 
-# Add a beam element between the nodes
-beam = mesh.AddElementBeam(node1, node2)
+# Add mesh to the system
+my_system.Add(mesh)
 
-# Set beam properties
-beam.SetDiameter(0.01)
-beam.SetYoungModulus(2e5)
-beam.SetSectionCircular(0.005)
+# 3. Set necessary default parameters such as positions, forces, and interactions.
 
-# Create a ChBeamEulerStatic object
-beam_body = chrono.ChBeamEulerStatic()
+# Set the gravity acceleration
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Link the mesh to the ChBeamEulerStatic object
-beam_body.Initialize(mesh)
-
-# Add the ChBeamEulerStatic object to the system
-my_system.Add(beam_body)
-
-# Set the force on the second node
-node2.SetForce(chrono.ChVectorD(0, -10, 0))
-
-# Create an Irrlicht application for visualization
-application = chronoirr.ChIrrApp(my_system, 'Beam Finite Elements', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0.5, 0.5, -1.0))
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Create the Irrlicht application
+application = irr.ChIrrApp(my_system, 'Beam FEA simulation', irr.dimension2du(1024, 768))
 
 # Run the simulation loop
+application.AssetBindAll()
+application.AssetUpdateAll()
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()

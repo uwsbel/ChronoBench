@@ -30,7 +30,7 @@ rover.SetDriver(driver)  # Assign the driver to the rover
 # Initialize rover position and orientation
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Corrected ChFramed to ChFrameD
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,7 +57,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create a camera sensor
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(1.0, 0, 1.45), chrono.Q_from_AngX(0.2))  # Corrected QuatFromAngleAxis to Q_from_AngX
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  # update rate
@@ -70,7 +70,7 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
-# Addition of variables for simulation step and render step size
+# Define simulation step and render step size
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)

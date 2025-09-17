@@ -1,65 +1,55 @@
 import pychrono as chrono
+import pychrono.collision as collision
+import pychrono.geometry as geometry
+import pychrono.dynamics as dynamics
+import pychrono.materials as materials
+import pychrono.ros as ros
 import rospy
-from pychrono.chrono_ros import ChronoROS
-from pychrono.chrono_ros.chrono_ros_manager import ChronoROSManager
-from pychrono.chrono_ros.chrono_ros_handler import ChronoROSHandler
-from pychrono.chrono_ros.chrono_ros_body import ChronoROSBody
-from pychrono.chrono_ros.chrono_ros_transform import ChronoROSTransform
+from pychrono.ros import ROSHandler
 
 
-chrono.Init()
+chrono.init()
 
 
-chrono_system = chrono.System()
+dt = 0.01  
+gravity = 9.81  
 
 
-g = chrono.Vector3D(0, -9.81, 0)
+chrono_system = chrono.ChronoSystem()
+chrono_system.setGravity(chrono.Vector3(0, -gravity, 0))
 
 
-material_properties = chrono.MaterialProperties(
-    density=1000,
-    elasticity=1.0,
-    viscosity=0.0,
-    friction=0.1
-)
+floor = geometry.Plane(chrono_system, geometry.Vector3(0, 0, 0), geometry.Vector3(0, 1, 0))
+floor.setMaterial(materials.Material(materials.Elasticity(1.0)))
 
 
-floor = chrono.RigidBody(chrono_system, material_properties, chrono.Vector3D(0, 0, 0))
-floor.SetGravity(g)
-floor.SetFixed()
+box = geometry.Box(chrono_system, geometry.Vector3(1, 1, 1), geometry.Vector3(0, 0, 0))
+box.setMaterial(materials.Material(materials.Elasticity(0.5)))
 
 
-box = chrono.RigidBody(chrono_system, material_properties, chrono.Vector3D(0, 1, 0))
-box.SetGravity(g)
+box.setPosition(chrono.Vector3(0, 0, 0))
+box.setLinearVelocity(chrono.Vector3(0, 0, 0))
 
 
-class BoxPublisher(ChronoROSHandler):
-    def __init__(self, name, topic):
-        super().__init__(name, topic)
-
-    def update(self, dt):
-        
-        self.publish_integer(1)
+ros_handler = ROSHandler(chrono_system)
+ros_handler.setTopic("box_position")
+ros_handler.setCallback(lambda: print("Box position updated"))
 
 
-ros_manager = ChronoROSManager(chrono_system)
-ros_manager.register_handler(BoxPublisher)
+chrono_system.setClockHandler(ros_handler)
+chrono_system.setBodyHandler(ros_handler)
+chrono_system.setTransformHandler(ros_handler)
 
 
-clock = chrono.Clock()
-body = chrono.Body(chrono_system, material_properties)
-transform = chrono.Transform(chrono_system)
+chrono_system.registerHandler(ros_handler)
 
 
 while True:
     
-    chrono_system.Step(dt)
+    chrono_system.advance(dt)
 
     
-    ros_manager.Update()
+    ros_handler.update()
 
     
-    rospy.sleep(0.01)
-
-
-chrono.Finalize()
+    rospy.sleep(1/100)

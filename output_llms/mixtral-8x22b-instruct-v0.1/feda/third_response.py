@@ -100,27 +100,43 @@ sensor_manager = vis.GetSceneManager().getSceneNode().getSceneManager().createSe
 
 # Add point lights to the scene
 light1 = vis.GetSceneManager().getSceneNode().getSceneManager().addLightSceneNode(0,
-                                                                                  chrono.ChVector3d(0, 10, 0),
+                                                                                  chrono.ChVector3d(0, 5, 0),
                                                                                   chrono.ChVector3d(1, 1, 1),
-                                                                                  -1)
-light1.setPosition(chrono.ChVector3d(0, 10, 0))
-light1.setRadius(50)
+                                                                                  20)
+light1.setLightType(irr.ELT_POINT)
+light1.setRadius(10)
 
-# Add a camera sensor to the vehicle’s chassis body
-camera_sensor = vis.GetSceneManager().getSceneNode().getSceneManager().addCameraSceneNodeFPS(0, 100, 0.1)
-camera_sensor.setPosition(chrono.ChVector3d(0, 0, 1))
+light2 = vis.GetSceneManager().getSceneManager().addLightSceneNode(0,
+                                                                   chrono.ChVector3d(5, 5, 5),
+                                                                   chrono.ChVector3d(1, 1, 1),
+                                                                   20)
+light2.setLightType(irr.ELT_POINT)
+light2.setRadius(10)
+
+# Add a camera sensor to the vehicle's chassis body
+camera_sensor = vis.GetSceneManager().getSceneNode().getSceneManager().addCameraSceneNodeFPS(0,
+                                                                                             100,
+                                                                                             chrono.ChVector3d(0, 0, 0),
+                                                                                             chrono.ChVector3d(0, 0, 0),
+                                                                                             20,
+                                                                                             10,
+                                                                                             0.02)
+camera_sensor.setFOV(irr.deg2rad(60))
+camera_sensor.setPosition(chrono.ChVector3d(0, 1, 0))
 camera_sensor.setTarget(chrono.ChVector3d(0, 0, 0))
-camera_sensor.setFarValue(1000)
 
 # Add a visualization filter to render the image
-camera_filter = vis.GetSceneManager().getSceneNode().getSceneManager().createTextureTargetRenderTarget(1280, 1024, irr.PIXEL_FORMAT_RGBA8888)
-camera_filter.addRenderTarget(camera_sensor)
+camera_filter = vis.GetSceneManager().getSceneNode().getSceneManager().createTextureTarget(chrono.ChVector2i(1280, 1024),
+                                                                                           irr.ETF_R8G8B8,
+                                                                                           camera_sensor)
+camera_filter.setName("Camera Filter")
+camera_filter.setActive(True)
 
 # Add the camera filter to the sensor manager
 sensor_manager.add(camera_filter)
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -130,11 +146,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -160,9 +176,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Update the camera sensor
-    camera_sensor.OnAnimate(time)
-
-    # Update the sensor manager
-    sensor_manager.update()

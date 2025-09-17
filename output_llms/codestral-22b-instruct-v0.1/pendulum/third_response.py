@@ -32,7 +32,7 @@ cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
 pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Set the initial position of the first pendulum (center of mass) in the absolute frame
-# The pendulum is initially horizontal, pointing towards the positive X direction
+# The first pendulum is initially horizontal, pointing towards the positive X direction
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 # Create a revolute joint to connect the first pendulum to the ground
@@ -55,7 +55,7 @@ cyl_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Set the color of the cylinder (RGB)
 pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 # Set the initial position of the second pendulum (center of mass) in the absolute frame
-# The pendulum is initially horizontal, pointing towards the positive X direction
+# The second pendulum is initially horizontal, pointing towards the positive X direction
 pend_2.SetPos(chrono.ChVector3d(3, 0, 1))
 
 # Create a revolute joint to connect the second pendulum to the first pendulum
@@ -90,8 +90,4 @@ while vis.Run():
         print("t = ", sys.GetChTime())
         print("Pendulum 1: ", pos_1.x, "  ", pos_1.y)
         print("Pendulum 2: ", pos_2.x, "  ", pos_2.y)
-        lin_vel_1 = pend_1.GetPosDt()  # Get the linear velocity of the first pendulum
-        lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
-        print("Pendulum 1 velocity: ", lin_vel_1.x, "  ", lin_vel_1.y)
-        print("Pendulum 2 velocity: ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False  # Disable further logging

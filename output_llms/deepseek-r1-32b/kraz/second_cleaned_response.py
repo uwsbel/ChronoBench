@@ -3,11 +3,12 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.5)
+initLoc = chrono.ChVector3d(-15, 0, 0.5)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -20,13 +21,14 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3, 0, 2.1)  
+chaseCamDistance = 25.0
+chaseCamHeight = 10.5  
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -38,7 +40,6 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-
 
 
 vehicle = veh.Kraz()
@@ -73,13 +74,12 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, chaseCamDistance, chaseCamHeight)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -95,7 +95,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetTractor().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,11 +105,22 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+def lane_change_steering(time):
+    
+    if time < 5:
+        return math.sin(time * math.pi / 2) * 0.3  
+    elif time < 10:
+        return math.sin((time - 5) * math.pi / 2) * (-0.3)  
+    elif time < 15:
+        return math.sin((time - 10) * math.pi / 2) * 0.3  
+    else:
+        return 0
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -117,16 +128,12 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
+
     
-    
-    if time >= 2.0 and time < 4.0:  
-        driver.SetSteering(-0.5)  
-    elif time >= 4.0 and time < 6.0:  
-        driver.SetSteering(0)
-    elif time >= 6.0 and time < 8.0:  
-        driver.SetSteering(0.5)  
-    elif time >= 8.0:  
-        driver.SetSteering(0)
+    if time < 15:
+        driver_inputs.steering = lane_change_steering(time)
+    else:
+        driver_inputs.steering = 0  
 
     
     driver.Synchronize(time)

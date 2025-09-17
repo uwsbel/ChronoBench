@@ -1,92 +1,103 @@
 import chrono
 from chrono import ChVector, ChCoordsys, ChFrame
+from chrono.irrlicht import IrrApp
+from chrono.vehicle import ChVehicle, ChChassis, ChTire, ChSteer, ChDriver, ChSimpleDriver, ChEngine, ChAxle, ChDriveshaft, ChTransmission, ChClutch, ChWheel, ChTSDynamics, ChTSSolver
 from chrono.collision import ChCollisionModel
-from chrono.vehicle import ChVehicleModel, ChChassis, ChTire, ChSteering, ChDriver, ChIrrGui
-from chrono.irrlicht import ChIrrApp
-from chrono.terrain import ChTerrain, ChTerrainHeightfield
-from chrono.utils import ChUtils
+from chrono.terrain import ChTerrain
+from chrono.fea import ChElementTetra
+from chrono.fea. hybrid_mesh import ChHybridMesh
+from chrono.utils.generators import ChHeightfield
 
 
 chrono.SetChronoDataPath('path/to/chrono/data')
-chrono.SetChronoOutputPath('path/to/output')
+my_irr_app = IrrApp(window_size=(800, 600), irr_driver_type=chrono.ChIrrApp::DIRECTX_9)
+my_system = chrono.ChSystemSMC()
 
 
 
-
-vehicle = ChVehicleModel()
-chassis = ChChassis(mass=3000.0, inertia=ChVectorD(0.5, 0.5, 0.5))
-vehicle.AddComponent(chassis)
-
-
-tire_params = {
-    'radius': 0.4,
-    'width': 0.2,
-    'pressure': 250000.0,
-    'friction': 1.2,
-    'roll_influence': 0.05,
-    'spring_rate': 150000.0,
-    'damper_rate': 2000.0,
-    'max_suspension_travel': 0.15,
-}
-tire_front_left = ChTire(tire_params)
-tire_front_right = ChTire(tire_params)
-tire_rear_left = ChTire(tire_params)
-tire_rear_right = ChTire(tire_params)
-
-vehicle.AddComponent(tire_front_left)
-vehicle.AddComponent(tire_front_right)
-vehicle.AddComponent(tire_rear_left)
-vehicle.AddComponent(tire_rear_right)
+chassis = ChChassis()
+chassis.SetCollide(True)
+chassis.SetBodyFixed(True)
+vehicle = ChVehicle(chassis)
 
 
-steering = ChSteering(vehicle)
-vehicle.AddComponent(steering)
+tire = ChTire()
+tire.SetCollide(True)
+tire.SetBodyFixed(True)
+vehicle.AddTire(tire)
+
+
+steer = ChSteer()
+steer.SetChassis(chassis)
+vehicle.SetSteer(steer)
+
+
+engine = ChEngine()
+vehicle.SetEngine(engine)
+
+
+axle = ChAxle()
+vehicle.AddAxle(axle)
+
+
+driveshaft = ChDriveshaft()
+vehicle.AddDriveshaft(driveshaft)
+
+
+transmission = ChTransmission()
+vehicle.SetTransmission(transmission)
+
+
+clutch = ChClutch()
+vehicle.SetClutch(clutch)
+
+
+wheel = ChWheel()
+wheel.SetTire(tire)
+wheel.SetChassis(chassis)
+vehicle.AddWheel(wheel)
 
 
 driver = ChDriver()
-vehicle.AddComponent(driver)
+vehicle.SetDriver(driver)
 
 
-terrain_params = {
-    'heightfield_filename': 'path/to/heightmap.txt',
-    'cell_size': 0.1,
-    'height_scale': 1.0,
-    'soil_density': 1500.0,
-    'soil_young': 5e6,
-    'soil_poisson': 0.3,
-    'soil_friction': 0.5,
-    'soil_cohesion': 0.0,
-    'soil_viscosity': 0.0,
-}
-terrain = ChTerrain(terrain_params)
+terrain = ChTerrain()
+terrain_mesh = ChHybridMesh()
+heightfield = ChHeightfield('path/to/heightmap.txt')
+for i in range(heightfield.GetNrows()):
+    for j in range(heightfield.GetNcols()):
+        p = heightfield.GetPoint(i, j)
+        terr_elem = ChElementTetra.AutoCreate(chrono.ChVectorD(p.x, p.y, p.z))
+        terr_mesh.AddElement(terr_elem)
+terrain.SetMesh(terr_mesh)
+terrain.SetCollide(True)
+terrain.SetScatter(True)
+terrain.SetVisualizationType(ChTerrain.VISUALIZATION_TYPE_HEIGHTFIELD)
+my_system.Add(terrain)
 
 
+chassis.SetPos(ChVectorD(0, 0, 0))
+vehicle.SetSuspensionStiffness(5e6)
+vehicle.SetSuspensionDamping(2e5)
+vehicle.SetTireStiffness(1e7)
+vehicle.SetTireDamping(1e5)
+vehicle.SetTireFriction(1.2)
+driver.SetMaxTorque(500)
+driver.SetMaxSteerAngle(chrono.CH_C_PI_OVER_4)
 
 
-chassis.SetPos(ChCoordsys(ChVector(0, 0, 0.5)))
-vehicle.SetChassisWorldTransform(chassis.GetFrame())
+my_irr_app.AddTypicalLogo()
+my_irr_app.AddTypicalSky()
+my_irr_app.AddTypicalCamera(chrono.ChVectorD(10, 10, 10))
+my_irr_app.SetTimestep(1./240)
 
 
-driver.SetSteerCmd(0.0)
-driver.SetSpeedCmd(10.0)
+while my_irr_app.GetDevice().run():
+    my_irr_app.BeginScene()
+    my_system.DoStepDynamics(my_irr_app.GetTimestep())
+    my_irr_app.DrawAll()
+    my_irr_app.EndScene()
 
 
-gui = ChIrrApp(window_size=(800, 600), irrlicht_device_settings={'Type': 2})
-gui.AddModule(terrain)
-gui.AddModule(vehicle)
-gui.AddCamera(ChVector(0, 15, 10), ChVector(0, 0, 0))
-gui.SetSkyBox()
-gui.SetChaseCamera(ChVector(0, 15, 10), ChVector(0, 0, 0), 0.1)
-gui.SetTimestep(1./240.)
-
-
-while gui.GetDevice().run():
-    gui.BeginScene()
-    gui.DrawAll()
-    gui.EndScene()
-
-    
-    vehicle.Synchronize(gui.GetChTime(), gui.GetChTimeStep())
-    terrain.Synchronize(gui.GetChTime(), gui.GetChTimeStep())
-    vehicle.Advance(gui.GetChTime(), gui.GetChTimeStep())
-    terrain.Advance(gui.GetChTime(), gui.GetChTimeStep())
+my_system.SaveState('hmmwv_terrain.dat')

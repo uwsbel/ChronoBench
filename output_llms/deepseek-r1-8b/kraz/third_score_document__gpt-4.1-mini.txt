@@ -4,165 +4,107 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**:  
-  The script uses `veh.Kraz()` and `veh.RigidTerrain(truck.GetSystem())` which internally create and manage the system. However, the script never explicitly creates or references a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object directly. This is acceptable in vehicle module usage since the vehicle object manages the system internally.  
-  **No deduction here.**
+- **System Initialization Missing (15 points deduction):**  
+  The script creates vehicles (`veh.Kraz()` and `veh.Sedan()`), which internally create their own systems, but **there is no explicit creation or reference to a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object**. According to the API documentation, the system should be explicitly created and managed, especially when multiple vehicles and terrains are involved. This is essential for clarity and control over the simulation.
 
-- **Body Creation**:  
-  The truck vehicle is created and initialized properly. However, the sedan vehicle is referenced multiple times (`sedan.GetTractor()`, `sedan_vis.AttachVehicle(sedan.GetTractor())`, `sedan.GetTractor().GetControl()`), but there is **no initialization or creation of the sedan vehicle object** anywhere in the script. This is a critical missing component.  
-  **Deduct 15 points for missing sedan vehicle initialization.**
+- **Terrain Setup Incomplete (10 points deduction):**  
+  The terrain is created via `veh.RigidTerrain(vehicleTruck.GetSystem())`, but the terrain patch is created using `CreateBoxMesh(...)` without associating the contact material or adding a patch properly. The example in the documentation uses `AddPatch(patch_mat, chrono.ChCoordsysd(...), length, width)`. Here, the patch material `patch_mat` is created but never used or linked to the terrain patch. This is a significant omission because the terrain patch will lack proper contact properties, which can affect simulation correctness.
 
-- **Visualization Setup**:  
-  Visualization for both truck and sedan is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`. However, since the sedan vehicle is not created, attaching it to visualization and driver is invalid.  
-  **No deduction here beyond the sedan vehicle missing initialization already accounted for.**
+- **Vehicle Initialization Missing Important Details (5 points deduction):**  
+  The vehicles are initialized with `SetContactMethod`, `SetChassisCollisionType`, `SetChassisFixed`, and `SetInitPosition`, then `Initialize()` is called. However, **the visualization type (`vis_type`) and tire model (`tire_model`) variables are defined but never applied to the vehicles**. These are important for configuring the vehicle's visual and physical behavior.
 
-- **Driver Setup**:  
-  Driver for truck is created and initialized properly. Driver for sedan is created but since sedan is missing, this is incomplete.  
-  **No additional deduction beyond sedan missing initialization.**
+- **Visualization Setup for Vehicles Incorrect (15 points deduction):**  
+  The visualization systems are created as `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is correct. However, the vehicles are attached using `AttachVehicle(vehicleTruck.GetTractor())` and `AttachVehicle(vehicleSedan.GetTractor())`. According to the API, `AttachVehicle()` expects the vehicle object itself, not the tractor subcomponent. This is a misuse and will likely cause visualization issues or no visualization at all. The correct call should be `AttachVehicle(vehicleTruck)` and `AttachVehicle(vehicleSedan)`.
 
-- **Terrain Setup**:  
-  Terrain is created and initialized properly.  
-  **No deduction.**
+- **Driver Setup Missing Important Details (5 points deduction):**  
+  The drivers are created as `veh.ChInteractiveDriverIRR(visTruck)` and `veh.ChInteractiveDriverIRR(visSedan)`, which is correct. However, the driver inputs are retrieved before the drivers are synchronized, which is not the best practice. Also, the throttle, steering, and braking deltas are set but not linked to any input device or control scheme explicitly.
 
-- **Simulation Loop**:  
-  The loop runs while both visualizations `vis_truck.Run()` and `vis_sedan.Run()` are true. Since `vis_sedan` is attached to a non-existent sedan vehicle, this will cause runtime errors or undefined behavior.  
-  **No additional deduction beyond sedan missing initialization.**
+- **Simulation Loop Incomplete (5 points deduction):**  
+  The simulation loop advances the truck's visualization and physics correctly, but the sedan's visualization is advanced only after the truck's step and without rendering calls (`BeginScene()`, `Render()`, `EndScene()`) for the sedan. This means the sedan visualization window will not update properly.
 
-- **Summary**:  
-  - Missing sedan vehicle initialization: **-15 points**  
-  - Minor omission: The script calls `truck.Advance(step_size)` twice in the loop (line 80 and line 88). This is redundant and could be considered a minor omission or inefficiency.  
-  **-5 points** for minor redundancy in advancing the truck twice per loop iteration.
-
-**Total Completeness deduction: 15 + 5 = 20 points**
+**Total Completeness Deduction: 15 + 10 + 5 + 15 + 5 + 5 = 55 points**  
+Since the maximum is 40, the deduction caps at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage**:
+- **Incorrect Use of AttachVehicle (15 points deduction):**  
+  As noted, attaching `vehicleTruck.GetTractor()` instead of `vehicleTruck` is incorrect and will cause visualization or synchronization errors.
 
-  - `truck.SetChassisVisualizationType(vis_type, vis_type)` and similar calls: According to the API, `SetChassisVisualizationType()` takes a single argument (the visualization type). Passing two arguments is incorrect. Similarly for `SetSteeringVisualizationType()`, `SetSuspensionVisualizationType()`, `SetWheelVisualizationType()`, `SetTireVisualizationType()` — some take one argument, some take two depending on the function signature.  
-  Checking the API documentation for `veh.Kraz()` and its visualization setters:  
-  - `SetChassisVisualizationType(vis_type)` expects one argument.  
-  - `SetSuspensionVisualizationType(vis_type, vis_type)` expects two arguments (left and right).  
-  The code passes two arguments to `SetChassisVisualizationType()` and `SetSteeringVisualizationType()`, which is incorrect.  
-  **Deduct 15 points for incorrect API usage in visualization setters.**
+- **Logical Error in Terrain Patch Creation (10 points deduction):**  
+  The terrain patch is created with `CreateBoxMesh` but without associating the contact material or properly adding a patch via `AddPatch()`. This will cause the terrain to have no physical contact properties, leading to unrealistic simulation behavior.
 
-- **`truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)`**:  
-  This is correct usage to set the collision system type.
+- **Driver Inputs Retrieved Before Synchronization (5 points deduction):**  
+  The code calls `driverTruck.GetInputs()` and `driverSedan.GetInputs()` before calling `driverTruck.Synchronize()` and `driverSedan.Synchronize()`. According to best practices, inputs should be updated after synchronization to reflect the current state.
 
-- **Visualization attachment**:  
-  `vis_truck.AttachVehicle(truck.GetTractor())` is correct.  
-  `vis_sedan.AttachVehicle(sedan.GetTractor())` is invalid since `sedan` is undefined. Already accounted for in completeness.
-
-- **Driver inputs**:  
-  `driver_truck.GetInputs()` is used correctly.
-
-- **Advancing simulation**:  
-  The script calls `truck.Advance(step_size)` twice per loop iteration, which is logically incorrect and can cause simulation errors or unexpected behavior.  
-  **Deduct 10 points for logical error in advancing the truck twice.**
-
-- **Sedan control**:  
-  The code attempts to control the sedan vehicle inside the loop, but since sedan is not initialized, this is a logical error. Already accounted for.
-
-- **`truck.GetTractor().GetState().Copy()` and `Load()` usage**:  
-  This is a valid way to save and restore vehicle state.
-
-**Total Correctness deduction: 15 + 10 = 25 points**
+**Total Correctness Deduction: 15 + 10 + 5 = 30 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code lacks comments explaining the purpose of major blocks (vehicle setup, terrain, visualization, simulation loop).  
-- Variable names are generally meaningful (`truck`, `sedan`, `terrain`, `driver_truck`, etc.).  
-- Formatting is mostly consistent.  
-- Some lines are long and could be split for readability.  
-- The code mixes tabs and spaces (not visible here but common in such scripts) or inconsistent indentation is not evident.  
-- The code uses magic numbers (e.g., `step_size = 1e-3`) without explanation.  
-- The code does not follow PEP8 fully (e.g., spaces around operators inconsistent).  
-- No docstrings or function encapsulation; all code is in the global scope.  
-- No error handling or assertions.
+- **Lack of Comments (5 points deduction):**  
+  The code has almost no comments explaining the purpose of blocks or variables, which reduces readability and maintainability.
 
-**Deduct 5 points for insufficient comments and lack of documentation.**  
-**Deduct 3 points for minor readability and style issues.**
+- **Variable Naming and Structure (2 points deduction):**  
+  Variable names like `truck_states`, `render_steps`, and `step_number` are reasonable, but some variables like `driver_inputs_sedan` could be more consistent (e.g., `driver_inputs_sedan` vs `driver_inputs`). Also, the code mixes snake_case and camelCase (e.g., `render_step_size` vs `step_number`), which is a minor inconsistency.
 
-**Total Code Quality deduction: 8 points**
+**Total Code Quality Deduction: 7 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The simulation loop calls `truck.Advance(step_size)` twice per iteration, which is redundant and inefficient. Already penalized under correctness.  
-- The `render_steps` calculation is correct and used properly.  
-- The `realtime_timer.Spin(step_size)` is used correctly for real-time pacing.  
-- The loop calls `vis_truck.Synchronize()` and `vis_truck.Advance()` but does not call `vis_sedan.Synchronize()` or `vis_sedan.Advance()`. This is inconsistent and may cause visualization issues for the sedan window (which is also missing the vehicle).  
-- The code calls `truck.Advance(step_size)` before and after `vis_truck.Synchronize()`, which is unnecessary.  
-- The code calls `terrain.Advance(step_size)` twice per loop iteration (once before and once after `vis_truck.Synchronize()`). This is redundant.  
-- The code does not use `sys.DoStepDynamics()` which is the recommended way to advance the entire system in one call, but since the vehicle module manages its own advance, this is acceptable.
+- **Redundant Calls and Inefficient Synchronization (5 points deduction):**  
+  The sedan's visualization is advanced but never rendered, which is inefficient. Also, the truck's visualization rendering is done every `render_steps` steps, but the sedan's rendering is missing entirely.
 
-**Deduct 5 points for redundant calls to Advance() on truck and terrain.**  
-**Deduct 3 points for missing synchronization and advance calls for sedan visualization (minor optimization).**
+- **Unnecessary Creation of Unused Variables (3 points deduction):**  
+  Variables like `vis_type` and `tire_model` are defined but never used.
 
-**Total Efficiency deduction: 8 points**
+**Total Efficiency Deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No try-except blocks or error handling for critical operations (e.g., vehicle initialization, visualization initialization).  
-- The code assumes that `chrono.GetChronoDataPath()` returns a valid path without checking.  
-- The code uses `while vis_truck.Run() and vis_sedan.Run():` but since `sedan` is not initialized, this will cause runtime errors.  
-- No checks for null pointers or invalid states.  
-- No handling of keyboard or user input errors.  
-- No handling of simulation end conditions other than window closure.
+- **No Error Handling (5 points deduction):**  
+  The script does not include any try-except blocks or checks for initialization success, file existence (e.g., logos), or visualization window status beyond `vis.Run()`. This is a basic omission.
 
-**Deduct 5 points for lack of basic error handling and robustness.**
+**Total Error Handling Deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization windows are created for both truck and sedan.  
-- The truck visualization is set up with window title, size, chase camera, logo, directional light, and skybox. This is good.  
-- The sedan visualization is similarly set up but attached to a non-existent vehicle.  
-- The code uses `AddLightDirectional()` instead of `AddTypicalLights()`. The documentation suggests `AddTypicalLights()` for standard lighting; `AddLightDirectional()` is acceptable but less common.  
-- No camera is added explicitly except the chase camera.  
-- No handling of visualization update for sedan (no `sedan_vis.Synchronize()` or `sedan_vis.Advance()` calls).  
-- Minor visualization issues due to missing sedan vehicle.
+- **Incorrect Visualization Attachment (3 points deduction):**  
+  Attaching the tractor subcomponent instead of the vehicle to the visualization system is incorrect.
 
-**Deduct 3 points for incomplete visualization setup for sedan and minor lighting suboptimality.**
+- **Incomplete Visualization Setup for Sedan (2 points deduction):**  
+  The sedan visualization system is initialized but never rendered in the loop, so the window will not update.
+
+**Total Visualization Deduction: 5 points**
 
 ---
 
 ### Summary of Deductions
 
-| Criterion                     | Deduction Points |
-|-------------------------------|------------------|
-| Completeness                  | 20               |
-| Correctness                  | 25               |
-| Code Quality                 | 8                |
-| Efficiency                  | 8                |
-| Error Handling and Robustness | 5                |
-| Visualization Tools          | 3                |
-| **Total Deduction**           | **69**           |
+| Criterion                   | Max Points | Deduction | Points Awarded |
+|-----------------------------|------------|-----------|---------------|
+| Completeness                | 40         | 40        | 0             |
+| Correctness                | 30         | 30        | 0             |
+| Code Quality               | 10         | 7         | 3             |
+| Efficiency                 | 10         | 8         | 2             |
+| Error Handling and Robustness | 5          | 5         | 0             |
+| Use of Visualization Tools | 5          | 5         | 0             |
+| **Total**                  | **100**    | **95**    | **5**         |
 
 ---
 
-### Final Score Calculation
-
-- Maximum points: 100  
-- Total deductions: 69  
-- **Final score: 31**
+### Final Score: [[5]]
 
 ---
 
-### Explanation
+### Explanation:
 
-The script is missing the initialization of the sedan vehicle, which is critical since it is referenced multiple times. There are incorrect API calls for visualization types, redundant calls to advance simulation steps, and lack of synchronization for the sedan visualization. The code quality is moderate but lacks comments and some readability improvements. No error handling is present, and visualization setup is incomplete for the sedan. These issues significantly affect the correctness and robustness of the simulation.
-
----
-
-**Final score:**
-
-[[31]]
+The script misses several essential components, notably explicit system initialization and proper terrain patch creation with contact materials. The visualization setup is flawed by attaching incorrect vehicle components and failing to render the sedan visualization. Driver input handling is not optimally ordered, and the code lacks comments and error handling. Efficiency is reduced by unused variables and incomplete rendering calls. These issues severely impact the simulation's correctness and usability, resulting in a very low score.

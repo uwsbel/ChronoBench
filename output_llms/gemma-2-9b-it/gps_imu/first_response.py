@@ -1,56 +1,61 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
+from pychrono import *
+from pychrono.irrlicht import *
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+# Initialize Chrono
+chrono.SetChronoData(chrono.CH_USE_FAST_SIMULATION)
 
-# 2. Add physical systems and objects
-#   - HMMWV vehicle
-hmmwv = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 1000, chrono.ChVectorD(0, 0, 0), 
-                          chrono.ChVectorD(0.5, 0.5, 0.5))  # Replace with HMMWV parameters
-system.Add(hmmwv)
+# Create the world
+world = ChSystemNSC()
+world.Set_G_acc(ChVectorD(0, 0, -9.81))
 
-#   - Terrain
-terrain = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0), 10000, chrono.ChVectorD(0, 0, 0),
-                          chrono.ChVectorD(10, 10, 1))  # Replace with terrain parameters
-system.Add(terrain)
+# Terrain
+terrain = ChBodyEasyBox(10, 10, 1, 1000)
+terrain.SetPos(ChVectorD(0, 0, 0))
+world.AddBody(terrain)
 
-#   - IMU sensor
-imu = chrono.ChSensor_IMU(hmmwv)
-system.Add(imu)
+# HMMWV
+hmmwv = ChBodyEasyBox(2, 2, 1, 1000)  # Replace with actual HMMWV dimensions
+hmmwv.SetPos(ChVectorD(0, 0, 1))
+world.AddBody(hmmwv)
 
-#   - GPS sensor
-gps = chrono.ChSensor_GPS(hmmwv)
-system.Add(gps)
+# IMU
+imu = ChBodyEasySphere(0.1, 10)
+imu.SetPos(hmmwv.GetPos() + ChVectorD(0, 0, 0.5))
+imu.SetBodyFixed(True)
+world.AddBody(imu)
 
-# 3. Set default parameters
-#   - Positions
-hmmwv.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Adjust HMMWV starting position
+# GPS
+gps = ChBodyEasySphere(0.1, 10)
+gps.SetPos(hmmwv.GetPos() + ChVectorD(0.5, 0, 0.5))
+gps.SetBodyFixed(True)
+world.AddBody(gps)
 
-#   - Forces
-#   - Interactions
-# ... (Define interactions between objects, e.g., wheels and terrain)
+# Driver inputs (placeholder)
+driver_input = ChVectorD(0, 0, 0)
 
-# 4. Visual interface using Irrlicht
-app = irrlicht.IrrlichtApp(system)
-app.Run()
+# Visual system (Irrlicht)
+visual_system = IrrlichtVisualizer(world)
 
-# 5. Simulation loop
+# Simulation loop
 while True:
-    system.DoStepDynamics(0.01)  # Adjust simulation step size
-    
+    # Update driver inputs
+    # ...
+
+    # Update vehicle based on driver inputs
+    hmmwv.AddTorque(driver_input * 10)  # Example torque application
+
+    # Update IMU and GPS sensor data
+    imu_data = imu.GetRot()  # Example: retrieve IMU rotation
+    gps_data = gps.GetPos()  # Example: retrieve GPS position
+
     # Process sensor data
-    imu_data = imu.Get_data()
-    gps_data = gps.Get_data()
-    print(f"IMU Data: {imu_data}")
-    print(f"GPS Data: {gps_data}")
-    
-    # Update vehicle based on driver inputs (not implemented here)
-    
-    # Render the scene using Irrlicht
-    app.Render()
+    # ...
+
+    # Advance simulation
+    world.Step(0.01)
+
+    # Render scene
+    visual_system.Render()
 
     # Output vehicle mass
-    print(f"Vehicle Mass: {hmmwv.GetMass()}")
+    print(f"Vehicle mass: {hmmwv.GetMass()}")

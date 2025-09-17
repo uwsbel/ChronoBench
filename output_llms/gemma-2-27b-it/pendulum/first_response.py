@@ -1,22 +1,26 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
 
 # ---------------------------------------------------------------------
 #
 #  Create the simulation system and add items
 #
 
+# Create a physical system
 mysystem = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set the default material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.3)
+material.SetRestitution(0.2)
 
 # Create the ground body
-ground = chrono.ChBodyEasyBox(1, 1, 0.2, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
 mysystem.Add(ground)
 
 # Create the pendulum bob
-bob = chrono.ChBodyEasySphere(0.2, 1000, True, True)
+bob = chrono.ChBodyEasySphere(0.5, 10, True, True, material)
 bob.SetPos(chrono.ChVectorD(0, 1, 0))
 mysystem.Add(bob)
 
@@ -27,32 +31,26 @@ mysystem.Add(joint)
 
 # ---------------------------------------------------------------------
 #
-#  Create the Irrlicht visualization system
+#  Set up Irrlicht visualization
 #
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(mysystem)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Simple Pendulum")
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalCamera(chrono.ChVectorD(2, 2, 2))
-vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+# Create the Irrlicht application
+myapplication = chronoirr.ChIrrApp(mysystem, 'Simple Pendulum', chronoirr.dimension2du(800, 600))
+
+# Set the visualization mode
+myapplication.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+myapplication.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
 
 # ---------------------------------------------------------------------
 #
 #  Simulation loop
 #
 
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+while (myapplication.GetDevice().run()):
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()
 
-    mysystem.DoStepDynamics(0.01)
-
-    # Print the pendulum's position and velocity every 10 steps
-    if mysystem.GetChTime() % 0.1 == 0:
-        print("Time:", mysystem.GetChTime())
-        print("Position:", bob.GetPos())
-        print("Velocity:", bob.GetPos_dt())
+    # Log pendulum position and velocity
+    print(f"Position: {bob.GetPos()}, Velocity: {bob.GetPos_dt()}")

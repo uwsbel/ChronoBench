@@ -1,64 +1,78 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrl
 import pychrono.ros as roschrono
-import numpy as np
-from irrlicht import IrrlichtDevice
-from std_msgs.msg import Int32
+import pychrono.irrlicht as chronoirr
+import pyros_numpy as pyros
 import rospy
+import numpy as np
 
-def ros_handler(data):
-    print(f"Received ROS message: {data.data}")
 
-def main():
-    
-    chrono.SetChronoDataPath('path/to/chrono/data/folder')
+chrono.SetChronoDataPath('path/to/chrono/data')
 
-    
-    device = IrrlichtDevice(irrl.dimension2d<irr::u32>(800, 600))
 
-    
-    rospy.init_node('pychrono_ros_node')
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-    
-    my_system = chrono.ChSystemSolverPy(chrono.ChSystemSolver_MLS)
-    my_system.Set_G_acc(chrono.ChVector(0, -9.81, 0))
-    my_system.SetSolverType(chrono.ChSolver.Type_PGS_D)
-    my_system.SetSolverMaxIterations(100)
 
-    
-    floor_shape = chrono.ChBoxShape()
-    floor_shape.SetBox(chrono.ChVector(5, 0.1, 5))
-    floor_body = chrono.ChBodyEasyCreateBox(floor_shape, 1000, chrono.ChVector(0, -0.05, 0), chrono.ChFrame(chrono.ChVector(0, 0, 0)))
-    floor_body.SetPos(chrono.ChVector(0, -1, 0))
-    floor_body.SetBodyFixed(True)
-    my_system.AddBody(floor_body)
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.5)
+material.SetRestitution(0.1)
 
-    
-    box_shape = chrono.ChBoxShape()
-    box_shape.SetBox(chrono.ChVector(0.5, 0.5, 0.5))
-    box_body = chrono.ChBodyEasyCreateBox(box_shape, 100, chrono.ChVector(0, 0.5, 0), chrono.ChFrame(chrono.ChVector(0, 0, 0)))
-    my_system.AddBody(box_body)
 
-    
-    ros_manager = roschrono.ChRosManagerPy()
-    ros_manager.Initialize(my_system)
+floor = system.AddBody(chrono.ChBodyEasyBox(10, 0.1, 10, 1000, chrono.ChFrameD(chrono.ChVectorD(0, -0.5, 0))))
+floor.SetMaterialSurface(material)
+floor.SetCollide(True)
 
-    
-    ros_handler_id = ros_manager.CreateCustomHandler(ros_handler)
 
-    
-    ros_manager.AddRosTopic(chrono.ChRosTopicDataImage("camera_feed", 800, 600, 32))
-    ros_manager.AddRosTopic(chrono.ChRosTopicDataInt32("custom_int_topic", 1))
+box = system.AddBody(chrono.ChBodyEasyBox(1, 1, 1, 100, chrono.ChFrameD(chrono.ChVectorD(0, 5, 0))))
+box.SetMaterialSurface(material)
+box.SetCollide(True)
+box.SetPos(chrono.ChVectorD(0, 2, 0))
 
-    
-    while device.run():
-        my_system.DoStepDynamics(1.0 / 60.0)
 
-        
-        ros_manager.Synchronize()
+def ros_handler(body, topic, msg_type):
+    def publish_msg():
+        quat = body.GetPos_dt().GetWxyz()
+        pos = body.GetPos().ToArray()
+        msg = pyros.geometry_msgs.PoseStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.pose.position.x = pos[0]
+        msg.pose.position.y = pos[1]
+        msg.pose.position.z = pos[2]
+        msg.pose.orientation.x = quat[0]
+        msg.pose.orientation.y = quat[1]
+        msg.pose.orientation.z = quat[2]
+        pub.publish(msg)
 
-        
-        ros_manager.TriggerCustomHandler(ros_handler_id)
+    pub = rospy.Publisher(topic, msg_type, queue_size=10)
+    rospy.Timer(chrono.ChTime(0.01), publish_msg)
 
-if __name__ == '__main__':
-    main()
+
+ros_manager = roschrono.ChSystemRosManager()
+clock_handler = roschrono.ChRosClockHandler()
+body_handler = roschrono.ChRosBodyHandler()
+transform_handler = roschrono.ChRosTransformHandler()
+ros_manager.AddHandler(clock_handler)
+ros_manager.AddHandler(body_handler)
+ros_manager.AddHandler(transform_handler)
+ros_manager.AddHandler(ros_handler(box, '/box_pose', pyros.geometry_msgs.PoseStamped))
+
+
+vis = chronoirr.ChIrrApp(system.GetSystem(), 'PyChrono ROS Simulation')
+vis.AddLogo()
+vis.AddTypicalSky()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(0, 100, 0), chrono.ChVectorD(0, -1, 0), 400)
+vis.SetTimestep(chrono.ChTime(1 / 240.0))
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('PyChrono ROS Simulation')
+vis.Initialize()
+vis.AddShadowAll()
+vis.SetShowInfos(True)
+vis.SetShowAxes(True)
+vis.SetShowCameras(True)
+vis.SetShowLogo(True)
+vis.SetShowFPS(True)
+
+while vis.Run():
+    system.DoStepDynamics()
+    ros_manager.Synchronize()

@@ -26,7 +26,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  
+trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -105,7 +105,7 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-double_lane_change_time = 5.0  
+double_lane_change_time = 5  
 double_lane_change_completed = False
 
 while vis.Run() :
@@ -141,9 +141,9 @@ while vis.Run() :
 
     
     if not double_lane_change_completed and time > double_lane_change_time:
-        driver.SetSteering(1.0)  
+        driver.SetSteer(1.0)
         if time > double_lane_change_time * 2:
-            driver.SetSteering(-1.0)  
+            driver.SetSteer(-1.0)
             if time > double_lane_change_time * 3:
-                driver.SetSteering(0.0)  
+                driver.SetSteer(0.0)
                 double_lane_change_completed = True

@@ -33,53 +33,74 @@ terrain.SetTexture(chrono_core.GetChronoDataFile("terrain_texture.jpg"))
 
 vehicle_model = vehicle.FedA_VehicleModel()
 
-vehicle_model.Initialize(chrono_core.GetChronoDataFile("feda_vehicle.obj"), 1.0, 0.0, chrono_core.ChVectorD(0.0, 0.0, 0.0), chrono_core.ChQuaternionD(1.0, 0.0, 0.0, 0.0), chrono_core.ChVectorD(0.0, 0.0, 0.0), chrono_core.ChVectorD(0.0, 0.0, 0.0))
+vehicle_model.Initialize(chrono_core.GetChronoDataFile("feda_vehicle.obj"), 1.0, 0.0, chrono_core.Pose(chrono_core.Vector(0, 0, 0), chrono_core.Quaternion(1, 0, 0, 0)), chrono_core.Pose(chrono_core.Vector(0, 0, 0), chrono_core.Quaternion(1, 0, 0, 0)))
+
+vehicle_model.SetTireModel(vehicle.FedATireModel(chrono_core.GetChronoDataFile("feda_tire.obj")))
+
+vehicle_model.SetContactMethod(vehicle.FedAContactMethod(contact_model=chrono_core.ContactModel_FrictionalCoulomb, contact_friction_coefficient=0.8))
 
 
 
 
-camera_driver = chrono_driver.CameraDriver(chrono_core.GetChronoDataFile("camera_params.xml"))
+camera = chrono_visualization.Camera()
 
-camera_driver.SetVehicle(vehicle_model)
+camera.SetPosition(chrono_core.Vector(0, 5, 5))
 
-camera_driver.SetVehicleModel(vehicle_model)
-
-
-
-
-visualization = chrono_visualization.VisualizationDriver(chrono_core.GetChronoDataFile("vehicle_visualization.xml"), camera_driver)
-
-visualization.SetVehicleModel(vehicle_model)
+camera.LookAt(chrono_core.Vector(0, 0, 0))
 
 
 
 
-driver = chrono_driver.VehicleDriver()
+chrono_visualization.SetRealTime(True)
+
+chrono_visualization.SetWindowTitle("FEDA Vehicle Simulation")
+
+chrono_visualization.SetWindowSize(1280, 720)
+
+chrono_visualization.AddFrameVisualizationType(chrono_visualization.FrameVisualizationType_Mesh)
+
+chrono_visualization.AddFrameVisualizationType(chrono_visualization.FrameVisualizationType_RigidBody)
+
+chrono_visualization.AddFrameVisualizationType(chrono_visualization.FrameVisualizationType_Contact)
 
 
 
 
-while (chrono_core.GetChronoData().GetChTime() < 10.0):
+driver = chrono_driver.Driver()
 
-    
-
-    vehicle_model.SetVehicleDynamics(chrono_core.GetVehicleDynamics())
-
-    vehicle_model.ComputeVehicleDynamics()
-
-
-    
-
-    camera_driver.Update()
-
-    visualization.Update()
-
-
-    
-
-    chrono_core.DoStepDynamics(1.0 / 50.0)
+driver.SetVehicleModel(vehicle_model)
 
 
 
 
-chrono_core.End()
+loop_timer = chrono_core.ChSystemTimer()
+
+loop_timer.SetMaxFPS(50.0)
+
+chrono_core.SetTimer(loop_timer)
+
+
+
+
+while chrono_core.GetChronoData()->GetChTime() < chrono_core.GetChronoData()->GetMaxTime():
+
+    driver.Update()
+
+    vehicle_model.ApplyForcesAndVelocities(chrono_core.GetChronoData(), chrono_core.Vector(0, 0, -9.81), chrono_core.Vector(0, 0, 0))
+
+    terrain.CheckCollisions(vehicle_model, chrono_core.GetChronoData())
+
+    chrono_visualization.RenderAll()
+
+    chrono_core.DoStep(loop_timer, 1e-3)
+
+
+
+
+chrono_core.EndChronoLogging()
+
+chrono_core.GetChronoDataFile("chrono_data_feda_vehicle.hdf5")
+
+chrono_io.SaveHdf5("chrono_data_feda_vehicle.hdf5", chrono_core.GetChronoData())
+
+chrono_core.Shutdown()

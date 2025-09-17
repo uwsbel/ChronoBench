@@ -1,65 +1,48 @@
-from pychrono import Chrono
-from pychrono.core import System
-from pychrono.core.math import Vector3, Matrix4x4
-from pychrono.physics import RigidBody, Contact
-from pychrono.physics.collision import Collision
-from pychrono.rendering import Irrlicht
-from pychrono.rendering.irrlicht import IrrlichtScene, IrrlichtCamera
-from pychrono.rendering.irrlicht import IrrlichtMaterial
-from pychrono.rendering.irrlicht import IrrlichtLight
-from pychrono.rendering.irrlicht import IrrlichtTexture
-from pychrono.rendering.irrlicht import IrrlichtWorld
-from pychrono.vehicle import HMMWV
-from pychrono.terrain import SCMTerrain
-from pychrono.terrain import Soil
-from pychrono.driver import Driver
+import pychrono as p
+import pychrono.irrlicht as irr
 
 
-chrono = Chrono()
+p.init()
 
 
-sys = System(chrono)
+world = p.World()
 
 
-vehicle = HMMWV(sys)
-vehicle.set_mass(1000)
-vehicle.set_position(Vector3(0, 0, 0))
-vehicle.set_rotation(Matrix4x4.identity())
+vehicle = p.Vehicle(world)
+vehicle.set_model("hmmwv.stl")  
+vehicle.set_mass(1000)  
+vehicle.set_position(p.Vector3(0, 0, 0))  
 
 
-terrain = SCMTerrain(sys)
-terrain.set_soil_parameters(Soil.create_soil("clay"))
-terrain.set_height_map(
-    {
-        (0, 0): 1.0,
-        (10, 0): 0.5,
-        (0, 10): 0.5,
-        (10, 10): 1.0,
-    }
-)
+terrain = p.Terrain(world)
+terrain.set_height_map("terrain.png")  
+terrain.set_soil_parameters(p.SoilParameters(density=1000, shear_strength=1000))
 
 
-driver = Driver(sys)
-driver.set_position(Vector3(0, 0, 0))
-driver.set_rotation(Matrix4x4.identity())
+driver = p.Driver(vehicle)
+driver.set_control_mode(p.ControlMode.Manual)
 
 
-irrlicht = Irrlicht()
-scene = IrrlichtScene(irrlicht)
-camera = IrrlichtCamera(scene, Vector3(0, 10, 5))
-camera.set_fov(45)
-camera.set_position(Vector3(0, 10, 5))
-light = IrrlichtLight(scene, Vector3(0, 1, 0))
-
-
-world = IrrlichtWorld(irrlicht)
-world.set_camera(camera)
-world.set_light(light)
+irr_world = irr.IrrlichtEngine()
+irr_world.set_window_size(800, 600)
+irr_world.set_camera_position(p.Vector3(0, 0, 10))
+irr_world.set_camera_look_at(p.Vector3(0, 0, 0))
+irr_world.set_ambient_light(p.Color(0.2, 0.2, 0.2))
+irr_world.set_directional_light(p.Color(1, 1, 1))
 
 
 while True:
     
-    sys.update()
+    world.update()
 
     
-    irrlicht.render()
+    driver.update()
+
+    
+    terrain.update()
+
+    
+    irr_world.render()
+
+    
+    p.sleep(0.01)

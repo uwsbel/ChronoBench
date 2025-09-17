@@ -10,7 +10,7 @@ import os  # Import the OS library for file and directory operations
 class ChFunctionMyFun(chrno.ChFunction):
     def __init__(self):
         chrno.ChFunction.__init__(self)
-    def Get_y(self, x):
+    def GetVal(self, x):
         if x > 0.5:
             return chrno.CH_PI
         else:

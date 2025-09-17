@@ -68,22 +68,9 @@ vis.AddTypicalLights()
 mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
-# Create the spheres for the three-body simulation
-sphere2 = chrono.ChBodyEasySphere(1, 1000, True, True, sphere_mat)
-sphere2.SetPos(chrono.ChVector3d(-10, -10, 0))
-sys.Add(sphere2)
-
-sphere3 = chrono.ChBodyEasySphere(1, 1000, True, True, sphere_mat)
-sphere3.SetPos(chrono.ChVector3d(0, 20, 0))
-sys.Add(sphere3)
-
-# Set initial velocities
-sphere1_vel = chrono.ChVector3d(0.5, 0, 0.1)
-sphere2_vel = chrono.ChVector3d(-0.5, 0, -0.1)
-sphere3_vel = chrono.ChVector3d(0, -0.5, 0.2)
-sphere1.SetPosDt(sphere1_vel)
-sphere2.SetPosDt(sphere2_vel)
-sphere3.SetPosDt(sphere3_vel)
+sys.SetSolverType(chrono.ChSolver.Type_PSOR)
+sys.GetSolver().AsIterative().SetMaxIterations(40)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
 stepsize = 1e-2

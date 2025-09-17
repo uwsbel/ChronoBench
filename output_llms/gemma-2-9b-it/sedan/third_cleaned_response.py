@@ -23,7 +23,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 
-terrainHeight = 0
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -70,10 +70,11 @@ terrain_file = veh.GetDataFile("terrain/highway.obj")
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(chrono.ChContactMaterialNSC(), 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch.SetMesh(terrain_file)
+    terrainLength, terrainWidth, mesh_filename=terrain_file)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -101,13 +102,15 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-kp = 0.5  
-ki = 0.1  
-kd = 0.05 
-target_speed = 20  
-speed_error = 0
-integral_error = 0
-previous_error = 0
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+target_speed = 20.0  
+error = 0.0
+integral = 0.0
+derivative = 0.0
+
+driver.Initialize()
 
 
 
@@ -145,15 +148,12 @@ while vis.Run() :
 
     
     current_speed = vehicle.GetVehicle().GetSpeed()
-    speed_error = target_speed - current_speed
-
-    
-    integral_error += speed_error * step_size
-    derivative_error = (speed_error - previous_error) / step_size
-    throttle_output = kp * speed_error + ki * integral_error + kd * derivative_error
-
-    
-    driver_inputs['throttle'] = throttle_output
+    error = target_speed - current_speed
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    previous_error = error
+    throttle = Kp * error + Ki * integral + Kd * derivative
+    driver_inputs.throttle = throttle
 
     
     driver.Advance(step_size)
@@ -165,4 +165,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-    previous_error = speed_error

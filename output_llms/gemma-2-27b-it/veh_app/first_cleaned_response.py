@@ -1,6 +1,7 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
 import pychrono.irrlicht as chronoirr
+import numpy as np
 
 
 
@@ -8,86 +9,75 @@ import pychrono.irrlicht as chronoirr
 
 
 
-system = chrono.ChSystemNSC()
+mysystem = chrono.ChSystemNSC()
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-terrain_material = chrono.ChMaterialSurfaceNSC()
-terrain_material.SetFriction(0.8)
-terrain_material.SetRestitution(0.2)
-
-
-terrain = chrono.ChBodyEasyBox(
-    200, 200, 1, 1000, True, True, terrain_material
-)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
+terrain = chrono.ChRigidBody()
 terrain.SetBodyFixed(True)
-system.Add(terrain)
+col_terrain = chrono.ChCollisionShape()
+col_terrain.SetGeometry(chrono.ChBoxShape(chrono.ChVectorD(100, 1, 100)))
+terrain.AddCollisionShape(col_terrain)
+terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
+mysystem.Add(terrain)
 
 
-vehicle = chrono.ChVehicle(system)
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(2, 1, 0.5, 1000, True, True))
-vehicle.SetChassisFixed(False)
+gator = chrono.ChVehicle()
+gator.SetSystem(mysystem)
 
 
-wheel_radius = 0.3
-wheel_width = 0.1
-wheel_pos = [
-    chrono.ChVectorD(1, -0.5, 0),
-    chrono.ChVectorD(-1, -0.5, 0),
-    chrono.ChVectorD(1, 0.5, 0),
-    chrono.ChVectorD(-1, 0.5, 0),
-]
-for i in range(4):
-    wheel = chrono.ChWheel(vehicle.GetSystem())
-    wheel.SetRadius(wheel_radius)
-    wheel.SetWidth(wheel_width)
-    wheel.SetFriction(2.0)
-    wheel.SetSuspensionStiffness(1000)
-    wheel.SetSuspensionDamping(100)
-    wheel.SetSteering(True)
-    wheel.SetPos(wheel_pos[i])
-    vehicle.AddWheel(wheel)
+chassis = chrono.ChBody()
+chassis.SetMass(1000)
+chassis.SetInertiaXX(chrono.ChVectorD(100, 100, 100))
+chassis.SetPos(chrono.ChVectorD(0, 1, 0))
+gator.AddChassis(chassis)
 
 
-vehicle.GetChassisBody().SetBodyFixed(False)
-vehicle.GetChassisBody().SetCollide(True)
-vehicle.GetChassisBody().SetVisualizationType(chrono.ChVisualizationType_MESH)
-
-for wheel in vehicle.GetWheels():
-    wheel.SetVisualizationType(chrono.ChVisualizationType_PRIMITIVES)
+wheel_radius = 0.5
+wheel_width = 0.2
 
 
-system.Add(vehicle)
+right_front_wheel = chrono.ChWheel()
+right_front_wheel.SetWheelGeometry(chrono.ChCylinderShape(wheel_radius, wheel_width))
+right_front_wheel.SetPos(chrono.ChVectorD(1, 0.5, 1))
+right_front_wheel.SetSteeringAngle(0)
+gator.AddWheel(right_front_wheel)
 
 
+left_front_wheel = chrono.ChWheel()
+left_front_wheel.SetWheelGeometry(chrono.ChCylinderShape(wheel_radius, wheel_width))
+left_front_wheel.SetPos(chrono.ChVectorD(-1, 0.5, 1))
+left_front_wheel.SetSteeringAngle(0)
+gator.AddWheel(left_front_wheel)
 
 
+right_rear_wheel = chrono.ChWheel()
+right_rear_wheel.SetWheelGeometry(chrono.ChCylinderShape(wheel_radius, wheel_width))
+right_rear_wheel.SetPos(chrono.ChVectorD(1, 0.5, -1))
+right_rear_wheel.SetSteeringAngle(0)
+gator.AddWheel(right_rear_wheel)
 
 
-driver = chrono.ChDriverSystem(vehicle)
+left_rear_wheel = chrono.ChWheel()
+left_rear_wheel.SetWheelGeometry(chrono.ChCylinderShape(wheel_radius, wheel_width))
+left_rear_wheel.SetPos(chrono.ChVectorD(-1, 0.5, -1))
+left_rear_wheel.SetSteeringAngle(0)
+gator.AddWheel(left_rear_wheel)
 
 
-
-
-
-
-sensor_manager = postprocess.ChSensorManager(system)
-
-
-light = postprocess.ChLightPoint(
-    chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1), 1000
-)
-sensor_manager.AddSensor(light)
-
-
-camera = postprocess.ChCamera(
-    chrono.ChVectorD(0, 2, 0), chrono.ChVectorD(0, 0, -1), chrono.ChVectorD(0, 1, 0)
-)
-camera.SetZoom(1.5)
-sensor_manager.AddSensor(camera)
+chassis.SetBodyFixed(False)
+chassis.AddVisualShape(chrono.ChVisualShapeBox(
+    chrono.ChVectorD(2, 1, 3), chrono.ChColor(0.5, 0.5, 0.5)))
+right_front_wheel.AddVisualShape(chrono.ChVisualShapeCylinder(
+    wheel_radius, wheel_width, chrono.ChColor(0, 0, 1)))
+left_front_wheel.AddVisualShape(chrono.ChVisualShapeCylinder(
+    wheel_radius, wheel_width, chrono.ChColor(0, 1, 0)))
+right_rear_wheel.AddVisualShape(chrono.ChVisualShapeCylinder(
+    wheel_radius, wheel_width, chrono.ChColor(1, 0, 0)))
+left_rear_wheel.AddVisualShape(chrono.ChVisualShapeCylinder(
+    wheel_radius, wheel_width, chrono.ChColor(1, 1, 0)))
 
 
 
@@ -95,23 +85,57 @@ sensor_manager.AddSensor(camera)
 
 
 
-vis = chronoirr.ChIrrApp(system, sensor_manager)
-vis.SetWindowSize(1200, 800)
-vis.SetStep(0.01)
-vis.AddTypicalSky()
+driver = chrono.ChDriver()
+driver.SetSystem(mysystem)
+driver.SetVehicle(gator)
+
+
+
+
+
+
+
+sensor_manager = chrono.ChSensorManager()
+mysystem.AddSensorManager(sensor_manager)
+
+
+light1 = chrono.ChLightPoint()
+light1.SetPos(chrono.ChVectorD(5, 5, 5))
+light1.SetColor(chrono.ChColor(1, 1, 1))
+sensor_manager.AddLight(light1)
+
+light2 = chrono.ChLightPoint()
+light2.SetPos(chrono.ChVectorD(-5, 5, 5))
+light2.SetColor(chrono.ChColor(1, 1, 1))
+sensor_manager.AddLight(light2)
+
+
+camera = chrono.ChCamera()
+camera.SetPos(chrono.ChVectorD(0, 2, 5))
+camera.SetDir(chrono.ChVectorD(0, -0.5, -1))
+camera.SetTarget(chassis.GetPos())
+sensor_manager.AddCamera(camera)
+
+
+
+
+
+
+
+vis = chronoirr.ChIrrApp(mysystem)
+vis.SetCamera(camera)
 vis.AddTypicalLights()
-vis.AddCamera(camera)
-
-
-vis.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
-vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-
+vis.AddSkyBox()
+vis.SetWindowSize(800, 600)
+vis.Initialize()
 
 
 
 
 
-while vis.GetDevice().run():
+
+
+while vis.Run():
     vis.BeginScene()
     vis.Render()
 
@@ -119,6 +143,17 @@ while vis.GetDevice().run():
     driver.Update(vis.GetTimeStep())
 
     
-    system.DoStepDynamics(vis.GetTimeStep())
+    terrain.Update(vis.GetTimeStep())
+
+    
+    gator.Update(vis.GetTimeStep())
+
+    
+    sensor_manager.Update(vis.GetTimeStep())
+
+    
+    mysystem.DoStepDynamics(vis.GetTimeStep())
 
     vis.EndScene()
+
+vis.GetDevice().closeDevice()

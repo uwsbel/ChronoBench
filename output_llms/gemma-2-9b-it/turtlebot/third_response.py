@@ -30,21 +30,19 @@ robot.Initialize()  # Initialize the robot
 # Create sensor manager
 sensor_manager = SensManager(system)
 
-# Configure and add lidar sensor
-lidar = chrono.ChSensorLidar()
-lidar.SetRange(5)  # Set maximum range of the lidar
-lidar.SetAngleRes(math.pi / 180 * 10)  # Set angular resolution
-lidar.SetNumAngles(360)  # Set number of angles
-lidar.SetFilterType(chrono.ChSensorLidar.FilterType_GAUSSIAN)  # Set filter type
-lidar.SetFilterSigma(0.2)  # Set filter sigma
-sensor_manager.AddSensor(lidar, robot.GetBody())  # Add lidar sensor to the robot
-
-# Create randomly placed boxes
-for i in range(5):
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 1)))
-    box.SetBodyFixed(False)
-    system.Add(box)
+# Configure and add a lidar sensor
+lidar = SensLidar(
+    system,
+    robot.GetBody(),
+    position=chrono.ChVector3d(0, 0, 0.1),
+    rotation=chrono.ChQuaterniond(1, 0, 0, 0),
+    range=5.0,
+    angle_resolution=0.1,
+    num_rays=360,
+    filter_type=SensLidar.FilterType_GAUSSIAN,
+    filter_sigma=0.2,
+)
+sensor_manager.AddSensor(lidar)
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -65,29 +63,14 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Define WheelID enum values for motor control
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-# Motion control function
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'left':
-        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
-    elif mode == 'right':
-        robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
-
 # Simulation loop
 time = 0
 while vis.Run():
-    move('straight')  # Move Turtlebot straight
-
     # Update sensor manager
     sensor_manager.Update()
+
+    # Move the robot
+    move('straight')  
 
     # Increment time counter
     time += time_step
@@ -99,3 +82,15 @@ while vis.Run():
 
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
+
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(-0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)

@@ -41,12 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-log_step_size = 1e-2  
-log_steps = math.ceil(log_step_size / step_size)
-gps_data = []
-
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -70,8 +65,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -89,16 +84,13 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChInteractiveDriverIRR(vis)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
+driver = veh.ChDriver(vehicle.GetVehicle())
 driver.Initialize()
+
+
+log_step_size = 0.1  
+log_steps = math.ceil(log_step_size / step_size)
+gps_data = []
 
 
 manager = sens.ChSensorManager(vehicle.GetSystem())
@@ -132,10 +124,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
-
-
-
-
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
@@ -144,7 +132,6 @@ render_steps = math.ceil(render_step_size / step_size)
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
 
 
 while vis.Run():
@@ -155,20 +142,17 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
     
+    throttle = 0.8 if time < 6 else 0.0
+    steering = 0.1  
+    braking = 0.0 if time < 6 else 0.5
+
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
+
     driver_inputs = driver.GetInputs()
-
-    
-    if time < 6:
-        driver_inputs.m_throttle = 0.8
-        driver_inputs.m_steering = 0.5
-        driver_inputs.m_braking = 0.0
-    else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_braking = 1.0
 
     
     driver.Synchronize(time)
@@ -184,13 +168,10 @@ while vis.Run():
 
     
     manager.Update()
-    
+
     
     if step_number % log_steps == 0:
-        gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
-            gps_info = gps_buffer.GetGPSData()
-            gps_data.append((time, gps_info.x(), gps_info.y(), gps_info.z()))
+        gps_data.append(gps.GetGPSData())
 
     
     step_number += 1

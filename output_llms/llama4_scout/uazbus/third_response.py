@@ -68,7 +68,7 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Add a box obstacle
+# Create a box obstacle
 obstacle_body = chrono.ChBody()
 obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
 obstacle_shape = chrono.ChBox(chrono.ChVector3d(0.25, 2.5, 0.1))

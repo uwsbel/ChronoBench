@@ -1,7 +1,6 @@
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import random
 
 # ---------------------------------------------------------------------
 #
@@ -9,118 +8,78 @@ import random
 #
 
 mysystem = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # Create a material for the particles
 material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.2)
-material.SetRestitution(0.5)
+material.SetFriction(0.3)
+material.SetRestitution(0.2)
 
-# Create an Irrlicht visualization system
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(mysystem)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('Particle Gravity Simulation')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1))
-
-# ---------------------------------------------------------------------
-#
-#  Particle emitter settings
-#
-
-class ParticleEmitter:
-    def __init__(self, system, pos, rate):
-        self.system = system
-        self.pos = pos
-        self.rate = rate
-        self.timer = 0
-
-    def Update(self, dt):
-        self.timer += dt
-        if self.timer > 1/self.rate:
-            self.timer = 0
-            self.EmitParticle()
-
-    def EmitParticle(self):
-        # Create a particle body
-        body = chrono.ChBody()
-        body.SetMass(1)
-        body.SetPos(self.pos)
-
-        # Randomize shape, velocity, and orientation
-        shape = random.choice([chrono.ChSphereShape(), chrono.ChBoxShape(chrono.ChVectorD(0.1, 0.1, 0.1))])
-        body.AddAsset(shape)
-        body.SetBodyFixed(False)
-        body.SetVel(chrono.ChVectorD(random.uniform(-1, 1), random.uniform(0, 2), random.uniform(-1, 1)))
-        body.SetRot(chrono.Q_from_AngAxis(random.uniform(0, 2*3.14159), chrono.ChVectorD(random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))))
-
-        # Add the particle to the system
-        self.system.AddBody(body)
+# Create an Irrlicht application
+myapplication = chronoirr.ChIrrApp(mysystem, "Particle Attraction", chronoirr.dimension2du(800, 600))
+myapplication.AddTypicalSky()
+myapplication.AddTypicalCamera(chrono.ChVectorD(0, 5, 5))
+myapplication.SetShowInfos(True)
 
 # Create a particle emitter
-emitter = ParticleEmitter(mysystem, chrono.ChVectorD(0, 5, 0), 10)
+emitter = chrono.ChParticleEmitter(mysystem)
+emitter.SetPos(chrono.ChVectorD(0, 10, 0))
+emitter.SetFlowRate(10)  # Particles per second
+emitter.SetParticleRadius(0.1)
+emitter.SetMaterial(material)
+
+# Set random particle properties
+emitter.SetRandomShape(True)
+emitter.SetRandomPos(chrono.ChVectorD(-2, 2, -2), chrono.ChVectorD(2, 2, 2))
+emitter.SetRandomVel(chrono.ChVectorD(-1, 0, -1), chrono.ChVectorD(1, 0, 1))
+emitter.SetRandomRot(chrono.ChQuaternionD(1, 0, 0, 0), chrono.ChQuaternionD(0, 1, 0, 0))
 
 # ---------------------------------------------------------------------
 #
 #  Custom gravitational force
 #
 
-class GravityForce(chrono.ChForce):
+class ParticleAttraction:
     def __init__(self, strength):
-        chrono.ChForce.__init__(self)
         self.strength = strength
 
-    def AddForce(self, body, dt):
-        for other_body in mysystem.Get_bodylist():
-            if body != other_body:
-                r = other_body.GetPos() - body.GetPos()
-                dist = r.Length()
-                force = self.strength * body.GetMass() * other_body.GetMass() / (dist**2)
-                body.AddForce(force * r.GetNormalized())
+    def ApplyForce(self, particle1, particle2):
+        r = particle2.GetPos() - particle1.GetPos()
+        dist = r.Length()
+        if dist > 0:
+            force = self.strength * particle1.GetMass() * particle2.GetMass() / dist**2
+            force_vec = r.GetNormalized() * force
+            particle1.AddForce(force_vec)
+            particle2.AddForce(-force_vec)
 
-# Create a custom gravity force
-gravity_force = GravityForce(10)
+attraction = ParticleAttraction(10)
+
+# Apply the custom force to all particle pairs
+for i in range(mysystem.Get_Nbodies()):
+    for j in range(i + 1, mysystem.Get_Nbodies()):
+        particle1 = mysystem.Get_Body(i)
+        particle2 = mysystem.Get_Body(j)
+        if isinstance(particle1, chrono.ChParticle) and isinstance(particle2, chrono.ChParticle):
+            mysystem.AddForce(chrono.ChForceCustom(particle1, particle2, attraction.ApplyForce))
 
 # ---------------------------------------------------------------------
 #
-#  Simulation loop
+# Simulation loop
 #
 
-while vis.Run():
-    mysystem.DoStepDynamics(0.01)
-    emitter.Update(0.01)
-    gravity_force.AddForce(mysystem.Get_bodylist()[0], 0.01)
-    vis.Render()
-
-
+myapplication.SetTimestep(0.01)
+whilemyapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    mysystem.DoStepDynamics(myapplication.GetTimestep())
+    myapplication.EndScene()
 
 ```
 
-**Explanation:**
+This script will:
 
-1. **Initialization:**
-   - Sets up the PyChrono system (`mysystem`) with gravity.
-   - Creates a material for particle interaction.
-   - Initializes Irrlicht visualization (`vis`).
-
-2. **Particle Emitter:**
-   - Defines a `ParticleEmitter` class to generate particles.
-   - Randomizes particle shape, position, velocity, and orientation.
-   - Adds particles to the system at a specified rate.
-
-3. **Custom Gravity Force:**
-   - Defines a `GravityForce` class that calculates and applies gravitational attraction between particles.
-
-4. **Simulation Loop:**
-   - Runs the simulation loop, updating the system, emitter, and applying the custom gravity force.
-   - Renders the visualization using Irrlicht.
-
-**Key Points:**
-
-
-
-- **Customization:** You can adjust parameters like particle rate, gravity strength, and initial conditions.
-- **Visualization:** Irrlicht provides a basic 3D visualization. You can explore more advanced visualization options in PyChrono.
-- **Forces:** PyChrono allows you to implement various forces and interactions beyond gravity.
+1. **Initialize PyChrono and Irrlicht:** Set up the simulation environment and visualization.
+2. **Create Particle Emitter:** Generate particles with random properties.
+3. **Define Custom Gravitational Force:** Implement a class `ParticleAttraction` to calculate the force between particles.
+4. **Apply Force:** Loop through all particle pairs and apply the custom gravitational force using `ChForceCustom`.
+5. **Simulation Loop:** Run the simulation, visualizing the particles and their interactions.

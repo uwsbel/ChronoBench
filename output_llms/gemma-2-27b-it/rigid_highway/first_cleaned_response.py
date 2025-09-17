@@ -8,32 +8,41 @@ import pychrono.vehicle as chronovehicle
 
 
 
-mysystem = chrono.ChSystemNSC()
-mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-
-mysystem.SetTimestepperType(chrono.ChTimestepperType.CHRONO_TS_FIXED)
-mysystem.SetStep(1.0 / 50.0)
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(mysystem)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('HMMWV Simulation')
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 10, -20))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
-terrain_mesh_col = chrono.ChObjFileLoader().LoadMesh("Highway_col.obj")
-terrain_mesh_vis = chrono.ChObjFileLoader().LoadMesh("Highway_vis.obj")
+timestep = 1.0 / 50.0
 
-terrain = chrono.ChRigidBody()
+
+
+
+
+
+
+
+terrain_col = chrono.ChTriangleMeshShape()
+terrain_col.LoadWavefrontMesh("Highway_col.obj")
+
+terrain_vis = chrono.ChVisualShape()
+terrain_vis.LoadWavefrontMesh("Highway_vis.obj")
+
+
+terrain = chrono.ChBody()
 terrain.SetBodyFixed(True)
-terrain.SetCollide(True)
-
-terrain.AddAsset(terrain_mesh_col)
-terrain.AddAsset(terrain_mesh_vis)
-
-mysystem.Add(terrain)
+terrain.AddShape(terrain_col)
+terrain.AddVisualShape(terrain_vis)
+system.AddBody(terrain)
 
 
 
@@ -41,34 +50,37 @@ mysystem.Add(terrain)
 
 
 
-vehicle = chronovehicle.ChVehicle("HMMWV")
+
+vehicle = chronovehicle.ChVehicleSystem()
+vehicle.SetSystem(system)
 
 
-vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0))
-vehicle.SetChassisRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+vehicle.AddVehicle(chronovehicle.ChVehicleModelData("HMMWV_model.json"))
 
 
-vehicle.SetContactMethod(chronovehicle.ChContactMethod.NSC)
-vehicle.SetTireModel(chronovehicle.ChTireModel.TMEASY)
+vehicle.GetChassis().SetPos(chrono.ChVectorD(0, 0, 0))
+vehicle.GetChassis().SetRot(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
 
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetTireModel(chronovehicle.TMEasy())
 
 
-
-mysystem.Add(vehicle)
-
-
-
+vehicle.SetVisualizationType(chronovehicle.VisualizationType_MESH)
 
 
 
 
-driver = chronovehicle.ChDriver()
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
 
-vehicle.SetDriver(driver)
+
+
+
+driver = chronovehicle.ChDriverSystem(vehicle)
+
+
+driver.SetSteeringInput(chrono.ChFunction_Const(0))
+driver.SetThrottleInput(chrono.ChFunction_Const(0))
+driver.SetBrakingInput(chrono.ChFunction_Const(0))
 
 
 
@@ -78,13 +90,15 @@ vehicle.SetDriver(driver)
 
 while vis.Run():
     
-    
+    time = system.GetChTime()
 
     
-    driver.Update(mysystem.GetChTime())
+    driver.Update(time, timestep)
 
     
-    mysystem.DoStepDynamics(1.0 / 50.0)
+    system.DoStepDynamics(timestep)
 
     
+    vis.BeginScene()
     vis.Render()
+    vis.EndScene()

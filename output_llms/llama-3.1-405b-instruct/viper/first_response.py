@@ -40,29 +40,31 @@ app.AttachSystem(sys)
 app.SetWindowSize(800, 600)
 app.SetWindowTitle("Viper Rover Simulation")
 app.AddCamera(chrono.ChVectorD(0, 0, 5))  # camera position
-app.AddLight(chrono.ChVectorD(5, 5, 5),  # light position
-             chrono.ChVectorD(0, 0, 0),  # light direction
-             1)  # light intensity
+app.AddLight(chrono.ChVectorD(0, 0, 5),  # light position
+             chrono.ChVectorD(0, 0, -1))  # light direction
 
 # Simulation loop
-time_step = 0.01
-time_end = 10
-time = 0
-steering = 0
-steering_rate = 0.1
+t_end = 10  # end time
+t_step = 0.01  # time step
+t = 0
+steering_angle = 0
+steering_rate = np.pi / 4  # steering rate (rad/s)
 
-while time < time_end:
-    # Update the rover's steering
-    steering += steering_rate * time_step
-    driver.SetSteering(steering)
+while t < t_end:
+    # Update the steering angle
+    steering_angle += steering_rate * t_step
+    driver.SetSteeringAngle(steering_angle)
 
     # Update the system
-    sys.DoStepDynamics(time_step)
+    sys.DoStepDynamics(t_step)
 
     # Render the system
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
 
-    # Increment time
-    time += time_step
+    # Update the time
+    t += t_step
+
+app.Shutdown()
+sys.Shutdown()

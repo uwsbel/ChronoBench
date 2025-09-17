@@ -15,42 +15,44 @@ vehicle_system.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
 vehicle_system.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vehicle_system.SetContactMethod(vehicle.ChContactMethod_FEA)
-vehicle_system.SetChassisVisualizationType(vehicle.ChVehicleVisualizationType_PRIMITIVES)
+vehicle_system.SetContactMethod(chrono.ChContactMethod_NSC)
 
 
-terrain = chrono.ChTerrain()
-terrain.SetTexture(chrono.GetChronoDataFile('vehicle/textures/tile4.jpg'), 200, 200)
-terrain.Initialize(vehicle_system.GetSystem())
+vehicle_system.SetChassisVisualizationType(chrono.ChVehicleVisualizationType_PRIMITIVES)
 
 
-terrain.Set_tx(200)
-terrain.Set_tz(200)
+terrain = chrono.ChRigidTerrain(vehicle_system.GetSystem())
+terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/tarmac.jpg'))
+terrain.SetContactMaterial(3e7, 0.4)
+terrain.Initialize(chrono.ChVectorD(-100, 0, -100), chrono.ChVectorD(100, 0, 100))
 
 
-vehicle_system.AddAsset(terrain)
+terrain.Add(vehicle_system.GetChassis())
 
 
 driver = vehicle.ChIrrGuiDriver(vehicle_system, 0.01)
 driver.SetSteeringDelta(0.04)
-driver.SetSteeringSpeed(1.0)
 driver.SetThrottleDelta(0.2)
-driver.SetBrakingDelta(0.3)
+driver.SetBrakingDelta(-0.2)
 
 
-visualization = chronoirr.ChIrrApp(vehicle_system, 'ARTcar Simulation', chronoirr.dimension2d(800, 600), True, True)
+application = chronoirr.ChIrrApp(vehicle_system, "ARTcar Simulation", chronoirr.dimension2d(1280, 720), driver)
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 5, -10))
+application.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+application.AddShadowAll()
 
 
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-visualization.AddTypicalSky(chrono.GetChronoDataFile('skybox/daewoo_512.jpg'))
-visualization.AddTypicalLights()
-visualization.AddTypicalCamera(chrono.ChVectorD(0.5, 0.5, -1.5))
-visualization.AddPostprocessor(postprocess.ChGlobalPostprocessor(vehicle_system.GetSystem()))
+postprocessor = postprocess.ChChronoPostprocess(vehicle_system)
+postprocessor.SetVerbose(True)
+postprocessor.AddTypicalLoggers(vehicle_system)
 
 
-visualization.SetTimestep(0.01)
-visualization.SetTryRealtime(True)
-visualization.SetFPS(50)
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
 
-
-visualization.Run()
+chrono.Chrono_Close()

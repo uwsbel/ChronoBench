@@ -1,55 +1,73 @@
 importchrono
-import ChronoEngine as chrono
-import ChronoPostprocess as postprocess
+importchrono.vehicle as vehicle
+importchrono.visual as vis
+importchrono.io as io
+importchrono irrlicht as irre
 
 
-system = chrono.ChSystemDFS()
-application = chrono.ChIrrApp(system, "Gator Vehicle Simulation", chrono.CIrrlicht::.dimension2du(1024, 768))
-application.SetCameraVerticalSpeed(5)
-application.SetCameraVerticalDistance(5)
-application.SetCameraHorizontalDistance(5)
-application.SetCameraHeight(5)
-application.SetFullScreen(False)
-application.Initialize()
+system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolverType.CH_SOLVER_PGS)
+system.SetSolverMaxIterations(100)
+system.Set timestep(0.001)
 
 
-vehicle = chrono.vehicle.Gator()
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
-vehicle.SetInitRotation(chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0))
-vehicle.SetContactMethod("chrono")
-vehicle.SetTireModel("tmeasy")
-vehicle.SetRenderMesh(True)
-system.Add(vehicle.GetChassis())
+application = irre.ChIrrApp(system, "Gator Vehicle Simulation", chronojournal.GetChronoDataPath() + " irrlicht/data")
+application.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
+application.SetCameraRotation(chrono.ChVectorD(0, -45, 0))
+application.AddTypicalLights()
 
 
-terrain = chrono.ChRigidTerrain()
-terrain.SetDimensions(chrono.ChVectorD(100, 100, 0.1))
-terrain.SetTexture("path/to/terrain_texture.jpg", 5, 5)
-system.Add(terrain)
+terrain = vehicle.ChRigidTerrain(system)
+terrain.SetDimensions(chrono.ChVectorD(100, 100, 1))
+terrain.SetTexture(io.GetChronoDataFile("textures/grass.jpg"))
+terrain.SetHeightMap(io.GetChronoDataFile("terrain/height_map.txt"))
+application.AddBody(terrain.GetBody())
 
 
-driver = chrono.ChIrrGuiDriver(application)
-driver.SetVehicle(vehicle)
+gator = vehicle.ChGator()
+gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+gator.SetContactMethod(chrono.ChContactMethod.NODE)
+gator.SetTireType(vehicle.ChTireType.TMEASY)
+gator.SetUse_mesh(True)
 
 
-step_size = 1 / 50.0
-real_time_factor = 1.0
+system.Add(gator.GetChassis())
+for wheel in gator.GetWheelSet().GetWheelList():
+    system.Add(wheel.GetBody())
+    application.AddBody(wheel.GetBody())
 
-while application.GetDevice().run():
+
+driver = vehicle.ChDriver(gator.GetDriver())
+driver.SetThrottle(0)
+driver.SetSteering(0)
+driver.SetBraking(0)
+
+
+def key_press(key, mod):
+    if key == 'a':
+        driver.SetSteering(-0.5)
+    elif key == 'd':
+        driver.SetSteering(0.5)
+    elif key == 'w':
+        driver.SetThrottle(0.5)
+    elif key == 's':
+        driver.SetBraking(0.5)
+
+application.keyboard().RegisterCallback(key_press)
+
+
+while application.GetDevice().Run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
     
-    vehicle.Update(chrono.GetChTime())
+    
     driver.Update()
     
     
-    terrain.Update()
+    system.DoStepDynamics(0.001)
     
     
-    system.DoStepDynamics(step_size)
-    application.GetDevice().setTimeStep(step_size * real_time_factor)
-    
-    
-    if application.GetDevice().isKeyDown(chrono.CH_KEY_ESCAPE):
-        break
+    application.GetDevice().Sleep(1/50)
 
-
-application.GetDevice().closeDevice()
+print("Simulation stopped")

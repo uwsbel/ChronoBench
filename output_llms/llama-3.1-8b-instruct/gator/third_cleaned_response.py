@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES  
+vis_type = veh.VisualizationType_PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_MESH  
+chassis_collision_type = veh.CollisionType_MESH
 
 
 tire_model = veh.TireModelType_TMEASY
@@ -48,6 +48,10 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
+chassis_shape = vehicle.GetChassis().GetCollisionShape()
+chassis_shape.SetCollisionType(chrono.ChCollisionShapeType_BOX)
+chassis_shape.SetBoxDim(1, 1, 0.5)
 
 vehicle.Initialize()
 

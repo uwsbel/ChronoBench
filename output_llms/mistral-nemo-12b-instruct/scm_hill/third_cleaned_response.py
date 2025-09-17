@@ -15,13 +15,13 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 
-chassis_collision_type = veh.CollisionType_NONE
+chassis_collision_type = veh.CollisionType_MESH
 
 
 tire_model = veh.TireModelType_RIGID
 
 
-terrain_model = veh.RigidTerrain.BOX
+terrain_model = veh.RigidTerrain.PLANE
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -60,7 +60,12 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model, terrainLength, terrainWidth, terrainHeight)
+terrain = veh.RigidTerrain(vehicle.GetSystem(), terrain_model)
+terrain.SetLength(terrainLength)
+terrain.SetWidth(terrainWidth)
+terrain.SetHeight(terrainHeight)
+
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 

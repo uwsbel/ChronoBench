@@ -3,62 +3,81 @@ import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+chrono.SetChronoDataPath("/path/to/chrono/data/")  
+my_system = chrono.ChSystemNSC()
 
 
-sys = chrono.ChSystemFsi()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-
-num_elements = 20
-beam_length = 2.0
-beam_radius = 0.1
-num_nodes = num_elements + 1
+beam_mat = fea.ChMaterialBeamElastoplastic()
+beam_mat.SetYoungModulus(210e9)
+beam_mat.SetDensity(7850)
 
 
 beam = fea.ChElementBeamIGA()
-beam.SetNodes(
-    fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0))),
-    fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0))),
-    num_elements,
-    num_nodes,
-    beam_radius,
-)
+beam.SetMaterial(beam_mat)
 
 
-flywheel = chrono.ChBodyEasyCylinder(0.2, 0.1, 1000)
-flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetBodyFixed(False)
+mesh = fea.ChMesh()
+mesh.AddElement(beam)
+my_system.Add(mesh)
 
 
-constraint = fea.ChLinkPointFrame()
-constraint.Initialize(flywheel, beam.GetNode(beam.GetNnodes() // 2))
-sys.Add(constraint)
+num_nodes = 10
+for i in range(num_nodes):
+    node = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(i, 0, 0)))
+    mesh.AddNode(node)
 
+
+flywheel_body = chrono.ChBody()
+flywheel_body.SetMass(10)
+flywheel_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+flywheel_body.SetPos(chrono.ChVectorD(num_nodes//2, 0, 0))
+my_system.Add(flywheel_body)
+
+
+constraint = chrono.ChLinkMateFix()
+constraint.Initialize(flywheel_body, mesh.GetNode(num_nodes//2))
+my_system.Add(constraint)
+
+
+motor_body = chrono.ChBody()
+motor_body.SetMass(1)
+motor_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+motor_body.SetPos(chrono.ChVectorD(0, 0, 0))
+my_system.Add(motor_body)
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(beam.GetNode(0), beam.GetNode(1), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunctionConst(chrono.CH_C_PI))  
-sys.Add(motor)
+motor.Initialize(motor_body, mesh.GetNode(0), chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunctionConst(chrono.CH_C_2PI))
+my_system.Add(motor)
 
 
-sys.Add(beam)
+
+for i in range(num_nodes):
+    mesh.GetNode(i).SetPos(chrono.ChVectorD(i, 0, 0))
 
 
-vis = fea.ChVisualizationFEAbeam(beam)
-vis.SetFEMdataType(fea.ChVisualizationFEAbeam.E_PLOT_ELEM_BEAM_MZ)
-vis.SetColorscaleMinMax(-400, 400)
-vis.SetSmoothMesh(True)
-sys.Add(vis)
+vis_mat = chrono.ChVisualMaterial()
+vis_mat.SetKdTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+
+beam_viz = fea.ChVisualizationFEAmesh(mesh, True, True)
+beam_viz.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+beam_viz.SetColorscaleMinMax(-0.1, 0.1)
+beam_viz.SetSmoothMesh(True)
+beam_viz.SetWireframe(True)
 
 
-vis_app = chronoirr.ChIrrApp(sys, "IGA Beam Simulation", chronoirr.dimension2du(800, 600))
-vis_app.AddTypicalLights()
-vis_app.AddCamera(chronoirr.vector3df(0, 1, -3))
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, -5))
+vis.AddTypicalLights()
+vis.AddVisualModel(chrono.ChVisualModel(beam_viz))
 
 
-while vis_app.GetDevice().run():
-    sys.DoStepDynamics(0.01)
-    vis_app.BeginScene(True, True, chronoirr.SColor(255, 140, 161, 192))
-    vis_app.DrawAll()
-    vis_app.EndScene()
+while vis.Run():
+    my_system.DoStepDynamics(1e-3)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

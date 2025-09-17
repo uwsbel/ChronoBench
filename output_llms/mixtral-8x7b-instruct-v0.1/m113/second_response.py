@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrain_model = veh.TerrainModelType_SCM
+terrain_model = veh.SCMTerrain.HEIGHT_MAP
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -60,22 +60,10 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM terrain
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch_mat.SetYoungModulus(5e7)
-patch_mat.SetPoissonRatio(0.4)
-patch_mat.SetDensity(1500)
-
-terrain = veh.Terrain(vehicle.GetSystem(), terrain_model)
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.Initialize(veh.Terrain::TERRAIN_INITIALIZE_HEIGHTMAP, 
-                 veh.GetDataFile("terrain/heightmaps/heightmap_100x100.png"))
-patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain = veh.SCMTerrain(vehicle.GetSystem(), terrain_model, chrono.GetChronoDataPath() + 'terrain/heightmaps/terrain_heightmap.png')
+terrain.SetDimensions(terrainLength, terrainWidth)
+terrain.SetHeight(terrainHeight)
+terrain.SetSoilParams(1000, 0.3, 0.5, 0.1, 0.1, 0.1, 0.01, 0.01)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface

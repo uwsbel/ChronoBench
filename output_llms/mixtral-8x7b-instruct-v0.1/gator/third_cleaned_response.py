@@ -95,7 +95,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 5.0  
 throttle_time = 5.0  
-braking_time = 1.5   
+braking_time = 2.0   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

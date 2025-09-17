@@ -5,114 +5,45 @@ import matplotlib.pyplot as plt
 # Initialize PyChrono environment
 pc.init()
 
-# Create a coordinate system
-s = pc.SimulationSetup()
-s.set_gd(1, 1, 1)
+# Set up solver configuration
+solver_config = pc.SolverConfig()
+solver_config.set_tolerance(1e-6)
+pc.solve_config(solver_config)
 
-# Create the beam
-beam = pc.IGABeam(s, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-L = 4  # Length of the beam
-A = 0.2  # Cross-sectional area
-I_beam = 1/12 * A * L**4  # Moment of inertia of the beam
-beam.set_properties(
-    length=L,
-    cross_section_area=A,
-    material_name="Steel",
-    young_modulus=200000,
-    poisson_ratio=0.2,
-    density=7850,
-    moment_inertia=I_beam,
-    shear_inertia=0.1*A*L**3
-)
+# Create the Jeffcott rotor beam
+beam = pc.iga_beam(pc.IGABeamProperties(length=4.0, cross_section=pc.CROSS_SECTION_SQUARE(0.2), density=8000, young_modulus=210e9))
 
-# Attach the flywheel
-flywheel = pc.DiskFlywheel(beam, beam.get_point(beam.size))
-R_fly = 0.5  # Radius of the flywheel
-thickness_fly = 0.1  # Thickness of the flywheel
-density_fly = 7850  # Density of the flywheel
-mass_fly = (np.pi * R_fly**2 * thickness_fly) * density_fly
-flywheel.set_properties(
-    radius=R_fly,
-    thickness=thickness_fly,
-    material_name="Steel",
-    density=density_fly,
-    mass=mass_fly,
-    moment_inertia=mass_fly * R_fly**2
-)
+# Create and attach the flywheel
+flywheel = pc.rigid_body(pc.MASS(1.0), pc.VECTOR3D(0, 0, 0))
+beam.rigid_body.set_center_of_mass(pc.VECTOR3D(2, 0, 0))
+pc.attach(flywheel, beam.rigid_body, pc.VECTOR3D(0, 0, 0))
 
-# Attach the motor
-motor = pc.RevoluteMotor(flywheel, flywheel.get_point(pc.vector3(0, 1, 0)))
-motor.set_properties(
-    inertia=motor.get_point(pc.vector3(0, 1, 0)).length()**2 * 1e-4,
-    damping=0.1,
-    initial_torque=0
-)
+# Create the rotational motor
+motor = pc.motor_rotational(pc.MASS(0.01), pc.VECTOR3D(0, 0, 0))
+beam.rigid_body.set_joint(motor, pc.VECTOR3D(0, 0, 0))
+motor.set_inertia(pc.MATRIX3x3(0.01, 0, 0, 0, 0, 0, 0, 0, 0), pc.VECTOR3D(0, 0, 0))
+motor.set_force(pc.VECTOR3D(0, 0, 0), pc.VECTOR3D(0, 10, 0))
+motor.set_ang_vel(pc.VECTOR3D(0, 100, 0))
 
-# Define the system
-system = pc.System(s)
-system.add(beam)
-system.add(flywheel)
-system.add(motor)
+# Apply gravity
+pc.gravity(pc.VECTOR3D(0, -9.81, 0))
 
-# Add forces and interactions
-# Elastic forces in the beam
-spring = pc.Spring(beam, beam.get_point(pc.vector3(-1, 0, 0)), 0.1, 1e8)
-system.add(spring)
+# Set up visualization
+vis = pc.Irrlicht()
+vis.set_background_color(pc.Vec3(0.0, 0.0, 0.0))
+vis.set_camera(pc.Cam(10, 10, 10, 0, 0, -1, 0, 0, 0))
+vis.add_light(pc.Vec3(0, 0, 10))
 
-# Rotational inertia of the flywheel
-system.add(pc.Damping(flywheel, flywheel.get_point(pc.vector3(0, 1, 0)), 0.1))
-
-# Motor torque
-def motor_torque(t):
-    return 0.5 * (1 - np.exp(-t/0.1))  # Linear acceleration to speed up
-
-system.add(pc.Torque(motor, motor.get_point(pc.vector3(0, 1, 0)), motor_torque))
-
-# Visualization setup
-window = pc.IrrlichtWindow(800, 600, 0, 0, 0, False)
-window.add(beam)
-window.add(flywheel)
-window.add(pc.StressVisualizer(beam, 0, 0, 0, "Stress", 0.5, 0, 0, 0, 0, 0))
-window.add(pc.DeformationVisualizer(beam, 0, 0, 0, "Deformation", 0.5, 0, 0, 0, 0, 0))
-
-# Simulation setup
-sim = pc.Simulation(s, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-sim.set_contact=False
-sim.set_gravity=False
-
-# Add damping forces
-damping = pc.DampingForces()
-damping.add(pc.DampingForce(beam, beam.get_point(pc.vector3(0, -1, 0)), 0.1, 0.5))
-system.add(damping)
-
-# Add gravity
-g = pc.GravityEngine(s, pc.vector3(0, -9.81, 0))
-system.add(g)
-
-# Add simulation steps
-t_final = 5
-dt = 0.01
-n_steps = int((t_final / dt) + 1)
-sim.set_timestep(dt)
-sim.set_max_steps(n_steps)
-
-# Add motor torque as a function of time
-def update_torque(t):
-    return motor_torque(t)
-sim.add_user_function(update_torque)
+# Add visualization for the beam
+beam.add_mesh_points(pc.MeshPoints(0.01, 0.01, 0.01), pc.Colors(1, 1, 1), pc.SHADER_FILLED)
+vis.render()
 
 # Run the simulation
-sim.run()
+t = 0.0
+h = 0.001
+n = 10000
+for i in range(n):
+    pc.step()
+    t += h
 
-# Animate the results
-plt.figure(figsize=(10, 8))
-t = np.linspace(0, t_final, n_steps)
-plt.plot(t, np.array([sim.get_tip_deflection(0, 0, 0)[0] for t in t]))
-plt.title('Tip Deflection vs Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Deflection (m)')
-plt.colorbar()
 plt.show()
-
-window.close()
-pc.finalize()

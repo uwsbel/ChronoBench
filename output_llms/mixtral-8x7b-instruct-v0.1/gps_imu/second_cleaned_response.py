@@ -134,6 +134,10 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
+
+
+
+
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
@@ -160,23 +164,13 @@ while vis.Run():
             gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
     
-    driver_inputs = driver.GetInputs()
+    throttle = min(1.0, time / 6.0) if time < 6 else 1.0
+    steering = math.sin(time)
+    driver_inputs = veh.ChDriverInputs(steering, throttle, 0, 0)
 
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
-
-    
-    current_time = time
-    if current_time < 6:
-        driver_inputs.steer = math.sin(current_time)
-        driver_inputs.throttle = math.cos(current_time)
-        driver_inputs.brake = 0
-    else:
-        driver_inputs.steer = 0
-        driver_inputs.throttle = 0
-        driver_inputs.brake = 1
-
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 

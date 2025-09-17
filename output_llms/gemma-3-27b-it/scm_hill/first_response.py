@@ -1,53 +1,45 @@
 import chrono
 import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
+import numpy as np
 
-# --- Create the simulation system ---
+# --- Simulation setup ---
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# --- Create the deformable terrain ---
-terrain = veh.ChTerrain()
-terrain.SetTerrainType(veh.ChTerrain.Type_SCM)
-terrain.Initialize(system, 200, 200, 10, 10)  # x_size, y_size, x_segments, y_segments
+# --- Terrain setup ---
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetTerrainSize(200, 200)
+terrain.SetQuadResolution(32, 32)
+terrain.SetHeightMap(np.random.rand(32, 32) * 0.5)  # Example height map
+terrain.SetSoilProperties(chrono.ChSoilProperties())
+terrain.GetSoilProperties().SetCrushability(0.5)
+terrain.GetSoilProperties().SetCohesion(1000)
+terrain.GetSoilProperties().SetFriction(0.8)
+terrain.GetSoilProperties().SetRestitution(0.1)
+terrain.Initialize()
 
-# SCM parameters (adjust as needed)
-terrain.Set_SCM_max_height(5)
-terrain.Set_SCM_min_height(-2)
-terrain.Set_SCM_damping(0.2)
-terrain.Set_SCM_elasticity(0.05)
-terrain.Set_SCM_friction(0.8)
+# --- Vehicle setup ---
+hmmwv = veh.HMMWV(system)
+hmmwv.SetVehicleMass(1500)
+hmmwv.SetEngineType(veh.HMMWV.EngineType.GAS)
+hmmwv.SetTireType(veh.HMMWV.TireType.RADIAL)
+hmmwv.SetVisualizationType(veh.HMMWV.VisualizationType.SIMPLE)
+hmmwv.Initialize()
 
-# Load a height map (replace with your actual heightmap file)
-try:
-    terrain.LoadHeightMap("heightmap.png")
-except:
-    print("Heightmap file not found. Using a flat terrain.")
-    # Create a flat terrain if heightmap loading fails
-    for i in range(terrain.GetXSegments()):
-        for j in range(terrain.GetYSegments()):
-            terrain.SetHeight(i, j, 0.0)
+# Initial vehicle position
+hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
+hmmwv.SetForward(chrono.ChVectorD(1, 0, 0))
 
+# --- Driver system setup ---
+driver = veh.SimpleDriver(hmmwv)
+driver.SetInputMode(veh.SimpleDriver.InputMode.SPEED)
+driver.SetTargetSpeed(10)  # m/s
+driver.SetThrottleGrad(0.1)
+driver.SetBrakeGrad(0.2)
+driver.SetSteeringGrad(0.5)
 
-# --- Create the HMMWV vehicle ---
-hmmwv = veh.ChHMMWV()
-hmmwv.SetVehicleModel(veh.ChHMMWV.Model.WV)  # or other models
-hmmwv.Initialize(system)
-hmmwv.SetChassisHeight(0.5)  # Initial height above terrain
-hmmwv.SetEngineType(veh.ChHMMWV.EngineType.GASOLINE)
-hmmwv.SetTireType(veh.ChHMMWV.TireType.OFFROAD)
-
-# Set initial position and orientation
-hmmwv.SetPos(chrono.ChVectorD(0, 2, 0))
-hmmwv.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-# --- Create a driver system ---
-driver = veh.ChDriver()
-driver.SetInput(veh.ChDriver.InputType.JOYSTICK)  # Or other input types
-driver.SetVehicle(hmmwv)
-system.Add(driver)
-
-# --- Real-time visualization with Irrlicht ---
+# --- Visualization setup ---
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
@@ -65,11 +57,14 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
 
+    driver.Apply(timestep)
     system.DoStepDynamics(timestep)
-    driver.Synchronize(timestep)
     time += timestep
 
-    if time > 100:
-        break # Stop after 100 seconds
-
-print("Simulation finished.")
+    if time > 10:
+        driver.SetTargetSpeed(0) # Stop after 10 seconds
+    
+    # Update camera to follow vehicle
+    camera_pos = hmmwv.GetPos() + chrono.ChVectorD(0, 5, -10)
+    vis.GetCamera(0).SetPos(camera_pos)
+    vis.GetCamera(0).SetLookAt(hmmwv.GetPos())

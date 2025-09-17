@@ -59,16 +59,6 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create a long box to test vehicle mobility
-box_length = 20.0
-box_width = 2.0
-box_height = 0.5
-box_material = chrono.ChMaterialSurfaceNSC()
-box = chrono.ChBodyEasyBox(box_material, box_length, box_width, box_height, True, True)
-box.SetPos(chrono.ChVectorD(0, 0, box_height / 2))
-box.SetBodyFixed(True)
-vehicle.GetSystem().AddBody(box)
-
 # Create the terrain
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -81,6 +71,12 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
+# Create a long box to test vehicle mobility
+box = chrono.ChBodyEasyBox(2, 0.5, 5, 1000, True, True)
+box.SetPos(chrono.ChVectorD(0, 0, 0.25))
+box.SetBodyFixed(True)
+vehicle.GetSystem().AddBody(box)
 
 # Create the vehicle Irrlicht interface
 
@@ -132,8 +128,7 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    # Hard-coded the throttle value to 0.8
-    driver_inputs.m_throttle = 0.8
+    driver_inputs.m_throttle = 0.8  # Hard-coded throttle value
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)

@@ -1,74 +1,80 @@
 import pychrono as chrono
-import pychrono.fea as fea
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as chronoirr
 
 
-system = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 
-mesh = fea.ChMesh()
+mesh = chrono.ChMesh()
 
 
-num_nodes = 10
+num_elements = 10
 beam_length = 1.0
-beam_width = 0.02
-beam_height = 0.02
-E = 2e11  
-nu = 0.3   
-G = E / (2 * (1 + nu))  
-density = 7800  
+beam_radius = 0.05  
 
 
-area = beam_width * beam_height
-Iyy = (beam_width * beam_height**3) / 12
-Izz = (beam_height * beam_width**3) / 12
-J = Iyy + Izz  
-
-
-material = fea.ChMaterialBeamANCF(density, E, G, area, Iyy, Izz, J)
-
-
-nodes = []
-for i in range(num_nodes):
-    x = i * beam_length / (num_nodes - 1)
-    node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+for i in range(num_elements + 1):
+    x = i * beam_length / num_elements
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, 0, 0))
+    if i == 0:  
+        node.SetFixed(True)
     mesh.AddNode(node)
-    nodes.append(node)
 
 
-for i in range(num_nodes - 1):
-    element = fea.ChElementBeam()
-    element.SetNodes(nodes[i], nodes[i+1])
-    element.SetMaterial(material)
-    mesh.AddElement(element)
+section = chrono.ChBeamSectionTimoshenko()
+section.SetE(1e4)  
+section.SetG(1e4 / (2 * (1 + 0.3)))  
+section.SetArea(0.01)  
+section.SetIyy(0.001)  
+section.SetIzz(0.001)
+section.SetJ(0.0005)  
+section.SetDensity(1000)  
 
 
-system.Add(mesh)
+for i in range(num_elements):
+    nodeA = mesh.GetNode(i)
+    nodeB = mesh.GetNode(i + 1)
+    beam = chrono.ChElementBeamTimoshenko()
+    beam.SetNodes(nodeA, nodeB)
+    beam.SetSection(section)
+    beam.SetReferenceDirection(chrono.ChVectorD(0, 1, 0))  
+    mesh.AddElement(beam)
 
 
-constraint = chrono.ChLinkPointFrame()
-constraint.Initialize(nodes[0], system.GetGroundBody())
-system.Add(constraint)
+my_system.Add(mesh)
 
 
-application = irrlicht.ChIrrApp(system, 'Beam Finite Element Simulation', irrlicht.dimension2du(1024, 768))
+application = chronoirr.ChIrrApp(my_system, 'Beam FEA Simulation', chronoirr.dimension2du(1024, 768))
 application.AddTypicalLogo()
-application.AddTypicalCamera(irrlicht.vector3df(0, 0.5, 1))
+application.AddTypicalSky()
 application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0.5, -1, -2))  
+
+
+vis_mesh = chrono.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_ELEM_BEAM)
+vis_mesh.SetColorscaleMinMax(0, 1)
+vis_mesh.SetBeamRadius(beam_radius)
+mesh.AddAsset(vis_mesh)
+
+
+node_vis = chrono.ChVisualizationFEAmesh(mesh)
+node_vis.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_NODE_POINT)
+node_vis.SetColor(chrono.ChColor(1, 0, 0))
+mesh.AddAsset(node_vis)
+
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-visual_asset = fea.ChVisualizationFEAmesh(mesh)
-visual_asset.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_VONMISES_STRAIN)
-visual_asset.SetColorscaleMinMax(0, 5e7)
-visual_asset.SetBeamRadius(0.005)
-mesh.AddAsset(visual_asset)
+my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetSolverType(chrono.ChSolver.Type_MINRES)
+my_system.SetSolverMaxIterations(100)
+my_system.SetMaxPenetrationHysteresis(0.01)
 
-
-application.SetTimestep(0.001)
+time_step = 0.01
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
+    my_system.DoStepDynamics(time_step)
     application.EndScene()
-    system.DoStepDynamics(application.GetTimestep())

@@ -17,7 +17,8 @@ vis_type_mesh = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_PACEJKA89  
+tire_model = veh.TireModelType_PACEJKA
+
 
 
 terrainHeight = 0      
@@ -32,8 +33,8 @@ contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
 
-step_size = 5e-4
-tire_step_size = step_size
+step_size = 5e-4  
+tire_step_size = step_size  
 
 
 render_step_size = 1.0 / 50  
@@ -46,6 +47,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
+
+vehicle.SetPacejkaMagicFormulaParameters(89)  
 
 vehicle.Initialize()
 

@@ -63,7 +63,7 @@ def main():
 
     hmmwv.GetVehicle().EnableRealtime(True)
 
-    while vis.Run() :
+    while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
 
         # Draw scene
@@ -94,11 +94,5 @@ tire_step_size = 1e-3
 
 # Set the data path for vehicle data files
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Define the initial position for the HMMWV vehicle
-initial_position = chrono.ChVector3d(6, -70, 0.5)
-
-# Set the initial position of the HMMWV vehicle
-hmmwv.SetInitPosition(initial_position)
 
 main()

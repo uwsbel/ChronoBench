@@ -33,35 +33,33 @@ my_terrain.SetRestitution(0.1)
 my_system.Add(my_terrain)
 
 # Create the driver system
-my_driver = veh.DriverSH()
-my_vehicle.Initialize(my_driver)
+my_driver = veh.DriverLQR(my_vehicle)
 
 # 3. Set necessary default parameters such as positions, forces, and interactions
-# Set the tire stiffness
-my_vehicle.SetTireForce(veh.TireForceDirCorr(0.001, 0.001, 0.001, 0.001, 0.001, 0.001))
+# Set the vehicle-terrain interaction
+my_vehicle.SetTerrain(my_terrain)
 
-# 4. Create a real-time visualization using Irrlicht with camera settings and lighting
-my_visual_system = chronoirr.ChVisualSystemIrrlicht()
-my_visual_system.SetWindowSize(800, 600)
-my_visual_system.SetWindowTitle("PyChrono Vehicle Simulation")
-my_visual_system.Initialize()
-my_visual_system.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-my_visual_system.AddSkyBox()
-my_visual_system.AddCamera(chrono.ChVectorD(0, -20, 1), chrono.ChVectorD(0, 0, 1))
-my_visual_system.AddLight(chrono.ChVectorD(0, 10, 10), chrono.ChColor(0.7, 0.7, 0.7))
-my_visual_system.AddLight(chrono.ChVectorD(-10, 10, 0), chrono.ChColor(0.3, 0.3, 0.3))
+# 4. Initialize a real-time visualization using Irrlicht with camera settings and lighting
+my_application = chronoirr.ChIrrApp(my_system, "PyChrono Vehicle Simulation", chronoirr.Dimensions(800, 600))
+
+# Set the camera position and orientation
+my_application.GetCameraSystem().SetFar(100)
+my_application.GetCameraSystem().SetPosition(chrono.ChVectorD(0, 0, 1.5))
+my_application.GetCameraSystem().SetTarget(chrono.ChVectorD(0, 0, 0))
+
+# Enable lighting
+my_application.GetLightSystem().Enable()
 
 # 5. Implement a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution
-my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+while my_application.GetDevice().run():
+    my_application.BeginScene()
 
-my_driver.SetSteering(0.0)
-my_driver.SetThrottle(0.5)
-my_driver.SetBraking(0.0)
+    my_application.DrawAll()
 
-while my_visual_system.Run():
+    my_driver.Update()
+
     my_system.DoStepDynamics(0.01)
-    my_visual_system.BeginScene()
-    my_visual_system.DrawAll()
-    my_visual_system.EndScene()
 
-chrono.Ch chrono.End()
+    my_application.EndScene()
+
+chrono.ChEnd()

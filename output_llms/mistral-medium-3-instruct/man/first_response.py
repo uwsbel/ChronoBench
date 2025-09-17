@@ -1,106 +1,114 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import pychrono.driver as driver
-import math
+from pychrono import ChVectorD, ChQuaternionD
+import numpy as np
 
 # =============================================================================
 # Simulation parameters
 # =============================================================================
 
 # Simulation step size
-step_size = 0.01
+step_size = 1e-3
 
 # Simulation end time
-tend = 100
+tend = 30
+
+# Point on chassis tracked by the camera
+camera_target = ChVectorD(0.0, 0.0, 1.0)
 
 # =============================================================================
+# Create the systems and simulation
+# =============================================================================
+
 # Create the vehicle system
-# =============================================================================
+vehicle = veh.WheelVehicle(veh.GetDataFile('vehicle/man_10t/vehicle.json'))
 
-# Create the vehicle system
-vehicle = veh.WheelVehicle(veh.GetDataFile('hmmwv/vehicle/HMMWV_Vehicle.json'))
-
-# Set vehicle collision type
-vehicle.SetChassisCollisionType(chrono.ChCollisionModelType_ELLIPSOIDS)
-vehicle.SetTireCollisionType(chrono.ChCollisionModelType_MESH)
-
-# Initialize the vehicle at the specified location
-vehicle.Initialize(chrono.ChCoorSysd(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-
-# =============================================================================
 # Create the terrain
-# =============================================================================
-
-# Create a rigid terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetContactFrictionCoefficient(0.9)
 terrain.SetContactRestitutionCoefficient(0.1)
 terrain.SetContactMaterialProperties(2e7, 0.3)
-terrain.Initialize(chrono.ChVectorD(0, 0, -1), chrono.ChVectorD(0, 0, 1))
+terrain.Initialize(ChVectorD(0, 0, 0), ChVectorD(0, 0, 1))
 
-# =============================================================================
 # Create the driver system
-# =============================================================================
-
-# Create a driver system
 driver = veh.ChDriver()
-driver.SetSteeringDelta(0.1)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-driver.Initialize()
+driver.Initialize(vehicle)
 
-# =============================================================================
 # Create the visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('MAN 10t Truck Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chronoirr.ChCamera.Chase)
+vis.SetCameraTrackingPoint(camera_target)
+vis.GetCamera().SetAngle(chrono.ChPi / 6)
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, -6, 1.75))
+vis.GetCamera().SetZoom(15)
+
+# Create the vehicle visualization
+veh_vis = veh.ChWheelVehicleVisualSystemIrrlicht()
+veh_vis.SetVehicle(vehicle)
+veh_vis.Initialize()
+veh_vis.SetChaseCamera(camera_target, 6.0, 0.5)
+
+# Create the terrain visualization
+terrain_vis = veh.ChTerrainVisualSystemIrrlicht(terrain)
+terrain_vis.Initialize()
+
+# =============================================================================
+# Initialize the vehicle
 # =============================================================================
 
-# Create the Irrlicht application
-app = irr.ChIrrApp(vehicle.GetSystem(), 'MAN 10t Truck Simulation', irr.dimension2d(1280, 720))
-
-# Set up the camera
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(irr.vector3df(0, 5, 2))
-app.SetChaseCamera(vehicle.GetChassisBody(), 6.0, 0.5)
-
-# Set up the terrain visualization
-terrain_vis = veh.ChTerrainVisualizationRigid(app.GetSceneManager(), vehicle.GetSystem(), terrain)
-terrain_vis.SetTexture(veh.GetDataFile('terrain/textures/grass.jpg'), 20, 20)
+# Set the initial vehicle position and orientation
+vehicle.Initialize(ChVectorD(0, 0, 0.5), ChQuaternionD(1, 0, 0, 0), 0)
 
 # =============================================================================
-# Simulation loop
+# Main simulation loop
 # =============================================================================
 
-# Number of simulation steps
-num_steps = int(math.ceil(tend / step_size))
+# Number of simulation steps between two 3D view render frames
+render_steps = int(1 / (step_size * 60))
 
-# Simulation loop
-app.SetTimestep(step_size)
-app.AssetBindAll()
-app.AssetUpdateAll()
+# Initialize simulation frame counter
+step_number = 0
 
-while app.GetDevice().run():
-    app.BeginScene()
-    app.DrawAll()
-    app.DoStep()
-    app.EndScene()
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
 
-    # Driver inputs
-    app.GetDevice().getVideoDriver().beginScene()
-    driver.Synchronize(step_size)
-    driver.SetSteering(0.5 * math.sin(2 * math.pi * 0.1 * app.GetSystem().GetChTime()))
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0.0)
-    driver.Advance(step_size)
-    app.GetDevice().getVideoDriver().endScene()
-
-    # Update vehicle state
-    vehicle.Synchronize(step_size)
-    vehicle.Advance(step_size)
-
-    # Check for simulation end
-    if app.GetSystem().GetChTime() >= tend:
+    # Exit simulation loop when end time is reached
+    if time >= tend:
         break
 
-app.AssetUpdateAll()
+    # Render scene
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        veh_vis.Render()
+        terrain_vis.Render()
+        vis.EndScene()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+# =============================================================================
+# Clean up
+# =============================================================================
+
+# Remove visualization assets
+vis.RemoveAllAssets()

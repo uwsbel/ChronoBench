@@ -41,20 +41,44 @@ mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
 
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)  
+belement1.SetSection(msection)  
+mesh.AddElement(belement1)  
+
+
+belement2 = fea.ChElementBeamEuler()
+belement2.SetNodes(hnode2, hnode3)  
+belement2.SetSection(msection)  
+mesh.AddElement(belement2)  
+
+
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+
+
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
 
 builder = fea.ChBuilderBeamEuler()
-
-
 builder.SetBeamSection(msection)
+builder.SetNumElements(5)
+builder.SetNodesSpacing(0.05)
+builder.SetNotchLength(0.0)
+builder.SetNotchWidth(0.0)
+builder.SetNotchDepth(0.0)
+builder.SetNotchOrient(chrono.ChVector<>(0, 1, 0))
+builder.SetNotchPosition(0.5)
+builder.SetNotchOffset(0.0)
+builder.SetNotchType(fea.ChBeamSectionEuler::NotchType_H)
 
 
-builder.BuildBeam(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), 5, False, True)
+builder.BuildBeam(chrono.ChVector<>(0, 0, -0.1), chrono.ChVector<>(0.2, 0, -0.1), chrono.ChVector<>(0, 1, 0))
 
 
 builder.GetLastBeamNodes().back().SetFixed(True)
 
 
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetLastBeamNodes().front().SetForce(chrono.ChVector<>(0, -1, 0))
 
 
 mtruss = chrono.ChBody()

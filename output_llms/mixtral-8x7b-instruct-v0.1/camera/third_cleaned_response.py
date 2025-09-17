@@ -15,13 +15,17 @@ def main():
     
     
     
-    side = 2.0  
+    side = 1.0  
     box_shape = chrono.ChBox(side, side, side, 1000)
 
     
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)  
+    box_shape.SetTexture(chrono.GetChronoDataFile("textures/checkerboard.png"))
+    box_visual = chrono.ChVisualBox(box_shape)
+
+    
+    box_body = chrono.ChBody()
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.AddVisualShape(box_shape)  
+    box_body.AddVisualShape(box_visual)  
     box_body.SetFixed(True)  
     mphysicalSystem.Add(box_body)  
 

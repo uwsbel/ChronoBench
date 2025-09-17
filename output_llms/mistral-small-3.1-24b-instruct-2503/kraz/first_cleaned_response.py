@@ -1,66 +1,63 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath('path/to/chrono/data')  
+chrono.SetChronoDataPath('path/to/chrono/data')
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-terrain = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurface().SetFriction(0.9)
-terrain.GetMaterialSurface().SetRestitution(0.2)
+terrain = veh.ChTerrain(100, 100, 0.5, 0.5, 0.01)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3, 0.01, 0.01, 0.01)
+terrain.Initialize()
 system.Add(terrain)
 
 
-vehicle = chrono.ChVehicle()
-vehicle.SetChassisBody(chrono.ChBody())
-vehicle.Initialize()
+kraz = veh.KrazVehicle()
+kraz.SetChassisBodyPosition(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisBodyOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
+kraz.SetChassisBodyFixed(False)
+kraz.Initialize()
+system.Add(kraz)
 
 
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.GetChassisBody().SetRot(chrono.Q_from_AngAxis(chrono.CHRONO_PI / 2, chrono.ChVectorD(0, 0, 1)))
+driver = veh.ChDriver()
+driver.Initialize(kraz)
+driver.SetSteeringControllerType(veh.ChDriver::STEERING_CONTROLLER_PI)
+driver.SetThrottleControllerType(veh.ChDriver::THROTTLE_CONTROLLER_PID)
+driver.SetBrakingControllerType(veh.ChDriver::BRAKING_CONTROLLER_PID)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+system.Add(driver)
 
 
-system.Add(vehicle.GetChassisBody())
+visualization = chronoirr.ChIrrApp()
+visualization.AddSystem(system)
+visualization.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10, 5, 100, 40, 512)
+visualization.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+visualization.SetPointSize(4.0)
+visualization.SetContactDrawSize(0.01)
+visualization.SetContactForceEnabled(True)
+visualization.SetTimestep(0.01)
+visualization.SetTryRealTimeRate(30)
 
-
-driver = chrono.ChDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringController(chrono.ChSteeringControllerPID())
-driver.SetThrottleController(chrono.ChThrottleControllerPID())
-driver.SetBrakeController(chrono.ChBrakeControllerPID())
-
-
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('Kraz Vehicle Simulation')
-visualization.SetCameraTarget(chrono.ChVectorD(0, 1, 0))
-visualization.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
-visualization.SetLightDirection(chrono.ChVectorD(1, -1, -1))
-visualization.Initialize()
-visualization.AddLogo()
-visualization.AddSkyBox()
-visualization.AddLights()
-
-
-step_size = 0.01
-current_time = 0.0
 
 while visualization.Run():
     visualization.BeginScene()
     visualization.Render()
-
-    system.DoStepDynamics(step_size)
-    current_time += step_size
-
     visualization.EndScene()
-    visualization.SwapBuffers()
 
+    
+    system.DoStepDynamics(visualization.GetTimestep())
 
-visualization.Close()
+    
+    driver.Synchronize(kraz, system.GetChTime())
+
+    
+    visualization.Synchronize("Kraz Vehicle Simulation", system, chronoirr.drawingmode.WIREFRAME)

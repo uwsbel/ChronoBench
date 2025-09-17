@@ -43,7 +43,7 @@ sys.AddLink(spring_1)
 # Attach a visualization asset.
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
-# Add body_2 and body_3
+# Add body_2
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVector3d(0, -3, 0))
@@ -88,7 +88,6 @@ spring_3.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_3)
 
 spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

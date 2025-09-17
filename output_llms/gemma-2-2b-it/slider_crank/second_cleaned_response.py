@@ -64,48 +64,35 @@ array_pos = []
 array_speed = []
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()  
-vis.AttachSystem(sys)  
-vis.SetWindowSize(1024, 768)  
-vis.SetWindowTitle('Crank demo')  
-vis.Initialize()  
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
-vis.AddSkyBox()  
-vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  
-vis.AddTypicalLights()  
-
-
-running = True
-while running:
-    
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
+time = 0
+while time < 20:  
     sys.DoStepDynamics(1e-3)  
+    time += 1
+    array_time.append(time)
+    array_angle.append(mcrank.GetAngle())  
+    array_pos.append(mpiston.GetPos())  
+    array_speed.append(mpiston.GetVelocity())  
 
-    
-    current_time = sys.GetTime()
-    array_time.append(current_time)
-    
-    
-    
-    
-    if current_time > 20:
-        running = False
-    
+
+if time >= 20:
+    print("Simulation stopped after 20 seconds")
+
 
 plt.figure(figsize=(10, 6))  
-plt.subplot(1, 2, 1)
-plt.plot(array_time, array_angle)  
-plt.title('Crankshaft Angle vs. Time')
+plt.subplot(2, 1, 1)  
+plt.plot(array_time, array_angle, label='Crank Angle')
 plt.xlabel('Time (s)')
-plt.ylabel('Crankshaft Angle (rad)')
+plt.ylabel('Angle (rad)')
+plt.title('Crankshaft Angle vs. Time')
+plt.legend()
+plt.grid(True)
 
-plt.subplot(1, 2, 2)
-plt.plot(array_time, array_pos)  
-plt.title('Position vs. Time')
+plt.subplot(2, 1, 2)  
+plt.plot(array_time, array_pos, label='Piston Position')
 plt.xlabel('Time (s)')
 plt.ylabel('Position (m)')
-
+plt.title('Piston Position vs. Crank Angle')
+plt.legend()
+plt.grid(True)
 plt.tight_layout()  
 plt.show()

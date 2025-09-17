@@ -83,18 +83,22 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver = veh.ChDataDriver(vis)  
+driver = veh.ChDataDriver(vis)
 
 # Define driver inputs
-driver_inputs = veh.vector_Entry()
-driver_inputs.append(veh.DataDriverEntry(0.0, 0.0, 0.0))  # Initial throttle
-driver_inputs.append(veh.DataDriverEntry(0.1, 0.0, 0.0))  # Throttle at 0.1 seconds
-driver_inputs.append(veh.DataDriverEntry(0.5, 0.7, 0.0))  # Throttle at 0.5 seconds
+driver_inputs = veh.vector_Entry(
+    [
+        veh.DataDriverEntry(0.0, 0.0, 0.0),  # Throttle
+        veh.DataDriverEntry(0.1, 0.0, 0.0),  # Steering
+        veh.DataDriverEntry(0.5, 0.7, 0.0),  # Brake
+    ]
+)
 
-# Set the driver inputs
-driver.SetInputs(driver_inputs)
+# Set the time response for steering and throttle keyboard inputs.
+# driver.SetSteeringDelta(render_step_size / steering_time)
+# driver.SetThrottleDelta(render_step_size / throttle_time)
+# driver.SetBrakingDelta(render_step_size / braking_time)
 
-# Initialize driver
 driver.Initialize()
 
 # output vehicle mass

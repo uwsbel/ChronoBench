@@ -11,9 +11,9 @@
   veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
   ```
   The provided code does not include this. This is essential for locating data files correctly.  
-  **Deduction: 15 points**
+  **Deduct 15 points**
 
-- **Initial Vehicle Location and Orientation:**  
+- **Vehicle Initial Position and Orientation:**  
   The reference uses:
   ```python
   initLoc = chrono.ChVector3d(6, -70, 0.5)
@@ -24,10 +24,11 @@
   initLoc = chrono.ChVector3d(0, 0, 0.5)
   initRot = chrono.ChQuaterniond(1, 0, 0, 0)
   ```
-  This is a difference in initial position and orientation, but not necessarily an error—just a different setup. No deduction.
+  This is a minor deviation but affects initial vehicle placement and orientation. The reference sets a rotated initial orientation (yaw 90 degrees), which is more realistic for a driving demo.  
+  **Deduct 5 points**
 
-- **Terrain Setup:**  
-  The reference uses a mesh-based terrain patch with collision mesh and visual mesh:
+- **Terrain Creation:**  
+  The reference uses a mesh-based terrain patch with collision and visualization meshes:
   ```python
   patch = terrain.AddPatch(patch_mat, 
       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
@@ -39,7 +40,7 @@
   tri_mesh_shape.SetMutable(False)
   patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
   ```
-  The provided code uses a simple flat patch with texture:
+  The provided code uses a flat patch with a texture:
   ```python
   patch = terrain.AddPatch(patch_mat, 
       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
@@ -47,139 +48,159 @@
   patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
   patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
   ```
-  The reference's terrain is more detailed and realistic. The provided code omits the mesh terrain and visual mesh setup.  
-  **Deduction: 15 points**
+  The reference's approach is more complete and realistic, including collision and visualization meshes. The provided code's terrain is simpler and less realistic.  
+  **Deduct 15 points**
 
 - **Reference Speed Input:**  
-  The reference script asks for user input to set the reference speed for the PID controller:
+  The reference script asks the user for a reference speed to control the vehicle speed:
   ```python
   reference_speed = input("You need to control steering!! Enter the reference speed (m/s): ")
   reference_speed = float(reference_speed)
   ```
-  The provided code hardcodes the setpoint in the PID controller as 10.0 m/s and does not allow user input.  
-  This is a minor omission but affects interactivity.  
-  **Deduction: 5 points**
+  The provided code hardcodes a PID setpoint of 10.0 m/s without user input. This is a minor omission but affects interactivity.  
+  **Deduct 5 points**
 
 - **PID Controller Implementation:**  
-  The reference implements the PID controller inline in the loop with explicit P, I, D terms and integration over time step. The provided code encapsulates PID in a class, but the integral term is a simple sum without time scaling (no multiplication by step size), which is a minor deviation but affects correctness (see correctness section).  
-  No completeness deduction here, but relevant for correctness.
+  The reference uses a full PID controller implemented manually with integral and derivative terms:
+  ```python
+  v_err = reference_speed - current_vel
+  P = kp * v_err
+  int_v_err += v_err * step_size
+  I = ki * int_v_err
+  D = kd * (v_err - prev_v_err) / step_size
+  prev_v_err = v_err
+  throttle = max(min((P + I + D), 1), 0.0)
+  driver.SetThrottle(throttle)
+  ```
+  The provided code uses `veh.ChPIDController()` with gains set, but only proportional control is effectively used (no integral or derivative terms explicitly handled), and the output is assigned directly to `driver_inputs.m_throttle` instead of using `driver.SetThrottle()`.  
+  This is a significant difference in control logic and usage.  
+  **Deduct 15 points**
 
 - **Driver Throttle Setting:**  
-  The reference uses `driver.SetThrottle(throttle)` to set throttle input directly. The provided code modifies `driver_inputs.m_throttle` directly, which is less standard and might not update the driver state properly.  
-  This is more correctness than completeness.
+  The reference uses `driver.SetThrottle(throttle)` to update throttle input, while the provided code directly modifies `driver_inputs.m_throttle`. The reference approach is cleaner and more consistent with the driver interface.  
+  **Deduct 5 points**
+
+- **Step Size:**  
+  The reference uses `step_size = 5e-4`, while the provided code uses `1e-4`. This is a minor difference but could affect simulation stability and performance.  
+  **Deduct 3 points**
 
 - **Comments and Documentation:**  
-  The reference script contains many comments and sections clearly marked. The provided code has very few comments.  
-  **Deduction: 5 points (Code Quality section)**
+  The reference script includes comments explaining each section and parameters, while the provided code has almost no comments.  
+  **Deduct 5 points**
 
-**Total Completeness Deduction: 15 + 15 + 5 = 35 points**
+**Total Completeness Deduction: 15 + 5 + 15 + 5 + 15 + 5 + 3 + 5 = 68 points**  
+Since max is 40, cap deduction at 40.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **PID Controller Implementation:**  
-  The provided PID controller sums errors without multiplying by `step_size` for integral term, which is incorrect and will cause integral windup or incorrect integral scaling. The derivative term is also computed without dividing by `step_size`. This is a significant logical error in the PID implementation.  
-  **Deduction: 15 points**
+- **Use of PID Controller API:**  
+  The provided code uses `veh.ChPIDController()` but does not properly implement integral and derivative terms, nor does it update the PID controller with error history. This is a logical error compared to the reference's explicit PID implementation.  
+  **Deduct 15 points**
 
-- **Throttle Input Application:**  
-  The reference uses `driver.SetThrottle(throttle)`, which is the proper API call to set throttle input. The provided code modifies `driver_inputs.m_throttle` directly, which may not propagate correctly to the driver system. This is a logical error affecting simulation behavior.  
-  **Deduction: 15 points**
+- **Direct Modification of Driver Inputs:**  
+  Modifying `driver_inputs.m_throttle` directly instead of using `driver.SetThrottle()` may cause synchronization issues or unexpected behavior.  
+  **Deduct 10 points**
 
-- **Step Size:**  
-  The provided code uses `step_size = 1e-4` while the reference uses `5e-4`. This is not an error but a difference in simulation resolution.
+- **Initialization of Vehicle Orientation:**  
+  Using `chrono.ChQuaterniond(1, 0, 0, 0)` instead of `chrono.QuatFromAngleZ(1.57)` is not incorrect per se but changes initial orientation. This is a minor correctness issue.  
+  **Deduct 3 points**
 
-- **Vehicle Speed Measurement:**  
-  The reference uses `vehicle.GetVehicle().GetSpeed()` which is the vehicle's longitudinal speed, while the provided code uses `vehicle.GetVehicle().GetChassisBody().GetPos_dt().Length()`, which is the magnitude of chassis velocity vector. This is a minor difference but can affect PID input.  
-  **Deduction: 5 points**
+- **Collision System Setup:**  
+  Both scripts set collision system to BULLET correctly. No deduction.
 
-- **Collision System Type:**  
-  Both use `chrono.ChCollisionSystem.Type_BULLET`, so no deduction.
+- **Terrain Setup:**  
+  The provided code uses a simpler terrain setup, which is not incorrect but less realistic. No correctness deduction here beyond completeness.
 
-- **Terrain Initialization:**  
-  Both call `terrain.Initialize()`, no deduction.
-
-**Total Correctness Deduction: 15 + 15 + 5 = 35 points**
+**Total Correctness Deduction: 15 + 10 + 3 = 28 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Comments and Documentation:**  
-  The provided code lacks comments and documentation compared to the reference script, which is well-commented and structured.  
-  **Deduction: 5 points**
+- **Readability and Structure:**  
+  The provided code lacks comments and explanatory text. Variable names are acceptable but no sectioning or docstrings.  
+  **Deduct 5 points**
 
-- **Code Structure and Readability:**  
-  The provided code is mostly readable but lacks sectioning and explanatory comments. Variable names are acceptable.  
-  No further deduction.
+- **Documentation:**  
+  The reference script includes comments and explanations; the provided code does not.  
+  **Deduct 5 points**
 
-**Total Code Quality Deduction: 5 points**
+**Total Code Quality Deduction: 10 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **PID Controller Integral and Derivative Calculation:**  
-  The provided code does not multiply integral error by `step_size` and derivative error is not divided by `step_size`. This can cause instability or inefficiency in control.  
-  **Deduction: 3 points**
+- **Step Size and Render Step Size:**  
+  The provided code uses a smaller step size (1e-4) and higher render frequency (100 FPS), which may be unnecessarily computationally expensive compared to the reference's 5e-4 and 20 FPS.  
+  **Deduct 5 points**
 
-- **Throttle Input Clamping:**  
-  The provided code clamps throttle input manually, which is fine.
+- **PID Controller Efficiency:**  
+  The provided code uses a built-in PID controller but does not fully utilize it, leading to less efficient control logic.  
+  **Deduct 3 points**
 
-- **Driver Input Handling:**  
-  The provided code retrieves `driver_inputs` every loop but then modifies it directly instead of using the driver's API to set throttle, which is less efficient and potentially error-prone.  
-  **Deduction: 3 points**
-
-**Total Efficiency Deduction: 6 points**
+**Total Efficiency Deduction: 8 points**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The reference script prompts for user input for reference speed, which allows flexibility and avoids hardcoding. The provided code hardcodes the setpoint without validation or error handling.  
-- Neither script has explicit error handling for file loading or simulation exceptions.  
-- The provided code does not handle edge cases or invalid inputs.  
-**Deduction: 5 points**
+- **User Input for Reference Speed:**  
+  The reference script prompts the user for a speed, allowing flexibility and avoiding hardcoded values. The provided code hardcodes the setpoint, reducing robustness.  
+  **Deduct 3 points**
+
+- **No other error handling or edge case management in either script.**
+
+**Total Deduction: 3 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Both scripts set up the Irrlicht visualization similarly, including window size, camera, logo, lighting, and skybox.  
-- The reference script attaches the vehicle via `vis.AttachVehicle(vehicle.GetVehicle())`, which the provided code also does.  
-- The provided code does not add the terrain visual mesh, which is present in the reference.  
-- The provided code sets texture and color on the terrain patch, but the reference uses a mesh terrain with visual mesh, which is more realistic.  
-**Deduction: 3 points**
+- **Visualization Setup:**  
+  Both scripts set up Irrlicht visualization similarly, including window size, title, camera, lights, skybox, and logo.  
+  - The reference script attaches the vehicle with `vehicle.GetVehicle()`, the provided code uses `vehicle.GetVehicle()` as well.  
+  - The reference script adds directional light and skybox; the provided code does the same.  
+  - The reference script uses a chase camera with same parameters.  
+  No major visualization issues.
+
+- **Terrain Visualization:**  
+  The reference uses a mesh-based terrain visualization, which is more realistic than the flat textured patch in the provided code. This is a minor visualization issue.  
+  **Deduct 2 points**
+
+**Total Visualization Deduction: 2 points**
 
 ---
 
-### Summary of Deductions:
+### **Summary of Deductions**
 
-| Criterion                     | Deduction |
-|-------------------------------|-----------|
-| Completeness                  | 35        |
-| Correctness                  | 35        |
-| Code Quality                 | 5         |
-| Efficiency                  | 6         |
-| Error Handling and Robustness | 5         |
-| Visualization Tools          | 3         |
-| **Total Deduction**           | **89**    |
+| Criterion                    | Deduction |
+|-----------------------------|-----------|
+| Completeness                | 40        |
+| Correctness                | 28        |
+| Code Quality               | 10        |
+| Efficiency                 | 8         |
+| Error Handling & Robustness| 3         |
+| Visualization              | 2         |
+| **Total**                  | **91**    |
 
 ---
 
-### Final Score:
+### Final Score Calculation
 
-Starting from 100 points, subtracting 89 points gives:
-
-**11 points**
+Max score = 100  
+Total deductions = 91  
+Final score = 100 - 91 = 9
 
 ---
 
 **Final score:**
 
-[[11]]
+[[9]]
 
 ---
 
 **Explanation:**  
-The provided code is missing essential system initialization steps (data paths), uses a simplified terrain without mesh visuals, and hardcodes the PID setpoint instead of allowing user input. The PID controller implementation has significant logical errors in integral and derivative calculations, and throttle input is set incorrectly by modifying driver inputs directly instead of using the driver's API. The code lacks comments and documentation, reducing readability and maintainability. Efficiency is affected by incorrect PID calculations and improper driver input handling. Visualization is mostly correct but lacks the detailed terrain mesh of the reference. No error handling is present. These issues collectively lead to a low score.
+The provided code misses essential system initialization steps (data paths), uses a simpler terrain model lacking mesh visualization, and does not implement the PID controller correctly compared to the reference. It also lacks user input for reference speed, has minimal comments, and uses a smaller step size leading to inefficiency. The direct modification of driver inputs instead of using the driver interface is a correctness issue. Visualization is mostly correct but less detailed for terrain. Overall, these issues lead to a very low score.

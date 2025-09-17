@@ -15,11 +15,10 @@ def main():
     # -----------------------------------
     # Add a box to be sensed by a camera
     # -----------------------------------
-    # Create a box object
-    box_body = chrono.ChBodyEasyBox(1000, 1000, 1000, 1000)  # Side length
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
-    box_body.SetFixed(True)  # Fix the box in space
-    mphysicalSystem.Add(box_body)  # Add the box to the physical system
+    box = chrono.ChBodyEasyBox(side=1000, side=1000, side=1000, 1000)  # Replace with desired dimensions
+    box.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the box
+    box.SetFixed(True)  # Fix the box in space
+    mphysicalSystem.Add(box)  # Add the box to the physical system
 
     # -----------------------
     # Create a sensor manager
@@ -27,18 +26,20 @@ def main():
     # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
 
+    # ------------------------------------------------
     # Create a camera and add it to the sensor manager
-    # Define the camera offset pose relative to the body it is attached to
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 0, 1)))
+    # ------------------------------------------------
+    # Define the camera offset pose relative to the box it is attached to
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
     cam = sens.ChCameraSensor(
-        box_body,              # Body the camera is attached to
-        update_rate,            # Camera update rate in Hz
-        offset_pose,            # Offset pose of the camera
-        image_width,            # Image width in pixels
-        image_height,           # Image height in pixels
-        fov                     # Camera's horizontal field of view in radians
+        box,              # Body the camera is attached to
+        update_rate,      # Camera update rate in Hz
+        offset_pose,      # Offset pose of the camera
+        image_width,      # Image width in pixels
+        image_height,     # Image height in pixels
+        fov                  # Camera's horizontal field of view in radians
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  # Set the lag between sensing and data accessibility
@@ -163,7 +164,4 @@ save = False
 vis = True
 
 # Output directory
-out_dir = "SENSOR_OUTPUT/"
-
-# Main function entry point
-main()
+out_dir = "SENSOR_OUTPUT

@@ -18,18 +18,6 @@ mbody_truss.SetPos(chrono.ChVector3d(0, 0, 3))
 
 vis_mat = chrono.ChVisualMaterial()
 vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Gears and pulleys')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(12, 15, -20))
-vis.AddTypicalLights()
-
-
-sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
 
 
 mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 1000, True, False, mat)
@@ -60,8 +48,8 @@ link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))
 sys.AddLink(link_motor)
 
 
-radB = 3.5
 interaxis12 = radA + radB
+radB = 3.5
 mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radB, 0.4, 1000, True, False, mat)
 sys.Add(mbody_gearB)
 mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))
@@ -91,6 +79,20 @@ link_gearBC.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4), chrono.Q
 link_gearBC.SetTransmissionRatio(radB / radC)
 link_gearBC.SetEpicyclic(True)
 sys.AddLink(link_gearBC)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gears and pulleys')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(12, 15, -20))
+vis.AddTypicalLights()
+
+
+sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
 
 
 while vis.Run():

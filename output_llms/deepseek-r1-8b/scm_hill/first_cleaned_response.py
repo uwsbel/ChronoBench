@@ -1,75 +1,80 @@
-import pychrono as py
+import pychrono as pychrono
 import numpy as np
-import time
 
 
-py.init()
+pychrono.init()
 
 
-vehicle = py.Vehicle(py.Core(), name="HMMWV")
-vehicle.set_name("HMMWV")
-vehicle.set_mass(1000)  
-vehicle.set_initial_position(py.Vec3(0, 0, 0))
-vehicle.set_initial_velocity(py.Vec3(0, 0, 0))
-vehicle.set_ground_reaction_force(True)
-vehicle.set_friction(True)
+core = pychrono.Core()
+core.setTimeUnit(pychrono.TimeUnit.SECOND)
+core.setGravity(pychrono.Vec3(0, -9.81, 0))
 
 
-driver = py.DriverSystem()
-driver.set_name("Driver")
-driver.set_vehicle(vehicle)
-driver.set_control_mode(py.DriverControlMode.AUTONOMOUS)
+vehicle_model = pychrono.models汽车.HeavyMultiPurposeWheeledVehicle()
+vehicle_model.setMass(10000)  
+vehicle_model.setLength(4, 2.5)  
+vehicle_model.setWidth(3.2)  
+vehicle_model.setHeight(2.5)  
+vehicle_model.setTreadWidth(0.8)  
+vehicle_model.setTireRadius(0.6)  
+vehicle_model.setSuspensionTravel(1.0)  
+vehicle_model.setCamberAngle(0.5)  
+vehicle_model.setSteeringRadius(3.0)  
+vehicle_model.setFricition(0.1)  
+vehicle_model.setRollingResistance(0.01)  
+vehicle_model.setTyreInflation(200000)  
+vehicle_model.setTyreHardness(0.001)  
+core.addSystem(vehicle_model)
 
 
-terrain = py.Terrain(py.SCM())
-terrain.set_name("Soil")
-terrain.set_soil_parameters(soil_strength=1000, young_modulus=1e6, poisson_ratio=0.2)
-terrain.initialize_height_map(np.array([0, 0, 0], dtype=np.float32))
+terrain = pychrono.deformables.Terrain()
+terrain.setDamping(0.1)  
+terrain.setShearModulus(1000)  
+terrain.setCohesion(0.5)  
+terrain.setHeightMap(np.array([[0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0],
+                              [0.0, 0.0, 0.0]]))  
+core.addSystem(terrain)
 
 
-renderer = py.Visualizer(py.IrrlichtRenderer())
-renderer.set_name("Irrlicht")
-renderer.set_camera_position(py.Vec3(5, 5, 5))
-renderer.set_camera_rotation(py.Vec3(0, 0, 0))
-renderer.set_light_settings(py.LightSettings(
-    ambient_color=py.Color(1, 1, 1),
-    directional_light_position=py.Vec3(10, 10, 10),
-    directional_light_color=py.Color(1, 1, 1)
-))
+driver = pychrono.controllers.Driver()
+driver.setVehicle(vehicle_model)
+core.addSystem(driver)
 
 
-timestep = 1e-4
-simulation_time = 0
+renderer = pychrono.renderers.Irrlicht()
+renderer.setCamera(pychrono.Vec3(10, 10, 10))  
+renderer.setFocalLength(45.0)  
+renderer.setLightDirection(pychrono.Vec3(10, 10, 10))  
+renderer.setAmbientLight(pychrono.Vec3(0.5, 0.5, 0.5))  
+renderer.setRenderingQuality(pychrono.RenderingQuality.HIGH)  
+core.addSystem(renderer)
 
 
-simulation = py.Simulation()
-simulation.add_system(vehicle)
-simulation.add_system(terrain)
-simulation.add_system(driver)
-simulation.add_system(renderer)
-simulation.set_timestep(timestep)
+initial_position = pychrono.Vec3(0, 0, 0)
+initial_velocity = pychrono.Vec3(0, 0, 0)
+vehicle_model.setInitialPosition(initial_position)
+vehicle_model.setInitialVelocity(initial_velocity)
+terrain.setInitialHeightMap(np.array([[0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 0.0],
+                                   [0.0, 0.0, 0.0]]))
 
 
-example_forces = np.zeros((4, 4, 4))  
-simulation.set_forces(vehicle, example_forces)
+timestep = 0.1  
+t_manager = pychrono.TimestepManager(core, timestep)
+t_manager.addSystem(core)
+t_manager.addSystem(terrain)
+t_manager.addSystem(renderer)
+t_manager.addSystem(driver)
 
-
-while True:
-    
-    simulation.update()
-    simulation_time += timestep
-
+def update():
+    t_manager.update()
     
     renderer.update()
-
     
-    print(f"Simulation Time: {simulation_time}")
-    print(f"Vehicle Position: {vehicle.get_position()}")
-    print(f"Vehicle Velocity: {vehicle.get_velocity()}")
-    print(f"Driver Input: {driver.get_input()}")
-    print(f"Terrain Deformation: {terrain.get_deformation()}")
-    print("-------------------")
+    t_manager.step()
 
-    
-    if input().strip() == "stop":
-        break
+
+t_manager.start()
+while True:
+    update()

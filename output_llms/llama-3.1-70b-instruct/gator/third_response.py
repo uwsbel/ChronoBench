@@ -71,7 +71,6 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-
 # -------------------------------------
 # Create the vehicle Irrlicht interface
 # Create the driver system
@@ -86,7 +85,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

@@ -50,20 +50,17 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  # Changed texture to "grass.jpg"
@@ -98,20 +95,20 @@ sensor_manager = sensor.SensorManager(vehicle.GetSystem())
 
 # Create lidar sensor
 lidar_sensor = sensor.LidarSensor(chrono.ChFrame3d(chrono.ChVector3d(0, 0, 1.5), chrono.ChQuaterniond(1, 0, 0, 0)))
-lidar_sensor.SetScanRate(10)  # Scans per second
-lidar_sensor.SetMinRange(1.0)  # Minimum distance
-lidar_sensor.SetMaxRange(50.0)  # Maximum distance
-lidar_sensor.SetHorizontalResolution(360)  # Number of horizontal scan lines
-lidar_sensor.SetVerticalResolution(10)  # Number of vertical scan lines
+lidar_sensor.SetName("Lidar Sensor")
+lidar_sensor.SetResolution(1024, 1024)
+lidar_sensor.SetFOV(chrono.ChVector3d(0, 0, 1), 30)
+lidar_sensor.SetMinMaxDistance(1, 100)
+lidar_sensor.SetPointsPerCloud(5000)
 sensor_manager.AddSensor(lidar_sensor)
 
-# Create random boxes
+# Create and add random boxes to the simulation
 for _ in range(10):
     box_body = chrono.ChBodyEasyBox(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5), 
                                     chrono.ChVector3d(1, 1, 1), 
                                     chrono.ChMaterialNSC().GetDefault())
-    box_body.SetPos_dt(chrono.ChVector3d(0, 0, 0))
-    box_body.SetRot_dt(chrono.ChQuaterniond(1, 0, 0, 0))
+    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
+    box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
     vehicle.GetSystem().AddBody(box_body)
 
 # Output vehicle mass

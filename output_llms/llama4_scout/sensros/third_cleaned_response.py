@@ -66,7 +66,7 @@ def main():
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar PC data"))  
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data")) 
     sens_manager.AddSensor(lidar2d)
 
     
@@ -105,7 +105,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -121,9 +121,7 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    if not ros_manager.Initialize():  
-        print("Failed to initialize ROS manager.")
-        return
+    ros_manager.Initialize()  
 
     
     time = 0
@@ -137,12 +135,10 @@ def main():
         time = sys.GetChTime()  
 
         
-        sens_manager.Update()
-
         if not ros_manager.Update():  
-            print("Failed to update ROS manager. Exiting simulation loop.")
             break
 
+        sens_manager.Update()
         sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":

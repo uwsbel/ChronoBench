@@ -1,82 +1,47 @@
-import pychrono as pychrono
-from pychrono import *
-import Irrlicht
+import chrono
+from chrono.objects import *
+from chrono.visualization import *
+import numpy as np
 
 
-pychrono.init()
+sim = chrono.Simulation()
+sim.set_gravity(True)
+sim.add_ground_body("ground", mass=1000, is_static=True, size=(50, 50, 50))
+sim.set_time_step(1.0/60)
 
 
-ground_body = pychrono.Body()
-ground_body.set_mass(0)  
-ground_body.set_position([0, 0, 0])  
-ground_body.set_size([100, 100, 10])  
-ground_body.set_material(0, 0, 0, 1)  
+rover = RigidBody("rover", mass=100, inertia=np.array([10, 10, 10]))
+rover.set_shape("cube", dimensions=[1, 1.5, 2.5])
+rover.set_position([0, 0, 0])
+rover.set_orientation(chrono.PQ(1, 0, 0))
+sim.add_object(rover)
 
 
-g = pychrono.G = 9.81  
+driver = RigidBody("driver", mass=1, inertia=np.array([0.1, 0.1, 0.1]))
+driver.set_position([1, 0.5, 0])
+driver.set_shape("point")
+sim.add_object(driver)
 
 
-terrain = pychrono.RigidTerrain()
-terrain.set_position([0, 0, 0])
-terrain.set_ground_normal([0, 0, 1])
-terrain.set_friction(1)  
-terrain.set_spin(0)  
+viz = Visualization(sim)
+viz.set_camera("perspective", position=[5, 5, 5], look_at=[0, 0, 0])
+viz.add_light("directional", position=[10, 10, 10], color=(1, 1, 1))
+viz.add_light("ambient", position=[10, 10, 10], color=(1, 1, 1), intensity=0.5)
 
 
-rover = pychrono.Viper()
-rover.set_mass(1500)  
-rover.set_position([0, 0, 0])  
-rover.set_size([1.5, 1.5, 1.5])  
-rover.set_material(1, 0.5, 0, 0.3)  
-rover.set_spin(0)  
-rover.set驱动(0, 0, 0)  
+t = 0.0
+t_total = 100.0
+time_step = 1.0/60
 
-
-driver = pychrono.Driver()
-driver.set_position([0, 0, 0])  
-driver.set_size([0.5, 0.5, 0.5])  
-driver.set_material(1, 0.5, 0, 0.3)  
-driver.set_spin(0)  
-rover.set驱动(driver)  
-
-
-irr = Irrlicht.create_device()
-irr.set_camera_position([5, 5, 5])  
-irr.set_camera_look_at([0, 0, 0])  
-irr.set_light_position([10, 10, 10])  
-irr.set_light_direction([0, 0, 1])  
-
-
-t = 0
-dt = 0.1  
-simulation_time = 10  
-
-while t <= simulation_time:
+while t <= t_total:
     
-    steering_angle = 0 + (t * 2)  
-    steering_input = pychrono.Input(0, 0, 0, 0, 0, [0, 0, 0])
-    steering_input.set_value(2, 0, 0, 0, 0, [0.5 * math.sin(steering_angle * math.pi / 180), 0, 0])  
+    steering_angle = np.sin(t) * 0.5  
+    driver.set_position([np.sin(steering_angle), 0.5, 0])
     
     
-    driver.update_input(steering_input)
-    driver.set_position([0, 0, 0])  
+    viz.render()
+    sim.update()
     
+    t += time_step
     
-    forces = [0, 0, 0]
-    torque = [0, 0, 0]
-    rover.apply_forces(forces)
-    rover.apply_torques(torque)
-    
-    
-    pychrono.update()
-    t += dt
-    
-    
-    rover.check_collisions()
-    
-    
-    irr.update()
-    irr.render()
-    
-    
-    print(f"Time: {t:.2f}s | Driver Position: {driver.get_position()}")
+    time.sleep(1e-5)

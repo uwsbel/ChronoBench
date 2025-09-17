@@ -1,9 +1,9 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
-import numpy as np
 import pychrono.sensor as sensor
+import numpy as np
+import math
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
@@ -21,7 +21,6 @@ chassis_collision_type = veh.CollisionType_NONE
 
 
 tire_model = veh.TireModelType_RIGID
-
 
 
 terrainHeight = 0      
@@ -50,28 +49,38 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
+
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   
-                           0,     
-                           1.1,   
-                           0,     
-                           30,    
-                           0.01,  
-                           2e8,   
-                           3e4    
+                            0,     
+                            1.1,   
+                            0,     
+                            30,    
+                            0.01,  
+                            2e8,   
+                            3e4    
 )
+
+
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
+
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
@@ -87,51 +96,61 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 
+obstacles = []
 for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    obstacle.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
-    obstacle.SetBodyFixed(True)
-    vehicle.GetSystem().Add(obstacle)
+    pos = chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1)
+    size = chrono.ChVector3d(2, 2, 2)
+    box = chrono.ChBodyEasyBox(100, size, True, True)
+    box.SetPos(pos)
+    box.SetBodyFixed(True)
+    vehicle.GetSystem().Add(box)
+    obstacles.append(box)
 
 
-manager = sensor.ChSensorManager(vehicle.GetSystem())
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
 
 
-lidar = sensor.ChLidarSensor()
+lidar = sensor.ChSensorLidar()
 lidar.SetName("lidar")
-lidar.SetParent(vehicle.GetChassisBody())
-lidar.SetPose(chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.Q_FROM_EULER(0, 0, 0)))
-lidar.SetPointsPerRev(180)
-lidar.SetRangeMax(50)
-lidar.SetPulseRate(26000)
-lidar.SetNoiseStdDev(0.01)
-lidar.SetFovHorizontal(chrono.CH_C_PI / 2)
-lidar.SetFovVertical(chrono.CH_C_PI / 2)
-lidar.SetHorizontalResolution(0.5)
-lidar.SetVerticalResolution(0.5)
-lidar.SetFilteringMinRange(0.1)
-lidar.SetFilteringMaxRange(49.9)
-lidar.SetFilteringThreshold(0.5)
-lidar.SetVisualizationEnabled(True)
-lidar.SetVisualizationPoints(1000)
-lidar.SetVisualizationLines(True)
-lidar.SetVisualizationColors(chrono.ChColorf(1, 0, 0), chrono.ChColorf(0, 1, 0))
-manager.AddSensor(lidar)
+lidar.SetLidarType(sensor.ChSensorLidar.TYPE_RAYCASTING)
+lidar.SetPosition(chrono.ChVector3d(0, 0, 2))
+lidar.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.SetRangeMax(100)
+lidar.SetRangeMin(0.1)
+lidar.SetVerticalResolution(1)
+lidar.SetHorizontalResolution(1)
+lidar.SetScanRate(10)
+lidar.SetFilterType(sensor.ChSensorLidar.FILTER_NONE)
+
+lidar.AddFilter(sensor.ChSensorLidar.FILTER_RANGE, 0.1, 100)
+lidar.AddFilter(sensor.ChSensorLidar.FILTER_ANGLE, -30, 30)
+lidar.AddFilter(sensor.ChSensorLidar.FILTER_INTENSITY, 0, 1)
+
+sensor_manager.AddSensor(lidar)
+
+
 
 
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -150,11 +169,13 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    manager.Update()  
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    sensor_manager.Update()
 
     
     driver.Advance(step_size)

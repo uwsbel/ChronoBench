@@ -13,8 +13,8 @@ mesh = fea.ChMesh()
 sys.Add(mesh)
 
 
-mesh.SetAutomaticGravity(True, 2)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+mesh.SetAutomaticGravity(True, 2)  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0));
 
 
 beam_L = 6
@@ -24,10 +24,10 @@ CH_PI = 3.14159
 
 
 minertia = fea.ChInertiaCosseratSimple()
-minertia.SetDensity(7800)
-minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)))
-minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
-minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetDensity(7800);
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+minertia.SetIzz((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
 
 melasticity = fea.ChElasticityCosseratSimple()
 melasticity.SetYoungModulus(210e9)
@@ -39,20 +39,27 @@ melasticity.SetJ((CH_PI / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
 msection = fea.ChBeamSectionCosserat(minertia, melasticity)
 
 msection.SetCircular(True)
-msection.SetDrawCircularRadius(beam_ro)
+msection.SetDrawCircularRadius(beam_ro)  
 
 
 builder = fea.ChBuilderBeamIGA()
-builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 1)
-
+builder.BuildBeam(mesh,  
+                  msection,  
+                  20,  
+                  chrono.ChVector3d(0, 0, 0),  
+                  chrono.ChVector3d(beam_L, 0, 0),  
+                  chrono.VECT_Y,  
+                  1)  
 
 node_mid = builder.GetLastBeamNodes()[len(builder.GetLastBeamNodes()) // 2]
 
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
-mbodyflywheel.SetCoordsys(chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z)))
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
+                       chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+)
 sys.Add(mbodyflywheel)
-
 
 myjoint = chrono.ChLinkMateFix()
 myjoint.Initialize(node_mid, mbodyflywheel)
@@ -65,8 +72,22 @@ sys.Add(truss)
 
 
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
+                   )
 sys.Add(bearing)
+
+
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+
+
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
+                     truss,  
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))
+                     )
+sys.Add(rotmotor1)
 
 
 class ChFunctionMyFun(chrono.ChFunction):
@@ -81,22 +102,17 @@ class ChFunctionMyFun(chrono.ChFunction):
 
     def GetVal(self, x):
         if x < self.T1:
-            return self.A1
+            return self.A1 * x
         elif x < self.T2:
-            return self.A1 + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
+            return self.A2 * (x - self.T1) + self.A1 * self.T1
         elif x < self.T3:
-            return self.A2
+            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.w * (x - self.T2)
         else:
-            return self.A2 + self.w * (x - self.T3)
+            return self.A1 * self.T1 + self.A2 * (self.T2 - self.T1) + self.w * (self.T3 - self.T2)
 
 
-rotmotor1 = chrono.ChLinkMotorRotationSpeed()
-rotmotor1.Initialize(builder.GetLastBeamNodes().front(), truss, chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
-sys.Add(rotmotor1)
-
-
-f_ramp = ChFunctionMyFun(40, 80, 0, 2, 4, 10)
-rotmotor1.SetMotorFunction(f_ramp)
+f_custom = ChFunctionMyFun(10, 20, 1, 2, 3, 5)
+rotmotor1.SetMotorFunction(f_custom)
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)

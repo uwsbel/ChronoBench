@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as chronovehicle
 
 
 
@@ -8,24 +8,22 @@ import numpy as np
 
 
 
-system = chrono.ChSystemNSC()
+my_system = chrono.ChSystemNSC()
 
 
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+my_system.SetSolverMaxIterations(100)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(my_system)
 vis.SetWindowSize(1200, 800)
-vis.SetWindowTitle("CityBus Simulation")
+vis.SetWindowTitle('CityBus Simulation')
 vis.Initialize()
 
 
-camera = vis.GetCamera()
-camera.SetLocation(chrono.ChVectorD(0, 5, -10))
-camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
+vis.GetCamera().SetLocation(chrono.ChVectorD(0, 5, -15))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
 
@@ -33,85 +31,10 @@ camera.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
 
-chassis = chrono.ChBody()
-chassis.SetBodyFixed(False)
-chassis.SetMass(1500)
-chassis.SetInertiaXX(chrono.ChVectorD(500, 1000, 500))
-chassis.SetPos(chrono.ChVectorD(0, 0.5, 0))
-
-
-tire_model = chrono.ChTireModelNSC()
-
-
-wheel_radius = 0.3
-wheel_width = 0.2
-wheel_mass = 50
-
-
-fl_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(-1.5, -0.5, 1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(fl_wheel)
-
-
-fr_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(1.5, -0.5, 1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(fr_wheel)
-
-
-rl_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(-1.5, -0.5, -1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(rl_wheel)
-
-
-rr_wheel = chrono.ChWheel4(
-    chassis,
-    chrono.ChVectorD(1.5, -0.5, -1),
-    chrono.ChVectorD(0, -1, 0),
-    wheel_radius,
-    wheel_width,
-    wheel_mass,
-    tire_model,
-)
-system.Add(rr_wheel)
-
-
-system.Add(chassis)
-
-
-
-
-
-
-
-terrain = chrono.ChRigidTerrain(
-    system,
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),
-    chrono.ChVectorD(50, 50, 1),  
-    chrono.ChVectorD(0.5, 0.5, 0.01),  
-    chrono.ChTexture(),
-)
-terrain.SetTexture(chrono.ChTexture("path/to/texture.jpg"))
+terrain = chrono.ChRigidTerrain(my_system)
+terrain.SetTexture(chrono.GetChronoDataPath() + 'terrain/textures/grass.png')
+patch_size = chrono.ChVectorD(10, 10)
+terrain.SetPatchSize(patch_size)
 terrain.Initialize()
 
 
@@ -120,39 +43,51 @@ terrain.Initialize()
 
 
 
-class Driver:
-    def __init__(self, vehicle):
-        self.vehicle = vehicle
-        self.steering = 0
-        self.throttle = 0
-        self.brake = 0
-
-    def update(self, dt):
-        
-        
-
-        
+vehicle = chronovehicle.ChVehicle(my_system)
 
 
-driver = Driver(chassis)
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 0))
+vehicle.SetChassisInitialRotation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
 
 
+vehicle.SetVehicleModel(chronovehicle.VehicleModelDataJson("citybus.json"))
+
+
+vehicle.SetTireModel(chronovehicle.ChTireModelNSC())
+
+
+my_system.Add(vehicle)
 
 
 
+
+
+
+
+driver = chronovehicle.ChDriver(vehicle)
+
+
+driver.SetSteeringGain(0.5)
+driver.SetThrottleGain(0.5)
+driver.SetBrakingGain(0.5)
+
+
+
+
+
+
+
+dt = 1.0 / 50.0
 
 while vis.Run():
-    dt = 1 / 50  
+    
+    driver.SetSteering(vis.GetKeyboard()->GetWKey() - vis.GetKeyboard()->GetSKey())
+    driver.SetThrottle(vis.GetKeyboard()->GetUpArrowKey() - vis.GetKeyboard()->GetDownArrowKey())
+    driver.SetBraking(vis.GetKeyboard()->GetSpaceKey())
 
     
-    driver.update(dt)
-
-    
-    system.DoStepDynamics(dt)
+    my_system.DoStepDynamics(dt)
 
     
     vis.Render()
-
-
-system.Clear()
-vis.Shutdown()

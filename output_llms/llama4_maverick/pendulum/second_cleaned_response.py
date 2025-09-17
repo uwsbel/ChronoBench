@@ -19,6 +19,10 @@ cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)
 ground.AddVisualShape(cyl_ground, chrono.ChFrame(chrono.ChVector3d(0, 0, +1)))
 
 
+sphere_joint = chrono.ChVisualShapeSphere(0.2)  
+ground.AddVisualShape(sphere_joint)
+
+
 pend_1 = chrono.ChBody()
 sys.AddBody(pend_1)
 pend_1.SetBodyFixed(False)  
@@ -27,26 +31,21 @@ pend_1.SetMass(2)
 pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  
 
 
-cyl_pend = chrono.ChVisualShapeCylinder(0.1, 1.5)  
-cyl_pend.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_1.AddVisualShape(cyl_pend, chrono.ChFrame(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+cyl_pendulum = chrono.ChVisualShapeCylinder(0.1, 1.5)  
+cyl_pendulum.SetColor(chrono.ChColor(0.6, 0, 0))  
+pend_1.AddVisualShape(cyl_pendulum, chrono.ChFrame(chrono.ChVector3d(0, 0.75, 0), chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
 
 
-pend_1.SetPos(chrono.ChVector3d(0.75, 0, 0))  
+pend_1.SetPos(chrono.ChVector3d(1, 0, 0))
 
 
-pend_1.SetWvel_loc(chrono.ChVector3d(0, 0, 2))  
+pend_1.SetWvel(chrono.ChVector3d(0, 0, 1))  
 
 
 sph_joint = chrono.ChLinkLockSpherical()
 sph_joint.Initialize(ground, pend_1, chrono.ChCoordsys(chrono.ChVector3d(0, 0, 0)))
 sys.AddLink(sph_joint)
-
-
-sph_joint_vis = chrono.ChVisualShapeSphere(0.1)  
-sph_joint_vis.SetColor(chrono.ChColor(1, 0, 0))  
-ground.AddVisualShape(sph_joint_vis)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -71,7 +70,7 @@ while vis.Run():
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  
         print("t = ", sys.GetChTime())
-        print("  ", pos_1.x, " ", pos_1.y)
+        print("  ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPos_dt()  
-        print("  ", lin_vel_1.x, " ", lin_vel_1.y)
+        print("  ", lin_vel_1.x, "  ", lin_vel_1.y)
         log_info = False

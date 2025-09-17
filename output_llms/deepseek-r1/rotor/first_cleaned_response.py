@@ -2,83 +2,97 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
 
+def main():
+    
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
-system = chrono.ChSystemSMC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+    
+    beam_material = fea.ChBeamMaterialEuler()
+    beam_material.SetDensity(7800)       
+    beam_material.SetYoungModulus(210e9) 
+    beam_material.SetBeamRaleyghDamping(0.01)  
 
+    
+    length = 2.0       
+    num_elements = 16  
+    num_knots = num_elements + 1
+    order = 3          
 
-length = 2.0  
-n_elements = 32  
-order = 2  
+    
+    beam = fea.ChBeamIGA()
+    beam.SetOrder(order)
+    beam.SetMaterial(beam_material)
 
+    
+    for i in range(num_knots):
+        y = i * length / (num_knots - 1)
+        point = chrono.ChVectorD(0, y, 0)
+        beam.AddPoint(point)
+    
+    
+    beam.SetupInitial()
 
-density = 7800  
-E = 200e9  
-nu = 0.3  
-diameter = 0.05  
-area = chrono.CH_C_PI * (diameter/2)**2
-Iyy = chrono.CH_C_PI * (diameter**4)/64
-section = fea.ChBeamSectionEuler()
-section.SetAsCircularSection(diameter)
-section.SetDensity(density)
-section.SetYoungModulus(E)
+    
+    system.Add(beam)
 
+    
+    flywheel = chrono.ChBodyEasyCylinder(0.15, 0.05, 1000)  
+    flywheel.SetPos(chrono.ChVectorD(0, length/2, 0))
+    flywheel.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.2))  
+    system.Add(flywheel)
 
-path = fea.ChLineBezier(chrono.ChMatrixDynamicD(2, 3))
-path.SetPoint(0, chrono.ChVectorD(0, 0, 0))
-path.SetPoint(1, chrono.ChVectorD(0, 0, length))
+    
+    node_mid = beam.GetNode(int(num_knots/2))
+    constraint = fea.ChLinkPointFrame()
+    constraint.Initialize(node_mid, flywheel)
+    system.Add(constraint)
 
-mesh = fea.ChMesh()
-beam = fea.ChBeamIGA()
-beam.SetupGeometry(path, n_elements, order)
-beam.SetSection(section)
-beam.SetSectionRotation(0)  
-mesh.AddElement(beam)
-system.Add(mesh)
+    
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(beam.GetNode(0), chrono.ChFrameD())
+    motor_speed = chrono.ChFunction_Ramp(0, 5.0)  
+    motor.SetSpeedFunction(motor_speed)
+    system.Add(motor)
 
+    
+    node_end = beam.GetNode(num_knots - 1)
+    constraint_fix = fea.ChLinkPointFrame()
+    constraint_fix.Initialize(node_end, system.GetGroundBody())
+    system.Add(constraint_fix)
 
-flywheel = chrono.ChBodyEasyCylinder(0.15, 0.05, 7800)  
-flywheel.SetPos(chrono.ChVectorD(0, 0, length/2))
-system.Add(flywheel)
+    
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Jeffcott Rotor IGA Simulation')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1.5, length/2, 1.5), chrono.ChVectorD(0, length/2, 0))
+    vis.AddTypicalLights()
 
+    
+    beam_vis = fea.ChVisualizationFEAmesh(beam)
+    beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)
+    beam_vis.SetColorscaleMinMax(-100, 100)
+    beam_vis.SetSmoothFaces(True)
+    beam_vis.SetWireframe(False)
+    beam.AddAsset(beam_vis)
 
-node_mid = beam.GetNode(int(n_elements/2))
-constraint = fea.ChLinkPointFrame()
-constraint.Initialize(node_mid, flywheel)
-system.Add(constraint)
+    
+    time_step = 0.005
+    system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+    system.SetSolverType(chrono.ChSolver.Type_MINRES)
+    system.GetSolver().AsIterative().SetMaxIterations(100)
+    system.GetSolver().AsIterative().SetTolerance(1e-10)
 
+    
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
 
-motor = chrono.ChLinkMotorRotationSpeed()
-motor_shaft = chrono.ChBody()
-motor_shaft.SetBodyFixed(True)
-system.Add(motor_shaft)
-
-motor.Initialize(motor_shaft, beam.GetNode(0).GetBody(),
-                 chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetSpeedFunction(chrono.ChFunction_Ramp(0, 2.0))  
-system.Add(motor)
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Jeffcott Rotor - IGA Beam')
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(1.5, 0.5, 1.0))
-vis.AddTypicalLights()
-
-
-vis_fem = fea.ChVisualizationFEAmesh(mesh)
-vis_fem.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
-vis_fem.SetColorscaleMinMax(0, 5)
-mesh.AddVisualizationFEA(vis_fem)
-
-
-time_step = 0.001
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    system.DoStepDynamics(time_step)
+if __name__ == "__main__":
+    main()

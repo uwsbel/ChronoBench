@@ -15,21 +15,25 @@ def main():
     
     
     
-    side = 1.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetTexture(chrono.ChTextureDiffuse(chrono.ChColor(1, 0, 0)))  
-    box_body.SetName("Box")  
-    mphysicalSystem.Add(box_body)  
+    side = 2  
+    mmesh = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mmesh.SetPos(chrono.ChVector3d(0, 0, 0))  
+    mmesh.SetBodyFixed(True)  
 
     
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBox(box_body)
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  
+    trimesh_shape = chrono.ChVisualShapeBox()
+    trimesh_shape.SetBox(mmesh)
+    trimesh_shape.SetName("Box")
+    trimesh_shape.SetMutable(False)  
 
     
-    box_body.AddVisualShape(box_shape)  
+    mmesh.AddVisualShape(trimesh_shape)
+
+    
+    mesh_body = mmesh
+
+    
+    mphysicalSystem.Add(mesh_body)  
 
     
     
@@ -53,7 +57,7 @@ def main():
 
     
     cam = sens.ChCameraSensor(
-        box_body,              
+        mesh_body,              
         update_rate,            
         offset_pose,            
         image_width,            

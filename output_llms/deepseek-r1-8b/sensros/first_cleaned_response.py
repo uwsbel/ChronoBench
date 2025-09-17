@@ -1,91 +1,55 @@
 import chrono as chrono
-import numpy as np
 
 
-chrono.init()
+simulation = chrono.Chrono()
+simulation.set_ground_body()
 
 
-sim = chrono.Simulation(seed=42)
+ground_body = simulation.add_mesh('ground_body', 'box', 1, 1, 1, 0.5, 0.5, 0.5, color=(1, 1, 1))
 
 
-ground_body = chrono.Body(mass=0, position=[0, 0, 0])
-sim.add_body(ground_body)
+sensor_manager = simulation.add_sensor_manager('sensor_manager', 'ground')
 
 
-ground_mesh = np.array([[0, 0], [0, 1]])
-ground_mesh_visual = chrono.Mesh(
-    body=ground_body,
-    visual=chrono.MeshVisual(
-        mesh=ground_mesh,
-        color=[1, 0, 0],
-        wireframe=False,
-        mesh_size=1,
-        static=True
-    )
-)
-sim.add_visual(ground_mesh_visual)
+
+camera = simulation.add_camera('camera', 'ground', position=(0, 5, 10), look_at=(0, 0, 0), up=(0, 1, 0))
+
+lidar = simulation.add_lidar('lidar', 'ground', position=(0, 5, 10), num_points=100)
+
+gps = simulation.add_gps('gps', 'ground', position=(0, 0, 0), fixed_position=(0, 0, 0))
+
+accelerometer = simulation.add_accelerometer('accelerometer', 'ground')
+
+gyroscope = simulation.add_gyroscope('gyroscope', 'ground')
+
+magnetometer = simulation.add_magnetometer('magnetometer', 'ground')
 
 
-sensor_manager = sim.add_sensor_manager()
-sensor_manager.camera = chrono.Sensor(
-    position=[1, 1, 1],
-    rotation=[0, 0, 0],
-    size=[512, 512],
-    sensor_type=chrono.SensorType.CAMERA
-)
-sensor_manager.lidar = chrono.Sensor(
-    position=[2, 1.5, 1],
-    rotation=[0, 0, 0],
-    sensor_type=chrono.SensorType.LIDAR
-)
-sensor_manager.gps = chrono.Sensor(
-    position=[0, 0, 0],
-    antenna_position=[1, 0, 0],
-    sensor_type=chrono.SensorType.GPS
-)
-accelerometer = sensor_manager.add_accelerometer(
-    body=ground_body,
-    position=[0, 0, 0],
-    orientation=[0, 0, 0]
-)
-gyroscope = sensor_manager.add_gyroscope(
-    body=ground_body,
-    position=[0, 0, 0],
-    orientation=[0, 0, 0]
-)
-magnetometer = sensor_manager.add_magnetometer(
-    body=ground_body,
-    position=[0, 0, 0],
-    orientation=[0, 0, 0]
-)
+ros_manager = simulation.add_ros_manager('ros_manager', 'ground', enable_logging=True)
+sensor_manager.register_sensor(camera, 'ros_manager', '/camera/image', queue_size=10)
+sensor_manager.register_sensor(lidar, 'ros_manager', '/lidar/points', queue_size=10)
+sensor_manager.register_sensor(gps, 'ros_manager', '/gps/data', queue_size=10)
+sensor_manager.register_sensor(accelerometer, 'ros_manager', '/accelerometer/data', queue_size=10)
+sensor_manager.register_sensor(gyroscope, 'ros_manager', '/gyroscope/data', queue_size=10)
+sensor_manager.register_sensor(magnetometer, 'ros_manager', '/magnetometer/data', queue_size=10)
 
 
-ros_manager = sim.add_ros_manager()
-ros_manager.register_sensor(
-    sensor=sensor_manager.camera,
-    topic='/camera_data'
-)
-ros_manager.register_sensor(
-    sensor=sensor_manager.lidar,
-    topic='/lidar_data'
-)
-ros_manager.register_sensor(
-    sensor=accelerometer,
-    topic='/accelerometer_data'
-)
-ros_manager.register_sensor(
-    sensor=gyroscope,
-    topic='/gyroscope_data'
-)
-ros_manager.register_sensor(
-    sensor=magnetometer,
-    topic='/magnetometer_data'
-)
+simulation.set_time_step(1/60)
 
 
+def draw():
+    simulation.draw()
+    simulation.draw_ground()
+    simulation.draw_body('ground_body')
+    
+    simulation.draw.camera('camera')
+    
+    simulation.draw.lidar('lidar')
+
+
+simulation.start()
 while True:
-    sensor_manager.update()
-    sim.step()
-    if sim.input.key_press('r'):  
-        sim.reset()
-    print("Simulation is running...")
+    sensor_manager.update_sensors()
+    simulation.advance()
+    simulation.realtime_loop(1/60)
+    draw()

@@ -9,46 +9,52 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-terrain = chrono.ChRigidTerrain(system)
-terrain.SetDimensions(20, 20)  
+terrain = chrono.vehicle.RigidTerrain(system)
+terrain.SetSize(100, 100)  
 terrain.SetHeight(0)  
 terrain.SetFriction(0.9)  
 terrain.SetRestitution(0.5)  
-terrain.SetCollisionMargin(0.05)  
-terrain.Build()
 
 
 vehicle = chrono.vehicle.UAZBUS()
 vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 1))  
-vehicle.SetChassisInitialRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
-vehicle.Initialize()
+vehicle.SetChassisInitialOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  
 
 
-driver = chrono.vehicle.ChDriver()
-driver.Initialize(vehicle.GetDriverInputs())
+system.Add(vehicle.GetChassis())
+for wheel in vehicle.GetWheelSet().GetWheels():
+    system.Add(wheel)
+
+
+driver = chrono.vehicle.Driver()
+driver.SetVehicle(vehicle.GetDriverAPI())
 driver.SetTargetSpeed(10)  
 
 
-app = chrono.ChIrrApp(system, "UAZBUS Simulation", chrono.CHIRR_SIZE(800, 600))
-app.SetCameraPosition(chrono.ChVectorD(10, 0, 5))  
+app = chrono.ChIrrApp(system, "UAZBUS Simulation", 1024, 768)
+app.SetCameraPosition(chrono.ChVectorD(5, 5, 5))  
 app.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
-app.AddLight(chrono.ChVectorD(0, 0, 5), chrono.ChColor(1, 1, 1))  
-app.AddGridDecoration()  
+app.AddLight(chrono.ChVectorD(0, 10, 0), chrono.ChColor(1, 1, 1))  
 
 
-app.AddChassis(vehicle.GetChassis())
+app.AddTerrain(terrain.GetTerrain())
 
 
-step_size = 0.01  
-num_steps = 1000  
+vehicle.SetRigid meshes
+vehicle.SetChassisVisualizationType(chrono.vehicle.VisualizationType.RIGID_MESH)
+for wheel in vehicle.GetWheelSet().GetWheels():
+    wheel.SetVisualizationType(chrono.vehicle.VisualizationType.RIGID_MESH)
 
 
-for i in range(num_steps):
+app.AddGrid()
+
+
+for i in range(10000):  
     
-    vehicle.Update(step_size)
+    vehicle.Update(chrono.GetChTime())
     
     
-    driver.Update(step_size)
+    driver.Update()
     
     
     terrain.Update()
@@ -59,11 +65,14 @@ for i in range(num_steps):
     app.EndScene()
     
     
-    system.DoStepDynamics(step_size)
+    chrono.ChronoSynchronize()
     
     
-    if app.GetDevice().IsKeyDown(chrono.KEY_ESCAPE):
+    system.DoStepDynamics(0.001)  
+    
+    
+    if app.GetDevice().IsKeyDown(chrono.CH_KEY_ESCAPE):
         break
 
 
-chrono.CHRONO_SHUTDOWN()
+chrono.CHRONO_cleanup()

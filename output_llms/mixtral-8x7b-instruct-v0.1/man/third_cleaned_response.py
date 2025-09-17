@@ -51,9 +51,8 @@ patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
-
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -81,13 +80,14 @@ driver.Initialize()
 
 sensor_manager = sensor.ChSensorManager()
 lidar_sensor = sensor.ChLidarSensor()
-lidar_sensor.SetRange(10)
-lidar_sensor.SetResolution(10)
-lidar_sensor.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+lidar_sensor.SetRange(10.0)
+lidar_sensor.SetResolution(0.5)
+lidar_sensor.SetUpdateInterval(render_step_size)
 sensor_manager.AddSensor(lidar_sensor)
 vehicle.GetSystem().AddSensorManager(sensor_manager)
+lidar_sensor.AttachToBody(vehicle.GetVehicle().GetChassisBody())
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
 
@@ -95,30 +95,23 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() and step_number < 10000:
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
-
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
     driver_inputs = driver.GetInputs()
-
-    sensor_manager.ClearData()
-    sensor_manager.Update(time)
-
+    sensor_manager.Synchronize(time)
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
+    sensor_manager.Advance(step_size)
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     step_number += 1
-
     realtime_timer.Spin(step_size)

@@ -20,37 +20,34 @@ pendulum.SetInertiaTensor(0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05)
 pendulum.SetBodyType(ch.CH_BODY_TYPE_DYNAMIC)
 
 # Create a revolute joint to connect the pendulum to the ground
-joint = ch.ChRevoluteJoint(ground, pendulum, ch.Vec(0, 1, 0), ch.Vec(0, 0, 0))
-joint.SetAnchor(ch.Vec(0, 1, 0))
+joint = ch.ChRevoluteJoint()
+joint.SetPos(ch.Vec(0, 0, 0))
 joint.SetAxis(ch.Vec(0, 0, 1))
+joint.SetBodyA(ground)
+joint.SetBodyB(pendulum)
 
-# Set up the visualization system
-vis = irr.ChIrrAppCreate(ch.GetEngine(), 640, 480, False, "Simple Pendulum Simulation")
+# Add the physical systems and objects to the simulation
+ch.RegisterBody(ground)
+ch.RegisterBody(pendulum)
+ch.RegisterJoint(joint)
 
-# Set up logging
-log = ch.ChLogSetLevel(ch.LOG_LEVEL_INFO)
-log.AddStream(ch.ChLogConsole())
-log.AddStream(ch.ChLogFile('simple_pendulum.log'))
+# Set the visualization system
+vis = irr.CreateVisualization()
+vis.Add(ch.GetScene())
 
-# Set up the simulation
-t = 0
-dt = 0.01
-while True:
-    # Step the simulation
-    ch.StepSimulation(dt)
+# Set up the simulation parameters
+step = ch.ChStepSettings()
+step.SetStepType(ch.CH_STEP_TYPE_TIME)
+step.SetStepInTime(0)
+step.SetStepOutTime(10)
+step.SetStepTime(0.01)
+step.SetStepMax(10000)
+step.SetTolerance(1e-6)
+step.SetMaxIter(10)
 
-    # Get the pendulum's position and velocity
-    pos = pendulum.GetPos()
-    vel = pendulum.GetVel()
+# Set up the logging parameters
+log_file = 'pendulum.log'
+log_freq = 0.1  # log every 0.1 seconds
 
-    # Log the pendulum's position and velocity
-    log.LogInfo('Pendulum position: (%.4f, %.4f, %.4f)', pos.x, pos.y, pos.z)
-    log.LogInfo('Pendulum velocity: (%.4f, %.4f, %.4f)', vel.x, vel.y, vel.z)
-
-    # Render the simulation
-    vis.BeginScene()
-    vis.DrawAll()
-    vis.EndScene()
-
-    # Update the simulation time
-    t += dt
+# Run the simulation
+ch.RunSimulation(vis, step, log_file, log_freq)

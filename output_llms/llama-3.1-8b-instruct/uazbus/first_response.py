@@ -13,55 +13,75 @@ m_world.SetSolverType(chrono.SolverType_HalfSemiImplicit)
 m_vehicle = chrono.ChBody()
 m_vehicle.SetName('UAZBUS')
 m_vehicle.SetBodyType(chrono.ChBodyType_BOX)
-m_vehicle.SetPosition(chrono.ChVectorD(0, 0, 0))
+m_vehicle.SetPos(chrono.ChVectorD(0, 0, 0))
+m_vehicle.SetRot(chrono.Q_from_AngAxis(0, 0, 0, 1))
 m_vehicle.SetMass(1500)
-m_vehicle.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-m_vehicle.SetColor(chrono.ChColor(1, 0, 0))  # Red
-
-# Add the vehicle to the world
-m_world.Add(m_vehicle)
+m_vehicle.SetDensity(0.8)
+m_vehicle.SetFriction(0.7)
+m_vehicle.SetRestitution(0.2)
+m_vehicle.SetInertiaXX(1000)
+m_vehicle.SetInertiaXY(0)
+m_vehicle.SetInertiaXZ(0)
+m_vehicle.SetInertiaYY(1000)
+m_vehicle.SetInertiaYZ(0)
+m_vehicle.SetInertiaZZ(1000)
 
 # Define the terrain parameters
 m_terrain = chrono.ChBody()
 m_terrain.SetName('Terrain')
 m_terrain.SetBodyType(chrono.ChBodyType_BOX)
-m_terrain.SetPosition(chrono.ChVectorD(0, -5, 0))
-m_terrain.SetMass(10000)
+m_terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+m_terrain.SetRot(chrono.Q_from_AngAxis(0, 0, 0, 1))
+m_terrain.SetMass(100000)
+m_terrain.SetDensity(0.1)
 m_terrain.SetFriction(0.5)
-m_terrain.SetRestitution(0.2)
-m_terrain.SetColor(chrono.ChColor(0, 1, 0))  # Green
+m_terrain.SetRestitution(0.5)
+m_terrain.SetInertiaXX(1000000)
+m_terrain.SetInertiaXY(0)
+m_terrain.SetInertiaXZ(0)
+m_terrain.SetInertiaYY(1000000)
+m_terrain.SetInertiaYZ(0)
+m_terrain.SetInertiaZZ(1000000)
 
-# Add the terrain to the world
+# Add the vehicle and terrain to the world
+m_world.Add(m_vehicle)
 m_world.Add(m_terrain)
 
-# Define the driver system
+# Define the driver parameters
 m_driver = chrono.ChDriver()
 m_driver.SetName('Driver')
-m_driver.SetVehicle(m_vehicle)
-m_driver.SetSteeringGain(0.1)
-m_driver.SetAccelerationGain(0.5)
-m_driver.SetBrakingGain(0.1)
+m_driver.SetType(chrono.ChDriverType_WHEEL)
+m_driver.SetRadius(0.3)
+m_driver.SetCenter(chrono.ChVectorD(0, 0, 0))
+m_driver.SetAxle(chrono.ChVectorD(0, 0, 1))
+m_driver.SetWheelFriction(0.5)
+m_driver.SetWheelRestitution(0.2)
 
-# Add the driver to the world
-m_world.Add(m_driver)
+# Add the driver to the vehicle
+m_vehicle.Add(m_driver)
 
-# Set up the visualization
-m_visual = chrono.ChIrrApp(m_world, "UAZBUS Simulation")
-m_visual.AddShadowAllBodies(True)
-m_visual.AddLight(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(1, 1, 1), 1, 1)
-m_visual.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+# Define the visualization settings
+m_visual = chrono.ChVisual()
+m_visual.SetName('Visual')
+m_visual.SetType(chrono.ChVisualType_IRR)
+m_visual.SetCameraPos(chrono.ChVectorD(0, 0, 5))
+m_visual.SetCameraRot(chrono.Q_from_AngAxis(0, 0, 0, 1))
+m_visual.SetLighting(chrono.ChLightingType_DIRECTIONAL)
+m_visual.SetLightColor(chrono.ChVectorD(1, 1, 1))
+m_visual.SetLightDirection(chrono.ChVectorD(0, 0, -1))
 
-# Set up the simulation loop
-while m_visual.GetDevice().run():
-    m_world.DoStepDynamics(0.01)
-    m_visual.BeginScene()
-    m_visual.DrawAll()
-    m_visual.EndScene()
-    m_visual.ShowInfo()
-    m_world.DoKinematics()
-    m_world.DoDynamics(0.01)
-    m_world.DoPostDynamics()
-    m_world.DoCooling()
+# Add the visual to the world
+m_world.Add(m_visual)
+
+# Set the simulation loop
+timestep = 0.01
+dt = 0.001
+while True:
+    m_world.Solve(chrono.SOLVEFULL)
+    m_world.Visualize()
+    chrono.Sleep(dt)
+    if chrono.GetRealTime() - chrono.GetSimulationTime() > 10:
+        break
 
 # Clean up
 chrono.Destroy()

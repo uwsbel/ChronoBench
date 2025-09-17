@@ -1,57 +1,55 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 
-ch.ChEngine.Initialize()
+chrono.ChEngine.Initialize()
 
 
-app = irr.ChIrrApp()
+app = irr.IrrlichtApplication()
 
 
-vehicle = veh.ChARTcar()
+vehicle = veh.ARTcar()
 
 
-vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
-vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
 
 
-terrain = ch.ChTerrain()
+vehicle.SetContactMethod(veh.ChContactMethod_TM)
+vehicle.SetVisualizationType(veh.ChVisualizationType_MESH)
 
 
-terrain.SetType(terrain.RIGID)
-terrain.SetDimensions(100, 100)
-terrain.SetContactMethod(terrain.E_CONTACT_METHOD_NODES)
-terrain.SetVisualizationType(terrain.E_VISUALIZATION_TEXTURE)
+terrain = chrono.ChRigidTerrain(vehicle.GetChassisBody())
 
 
-texture = irr.ChIrrTexture()
-texture.LoadFromFile("path_to_your_texture.jpg")  
-terrain.AddVisualizationTexture(texture)
+terrain.SetTerrainDimensions(chrono.ChVectorD(100, 100, 10))
 
 
-driver = veh.ChInteractiveDriver()
+terrain.AddTerrainTexture(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 0), "checker.png")
 
 
-driver.SetSteeringFunction(veh.ChDriverSteeringFunction(driver.E_STEERING_FUNCTION_LINEAR))
-driver.SetThrottleFunction(veh.ChDriverThrottleFunction(driver.E_THROTTLE_FUNCTION_LINEAR))
-driver.SetBrakingFunction(veh.ChDriverBrakingFunction(driver.E_BRAKING_FUNCTION_LINEAR))
+driver = veh.ChInteractiveDriverARTcar(vehicle)
 
 
-vehicle.Initialize(terrain)
-driver.Initialize(vehicle)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.2)
+driver.SetBraking(0.1)
 
 
-def Simulate():
-    step_size = 0.02  
-    time = 0
+app.Add(vehicle.GetChassisBody())
+app.Add(terrain.GetGroundBody())
 
+
+if __name__ == "__main__":
+    
+    step_size = 0.02
+    fps = 50
+
+    
     while app.Run():
+        
         vehicle.Update(step_size)
-        driver.Update(step_size)
-        app.Render()
 
-        time += step_size
-
-
-Simulate()
+        
+        app.Synchronize("", step_size)
+        app.PostStep()

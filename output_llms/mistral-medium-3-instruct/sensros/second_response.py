@@ -44,28 +44,28 @@ def main():
     sens_manager.scene.AddPointLight(ch.ChVector3f(23, 2.5, 100), ch.ChColor(intensity, intensity, intensity), 500.0)
 
     # Create and configure a camera sensor.
-    offset_pose = ch.ChFramed(ch.ChVector3d(-8, 0, 2), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
+    offset_pose = ch.ChFrameD(ch.ChVector3d(-8, 0, 2), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     cam = sens.ChCameraSensor(ground_body, 30, offset_pose, 1280, 720, 1.408)
-    cam.PushFilter(sens.ChFilterVisualize(1280, 720))  # Visualize the camera output.
+    cam.PushFilter(sens.ChFilterVisualize(1280, 720, "Camera Visualization"))  # Visualize the camera output with name
     cam.PushFilter(sens.ChFilterRGBA8Access())  # Access raw RGBA8 data.
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a 3D lidar sensor.
+    # Create and configure a lidar sensor.
     lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "3D Lidar"))  # Visualize the point cloud with name.
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar Point Cloud"))  # Visualize the point cloud with name
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D lidar sensor.
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 1, 360, 0, ch.CH_PI / 180, 0, 100., 0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar"))  # Visualize the point cloud with name.
+    # Create and configure a 2D Lidar sensor
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 1, 360, 0, 0, 0, 100., 0)
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data
+    lidar2d.PushFilter(sens.ChFilterScanFromDepth())  # Convert depth data to 2D scan
+    lidar2d.PushFilter(sens.ChFilterLSAccess())  # Access 2D scan data
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, "2D Lidar Scan"))  # Visualize the 2D scan
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -105,7 +105,7 @@ def main():
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan"))  # New handler for 2D lidar
+    ros_manager.RegisterHandler(chros.ChROSLidarScanHandler(lidar2d, "~/output/lidar2d/data/scan"))  # 2D Lidar handler
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)

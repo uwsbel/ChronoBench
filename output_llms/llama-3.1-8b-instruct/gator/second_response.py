@@ -64,47 +64,40 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 
-# Create 4 different patches of terrain with different textures and height maps
+# Add 4 patches of terrain with different textures and heights
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
-# Patch 1: texture 1
+# Patch 1: grass texture
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength/2, -terrainWidth/2, 0), chrono.QUNIT), 
-    terrainLength/2, terrainWidth/2)
-
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch1.SetColor(chrono.ChColor(0.2, 0.8, 0.2))
+patch1.SetHeightMap(veh.GetDataFile("terrain/heightmaps/gradability_heightmap.png"), 0.01)
 
-# Patch 2: texture 2
+# Patch 2: dirt texture
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength/2, terrainWidth/2, 0), chrono.QUNIT), 
-    terrainLength/2, terrainWidth/2)
-
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 patch2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch2.SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+patch2.SetBump(veh.GetDataFile("terrain/bumps/bump1.png"), 0.01)
 
-# Patch 3: texture 3
+# Patch 3: sand texture
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength/2, -terrainWidth/2, 0), chrono.QUNIT), 
-    terrainLength/2, terrainWidth/2)
-
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 patch3.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.2))
+patch3.SetBump(veh.GetDataFile("terrain/bumps/bump2.png"), 0.01)
 
-# Patch 4: height map
+# Patch 4: rock texture
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(terrainLength/2, terrainWidth/2, 0), chrono.QUNIT), 
-    terrainLength/2, terrainWidth/2)
-
-patch4.SetHeightmap(veh.GetDataFile("terrain/heightmaps/heightmap1.txt"))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
 patch4.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-
-# Add bumps to the patches of terrain
-patch1.AddBump(chrono.ChVector3d(0, 0, 0.1), 0.1, 0.1)
-patch2.AddBump(chrono.ChVector3d(0, 0, 0.1), 0.1, 0.1)
-patch3.AddBump(chrono.ChVector3d(0, 0, 0.1), 0.1, 0.1)
-patch4.AddBump(chrono.ChVector3d(0, 0, 0.1), 0.1, 0.1)
+patch4.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+patch4.SetHeightMap(veh.GetDataFile("terrain/heightmaps/gradability_heightmap.png"), 0.01)
 
 terrain.Initialize()
 

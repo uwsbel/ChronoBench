@@ -4,56 +4,41 @@ import numpy as np
 
 
 chrono.SetChronoDataPath("path/to/chrono/data")  
-physics = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
 
-terrain = chrono.RigidTerrain(np.array([10, 10, 0]), 
-                             np.array([10, 10, 0]), 
-                             np.array([0, 0, 1]))
-terrain.SetTexture("path/to/terrain/texture.jpg")  
-physics.Add(terrain)
+terrain = chrono.ChRigidBody(chrono.ChVectorD(0, 0, 0))
+terrain.SetBodyFixed(True)
+terrain_shape = chrono.ChBoxShape(chrono.ChVectorD(100, 10, 100))
+terrain.SetCollideShape(terrain_shape)
+terrain.SetMaterialSurface(chrono.ChMaterialSurface(chrono.ChMaterialSurface.SurfaceType.GROUND))
+system.Add(terrain)
 
 
-
-
-
-vehicle = chrono.ChBodyEasy(1000, 
-                            chrono.ChVectorD(0, 0, 0), 
-                            chrono.ChQuaternionD(1, 0, 0, 0)) 
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))  
-vehicle.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
-vehicle.SetMaterialSurface(chrono.ChMaterialSurface(0.8, 0.2, 0.1))  
-
-
-for i in range(4):
-    wheel = chrono.ChBodyEasy(50, 
-                              chrono.ChVectorD(0, 0, 0), 
-                              chrono.ChQuaternionD(1, 0, 0, 0))
-    wheel.SetPos(chrono.ChVectorD(0, 0, 0))  
-    vehicle.Add(wheel)
+vehicle = chrono.ChBodyEasy(chrono.ChVectorD(0, 0, 0))
+vehicle.SetBodyFixed(False)
+vehicle.SetMass(1000)  
 
 
 
-tire_model = chrono.ChTireEasyModelTMEasy()
-for wheel in vehicle.GetComponents():
-    wheel.SetTireModel(tire_model)
 
 
 
-driver = chrono.ChDriver()
-driver.SetSteering(vehicle)
-driver.SetThrottle(vehicle)
-driver.SetBrake(vehicle)
 
 
-vis_app = vis.ChIrrApp(physics, 'HMMWV Simulation', 
-                      chrono.ChVectorD(10, 10, 10), 
-                      vis.VIS_WITH_SHADOWS)
-vis_app.AddCamera(vehicle, 10)  
+system.Add(vehicle)
 
 
-while vis_app.GetDevice().run():
-    vis_app.BeginScene()
-    physics.DoStepDynamics(1/50.0)  
-    vis_app.DrawAll()
-    vis_app.EndScene()
+vis.Initialize()
+vis.Add(terrain)
+vis.Add(vehicle)
+vis.SetCamera(chrono.ChVectorD(10, 5, 10), chrono.ChVectorD(0, 0, 0))
+vis.SetFrameRate(50)
+
+
+
+
+
+while True:
+    system.DoStepDynamics(chrono.ChTime(1/50))  
+    vis.Render()

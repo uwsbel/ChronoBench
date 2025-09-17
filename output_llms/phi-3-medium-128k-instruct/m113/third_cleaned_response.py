@@ -106,7 +106,6 @@ driver.SetThrottle(throttle_value)
 driver.Initialize()
 
 
-
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
@@ -134,7 +133,6 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
-    vis.Synchronize(time, driver_inputs)
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

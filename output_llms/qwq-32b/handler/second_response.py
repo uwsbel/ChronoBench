@@ -24,32 +24,32 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.message}{self.ticker} ...")
-        msg = String()  # Changed to String message type.
-        msg.data = self.message + str(self.ticker)  # Concatenated string message.
+        print(f"Publishing {self.message + str(self.ticker)} ...")
+        msg = String()  # Changed message type to String.
+        msg.data = self.message + str(self.ticker)  # Concatenate message and ticker.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
-    sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  # Fixed ChVector3d to ChVectorD.
+    sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  # Fixed vector type from ChVector3d to ChVectorD.
 
     # Define physical material properties for contact.
-    material = ch.ChMaterialSurface()  # Correct material type.
-    material.SetFriction(0.5)  # Set friction coefficient.
+    phys_mat = ch.ChContactMaterialNSC()
+    phys_mat.SetFriction(0.5)  # Set friction coefficient.
 
     # Create a floor object.
-    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, material)  # Use ChMaterialSurface.
-    floor.SetPos(ch.ChVectorD(0, 0, -1))  # Fixed ChVector3d to ChVectorD.
+    floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
+    floor.SetPos(ch.ChVectorD(0, 0, -1))  # Fixed vector type from ChVector3d to ChVectorD.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
-    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)  # Use ChMaterialSurface.
-    box.SetPos(ch.ChVectorD(0, 0, 5))  # Fixed ChVector3d to ChVectorD.
-    box.SetRot(ch.Q_from_AngAxis(0.2, ch.ChVectorD(1, 0, 0)))  # Fixed ChVector3d to ChVectorD.
+    box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
+    box.SetPos(ch.ChVectorD(0, 0, 5))  # Fixed vector type from ChVector3d to ChVectorD.
+    box.SetRot(ch.Q_from_AngAxis(0.2, ch.ChVectorD(1, 0, 0)))  # Fixed quaternion function and vector type.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
@@ -69,22 +69,20 @@ def main():
     
     # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic")
-    ros_manager.RegisterHandler(custom_handler)  # Fixed RegisterPythonHandler to RegisterHandler.
+    ros_manager.RegisterPythonHandler(custom_handler)  # Correct method for Python handlers.
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
     # Run the simulation loop.
-    time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
-    while time < time_end:
+    while sys.GetChTime() < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
-        time = sys.GetChTime()  # Update the simulation time.
 
-        if not ros_manager.Update(time, time_step):  # Update ROS communication.
+        if not ros_manager.Update(sys.GetChTime(), time_step):  # Use sys.GetChTime() for time.
             break  # Exit the loop if the ROS manager indicates a problem.
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.

@@ -1,6 +1,5 @@
 ```python
 import pychrono as chrono
-import pychrono.postprocess as postprocess
 import numpy as np
 
 # Initialize Chrono
@@ -10,107 +9,96 @@ system = chrono.ChSystemNSC()
 # Load triangular mesh from .obj file
 mesh_file = "path/to/your/mesh.obj"  # Replace with your .obj file path
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(mesh_file)
-
-# Create fixed body from mesh
-body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0)  # Replace with desired dimensions
-body.SetBodyFixed(True)
-body.SetMaterialSurface(chrono.ChMaterialSurface())
-body.SetCollide(True)
-body.GetCollisionModel().AddChildShape(chrono.ChTriangleMeshShape(mesh))
+if not mesh.LoadWavefront(mesh_file):
+    raise RuntimeError(f"Failed to load mesh from {mesh_file}")
+body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0)  # Create a box body for visualization
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)  # Fix the body in place
+body.AddAsset(chrono.ChMeshConnectedAsset(mesh))
 system.Add(body)
 
 # Create lidar sensor
 lidar = chrono.ChLidarSensor()
-lidar.SetSensorSize(0.1)  # Adjust sensor size as needed
-lidar.SetMaxRange(10.0)  # Adjust max range as needed
-lidar.SetScanAngle(np.pi)  # Adjust scan angle as needed
-lidar.SetScanFrequency(100)  # Adjust scan frequency as needed
-lidar.SetNoiseSigma(0.1)  # Adjust noise level
+lidar.SetSensorType(chrono.ChLidarSensor.SENSOR_TYPE_LASER)
+lidar.SetNumRays(100)
+lidar.SetMaxRange(10.0)
+lidar.SetNoise(0.1)  # Add some noise to the lidar data
+lidar.SetScanAngle(np.pi)  # Full 180-degree scan
+lidar.SetUpdateFrequency(100)  # Update lidar data 100 times per second
 
-# Attach lidar to the body
-lidar_body = chrono.ChBodyEasySphere(0.1)  # Create a small body to attach the lidar to
-lidar_body.SetPos(chrono.ChVectorD(0, 0, 0.5))  # Adjust lidar position relative to the body
-system.Add(lidar_body)
-lidar_body.AddChild(lidar)
-
-# Create sensor manager and visualize lidar data
+# Add lidar sensor to the body
 sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(lidar)
-sensor_manager.SetVisualization(True)
+body.AddSensor(sensor_manager)
 
-# Define orbit parameters
-orbit_radius = 1.0
-orbit_speed = 0.5
+# Create orbit for lidar
+orbit_radius = 2.0
+orbit_period = 1.0
 
 # Simulation loop
-time_step = 0.01
+dt = 1.0/100  # Time step
 for i in range(1000):
     # Update lidar position in orbit
-    angle = i * orbit_speed
-    lidar_body.SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 0.5))
+    angle = 2*np.pi * i / orbit_period
+    lidar.SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), 
+                                   orbit_radius * np.sin(angle), 0))
 
     # Update simulation
-    system.DoStepDynamics(time_step)
-
-    # Get lidar data
-    lidar_data = sensor_manager.GetSensorData(lidar)
+    system.DoStepDynamics(dt)
 
     # Print lidar buffer data
-    print(f"Lidar Buffer Data: {lidar_data}")
+    lidar_data = lidar.GetLidarBuffer()
+    print(f"Lidar Buffer Data (Step {i}): {lidar_data}")
 
-# Save lidar data
-postprocess.SaveSensorData(sensor_manager, "lidar_data.txt")
+    # Visualize lidar data (optional)
+
+# Save lidar data (optional)
+
+
+
 ```
 
 **Explanation:**
 
 1. **Initialization:**
-   - Import necessary libraries.
-   - Initialize the Chrono system.
-   - Set the Chrono data path.
+   - Imports necessary libraries (`pychrono` and `numpy`).
+   - Initializes the Chrono system (`chrono.ChSystemNSC()`).
+   - Sets the Chrono data path (replace with your actual path).
 
-2. **Mesh Loading:**
-   - Load the triangular mesh from the provided `.obj` file using `chrono.ChTriangleMeshConnected()` and `LoadWavefront()`.
+2. **Loading the Mesh:**
+   - Loads a triangular mesh from a Wavefront `.obj` file (replace with your file path).
+   - Creates a `chrono.ChBodyEasyBox` as a placeholder for visualization.
+   - Sets the box body's position and fixes it in place.
+   - Adds the loaded mesh as an asset to the box body.
+   - Adds the box body to the Chrono system.
 
-3. **Fixed Body Creation:**
-   - Create a fixed body using `chrono.ChBodyEasyBox()` (adjust dimensions as needed).
-   - Set the body as fixed using `SetBodyFixed(True)`.
-   - Add a collision model to the body using `GetCollisionModel().AddChildShape()`.
-   - Attach the loaded mesh as the collision shape.
-   - Add the body to the system.
+3. **Lidar Sensor Setup:**
+   - Creates a `chrono.ChLidarSensor` object.
+   - Configures the sensor type, number of rays, maximum range, noise level, scan angle, and update frequency.
 
-4. **Lidar Sensor Setup:**
-   - Create a lidar sensor using `chrono.ChLidarSensor()`.
-   - Configure sensor parameters like size, range, scan angle, frequency, and noise level.
+4. **Sensor Manager and Attachment:**
+   - Creates a `chrono.ChSensorManager` to manage the lidar sensor.
+   - Adds the lidar sensor to the sensor manager.
+   - Attaches the sensor manager to the mesh body.
 
-5. **Lidar Attachment:**
-   - Create a small body to attach the lidar to.
-   - Position the lidar body relative to the main body.
-   - Attach the lidar sensor to the lidar body.
+5. **Lidar Orbit:**
+   - Defines the radius and period for the lidar's orbit around the mesh.
 
-6. **Sensor Manager and Visualization:**
-   - Create a `chrono.ChSensorManager()` to manage the lidar sensor.
-   - Add the lidar sensor to the manager.
-   - Enable lidar data visualization using `SetVisualization(True)`.
-
-7. **Orbit Simulation:**
-   - Define orbit parameters like radius and speed.
-   - In the simulation loop, update the lidar body's position in an orbit around the main body.
-
-8. **Simulation Loop:**
-   - Iterate through simulation steps.
-   - Update the system dynamics using `DoStepDynamics()`.
-   - Retrieve lidar data from the sensor manager.
-   - Print the lidar buffer data at each step.
-
-9. **Data Saving:**
-   - After the simulation, save the lidar data to a file using `postprocess.SaveSensorData()`.
+6. **Simulation Loop:**
+   - Sets a time step (`dt`).
+   - Iterates for a specified number of steps.
+   - In each step:
+     - Updates the lidar's position in its orbit.
+     - Performs a simulation step using `system.DoStepDynamics(dt)`.
+     - Retrieves the lidar buffer data using `lidar.GetLidarBuffer()`.
+     - Prints the lidar buffer data.
+     - You can add code here to visualize the lidar data (optional).
+     - You can also add code to save the lidar data (optional).
 
 
 
-**Remember to:**
+**Remember:**
 
-- Replace `"path/to/your/mesh.obj"` with the actual path to your `.obj` file.
-- Replace `"path/to/chrono/data"` with the correct path to your Chrono data directory.
-- Adjust sensor parameters and orbit settings as needed for your specific simulation.
+- Replace `"path/to/your/mesh.obj"` with the actual path to your Wavefront `.obj` file.
+- Replace `"path/to/chrono/data"` with the path to your Chrono data directory.
+- You may need to adjust parameters like `orbit_radius`, `orbit_period`, `lidar.SetNoise()`, and `lidar.SetUpdateFrequency()` based on your specific requirements.

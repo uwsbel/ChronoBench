@@ -120,14 +120,12 @@ vehicle2.SetTireVisualizationType(vis_type)
 
 vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-patch = terrain.AddPatch(patch_mat, 
+patch2 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(5, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 terrain.Initialize()
-
-
 
 vis.AttachVehicle(vehicle2.GetVehicle())
 
@@ -150,7 +148,6 @@ driver2.Initialize()
 
 
 print( "VEHICLE MASS: ",  vehicle1.GetVehicle().GetMass())
-print( "VEHICLE MASS: ",  vehicle2.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -183,10 +180,6 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs1)
 
     
-    vehicle1.SetSteering(math.sin(time))
-    vehicle2.SetSteering(math.sin(time + 0.5))
-
-    
     driver1.Advance(step_size)
     driver2.Advance(step_size)
     terrain.Advance(step_size)
@@ -198,3 +191,9 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
+
+    
+    steering_input1 = math.sin(time)
+    steering_input2 = math.sin(time)
+    driver1.SetSteering(steering_input1)
+    driver2.SetSteering(steering_input2)

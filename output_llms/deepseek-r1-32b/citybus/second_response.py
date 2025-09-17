@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import collections  # Required for DataDriverEntry
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -71,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-# Create the vehicle Irrlicht interface
 
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -84,12 +83,14 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the data-driven driver system
-driver_data = [
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)
-]
-driver = veh.ChDataDriver(veh.vector_Entry(driver_data))
+driver_entries = veh.vector_Entry()
+driver_entries.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, throttle, steering, braking
+driver_entries.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
+driver_entries.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
+
+driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_entries)
+
+# Initialize driver
 driver.Initialize()
 
 # output vehicle mass

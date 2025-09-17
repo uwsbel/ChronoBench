@@ -11,7 +11,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 print(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, -5, 0.4)  # Changed initial position
+initLoc = chrono.ChVector3d(0, -5, 0.4)  # Changed from (0, 0, 0.4) to (0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -95,24 +95,22 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# ------------------
-# Add box object
-# ------------------
+# Add a box object to the system
 box_body = chrono.ChBody()
 box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box_body.SetBodyFixed(True)
-box_body.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  # half dimensions
-box_body.GetVisualModel().AddBox(1, 1, 1, chrono.ChColor(0, 0, 1))  # full dimensions with blue color
+box_body.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  # Half-dimensions
+box_body.GetVisualModel().AddBox(1, 1, 1, True)  # Full dimensions
+box_body.GetVisualModel().GetMaterial(0).SetDiffuseColor(chrono.ChColor(0, 0, 1))  # Blue color
 gator.GetSystem().Add(box_body)
 
-# ------------------
-# Add cylinder object
-# ------------------
+# Add a cylinder object to the system
 cylinder_body = chrono.ChBody()
 cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder_body.SetBodyFixed(True)
-cylinder_body.GetCollisionModel().AddCylinder(0.5, 0.5)  # radius, half-height
-cylinder_body.GetVisualModel().AddCylinder(0.5, 1, chrono.ChColor(0, 0, 1))  # radius, full height with blue color
+cylinder_body.GetCollisionModel().AddCylinder(0.5, 0.5, 0.5)  # Radius, height/2, height/2
+cylinder_body.GetVisualModel().AddCylinder(0.5, 1, True)  # Radius, height
+cylinder_body.GetVisualModel().GetMaterial(0).SetDiffuseColor(chrono.ChColor(0, 0, 1))  # Blue color
 gator.GetSystem().Add(cylinder_body)
 
 # Create the interactive driver system
@@ -141,28 +139,29 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Add Lidar sensor
-lidar_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+# Create and add a Lidar sensor
+lidar_offset = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    lidar_pose,
+    lidar_offset,
     800,  # horizontal samples
     300,  # vertical channels
-    2 * chrono.CH_PI,  # horizontal FOV
-    chrono.CH_PI / 12,  # max vertical FOV
-    -chrono.CH_PI / 6,  # min vertical FOV
+    2 * chrono.CH_PI,  # horizontal fov (360 degrees)
+    chrono.CH_PI / 12,  # max vertical fov
+    -chrono.CH_PI / 6,  # min vertical fov
     100.0,  # max range
-    sens.ChLidarSensor::Shape::RECTANGULAR,  # beam shape
+    sens.ChLidarShape_RECTANGULAR,  # beam shape
     2,  # sample radius
     0.003,  # divergence angle
-    sens.ChLidarSensor::ReturnMode::STRONGEST  # return mode
+    sens.ChLidarMode_STRONGEST_RETURN  # strongest return mode
 )
+lidar.SetName("Lidar Sensor")
 
 # Add filters to the Lidar sensor
-lidar.PushFilter(sens.ChFilterSensorData(sens.ChSensorDataType::DEPTH))
-lidar.PushFilter(sens.ChFilterSensorData(sens.ChSensorDataType::INTENSITY))
-lidar.PushFilter(sens.ChFilterXYZIPointCloud())
+lidar.PushFilter(sens.ChFilterLidarDepthMap())
+lidar.PushFilter(sens.ChFilterLidarIntensityMap())
+lidar.PushFilter(sens.ChFilterLidarPointCloudXYZI())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud())
 
 manager.AddSensor(lidar)
@@ -176,8 +175,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
-    driver.SetSteering(0.5)
-    driver.SetThrottle(0.2)
+    driver.SetSteering(0.5)  # Modified driver inputs
+    driver.SetThrottle(0.2)  # Modified driver inputs
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 

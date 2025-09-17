@@ -1,55 +1,45 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# =============================================================================
-# Main function
-# =============================================================================
 def main():
     # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath(os.path.join(os.environ.get('CHRONO_DATA_DIR', ''), 'data/'))
-    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+    chrono.SetChronoDataPath("path/to/chrono/data/")  # Update with actual path
+    veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
     
-    # System and simulation parameters
-    contact_method = chrono.ChContactMethod_SMC
-    step_size = 0.005
-    render_fps = 50
-    render_step_size = 1.0 / render_fps
-    
-    # 2. Create physical system
-    system = chrono.ChSystem(contact_method)
+    # System and contact method
+    system = chrono.ChSystemSMC()
     system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-    system.SetSolverMaxIterations(150)
-    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
     
-    # 3. Create terrain
+    # 2. Create terrain
     terrain = veh.RigidTerrain(system)
     patch_mat = chrono.ChMaterialSurfaceSMC()
     patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD(), 200, 100)
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
     terrain.Initialize()
-    
-    # 4. Create and initialize Gator vehicle
-    init_loc = chrono.ChVectorD(0, 0, 0.5)
-    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+    # 3. Create and initialize Gator vehicle
     gator = veh.Gator(system)
-    gator.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+    gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
     gator.SetTireType(veh.TireModelType_TMEASY)
+    gator.SetInitFwdVel(0.0)
     gator.Initialize()
-    
-    # Set visualization modes
+
+    # Visualization settings
     gator.SetChassisVisualizationType(veh.VisualizationType_MESH)
     gator.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     gator.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     gator.SetWheelVisualizationType(veh.VisualizationType_MESH)
     gator.SetTireVisualizationType(veh.VisualizationType_MESH)
-    
-    # 5. Create Irrlicht visualization
+
+    # 4. Create interactive driver
+    driver = veh.InteractiveDriverIRR(gator.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+
+    # 5. Set up Irrlicht visualization
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
@@ -57,51 +47,45 @@ def main():
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(6, 6, 1.5), chrono.ChVectorD(0, 0, 0.5))
+    vis.AddCamera(chrono.ChVectorD(8, 8, 1.5))
     vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 50, 5, 50, 50, 512)
-    
-    # 6. Create interactive driver system
-    driver = veh.ChIrrGuiDriver(vis)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
+    vis.AddLightDirectional()
+
+    # Add driver HUD
+    driver.SetHUDMode(True)
     driver.Initialize()
-    
-    # 7. Simulation loop
+
+    # 6. Simulation loop settings
+    step_size = 0.002
+    render_step = 1.0 / 50  # 50 FPS
     realtime_timer = chrono.ChRealtimeStepTimer()
-    step_number = 0
-    
+    frame_number = 0
+
     while vis.Run():
         time = system.GetChTime()
-        
-        # Update visualization
-        vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
-        vis.Render()
-        vis.EndScene()
-        
-        # Get driver inputs
+
+        # Update driver inputs
         driver_inputs = driver.GetInputs()
-        
+        driver.Synchronize(time)
+
         # Update vehicle systems
         gator.Synchronize(time, driver_inputs, terrain)
         terrain.Synchronize(time)
-        driver.Synchronize(time)
-        
-        # Advance dynamics
-        system.DoStepDynamics(step_size)
-        
-        # Update visualization assets
         vis.Synchronize(time, driver_inputs)
-        
-        # Increment frame counter
-        step_number += 1
-        
-        # Maintain real-time simulation rate
-        realtime_timer.Spin(step_size)
 
-# =============================================================================
-# Entry point
-# =============================================================================
+        # Advance simulation
+        gator.Advance(step_size)
+        terrain.Advance(step_size)
+        vis.Advance(step_size)
+
+        # Render at 50 FPS
+        if frame_number % int(render_step / step_size) == 0:
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
+        
+        realtime_timer.Spin(step_size)
+        frame_number += 1
+
 if __name__ == "__main__":
     main()

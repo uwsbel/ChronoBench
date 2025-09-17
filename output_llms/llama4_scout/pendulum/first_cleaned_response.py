@@ -2,61 +2,52 @@ import chrono as ch
 import chrono.irrlicht as irr
 
 
-ch.ChEngine.Initialize()
+ch.CHGlobals.Initialize()
 
 
-app = irr.ChIrrApp()
+app = irr.IrrlichtApplication()
 
 
-ground = ch.ChBody()
-ground.SetPos(ch.ChVector3d(0, 0, -10))
+system = ch.ChSystem()
+
+
+ground = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
+ground.SetPos(ch.ChVector3d(0, -5, 0))
 ground.SetFixed(True)
+system.AddBody(ground)
 
 
-pendulum = ch.ChBody()
-pendulum.SetMass(1.0)
-pendulum.SetPos(ch.ChVector3d(5, 0, 0))
-pendulum.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+pendulum = ch.ChBodyEasyBox(0.1, 1, 0.1, 10, False, False)
+pendulum.SetPos(ch.ChVector3d(0, 0, 0))
+pendulum.SetRot(ch.ChQuaternion(0, 0, 0, 1))
+system.AddBody(pendulum)
 
 
-inertia = ch.ChMatrix33d(1, 0, 0, 0, 1, 0, 0, 0, 1)
-inertia(0, 0) = 0.1
-inertia(1, 1) = 0.1
-inertia(2, 2) = 0.1
-pendulum.SetInertia(inertia)
+joint = ch.ChRevoluteJoint(ground, pendulum, ch.ChVector3d(0, -5, 0), ch.ChVector3d(0, 0, 0))
+joint.SetModulusOfElasticity(1e6)
+joint.SetDissipation(0.5)
+system.AddJoint(joint)
 
 
-joint = ch.ChRevolute()
-joint.Init(ground, pendulum, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
+torque = ch.ChTorque()
+torque.SetTorque(0, 0, -0.5)
+pendulum.AddTorque(torque)
 
 
+visual_system = irr.IrrlichtSystem(system)
+visual_system.SetWindowSize(ch.ChVector2i(800, 600))
+visual_system.SetWindowTitle("Simple Pendulum Simulation")
+visual_system.EnableShadows()
+app.SetVisualSystem(visual_system)
 
 
-
-
-
-scene = irr.ChIrrScene()
-scene.AddBody(ground)
-scene.AddBody(pendulum)
-scene.AddLink(joint)
-
-
-scene.SetCameraPos(ch.ChVector3d(0, -20, 10))
-scene.SetCameraTarget(ch.ChVector3d(0, 0, 0))
-
-
-time = 0
-dt = 0.02
-while time < 30 and app.Run():
+while True:
     
-    pendulum.Update()
-    joint.Update()
-    
-    
-    print(f"Time: {time:.2f}, Pendulum Position: {pendulum.GetPos()}, Pendulum Velocity: {pendulum.GetPos_dt()}")
-    
-    
-    time += dt
+    system.DoStepDynamics(0.01)
 
     
-    scene.Render()
+    print("Pendulum position: ", pendulum.GetPos())
+    print("Pendulum velocity: ", pendulum.GetPos_dt())
+
+    
+    app.DoStep()

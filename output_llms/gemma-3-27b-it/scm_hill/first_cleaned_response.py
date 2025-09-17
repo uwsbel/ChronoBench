@@ -1,51 +1,43 @@
 import chrono
 import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
+import numpy as np
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-terrain = veh.ChTerrain()
-terrain.SetTerrainType(veh.ChTerrain.Type_SCM)
-terrain.Initialize(system, 200, 200, 10, 10)  
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetTerrainSize(200, 200)
+terrain.SetQuadResolution(32, 32)
+terrain.SetHeightMap(np.random.rand(32, 32) * 0.5)  
+terrain.SetSoilProperties(chrono.ChSoilProperties())
+terrain.GetSoilProperties().SetCrushability(0.5)
+terrain.GetSoilProperties().SetCohesion(1000)
+terrain.GetSoilProperties().SetFriction(0.8)
+terrain.GetSoilProperties().SetRestitution(0.1)
+terrain.Initialize()
 
 
-terrain.Set_SCM_max_height(5)
-terrain.Set_SCM_min_height(-2)
-terrain.Set_SCM_damping(0.2)
-terrain.Set_SCM_elasticity(0.05)
-terrain.Set_SCM_friction(0.8)
+hmmwv = veh.HMMWV(system)
+hmmwv.SetVehicleMass(1500)
+hmmwv.SetEngineType(veh.HMMWV.EngineType.GAS)
+hmmwv.SetTireType(veh.HMMWV.TireType.RADIAL)
+hmmwv.SetVisualizationType(veh.HMMWV.VisualizationType.SIMPLE)
+hmmwv.Initialize()
 
 
-try:
-    terrain.LoadHeightMap("heightmap.png")
-except:
-    print("Heightmap file not found. Using a flat terrain.")
-    
-    for i in range(terrain.GetXSegments()):
-        for j in range(terrain.GetYSegments()):
-            terrain.SetHeight(i, j, 0.0)
+hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
+hmmwv.SetForward(chrono.ChVectorD(1, 0, 0))
 
 
-
-hmmwv = veh.ChHMMWV()
-hmmwv.SetVehicleModel(veh.ChHMMWV.Model.WV)  
-hmmwv.Initialize(system)
-hmmwv.SetChassisHeight(0.5)  
-hmmwv.SetEngineType(veh.ChHMMWV.EngineType.GASOLINE)
-hmmwv.SetTireType(veh.ChHMMWV.TireType.OFFROAD)
-
-
-hmmwv.SetPos(chrono.ChVectorD(0, 2, 0))
-hmmwv.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-
-
-driver = veh.ChDriver()
-driver.SetInput(veh.ChDriver.InputType.JOYSTICK)  
-driver.SetVehicle(hmmwv)
-system.Add(driver)
+driver = veh.SimpleDriver(hmmwv)
+driver.SetInputMode(veh.SimpleDriver.InputMode.SPEED)
+driver.SetTargetSpeed(10)  
+driver.SetThrottleGrad(0.1)
+driver.SetBrakeGrad(0.2)
+driver.SetSteeringGrad(0.5)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -65,11 +57,14 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
 
+    driver.Apply(timestep)
     system.DoStepDynamics(timestep)
-    driver.Synchronize(timestep)
     time += timestep
 
-    if time > 100:
-        break 
-
-print("Simulation finished.")
+    if time > 10:
+        driver.SetTargetSpeed(0) 
+    
+    
+    camera_pos = hmmwv.GetPos() + chrono.ChVectorD(0, 5, -10)
+    vis.GetCamera(0).SetPos(camera_pos)
+    vis.GetCamera(0).SetLookAt(hmmwv.GetPos())

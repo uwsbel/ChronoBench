@@ -1,47 +1,56 @@
-from pychrono import ChSystem, ChBody, ChPointPoint, ChMaterialSurface, ChContactMethod
+from pychrono import ChSystem, ChBody, ChContactMaterial, ChLinkLock
 from pychrono.irrlicht import IrrlichtVisualizer
-from pychrono.vehicle import ChVehicleModel, ChDriver
+from pychrono.vehicle import ChVehicleModelHMMWV, ChDriverSteeringWheel
+import numpy as np
 
-# Initialize PyChrono environment
+# Initialize PyChrono system
 system = ChSystem()
-
-# --- Vehicle ---
-# Load HMMWV vehicle model (replace with your actual model path)
-vehicle = ChVehicleModel.CreateVehicle(system, "path/to/hmmwv_model.urdf")
-vehicle.SetPos(ChVectorD(0, 0, 0))  
 
 # --- Terrain ---
 # Create SCM deformable terrain
-terrain = ChBody(system)
-terrain.SetPos(ChVectorD(0, 0, 0))
+terrain = ChBody(mass=1e6)
 terrain.SetBodyFixed(True)
-terrain.SetMaterialSurface(ChMaterialSurface(system))
-terrain.GetMaterialSurface().SetFriction(0.8)  # Adjust friction as needed
-terrain.GetMaterialSurface().SetRestitution(0.1)  # Adjust restitution as needed
 terrain.SetCollide(True)
+terrain.SetMaterialSurface(ChContactMaterial())
+terrain.SetPos(ChVectorD(0, 0, 0))
 
-# Load height map (replace with your actual height map path)
-terrain.LoadHeightMap("path/to/heightmap.png")
+# Define soil parameters
+soil_parameters = {
+    'Youngs_modulus': 1e6,
+    'Poisson_ratio': 0.3,
+    'density': 1000,
+    'damping': 0.1,
+}
+
+# Initialize terrain with height map (replace with your actual height map data)
+height_map = np.random.rand(100, 100)  
+terrain.SetTerrain(height_map, soil_parameters)
+
+# --- Vehicle ---
+# Create HMMWV vehicle model
+vehicle = ChVehicleModelHMMWV(system)
+vehicle.SetPos(ChVectorD(0, 0, 0.5))
 
 # --- Driver ---
-# Create a driver system (replace with your desired driver type)
-driver = ChDriver(vehicle)
+# Create driver system for steering control
+driver = ChDriverSteeringWheel(vehicle, 0.1)
 
 # --- Visualization ---
 # Initialize Irrlicht visualizer
 visualizer = IrrlichtVisualizer(system)
-visualizer.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))
-visualizer.SetCameraDistance(10)
-visualizer.SetAmbientLight(ChVectorD(0.2, 0.2, 0.2))
-visualizer.SetDirectionalLight(ChVectorD(0.8, 0.8, 0.8))
+visualizer.SetCamera(ChVectorD(10, 10, 10), ChVectorD(0, 0, 0))
+visualizer.SetLighting(True)
 
 # --- Simulation Loop ---
 while True:
-    # Update driver input (replace with your input logic)
-    driver.Update(0.01) 
-
-    # Integrate the system
+    # Advance simulation
     system.DoStepDynamics(0.01)
+
+    # Update driver control
+    driver.Update()
 
     # Update visualization
     visualizer.Render()
+
+    # Sync with real-time
+    visualizer.Sync()

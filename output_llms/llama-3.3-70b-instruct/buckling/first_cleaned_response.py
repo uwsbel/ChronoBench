@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
-import numpy as np
 
 
 sys = chrono.ChSystemNSC()
@@ -10,63 +9,61 @@ sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, False)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
 ground.SetPos(chrono.ChVectorD(0, -5, 0))
 ground.SetBodyFixed(True)
 
 
-beam = fea.ChBeamSectionEuler()
-beam.SetA(0.01)  
-beam.SetIxx(1e-5)  
-beam.SetIyy(1e-5)  
-beam.SetJ(1e-6)  
-beam.SetYoungModulus(2e11)  
-beam.SetPoissonRatio(0.3)  
-beam.SetDensity(7850)  
+beam = fea.ChBeamSectionEulerSimsons()
+beam.SetYoungModulus(200e9)  
+beam.SetArea(0.01)  
+beam.SetIy(1e-5)  
+beam.SetIz(1e-5)  
 
 
-mesh = fea.ChBeamMesh(beam, 10, 0.1, 0.1, 0.1)
-mesh.SetNodesPerElement(2)
+mesh = fea.ChMesh()
+mesh.SetBeamSection(beam)
+mesh.SetNodesNumber(10)  
+mesh.SetLength(10)  
 
 
-beam_body = fea.ChBodyBeamMesh(mesh)
-beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
-beam_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+beam_body = fea.ChBodyFEA(mesh)
+beam_body.SetDensity(7850)  
+beam_body.SetPos(chrono.ChVectorD(0, 5, 0))  
 
 
 def custom_motor(t):
-    return 10 * np.sin(t)
+    return 10 * chrono.ChFunction_Const()  
+
+motor = chrono.ChLinkMotorLinearPointPoint()
+motor.Initialize(beam_body, ground, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, -5, 0))
+motor.SetForceFunction(custom_motor)
 
 
-motor = chrono.ChLinkMotorLinearSpeed()
-motor.Initialize(beam_body, ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
-motor.SetSpeedFunction(custom_motor)
+constraint = chrono.ChLinkLockPointPoint()
+constraint.Initialize(beam_body, ground, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, -5, 0))
 
 
-sys.Add(beam_body)
 sys.Add(ground)
+sys.Add(beam_body)
 sys.Add(motor)
+sys.Add(constraint)
+
+
+solver = chrono.ChSolverNSC()
+solver.SetMaxIters(100)
+solver.SetTol(1e-6)
+sys.SetSolver(solver)
+
+timestepper = chrono.ChTimestepperEuler()
+sys.SetTimestepper(timestepper)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5))
-vis.AddCamera(chrono.ChVectorD(0, 5, 0))
-vis.AddTypicalLights()
-
-
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("PyChrono Simulation")
-vis.SetLogo("")
-
-
-solver = chrono.ChSolverNSC()
-timestepper = chrono.ChTimestepperEuler()
-
-
-sys.SetSolver(solver)
-sys.SetTimestepper(timestepper)
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddTypicalCameraMovements()
 
 
 while vis.Run():

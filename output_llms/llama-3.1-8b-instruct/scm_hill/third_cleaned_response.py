@@ -63,11 +63,12 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetHeight(terrainHeight)
-terrain.SetLength(terrainLength)
-terrain.SetWidth(terrainWidth)
-terrain.SetPatch(veh.RigidTerrain.PATCH_SINGLE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
+terrain.SetTerrainDimensions(terrainLength, terrainWidth, terrainHeight)
+terrain.SetPatchNumber(1)
+terrain.SetPatchPosition(chrono.ChVector3d(0, 0, 0))
+terrain.SetPatchDimensions(terrainLength, terrainWidth)
+terrain.SetPatchHeight(terrainHeight)
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
 

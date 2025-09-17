@@ -99,39 +99,8 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create obstacles
-obstacles = []
-for i in range(5):
-    obstacle = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
-    obstacle.SetPos(np.random.uniform(-5, 5, 3))
-    vis.Add(obstacle)
-    obstacles.append(obstacle)
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
-
-# Create sensor manager
-manager = sens.ChSensorManager()
-
-# Create lidar sensor
-lidar = sens.ChLidar()
-lidar.SetName("Lidar")
-lidar.SetRaysNumber(180)
-lidar.SetRayPitch(2)
-lidar.SetRayMaxLength(10)
-lidar.SetRayMinLength(0.1)
-lidar.SetRayMinIntensity(0.01)
-lidar.SetRayMaxIntensity(1)
-lidar.SetFilterMinIntensity(0.01)
-lidar.SetFilterMaxIntensity(1)
-lidar.SetFilterMinDistance(0.1)
-lidar.SetFilterMaxDistance(10)
-
-# Add lidar sensor to the vehicle
-vehicle.GetVehicle().AddSensor(lidar)
-
-# Add lidar sensor to the sensor manager
-manager.AddSensor(lidar)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -142,6 +111,21 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# Create 5 box obstacles randomly positioned in the simulation space
+for i in range(5):
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True)
+    box.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 1))
+    vehicle.GetSystem().AddBody(box)
+
+# Create a sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Add a lidar sensor to the vehicle
+lidar = sens.ChLidarSensor(vehicle.GetVehicle(), 100, 1000, 0.01, 0.01)
+lidar.SetFilter(sens.ChFilterAccess.FILTER_SPHERE, 100, 0.01)
+lidar.SetFilter(sens.ChFilterAccess.FILTER_POINTS, 100, 0.01)
+manager.AddSensor(lidar)
 
 # ---------------
 # Simulation loop
@@ -177,14 +161,14 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Update the sensor manager
+    manager.Update()
+
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    # Update sensor manager
-    manager.Update()
 
     # Increment frame number
     step_number += 1

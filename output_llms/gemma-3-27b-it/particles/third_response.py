@@ -24,21 +24,20 @@ sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
-msphereBody.SetVel(chrono.ChVector3d(0.5, 0, 0.1))
+msphereBody.SetVel(chrono.ChVector3d(0.5, 0, 0.1))  # Initial velocity for sphere 1
 msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody)
 
-# Create sphere 2
+# Create two additional spheres
 msphereBody2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody2.SetPos(chrono.ChVector3d(-10, -10, 0))
-msphereBody2.SetVel(chrono.ChVector3d(-0.5, 0, -0.1))
+msphereBody2.SetVel(chrono.ChVector3d(-0.5, 0, -0.1))  # Initial velocity for sphere 2
 msphereBody2.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody2)
 
-# Create sphere 3
 msphereBody3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
 msphereBody3.SetPos(chrono.ChVector3d(0, 20, 0))
-msphereBody3.SetVel(chrono.ChVector3d(0, -0.5, 0.2))
+msphereBody3.SetVel(chrono.ChVector3d(0, -0.5, 0.2))  # Initial velocity for sphere 3
 msphereBody3.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 sys.Add(msphereBody3)
 
@@ -97,6 +96,7 @@ while vis.Run():
     emitter.EmitParticles(sys, stepsize)
     for body in sys.GetBodies():
         body.EmptyAccumulators()
+
     G_constant = 6.674e-11  # Corrected gravitational constant
 
     # Calculate the total kinetic energy of the system
@@ -115,6 +115,7 @@ while vis.Run():
 
     # Total energy of the system
     total_energy = kinetic_energy + potential_energy
+
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -126,4 +127,5 @@ while vis.Run():
 
     # Print the energy values
     print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
+
     sys.DoStepDynamics(stepsize)

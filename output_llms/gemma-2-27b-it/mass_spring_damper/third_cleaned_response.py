@@ -1,12 +1,14 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
+
 rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
 
+
 sys = chrono.ChSystemNSC()
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81)) 
 
 ground = chrono.ChBody()
 sys.AddBody(ground)
@@ -14,7 +16,7 @@ ground.SetFixed(True)
 ground.EnableCollision(False)
 
 sph_1 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_1, chrono.ChFrameD(chrono.ChVector3d(-1, 0, 0))) 
+ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
 
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
@@ -42,7 +44,6 @@ sys.AddLink(spring_1)
 spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
-
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVector3d(0, -3, 0))
@@ -55,6 +56,7 @@ box_2 = chrono.ChVisualShapeBox(1, 1, 1)
 box_2.SetColor(chrono.ChColor(0, 0.6, 0))
 body_2.AddVisualShape(box_2)
 
+
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_1, body_2, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
@@ -63,6 +65,7 @@ spring_2.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_2)
 
 spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
 
 body_3 = chrono.ChBody()
 sys.AddBody(body_3)
@@ -75,6 +78,7 @@ body_3.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 box_3 = chrono.ChVisualShapeBox(1, 1, 1)
 box_3.SetColor(chrono.ChColor(0, 0, 0.6))
 body_3.AddVisualShape(box_3)
+
 
 spring_3 = chrono.ChLinkTSDA()
 spring_3.Initialize(body_2, body_3, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))

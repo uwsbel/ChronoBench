@@ -10,28 +10,37 @@ import pychrono.irrlicht as chronoirr
 
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
+        self.n_chains = n_chains
+        self.system = system
+        self.mesh = mesh
+        self.end_bodies = []
+
         
-        msection_cable2 = fea.ChBeamSectionCable()
-        msection_cable2.SetDiameter(0.015)  
-        msection_cable2.SetYoungModulus(0.01e9)  
-        msection_cable2.SetRayleighDamping(0.0001)  
+        msection_cable = fea.ChBeamSectionCable()
+        msection_cable.SetDiameter(0.015)  
+        msection_cable.SetYoungModulus(0.01e9)  
+        msection_cable.SetRayleighDamping(0.0001)  
 
         
         builder = fea.ChBuilderCableANCF()
 
-        
-        for i in range(n_chains):
+        for i in range(self.n_chains):
             
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
 
             
+            mbox = chrono.ChBody()
+            mbox.SetMass(1.0)
+            mbox.SetPos(chrono.ChVector3d(0.5 + i * 0.2, 0, -0.1))
+
+            
             builder.BuildBeam(
-                mesh,  
-                msection_cable2,  
-                10 + i * 5,  
-                chrono.ChVector3d(0, i * 0.1, -0.1),  
-                chrono.ChVector3d(0.5, i * 0.1, -0.1)  
+                self.mesh,  
+                msection_cable,  
+                10 + i * 2,  
+                chrono.ChVector3d(0, 0, -0.1 - i * 0.1),  
+                chrono.ChVector3d(0.5 + i * 0.2, 0, -0.1 - i * 0.1)  
             )
 
             
@@ -41,24 +50,36 @@ class Model1:
             
             constraint_hinge = fea.ChLinkNodeFrame()
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
-            system.Add(constraint_hinge)  
+            self.system.Add(constraint_hinge)  
 
             
-            box = chrono.ChBody()
-            box.SetPos(chrono.ChVector3d(0.5, i * 0.1, -0.1))  
-            box.SetMass(1)  
-            system.Add(box)  
+            constraint_box = chrono.ChLinkLockPrismatic()
+            constraint_box.Initialize(builder.GetLastBeamNodes().back(), mbox)
+            self.system.Add(constraint_box)  
 
-            
-            constraint_box = fea.ChLinkPointFrame()
-            constraint_box.Initialize(builder.GetLastBeamNodes().back(), box)
-            system.Add(constraint_box)  
+            self.end_bodies.append(mbox)
 
-    def PrintBodyPositions(self, system):
         
-        for i, body in enumerate(system.Get_bodylist()):
-            if isinstance(body, chrono.ChBody) and not body.IsFixed():
-                print(f"Body {i} position: {body.GetPos()}")
+        
+        visualizebeamA = chrono.ChVisualShapeFEA(self.mesh)
+        visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
+        visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
+        visualizebeamA.SetSmoothFaces(True)  
+        visualizebeamA.SetWireframe(False)  
+        self.mesh.AddVisualShapeFEA(visualizebeamA)  
+
+        
+        visualizebeamB = chrono.ChVisualShapeFEA(self.mesh)
+        visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
+        visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
+        visualizebeamB.SetSymbolsThickness(0.006)  
+        visualizebeamB.SetSymbolsScale(0.01)  
+        visualizebeamB.SetZbufferHide(False)  
+        self.mesh.AddVisualShapeFEA(visualizebeamB)  
+
+    def PrintBodyPositions(self):
+        for i, body in enumerate(self.end_bodies):
+            print(f"End body {i+1} position: {body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()
@@ -67,24 +88,6 @@ mesh = fea.ChMesh()
 
 model = Model1(sys, mesh)
 sys.Add(mesh)  
-
-
-
-visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-visualizebeamA.SetSmoothFaces(True)  
-visualizebeamA.SetWireframe(False)  
-mesh.AddVisualShapeFEA(visualizebeamA)  
-
-
-visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-visualizebeamB.SetSymbolsThickness(0.006)  
-visualizebeamB.SetSymbolsScale(0.01)  
-visualizebeamB.SetZbufferHide(False)  
-mesh.AddVisualShapeFEA(visualizebeamB)  
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -117,4 +120,4 @@ while vis.Run():
     vis.Render()  
     vis.EndScene()  
     sys.DoStepDynamics(0.01)  
-    model.PrintBodyPositions(sys)
+    model.PrintBodyPositions()

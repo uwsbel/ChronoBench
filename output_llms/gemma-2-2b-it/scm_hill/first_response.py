@@ -1,66 +1,48 @@
-# Import necessary modules
-from pychrono import Chrono
-from pychrono.core import System
-from pychrono.core.math import Vector3, Matrix4x4
-from pychrono.physics import RigidBody, Contact
-from pychrono.physics.collision import Collision
-from pychrono.rendering import Irrlicht
-from pychrono.rendering.irrlicht import IrrlichtScene, IrrlichtCamera
-from pychrono.rendering.irrlicht import IrrlichtMaterial
-from pychrono.rendering.irrlicht import IrrlichtLight
-from pychrono.rendering.irrlicht import IrrlichtTexture
-from pychrono.rendering.irrlicht import IrrlichtWorld
-from pychrono.vehicle import HMMWV
-from pychrono.terrain import SCMTerrain
-from pychrono.terrain import Soil
-from pychrono.driver import Driver
+import pychrono as p
+import pychrono.irrlicht as irr
 
 # Initialize PyChrono
-chrono = Chrono()
+p.init()
 
-# Create a new system
-sys = System(chrono)
+# Create the world
+world = p.World()
 
-# Create a HMMWV vehicle
-vehicle = HMMWV(sys)
-vehicle.set_mass(1000)
-vehicle.set_position(Vector3(0, 0, 0))
-vehicle.set_rotation(Matrix4x4.identity())
+# Create the HMMWV vehicle
+vehicle = p.Vehicle(world)
+vehicle.set_model("hmmwv.stl")  # Replace with your HMMWV model path
+vehicle.set_mass(1000)  # kg
+vehicle.set_position(p.Vector3(0, 0, 0))  # Initial position
 
-# Create a SCM deformable terrain
-terrain = SCMTerrain(sys)
-terrain.set_soil_parameters(Soil.create_soil("clay"))
-terrain.set_height_map(
-    {
-        (0, 0): 1.0,
-        (10, 0): 0.5,
-        (0, 10): 0.5,
-        (10, 10): 1.0,
-    }
-)
+# Create the SCM deformable terrain
+terrain = p.Terrain(world)
+terrain.set_height_map("terrain.png")  # Replace with your terrain height map path
+terrain.set_soil_parameters(p.SoilParameters(density=1000, shear_strength=1000))
 
-# Create a driver system
-driver = Driver(sys)
-driver.set_position(Vector3(0, 0, 0))
-driver.set_rotation(Matrix4x4.identity())
+# Create the driver system
+driver = p.Driver(vehicle)
+driver.set_control_mode(p.ControlMode.Manual)
 
-# Create an Irrlicht scene
-irrlicht = Irrlicht()
-scene = IrrlichtScene(irrlicht)
-camera = IrrlichtCamera(scene, Vector3(0, 10, 5))
-camera.set_fov(45)
-camera.set_position(Vector3(0, 10, 5))
-light = IrrlichtLight(scene, Vector3(0, 1, 0))
-
-# Create an Irrlicht world
-world = IrrlichtWorld(irrlicht)
-world.set_camera(camera)
-world.set_light(light)
+# Initialize Irrlicht visualization
+irr_world = irr.IrrlichtEngine()
+irr_world.set_window_size(800, 600)
+irr_world.set_camera_position(p.Vector3(0, 0, 10))
+irr_world.set_camera_look_at(p.Vector3(0, 0, 0))
+irr_world.set_ambient_light(p.Color(0.2, 0.2, 0.2))
+irr_world.set_directional_light(p.Color(1, 1, 1))
 
 # Simulation loop
 while True:
-    # Update the simulation
-    sys.update()
+    # Update the world
+    world.update()
 
-    # Render the scene
-    irrlicht.render()
+    # Update the driver
+    driver.update()
+
+    # Update the terrain
+    terrain.update()
+
+    # Update the visualization
+    irr_world.render()
+
+    # Wait for a certain time
+    p.sleep(0.01)

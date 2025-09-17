@@ -3,43 +3,90 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 
-chrono.Init()
+chrono.SetChronoDataPath("/path/to/chrono/data/")
 
 
-initLoc = chrono.ChVectorD(0, 0, 1.0)
-initRot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle = veh.KrAZ(initLoc, initRot)
+init_loc = chrono.ChVector3d(0, 0, 1.0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+vehicle = veh.Kraz(init_loc, init_rot)
 
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_C_PI / 2)))
-patch.SetContactFrictionCoefficient(0.9)
-patch.SetContactRestitutionCoefficient(0.01)
+patch_mat = chrono.ChMaterialSurfaceSMC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain.AddPatch(patch_mat, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1), 100, 100)
 
 
-driver = veh.ChDriver(vehicle.GetVehicle())
+driver = veh.ChDriver(vehicle)
 
 
-vis = irr.ChVisualSystemIrrlicht()
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Kraz Vehicle Simulation')
 vis.SetWindowSize(1280, 720)
-vis.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), chrono.VECT_Y)
-vis.SetCameraVertical(chrono.VECT_Y)
-vis.EnableShadows()
-vis.AttachLight(chrono.ChVectorD(100, 100, 100), 100, chrono.ChColor(1, 1, 1))
-vis.AttachLight(chrono.ChVectorD(-100, -100, 100), 100, chrono.ChColor(1, 1, 1))
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLightDirectional()
+vis.AttachVehicle(vehicle)
 
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     driver_inputs = driver.GetInputs()
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    vis.Synchronize("Kraz Vehicle Simulation", driver_inputs)
-    vehicle.Advance(0.01)
-    terrain.Advance(0.01)
-    vis.Advance(0.01)
+    vehicle.Advance(time)
+    terrain.Advance(time)
+    driver.Advance(time)
+    vis.Advance(time)
+    vis.Render()
+
+
+if __name__ == '__main__':
+    
+    pass
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+def main():
+    
+    chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+    
+    init_loc = chrono.ChVector3d(0, 0, 1.0)
+    init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+    vehicle = veh.Kraz(init_loc, init_rot)
+
+    
+    terrain = veh.RigidTerrain(vehicle.GetSystem())
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    terrain.AddPatch(patch_mat, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1), 100, 100)
+
+    
+    driver = veh.ChDriver(vehicle)
+
+    
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('Kraz Vehicle Simulation')
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    vis.AddLightDirectional()
+    vis.AttachVehicle(vehicle)
+
+    
+    while vis.Run():
+        time = vehicle.GetSystem().GetChTime()
+        driver_inputs = driver.GetInputs()
+        vehicle.Advance(time)
+        terrain.Advance(time)
+        driver.Advance(time)
+        vis.Advance(time)
+        vis.Render()
+
+if __name__ == '__main__':
+    main()

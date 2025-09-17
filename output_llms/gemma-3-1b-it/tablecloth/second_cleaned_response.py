@@ -68,7 +68,6 @@ for iz in range(nsections_z):
         mesh.AddElement(melementB)
 
 
-
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)

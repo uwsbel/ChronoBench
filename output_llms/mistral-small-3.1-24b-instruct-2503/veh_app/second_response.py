@@ -95,19 +95,17 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# ------------------
-# Add Box Object
-# ------------------
+# Add a box object to the system
 box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetBodyFixed(True)
 box.GetVisualShape(0).SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
 gator.GetSystem().Add(box)
 
-# ------------------
-# Add Cylinder Object
-# ------------------
+# Add a cylinder object to the system
 cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cylinder.SetBodyFixed(True)
 cylinder.GetVisualShape(0).SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
 gator.GetSystem().Add(cylinder)
 
@@ -133,33 +131,30 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
-# Renders the image at current point in the filter graph
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# -----------------------
-# Create Lidar Sensor
-# -----------------------
-lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
+# Create and add a Lidar sensor to the system
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    lidar_offset_pose,
-    800,  # horizontal samples
-    300,  # vertical channels
-    2 * chrono.CH_PI,  # horizontal field of view
-    chrono.CH_PI / 12,  # maximum vertical field of view
-    -chrono.CH_PI / 6,  # minimum vertical field of view
-    100.0,  # maximum range
-    sens.ChLidarSensor.RECTANGULAR_BEAM,  # beam shape
-    2,  # sample radius
-    0.003  # divergence angle
+    chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2)),
+    800,
+    300,
+    2 * chrono.CH_PI,
+    chrono.CH_PI / 12,
+    -chrono.CH_PI / 6,
+    100.0,
+    sens.ChLidarSensor.BeamShape_RECTANGULAR,
+    2,
+    0.003,
+    sens.ChLidarSensor.StrongestReturn
 )
-lidar.SetStrongestReturnMode()
+lidar.SetName("Lidar Sensor")
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZIPointCloud())
-lidar.PushFilter(sens.ChFilterVisualize())
+lidar.PushFilter(sens.ChFilterVisualize(1280, 720, "Lidar Sensor"))
 manager.AddSensor(lidar)
 
 # ---------------

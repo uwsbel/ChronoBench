@@ -35,11 +35,11 @@ model.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
 system.Add(model)
 
 
-app = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', chrono.ChVectorD(0, 0, -5), 1, 1000)
+app = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', chrono.ChVectorD(0.5, 0.5, 1), 1, 1000, 600, False)
 
 
 app.AddTypicalLogo()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, -2))
+app.AddTypicalCamera(chrono.ChVectorD(0.5, 0.5, 1))
 app.AddTypicalLights()
 app.AssetBindAll()
 app.AssetUpdateAll()

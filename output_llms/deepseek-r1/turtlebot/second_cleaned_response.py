@@ -43,41 +43,48 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 2e-3
 
 
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
-
 def move(mode):
+    
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     
+        
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)     
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)     
+        
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)      
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)    
+        
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid movement mode")
+        raise ValueError("Invalid movement mode. Use 'straight', 'left', or 'right'")
 
 
 time = 0
-current_mode = None
+current_mode = None  
+
 while vis.Run():
     
     if time < 5.0:
-        new_mode = 'straight'
+        if current_mode != 'straight':
+            print("Moving straight")
+            current_mode = 'straight'
+        move('straight')
     elif time < 10.0:
-        new_mode = 'left'
+        if current_mode != 'left':
+            print("Turning left")
+            current_mode = 'left'
+        move('left')
     else:
-        new_mode = 'right'
-    
-    
-    if new_mode != current_mode:
-        print(f"Robot now moving: {new_mode}")
-        current_mode = new_mode
-        move(new_mode)
-    
+        if current_mode != 'right':
+            print("Turning right")
+            current_mode = 'right'
+        move('right')
+
     
     time += time_step
 

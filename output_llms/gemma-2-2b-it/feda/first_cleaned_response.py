@@ -1,70 +1,51 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.core as core
-import pychrono.irrlicht.physics as physics
-import pychrono.irrlicht.scene as scene
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht as irr
 
 
 chrono.init()
 
 
-env = chrono.Environment(irr.IrrlichtEnvironment())
+engine = irrlicht.IrrlichtEngine()
+engine.initialize()
 
 
-terrain = chrono.RigidTerrain(
-    name="Terrain",
-    pos=chrono.Vec3(0, 0, 0),
-    size=chrono.Vec3(10, 10, 10),
-    texture=irr.IrrlichtTexture("terrain.png"),
+scene = engine.createScene()
+
+
+terrain = irrlicht.IrrTerrain(
+    "terrain.jpg",  
+    100,  
+    100,  
+    chrono.Vector3(0, 0, 0),  
 )
+scene.addTerrain(terrain)
 
 
-env.add(terrain)
+vehicle = chrono.Vehicle()
+vehicle.position = chrono.Vector3(0, 0, 0)
+vehicle.orientation = chrono.Quaternion(0, 0, 0, 1)
+vehicle.contactMethod = chrono.ContactMethod.STATIC
+vehicle.tireModel = chrono.TireModel.CONTINENTAL
 
 
-vehicle = chrono.Vehicle(
-    name="FEDA Vehicle",
-    pos=chrono.Vec3(5, 0, 0),
-    orientation=chrono.Vec3(0, 0, 0),
-    contactMethod=chrono.ContactMethod.STATIC,
-    tireModel=chrono.TireModel.RUBBER,
-)
+scene.addVehicle(vehicle)
 
 
-env.add(vehicle)
-
-
-camera = chrono.Camera(
-    name="Camera",
-    pos=chrono.Vec3(0, 5, 5),
-    lookAt=chrono.Vec3(0, 0, 0),
-)
-
-
-env.add(camera)
+camera = irrlicht.IrrCamera()
+camera.position = chrono.Vector3(0, 10, 10)
+camera.lookAt(vehicle.position)
+scene.addCamera(camera)
 
 
 driver = chrono.Driver()
-driver.add_input_method("keyboard")
-driver.add_input_method("mouse")
+driver.setSteering(chrono.SteeringType.ROTATION)
+driver.setThrottle(chrono.ThrottleType.POSITION)
+driver.setBraking(chrono.BrakingType.POSITION)
 
 
-dt = 0.01
-fps = 50
+simulation_time = 10.0
+simulation_frames = 50
 
 
-while True:
-    
-    driver.update()
-
-    
-    vehicle.update(dt)
-
-    
-    env.render()
-
-    
-    env.update()
-
-    
-    core.sleep(1 / fps)
+engine.run(simulation_time, simulation_frames)

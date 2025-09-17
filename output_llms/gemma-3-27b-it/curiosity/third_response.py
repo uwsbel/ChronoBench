@@ -52,37 +52,36 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
-# Enable shadows (commented out to improve performance)
-# vis.EnableShadows()
 
-# Sensor setup
+# Create sensor manager
 manager = sens.ChSensorManager(system)
 
-# Lidar parameters
+# Lidar sensor parameters
 lidar_update_rate = 20  # Hz
 lidar_horizontal_samples = 360
 lidar_vertical_samples = 64
 lidar_fov = math.pi / 2  # 90 degrees
 lidar_range = 50  # meters
+lidar_sigma = 0.01
 
-# Create Lidar sensor
+# Create lidar sensor
 lidar = sens.ChLidarSensor(
     lidar_update_rate,
     lidar_horizontal_samples,
     lidar_vertical_samples,
     lidar_fov,
-    lidar_range
+    lidar_range,
+    lidar_sigma
 )
 
-# Attach lidar to rover chassis
-lidar.GetSensorNode().Attach(rover.GetChassis().GetLink("base_link"))
-lidar.GetSensorNode().SetPos(chrono.ChVector3d(0.0, 0.0, 1.0))  # Position above rover
-lidar.GetSensorNode().SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+# Attach lidar to rover's chassis
+lidar.GetSensorNode().Attach(rover.GetChassis())
+lidar.GetSensorNode().SetPos(chrono.ChVector3d(0, 0, 1.5))  # Position on top of the rover
 
-# Set up filters for lidar data
-lidar.AddFilter(sens.ChLidarFilterRange(0.1, lidar_range))  # Filter points closer than 0.1m
+# Set up filters for lidar data (example: a simple range filter)
+# lidar.AddFilter(sens.ChLidarFilterRange(0.5, lidar_range))
 
-# Add lidar sensor to the sensor manager
+# Add lidar sensor to sensor manager
 manager.AddSensor(lidar)
 
 # Set the simulation time step

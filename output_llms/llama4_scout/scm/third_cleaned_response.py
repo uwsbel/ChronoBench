@@ -5,6 +5,7 @@ import pychrono.sensor as sensor
 import math
 import random
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -60,22 +61,16 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(
     2e6,  
-    0,    
+    0,  
     1.1,  
-    0,    
-    30,   
-    0.01, 
+    0,  
+    30,  
+    0.01,  
     2e8,  
-    3e4   
+    3e4  
 )
-
-
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
-
-
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
-
-
 terrain.Initialize(20, 20, 0.02)
 
 
@@ -91,8 +86,6 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
-
-
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
@@ -106,49 +99,52 @@ sensor_manager = sensor.SensorManager(vehicle.GetSystem())
 
 
 light1 = irr.ChLight()
+light1.SetType(irr.LightType_POI)
 light1.SetPosition(chrono.ChVector3d(10, 10, 10))
 light1.SetColor(chrono.ChColor(1, 1, 1))
 vis.AddLight(light1)
 
 light2 = irr.ChLight()
+light2.SetType(irr.LightType_POI)
 light2.SetPosition(chrono.ChVector3d(-10, -10, 10))
 light2.SetColor(chrono.ChColor(1, 1, 1))
 vis.AddLight(light2)
 
 
-camera = sensor.ChCameraSensor(vehicle.GetChassisBody(),  
-                              1,  
-                              chrono.ChVector3d(0, 0, 1),  
-                              60,  
-                              640,  
-                              480   
-                             )
+camera_sensor = sensor.ChCameraSensor(vehicle.GetChassisBody(),  
+                                    1,  
+                                    chrono.ChVector3d(0, 0, 1),  
+                                    60,  
+                                    640,  
+                                    480  
+                                    )
+camera_sensor.SetDiffuseColor(chrono.ChColor(1, 0, 0))
 
 
-camera.SetPostProcessing(sensor.ChCameraSensorPostProcessing.AA)
+vis_filter = sensor.ChCameraVisualizeFilter()
+camera_sensor.AddFilter(vis_filter)
 
 
-sensor_manager.AddSensor(camera)
+sensor_manager.AddSensor(camera_sensor)
 
 
 for _ in range(10):
     box_body = chrono.ChBodyEasyBox(chrono.ChVector3d(1, 1, 1),  
-                                    1000,  
-                                    True,  
-                                    chrono.ChCoordsysd(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 1), chrono.QuatFromAngleZ(0)))
-    box_body.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+                                   1000,  
+                                   True,  
+                                   True,  
+                                   True  
+                                   )
+    box_body.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 1))
+    box_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
     vehicle.GetSystem().AddBody(box_body)
-
 
 
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-
 render_steps = math.ceil(render_step_size / step_size)
-
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -156,30 +152,22 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    
     step_number += 1
-
-    
     realtime_timer.Spin(step_size)

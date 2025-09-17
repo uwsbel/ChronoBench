@@ -5,60 +5,71 @@ import numpy as np
 # 1. Initialize the PyChrono environment and core components
 ch.ChEngine.Initialize()
 
-# 2. Create the main simulation system
-system = ch.ChSystem_EulerImplicit()
+# 2. Create the simulation system
+system = ch.ChSystemEulerImplicit()
 
-# Use the PardisoMKL solver for efficient dynamics handling
-system.SetSolverType(ch.ChSolver.PARDISO_MKL)
-system.SetSolverVerbose(True)
+# Set the solver to PardisoMKL for efficient dynamics
+system.SetSolver(ch.ChSolverPardisoMKL())
 
-# 3. Define an isotropic Kirchhoff material for the tablecloth
-mat = ch.ChMaterialShellKirchhoff()
-mat.SetThickness(0.001)  # Thickness of the shell
-mat.SetYoungModulus(100e3)  # Young's modulus
-mat.SetPoissonRatio(0.3)  # Poisson's ratio
-mat.SetDensity(1000)  # Density
-
-# 4. Generate a mesh grid for the tablecloth
-# Define the grid dimensions
-nx, ny = 20, 20
-Lx, Ly = 1.0, 1.0  # Length and width of the tablecloth
+# 3. Create a mesh for the tablecloth using shell elements
+# Define the mesh dimensions and resolution
+mesh_length = 2.0  # Length of the tablecloth in meters
+mesh_width = 1.5  # Width of the tablecloth in meters
+num_length_elements = 20  # Number of elements along the length
+num_width_elements = 15  # Number of elements along the width
+thickness = 0.001  # Thickness of the tablecloth in meters
 
 # Create a ChMesh object
 mesh = ch.ChMesh()
 
-# Add nodes
-for i in range(nx + 1):
-    x = Lx * i / nx
-    for j in range(ny + 1):
-        y = Ly * j / ny
-        node = ch.ChNodeFEAxyzP(x, y, 0)
-        node.SetMass(0)  # No mass for nodes, will be automatically computed
+# Generate the nodes
+nodes = []
+for i in range(num_length_elements + 1):
+    for j in range(num_width_elements + 1):
+        x = i / num_length_elements * mesh_length
+        y = j / num_width_elements * mesh_width
+        z = 0.0
+        node = ch.ChNodexyz(x, y, z)
+        nodes.append(node)
         mesh.AddNode(node)
 
-# Add elements (shell quadrilateral elements)
-for i in range(nx):
-    for j in range(ny):
-        n1 = mesh.GetNodeByIndex(i * (ny + 1) + j)
-        n2 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + j)
-        n3 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + (j + 1))
-        n4 = mesh.GetNodeByIndex(i * (ny + 1) + (j + 1))
-        
-        # Create a ChElementShellQuadrilateral
-        elem = ch.ChElementShellQuadrilateral()
-        elem.SetNodes(n1, n2, n3, n4)
-        elem.SetMaterial(mat)
+# Generate the elements
+for i in range(num_length_elements):
+    for j in range(num_width_elements):
+        n1 = nodes[i * (num_width_elements + 1) + j]
+        n2 = nodes[(i + 1) * (num_width_elements + 1) + j]
+        n3 = nodes[(i + 1) * (num_width_elements + 1) + (j + 1)]
+        n4 = nodes[i * (num_width_elements + 1) + (j + 1)]
+        elem = ch.ChElementShellReissner4(0, thickness, n1, n2, n3, n4)
         mesh.AddElement(elem)
 
 # Add the mesh to the system
 system.Add(mesh)
 
-# 5. Set up Irrlicht visualization
-viz = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
-viz.AttachSystem()
+# 4. Material and visualization
+# Define an isotropic Kirchhoff material
+material = ch.ChMaterialShellKirchhoff()
+material.SetYoungModulus(100000.0)  # Pa
+material.SetPoissonRatio(0.3)
+material.SetDensity(1000.0)  # kg/m^3
+mesh.SetMaterial(material)
 
-# Show the simulation
-viz.Run()
+# 5. Irrlicht visualization
+# Create the Irrlicht application
+app = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
 
-# Clean up
-ch.ChEngine.Finalize()
+# Add some basic Irrlicht scene nodes for better visualization
+app.AddTypicalSky()
+app.AddTypicalCamera('Camera', irr.vector3df(0, -3, 1.5), irr.vector3df(0, 0, 0))
+app.AddTypicalLights()
+
+# 6. Simulation parameters and run
+# Set gravity
+system.SetGravitationalAcceleration(irr.vector3df(0, 0, -9.81))
+
+# Simulation loop
+app.SetTimestep(0.01)
+app.SetVerbose(True)
+
+# Run the simulation
+app.Run()

@@ -10,7 +10,8 @@ system = chrono.ChSystemNSC()
 
 
 floor = chrono.ChBodyEasyBox(2, 0.1, 1, 1000, True, True)
-floor.SetPos(chrono.ChVectorD(0, -0.55, 0))
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.SetBodyFixed(True)
 system.Add(floor)
 
 
@@ -24,29 +25,22 @@ connecting_rod.SetPos(chrono.ChVectorD(1, 0, 0))
 system.Add(connecting_rod)
 
 
-piston = chrono.ChBodyEasyCylinder(0.2, 0.5, 1000, True, True)
+piston = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True)
 piston.SetPos(chrono.ChVectorD(2, 0, 0))
 system.Add(piston)
 
 
-joint_floor_crankshaft = chrono.ChLinkLockRevolute()
-joint_floor_crankshaft.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0))
-system.Add(joint_floor_crankshaft)
+crankshaft_connecting_rod_joint = chrono.ChLinkRevolute2(None, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0))
+crankshaft_connecting_rod_joint.Initialize(crankshaft, connecting_rod, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0))
+system.Add(crankshaft_connecting_rod_joint)
 
-
-joint_crankshaft_connecting_rod = chrono.ChLinkLockRevolute()
-joint_crankshaft_connecting_rod.Initialize(crankshaft, connecting_rod, chrono.ChVectorD(1, 0, 0))
-system.Add(joint_crankshaft_connecting_rod)
-
-
-joint_connecting_rod_piston = chrono.ChLinkLockRevolute()
-joint_connecting_rod_piston.Initialize(connecting_rod, piston, chrono.ChVectorD(2, 0, 0))
-system.Add(joint_connecting_rod_piston)
-
+connecting_rod_piston_joint = chrono.ChLinkRevolute2(None, chrono.ChVectorD(2, 0, 0), chrono.ChVectorD(1, 0, 0))
+connecting_rod_piston_joint.Initialize(connecting_rod, piston, chrono.ChVectorD(1, 0, 0), chrono.ChVectorD(0, 0, 0))
+system.Add(connecting_rod_piston_joint)
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-motor.Set_speed_reference(10)  
+motor.Initialize(crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0))
+motor.Set_speed_reference(10)
 system.Add(motor)
 
 
@@ -57,7 +51,24 @@ visualization.Initialize()
 visualization.AddLogo(chrono.GetChronoDataFile("logo_pychrono.png"))
 visualization.AddSkyBox()
 visualization.AddCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
-visualization.AddLight(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0), 1, 1, 5)
+visualization.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 1, 0.4, 50, 60, 512, 2048)
+
+
+floor_asset = chronoirr.ChTriangleMeshShape()
+floor_asset.SetMesh(chrono.GetChronoDataFile("misc/sphere.obj"))
+floor.AddAsset(floor_asset)
+
+crankshaft_asset = chronoirr.ChTriangleMeshShape()
+crankshaft_asset.SetMesh(chrono.GetChronoDataFile("misc/sphere.obj"))
+crankshaft.AddAsset(crankshaft_asset)
+
+connecting_rod_asset = chronoirr.ChTriangleMeshShape()
+connecting_rod_asset.SetMesh(chrono.GetChronoDataFile("misc/sphere.obj"))
+connecting_rod.AddAsset(connecting_rod_asset)
+
+piston_asset = chronoirr.ChTriangleMeshShape()
+piston_asset.SetMesh(chrono.GetChronoDataFile("misc/sphere.obj"))
+piston.AddAsset(piston_asset)
 
 
 while visualization.Run():
@@ -66,11 +77,4 @@ while visualization.Run():
     visualization.DrawAll()
     visualization.EndScene()
 
-
-visualization.Destroy()
-
-
-system.Destroy()
-
-
-chrono.FinalizeChrono()
+chrono.ChEnd()

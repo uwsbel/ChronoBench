@@ -7,83 +7,71 @@ import pychrono.contact_surfaces
 
 # Initialize PyChrono environment
 
-chrono = pychrono.ChLink_NULL
-
-chrono.Init()
+chrono = pychrono.ChLink_denseMotionCreate(pychrono.ChSystemNSC())
 
 
-# Create the ARTcar vehicle
+# Add a RigidTerrain with custom texture
 
-artcar = pychrono.ChRigidDynamicVehicle()
+terrain = pychrono.RigidTerrain_btCreateStatic(chrono)
 
-artcar.SetInertia(pychrono.ChVector(1.0, 1.0, 1.0), pychrono.ChVector(0.0, 0.0, 0.0))
+terrain.SetDimensions(100, 100, 10)
 
-artcar.SetMass(1000.0)
+terrain.SetDefaultContactMethod(pychrono.contact_surfaces.RigidSurface_btRigidSurface(pychrono.contact_surfaces.RigidSurface_btRigidSurface.eFLUID_STATIC_DEFOAMATION))
 
-artcar.SetRestitution(0.05)
-
-artcar.SetFriction(0.1)
-
-artcar.SetPosition(pychrono.ChVector(0.0, 0.0, 0.0))
-
-artcar.SetRotation(pychrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
-
-artcar.SetContactMethod(pychrono.ChContactMethod_kMPCDynamics)
-
-artcar.SetVisualizationType(pychrono.ChVehicleVisualization_kMPC_Forward)
+terrain.SetTexture("artcar_terrain.png")
 
 
-# Create the rigid terrain
+# Add an ARTcar vehicle with specific parameters
 
-terrain = pychrono.ChRigidTerrain()
+artcar = pychrono.ChVectorD(0, 0, 0)
 
-terrain.SetDimensions(pychrono.ChVector(10.0, 10.0, 0.0))
+artcar.SetRotationXYZ(0, 0, 0)
 
-terrain.AddCustomTexture("terrain_texture.png")
+artcar.SetName("ARTcar")
+
+artcar.SetContactMethod(pychrono.contact_surfaces.RigidSurface_btRigidSurface(pychrono.contact_surfaces.RigidSurface_btRigidSurface.eFLUID_STATIC_DEFOAMATION))
+
+artcar.SetVisualizationType(pychrono.IrrlichtVisualization.eIRRI_LINE_DISTANCE)
+
+artcar.SetVisualization(pychrono.IrrlichtVisualization())
+
+artcar.SetColor(pychrono.IrrlichtVisualization.eIRRI_BLUE)
+
+artcar.SetVisualizationType(pychrono.IrrlichtVisualization.eIRRI_LINE_DISTANCE)
+
+artcar.SetVisualization(pychrono.IrrlichtVisualization())
+
+artcar.SetColor(pychrono.IrrlichtVisualization.eIRRI_BLUE)
 
 
-# Create the interactive driver system
+# Set up the interactive driver system
 
-driver = pychrono.ChDriverInteractive()
+driver = pychrono.ChDriver_btVehicleRoll(chrono)
 
-driver.SetSteering(0.0)
+driver.SetSteeringGain(0.5)
 
-driver.SetThrottle(0.0)
+driver.SetThrottleGain(0.5)
 
-driver.SetBraking(0.0)
-
-
-# Create the Irrlicht visualization
-
-irr = pychrono.Irrlicht()
-
-irr.SetMainLoop(pychrono.Irrlicht.Irrlicht_MainLoop_Auto)
+driver.SetBrakingGain(0.5)
 
 
 # Set up the simulation loop
 
-def simulation_loop(timestep=0.02):
+def simulation_loop():
 
-    while chrono.Ok():
+    while chrono.GetChTime() < 10:
 
-        # Update the driver input
+        chrono.DoStepDynamics(0.01)
 
-        driver.Update(timestep)
+        driver.Update(chrono.GetChTime())
 
+        artcar.Update(chrono.GetChTime())
 
-        # Update the vehicle dynamics
+        chrono.DoRecomputeDynamicsConstraints(True)
 
-        artcar.Advance(timestep)
+        chrono.DoIntegrate(0.01)
 
-
-        # Update the Irrlicht visualization
-
-        irr.Update()
-
-
-        # Sleep to maintain 50 FPS
-
-        chrono.Sleep(1.0 / 50.0 - timestep)
+        pychrono.IrrlichtVisualization.Render(chrono)
 
 
 # Run the simulation

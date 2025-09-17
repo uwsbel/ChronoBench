@@ -51,14 +51,12 @@ def main():
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     # Initialize the camera sensor
-    update_rate = 30
-    image_width = 960
-    image_height = 480
-    fov = 1.408  # Horizontal field of view in radians
-    lag = 0
-    exposure_time = 0
-    noise_model = "CONST_NORMAL"
-
+    update_rate = 30  # Camera update rate in Hz
+    image_width = 960  # Image width in pixels
+    image_height = 480  # Image height in pixels
+    fov = 1.408  # Camera's horizontal field of view in radians
+    lag = 0  # Lag (in seconds) between sensing and when data becomes accessible
+    exposure_time = 0  # Exposure (in seconds) of each image
     cam = sens.ChCameraSensor(
         mesh_body,              # Body the camera is attached to
         update_rate,            # Camera update rate in Hz
@@ -75,6 +73,7 @@ def main():
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
+    noise_model = "CONST_NORMAL"  # Constant normal noise model
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
     elif noise_model == "PIXEL_DEPENDENT":
@@ -123,8 +122,8 @@ def main():
     orbit_radius = 10  # Radius of the camera orbit
     orbit_rate = 0.1   # Rate of the camera orbit in radians per second
     ch_time = 0.0      # Initialize simulation time
-    end_time = 20.0
-    step_size = 1e-3
+    step_size = 1e-3  # Simulation step size
+    end_time = 20.0  # Simulation end time
 
     t1 = time.time()  # Record the start time of the simulation
 

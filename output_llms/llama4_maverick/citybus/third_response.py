@@ -1,7 +1,6 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
 
 # Set data paths
 chrono_data_path = chrono.GetChronoDataPath()
@@ -19,7 +18,7 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PAC89)
+# Type of tire model (RIGID, TMEASY, or PAC89)
 tire_model = veh.TireModelType_PAC89
 
 # Rigid terrain parameters
@@ -85,7 +84,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
+# Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3  # time to go from 0 to +1
@@ -100,7 +99,7 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = math.ceil(render_step_size / step_size)
+render_steps = round(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -138,4 +137,4 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# The modified code is provided above.
+# The final modified code is presented above.

@@ -30,10 +30,6 @@ path_radius = 50.0
 path_center = chrono.ChVector3d(0, 0, 0)
 
 
-path_ball1 = chrono.ChBodyEasySphere(1.0)
-path_ball2 = chrono.ChBodyEasySphere(1.0)
-
-
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
@@ -47,12 +43,6 @@ tire_step_size = step_size
 
 render_step_size = 1.0 / 50  
 
-
-kp = 1.0
-ki = 0.1
-kd = 0.01
-last_error = 0
-integral = 0
 
 
 vehicle = veh.HMMWV_Full() 
@@ -97,31 +87,31 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_ball1.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
-path_ball2.SetPos(path_center + chrono.ChVector3d(-path_radius, 0, 0))
-vis.AddBody(path_ball1)
-vis.AddBody(path_ball2)
+
+kp = 0.5
+ki = 0.1
+kd = 0.05
 
 
-driver = veh.ChPathFollower()
-
-
-driver.SetPath(path_center, path_radius)
-
-
-driver.SetThrottle(0.3)
-driver.SetPID(kp, ki, kd)
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
+pid = chrono.ChPID()
+pid.SetParameters(kp, ki, kd)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+sentinel_sphere = chrono.ChBodyEasySphere(0.1)
+sentinel_sphere.SetPos(path_center + chrono.ChVector3d(path_radius, 0, 0))
+sentinel_sphere.SetCollide(False)
+vehicle.GetSystem().Add(sentinel_sphere)
+
+target_sphere = chrono.ChBodyEasySphere(0.1)
+target_sphere.SetPos(path_center + chrono.ChVector3d(path_radius * 0.8, 0, 0))
+target_sphere.SetCollide(False)
+vehicle.GetSystem().Add(target_sphere)
+
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -134,17 +124,22 @@ while vis.Run() :
         render_frame += 1
 
     
-    
+    vehicle_pos = vehicle.GetVehicle().GetPos()
+    vehicle_rot = vehicle.GetVehicle().GetRot()
 
     
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetSteering(), terrain)
-    vis.Synchronize(time, driver.GetSteering(), driver.GetThrottle())
+    error = path_center - vehicle_pos
+    steering_angle = pid.Compute(error.x, time * step_size)
 
     
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
+    vehicle.SetThrottle(0.3)
+    vehicle.SetSteering(steering_angle)
+
+    
+    vehicle.Synchronize(time, None, terrain)
+    vis.Synchronize(time, None)
+
+    
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

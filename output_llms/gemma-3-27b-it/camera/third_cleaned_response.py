@@ -7,6 +7,7 @@ def main():
     
     
     
+    
     mphysicalSystem = chrono.ChSystemNSC()
 
     
@@ -15,10 +16,15 @@ def main():
     side = 2  
     mbody = chrono.ChBodyEasyBox(side, side, side, 1000)  
     mbody.SetPos(chrono.ChVector3d(0, 0, 0))  
-    mbody.SetMass(100)
-    mbody.SetFixed(True)
-    mphysicalSystem.Add(mbody)
+    mbody.SetCollide(True)  
+    mbody.SetFixed(True)  
+    mphysicalSystem.Add(mbody)  
 
+    
+    mbody.GetMaterialSurfaceNSC().SetFriction(0.5)
+    mbody.GetMaterialSurfaceNSC().SetRestitution(0.2)
+
+    
     
     
     
@@ -53,8 +59,8 @@ def main():
         fov  
     )
     cam.SetName("Camera Sensor")
-    cam.SetLag(lag)
-    cam.SetCollectionWindow(exposure_time)
+    cam.SetLag(lag)  
+    cam.SetCollectionWindow(exposure_time)  
 
     
     
@@ -62,35 +68,44 @@ def main():
     
     noise_model = "CONST_NORMAL"
     if noise_model == "CONST_NORMAL":
-        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
+        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  
     elif noise_model == "PIXEL_DEPENDENT":
-        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))
-    elif noise_model == "NONE":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  
+    elif noise_model == "NONE":  
         pass
 
+    
     vis = True
-    save = False
-    out_dir = "SENSOR_OUTPUT/"
-
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
+    
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
+    
+    save = False
+    out_dir = "SENSOR_OUTPUT/"
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
+    
     cam.PushFilter(sens.ChFilterGrayscale())
 
+    
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
 
+    
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
 
+    
     cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
+
+    
     cam.PushFilter(sens.ChFilterR8Access())
 
+    
     manager.AddSensor(cam)
 
     
@@ -104,28 +119,28 @@ def main():
     step_size = 1e-3
 
     while ch_time < end_time:
+        
         cam.SetOffsetPose(chrono.ChFramed(
             chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
             chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
         ))
 
+        
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
         if rgba8_buffer.HasData():
             rgba8_data = rgba8_buffer.GetRGBA8Data()
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
+        
         manager.Update()
+
+        
         mphysicalSystem.DoStepDynamics(step_size)
+
+        
         ch_time = mphysicalSystem.GetChTime()
         print("Sim time:", end_time, "Wall time:", time.time() - t1)
 
-    
-    
-    
-    noise_model = "CONST_NORMAL"
-    
 
-    
-if __name__ == "__main__":
-    main()
+main()

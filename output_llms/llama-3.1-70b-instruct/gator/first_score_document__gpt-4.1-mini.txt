@@ -4,124 +4,133 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), no deduction.
-- **Vehicle Creation:** `chrono_vehicle.ChGator()` is instantiated and configured with contact method, visualization types, and tire model. However:
-  - The vehicle is initialized with a `ChCoordsysD` that uses `chrono.Q_from_AngX(chrono.CH_C_PI_2)`. According to PyChrono vehicle examples, the initial rotation is often `chrono.QUNIT` or a rotation aligning the vehicle properly on the terrain. Using a 90° rotation about X might be intentional but is unusual and not explained.
-  - The vehicle is added to the system only by adding its chassis body (`system.Add(gator.GetChassisBody())`), but the vehicle itself manages its bodies internally. Typically, the entire vehicle system is added or the vehicle is attached to the system internally. This partial addition might cause issues.
-  - **Deduct 10 points** for incomplete or potentially incorrect vehicle integration.
+- **System Initialization:**  
+  The system is initialized with `chrono.ChSystemNSC()`. Good.  
+  **No deduction.**
 
-- **Terrain Creation:** `chrono.ChRigidTerrain()` is created, texture and size set, and position set. However:
-  - The terrain is not initialized by calling `terrain.Initialize()`, which is required to finalize the terrain setup and add collision patches.
-  - The terrain is added to the system via `system.Add(terrain)`, which is not the recommended way. The terrain object manages its own bodies and patches internally and usually requires `Initialize()` to be called after setup.
-  - **Deduct 15 points** for missing terrain initialization and incorrect addition to the system.
+- **Vehicle Initialization:**  
+  The `gator` vehicle is created and configured with contact method, tire model, visualization types, and collision model. However:  
+  - The vehicle is created but **not initialized** with `gator.Initialize()` or similar. According to the vehicle example in the documentation, after setting parameters, the vehicle must be initialized (e.g., `gator.Initialize(chrono.ChCoordsysd(...))`). This is essential for proper setup.  
+  - The code calls `system.Add(gator.GetPart(0))`, which is suspicious. The vehicle class typically manages its own bodies internally and is already part of the system after initialization. Adding a part manually is not standard and likely incorrect.  
+  **Deduct 15 points for missing vehicle initialization and incorrect addition to the system.**
 
-- **Driver Setup:** `chrono_vehicle.ChIrrlichtDriver()` is created and configured with vehicle and input deltas. This is correct and complete.
+- **Terrain Creation:**  
+  Terrain is created as a `ChBodyEasyBox` with proper parameters, fixed in space, positioned, material assigned, and texture added. Then added to the system.  
+  **No deduction.**
 
-- **Visualization Setup:** `chronoirr.ChVisualSystemIrrlicht(system)` is created, but:
-  - The visualization system is not initialized by calling `vis.Initialize()`.
-  - The system is passed to the constructor, which is correct, but the documentation recommends calling `AttachSystem(system)` explicitly.
-  - Camera is set using `vis.SetCamera(...)`, but the API documentation shows `AddCamera(...)` as the standard method.
-  - No skybox or lighting is added, which are typical for better visualization.
-  - **Deduct 10 points** for incomplete visualization setup (missing `Initialize()`, no lighting or skybox, and non-standard camera setup).
+- **Driver Initialization:**  
+  The driver is created, associated with the vehicle, and initialized with the application.  
+  **No deduction.**
 
-- **Simulation Loop:** Present and correctly structured.
+- **Visualization Setup:**  
+  The Irrlicht visualization system is created, window size and title set, and initialized with the system. However, the visualization system is **not attached to the system** via `application.AttachSystem(system)`, which is required to link the physics system to the visualization.  
+  Also, no skybox, lighting, or camera setup is done, which are typical for good visualization.  
+  **Deduct 10 points for missing `AttachSystem` and incomplete visualization setup.**
 
-- **Summary for Completeness:**  
-  - Missing terrain initialization and incorrect addition: -15  
-  - Vehicle addition incomplete or incorrect: -10  
-  - Visualization incomplete: -10  
-  Total deduction: 35 points
+- **Simulation Loop:**  
+  The loop runs while `application.Run()`. Inside:  
+  - The vehicle is synchronized and advanced with a fixed timestep of 1e-3.  
+  - The driver inputs are set but the order is wrong: inputs should be set before `Synchronize` and `Advance` calls to affect the vehicle dynamics correctly.  
+  - The visualization calls `BeginScene()`, `DrawAll()`, and `EndScene()` are used, but the documentation suggests `Render()` instead of `DrawAll()`.  
+  - The call `application.Step(1e-3)` is used, but the documentation does not mention `Step()`; instead, the simulation step is done via `sys.DoStepDynamics(dt)`. The vehicle's `Advance()` advances the vehicle model, but the system itself is not stepped explicitly. This is a missing step.  
+  - The timestep is set inside the loop with `application.SetTimestep(1 / 50)`, which is unusual and inefficient; timestep should be set once before the loop.  
+  **Deduct 15 points for missing system stepping, incorrect order of driver input application, and misuse of visualization rendering calls.**
+
+- **Input Handling:**  
+  The key press checks have syntax errors:  
+  - Extra closing parentheses in `if application.GetDevice().isKeyPressed(chrono.ChKeyboard::KEY_Left)):`  
+  - Use of `chrono.ChKeyboard::KEY_Left` is C++ style; in Python, it should be `chrono.ChKeyboard.KEY_Left`.  
+  - The input handling logic increments steering, throttle, braking without bounds or reset, which can cause unrealistic values.  
+  **Deduct 10 points for syntax errors and improper input handling.**
+
+**Total Completeness deduction: 15 + 10 + 15 + 10 = 50 points**  
+Since maximum is 40, cap deduction at 40 points (cannot deduct more than total).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Vehicle Initialization:** The use of `chrono.Q_from_AngX(chrono.CH_C_PI_2)` as initial rotation is unusual and may cause the vehicle to be oriented incorrectly on the terrain. This could significantly affect simulation behavior.  
-  - **Deduct 15 points** for potentially incorrect vehicle orientation.
+- **Incorrect use of `system.Add(gator.GetPart(0))`:** This is not the correct way to add the vehicle to the system. The vehicle should be initialized and internally added.  
+  **Deduct 15 points.**
 
-- **Adding Vehicle to System:** Adding only the chassis body instead of the entire vehicle system or using the vehicle's own system management could cause missing components or incorrect simulation behavior.  
-  - Already accounted in completeness, no double deduction here.
+- **Missing `gator.Initialize(...)`:** Without initialization, the vehicle will not be properly set up.  
+  **Deduct 15 points.**
 
-- **Terrain Addition:** Adding terrain directly to system without initialization is incorrect and will cause the terrain not to behave properly in simulation.  
-  - Already accounted in completeness.
+- **Incorrect key constants usage (`chrono.ChKeyboard::KEY_Left`):** Python API uses dot notation, not C++ scope resolution.  
+  **Deduct 5 points.**
 
-- **Visualization:** Using `vis.SetCamera()` instead of `vis.AddCamera()` is a minor API misuse but may not cause failure.  
-  - **Deduct 5 points** for minor API misuse.
+- **Incorrect order of driver input setting (should be before synchronization and advance):** This affects simulation behavior.  
+  **Deduct 10 points.**
 
-- **Driver Usage:** Correct.
+- **Use of `application.Step(1e-3)`:** Not part of the documented API; stepping should be done via `system.DoStepDynamics(dt)`.  
+  **Deduct 10 points.**
 
-- **Simulation Step:** Correct.
+- **Use of `DrawAll()` instead of `Render()`:** Minor but deviates from API.  
+  **Deduct 5 points.**
 
-- **Summary for Correctness:**  
-  - Vehicle orientation: -15  
-  - Minor visualization API misuse: -5  
-  Total deduction: 20 points
+**Total Correctness deductions: 15 + 15 + 5 + 10 + 10 + 5 = 60 points**  
+Cap at 30 points max.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names (`system`, `vis`, `gator`, `terrain`, `driver`).
-- However, there are **no comments** explaining the purpose of blocks or parameters.
-- The code formatting is acceptable but could be improved with blank lines between logical blocks.
-- **Deduct 5 points** for lack of comments.
-- No major readability issues, so no further deduction.
+- **Readability:** Variable names are meaningful (`gator`, `driver`, `terrain`, `application`).  
+- **Formatting:** Mostly okay, but inconsistent spacing and missing comments.  
+- **Comments:** No comments at all explaining the steps or rationale.  
+- **Structure:** Input handling inside the loop is messy and contains syntax errors.  
+**Deduct 5 points for lack of comments and 5 points for syntax errors and structure issues.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations or unnecessary API calls.
-- The use of `numpy` is imported but never used, which is unnecessary.  
-  - **Deduct 3 points** for unnecessary import.
-
-- No other efficiency issues.
+- **Setting timestep inside the loop:** Inefficient; should be set once before the loop.  
+- **Repeated calls to `SetSteering`, `SetThrottle`, `SetBraking` with no input changes:** Minor inefficiency.  
+- **No use of `system.DoStepDynamics()`:** Missing proper system stepping.  
+**Deduct 5 points for timestep setting inside loop and 3 points for missing system stepping optimization.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks are present (e.g., verifying initialization success, handling exceptions).
-- While PyChrono scripts often omit explicit error handling, best practices recommend at least minimal checks or try-except blocks.
-- **Deduct 5 points** for lack of any error handling or robustness considerations.
+- No error handling or checks for invalid inputs or simulation states.  
+- No bounds on steering, throttle, braking values.  
+**Deduct 5 points for lack of error handling and robustness.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but not initialized (`vis.Initialize()` missing).
-- No lighting (`AddTypicalLights()`) or skybox (`AddSkyBox()`) added, which are standard for good visualization.
-- Camera setup uses `SetCamera()` instead of `AddCamera()`.
-- **Deduct 5 points** for incomplete and suboptimal visualization setup.
+- Missing `AttachSystem(system)` call, which is essential.  
+- No skybox, lighting, or camera setup, which are standard for good visualization.  
+- Use of `DrawAll()` instead of `Render()`.  
+**Deduct 5 points for incomplete and incorrect visualization setup.**
 
 ---
 
-### Summary of Deductions:
+### Summary of deductions:
 
-| Criterion                     | Deduction |
-|-------------------------------|-----------|
-| Completeness                  | 35        |
-| Correctness                  | 20        |
-| Code Quality                 | 5         |
-| Efficiency                  | 3         |
-| Error Handling and Robustness | 5         |
-| Visualization Tools          | 5         |
-| **Total Deduction**          | **73**    |
+| Criterion                  | Max Points | Deduction | Notes                                  |
+|----------------------------|------------|-----------|----------------------------------------|
+| Completeness               | 40         | 40        | Missing vehicle init, wrong system add, visualization incomplete, input errors |
+| Correctness               | 30         | 30        | Incorrect API usage, missing steps, syntax errors |
+| Code Quality              | 10         | 10        | No comments, syntax errors, poor structure |
+| Efficiency                | 10         | 8         | Timestep set inside loop, missing system step |
+| Error Handling & Robustness| 5          | 5         | No error handling or input bounds      |
+| Visualization Tools       | 5          | 5         | Missing AttachSystem, no lighting/camera |
+
+**Total deductions: 40 + 30 + 10 + 8 + 5 + 5 = 98 points**
+
+Starting from 100 points, final score = 2 points.
 
 ---
 
-### Final Score:
-
-Starting from 100 points, subtracting 73 points:
-
-**Score = 27**
+### Final score:  
+[[2]]
 
 ---
 
 ### Explanation:
 
-The script includes the main components but misses critical steps such as terrain initialization and proper vehicle integration. Visualization setup is incomplete and does not follow recommended API usage. The vehicle orientation is questionable and could affect simulation correctness. Code quality suffers from lack of comments, and there is an unnecessary import. No error handling is present, which reduces robustness. Visualization lacks lighting and skybox, reducing effectiveness.
-
----
-
-[[27]]
+The script includes many essential components but misses critical steps such as vehicle initialization, proper system stepping, and visualization attachment. It contains syntax errors and incorrect API usage that would prevent it from running correctly or producing the expected simulation behavior. The input handling and visualization setup are incomplete and not robust. The code lacks comments and structure, reducing readability and maintainability. Efficiency is also compromised by setting parameters inside the loop unnecessarily. Overall, the script requires significant corrections to meet PyChrono best practices and API requirements.

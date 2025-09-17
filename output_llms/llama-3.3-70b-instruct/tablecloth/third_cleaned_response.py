@@ -83,7 +83,7 @@ if (True):
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  
+                ementmonitor = melementA  
 
             
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]

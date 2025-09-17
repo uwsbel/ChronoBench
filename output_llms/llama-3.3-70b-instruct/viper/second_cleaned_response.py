@@ -30,7 +30,7 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(0, 0.2, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -57,7 +57,7 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(1.0, 0, 1.45), chrono.Q_from_AngX(0.2))  
+offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  

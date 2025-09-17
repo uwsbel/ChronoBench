@@ -1,45 +1,47 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+import pychrono.vehicle as veh
 
-# --- Initialize the PyChrono environment ---
+# --- Initialization ---
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-# --- Create the ground ---
+# --- Ground ---
 body_ground = chrono.ChBodyEasy()
 body_ground.SetBodyFixed(True)
 body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_ground.SetShapeBoxes(0.5, 0.1, 1.0)  # x, y, z dimensions
+body_ground.SetShapeBoxes(0.5, 0.1, 1)
 body_ground.SetCollide(True)
-body_ground.SetMaterialSurfaceNSC(chrono.ChMaterialSurfaceNSC())
 system.Add(body_ground)
 
-# --- Create the Curiosity rover ---
-# Use a simple box as a proxy for the rover for demonstration.
-# In a real application, you would load a more complex model.
+# --- Rover Model ---
+# Use a simple box as a proxy for the rover for this example.  A more complex model
+# would require loading a URDF or other model format.
 body_rover = chrono.ChBodyEasy()
 body_rover.SetPos(chrono.ChVectorD(0, 0.5, 0))
-body_rover.SetShapeBoxes(0.3, 0.3, 0.3)
+body_rover.SetShapeBoxes(0.3, 0.2, 0.5)
 body_rover.SetCollide(True)
-body_rover.SetMaterialSurfaceNSC(chrono.ChMaterialSurfaceNSC())
+body_rover.SetMass(5)  # Example mass
 system.Add(body_rover)
 
-# Add a simple revolute joint to simulate steering.
-joint_steering = chrono.ChLinkRevolute()
-joint_steering.Initialize(body_rover,
-                          chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),  # Body 1 anchor
-                          chrono.ChFrameD(chrono.ChVectorD(0.15, 0, 0)), # Body 2 anchor
-                          chrono.ChVectorD(0, 1, 0)) # Joint axis
-system.AddLink(joint_steering)
+# --- Motor Control (Simplified) ---
+# This is a very simplified steering control.  A real rover would have more complex
+# motor control and suspension systems.
+class SteeringController:
+    def __init__(self, body, steering_angle_limit=30):
+        self.body = body
+        self.steering_angle_limit = steering_angle_limit
+        self.steering_angle = 0.0
 
-# --- Motor control driver ---
-# Define a motor for steering
-motor_steering = chrono.ChMotorLinearSpring()
-motor_steering.Set_spring_rest_length(0)
-motor_steering.Set_spring_k(1000)
-motor_steering.Set_damping_c(10)
-joint_steering.AddMotor(motor_steering)
+    def SetSteeringAngle(self, angle):
+        self.steering_angle = chrono.ChMath.Clamp(angle, -self.steering_angle_limit, self.steering_angle_limit)
+
+    def Update(self, time_step):
+        # Apply a torque to rotate the rover around its vertical axis
+        torque = chrono.ChVectorD(0, 0, self.steering_angle * 10)  # Adjust torque magnitude as needed
+        self.body.ApplyTorque(torque)
+
+steering_controller = SteeringController(body_rover)
 
 # --- Visualization ---
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -47,25 +49,26 @@ vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Curiosity Rover Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -3))
+vis.AddCamera(chrono.ChVectorD(0, 2, -5))
 vis.AddTypicalLights()
 vis.AddLogo()
-vis.SetShadowsEnabled(True)
 
-# --- Simulation loop ---
+# --- Simulation Loop ---
 time_step = 0.01
-time_end = 10
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    # Get user input for steering (example: A/D keys)
+    if vis.GetSystem().GetChTime() < 10:  # steer for the first 10 seconds
+        if vis.GetSystem().GetChTime() > 5:
+            steering_controller.SetSteeringAngle(10)
+        else:
+            steering_controller.SetSteeringAngle(-10)
+    else:
+        steering_controller.SetSteeringAngle(0)
+
+    steering_controller.Update(time_step)
+
     system.DoStepDynamics(time_step)
-
-    # Apply steering input (example: oscillate steering angle)
-    angle = np.sin(chrono.ChTime() / 2) * 0.5  # Steering angle in radians
-    motor_steering.Set_spring_rest_length(angle)
-
-    if system.GetChTime() > time_end:
-        vis.GetIrrlichtApplication().Close()

@@ -1,57 +1,70 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import pychrono.irrlicht.irrlicht_utils as irr_utils
+import pychrono.irrlicht.irrlicht as irr
+import numpy as np
 
-# --- PyChrono Environment Initialization ---
-chrono.initialize()
+# Initialize PyChrono
+chrono.init()
 
-# --- Physical System Setup ---
 # Create the world
 world = chrono.World()
-# Add a terrain
-terrain = chrono.Terrain(chrono.Material("Grass", 0.1, 0.8, 0.2))
+
+# Create the terrain
+terrain = chrono.Terrain(
+    chrono.Material("grass"),
+    chrono.Geom(chrono.Box(chrono.Vector(10, 10, 10))),
+    chrono.Friction(0.5),
+    chrono.Restitution(0.5)
+)
 world.add(terrain)
 
-# Add a UAZBUS vehicle
-vehicle = chrono.Vehicle("UAZBUS", 
-                        chrono.VehicleParams(
-                            position=[0, 0, 0], 
-                            orientation=[0, 0, 0], 
-                            mass=1000, 
-                            length=4.0, 
-                            width=2.0, 
-                            height=1.5, 
-                            wheel_radius=0.5, 
-                            wheel_count=4,
-                            friction=0.7, 
-                            restitution=0.8
-                        ))
+# Create the UAZBUS vehicle
+vehicle = chrono.Vehicle(
+    chrono.Model("uazbus.obj"),
+    chrono.Position(chrono.Vector(0, 0, 0)),
+    chrono.Orientation(chrono.Quaternion(0, 0, 0, 1))
+)
 world.add(vehicle)
 
-# --- Driver System Setup ---
+# Create the driver system
 driver = chrono.Driver(vehicle)
-driver.set_control_mode(chrono.DriverControlMode.MANUAL)
-driver.set_steering_response(0.5)
 
-# --- Irrlicht Visualization Setup ---
-# Create Irrlicht Engine and scene
-engine = irrlicht.IrrlichtEngine()
-engine.createWindow("UAZBUS Simulation", 800, 600)
-engine.setFullscreen(True)
-scene = engine.getScene()
+# Set simulation parameters
+dt = 0.01  # Timestep
+iterations = 100  # Number of iterations per frame
 
-# Camera and Lighting
-camera = irr_utils.IrrlichtCamera(engine, 
-                                  position=[0, 0, 5], 
-                                  rotation=[0, 0, 0])
-scene.addCamera(camera)
-engine.addLight(irrlicht.IrrlichtLight(engine, "light", irrlicht.IrrlichtLightType.POINT))
+# Irrlicht initialization
+irrlicht_app = irrlicht.IrrlichtApplication(
+    "UAZBUS Simulation",
+    chrono.Window(chrono.WindowSettings(width=800, height=600))
+)
 
-# --- Simulation Loop ---
-while True:
-    # --- Update Simulation ---
-    # Simulate vehicle movement, terrain interaction, and driver control
-    # ...
-    
-    # --- Render Scene ---
-    engine.run()
+# Irrlicht camera settings
+camera = irrlicht_app.getCamera()
+camera.setPosition(chrono.Vector(0, 0, 10))
+camera.setLookAt(chrono.Vector(0, 0, 0))
+
+# Irrlicht lighting settings
+irrlicht_app.setAmbientLight(chrono.Vector(0.2, 0.2, 0.2))
+irrlicht_app.setDiffuseLight(chrono.Vector(0.8, 0.8, 0.8))
+irrlicht_app.setDirectionalLight(chrono.Vector(1, 1, 1))
+
+# Simulation loop
+for i in range(iterations):
+    # Update the driver system
+    driver.update()
+
+    # Update the vehicle
+    vehicle.update(dt)
+
+    # Update the terrain
+    terrain.update(dt)
+
+    # Update the Irrlicht visual system
+    irrlicht_app.render()
+
+    # Synchronize the simulation
+    chrono.step()
+
+# Clean up
+chrono.shutdown()

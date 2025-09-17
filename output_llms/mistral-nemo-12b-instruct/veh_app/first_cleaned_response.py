@@ -9,58 +9,63 @@ simulation = chrono.ChSimulation()
 system = chrono.ChSystemSMC()
 collision_system = chrono.ChCollisionSystem()
 contact_manager = chrono.ChContactContainer()
+multibody_system = chrono.ChSystemMultibody()
 collision_system.SetContactContainer(contact_manager)
-system.AddContactSystem(collision_system, contact_manager)
+simulation.AddSystem(system)
+simulation.AddSystem(collision_system)
+simulation.AddSystem(multibody_system)
 
 
-vehicle = chrono.ChBodyEasyBox(0.5, 1, 0.2, 1000, True, True)
-vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetName('Gator')
-system.Add(vehicle)
-
-terrain = chrono.ChBodyEasyBox(10, 0.1, 10, 100, True, True)
-terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
-terrain.SetName('Terrain')
+terrain = chrono.ChTerrain()
+terrain.SetAssetFile('path/to/terrain_asset')
 system.Add(terrain)
 
+vehicle = chrono.ChGator()
+vehicle.SetChassisBodyVisualizationType(chrono.ChVehicleBodyVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+vehicle.SetWheelBodyVisualizationType(chrono.ChVehicleWheelVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+vehicle.SetSteeringWheelVisualizationType(chrono.ChVehicleSteeringWheelVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+vehicle.SetBrakePedalVisualizationType(chrono.ChVehicleBrakePedalVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+vehicle.SetClutchPedalVisualizationType(chrono.ChVehicleClutchPedalVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+vehicle.SetThrottlePedalVisualizationType(chrono.ChVehicleThrottlePedalVisualizationType.CH_VISUALIZATION_TYPE_MESH)
+system.Add(vehicle)
+
 driver = chrono.ChDriver()
-driver.Initialize(vehicle)
+driver.SetVehicle(vehicle)
 system.Add(driver)
 
 
-vehicle.SetMass(1000)
-vehicle.SetInertiaXX(chrono.ChVectorD(100, 200, 300))
-vehicle.SetBuoyancyForce(chrono.ChVectorD(0, 0, -100))
-vehicle.SetSpatialForce(chrono.ChVectorD(0, 0, 100))
-
-
-vehicle.SetBodyFixed(False)
-vehicle.SetCollide(True)
-vehicle.SetCollideBody(True)
+vehicle.SetChassisBodyPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetWheelBodyPosition(chrono.ChVectorD(0.5, -0.5, -0.5), 0)
+vehicle.SetWheelBodyPosition(chrono.ChVectorD(-0.5, -0.5, -0.5), 1)
+vehicle.SetWheelBodyPosition(chrono.ChVectorD(0.5, 0.5, -0.5), 2)
+vehicle.SetWheelBodyPosition(chrono.ChVectorD(-0.5, 0.5, -0.5), 3)
+vehicle.SetWheelBodyForce(chrono.ChVectorD(0, 0, -1000), 0)
+vehicle.SetWheelBodyForce(chrono.ChVectorD(0, 0, -1000), 1)
+vehicle.SetWheelBodyForce(chrono.ChVectorD(0, 0, -1000), 2)
+vehicle.SetWheelBodyForce(chrono.ChVectorD(0, 0, -1000), 3)
 
 
 sensor_manager = chrono.ChSensorManager()
-system.Add(sensor_manager)
-
-point_light = chrono.ChLightPoint()
-point_light.SetPos(chrono.ChVectorD(0, 0, 2))
-sensor_manager.Add(point_light)
-
+point_light = chrono.ChPointLight()
+point_light.SetPosition(chrono.ChVectorD(0, 0, 5))
+sensor_manager.AddLight(point_light)
 camera = chrono.ChCamera()
-camera.SetPos(chrono.ChVectorD(0, 0, 1))
-camera.SetDir(chrono.ChVectorD(0, 0, -1))
-camera.SetFov(90)
-sensor_manager.Add(camera)
+camera.SetPosition(chrono.ChVectorD(0, 0, 1))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+sensor_manager.AddCamera(camera)
+vehicle.GetChassisBody().AddSensorManager(sensor_manager)
 
 
-dt = 0.01
-simulation.SetTimestep(dt)
-for i in range(1000):
-    simulation.DoStep()
-    driver.DoStep()
-    terrain.DoStep()
-    sensor_manager.DoStep()
-    system.DoStep()
-    simulation.Advance()
-    if i % 100 == 0:
-        image = sensor_manager.GetImage()
+while simulation.GetSimTime() < 10:
+    driver.Update(0.01)
+    terrain.Update(0.01)
+    vehicle.Update(0.01)
+    sensor_manager.Update(0.01)
+    collision_system.Update()
+    multibody_system.Update()
+    simulation.Advance(0.01)
+
+
+for i in range(100):
+    chrono.ChImage image = sensor_manager.GetCameraImage(i)
+    image.Save("camera_image_" + str(i) + ".png")

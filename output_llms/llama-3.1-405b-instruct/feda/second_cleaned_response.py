@@ -87,30 +87,27 @@ driver = veh.ChPathFollowerDriverIrrlicht(vis)
 driver.SetTargetSpeed(10.0)
 
 
-path = veh.ChPath()
+path = chrono.ChBezierCurve()
 path.AddPoint(chrono.ChVectorD(-50, 0, 0))
-path.AddPoint(chrono.ChVectorD(-30, -3.5, 0))
-path.AddPoint(chrono.ChVectorD(-10, 0, 0))
-path.AddPoint(chrono.ChVectorD(10, 3.5, 0))
-path.AddPoint(chrono.ChVectorD(30, 0, 0))
+path.AddPoint(chrono.ChVectorD(-25, -10, 0))
+path.AddPoint(chrono.ChVectorD(0, 0, 0))
+path.AddPoint(chrono.ChVectorD(25, 10, 0))
 path.AddPoint(chrono.ChVectorD(50, 0, 0))
 driver.SetPath(path)
 
 
-steering_controller = veh.ChPathFollowerDriverIrrlicht.SteeringControllerType_PID
-driver.SetSteeringControllerType(steering_controller)
-driver.SetLookAheadDistance(5)
-driver.SetSteeringGains(0.5, 0.1, 0)
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5)
+steering_controller.SetGains(0.1, 0.01, 0.001)
 
 
-speed_controller = veh.ChPathFollowerDriverIrrlicht.SpeedControllerType_PID
-driver.SetSpeedControllerType(speed_controller)
-driver.SetSpeedGains(0.5, 0.1, 0)
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.1, 0.01, 0.001)
 
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -120,11 +117,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

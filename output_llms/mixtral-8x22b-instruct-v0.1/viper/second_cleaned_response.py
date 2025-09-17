@@ -89,7 +89,9 @@ while vis.Run():
     driver.SetSteering(steering)  
 
     rover.Update()  
-    manager.Update()  
+
+    
+    manager.Update()
 
     
     if (step_number % render_steps == 0):

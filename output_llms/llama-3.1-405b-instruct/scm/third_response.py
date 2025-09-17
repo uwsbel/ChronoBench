@@ -90,43 +90,32 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Add objects to the scene
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(
-        1,  # length
-        1,  # width
-        1,  # height
-        1000,  # density
-        True,  # collide
-        True  # visualization
-    )
-    box.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 1))
-    vehicle.GetSystem().Add(box)
+# Add point lights at various positions in the scene
+pl1 = chrono.ChPointLight()
+pl1.SetPos(chrono.ChVectorD(-10, 0, 5))
+vis.AddLight(pl1)
 
-# Create the sensor manager
+pl2 = chrono.ChPointLight()
+pl2.SetPos(chrono.ChVectorD(10, 0, 5))
+vis.AddLight(pl2)
+
+# Create a sensor manager to the simulation
 sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
-# Add point lights
-for _ in range(5):
-    light = chrono.ChPointLight()
-    light.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 2))
-    sensor_manager.AddSensor(light)
-
-# Create a camera sensor
-camera = chrono.ChCameraSensor(
-    640,  # width
-    480,  # height
-    60,  # fov
-    0.1,  # near
-    100  # far
-)
-camera.SetPos(chrono.ChVectorD(0, 0, 2))
-camera.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+# Create a camera sensor attached to the vehicle chassis
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60, chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0))
+camera.SetCollectionWindow(chrono.ChVectorD(-1, -1, 1), chrono.ChVectorD(1, 1, 1))
 sensor_manager.AddSensor(camera)
 
-# Add a filter to visualize the camera feed
-filter = chrono.ChFilterVisualize(camera)
-sensor_manager.AddFilter(filter)
+# Include a filter to visualize the camera feed during the simulation
+camera_filter = chrono.ChFilterVisualize(camera, vis)
+sensor_manager.AddFilter(camera_filter)
+
+# Add objects to the scene
+for _ in range(10):
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+    box.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 1))
+    vehicle.GetSystem().AddBody(box)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -174,12 +163,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

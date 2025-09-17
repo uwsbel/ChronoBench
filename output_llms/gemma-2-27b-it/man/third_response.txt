@@ -83,10 +83,32 @@ vis.SetWindowTitle('MAN 10t Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLogo(chrono.GetChronoDataPath('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create sensor manager
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create lidar sensor
+lidar = sens.ChLidarSensor()
+lidar.SetName("Lidar")
+lidar.SetCollisionSystem(vehicle.GetSystem().GetCollisionSystem())
+lidar.SetScanAngle(chrono.ChVector2d(-math.pi / 4, math.pi / 4))
+lidar.SetScanResolution(0.5)
+lidar.SetMaxDistance(50)
+lidar.SetLocalPos(chrono.ChVector3d(0, 0, 2))
+sensor_manager.AddSensor(lidar)
+
+# Create random boxes
+for i in range(10):
+    box = chrono.ChBody()
+    box.SetMass(10)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 0.5))
+    box.SetCollide(True)
+    box.AddAsset(chrono.ChBoxShape(chrono.ChVector3d(1, 1, 1)))
+    vehicle.GetSystem().AddBody(box)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -104,20 +126,6 @@ driver.Initialize()
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
-# Create sensor manager
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-
-# Create lidar sensor
-lidar = sens.ChLidarSensor()
-lidar.SetName("my_lidar")
-lidar.SetCollisionEncapsulation(True)
-lidar.SetScanAngle(chrono.ChVector2d(-chrono.CH_C_PI / 4, chrono.CH_C_PI / 4))
-lidar.SetScanResolution(chrono.ChVector2i(32, 1))
-lidar.SetMaxDistance(50)
-lidar.SetFrequency(10)
-lidar.AttachSensor(vehicle.GetChassis())
-sensor_manager.AddSensor(lidar)
-
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
@@ -125,17 +133,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-# Create random boxes
-num_boxes = 10
-box_size = chrono.ChVector3d(0.5, 0.5, 0.5)
-for i in range(num_boxes):
-    box_pos = chrono.ChVector3d(np.random.uniform(-terrainLength/2, terrainLength/2),
-                               np.random.uniform(-terrainWidth/2, terrainWidth/2),
-                               0.5)
-    box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000)
-    box.SetPos(box_pos)
-    vehicle.GetSystem().AddBody(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -145,6 +142,10 @@ while vis.Run() :
         vis.Render()
         vis.EndScene()
         render_frame += 1
+    
+    # Update sensor manager
+    sensor_manager.Update()
+
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
@@ -153,9 +154,6 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    
-    # Update sensor manager
-    sensor_manager.Update()
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -173,35 +171,25 @@ while vis.Run() :
 
 ```
 
-Here is a breakdown of the changes made:
+Here's a breakdown of the changes made:
 
-1. **Imported `pychrono.sensor` and `numpy`:**
+- **Imported `pychrono.sensor` and `numpy`:** These modules are necessary for working with sensors and generating random box positions.
+- **Added sensor manager and lidar sensor:**
 
-   - Added `import pychrono.sensor as sens` to use sensor functionalities.
-   - Added `import numpy as np` for numerical operations, especially for generating random box positions.
+  - A `ChSensorManager` is created to handle sensor data.
+  - A `ChLidarSensor` is instantiated, configured with scan angles, resolution, and maximum distance.
+  - The lidar is added to the sensor manager.
 
-2. **Added Sensor Manager and Lidar Sensor:**
+- **Created and added random boxes:**
 
-   - Created a `sensor_manager` using `sens.ChSensorManager(vehicle.GetSystem())`.
-   - Created a `lidar` sensor of type `sens.ChLidarSensor()`.
-   - Configured the lidar sensor's properties (name, collision encapsulation, scan angle, resolution, maximum distance, frequency).
-   - Attached the lidar sensor to the vehicle's chassis using `lidar.AttachSensor(vehicle.GetChassis())`.
-   - Added the lidar sensor to the sensor manager using `sensor_manager.AddSensor(lidar)`.
+  - A loop creates 10 `ChBody` objects representing boxes.
+  - Each box is given random positions within a specified range.
+  - The boxes are added to the vehicle's system.
 
-3. **Created Random Boxes:**
+- **Updated terrain texture:**
 
-   - Defined `num_boxes` (number of boxes to create) and `box_size` (dimensions of each box).
-   - Used a loop to create `num_boxes` random boxes.
-   - For each box:
-     - Generated a random position within the terrain boundaries using `np.random.uniform()`.
-     - Created a `chrono.ChBodyEasyBox` with the specified size and mass.
-     - Set the box's position using `box.SetPos(box_pos)`.
-     - Added the box to the vehicle's system using `vehicle.GetSystem().AddBody(box)`.
+  - The terrain texture is changed from "tile4.jpg" to "grass.jpg".
 
-4. **Updated Sensor Manager in the Simulation Loop:**
+- **Updated sensor manager within the simulation loop:**
 
-   - Added `sensor_manager.Update()` within the main simulation loop to update the sensor readings at each time step.
-
-5. **Terrain Texture Change:**
-
-   - Changed the terrain texture from `"tile4.jpg"` to `"grass.jpg"` in the `patch.SetTexture()` line.
+  - The line `sensor_manager.Update()` is added to the main simulation loop to update sensor data each frame.

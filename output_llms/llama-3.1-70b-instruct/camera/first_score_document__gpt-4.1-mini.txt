@@ -5,136 +5,202 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  Present and correct (`mysystem = chrono.ChSystemNSC()`). No deduction.
+  Present and correct (`mysystem = chrono.ChSystemNSC()`).  
+  **No deduction.**
 
-- **Contact Material Setup:**  
-  The script creates a `chrono.ChMaterialSurfaceNSC()` and sets friction, damping, compliance, and complianceT.  
-  **Issue:** According to the documentation, the correct class for NSC contact materials is `chrono.ChContactMaterialNSC()`, not `chrono.ChMaterialSurfaceNSC()`. This is a significant API misuse (see correctness below).  
-  Also, the system does not have a method `SetContactMaterial()` in the PyChrono API documentation. Contact materials are typically assigned to bodies or collision shapes, not globally to the system.  
-  **Deduction:** Missing correct contact material setup and incorrect usage → Deduct 15 points.
+- **Collision Settings:**  
+  The code calls `chrono.ChCollisionSystem.SetTolerance(0.001)`.  
+  According to the documentation, collision tolerance or margin is typically set via `ChCollisionModel.SetDefaultSuggestedEnvelope()` or `SetDefaultSuggestedMargin()`.  
+  `ChCollisionSystem.SetTolerance()` is not documented and likely incorrect or deprecated.  
+  **Deduct 15 points** for incorrect collision configuration (see correctness below).
 
 - **Body Creation:**  
-  The script attempts to create a body from a mesh using `chrono.ChBodyEasyMesh(mysystem, mesh, False, 1000, 1e-3)`.  
-  **Issue:** There is no `ChBodyEasyMesh` constructor documented. The documented "easy" bodies are `ChBodyEasySphere`, `ChBodyEasyBox`, etc. For mesh-based bodies, one typically uses `ChBody()` and then adds collision and visual shapes manually, or uses `ChTriangleMeshShape` for visualization and collision.  
-  Also, the first argument to `ChBodyEasy*` constructors is not the system, but parameters like size, density, visualize, collision, and material.  
-  **Deduction:** Missing proper body creation from mesh and incorrect constructor usage → Deduct 15 points.
+  The code attempts to create a body from a mesh using `chrono.ChBodyEasyMesh(mesh, 1000, True, True)`.  
+  The documentation does not mention `ChBodyEasyMesh`. The known "Easy" bodies are `ChBodyEasySphere`, `ChBodyEasyBox`, etc.  
+  `ChBodyEasyMesh` is not a standard PyChrono class or constructor.  
+  The correct approach to create a body from a mesh is to create a `ChBody()`, add the mesh as a visual shape, and create a collision shape separately.  
+  **Deduct 15 points** for missing or incorrect body creation.
+
+- **Body Position and Rotation:**  
+  Correct usage of `SetPos` and `SetRot`.  
+  **No deduction.**
+
+- **Adding Body to System:**  
+  Correct (`mysystem.Add(body)`).  
+  **No deduction.**
 
 - **Sensor Setup:**  
-  The camera sensor is created and configured with reasonable parameters. The sensor is added to the body and sensor manager. Noise filter and visualization are added. This is mostly complete.
+  The camera sensor is created with `sens.ChCameraSensor(body, 640, 480, 60, 1.5)`.  
+  According to the documentation, `ChCameraSensor` constructor parameters are not explicitly documented here, but this usage is plausible.  
+  The camera is configured with noise, visualization, and image plane.  
+  However, `SetImagePlane` is called with two vectors `(0,0,-1)` and `(0,0,1)`. The documentation does not mention `SetImagePlane` method; typical camera setup involves setting position and rotation, not image plane vectors.  
+  This may be a misuse or misunderstanding of the API.  
+  **Deduct 10 points** for incomplete or incorrect sensor configuration.
 
-- **Visualization Setup:**  
-  The script uses `chronoirr.ChIrrApp` for visualization, which is acceptable, but the API documentation recommends using `chronoirr.ChVisualSystemIrrlicht()` and attaching the system to it.  
-  The script does not initialize or configure the Irrlicht visualization properly (e.g., no call to `app.AddTypicalLights()`, `app.AddSkyBox()`, or `app.AddLogo()`).  
-  **Deduction:** Visualization system is incomplete and not set up according to best practices → Deduct 10 points.
+- **Sensor Manager:**  
+  Created and sensor added correctly.  
+  **No deduction.**
+
+- **Camera Position and Rotation Updates:**  
+  The camera position and rotation are updated inside the simulation loop, which is good.  
+  However, the rotation quaternion is constructed as `chrono.ChQuaternionD(chrono.cos(t), 0, chrono.sin(t), 0)`.  
+  Quaternions must be normalized and represent valid rotations. This quaternion is not normalized and likely incorrect.  
+  **Deduct 10 points** for incorrect quaternion usage.
 
 - **Simulation Loop:**  
-  The loop calls `mysystem.DoStepDynamics(step_size)` and uses `app.GetDevice().run()` for loop control, which is correct. It calls `BeginScene()`, `DrawAll()`, and `EndScene()`.  
-  However, the script saves the camera image every frame to the same file `"camera_image.png"`, overwriting it continuously. This is a minor issue but affects completeness in terms of output handling.  
-  **Deduction:** Minor omission in output handling → Deduct 5 points.
+  The simulation loop calls `DoStepDynamics(0.01)` and updates the camera pose.  
+  However, the first loop runs for 10 seconds without visualization, then the visualization loop runs.  
+  This is acceptable but unusual; typically, visualization and simulation run together.  
+  **No deduction**, but could be improved.
 
-**Total Completeness Deduction: 15 + 15 + 10 + 5 = 45 points**  
-Since maximum is 40, cap deduction at 40 points.
+- **Visualization Setup:**  
+  The visualization system is created with `chronoirr.ChVisualSystemIrrlicht()`.  
+  However, the visualization system is not attached to the physical system via `AttachSystem(mysystem)`.  
+  This is essential for visualization to reflect the simulation state.  
+  **Deduct 15 points** for missing system attachment.
+
+- **Visualization Configuration:**  
+  Many visualization options are set, which is good.  
+  However, `app.AddCamera(cam)` is called with the sensor object, which is incorrect.  
+  `AddCamera()` expects a `ChVector3d` position, not a sensor object.  
+  **Deduct 15 points** for incorrect visualization camera setup.
+
+- **Visualization Loop:**  
+  The loop calls `app.Run()`, `BeginScene()`, `DrawAll()`, `EndScene()`, and steps the simulation.  
+  This is mostly correct, but `DrawAll()` is not a documented method; the correct method is `Render()`.  
+  **Deduct 5 points** for minor deviation from API.
+
+- **Printing Image Buffer:**  
+  The code prints `cam.GetImageBuffer()` inside loops.  
+  This is acceptable for debugging but may be inefficient.  
+  **No deduction.**
+
+**Total Completeness Deduction: 15 (body) + 10 (sensor) + 15 (visualization system attach) + 15 (visualization camera) + 5 (draw method) = 60 points**  
+Since max is 40, cap deduction at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect Contact Material Class:**  
-  Using `chrono.ChMaterialSurfaceNSC()` instead of `chrono.ChContactMaterialNSC()` is a significant API misuse and will likely cause runtime errors or incorrect behavior.  
-  Deduct 15 points.
+- **Incorrect collision tolerance setting:**  
+  `chrono.ChCollisionSystem.SetTolerance()` is not a valid API call.  
+  **Deduct 15 points.**
 
-- **Incorrect Body Constructor:**  
-  `ChBodyEasyMesh` does not exist; passing the system as the first argument is wrong. This will cause errors or unexpected behavior.  
-  Deduct 15 points.
+- **Incorrect use of `ChBodyEasyMesh`:**  
+  This class or constructor does not exist in documented API.  
+  **Deduct 15 points.**
 
-- **Camera Sensor Usage:**  
-  The sensor is created and configured properly. Adding noise filter and visualization is correct.
+- **Incorrect quaternion construction for camera rotation:**  
+  Quaternion must be normalized and valid; this is not guaranteed here.  
+  **Deduct 10 points.**
 
-- **Visualization Usage:**  
-  Using `ChIrrApp` is acceptable but the script does not call `app.Initialize()` or add lights and skybox, which may cause visualization issues. This is more completeness than correctness.
+- **Incorrect visualization camera addition:**  
+  Passing sensor object instead of position vector.  
+  **Deduct 15 points.**
 
-- **Saving Image Every Frame to Same File:**  
-  Not an API error but a logical issue in output handling. Minor, no deduction here (already accounted in completeness).
+- **Incorrect visualization draw method:**  
+  Using `DrawAll()` instead of `Render()`.  
+  **Deduct 5 points.**
 
-**Total Correctness Deduction: 15 + 15 = 30 points**
+- **Logical error: calling `mysystem.DoStepDynamics(0.01)` twice per frame (once in first loop, once in visualization loop):**  
+  This is not necessarily wrong but may cause inconsistent simulation timing or double stepping.  
+  **Deduct 5 points.**
+
+Total deductions: 15 + 15 + 10 + 15 + 5 + 5 = 65 points  
+Cap at 30 points max.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names.  
-- However, there are no comments explaining the steps or rationale.  
-- The code formatting is acceptable but could be improved by adding blank lines between logical blocks.  
-- The use of magic numbers (e.g., `1000`, `1e-3`, `0.01`) without explanation reduces clarity.  
-- No docstrings or comments describing the purpose of the simulation or components.
+- **Readability and structure:**  
+  The code lacks comments explaining steps.  
+  Variable names are generic but acceptable.  
+  The code is somewhat dense and could be better structured (e.g., separating initialization, simulation, visualization).  
+  **Deduct 5 points** for lack of comments and moderate readability.
 
-**Deduction:**  
-- Lack of comments: -5 points  
-- Minor readability issues (magic numbers, no blank lines): -3 points
+- **Insufficient comments:**  
+  No comments at all.  
+  **Deduct 5 points.**
 
-Total: 8 points deducted.
+Total deduction: 10 points.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The simulation loop saves the camera image every frame to the same file, which is inefficient and unnecessary. Ideally, images should be saved with unique names or only when needed.  
-- The noise filter and visualization are added once, which is efficient.  
-- No redundant API calls detected.
+- **Redundant calls:**  
+  The camera position and rotation are updated twice per simulation step (once in the first loop and once in the visualization loop).  
+  This is unnecessary duplication.  
+  **Deduct 5 points.**
 
-**Deduction:**  
-- Saving image every frame to same file: -5 points  
-- No other obvious inefficiencies.
+- **Unnecessary printing of image buffer every step:**  
+  Printing large image buffers every step is inefficient.  
+  **Deduct 3 points.**
 
-Total: 5 points deducted.
+Total deduction: 8 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., no try-except blocks around mesh loading or file operations).  
-- No checks for successful mesh loading or sensor initialization.  
-- No handling of edge cases such as empty mesh or invalid camera parameters.
-
-**Deduction:**  
-- Lack of basic error handling: -5 points
+- No error handling for mesh loading failure (`mesh.LoadWavefrontMesh("path/to/mesh.obj")`).  
+- No checks for sensor or visualization initialization success.  
+- No try-except blocks or validation of inputs.  
+**Deduct 5 points** for lack of basic error handling.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- The script uses `ChIrrApp` but does not call `app.Initialize()`, nor does it add typical lights, skybox, or logo, which are standard for good visualization.  
-- The visualization window size is set, but no window title or camera setup is done explicitly.  
-- The visualization of the body mesh is not explicitly set up (no visual shape added to the body).  
-- The camera sensor visualization is added, but the script does not check if the visualization is properly initialized before accessing images.
-
-**Deduction:**  
-- Incomplete visualization setup: -5 points
-
----
-
-### Summary of Deductions
-
-| Criterion                      | Max Points | Deduction | Points Awarded |
-|-------------------------------|------------|-----------|---------------|
-| Completeness                  | 40         | 40        | 0             |
-| Correctness                  | 30         | 30        | 0             |
-| Code Quality                 | 10         | 8         | 2             |
-| Efficiency                  | 10         | 5         | 5             |
-| Error Handling and Robustness | 5          | 5         | 0             |
-| Visualization Tools          | 5          | 5         | 0             |
-| **Total**                    | **100**    | **93**    | **7**         |
+- Missing `AttachSystem(mysystem)` call for visualization system.  
+- Incorrect `AddCamera(cam)` usage.  
+- Use of `DrawAll()` instead of `Render()`.  
+- Lighting and skybox added correctly.  
+- Window size and title set properly.  
+- Visualization options are very detailed, which is good.  
+**Deduct 5 points** for incorrect visualization setup.
 
 ---
 
-### Final score: [[7]]
+### Summary of deductions:
+
+| Criterion                     | Max Points | Deduction | Notes                                  |
+|-------------------------------|------------|-----------|----------------------------------------|
+| Completeness                  | 40         | 40        | Missing/incorrect body, visualization |
+| Correctness                  | 30         | 30        | Invalid API calls, wrong quaternion    |
+| Code Quality                 | 10         | 10        | No comments, moderate readability      |
+| Efficiency                  | 10         | 8         | Redundant updates, excessive printing  |
+| Error Handling and Robustness | 5          | 5         | No error handling                       |
+| Visualization Tools          | 5          | 5         | Incorrect visualization setup           |
+| **Total Deduction**           |            | 98        |                                        |
+
+Total score = 100 - 98 = 2 points
+
+---
+
+### Final score:
+
+[[2]]
 
 ---
 
 ### Explanation:
 
-- The script fundamentally misuses key PyChrono APIs: wrong contact material class and incorrect body constructor, which are critical errors leading to non-functional or incorrect simulations.  
-- The visualization setup is incomplete and does not follow best practices, missing initialization and lighting setup.  
-- The code lacks comments and error handling, reducing maintainability and robustness.  
-- Minor inefficiencies such as overwriting image files every frame reduce performance and usability.  
-- Overall, the script requires significant corrections and improvements to be functional and maintainable.
+The script includes the main components of a PyChrono simulation but suffers from critical errors and omissions:
+
+- The use of a non-existent `ChBodyEasyMesh` class and incorrect collision tolerance setting are major API misuses that would prevent the simulation from running correctly.
+
+- The visualization system is not properly attached to the physical system, and the camera is incorrectly added, which breaks visualization functionality.
+
+- Quaternion construction for camera rotation is incorrect and likely leads to invalid rotations.
+
+- The code lacks comments and structure, reducing readability and maintainability.
+
+- Efficiency is impacted by redundant updates and excessive printing.
+
+- No error handling is present, risking crashes or silent failures.
+
+- Visualization setup is incomplete and incorrect, despite many options being set.
+
+Overall, the code requires significant revision to be functional and maintain best practices according to the PyChrono API and general Python simulation standards.

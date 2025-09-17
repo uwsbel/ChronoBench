@@ -41,7 +41,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Added logging step size
-log_step_size = 0.1  # Log data every 0.1 seconds
+log_step_size = 0.1  # Log every 0.1 seconds
 log_steps = math.ceil(log_step_size / step_size)
 
 # Create the HMMWV vehicle, set parameters, and initialize
@@ -165,20 +165,23 @@ while vis.Run():
         if gps_buffer:
             gps_data.append(gps_buffer.GetGPSData())
 
-    # Modified driver inputs based on simulation time
+    # Get driver inputs - modified to include specific commands
     driver_inputs = driver.GetInputs()
 
-    # Custom driver inputs based on time
-    if time < 3.0:
+    # Custom driver inputs based on simulation time
+    if time < 2.0:
         driver_inputs.m_throttle = 0.5  # Gentle acceleration
-        driver_inputs.m_steering = 0.0  # Straight
-    elif time < 6.0:
+        driver_inputs.m_steering = 0.0  # Straight ahead
+    elif time < 4.0:
         driver_inputs.m_throttle = 0.8  # More acceleration
-        driver_inputs.m_steering = 0.2  # Slight turn
+        driver_inputs.m_steering = 0.2  # Slight right turn
+    elif time < 6.0:
+        driver_inputs.m_throttle = 0.3  # Reduced throttle
+        driver_inputs.m_steering = -0.1 # Slight left correction
     else:
         driver_inputs.m_throttle = 0.0  # No throttle
+        driver_inputs.m_steering = 0.0  # Straight
         driver_inputs.m_braking = 0.5   # Apply braking
-        driver_inputs.m_steering = 0.0  # Straighten out
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -201,5 +204,5 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print the logged GPS data at the end of simulation
+# Print GPS data at the end of simulation
 print("GPS Data: ", gps_data)

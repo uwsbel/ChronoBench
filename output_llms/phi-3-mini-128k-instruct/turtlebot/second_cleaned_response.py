@@ -2,8 +2,8 @@ import os
 import math
 import numpy as np
 import chrono
-import chrono.robot as turtlebot
-from chrono import irrlicht as chronoirr
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
 
 
 system = chrono.ChSystemNSC()
@@ -37,7 +37,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
 
 
 time_step = 2e-3
@@ -52,32 +52,28 @@ def move(mode):
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid mode. Mode must be 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 
 time = 0
 while vis.Run():
-    
-    if time < 5:
-        move('straight')
-        print("Robot is moving straight.")
-    
-    elif time < 10:
-        move('left')
-        print("Robot is turning left.")
-    
-    else:
-        move('right')
-        print("Robot is turning right.")
-
-    
+    move('straight')  
     time += time_step
+    print("Moving straight")
+    if time > 5:
+        move('left')  
+        time += time_step
+        print("Turning left")
+        if time > 10:
+            move('right')  
+            time += time_step
+            print("Turning right")
 
     
     vis.BeginScene()

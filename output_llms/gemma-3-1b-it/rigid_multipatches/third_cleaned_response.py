@@ -84,13 +84,8 @@ def main():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        
-        driver_inputs = driver.GetInputs()
-
-        
-        driver.Synchronize(time)
+        vis.Synchronize(time)
         terrain.Synchronize(time, driver_inputs, terrain)
-        hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
         

@@ -1,77 +1,57 @@
-import chrono as ch
-import chrono.irrlicht as irr
-import chrono.vehicle as veh
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
 
 # 1. Initialize the PyChrono environment and core components
-ch.set_default_contact_material(ch.ContactMaterial())
+chrono.ChEngine.Initialize()
 
-# Initialize the Irrlicht application
-app = irr.ChIrrApp()
+# 2. Create the Irrlicht application
+app = irr.IrrlichtApplication()
 
-# 2. Create the HMMWV vehicle
-vehicle = veh.ChHMMWV()
+# 3. Create the HMMWV vehicle
+vehicle = veh.HMMWV()
 
-# Set vehicle location and orientation
-vehicle.SetChassisBodyFixed(False)
-vehicle.SetChassisPos(ch.ChVectorD(0, 0, 1))
-vehicle.SetChassisRot(ch.ChQuaternionD(0, 0, 0, 1))
-
-# Use TMEASY tire model
+# Set vehicle parameters
+vehicle.SetContactMethod(chrono.ChContactMethod_NECTAR)
 vehicle.SetTireModel(veh.TireModel_TMEASY)
 
-# Enable mesh visualization for vehicle components
-vehicle.SetVisualization(veh.VisualizationMode_MESH)
+# Enable mesh visualization for all vehicle components
+vehicle.SetVisualization(chrono.ChVisualAssetLevel_MESH)
 
-# 3. Create custom terrain
-terrain = veh.ChTerrain()
-terrain_file_col = "path/to/Highway_col.obj"  # Update this path
-terrain_file_vis = "path/to/Highway_vis.obj"  # Update this path
-terrain.AddCollisionShape(terrain_file_col, False)
-terrain.AddVisualShape(terrain_file_vis)
+# 4. Create the custom terrain
+terrain = veh.TerrainMesh()
+terrain.Initialize('Highway_col.obj', 'Highway_vis.obj')
 
-# Set terrain position
-terrain.SetPos(ch.ChVectorD(0, 0, 0))
-
-# 4. Configure interactive driver system
-driver = veh.ChInteractiveDriverIRR()
+# 5. Set up the interactive driver system
+driver = veh.DriverWheeled()
 driver.AttachVehicle(vehicle)
-driver.SetSteering(veh.DriverInputs_Float(0.0))
-driver.SetThrottle(veh.DriverInputs_Float(0.0))
-driver.SetBraking(veh.DriverInputs_Float(0.0))
+driver.SetSteering(chrono.ChFunction_Constant(0.0))
+driver.SetThrottle(chrono.ChFunction_Constant(0.5))
+driver.SetBraking(chrono.ChFunction_Constant(0.0))
 
-# Simulation parameters
-sim_frame_rate = 50  # 50 FPS
+# 6. Set up the simulation
+simulation = chrono.ChSimulation(vehicle)
+simulation.SetTimestep(0.02)  # 50 Hz
+simulation.SetRealtime(true)
 
-# Simulation loop
-def simulate():
-    time_step = 1.0 / sim_frame_rate
-    scene = irr.ChIrrSceneNode(app.GetDevice())
+# Set positions, orientations, and other initial conditions
+vehicle.SetPos(chrono.ChVector3d(0, 0, 1))
+vehicle.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
 
-    # Add vehicle and terrain to the scene
-    scene.Add(vehicle.GetChassisBody())
-    for wheel in vehicle.GetWheels():
-        scene.Add(wheel)
-    scene.Add(terrain.GetCollisionShape())
-    scene.Add(terrain.GetVisualShape())
+# Add the terrain to the simulation
+simulation.Add(terrain)
 
-    while app.Run():
-        # Update vehicle dynamics
-        vehicle.Update(time_step)
+# Add the vehicle to the simulation
+simulation.Add(vehicle)
 
-        # Update driver inputs (example: simple constant steering)
-        driver.Update(time_step)
-        steering_input = 0.1
-        throttle_input = 0.5
-        braking_input = 0.0
-        driver.SetSteering(veh.DriverInputs_Float(steering_input))
-        driver.SetThrottle(veh.DriverInputs_Float(throttle_input))
-        driver.SetBraking(veh.DriverInputs_Float(braking_input))
+# Add the driver to the simulation
+simulation.Add(driver)
 
-        # Render the scene
-        scene.Update()
+# 7. Run the simulation loop
+while simulation.GetRealtimeTimestep() < 60.0 and app.Run():
+    simulation.Step(0.02)
+    app.Render()
+    simulation.Update()
 
-        # Cap the frame rate
-        app.GetDevice().sleep(time_step)
-
-# Run the simulation
-simulate()
+# Clean up
+chrono.ChEngine.Finalize()

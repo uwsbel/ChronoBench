@@ -1,954 +1,607 @@
-Okay, I need to create a PyChrono simulation that models gravitational attraction between particles. The user wants a particle emitter with random shapes, positions, velocities, and orientations, and visualization via Irrlicht. Let me break down the steps.
+Okay, I need to create a PyChrono simulation that models gravitational attraction between particles. The user also wants a particle emitter with random shapes, positions, velocities, and orientations. Plus, visualize it with Irrlicht and apply custom gravitational forces. Let me think through the steps.
 
-First, I'll start by importing the necessary modules. PyChrono's main modules like chronohelper and the Irrlicht visualizer are essential. Also, I'll need numpy for random generation and math for calculations.
+First, initializing the environment. I'll start by importing the necessary modules. PyChrono's core, collision, and visualization are needed. Also, numpy for random numbers and math functions.
 
-Next, initializing the system. I'll create a Chrono::System and set up the Irrlicht application to visualize. The camera position and settings should be set for a good view.
+Next, setting up the simulation. I should create a system, maybe with a timestep. Then set up the Irrlicht viewer for visualization. Positioning the camera to get a good view of the particles.
 
-Now, the particle emitter. The emitter will generate particles with random properties. I'll need a function to create particles. Each particle should be a Chrono body with a shape (maybe a sphere for simplicity). The position can be randomized within a certain area, velocities as well. Orientations can be random quaternions. The material properties like mass and restitution can be set.
+Now, the particle emitter. How to implement that? Maybe a loop that periodically adds particles. The particles need to have random positions, velocities, orientations, and shapes. For shapes, Chrono offers different geometries like spheres, boxes, cylinders. Let's pick randomly among these. Each particle should be a Chrono body with a shape, mass, and collision model.
 
-Wait, but gravitational attraction between all particles? That's a bit tricky. The standard gravity is usually towards a central point, but here each particle attracts others. So I need to implement a force between every pair of particles. Hmm, that requires a custom force function or using the particle system with forces.
+The gravitational attraction between particles. Hmm, the standard gravity in Chrono is usually a constant force, but here we need particles to attract each other dynamically. That requires a custom force function. Wait, Chrono has a method to add forces between bodies? Or maybe compute gravitational forces manually in each step.
 
-Alternatively, maybe using a ParticleSystem and adding forces between particles. But I'm not sure. Let me think. The gravitational force between two particles is F = G*(m1*m2)/r² * direction. Since it's pairwise, I need to loop through all particle pairs each time step and apply forces. But with many particles, this could be computationally heavy. Maybe for simplicity, the user expects a basic implementation even if not optimized.
+Wait, perhaps the best approach is to loop through all pairs of particles each time step and apply the gravitational force between them. Newton's law: F = G * (m1*m2)/r² * direction. But since each particle has its own mass, and we need to compute forces between all pairs. But this could be computationally intensive if there are many particles. Maybe for simplicity, the simulation can have a manageable number of particles.
 
-Alternatively, perhaps using Chrono's ParticleSystem and adding custom forces. Let me check the documentation. Oh right, ParticleSystem allows adding forces. Maybe better to use that.
+Alternatively, maybe use a custom force callback. Let me recall, in PyChrono, you can add a force function to a body that applies a force based on other bodies. But I'm not sure. Alternatively, in each simulation step, loop through all particles and compute the forces between them.
 
-Wait, the problem says particles with random shapes. The emitter can generate spheres, boxes, cylinders? But handling different shapes complicates the physics. Maybe stick to spheres for simplicity, as they are easier for collisions and calculations. The user said random shapes, but perhaps it's acceptable to vary between sphere, box, etc., but for the force calculation, maybe just use their mass and position.
+So, first, the emitter: create particles over time. Let's say every 0.5 seconds, emit a new particle. The particles start at a certain position, maybe near the center, with some random velocity.
 
-Alternatively, maybe the shapes are just for visualization, and the physics uses spheres. The user might not mind if the force is based on center of mass positions. So proceed with spheres for physics, and randomize the visual shape.
+Then, for each particle, every time step, compute the gravitational force from all other particles. Since forces are vectors, each particle's net force is the sum of all forces from others.
 
-Wait, the emitter should generate particles with random shapes. So each particle can have a different shape (sphere, box, cylinder). For physics, perhaps using spheres as the collision models, but for visualization, vary the shapes. That's possible. So in the create_particle function, randomly choose a shape type, set the collision model (maybe always a sphere for simplicity?), but the visual shape can be different. But collision handling might be complex with different shapes. Maybe better to use spheres for collision and just vary the visual shape for appearance.
+Wait, but in Chrono, bodies have forces applied via their Force objects. Alternatively, perhaps the best way is to loop through all particle pairs each time step, compute the gravitational force between them, and apply it to both particles (since it's mutual).
 
-Alternatively, perhaps the user wants the actual physics to account for different shapes, but that's more complicated. Since the main requirement is gravitational attraction, which depends on mass and distance, maybe the shape's collision model can be a sphere for simplicity. The visual shape can be varied, but the physics uses spheres. That's manageable.
+But how to structure this in the simulation loop. The simulation loop is handled by the engine, so perhaps in the main loop, before stepping, compute all the forces.
 
-So steps for the emitter function:
+Alternatively, maybe use a custom force callback function for each particle. Let me check the documentation. Oh right, you can attach a force to a body with a callback function that computes the force based on other bodies. But that might require each particle to have a callback that iterates over all other particles. That could be feasible.
 
-- Create a Chrono::ChBody for each particle.
-- Randomize position (maybe within a certain area like a box).
-- Randomize velocity components.
-- Randomize orientation (using a random quaternion).
-- Assign a random mass (maybe within a range).
-- Choose a random visual shape (sphere, box, cylinder) and set its dimensions.
-- Add collision shape (sphere for simplicity).
-- Add to the system.
+Alternatively, perhaps in the main loop, after the simulation step, but before rendering, we can compute all the gravitational forces and apply them. Wait, but the simulation steps are handled by the engine. Maybe better to compute the forces before each step.
 
-Now, gravitational attraction between all particles. The gravitational force between each pair. So each particle must apply a force on every other particle.
+Wait, in PyChrono, the way to apply forces is by creating a Force object and adding it to the body. However, for dynamic forces that depend on other bodies' positions, we need to compute them each step.
 
-To do this, I need to loop through all pairs of particles each time step. Since this is O(n²), it might be slow for large numbers, but for a basic simulation, manageable with a small number of particles.
+Hmm, perhaps the approach is to create a list of all particles, and in each simulation step, loop through all pairs, compute the gravitational force between them, and apply it to each body. Since forces are applied as vectors, each particle's net force would be the sum of all the forces from other particles.
 
-Alternatively, use a ParticleSystem and add a custom force. Let me see if that's possible. The ParticleSystem has a method to add forces. But maybe it's easier to handle it manually in the simulation loop.
+Wait, but in Chrono, forces can be added via a Force object. Alternatively, maybe we can compute the total force on each particle and set the acceleration directly? Not sure. Alternatively, for each particle, we can compute the total force and apply it as a force vector.
 
-Alternatively, using a custom force callback. Wait, Chrono allows adding forces through the system. Let me think: perhaps in the simulation loop, after each step, compute all pairwise forces and apply them.
+Alternatively, perhaps using a custom force function. Let me think. For each particle, we can have a function that, given the current state, computes the total gravitational force from all other particles. Then, that function can be attached as a force to the body.
 
-Wait, but the forces must be applied before the integration step. So perhaps in each step, before advancing the system, compute all forces and set them on each body.
+Yes, that might work. Let's see. For each body, the function would loop through all other bodies and compute the force. However, this could be inefficient, but for a small number of particles, it's manageable.
 
-But how to do that? Let's see.
+Alternatively, precompute all pairs each step. Let's proceed with that approach.
 
-First, collect all the particles in a list. Then, in each simulation loop step, iterate over all pairs, compute the gravitational force between them, and apply it to both particles.
+So, first, the emitter: create particles periodically. Let's set up a timer. In PyChrono, the simulation has a time variable, so each time step, check if it's time to emit a new particle.
 
-But since force on A from B is equal and opposite to force on B from A, need to handle that correctly.
+Now, the particles need to have collision shapes. Let's randomly choose between sphere, box, cylinder. For each particle, create a chrono::collision::shape, set mass, etc.
 
-The gravitational force formula: F = G * (m1*m2)/(r²) * direction. The gravitational constant G can be adjusted for simulation purposes.
+Then, for gravitational attraction between particles: for each pair, compute the force. Let's use Newton's law. The gravitational constant G can be adjusted for simulation purposes, since real-world values might be too weak.
 
-But in reality, G is very small, so to make the effect visible, need to scale it up.
+Wait, the gravitational force between two particles is F = G * (m1*m2)/r² * unit vector between them. The direction is from particle A to B, so the force on A is towards B, and vice versa.
+
+So, for each pair (A,B), compute the vector from A to B (r_vector), its magnitude (r), then compute the force magnitude, then apply the force to both particles.
+
+But in code, how to do this efficiently.
+
+Let me outline the steps:
+
+Initialize the system:
+
+- Create the Chrono system, set timestep (maybe 0.001 or so).
+
+- Create the Irrlicht viewer.
+
+- Set up the emitter: maybe a timer variable, and a list to hold all particles.
+
+- Set up a loop that adds a new particle every 0.5 seconds (or whatever interval).
+
+- For each particle, when created, add it to the list and the system.
+
+Then, in the main simulation loop:
+
+- Before stepping, compute all gravitational forces between particles.
+
+Wait, but the simulation loop is handled by the engine. So perhaps in the main loop, before each step, we need to compute the forces and apply them.
+
+Alternatively, perhaps the forces need to be applied each step. Let me think about the structure.
+
+The main loop would look something like:
+
+while the simulation is running:
+
+    if it's time to emit a new particle, create one.
+
+    compute all gravitational forces between particles.
+
+    apply these forces to the bodies.
+
+    step the simulation.
+
+    render.
+
+But how to compute and apply the forces each step.
+
+Alternatively, each particle has a force object that is updated each step.
+
+Hmm, perhaps using a custom force function for each particle.
+
+Wait, here's an approach:
+
+Each particle's body has a force callback. The callback function for each body would loop through all other bodies, compute the gravitational force from them, sum it up, and return the total force.
+
+But this would require each particle's callback to have access to all other particles. Since in Python, functions can have access to variables in the outer scope, maybe this is possible.
+
+Alternatively, in each step, before stepping, loop through all particles, compute their net force from others, and set the force on each body.
+
+Wait, but how to set the force in Chrono. Because in Chrono, forces are applied via Force objects. Alternatively, perhaps we can compute the acceleration and set the acceleration directly? Not sure.
+
+Alternatively, maybe use a Force::CustomForce object for each body, which can compute the force each time it's called.
+
+Let me look up how to create a custom force in PyChrono.
+
+Looking at the documentation, there's a chrono.ChForce() class, but to create a custom force, you can use chrono.ChForceCustom.
+
+Wait, perhaps the way to do it is to create a custom force function for each body. Let me see an example.
+
+Alternatively, here's a possible approach:
+
+Each particle body has a custom force that, when queried, computes the gravitational force from all other particles.
+
+But how to pass the list of all particles to the force function.
+
+Alternatively, in the main loop, before stepping, for each particle, compute the total gravitational force from all others, then apply it as a force to the body.
+
+But to apply it, you need to have a force object attached to each body, and set its force vector each step.
+
+Hmm. Let's think step by step.
+
+Suppose we have a list of all particles, say particles_list.
+
+Each particle is a chrono.ChBody object.
+
+In each simulation step before stepping, we loop through each particle A:
+
+total_force = (0,0,0)
+
+for each other particle B in particles_list:
+
+    if A is B, skip.
+
+    compute vector from A to B: r_vec = B.GetPos() - A.GetPos()
+
+    distance squared = r_vec.Length2()
+
+    if distance is zero, skip (to avoid division by zero)
+
+    G = gravitational constant (maybe 1e-3 or something)
+
+    force_magnitude = G * A.GetMass() * B.GetMass() / distance
+
+    unit_vector = r_vec.GetUnit()
+
+    force = force_magnitude * unit_vector
+
+    total_force += force
+
+then, apply this total_force to A.
+
+But how to apply this force. Since in Chrono, forces are applied via Force objects attached to bodies. So perhaps each body has a ChForce object attached, and each step we set the force vector of that object.
+
+So, when creating a particle, we also create a ChForce object and attach it to the body. Then, in each step, before the simulation step, we loop through all particles, compute their total gravitational force, and set the force on their attached ChForce object.
+
+Yes, that's feasible.
 
 So steps:
 
-Initialize a list to hold all particles.
+Initialize:
 
-In the main loop:
+- For each particle created, create a ChForce object, attach to the body.
 
-- Before the system do_step, compute all forces between particles.
+- Keep track of all particles and their force objects.
 
-Wait, but the system's forces are applied automatically. Alternatively, perhaps each particle has a force accumulator, and we can add the gravitational forces each step.
+Then, in the main loop:
 
-Alternatively, perhaps create a custom force function that can be added to each body. But that might be complicated.
+- Before stepping, loop through each particle:
 
-Alternatively, in each step, loop through all particles, and for each particle, compute the net gravitational force from all others, then set that force on the particle.
+    compute total gravitational force from all other particles.
 
-So code outline:
+    set the force's vector to this total_force.
 
-particles = []  # list of all particles
+Then step the simulation.
 
-while simulation loop:
+That should work.
 
-    net_force = [0,0,0]
+Now, the emitter part. Let's see.
 
-    for each particle in particles:
+The emitter should generate particles at regular intervals. Let's say every 0.5 seconds.
 
-        net_force = [0,0,0]
+We can track the simulation time and create a new particle when the time exceeds the interval.
 
+So, in the main loop, after getting the current time (system.GetChTime()), check if it's time to emit.
+
+When emitting, create a new body with random position, velocity, shape, etc.
+
+For the position, maybe start them near the center but with some spread.
+
+Velocity can be random in x,y,z directions.
+
+Shapes: randomly choose between sphere, box, cylinder. Each with random dimensions.
+
+Mass: perhaps set to a random value between 1 and 10, or something.
+
+Collision shapes: for each body, add a collision shape based on the chosen geometry.
+
+Now, putting this all together.
+
+First, the code structure.
+
+Import modules:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import random
+
+Then, create the system:
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity, since we're handling it ourselves.
+
+Set the timestep:
+
+system.SetTimestepperType(chrono.ChTimestepperType.DISCRETE)
+system.GetSettings().timestep = 0.001
+
+Initialize the Irrlicht visualizer:
+
+visualizer = chronoirr.ChVisualSystemIrrlicht()
+visualizer.SetWindowSize(1024,768)
+visualizer.SetWindowTitle('Particle Attraction Simulation')
+visualizer.SetSymbolscale(0.01)
+visualizer.SetCameraPosition(chrono.ChVectorD(5,5,5))
+visualizer.SetCameraLookat(chrono.ChVectorD(0,0,0))
+system.SetVisualSystem(visualizer)
+
+Then, create the emitter variables:
+
+emit_interval = 0.5  # seconds between emissions
+next_emit_time = 0.0
+particles = []
+
+Now, the main loop:
+
+while visualizer.Run():
+
+    current_time = system.GetChTime()
+
+    # Check if it's time to emit a new particle
+    if current_time >= next_emit_time:
+        emit_particle()
+        next_emit_time += emit_interval
+
+    # Compute gravitational forces between all particles
+    for particle in particles:
+        total_force = chrono.ChVectorD(0,0,0)
+        pos_a = particle.GetPos()
+        mass_a = particle.GetMass()
         for other in particles:
-
-            if other is not particle:
-
-                compute distance vector between particle and other
-
-                distance squared
-
-                compute force components
-
-                add to net_force
-
-        apply net_force to the particle via particle.AddForce()
-
-    then, system do_step()
-
-Wait, but how to apply the force? The AddForce() adds a force at the center of mass. So that's okay.
-
-But in each iteration, for each particle, loop through all others, compute the force.
-
-This approach is O(n²), which is okay for small n.
-
-Now, implementing this:
-
-First, in the main loop, after creating the emitter and generating particles, collect all particles into a list.
-
-Wait, but the emitter might be continuously emitting particles. The user said "particle emitter to generate particles", so perhaps particles are emitted over time. So the list needs to be updated each step.
-
-Alternatively, the emitter can be set to emit a certain number of particles at the start. The problem says "generate particles with random shapes, positions, velocities", but not sure if it's a continuous emitter or a one-time. The instructions are a bit vague. Let me assume that the emitter creates a set number of particles at the start. Maybe set a parameter like max_particles and emit them all at once.
-
-Alternatively, the emitter can be a continuous emitter, but that might complicate things. Let me start with emitting a fixed number of particles at the beginning.
-
-So in the code:
-
-After setting up the system, create a function to emit particles, say emit_particles(n_particles), which loops n times, creates a particle each time, adds to the system and the particles list.
-
-Now, the gravitational force calculation:
-
-Inside the main loop (the while loop that runs the simulation), after each step, before advancing the system, compute the forces.
-
-Wait, actually, the system's time stepping includes forces. So perhaps the forces need to be applied before each time step.
-
-Wait, in PyChrono, the standard approach is to set forces on bodies, and then do the time integration. So in each loop iteration:
-
-- Compute all gravitational forces between particles and apply them via AddForce()
-- Then call system.DoStep()
-
-But the problem is that each particle's force needs to be reset each step, because otherwise forces accumulate. So before adding the new forces, we have to clear the existing forces.
-
-Alternatively, since the gravitational force is the only force acting (assuming no other forces except maybe gravity?), but in this case, the particles are subject to mutual attraction, so the standard gravity (like Earth's) can be turned off.
-
-Wait, the user says "custom gravitational forces to simulate particle attraction dynamically". So probably, the standard gravity (like Earth's) should be turned off, and only the mutual forces between particles are considered.
-
-Therefore, in the system setup, set the gravity to zero:
-
-my_system.SetGravity(chrono.ChVectorD(0,0,0))
-
-Then, the gravitational attraction between particles is handled manually.
-
-So, in code:
-
-First, set gravity to zero.
-
-Then, in each simulation step:
-
-for each particle in particles:
-
-    particle.ClearForces()  # to reset any existing forces
-
-then compute the net gravitational force from all other particles and add it.
-
-Wait, but how to handle the forces. Let me structure it:
-
-for each particle in particles:
-
-    net_force = chrono.ChVectorD(0,0,0)
-
-    for other in particles:
-
-        if other == particle:
-
-            continue
-
-        # compute vector from particle to other
-
-        pos_p = particle.GetPos()
-
-        pos_o = other.GetPos()
-
-        delta = pos_o - pos_p
-
-        distance_sq = delta.Length2()
-
-        if distance_sq < 1e-6:  # avoid division by zero
-
-            continue
-
-        distance = sqrt(distance_sq)
-
-        # gravitational force magnitude: G * m1*m2 / distance_sq
-
-        # direction is delta / distance
-
-        # but the force on particle is towards other, so direction is delta
-
-        # Wait, no: the force on particle due to other is towards other, so direction is delta (from p to o)
-
-        # So the unit vector is delta / distance
-
-        # The force on particle is (G * m_p * m_o / distance_sq) * (delta / distance)
-
-        # Wait, no, the gravitational force between two masses is along the line connecting them, directed towards each other.
-
-        # The force on particle from other is proportional to m_p * m_o / r², directed towards other.
-
-        # So the vector is delta (from p to o), and the force is (G * m_p * m_o / r²) * (delta / r)
-
-        # Wait, no, actually, the direction is towards the other particle, so the direction vector is delta (from p to o), so the unit vector is delta / distance.
-
-        # The magnitude is G * m_p * m_o / (distance_sq)
-
-        # Wait, no, the magnitude is (G * m_p * m_o) / (distance_sq), and the direction is delta / distance.
-
-        # So the force vector is (G * m_p * m_o / (distance_sq)) * (delta / distance) ?
-
-        Wait, no. Wait, the gravitational force between two particles is F = G * (m1 * m2) / r² * direction.
-
-        The direction is from particle to other (so delta is the vector pointing from p to o), so the unit vector is delta / r.
-
-        So the force on p due to o is:
-
-        F_p = (G * m_p * m_o) / r² * (delta / r)
-
-        Wait, that would be (G m_p m_o)/(r³) * delta.
-
-        Alternatively, the force magnitude is (G m_p m_o)/(r²), and direction is along delta.
-
-        So the vector is (G m_p m_o / r²) * (delta / r)
-
-        Wait, that would be (G m_p m_o / r³) * delta.
-
-        So yes, the vector is (G * m_p * m_o / (distance**3)) * delta.
-
-        So the code would be:
-
-        G = gravitational constant (need to choose a value to make the simulation visible)
-
-        m_p = particle.GetMass()
-
-        m_o = other.GetMass()
-
-        F_magnitude = G * m_p * m_o / distance_sq
-
-        direction = delta / distance
-
-        force_vector = F_magnitude * direction
-
-        Then, add this to net_force for particle.
-
-        But also, the force on the other particle is equal and opposite, so when considering other particles, their forces will be handled in their own loops.
-
-    So after computing all forces from other particles, the net_force is the sum of all contributions.
-
-    Then, particle.AddForce( net_force )
-
-Wait, but the force is applied at the center of mass, which is correct.
-
-But in code, the loop would look like:
-
-for p in particles:
-
-    net_force = chrono.ChVectorD(0,0,0)
-
-    for o in particles:
-
-        if p == o:
-
-            continue
-
-        # compute delta between p and o
-
-        pos_p = p.GetPos()
-
-        pos_o = o.GetPos()
-
-        delta = pos_o - pos_p
-
-        distance_sq = delta.Length2()
-
-        if distance_sq < 1e-6:
-
-            continue
-
-        distance = math.sqrt(distance_sq)
-
-        G = 1e-3  # some value to make it visible
-
-        m_p = p.GetMass()
-
-        m_o = o.GetMass()
-
-        F = G * m_p * m_o / (distance_sq)
-
-        # direction is delta / distance
-
-        direction = delta / distance
-
-        force = F * direction
-
-        net_force += force
-
-    p.AddForce( net_force )
-
-Wait, but this is the force on p due to all others. The other particles will have their own forces computed in their loops.
-
-This approach is O(n²), which is manageable for small n. Let's say 100 particles would be 10,000 operations per step, which might be okay for a simulation.
-
-Now, setting G: the gravitational constant. In reality it's ~6.67e-11, but that's too small. To make the effect visible, we can set G to a larger value, say 1e-3 or similar, depending on the mass and distance.
-
-The mass of each particle can be set to a reasonable value, like 1 kg, so that the forces are noticeable.
-
-Now, the emitter function. Let's make a function that creates particles with random positions, velocities, masses, orientations, and random shapes for visualization.
-
-The shapes can be spheres, boxes, cylinders. To choose randomly, in the function:
-
-shape_type = random.choice(['sphere', 'box', 'cylinder'])
-
-Then, create the appropriate geometry for visualization. The collision model can be a sphere for simplicity, so that collision handling is manageable. Alternatively, using a convex hull, but that's more complex.
-
-For visualization:
-
-- For spheres: use chrono.ChSphereShape with radius.
-
-- For boxes: chrono.ChBoxShape with half extents.
-
-- For cylinders: chrono.ChCylinderShape with radius and height.
-
-The collision shape can be a sphere with radius set to a default (e.g., 0.1 m), so all particles have the same collision radius, but different visual shapes. Alternatively, vary the collision shape based on the visual shape. But that might complicate things. For simplicity, use spheres for collision.
-
-So in the create_particle function:
-
-def create_particle(system, particles_list):
-
-    # Random position within a box, say between -5 and 5 in x,y,z
-
+            if other == particle:
+                continue
+            pos_b = other.GetPos()
+            r_vec = pos_b - pos_a
+            distance_sq = r_vec.Length2()
+            if distance_sq < 1e-6:  # avoid division by zero
+                continue
+            distance = np.sqrt(distance_sq)
+            G = 1e-3  # gravitational constant (adjust as needed)
+            force_magnitude = G * mass_a * other.GetMass() / distance
+            unit_vec = r_vec / distance
+            force = force_magnitude * unit_vec
+            total_force += force
+        # Set the force on the particle's force object
+        particle.force.Set_Vel(0)  # maybe not needed, but set force vector
+        particle.force.SetF(total_force)
+
+    # Step the simulation
+    system.DoStepDynamics()
+
+    # Render
+    visualizer.DrawAll()
+
+Wait, but in the above code, each particle has a 'force' attribute which is the ChForce object. So when creating a particle, we need to create that.
+
+Wait, when emitting a particle, the emit_particle() function should create a new body, add a ChForce to it, and add it to the particles list. Let me define emit_particle():
+
+def emit_particle():
+    # Random position near origin
     pos = chrono.ChVectorD(
-
-        random.uniform(-5,5),
-
-        random.uniform(-5,5),
-
-        random.uniform(0,5)
-
-    )
-
-    # Random velocity components
-
-    vel = chrono.ChVectorD(
-
-        random.uniform(-1,1),
-
-        random.uniform(-1,1),
-
-        random.uniform(-1,1)
-
-    )
-
-    # Random mass between 0.1 and 10 kg
-
-    mass = random.uniform(0.1, 10)
-
-    # Create body
-
-    body = chrono.ChBody()
-
-    body.SetPos(pos)
-
-    body.SetPos_dt(vel)
-
-    body.SetMass(mass)
-
-    body.SetMaterialSurface(material)  # assuming a material is defined
-
-    # Collision shape: sphere for simplicity
-
-    body.GetCollisionModel().ClearModel()
-
-    body.GetCollisionModel().AddSphere(0.1)  # radius 0.1m
-
-    body.GetCollisionModel().BuildModel()
-
-    # Visual shape: random between sphere, box, cylinder
-
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
-
-    if shape_type == 'sphere':
-
-        vis = chrono.ChSphereShape()
-
-        vis.GetSphereGeometry().rad = 0.1
-
-    elif shape_type == 'box':
-
-        # random half extents
-
-        hx = random.uniform(0.1, 0.3)
-
-        hy = random.uniform(0.1, 0.3)
-
-        hz = random.uniform(0.1, 0.3)
-
-        vis = chrono.ChBoxShape(chrono.ChVectorD(hx, hy, hz))
-
-    elif shape_type == 'cylinder':
-
-        # radius and height
-
-        radius = random.uniform(0.1, 0.3)
-
-        height = random.uniform(0.2, 0.6)
-
-        vis = chrono.ChCylinderShape()
-
-        vis.GetCylinderGeometry().p1 = chrono.ChVectorD(0,0,-height/2)
-
-        vis.GetCylinderGeometry().p2 = chrono.ChVectorD(0,0,height/2)
-
-        vis.GetCylinderGeometry().rad = radius
-
-    body.AddAsset(vis)
-
-    # Random orientation
-
-    quat = chrono.Q_from_AngAxis(random.uniform(0, 2*math.pi), chrono.ChVectorD(0,1,0))
-
-    body.SetRot(quat)
-
-    # Add to system and list
-
-    system.Add(body)
-
-    particles_list.append(body)
-
-Wait, but the material is referenced here. Need to define a material earlier, like:
-
-material = chrono.ChMaterialSurface()
-
-material.SetFriction(0.3)
-
-material.SetRestitution(0.5)
-
-Then, assign it to each body.
-
-Now, putting it all together.
-
-The main code structure:
-
-import pychrono as chrono
-
-import random
-
-import math
-
-import numpy as np
-
-def main():
-
-    # Create the system
-
-    my_system = chrono.ChSystemNSC()
-
-    my_system.Set_G_acc(chrono.ChVectorD(0,0,0))  # no gravity
-
-    # Create Irrlicht visualizer
-
-    vis = chrono.ChVisualSystemIrrlicht()
-
-    vis.SetWindowSize(1024,768)
-
-    vis.SetWindowTitle('Particle Gravitational Attraction')
-
-    vis.SetSymbolscale(0.01)
-
-    vis.SetCamPosition(chrono.ChVectorD(0, 0, 10))
-
-    vis.SetCamRotation(chrono.ChVectorD(0, 0, 0))
-
-    my_system.SetVisualSystem(vis)
-
-    # Materials
-
-    material = chrono.ChMaterialSurface()
-
-    material.SetFriction(0.3)
-
-    material.SetRestitution(0.5)
-
-    # Particle list
-
-    particles = []
-
-    # Emitter parameters
-
-    num_particles = 50
-
-    for i in range(num_particles):
-
-        create_particle(my_system, particles, material)
-
-    # Simulation loop
-
-    vis.Begin()
-
-    while vis.Run():
-
-        # Compute gravitational forces between all particles
-
-        for p in particles:
-
-            p.ClearForces()  # reset forces
-
-        for p in particles:
-
-            net_force = chrono.ChVectorD(0,0,0)
-
-            for o in particles:
-
-                if p == o:
-
-                    continue
-
-                pos_p = p.GetPos()
-
-                pos_o = o.GetPos()
-
-                delta = pos_o - pos_p
-
-                distance_sq = delta.x*delta.x + delta.y*delta.y + delta.z*delta.z
-
-                if distance_sq < 1e-6:
-
-                    continue
-
-                distance = math.sqrt(distance_sq)
-
-                G = 1e-3  # gravitational constant
-
-                m_p = p.GetMass()
-
-                m_o = o.GetMass()
-
-                F = G * m_p * m_o / distance_sq
-
-                direction = delta / distance
-
-                force = F * direction
-
-                net_force += force
-
-            p.AddForce( net_force )
-
-        # Advance the system
-
-        my_system.DoStepDynamics(0.005)  # time step 5ms
-
-        vis.Render()
-
-    vis.End()
-
-Wait, but in the code above, the create_particle function needs to take the material as an argument. Let me adjust the function:
-
-def create_particle(system, particles_list, material):
-
-    ... 
-
-    body.SetMaterialSurface(material)
-
-Then in the loop:
-
-create_particle(my_system, particles, material)
-
-Now, the gravitational constant G is set to 1e-3. This may need tuning. If particles are not moving much, maybe increase G.
-
-Also, the time step is 0.005 seconds (5ms). The simulation loop uses vis.Run() which is Irrlicht's event loop.
-
-Wait, in the main loop, the while loop should run while vis.Run() is true. But the DoStepDynamics is called each frame.
-
-But in the code above, the loop is structured with vis.Begin() and vis.Render() each step. The vis.Run() returns false when the window is closed.
-
-Putting all together, the code should look like that.
-
-Wait, but in the gravitational force calculation, the code loops over all particles twice? Wait no, in the code above, first loop clears forces, then the second loop computes the forces. Wait no, in the code:
-
-for p in particles:
-
-    p.ClearForces()
-
-Then, for p in particles:
-
-    compute net_force and add to p.
-
-Wait, the first loop clears all forces, then the second loop computes and adds the gravitational forces. That's correct.
-
-Alternatively, the ClearForces can be done inside the second loop. But better to separate.
-
-Now, possible issues:
-
-- The force calculation is O(n²), which can be slow for large n. But with 50 particles, it's 2500 operations per step, which should be manageable.
-
-- The gravitational constant G may need adjustment. If particles are not moving, perhaps increase G. Alternatively, set a higher mass.
-
-- The initial velocities and positions may need adjustment for better visualization.
-
-- The camera position might need to be adjusted for better view.
-
-Testing in mind: when particles are placed randomly, they should start attracting each other, forming clusters.
-
-Potential bugs:
-
-- Forgetting to set collision models. Each particle must have a collision model. In the code above, the collision model is added as a sphere with radius 0.1.
-
-- The orientation is set via a random rotation around Y-axis. That's okay.
-
-- The material is set, so collisions between particles will have friction and restitution.
-
-Wait, but the gravitational force is the main force here. Collisions might cause some bouncing, but the main effect is the attraction.
-
-Now, implementing this in code.
-
-Wait, in the create_particle function, when adding the collision model, we have:
-
-body.GetCollisionModel().ClearModel()
-
-body.GetCollisionModel().AddSphere(0.1)
-
-body.GetCollisionModel().BuildModel()
-
-But the body must have a collision model enabled. So perhaps:
-
-body.SetCollide(True)
-
-Also, need to make sure that the system has a collision system. Since it's a ChSystemNSC, the default collision system is enabled.
-
-Another thing: the particles may start overlapping, leading to large forces. To prevent that, maybe initialize them with some distance.
-
-Alternatively, in the initial positions, spread them out more.
-
-Alternatively, in the create_particle function, set the initial positions to be within a larger area, like between -10 and 10.
-
-Also, the initial velocity can be randomized with a larger range.
-
-But the user's instructions don't specify avoiding overlaps, so perhaps it's okay.
-
-Now, putting all the code together, making sure all variables are properly defined.
-
-Another thing: the code uses ChVectorD, which is double-precision. That's fine.
-
-Testing the code in mind: when run, particles should attract each other, forming a system where they cluster together.
-
-Now, the final code:
-
-Wait, let me write the code step by step.
-
-Wait, the create_particle function needs to be inside the main function, or outside? Since it's a helper function, better to define it before the main.
-
-Putting it all together:
-
-```python
-import pychrono as chrono
-import random
-import math
-import numpy as np
-
-def create_particle(system, particles_list, material):
-    # Random position within a box (-5,5) in x,y, (0,5) in z
-    pos = chrono.ChVectorD(
-        random.uniform(-5, 5),
-        random.uniform(-5, 5),
-        random.uniform(0, 5)
+        random.uniform(-1, 1),
+        random.uniform(-1, 1),
+        random.uniform(-1, 1)
     )
     
-    # Random velocity components
+    # Random velocity
     vel = chrono.ChVectorD(
         random.uniform(-1, 1),
         random.uniform(-1, 1),
         random.uniform(-1, 1)
     )
     
-    # Random mass between 0.1 and 10 kg
-    mass = random.uniform(0.1, 10)
+    # Random mass
+    mass = random.uniform(1, 10)
+    
+    # Random shape: sphere, box, cylinder
+    shape_type = random.choice(['sphere', 'box', 'cylinder'])
     
     # Create body
     body = chrono.ChBody()
+    system.Add(body)
     body.SetPos(pos)
     body.SetPos_dt(vel)
     body.SetMass(mass)
-    body.SetMaterialSurface(material)
-    body.SetCollide(True)  # Enable collision
+    body.SetMaterialSurface(chrono.ChMaterialSurface())  # default material
     
-    # Collision shape: sphere with radius 0.1
-    body.GetCollisionModel().ClearModel()
-    body.GetCollisionModel().AddSphere(0.1)
-    body.GetCollisionModel().BuildModel()
-    
-    # Visual shape: random between sphere, box, cylinder
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
-    
+    # Create collision shape
     if shape_type == 'sphere':
-        vis = chrono.ChSphereShape()
-        vis.GetSphereGeometry().rad = 0.1
+        radius = random.uniform(0.1, 0.5)
+        body.SetInertia(chrono.ChSphereInertia(mass, radius))
+        body.GetCollisionModel().ClearModel()
+        body.GetCollisionModel().AddSphere(radius)
     elif shape_type == 'box':
-        hx = random.uniform(0.1, 0.3)
-        hy = random.uniform(0.1, 0.3)
-        hz = random.uniform(0.1, 0.3)
-        vis = chrono.ChBoxShape(chrono.ChVectorD(hx, hy, hz))
+        size_x = random.uniform(0.2, 1)
+        size_y = random.uniform(0.2, 1)
+        size_z = random.uniform(0.2, 1)
+        body.SetInertia(chrono.ChBoxInertia(mass, size_x, size_y, size_z))
+        body.GetCollisionModel().ClearModel()
+        body.GetCollisionModel().AddBox(size_x/2, size_y/2, size_z/2)
     elif shape_type == 'cylinder':
-        radius = random.uniform(0.1, 0.3)
-        height = random.uniform(0.2, 0.6)
-        vis = chrono.ChCylinderShape()
-        vis.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -height/2)
-        vis.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, height/2)
-        vis.GetCylinderGeometry().rad = radius
+        radius = random.uniform(0.1, 0.5)
+        height = random.uniform(0.2, 1)
+        body.SetInertia(chrono.ChCylinderInertia(mass, radius, height))
+        body.GetCollisionModel().ClearModel()
+        body.GetCollisionModel().AddCylinder(radius, radius, height)
     
-    body.AddAsset(vis)
+    body.GetCollisionModel().BuildModel()
+    body.SetCollide(True)
     
-    # Random orientation (rotation around Y-axis)
-    angle = random.uniform(0, 2 * math.pi)
-    axis = chrono.ChVectorD(0, 1, 0)
-    quat = chrono.Q_from_AngAxis(angle, axis)
-    body.SetRot(quat)
+    # Create a force object for gravitational forces
+    force = chrono.ChForce()
+    body.AddForce(force)
     
-    # Add to system and list
-    system.Add(body)
-    particles_list.append(body)
-
-def main():
-    # Create the Chrono system
-    my_system = chrono.ChSystemNSC()
-    my_system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
+    # Attach the force to the body and store it in the particle object
+    body.force = force  # add as an attribute
     
-    # Create Irrlicht visualizer
-    vis = chrono.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Gravitational Particle Attraction Simulation')
-    vis.SetSymbolscale(0.01)
-    vis.SetCamPosition(chrono.ChVectorD(0, 0, 10))
-    vis.SetCamRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-    my_system.SetVisualSystem(vis)
-    
-    # Material properties for collisions
-    material = chrono.ChMaterialSurface()
-    material.SetFriction(0.3)
-    material.SetRestitution(0.5)
-    
-    # List to hold all particles
-    particles = []
-    
-    # Emit particles
-    num_particles = 50
-    for _ in range(num_particles):
-        create_particle(my_system, particles, material)
-    
-    # Simulation loop
-    vis.Begin()
-    while vis.Run():
-        # Clear forces on all particles
-        for p in particles:
-            p.ClearForces()
-        
-        # Compute gravitational forces between all pairs
-        for p in particles:
-            net_force = chrono.ChVectorD(0, 0, 0)
-            for o in particles:
-                if p == o:
-                    continue
-                pos_p = p.GetPos()
-                pos_o = o.GetPos()
-                delta = pos_o - pos_p
-                distance_sq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z
-                if distance_sq < 1e-6:
-                    continue
-                distance = math.sqrt(distance_sq)
-                G = 1e-3  # Gravitational constant (scaled for simulation)
-                m_p = p.GetMass()
-                m_o = o.GetMass()
-                F = G * m_p * m_o / distance_sq
-                direction = delta / distance
-                force = F * direction
-                net_force += force
-            p.AddForce(net_force)
-        
-        # Advance the simulation
-        my_system.DoStepDynamics(0.005)  # Time step of 5ms
-        
-        # Update visualization
-        vis.Render()
-    
-    vis.End()
+    # Add to the list
+    particles.append(body)
 
-if __name__ == '__main__':
-    main()
-```
+Wait, but in PyChrono, the body has AddForce() method which adds the force to the body. Then, the force can be accessed via body.GetForces(). But perhaps it's easier to store a reference to the force when creating it, so we can set the force vector each step.
 
-Wait, let me check the code for possible errors.
+Yes, storing the force as an attribute of the body (body.force = force) is a good idea.
 
-In the create_particle function:
+Now, in the main loop, for each particle in particles:
 
-- The collision model is set with AddSphere(0.1), which is correct.
+    total_force = ... compute as before
 
-- The visual shapes are added correctly.
+    particle.force.SetF(total_force)
 
-- The material is assigned via SetMaterialSurface.
+Wait, the ChForce class has a method SetF() to set the force vector. So yes.
 
-- The orientation is set via SetRot with a random quaternion.
+Now, the visualization part: each body's collision model must be visualized. Also, when adding bodies to the system, they need to be added to the visualizer as well.
 
-In the main function:
+Wait, in the emit_particle function, after creating the body, we need to add it to the visual system:
 
-- The material is created and passed to create_particle.
+visualizer.AddBody(body)
 
-- The particles list is properly built.
+Wait, actually, the visual system is part of the system, so when you add the body to the system, it's automatically added to the visualizer? Or do we need to explicitly add it?
 
-In the simulation loop:
+Hmm, perhaps the visualizer needs to know about the bodies. So in the emit_particle function, after creating the body, we should call:
 
-- ClearForces() is called for each particle before computing forces.
+visualizer.AddBody(body)
 
-- The gravitational force calculation loops through all pairs.
+Yes, that's probably necessary.
 
-- The time step is 0.005 seconds (5ms).
+Also, the camera position might need to be adjusted. Maybe set the camera to follow the particles? Or keep it fixed for now.
 
-Possible improvements:
+Now, the G constant: in the code above, I set G to 1e-3. That might need tuning to get visible effects. Maybe start with a higher value like 1e-2 or 0.1, depending on the scale.
 
-- The G value may need tuning. If particles don't move much, increasing G to 1e-2 or higher could help.
+Also, the initial positions and velocities: the particles are emitted near the origin, but with random velocities. Maybe the velocities are too high or low. The random.uniform between -1 and 1 for velocity components may be okay, but depends on the scale.
 
-- The initial velocities might be too low. Maybe increase the range.
+Testing the code:
 
-- The camera position could be adjusted for better viewing.
+Potential issues:
 
-But according to the instructions, this should fulfill the requirements.
+- Performance: if there are many particles, the O(n^2) force computation might be slow. But for a small number (like 20), it should be okay.
+
+- Division by zero when particles are very close. The code skips if distance_sq < 1e-6, so that's okay.
+
+- The force direction: the force between A and B should be attractive, so the force on A is towards B, and on B is towards A. The code computes the vector from A to B, so the force on A is in that direction, which is correct (since F = G*m1*m2/(r²) * unit vector from A to B. So yes, that's correct.
+
+Wait, actually, the gravitational force between A and B is attractive, so the force on A is towards B, and the force on B is towards A. The code for A's force is correct. For B's force, when processing B, the code will compute the vector from B to A, which is the opposite direction, so that's correct.
+
+Another thing: the mass of each particle is set via body.SetMass(mass), but in Chrono, you also need to set the inertia. The code above uses SetInertia for each shape, which is correct.
+
+Now, putting all together.
+
+Wait, in the emit_particle function, when setting the inertia for sphere, box, cylinder, the functions like ChSphereInertia require mass and radius. So for sphere:
+
+body.SetInertia(chrono.ChSphereInertia(mass, radius))
+
+That's correct. Similarly for box and cylinder.
+
+Also, the collision models need to be built with BuildModel().
+
+Now, the main loop structure.
+
+Wait, in the main loop, after emitting particles, we need to compute all gravitational forces. But for each particle, we loop through all others, so O(n^2). That's manageable for small n.
+
+Now, the code structure:
+
+The main loop is inside while visualizer.Run():
+
+But the visualizer.Run() returns true while the window is open. So the loop continues until the user closes the window.
+
+Now, compiling all the code into a script.
+
+Wait, also, the initial camera position. Maybe set it to a better view. The current code sets it to (5,5,5) looking at (0,0,0). That should be okay.
+
+Testing the code for syntax.
+
+Potential issues:
+
+- The emit_particle function must be defined before it's called in the main loop.
+
+- The particles list must be initialized as an empty list.
+
+- The ChForce objects are properly attached and referenced.
+
+- The SetF() method is correct.
+
+Wait, in the code above, in the main loop:
+
+particle.force.SetF(total_force)
+
+Yes, assuming that the force is a ChForce object.
+
+Another thing: in the code for the gravitational force, the force is calculated as G * m1*m2 / distance * unit_vector. Wait, actually, the standard formula is F = (G * m1*m2 / r^2) * unit vector. So the code has:
+
+force_magnitude = G * mass_a * other.GetMass() / distance
+
+Wait, that's missing the division by r squared. Oh no! That's a mistake.
+
+Wait, distance is the distance between the particles, so the denominator should be distance squared. So the line should be:
+
+force_magnitude = G * mass_a * other.GetMass() / (distance * distance)
+
+Or:
+
+force_magnitude = G * mass_a * other.GetMass() / (distance_sq)
+
+Because distance_sq is already computed as r_vec.Length2().
+
+Ah, that's a critical error. So the code currently has:
+
+force_magnitude = G * mass_a * other.GetMass() / distance
+
+Which is missing the square in the denominator. So that's wrong. It should be divided by distance squared.
+
+So the correct line is:
+
+force_magnitude = G * mass_a * other.GetMass() / (distance * distance)
+
+Or using distance_sq:
+
+force_magnitude = G * mass_a * other.GetMass() / distance_sq
+
+Yes, that's better.
+
+So that's an important fix.
+
+Also, the direction: the unit vector is pointing from A to B, so the force on A is in that direction, which is correct because gravitational force is attractive. So the direction is correct.
+
+Another thing: the gravitational constant G here is a parameter that needs tuning. Maybe start with G = 1e-3 or similar. The user can adjust as needed.
+
+Now, putting all the corrections into the code.
+
+So the corrected compute part:
+
+for other in particles:
+    if other == particle:
+        continue
+    pos_b = other.GetPos()
+    r_vec = pos_b - pos_a
+    distance_sq = r_vec.Length2()
+    if distance_sq < 1e-6:
+        continue
+    distance = np.sqrt(distance_sq)
+    G = 1e-3  # or adjust
+    force_magnitude = G * mass_a * other.GetMass() / distance_sq
+    unit_vec = r_vec / distance
+    force = force_magnitude * unit_vec
+    total_force += force
+
+Yes, that's correct.
+
+Now, the code should be functional.
+
+Another thing: in the emit_particle function, the initial velocity is set via body.SetPos_dt(vel). That's correct because the velocity is the time derivative of position.
+
+Also, the collision model must be built with body.GetCollisionModel().BuildModel().
+
+Now, putting all the code together, with these corrections.
+
+Finally, the code should be enclosed in triple backticks as per the user's request.
 </think>
 
 ```python
 import pychrono as chrono
-import random
-import math
+import pychrono.irrlicht as chronoirr
 import numpy as np
+import random
 
-def create_particle(system, particles_list, material):
-    # Random position within a box (-5,5) in x,y, (0,5) in z
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
+system.SetTimestepperType(chrono.ChTimestepperType.DISCRETE)
+system.GetSettings().timestep = 0.001
+
+# Initialize Irrlicht visualizer
+visualizer = chronoirr.ChVisualSystemIrrlicht()
+visualizer.SetWindowSize(1024, 768)
+visualizer.SetWindowTitle('Gravitational Particle Attraction')
+visualizer.SetSymbolscale(0.01)
+visualizer.SetCameraPosition(chrono.ChVectorD(5, 5, 5))
+visualizer.SetCameraLookat(chrono.ChVectorD(0, 0, 0))
+system.SetVisualSystem(visualizer)
+
+particles = []
+emit_interval = 0.5  # seconds between emissions
+next_emit_time = 0.0
+
+def emit_particle():
     pos = chrono.ChVectorD(
-        random.uniform(-5, 5),
-        random.uniform(-5, 5),
-        random.uniform(0, 5)
+        random.uniform(-1, 1),
+        random.uniform(-1, 1),
+        random.uniform(-1, 1)
     )
-    
-    # Random velocity components
     vel = chrono.ChVectorD(
         random.uniform(-1, 1),
         random.uniform(-1, 1),
         random.uniform(-1, 1)
     )
+    mass = random.uniform(1, 10)
+    shape_type = random.choice(['sphere', 'box', 'cylinder'])
     
-    # Random mass between 0.1 and 10 kg
-    mass = random.uniform(0.1, 10)
-    
-    # Create body
     body = chrono.ChBody()
+    system.Add(body)
     body.SetPos(pos)
     body.SetPos_dt(vel)
     body.SetMass(mass)
-    body.SetMaterialSurface(material)
-    body.SetCollide(True)  # Enable collision
-    
-    # Collision shape: sphere with radius 0.1
-    body.GetCollisionModel().ClearModel()
-    body.GetCollisionModel().AddSphere(0.1)
-    body.GetCollisionModel().BuildModel()
-    
-    # Visual shape: random between sphere, box, cylinder
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
+    body.SetMaterialSurface(chrono.ChMaterialSurface())
     
     if shape_type == 'sphere':
-        vis = chrono.ChSphereShape()
-        vis.GetSphereGeometry().rad = 0.1
+        radius = random.uniform(0.1, 0.5)
+        body.SetInertia(chrono.ChSphereInertia(mass, radius))
+        body.GetCollisionModel().AddSphere(radius)
     elif shape_type == 'box':
-        hx = random.uniform(0.1, 0.3)
-        hy = random.uniform(0.1, 0.3)
-        hz = random.uniform(0.1, 0.3)
-        vis = chrono.ChBoxShape(chrono.ChVectorD(hx, hy, hz))
+        sx, sy, sz = random.uniform(0.2, 1), random.uniform(0.2, 1), random.uniform(0.2, 1)
+        body.SetInertia(chrono.ChBoxInertia(mass, sx, sy, sz))
+        body.GetCollisionModel().AddBox(sx/2, sy/2, sz/2)
     elif shape_type == 'cylinder':
-        radius = random.uniform(0.1, 0.3)
-        height = random.uniform(0.2, 0.6)
-        vis = chrono.ChCylinderShape()
-        vis.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, -height/2)
-        vis.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 0, height/2)
-        vis.GetCylinderGeometry().rad = radius
+        radius = random.uniform(0.1, 0.5)
+        height = random.uniform(0.2, 1)
+        body.SetInertia(chrono.ChCylinderInertia(mass, radius, height))
+        body.GetCollisionModel().AddCylinder(radius, radius, height)
     
-    body.AddAsset(vis)
+    body.GetCollisionModel().BuildModel()
+    body.SetCollide(True)
     
-    # Random orientation (rotation around Y-axis)
-    angle = random.uniform(0, 2 * math.pi)
-    axis = chrono.ChVectorD(0, 1, 0)
-    quat = chrono.Q_from_AngAxis(angle, axis)
-    body.SetRot(quat)
+    force = chrono.ChForce()
+    body.AddForce(force)
+    body.force = force  # Store force reference
     
-    # Add to system and list
-    system.Add(body)
-    particles_list.append(body)
+    visualizer.AddBody(body)
+    particles.append(body)
 
-def main():
-    # Create the Chrono system
-    my_system = chrono.ChSystemNSC()
-    my_system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable default gravity
+# Main simulation loop
+while visualizer.Run():
+    current_time = system.GetChTime()
     
-    # Create Irrlicht visualizer
-    vis = chrono.ChVisualSystemIrrlicht()
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Gravitational Particle Attraction Simulation')
-    vis.SetSymbolscale(0.01)
-    vis.SetCamPosition(chrono.ChVectorD(0, 0, 10))
-    vis.SetCamRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-    my_system.SetVisualSystem(vis)
+    # Emit particles periodically
+    if current_time >= next_emit_time:
+        emit_particle()
+        next_emit_time += emit_interval
     
-    # Material properties for collisions
-    material = chrono.ChMaterialSurface()
-    material.SetFriction(0.3)
-    material.SetRestitution(0.5)
-    
-    # List to hold all particles
-    particles = []
-    
-    # Emit particles
-    num_particles = 50
-    for _ in range(num_particles):
-        create_particle(my_system, particles, material)
-    
-    # Simulation loop
-    vis.Begin()
-    while vis.Run():
-        # Clear forces on all particles
-        for p in particles:
-            p.ClearForces()
+    # Compute gravitational forces between all particles
+    for particle in particles:
+        total_force = chrono.ChVectorD(0, 0, 0)
+        pos_a = particle.GetPos()
+        mass_a = particle.GetMass()
         
-        # Compute gravitational forces between all pairs
-        for p in particles:
-            net_force = chrono.ChVectorD(0, 0, 0)
-            for o in particles:
-                if p == o:
-                    continue
-                pos_p = p.GetPos()
-                pos_o = o.GetPos()
-                delta = pos_o - pos_p
-                distance_sq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z
-                if distance_sq < 1e-6:
-                    continue
-                distance = math.sqrt(distance_sq)
-                G = 1e-3  # Gravitational constant (scaled for simulation)
-                m_p = p.GetMass()
-                m_o = o.GetMass()
-                F = G * m_p * m_o / distance_sq
-                direction = delta / distance
-                force = F * direction
-                net_force += force
-            p.AddForce(net_force)
+        for other in particles:
+            if other == particle:
+                continue
+            pos_b = other.GetPos()
+            r_vec = pos_b - pos_a
+            distance_sq = r_vec.Length2()
+            
+            if distance_sq < 1e-6:
+                continue  # Avoid division by zero
+            
+            distance = np.sqrt(distance_sq)
+            G = 1e-3  # Gravitational constant (adjust as needed)
+            force_magnitude = G * mass_a * other.GetMass() / distance_sq
+            unit_vec = r_vec / distance
+            total_force += force_magnitude * unit_vec
         
-        # Advance the simulation
-        my_system.DoStepDynamics(0.005)  # Time step of 5ms
-        
-        # Update visualization
-        vis.Render()
+        # Apply computed force to the particle
+        particle.force.SetF(total_force)
     
-    vis.End()
-
-if __name__ == '__main__':
-    main()
+    # Step the simulation and render
+    system.DoStepDynamics()
+    visualizer.DrawAll()
 ```

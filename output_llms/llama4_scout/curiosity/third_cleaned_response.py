@@ -41,6 +41,33 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
 
+manager = sens.ChSensorManager(system)
+
+
+lidar_update_rate = 10  
+lidar_horizontal_samples = 360
+lidar_vertical_samples = 10
+lidar_fov = 360
+lidar_min_range = 0.1  
+lidar_max_range = 100  
+lidar_sensor = sens.ChLidarSensor(rover.GetChassis(), 
+                                  lidar_update_rate, 
+                                  chrono.ChVector3d(0, 0, 1), 
+                                  chrono.ChVector3d(0, 0, 0), 
+                                  lidar_horizontal_samples, 
+                                  lidar_vertical_samples, 
+                                  lidar_fov, 
+                                  lidar_min_range, 
+                                  lidar_max_range)
+
+
+point_cloud_filter = sens.ChLidarPointCloudFilter()
+lidar_sensor.AddFilter(point_cloud_filter)
+
+
+manager.AddSensor(lidar_sensor)
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -55,35 +82,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 
 
 
-
-sensor_manager = sens.ChSensorManager(system)
-
-
-lidar_update_rate = 10  
-lidar_horizontal_samples = 360
-lidar_vertical_samples = 20
-lidar_fov = 30  
-lidar_min_range = 0.1  
-lidar_max_range = 100  
-
-lidar_sensor = sens.ChLidarSensor(
-    rover.GetChassisBody(),
-    lidar_update_rate,
-    chrono.ChVector3d(0, 0, 1.5),
-    chrono.ChQuaterniond(1, 0, 0, 0),
-    lidar_fov,
-    lidar_horizontal_samples,
-    lidar_vertical_samples,
-    lidar_min_range,
-    lidar_max_range
-)
-
-
-lidar_filter = sens.ChLidarDataXYZIR()
-lidar_sensor.SetDataRecorder(lidar_filter)
-
-
-sensor_manager.AddSensor(lidar_sensor)
 
 
 time_step = 1e-3
@@ -100,7 +98,7 @@ while vis.Run():
     rover.Update()
     
     
-    sensor_manager.Update()
+    manager.Update()
     
     
     vis.BeginScene()

@@ -40,6 +40,10 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
+# Logging parameters
+log_step_size = 100  # Number of steps between data logs
+log_interval = 100  # Data log interval in simulation steps
+
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
@@ -65,8 +69,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -100,7 +104,7 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 # Create an IMU sensor and add it to the manager
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
-imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     # Body IMU is attached to
+imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
                                  10,        # Update rate in Hz
                                  offset_pose,          # Offset pose
                                  sens.ChNoiseNone())   # Noise model
@@ -113,7 +117,7 @@ imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 # Create a GPS sensor and add it to the manager
-gps = sens.ChGPSSensor(vehicle.GetChassisBody(),                     # Body GPS is attached to
+gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
                        10,        # Update rate in Hz
                        offset_pose,          # Offset pose
                        chrono.ChVector3d(-89.400, 43.070, 260.0),  # GPS reference point
@@ -126,28 +130,12 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# Create GPS data list to store logged data
+# Create a list to store GPS data
 gps_data = []
 
-# Define log step size and counter
-log_steps = 10  # Log every 10 steps
-log_step = 0
-
-# Modified driver input handling with time-based commands
-def get_driver_inputs(time):
-    inputs = driver.GetInputs()
-    # Apply time-based controls
-    current_time = time
-    # Steering
-    if current_time - inputs.last_time > 0:
-        if current_time < 6.0:  # Introduce braking after 6 seconds
-            inputs.throttle = 0.0
-            inputs.braking = 1.0
-        else:
-            inputs.braking = 0.0
-        inputs.throttle = max(0.0, min(1.0, (current_time - inputs.last_time) / render_step_size))
-        inputs.steering = max(-1.0, min(1.0, (current_time - inputs.last_time) / render_step_size))
-    return inputs
+# ---------------
+# Simulation loop
+# ---------------
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -171,8 +159,8 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs with time-aware commands
-    driver_inputs = get_driver_inputs(time)
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -190,25 +178,19 @@ while vis.Run():
     manager.Update()
     
     # Check if it's time to log GPS data
-    if log_step % log_steps == 0:
-        gps_data_point = gps.GetMostRecentGPSBuffer().GetGPSData()
-        if gps_data_point is not None:
-            # Convert GPS data to a tuple for storage
-            gps_data.append((
-                gps_data_point.latitude,
-                gps_data_point.longitude,
-                gps_data_point.altitude,
-                gps_data_point.speed,
-                gps_data_point.direction,
-                gps_data_pointpitch
-            ))
-            log_step += 1
-
+    if step_number % log_interval == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
+    
     # Increment frame number
     step_number += 1
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-# Print the logged GPS data at the end of the simulation
-print("GPS Data: ", gps_data)
+    # Apply braking after 6 seconds
+    if time >= 6.0:
+        driver.SetBraking(1.0)
+
+    # Print GPS data at the end of the loop
+    if gps_data:
+        print("GPS Data: ", gps_data)

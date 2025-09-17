@@ -31,20 +31,22 @@ vehicle.SetDriver(driver)
 
 # Create a real-time visualization using Irrlicht
 vis = irrlicht.ChVisualSystemIrrlicht()
-vis.SetChronoSystem(my_system)
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(50, 25, 50), chrono.ChVectorD(0, 0, 0))
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('PyChrono Kraz Simulation')
-vis.BeginScene()
+vis.Initialize()
+vis.AttachSystem(my_system)
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(20, 20, 20), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 0, 1))
+vis.SetCameraMode(irrlicht.ECA_FREE)
 
 # Implement a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep
 while vis.Run():
-    my_system.DoStepDynamics(1.0 / 60.0)
-    vehicle.Synchronize(my_system.GetStep(), my_system.GetCurrentDt())
+    my_system.DoStepDynamics(1 / 60.0)
+    vehicle.Synchronize(my_system.GetChTime())
+    driver.Synchronize(my_system.GetChTime(), vehicle)
+    vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-
-vis.Finalize()

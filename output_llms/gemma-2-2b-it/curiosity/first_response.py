@@ -1,83 +1,67 @@
-from pychrono import *
-from pychrono.irrlicht import IrrlichtRenderer
-from pychrono.irrlicht import IrrlichtDevice
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
 
-# Initialize PyChrono
-chrono.Init()
+# --- Initialize PyChrono ---
+chrono.init()
 
-# Create the Irrlicht renderer
-renderer = IrrlichtRenderer()
-device = IrrlichtDevice(renderer)
+# --- Create the world ---
+world = chrono.World()
 
-# Create the terrain
-ground = Ground(
-    pos=(0, 0, 0),
-    size=(100, 100, 100),
-    material=Material(
-        color=(1, 0, 0),  # Red
-        diffuse=true,
-        specular=false,
-        shininess=10.0
-    ),
-    collision_properties=CollisionProperties(
-        elasticity=0.5,
-        friction=0.1,
-        density=1000.0
-    )
-)
+# --- Create the ground ---
+ground = chrono.RigidBody()
+ground.setMass(1000)
+ground.setInertia(chrono.Vector3D(0, 0, 0))
+ground.setCollisionShape(chrono.ShapeType.BOX)
+ground.setCollisionProperties(chrono.CollisionProperties(chrono.CollisionType.STATIC))
+ground.setGlobalPosition(chrono.Vector3D(0, 0, 0))
+world.addBody(ground)
 
-# Create the rover
-rover = Vehicle(
-    pos=(0, 0, 0),
-    size=(0.5, 0.5, 0.5),
-    material=Material(
-        color=(0, 1, 0),  # Green
-        diffuse=true,
-        specular=false,
-        shininess=10.0
-    ),
-    collision_properties=CollisionProperties(
-        elasticity=0.5,
-        friction=0.1,
-        density=1000.0
-    )
-)
+# --- Create the rover ---
+rover = chrono.RigidBody()
+rover.setMass(100)
+rover.setInertia(chrono.Vector3D(0, 0, 0))
+rover.setCollisionShape(chrono.ShapeType.BOX)
+rover.setCollisionProperties(chrono.CollisionProperties(chrono.CollisionType.STATIC))
+rover.setGlobalPosition(chrono.Vector3D(0, 0, 0))
+rover.setGlobalRotation(chrono.Quaternion(0, 0, 0, 1))
+world.addBody(rover)
 
-# Set the rover's motor control driver
-rover.motor_control_driver = MotorControlDriver(
-    max_torque=100.0,
-    max_speed=10.0
-)
+# --- Add motor control driver ---
+# (This is a placeholder, you'll need to implement the actual driver logic)
+motor_control = chrono.MotorControlDriver()
+rover.addDriver(motor_control)
 
-# Set the rover's wheels
-rover.wheels = [Wheel(
-    pos=(0, 0, 0),
-    size=(0.2, 0.2, 0.2),
-    material=Material(
-        color=(0, 0, 1),  # Blue
-        diffuse=true,
-        specular=false,
-        shininess=10.0
-    )
-) for _ in range(4)]
+# --- Set initial positions and forces ---
+ground.setGlobalPosition(chrono.Vector3D(0, 0, 0))
+rover.setGlobalPosition(chrono.Vector3D(0, 0, 0))
 
-# Add the rover to the ground
-ground.add_object(rover)
+# --- Define rover's steering input ---
+# (Implement this based on your desired steering mechanism)
+# Example:
+def steering_input(rover, force):
+    # Calculate steering angle based on force and rover's current orientation
+    # ...
+    # Update rover's angular velocity and position based on steering angle
+    # ...
 
-# Set camera parameters
-camera = Camera(
-    pos=(0, 0, 5),
-    target=(0, 0, 0),
-    fov=45.0,
-    zoom=1.0
-)
+# --- Set up Irrlicht visualization ---
+irrlicht_engine = irrlicht.IrrlichtEngine()
+irrlicht_engine.createWindow(1280, 720, "Curiosity Rover Simulation")
+irrlicht_engine.setFullScreen(True)
 
-# Run the simulation
-chrono.Run()
+# --- Camera settings ---
+camera = irrlicht_engine.getCamera()
+camera.setPosition(chrono.Vector3D(0, 0, 10))
+camera.setLookAt(chrono.Vector3D(0, 0, 0))
+camera.setNearPlane(1)
+camera.setFarPlane(1000)
 
-# Save the simulation
-renderer.save_image("curiosity_rover.png")
+# --- Lighting and shadows ---
+irrlicht_engine.setAmbientLight(chrono.Vector3D(0.2, 0.2, 0.2))
+irrlicht_engine.setDirectionalLight(chrono.Vector3D(1, 1, 1), chrono.Vector3D(0, 0, 1))
 
-# Clean up
-renderer.destroy()
-device.destroy()
+# --- Visual elements ---
+# Add textures, logos, etc. as needed
+
+# --- Run the simulation ---
+world.run()

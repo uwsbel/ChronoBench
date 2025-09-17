@@ -24,15 +24,13 @@ def main():
     mesh_body.AddVisualShape(trimesh_shape)
     mesh_body.SetFixed(False)  
     mesh_body.SetMass(0)  
-
-    
-    sys.Add(mesh_body)
+    sys.Add(mesh_body)  
 
     
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
-    ground_body.SetFixed(True)  
-    ground_body.SetMass(1000)  
+    ground_body.SetFixed(False)  
+    ground_body.SetMass(0)  
     sys.Add(ground_body)
 
     
@@ -58,7 +56,7 @@ def main():
     lidar.PushFilter(sens.ChFilterDIAccess())  
     lidar.PushFilter(sens.ChFilterPCfromDepth())  
     lidar.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar PC data"))  
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
@@ -68,7 +66,7 @@ def main():
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
     lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))  
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Scan Data"))  
     sens_manager.AddSensor(lidar2d)
 
     
@@ -107,7 +105,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -138,9 +136,10 @@ def main():
 
         
         sens_manager.Update()
+        ros_manager.Update()  
 
         
-        if not ros_manager.Update():
+        if not ros_manager.IsUpdated():
             print("ROS manager update failed. Exiting simulation.")
             break
 

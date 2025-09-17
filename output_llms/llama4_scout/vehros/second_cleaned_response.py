@@ -34,8 +34,10 @@ def main():
     patch_mat = ch.ChContactMaterialNSC()  
     patch_mat.SetFriction(0.9)  
     patch_mat.SetRestitution(0.01)  
+
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
+
     terrain.Initialize()  
 
     
@@ -45,46 +47,56 @@ def main():
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+
     
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+
     ros_manager.Initialize()  
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
+    vis.SetCameraVertical(CameraUp::Z)
     vis.SetWindowSize(800, 600)
-    vis.SetWindowTitle('HMMWV Simulation')
-    vis.EnableEnhancedShadows()
-    vis.Initialize()
+    vis.SetWindowCaption('HMMWV Simulation')
+    vis.EnableShadow(True)
+    vis.EnableContactPoints(False)
+    vis.EnableCollisionShapes(False)
 
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
+
     hmmwv.GetVehicle().EnableRealtime(True)  
 
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
+
         
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)  
         terrain.Synchronize(time)  
         hmmwv.Synchronize(time, driver_inputs, terrain)  
+
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
         
+        if not ros_manager.Update(time, time_step):
+            break  
+
+        
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
-        
-        if not ros_manager.Update(time, time_step):
-            break  
+    vis.Exit()
 
 if __name__ == "__main__":
     main()

@@ -1,62 +1,55 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-from math import ceil
+import math
 
-class SCMTerrainParams:
-    def __init__(self, config="mid"):
-        self.config = config
-        self.params = self.get_params()
 
-    def get_params(self):
-        if self.config == "soft":
-            return {
-                'Bekker_Kphi': 2e6,
-                'Bekker_Kc': 0,
-                'Bekker_n': 1.1,
-                'Mohr_cohesion': 0,
-                'Mohr_friction': 30,
-                'Janosi_shear': 0.01,
-                'elastic_stiffness': 2e8,
-                'damping': 3e4
-            }
-        elif self.config == "mid":
-            return {
-                'Bekker_Kphi': 5e6,
-                'Bekker_Kc': 0,
-                'Bekker_n': 1.0,
-                'Mohr_cohesion': 1e3,
-                'Mohr_friction': 35,
-                'Janosi_shear': 0.01,
-                'elastic_stiffness': 2e8,
-                'damping': 3e4
-            }
-        elif self.config == "hard":
-            return {
-                'Bekker_Kphi': 1e7,
-                'Bekker_Kc': 0,
-                'Bekker_n': 0.9,
-                'Mohr_cohesion': 2e3,
-                'Mohr_friction': 40,
-                'Janosi_shear': 0.01,
-                'elastic_stiffness': 2e8,
-                'damping': 3e4
-            }
-        else:
-            raise ValueError("Invalid configuration. Choose from 'soft', 'mid', 'hard'.")
+class SCMTerrainParameters:
+    def __init__(self):
+        self.Bekker_Kphi = 0
+        self.Bekker_Kc = 0
+        self.Bekker_n = 0
+        self.Mohr_cohesion = 0
+        self.Mohr_friction = 0
+        self.Janosi_shear = 0
+        self.elastic_stiffness = 0
+        self.damping = 0
 
-    def set_terrain_params(self, terrain):
-        params = self.params
-        terrain.SetSoilParameters(
-            params['Bekker_Kphi'],
-            params['Bekker_Kc'],
-            params['Bekker_n'],
-            params['Mohr_cohesion'],
-            params['Mohr_friction'],
-            params['Janosi_shear'],
-            params['elastic_stiffness'],
-            params['damping']
-        )
+    def set_parameters(self, terrain_type):
+        if terrain_type == "soft":
+            self.Bekker_Kphi = 2e6
+            self.Bekker_Kc = 0
+            self.Bekker_n = 1.1
+            self.Mohr_cohesion = 0
+            self.Mohr_friction = 30
+            self.Janosi_shear = 0.01
+            self.elastic_stiffness = 2e8
+            self.damping = 3e4
+        elif terrain_type == "mid":
+            
+            self.Bekker_Kphi = 1e7
+            self.Bekker_Kc = 0
+            self.Bekker_n = 1.2
+            self.Mohr_cohesion = 0
+            self.Mohr_friction = 35
+            self.Janosi_shear = 0.02
+            self.elastic_stiffness = 3e8
+            self.damping = 4e4
+        elif terrain_type == "hard":
+            
+            self.Bekker_Kphi = 5e7
+            self.Bekker_Kc = 0
+            self.Bekker_n = 1.3
+            self.Mohr_cohesion = 0
+            self.Mohr_friction = 40
+            self.Janosi_shear = 0.03
+            self.elastic_stiffness = 4e8
+            self.damping = 5e4
+
+    def get_parameters(self):
+        return (self.Bekker_Kphi, self.Bekker_Kc, self.Bekker_n,
+                self.Mohr_cohesion, self.Mohr_friction, self.Janosi_shear,
+                self.elastic_stiffness, self.damping)
 
 
 initLoc = chrono.ChVector3d(-8, 0, 0.6)
@@ -109,14 +102,23 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
+terrain_params = SCMTerrainParameters()
+terrain_params.set_parameters("soft")
+(Bekker_Kphi, Bekker_Kc, Bekker_n, Mohr_cohesion, Mohr_friction, Janosi_shear,
+ elastic_stiffness, damping) = terrain_params.get_parameters()
+
+
 terrain = veh.SCMTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(Bekker_Kphi, Bekker_Kc, Bekker_n, Mohr_cohesion,
+                          Mohr_friction, Janosi_shear, elastic_stiffness, damping)
 
-
-terrain_params = SCMTerrainParams("mid")
-terrain_params.set_terrain_params(terrain)
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
+
+
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+
 terrain.Initialize(20, 20, 0.02)
 
 
@@ -148,7 +150,7 @@ driver.Initialize()
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
-render_steps = ceil(render_step_size / step_size)
+render_steps = int(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

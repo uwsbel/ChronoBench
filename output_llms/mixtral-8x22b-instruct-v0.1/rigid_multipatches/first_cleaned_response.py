@@ -29,35 +29,29 @@ terrain = terrain.ChTerrain()
 
 
 terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture1.png")
-terrain.AddPatch(chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture2.png")
+terrain.AddPatch(chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture2.png")
 
 
 bump_mesh = chrono.ChTriangleMeshConnected()
 bump_mesh.LoadWavefrontMesh("path/to/bump.obj")
-terrain.AddPatch(chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), bump_mesh)
+terrain.AddPatch(bump_mesh, chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture3.png")
 
 
 heightmap = chrono.ChHeightmap()
 heightmap.LoadWavefrontMesh("path/to/heightmap.obj")
-terrain.AddPatch(chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(10, 0, 0), chrono.ChVectorD(0, 10, 0), heightmap)
+terrain.AddPatch(heightmap, chrono.ChVectorD(30, 0, 0), chrono.ChVectorD(40, 0, 0), chrono.ChVectorD(0, 10, 0), "path/to/texture4.png")
 
 
-system.Add(vehicle)
 system.Add(terrain)
 
 
-driver = vehicle.ChIrrGuiDriver(application, "My Vehicle")
-driver.Initialize()
+system.Add(vehicle)
 
 
-system.SetTimestepperType(chrono.ChTimestepperType_EULER_IMPLICIT_LINEARIZED)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+driver = vehicle.ChIrrGuiDriver(application, vehicle)
 
 
-while application.GetDevice().run():
-    system.DoStepDynamics(0.01)
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+application.SetTimestep(0.01)
 
-chrono.End_Chrono()
+
+application.Run()

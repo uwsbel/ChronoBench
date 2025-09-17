@@ -1,40 +1,45 @@
-from pychrono import ChSystem, ChBody, ChCollisionShape, ChMaterialSurface, ChVectorD, ChQuaternionD, ChContact
-from pychrono.irrlicht import IrrlichtVisualizer
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 
 
-system = ChSystem()
+chrono.SetChronoDataPath("path/to/chrono/data")  
+system = chrono.ChSystemNSC()
 
 
-ground = ChBody(system)
-ground.SetPos(ChVectorD(0, 0, 0))
-ground_shape = ChCollisionShape()
-ground_shape.SetBox(ChVectorD(10, 10, 1))  
-ground.AddCollisionShape(ground_shape)
+ground = chrono.ChBodyEasyBox(10, 10, 0.1, 1000)  
+ground.SetPos(chrono.ChVectorD(0, 0, -0.05))  
 ground.SetBodyFixed(True)
+system.AddBody(ground)
 
 
-rover = ChBody(system)
-rover.SetPos(ChVectorD(0, 0, 1))
-rover_shape = ChCollisionShape()
-rover_shape.SetSphere(0.5)  
-rover.AddCollisionShape(rover_shape)
+rover = chrono.ChBodyEasySphere(0.5, 10)  
+rover.SetPos(chrono.ChVectorD(0, 0, 0))
+rover.SetBodyFixed(False)
+system.AddBody(rover)
+
+
+motor_driver = chrono.ChMotorRotation(rover, chrono.ChVectorD(0, 0, 1), 
+                                       chrono.ChVectorD(0, 0, 0), 
+                                       chrono.ChVectorD(0, 0, 1), 
+                                       chrono.ChCoordsys<>(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+motor_driver.SetMotorType(chrono.ChMotorRotation.TypeMotorRotation)
+motor_driver.SetTorqueSpeedRatio(100)  
+system.AddBody(motor_driver)
+
+
+vis = chronoirr.ChIrrApp(system, 'Curiosity Rover Simulation')
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))  
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))  
+vis.SetSceneAmbientLight(chrono.ChColor(0.3, 0.3, 0.3))  
+vis.SetShadowFlag(True)  
 
 
 
 
 
-
-visualizer = IrrlichtVisualizer(system)
-visualizer.SetCamera(ChVectorD(5, 5, 5), ChVectorD(0, 0, 0))  
-visualizer.SetAmbientLight(ChVectorD(0.5, 0.5, 0.5))
-visualizer.SetDirectionalLight(ChVectorD(1, 1, 1), ChVectorD(0, 0, -1))
-visualizer.SetShadowMapEnabled(True)
-
-
-
-
-
-
-while True:
+vis.Start()
+while vis.GetTimer() < 10:  
     system.DoStepDynamics(0.01)
-    visualizer.Render()
+    vis.Render()
+
+vis.Close()

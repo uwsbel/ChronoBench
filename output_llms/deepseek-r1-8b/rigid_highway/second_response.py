@@ -67,18 +67,17 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
+patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, -42, 0), chrono.QUNIT),
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
-    True, 0.01, False)  # Corrected parameter order
+    True, 0.01, False)
 
-# Visualization mesh for the terrain
-vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(
-    veh.GetDataFile("terrain/meshes/Highway_vis.obj"), 
-    True, True)
+# Add visualization mesh for the new patch
+vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
 tri_mesh_shape = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
+tri_mesh_shape.Initialize()  # Added initialization for the mesh
 patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
 
 terrain.Initialize()

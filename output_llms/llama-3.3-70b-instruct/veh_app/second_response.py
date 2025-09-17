@@ -83,9 +83,7 @@ print("\n")
 # Set collision system type
 gator.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# ------------------
 # Create the terrain
-# ------------------
 terrain = veh.RigidTerrain(gator.GetSystem())
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
@@ -99,9 +97,7 @@ terrain.Initialize()
 driver = veh.ChDriver(gator.GetVehicle())
 driver.Initialize()
 
-# -----------------------
 # Create a sensor manager
-# -----------------------
 manager = sens.ChSensorManager(gator.GetSystem())
 intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
@@ -125,33 +121,35 @@ manager.AddSensor(cam)
 box = chrono.ChBodyEasyBox(gator.GetSystem(), 1, 1, 1, 1000, True, True)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box.SetMaterial(chrono.ChMaterialSurfaceNSC())
-box.AddVisualShape(chrono.ChVisualShapeBOX(chrono.ChVector3d(1, 1, 1), chrono.ChColor(0, 0, 1), True))
-box.AddVisualShape(chrono.ChVisualShapeMESH(veh.GetDataFile("terrain/textures/blue.png"), chrono.ChVector3d(1, 1, 1), chrono.ChColor(0, 0, 1), True))
-gator.GetSystem().Add(box)
+box.GetMaterial().SetFriction(0.9)
+box.GetMaterial().SetRestitution(0.01)
+box.AddVisualShape(chrono.ChVisualShapeBox(chrono.ChVector3d(1, 1, 1), chrono.ChColor(0, 0, 1), True))
+box.AddVisualShape(chrono.ChVisualShapeMesh(veh.GetDataFile("terrain/textures/blue.png")))
 
 # Create a cylinder object
 cylinder = chrono.ChBodyEasyCylinder(gator.GetSystem(), 0.5, 1, 1000, True, True)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder.SetMaterial(chrono.ChMaterialSurfaceNSC())
-cylinder.AddVisualShape(chrono.ChVisualShapeCYLINDER(chrono.ChVector3d(0.5, 1, 0.5), chrono.ChColor(0, 0, 1), True))
-cylinder.AddVisualShape(chrono.ChVisualShapeMESH(veh.GetDataFile("terrain/textures/blue.png"), chrono.ChVector3d(0.5, 1, 0.5), chrono.ChColor(0, 0, 1), True))
-gator.GetSystem().Add(cylinder)
+cylinder.GetMaterial().SetFriction(0.9)
+cylinder.GetMaterial().SetRestitution(0.01)
+cylinder.AddVisualShape(chrono.ChVisualShapeCylinder(chrono.ChVector3d(0.5, 1, 0.5), chrono.ChColor(0, 0, 1), True))
+cylinder.AddVisualShape(chrono.ChVisualShapeMesh(veh.GetDataFile("terrain/textures/blue.png")))
 
 # Create a Lidar sensor
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    chrono.ChVector3d(0.0, 0, 2),
+    chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0)),
     800,
     300,
     2 * chrono.CH_PI,
     chrono.CH_PI / 12,
     -chrono.CH_PI / 6,
     100.0,
-    sens.ChLidarSensor.SHAPE_RECTANGULAR,
+    sens.ChLidarSensor.BeamShape.RECTANGULAR,
     2,
     0.003,
-    sens.ChLidarSensor.MODE_STRONGEST
+    sens.ChLidarSensor.ReturnMode.STRONGEST
 )
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
@@ -159,16 +157,13 @@ lidar.PushFilter(sens.ChFilterXYZI())
 lidar.PushFilter(sens.ChFilterVisualize())
 manager.AddSensor(lidar)
 
-# ---------------
 # Simulation loop
-# ---------------
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
-    # set driver inputs
+    # Set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
     # Collect output data from modules (for inter-module communication)

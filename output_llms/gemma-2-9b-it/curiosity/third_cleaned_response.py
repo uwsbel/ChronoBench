@@ -28,6 +28,7 @@ box.SetFixed(True)
 box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 system.Add(box)
 
+
 rover = robot.Curiosity(system)
 
 
@@ -38,6 +39,23 @@ rover.SetDriver(driver)
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+
+sens = ChSensorManager(system)
+
+
+lidar = ChLidarSensor(
+    update_rate=100,  
+    horizontal_samples=360,
+    vertical_samples=64,
+    fov=60,  
+    range=10.0,  
+    )
+sens.AddSensor(lidar)
+lidar.SetBody(rover.GetChassis())  
+
+
+
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -59,23 +77,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 
-sens = ChSensorManager(system)
-
-
-lidar = ChLidarSensor()
-lidar.SetUpdateRate(100)  
-lidar.SetHorizontalSamples(360)  
-lidar.SetVerticalSamples(30)  
-lidar.SetFieldOfView(np.pi / 2)  
-lidar.AttachToBody(rover.GetChassis())  
-
-
-lidar.SetFilter(ChGaussianFilter(stdDev=0.1))
-
-
-sens.AddSensor(lidar)
-
-
 time = 0
 while vis.Run():
     time += time_step
@@ -87,7 +88,7 @@ while vis.Run():
     rover.Update()
 
     
-    sens.Update()
+    manager.Update() 
 
     
     vis.BeginScene()

@@ -33,7 +33,8 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 
 
 
-pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+pend_1.SetPos(chrono.ChVector3d(0, 0, 1))
+
 
 
 rev_1 = chrono.ChLinkLockRevolute()
@@ -50,12 +51,9 @@ pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))
 
 
 cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)  
-cyl_2.SetColor(chrono.ChColor(0.6, 0, 0))  
-pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
 
-
-
-pend_2.SetPos(chrono.ChVector3d(0, -1, 1))
 
 
 rev_2 = chrono.ChLinkLockRevolute()
@@ -88,6 +86,7 @@ while vis.Run():
         print("     ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        
         pos_2 = pend_2.GetPos()  
         print("     ", pos_2.x, "  ", pos_2.y)
         lin_vel_2 = pend_2.GetPosDt()  

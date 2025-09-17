@@ -46,16 +46,15 @@ pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 
 
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
-
+pend_2.SetPos(chrono.ChVector3d(1, 0, 1))  
 
 
 rev_1 = chrono.ChLinkLockRevolute()
 rev_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_1)
 
-
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+rev_2.Initialize(ground, pend_2, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(rev_2)
 
 

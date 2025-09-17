@@ -9,71 +9,82 @@ def main():
 
     
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod.NSC)  
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
-    hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVectorD(0, 0, 1.6), ch.ChQuaternionD(1, 0, 0, 0)))
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)
-    hmmwv.SetTireStepSize(1e-3)
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  
+    hmmwv.SetChassisFixed(False)  
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVectorD(0, 0, 1.6), ch.ChQuaternionD(1, 0, 0, 0)))  
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)  
+    hmmwv.SetTireStepSize(1e-3)  
 
     
-    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_NONE)
-    hmmwv.Initialize()
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    
+    visual_system = chronoirr.ChVisualSystemIrrlicht()
+    visual_system.SetWindowSize(1280, 1024)
+    visual_system.SetWindowTitle('HMMWV Simulation')
+    visual_system.SetCameraPosition(ch.ChVectorD(5, 5, 5))
+    visual_system.SetCameraRotation(ch.ChQuaternionD(1, 0, 0, 0))
+    visual_system.SetAntialiasing(4)
+    visual_system.SetShadowIntensity(0.8)
+    visual_system.SetLightIntensity(0.8)
+    visual_system.SetLightPosition(ch.ChVectorD(5, 5, 5))
+    visual_system.SetLightDirection(ch.ChVectorD(-1, -1, -1))
+
+    
+    hmmwv.GetSystem().SetVisualSystem(visual_system)
+    visual_system.Initialize()
+    visual_system.AddLogo()
+    visual_system.AddSkyBox()
+    visual_system.AddGrid()
+
+    hmmwv.Initialize()  
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()
-    patch_mat.SetFriction(0.9)
-    patch_mat.SetRestitution(0.01)
-    patch = terrain.AddPatch(patch_mat, ch.ChCoordsysd(), 100.0, 100.0)  
+    patch_mat = ch.ChContactMaterialNSC()  
+    patch_mat.SetFriction(0.9)  
+    patch_mat.SetRestitution(0.01)  
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  
     patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  
-    terrain.Initialize()
+    terrain.Initialize()  
 
     
-    visualiz = chronoirr.ChVisualSystemIrrlicht()
-    visualiz.SetWindowSize(1024, 768)
-    visualiz.SetWindowTitle('HMMWV Simulation')
-    visualiz.SetSymbolsScale(0.002)
-    visualiz.SetCameraPosition(0, 0, 5)
-    visualiz.SetRenderingCamera(chronoirr.ChIrrCameraSmoothPositioned(
-        hmmwv.GetChassisBody(), ch.Vec3(0, 0, 2), ch.Vec3(0, 1, 0), 5))
-    visualiz.Initialize()
-    visualiz.AddLightDirectional()
-    hmmwv.GetVehicle().InitializeRenderInterface(visualiz)  
-    terrain.GetGroundBody().SetCollide(True)  
+    driver = veh.ChDriver(hmmwv)  
+    driver.Initialize()  
 
-    
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()
     
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
+    
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()
+    ros_manager.Initialize()  
 
     
-    time_step = 1e-3
-    time_end = 30
-    hmmwv.GetVehicle().EnableRealtime(True)
+    time = 0
+    time_step = 1e-3  
+    time_end = 30  
 
-    
-    while visualiz.Run() and hmmwv.GetSystem().GetChTime() < time_end:
-        time = hmmwv.GetSystem().GetChTime()
+    hmmwv.EnableRealtime(True)  
+    while time < time_end:
+        time = hmmwv.GetSystem().GetChTime()  
 
         
         driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)
-        terrain.Synchronize(time)
-        hmmwv.Synchronize(time, driver_inputs, terrain)
+        driver.Synchronize(time)  
+        terrain.Synchronize(time)  
+        hmmwv.Synchronize(time, driver_inputs, terrain)  
+
         
         driver.Advance(time_step)
         terrain.Advance(time_step)
@@ -81,14 +92,15 @@ def main():
 
         
         if not ros_manager.Update(time, time_step):
-            break
+            break  
 
         
-        visualiz.BeginScene()
-        visualiz.Render()
-        visualiz.EndScene()
-        key = visualiz.WaitKey(int(time_step * 1000))  
-        if key == ord('q'):
+        visual_system.BeginScene()
+        visual_system.Render()
+        visual_system.EndScene()
+
+        
+        if visual_system.GetDevice().IsStopped():
             break
 
 if __name__ == "__main__":

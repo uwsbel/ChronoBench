@@ -1,11 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import math
+import numpy as np
+
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
 initLoc = chrono.ChVector3d(-15, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initRot = chrono.Q_from_AngZ(np.pi/2)  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -36,7 +39,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -45,9 +47,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle.SetWheelVisualizationType(vis_type, vis_type)
+vehicle.SetTireVisualizationType(vis_type, vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -64,12 +66,12 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
+vis.AttachVehicle(vehicle.GetTractor())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -84,8 +86,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-if vehicle.GetVehicle():
-    print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
 
 
 render_steps = int(render_step_size / step_size)
@@ -108,9 +109,9 @@ while vis.Run():
 
     
     if time > 2 and time < 4:
-        driver_inputs = veh.Inputs(0.5, 0.7, 0.0, 0.0)
+        driver_inputs = veh.Inputs(0.5, 0.7, 0.0, False)  
     elif time > 4 and time < 6:
-        driver_inputs = veh.Inputs(-0.5, 0.7, 0.0, 0.0)
+        driver_inputs = veh.Inputs(-0.5, 0.7, 0.0, False)
     else:
         driver_inputs = driver.GetInputs()
 
@@ -118,7 +119,7 @@ while vis.Run():
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize("", driver_inputs)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

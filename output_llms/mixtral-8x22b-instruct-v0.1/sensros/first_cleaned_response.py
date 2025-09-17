@@ -53,89 +53,56 @@ magnetometer.SetName("magnetometer")
 sensor_manager.AddSensor(magnetometer)
 
 
-rospy.init_node('pychrono_sensors')
-camera_pub = rospy.Publisher('/camera', Image, queue_size=10)
-lidar_pub = rospy.Publisher('/lidar', PointCloud2, queue_size=10)
-gps_pub = rospy.Publisher('/gps', NavSatFix, queue_size=10)
-accel_pub = rospy.Publisher('/accelerometer', Vector3Stamped, queue_size=10)
-gyro_pub = rospy.Publisher('/gyroscope', Vector3Stamped, queue_size=10)
-mag_pub = rospy.Publisher('/magnetometer', Vector3Stamped, queue_size=10)
+ros_manager = chrono.ChRosManager()
+ros_manager.Initialize(physics, sensor_manager)
 
 
-application = chronoirr.ChIrrApp(physics, 'PyChrono Sensors', chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalLogo()
-application.AddTypicalCamera(chrono.ChVectorD(0, -2, 0.5))
-application.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), 0.4, 5, 5, 50, 128)
+rospy.init_node("pychrono_ros_node")
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
+
+camera_publisher = rospy.Publisher("/camera", Image, queue_size=10)
+lidar_publisher = rospy.Publisher("/lidar", PointCloud2, queue_size=10)
+gps_publisher = rospy.Publisher("/gps", NavSatFix, queue_size=10)
+accelerometer_publisher = rospy.Publisher("/accelerometer", Vector3Stamped, queue_size=10)
+gyroscope_publisher = rospy.Publisher("/gyroscope", Vector3Stamped, queue_size=10)
+magnetometer_publisher = rospy.Publisher("/magnetometer", Vector3Stamped, queue_size=10)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("PyChrono ROS Sensors")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))
+
+while vis.Run():
+    physics.DoStepDynamics(0.01)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
 
     
     sensor_manager.Update()
 
     
-    camera_data = sensor_manager.GetSensor("camera").Get_Data()
-    camera_msg = Image()
-    camera_msg.height = camera_data.GetHeight()
-    camera_msg.width = camera_data.GetWidth()
-    camera_msg.encoding = "rgb8"
-    camera_msg.is_bigendian = False
-    camera_msg.step = camera_data.GetWidth() * 3
-    camera_msg.data = np.array(camera_data.GetData(), dtype=np.uint8).flatten().tolist()
-    camera_pub.publish(camera_msg)
+    camera_data = sensor_manager.GetSensorData(camera)
+    camera_publisher.publish(camera_data)
 
-    lidar_data = sensor_manager.GetSensor("lidar").Get_Data()
-    lidar_msg = PointCloud2()
-    lidar_msg.header.frame_id = "lidar"
-    lidar_msg.height = 1
-    lidar_msg.width = len(lidar_data)
-    lidar_msg.fields = [
-        PointField('x', 0, PointField.FLOAT32, 1),
-        PointField('y', 4, PointField.FLOAT32, 1),
-        PointField('z', 8, PointField.FLOAT32, 1),
-        PointField('intensity', 12, PointField.FLOAT32, 1)
-    ]
-    lidar_msg.is_bigendian = False
-    lidar_msg.point_step = 16
-    lidar_msg.row_step = lidar_msg.point_step * len(lidar_data)
-    lidar_msg.data = np.array(lidar_data, dtype=np.float32).flatten().tolist()
-    lidar_pub.publish(lidar_msg)
+    lidar_data = sensor_manager.GetSensorData(lidar)
+    lidar_publisher.publish(lidar_data)
 
-    gps_data = sensor_manager.GetSensor("gps").Get_Data()
-    gps_msg = NavSatFix()
-    gps_msg.header.frame_id = "gps"
-    gps_msg.latitude = gps_data.GetLatitude()
-    gps_msg.longitude = gps_data.GetLongitude()
-    gps_msg.altitude = gps_data.GetAltitude()
-    gps_pub.publish(gps_msg)
+    gps_data = sensor_manager.GetSensorData(gps)
+    gps_publisher.publish(gps_data)
 
-    accelerometer_data = sensor_manager.GetSensor("accelerometer").Get_Data()
-    accelerometer_msg = Vector3Stamped()
-    accelerometer_msg.header.frame_id = "accelerometer"
-    accelerometer_msg.vector.x = accelerometer_data.GetAcceleration().x
-    accelerometer_msg.vector.y = accelerometer_data.GetAcceleration().y
-    accelerometer_msg.vector.z = accelerometer_data.GetAcceleration().z
-    accel_pub.publish(accelerometer_msg)
+    accelerometer_data = sensor_manager.GetSensorData(accelerometer)
+    accelerometer_publisher.publish(accelerometer_data)
 
-    gyroscope_data = sensor_manager.GetSensor("gyroscope").Get_Data()
-    gyroscope_msg = Vector3Stamped()
-    gyroscope_msg.header.frame_id = "gyroscope"
-    gyroscope_msg.vector.x = gyroscope_data.GetAngularVelocity().x
-    gyroscope_msg.vector.y = gyroscope_data.GetAngularVelocity().y
-    gyroscope_msg.vector.z = gyroscope_data.GetAngularVelocity().z
-    gyro_pub.publish(gyroscope_msg)
+    gyroscope_data = sensor_manager.GetSensorData(gyroscope)
+    gyroscope_publisher.publish(gyroscope_data)
 
-    magnetometer_data = sensor_manager.GetSensor("magnetometer").Get_Data()
-    magnetometer_msg = Vector3Stamped()
-    magnetometer_msg.header.frame_id = "magnetometer"
-    magnetometer_msg.vector.x = magnetometer_data.GetMagneticField().x
-    magnetometer_msg.vector.y = magnetometer_data.GetMagneticField().y
-    magnetometer_msg.vector.z = magnetometer_data.GetMagneticField().z
-    mag_pub.publish(magnetometer_msg)
+    magnetometer_data = sensor_manager.GetSensorData(magnetometer)
+    magnetometer_publisher.publish(magnetometer_data)
 
-    application.EndScene()
-
-application.Wait()
+    rospy.spin()

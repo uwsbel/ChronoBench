@@ -19,10 +19,10 @@ def main():
     box_body.SetFixed(True)  
 
     
-    box_vis = chrono.ChVisualShapeBox(side, side, side)
-    box_vis.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))  
-    box_body.AddVisualShape(box_vis)
-
+    vis_shape = box_body.GetVisualShape(0)
+    if vis_shape:
+        vis_shape.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    
     mphysicalSystem.Add(box_body)
 
     
@@ -50,16 +50,17 @@ def main():
     
     cam = sens.ChCameraSensor(
         box_body,              
-        update_rate,
-        offset_pose,
-        image_width,
-        image_height,
-        fov
+        update_rate,           
+        offset_pose,           
+        image_width,           
+        image_height,          
+        fov                    
     )
     cam.SetName("Camera Sensor")
-    cam.SetLag(lag)
-    cam.SetCollectionWindow(exposure_time)
+    cam.SetLag(lag)  
+    cam.SetCollectionWindow(exposure_time)  
 
+    
     
     
     
@@ -70,26 +71,35 @@ def main():
     elif noise_model == "NONE":
         pass
 
+    
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
 
+    
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
+    
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
 
+    
     cam.PushFilter(sens.ChFilterGrayscale())
 
+    
     if vis:
         cam.PushFilter(sens.ChFilterVisualize(int(image_width / 2), int(image_height / 2), "Grayscale Image"))
 
+    
     if save:
         cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
 
+    
     cam.PushFilter(sens.ChFilterImageResize(int(image_width / 2), int(image_height / 2)))
 
+    
     cam.PushFilter(sens.ChFilterR8Access())
 
+    
     manager.AddSensor(cam)
 
     
@@ -105,7 +115,8 @@ def main():
         
         cam.SetOffsetPose(chrono.ChFramed(
             chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
-            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+        ))
 
         
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
@@ -114,6 +125,7 @@ def main():
             print('RGBA8 buffer received from cam. Camera resolution: {0}x{1}'.format(rgba8_buffer.Width, rgba8_buffer.Height))
             print('First Pixel: {0}'.format(rgba8_data[0, 0, :]))
 
+        
         manager.Update()
         mphysicalSystem.DoStepDynamics(step_size)
         ch_time = mphysicalSystem.GetChTime()

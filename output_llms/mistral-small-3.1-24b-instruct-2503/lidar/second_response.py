@@ -11,11 +11,11 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------
-    # Create a box object
-    # -----------------------
-    side = 2.0  # Dimension of the box
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
+    # ----------------------------------
+    # Add a box to be sensed by a lidar
+    # ----------------------------------
+    side = 2  # Dimension of the box
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetFixed(True)
     mphysicalSystem.Add(box_body)
@@ -28,26 +28,26 @@ def main():
     # ------------------------------------------------
     # Create a 3D lidar and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose = chrono.ChFrameD(
+    offset_pose = chrono.ChFramed(
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
-        update_rate,           # Scanning rate in Hz
-        offset_pose,           # Offset pose
-        horizontal_samples,    # Number of horizontal samples
-        vertical_samples,      # Number of vertical channels
-        horizontal_fov,        # Horizontal field of view
-        max_vert_angle,        # Maximum vertical field of view
-        min_vert_angle,        # Minimum vertical field of view
-        100.0,                 # Maximum lidar range
+        update_rate,            # Scanning rate in Hz
+        offset_pose,            # Offset pose
+        horizontal_samples,     # Number of horizontal samples
+        vertical_samples,       # Number of vertical channels
+        horizontal_fov,         # Horizontal field of view
+        max_vert_angle,         # Maximum vertical field of view
+        min_vert_angle,         # Minimum vertical field of view
+        100.0,                  # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
-        sample_radius,         # Sample radius
-        divergence_angle,      # Divergence angle
-        divergence_angle,      # Divergence angle (again, typically same value)
-        return_mode            # Return mode for the lidar
+        sample_radius,          # Sample radius
+        divergence_angle,       # Divergence angle
+        divergence_angle,       # Divergence angle (again, typically same value)
+        return_mode             # Return mode for the lidar
     )
-    lidar.SetName("Lidar Sensor 3D")
+    lidar.SetName("Lidar 3D Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
@@ -72,7 +72,7 @@ def main():
 
     if vis:
         # Visualize the point cloud
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud 3D"))
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar 3D Point Cloud"))
 
     # Provides the host access to the XYZI data
     lidar.PushFilter(sens.ChFilterXYZIAccess())
@@ -83,18 +83,15 @@ def main():
     # ------------------------------------------------
     # Create a 2D lidar and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose_2d = chrono.ChFrameD(
-        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
     lidar_2d = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
         update_rate,           # Scanning rate in Hz
-        offset_pose_2d,        # Offset pose
+        offset_pose,           # Offset pose
         horizontal_samples,    # Number of horizontal samples
         1,                     # Number of vertical channels (2D lidar)
         horizontal_fov,        # Horizontal field of view
-        0,                     # Maximum vertical field of view (not used in 2D)
-        0,                     # Minimum vertical field of view (not used in 2D)
+        0,                     # Maximum vertical field of view
+        0,                     # Minimum vertical field of view
         100.0,                 # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,         # Sample radius
@@ -102,7 +99,7 @@ def main():
         divergence_angle,      # Divergence angle (again, typically same value)
         return_mode            # Return mode for the lidar
     )
-    lidar_2d.SetName("Lidar Sensor 2D")
+    lidar_2d.SetName("Lidar 2D Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
@@ -117,7 +114,7 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar Depth Data 2D"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar 2D Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -127,7 +124,7 @@ def main():
 
     if vis:
         # Visualize the point cloud
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud 2D"))
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 1, 1.0, "Lidar 2D Point Cloud"))
 
     # Provides the host access to the XYZI data
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
@@ -148,7 +145,7 @@ def main():
     while ch_time < end_time:
         # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
-            chrono.ChFrameD(
+            chrono.ChFramed(
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
@@ -157,9 +154,8 @@ def main():
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
-
         lidar_2d.SetOffsetPose(
-            chrono.ChFrameD(
+            chrono.ChFramed(
                 chrono.ChVector3d(
                     -orbit_radius * math.cos(ch_time * orbit_rate),
                     -orbit_radius * math.sin(ch_time * orbit_rate),
@@ -173,10 +169,9 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('XYZI buffer received from 3D lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
-        # Access the XYZI buffer from 2D lidar
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()

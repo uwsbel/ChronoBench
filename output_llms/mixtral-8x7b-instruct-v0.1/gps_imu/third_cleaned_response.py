@@ -157,7 +157,7 @@ while vis.Run():
     if step_number % log_steps == 0:
         
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        gps_data.append([gps_coor[0], gps_coor[1]])
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
@@ -186,7 +186,9 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-plt.plot(gps_data[:, 0], gps_data[:, 1])
+latitudes = [data[0] for data in gps_data]
+longitudes = [data[1] for data in gps_data]
+plt.plot(longitudes, latitudes)
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')
 plt.show()

@@ -1,66 +1,55 @@
-import pychrono as pychrono
-import pychrono.visualizations as pyvis
+import pychrono as pc
+from pychrono import core, mesh, sensors, movement
 import numpy as np
 
 # Initialize PyChrono environment
-pychrono.init()
+pc.init()
 
-# Create a scene and add a triangular mesh from a Wavefront .obj file
-scene = pychrono.Scene()
-# Load the triangular mesh from the Wavefront .obj file
-mesh = pychrono.Mesh("data/triangular_mesh.obj")
-# Add the mesh as a fixed body to the scene
-body = pychrono.Body()
-body.set_mass(0)  # Make it a fixed body
-body.set_name("Triangular Mesh")
-scene.add_body(body, mesh)
+# Load the triangular mesh from the .obj file
+mesh_path = "triangle_mesh.obj"
+mesh = pc.load_obj(mesh_path)
 
-# Add a camera sensor to the body
-sensor = pychrono.Sensors.CameraSensor(body)
-# Attach a sensor manager to the camera sensor
-sensor_manager = pychrono.Sensors.SensorManager(sensor)
-# Add a noise filter to the camera sensor
-noise_filter = pychrono.Sensors.NoiseFilters.GaussianNoiseFilter(sigma=0.1)
-sensor_manager.add_filter(noise_filter)
+# Create a fixed body from the mesh
+body = pc.create_fixed_body(mesh, mass=0)  # Mass is set to 0 for a fixed body
 
-# Define the camera's orbit motion
-def update_camera(sim, body, time):
-    # Define the orbit parameters
-    radius = 5.0  # Distance from the mesh
-    angle = time * 0.5  # Angular speed
-    # Update the body's local position for camera movement
-    body_local_pos = body.get_local_position()
-    body_local_pos.x = radius * pychrono.maths.sin(angle)
-    body_local_pos.y = radius * pychrono.maths.cos(angle)
-    body.set_local_position(body_local_pos)
+# Create a sensor manager and add a camera sensor with noise filter
+sensor_manager = pc.SensorManager(body)
+sensor = pc.create_camera_sensor(sensor_manager, name="orbital_camera")
 
-# Set up the camera sensor properties
-sensor.set_resolution(256, 256)  # Set camera resolution
-sensor.set_focal_length(512.0)  # Set focal length for depth sensing
-sensor.set_depth_mode(pychrono.Sensors.CameraSensor.DepthMode.PHI)  # Set depth sensing mode
+# Add a Gaussian noise filter to the sensor
+from pychrono.sensors import gaussian_filter
+sensor.add_noise_filter(gaussian_filter)
 
-# Set up the visualization
-renderer = pyvis.Renderer()
-renderer.set_camera(sensor)
-renderer.set_antialiasing(16)  # Enable antialiasing for smoother images
+# Set camera properties
+sensor.sensor_properties.sensor_type = pc.CAMERA_TYPE PINHOLE
+sensor.sensor_properties.resolution = 512  # Resolution in pixels
+sensor.sensor_properties.frame_rate = 30  # Frames per second
 
-# Create a simulation loop
-simulation_loop = pychrono.SimulationLoop()
-simulation_loop.set_timestep(0.1)  # Set simulation timestep
+# Create a rotational movement for the camera orbiting around the mesh
+pivot_point = body.get_body_point("center")  # Get the center of the mesh as pivot
+rotational_motion = pc.create_rotational_movement(pivot_point, body, name="camera_orbit")
 
-# Add the camera position update function
-simulation_loop.add_function(update_camera, body, 0.1)
+# Set the rotation axis (let's use Z-axis for orbital motion)
+rotational_motion.set_rotation_axis(pc.Vec3d(0, 0, 1))
 
-# Run the simulation
-simulation_loop.start()
+# Set the rotation speed (degrees per second)
+rotational_motion.set_rotation_speed(2)  # Adjust this value to control rotation speed
 
-# Print the camera buffer data at each step
-while True:
-    # Get the current camera image
+# Set simulation time step
+time_step = 0.01
+
+# Initialize simulation
+simulation = pc.Simulation(body, time_step, max_time=1000, gui=True)
+
+# Create a print function to output camera buffer data
+def print_camera_data(frame):
     image = sensor.get_image()
-    # Convert the image to a numpy array for display
-    img_array = np.array(image)
-    print("Camera Image Data:")
-    print(img_array)
-    # Add a small delay to ensure the simulation runs at the correct speed
-    pychrono.sleep(0.1)
+    print(f"Frame: {frame}")
+    print(f"Camera buffer data: {image}")
+    print("\n")
+
+# Set up the simulation loop
+simulation.add_event("camera_orbit", callback=print_camera_data, event_type=pc.SIM_EVENT_STEP)
+
+# Start the simulation
+simulation.run()

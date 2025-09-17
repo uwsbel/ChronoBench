@@ -1,6 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as irrlicht
 
 import rclpy.publisher
 from std_msgs.msg import Int64
@@ -9,8 +9,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate=10):
-        super().__init__(publish_rate)  # Initialize the handler with a 10 Hz publishing rate.
+    def __init__(self, topic, publish_rate):
+        super().__init__(publish_rate)  # Initialize the handler with the specified publishing rate.
 
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
@@ -20,7 +20,7 @@ class MyCustomHandler(chros.ChROSHandler):
         """Initialize the ROS publisher."""
         print(f"Creating publisher for topic {self.topic} ...")
         # Create a ROS publisher for the specified topic.
-        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 10)
+        self.publisher = interface.GetNode().create_publisher(Int64, self.topic, 1)
         return True  # Return True to indicate successful initialization.
 
     def Tick(self, time: float):
@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture(irr.IrrlichtTexture("path/to/floor_texture.png"))  # Set floor texture
+    floor.SetTexture(irrlicht.IrrlichtTexture("floor_texture.png"))  # Set floor texture
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,7 +53,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture(irr.IrrlichtTexture("path/to/box_texture.png"))  # Set box texture
+    box.SetTexture(irrlicht.IrrlichtTexture("box_texture.png"))  # Set box texture
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
@@ -71,32 +71,27 @@ def main():
     ros_manager.RegisterHandler(tf_handler)
     
     # Register the custom handler to publish messages.
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate=10)
+    custom_handler = MyCustomHandler("~/my_topic", 10)  # Set publish rate to 10 Hz
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Setup Irrlicht visualization
-    vis = irr.IrrlichtVisualizer(sys)
+    # Visualization setup
+    vis = irrlicht.IrrlichtVisualization(sys)
     vis.SetCameraPosition(ch.ChVector3d(5, 5, 10))
     vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
     vis.SetAmbientLight(ch.ChColor(0.5, 0.5, 0.5))
-    vis.SetLightDirection(ch.ChVector3d(1, 1, 1))
-    vis.SetWindowSize(800, 600)
-    vis.setWindowTitle("PyChrono Simulation")
-    vis.SetFullScreen(False)
-    vis.Show()
+    vis.SetDirectionalLight(ch.ChVector3d(1, 1, 1), ch.ChColor(1, 1, 1))
+    vis.setWindowSize(800, 600)
 
-    # Rendering parameters
-    step_number = 0
-    render_step_size = 10  # Render every 10 simulation steps
-    render_steps = 0
-
-    # Run the simulation loop.
+    # Simulation parameters
     time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 30  # Set the duration for the simulation.
+    time_step = 1e-3
+    time_end = 30
+    step_number = 0
+    render_step_size = 10
+    render_steps = 0
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
@@ -109,7 +104,7 @@ def main():
         step_number += 1
         render_steps += 1
         if render_steps >= render_step_size:
-            vis.Render()  # Render the scene
+            vis.render()  # Render the scene
             render_steps = 0
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.

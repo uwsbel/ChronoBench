@@ -59,8 +59,7 @@ for iz in range(nsections_z):
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if ix < nsections_x - 1 else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+        boundary_2 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
@@ -74,7 +73,6 @@ mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-mesh.AddVisualShapeFEA(mvisualizeshellB)
 mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
@@ -91,7 +89,7 @@ vis.AddTypicalLights()
 
 # Change solver to PardisoMKL
 mkl_solver = mkl.ChSolverPardisoMKL()
-mkl_solver.LockSparsityPattern(True)  # Adjusted solver parameter
+mkl_solver.LockSparsityPattern(True)  # Lock sparsity pattern for optimization
 sys.SetSolver(mkl_solver)
 
 # Define time step for simulation
@@ -113,29 +111,37 @@ nodePlotA = []
 nodePlotB = []
 nodesLoad = []
 
-# Construct Boundary Nodes with Conditional Checks
-for iz in range(nsections_z + 1):
-    for ix in range(nsections_x + 1):
-        if ix > 0 and iz > 0:
-            nodePlotA.append(mynodes[iz * (nsections_x + 1) + ix])
-            nodePlotB.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
-            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
+# Define interpolation functions for reference tracking
+def ref_X(node):
+    # Implement reference tracking for X
+    pass
 
-# Element Monitoring
-ementmonitor = None
-if (iz == 0 and ix == 1):
-    ementmonitor = melementA
+def ref_Y(node):
+    # Implement reference tracking for Y
+    pass
 
-# Fix Upper Nodes
+# Load force vector
+load_force = chrono.ChVector3d(0, 0, -1000)  # Example load force
+
+# Add monitoring nodes and elements
+mnodemonitor = mynodes[0]  # Example monitoring node
+ementmentor = melementA  # Example monitoring element
+
+# Fix upper nodes
 for j in range(30):
     for k in range(30):
         mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
-# Adjust Visualization Shapes
+# Adjust visualization shapes
 mvisualizeshellA.SetSmoothFaces(True)
 mvisualizeshellA.SetWireMode(True)
-mvisualizeshellA.SetBackfaceCulling(False)  # Optional visualization adjustments
+# mvisualizeshellA.SetBackfaceCulling(True)  # Optional visualization adjustment
 
-# mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # Adjusted visualization data type
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 
-# Time Step Adjustment
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

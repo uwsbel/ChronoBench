@@ -103,9 +103,11 @@ def main():
         pass
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 2D Lidar Depth Data"))
     
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
         
         lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))

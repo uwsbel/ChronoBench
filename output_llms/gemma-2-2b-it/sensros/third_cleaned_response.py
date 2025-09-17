@@ -60,13 +60,13 @@ def main():
     lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"Lidar PC data"))  
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
-    
+
     
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
     sens_manager.AddSensor(lidar2d)
-    
+
     
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
@@ -83,4 +83,4 @@ def main():
 
     
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
-    gyro.PushFilter(sens.
+    gyro.PushFilter(sens.ChFilterGyroAccess())

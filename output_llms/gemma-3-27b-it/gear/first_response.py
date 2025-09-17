@@ -1,6 +1,6 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
+import math
 
 # ---
 #  Create the simulation system and add items
@@ -16,96 +16,86 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 body_truss = chrono.ChBodyEasy()
 body_truss.SetBodyFixed(True)
 body_truss.SetPos(chrono.ChVectorD(0, 0, 0))
+body_truss.SetMass(1)
+body_truss.AddBox(0.1, 0.1, 0.1)  # Small box for visualization
 system.Add(body_truss)
 
-# Create a box shape for the truss
-truss_shape = chrono.ChBoxShape()
-truss_shape.GetBoxGeometry().SetMinMax(chrono.ChVectorD(-0.5, -0.5, -0.5), chrono.ChVectorD(0.5, 0.5, 0.5))
-body_truss.AddAsset(truss_shape)
-body_truss.SetCollide(True)
-body_truss.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-
 # ---
-# Create the rotating bar
+# Create the rotating bar (arm)
 # ---
-body_bar = chrono.ChBodyEasy()
-body_bar.SetPos(chrono.ChVectorD(1, 0, 0))
-body_bar.SetBodyFixed(False)
-system.Add(body_bar)
+body_arm = chrono.ChBodyEasy()
+body_arm.SetMass(0.1)
+body_arm.SetPos(chrono.ChVectorD(0, 0.1, 0))
+body_arm.SetBodyFixed(False)
+body_arm.AddBox(0.3, 0.02, 0.02)
+system.Add(body_arm)
 
-# Create a cylinder shape for the bar
-bar_shape = chrono.ChCylinderShape()
-bar_shape.GetCylinderGeometry().SetRadius(0.1)
-bar_shape.GetCylinderGeometry().SetHeight(1)
-body_bar.AddAsset(bar_shape)
-body_bar.SetCollide(True)
-body_bar.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+# Create a revolute joint to connect the arm to the truss
+joint_arm = chrono.ChLinkRevolute()
+joint_arm.Initialize(body_truss, body_arm, chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0)))
+system.Add(joint_arm)
+
 
 # ---
 # Create the gears
 # ---
+# Gear 1 (Driven)
+gear1 = chrono.ChBodyEasy()
+gear1.SetMass(0.05)
+gear1.SetPos(chrono.ChVectorD(0.15, 0.1, 0))
+gear1.AddCylinder(0.05, 0.02)  # Radius 0.05, height 0.02
+system.Add(gear1)
 
-# Gear 1 (driven by motor)
-body_gear1 = chrono.ChBodyEasy()
-body_gear1.SetPos(chrono.ChVectorD(2, 0, 0))
-system.Add(body_gear1)
+# Gear 2 (Driving)
+gear2 = chrono.ChBodyEasy()
+gear2.SetMass(0.05)
+gear2.SetPos(chrono.ChVectorD(-0.15, 0.1, 0))
+gear2.AddCylinder(0.05, 0.02)  # Radius 0.05, height 0.02
+system.Add(gear2)
 
-gear1_shape = chrono.ChGearShape()
-gear1_shape.GetGearGeometry().SetRadius(0.3)
-gear1_shape.GetGearGeometry().SetHeight(0.2)
-gear1_shape.GetGearGeometry().SetNumTeeth(20)
-body_gear1.AddAsset(gear1_shape)
-body_gear1.SetCollide(True)
-body_gear1.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+# Create a revolute joint for Gear 1
+joint_gear1 = chrono.ChLinkRevolute()
+joint_gear1.Initialize(body_arm, gear1, chrono.ChCoordsys(chrono.ChVectorD(0.15, 0, 0)))
+system.Add(joint_gear1)
 
-# Gear 2 (driven gear)
-body_gear2 = chrono.ChBodyEasy()
-body_gear2.SetPos(chrono.ChVectorD(3, 0, 0))
-system.Add(body_gear2)
-
-gear2_shape = chrono.ChGearShape()
-gear2_shape.GetGearGeometry().SetRadius(0.3)
-gear2_shape.GetGearGeometry().SetHeight(0.2)
-gear2_shape.GetGearGeometry().SetNumTeeth(40)
-body_gear2.AddAsset(gear2_shape)
-body_gear2.SetCollide(True)
-body_gear2.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+# Create a revolute joint for Gear 2
+joint_gear2 = chrono.ChLinkRevolute()
+joint_gear2.Initialize(body_truss, gear2, chrono.ChCoordsys(chrono.ChVectorD(-0.15, 0, 0)))
+system.Add(joint_gear2)
 
 # ---
-# Create a gear pair constraint
+# Create a gear motor for Gear 2
 # ---
-gear_pair = chrono.ChLinkGear()
-gear_pair.Initialize(body_gear1, body_gear2, chrono.ChCoordsys(chrono.ChVectorD(0,0,0)))
-system.Add(gear_pair)
+motor = chrono.ChFunction_Const()
+motor.Set_y(10)  # Set the desired angular velocity (rad/s)
+motor_driver = chrono.ChLinkMotorRotationSpeed()
+motor_driver.Initialize(gear2, chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0)), motor)
+system.Add(motor_driver)
 
 # ---
-# Create a motor to drive gear 1
-# ---
-motor = chrono.ChMotorLinearSpring()
-motor.Set_Rest_Spring_K(1000)
-motor.Set_Rest_Spring_R(10)
-motor.Set_Motor_Speed(1) #rad/s
-motor.Set_Motor_Torque(1)
-motor.Initialize(body_gear1, body_truss, chrono.ChCoordsys(chrono.ChVectorD(0,0,0)))
-system.Add(motor)
-
-# ---
-# Visualization
+#   Visualization
 # ---
 
+# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Epicyclic Gears')
 vis.Initialize()
-vis.AddTypicalCamera(chrono.ChVectorD(2, 1.5, -2))
+vis.AddCamera(chrono.ChVectorD(0, 1, -2))
 vis.AddTypicalLights()
+
+# Set material properties for better visualization
+body_truss.SetMaterialMetallic(0.8, chrono.ChColor(0.5, 0.5, 0.5))
+body_arm.SetMaterialMetallic(0.8, chrono.ChColor(0.3, 0.7, 0.3))
+gear1.SetMaterialMetallic(0.8, chrono.ChColor(0.8, 0.8, 0.2))
+gear2.SetMaterialMetallic(0.8, chrono.ChColor(0.8, 0.8, 0.2))
 
 # ---
 # Simulation loop
 # ---
 while vis.Run():
-    vis.BeginScene()
+    vis.BeginScene(True, True, chrono.ChColor(0.2, 0.2, 0.3))
     vis.Render()
     vis.EndScene()
-    system.DoStepDynamics(0.005)
+    system.DoStepDynamics(0.001)  # Time step

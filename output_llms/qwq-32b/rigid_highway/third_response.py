@@ -11,7 +11,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVectorD(6, -70, 0.5)
-initRot = chrono.Q_from_AngZ(1.57)
+initRot = chrono.QuatFromAngleZ(1.57)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -22,7 +22,7 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -41,7 +41,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the HMMWV vehicle, set parameters, and initialize
+# Create and initialize the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -58,42 +58,30 @@ vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Update contact material properties
+# Create and initialize the terrain with updated parameters
 patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.4)
 patch_mat.SetRestitution(0.05)
 
-# Create the terrain with updated position and rotation
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-# Define terrain patch position and rotation
-patch_pos = chrono.ChVectorD(6, -70, 0)
-patch_rot = chrono.Q_from_AngZ(-chrono.CH_C_PI / 2)  # -90 degrees about Z-axis
-
-# Load collision mesh using vehicle's data path
-collision_mesh_filename = veh.GetDataFile("terrain/meshes/Highway_col.obj")
-collision_mesh = chrono.ChTriangleMeshConnected()
-collision_mesh.CreateFromWavefrontFile(collision_mesh_filename, True, True)
-collision_shape = chrono.ChTriangleMeshShape()
-collision_shape.SetMesh(collision_mesh)
-collision_shape.SetName("collision_patch")
-collision_shape.SetMutable(False)
-
-# Create terrain patch with updated parameters
+patch_transform = chrono.ChCoordsysD(
+    chrono.ChVectorD(6, -70, terrainHeight),
+    chrono.Q_from_AngZ(-math.pi/2)  # -90 degrees rotation around Z-axis
+)
 patch = terrain.AddPatch(patch_mat,
-                        collision_shape,
-                        patch_pos,
-                        patch_rot,
-                        True,  # use_texture
-                        0.01,  # texture_width
-                        False)  # use_vis_mesh
+                        patch_transform,
+                        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
+                        True,  # is_convex
+                        0.01,  # scale
+                        False)  # has_collision
 
-# Add visual mesh separately
+# Add visual mesh for terrain
 vis_mesh = chrono.ChTriangleMeshConnected()
-vis_mesh.CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)
+vis_mesh.LoadWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), False, True)
 tri_mesh_shape = chrono.ChTriangleMeshShape()
 tri_mesh_shape.SetMesh(vis_mesh)
 tri_mesh_shape.SetMutable(False)
-patch.GetGroundBody().AddVisualShape(tri_mesh_shape)
+patch.GetGroundBody().AddAsset(tri_mesh_shape)
 
 terrain.Initialize()
 
@@ -106,29 +94,24 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
+vis.AttachVehicle(vehicle)
 
-# Create the driver system
+# Create and initialize the driver
 driver = veh.ChInteractiveDriverIRR(vis)
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
+driver.SetSteeringDelta(render_step_size / 1.0)
+driver.SetThrottleDelta(render_step_size / 1.0)
+driver.SetBrakingDelta(render_step_size / 0.3)
 driver.Initialize()
 
 # Simulation loop
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
-render_steps = math.ceil(render_step_size / step_size)
-realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+realtime_timer = chrono.ChRealtimeStepTimer()
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if step_number % render_steps == 0:
+    if step_number % math.ceil(render_step_size / step_size) == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

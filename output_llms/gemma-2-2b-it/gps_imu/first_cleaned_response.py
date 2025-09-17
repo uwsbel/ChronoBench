@@ -1,58 +1,64 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import pychrono.imu as imu
-import pychrono.gps as gps
-import pychrono.vehicle as vehicle
+import pychrono.gui as gui
 
 
 chrono.init()
 
 
-irr_win = irrlicht.IrrlichtEngine()
-irr_win.createWindow("HMMWV Simulation")
+engine = irrlicht.IrrlichtEngine()
 
 
-vehicle_model = vehicle.Vehicle()
-vehicle_model.setMass(1000)  
-vehicle_model.setDimensions(1.5, 3, 1)  
+scene = engine.createScene()
 
 
-driver_model = vehicle.Driver()
-driver_model.setVehicle(vehicle_model)
+vehicle = chrono.Vehicle(
+    chrono.VehicleType.HMMWV,
+    chrono.Position(0, 0, 0),
+    chrono.Orientation(0, 0, 0, 0),
+    chrono.Mass(1000),  
+    chrono.Dimensions(4, 2, 1.5),  
+)
 
 
-imu_sensor = imu.IMU()
-imu_sensor.setVehicle(vehicle_model)
+terrain = chrono.Terrain(chrono.TerrainType.GRASS, chrono.Position(0, 0, 0))
 
 
-gps_sensor = gps.GPS()
-gps_sensor.setVehicle(vehicle_model)
+driver = chrono.Driver(vehicle)
 
 
-vehicle_model.setPosition(chrono.Vector3(0, 0, 0))
-vehicle_model.setVelocity(chrono.Vector3(0, 0, 0))
+imu = chrono.IMU(vehicle)
+gps = chrono.GPS(vehicle)
 
 
-terrain = chrono.Terrain()
-terrain.setDimensions(10, 10)
+vehicle.set_position(chrono.Position(0, 0, 0))
+vehicle.set_orientation(chrono.Orientation(0, 0, 0, 0))
 
 
-chrono.run()
+dt = 0.01  
+num_steps = 1000  
 
 
-while True:
+engine.initIrrlichtScene(scene)
+
+
+for step in range(num_steps):
     
-    imu_sensor.update()
-    gps_sensor.update()
-
-    
-    driver_model.update()
-
-    
-    vehicle_model.update()
+    imu.update(chrono.SensorData(vehicle.get_position(), vehicle.get_orientation()))
+    gps.update(chrono.SensorData(vehicle.get_position()))
 
     
-    irr_win.render()
+    vehicle.update(dt)
 
     
-    print("Vehicle mass:", vehicle_model.getMass())
+    terrain.update()
+
+    
+    engine.render()
+
+    
+    print("Vehicle mass:", vehicle.get_mass())
+
+
+engine.shutdown()
+chrono.shutdown()

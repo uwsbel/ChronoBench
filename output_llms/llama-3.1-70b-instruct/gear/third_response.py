@@ -82,41 +82,34 @@ link_gearBC.SetEpicyclic(True)
 sys.AddLink(link_gearBC)
 
 # Add Bevel Gear
-radD = 5
-mbody_gearD = chrono.ChBodyEasyCone(radD, 0.5, 1000, True, False, mat)
+mbody_gearD = chrono.ChBodyEasyCone(5, 5, 1000, True, False, mat)
 sys.Add(mbody_gearD)
 mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))
 mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))
 mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Link gear D to the truss with a revolute joint along the horizontal axis
 link_revoluteTD = chrono.ChLinkLockRevolute()
 link_revoluteTD.Initialize(mbody_gearD, mbody_truss, chrono.ChFramed(chrono.ChVector3d(-10, 0, -9), chrono.QUNIT))
 sys.AddLink(link_revoluteTD)
 
-# Create a 1:1 gear ratio between gear A and gear D
 link_gearAD = chrono.ChLinkLockGear()
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
-link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(-m.pi / 2)))
+link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_gearAD.SetTransmissionRatio(1)
-link_gearAD.SetEnforcePhase(True)
 sys.AddLink(link_gearAD)
 
-# Add a Pulley
-radE = 2
-mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radE, 0.5, 1000, True, False, mat)
+# Add Pulley
+mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 2, 0.5, 1000, True, False, mat)
 sys.Add(mbody_pulleyE)
 mbody_pulleyE.SetPos(chrono.ChVector3d(-10, -11, -9))
 mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))
 mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)
 
-# Link pulley E to the truss with a revolute joint along the horizontal axis
 link_revoluteTE = chrono.ChLinkLockRevolute()
 link_revoluteTE.Initialize(mbody_pulleyE, mbody_truss, chrono.ChFramed(chrono.ChVector3d(-10, -11, -9), chrono.QUNIT))
 sys.AddLink(link_revoluteTE)
 
-# Create a synchro belt constraint between gear D and pulley E
 link_beltDE = chrono.ChLinkSynchroBelt()
 link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed(), chrono.ChFramed())
 sys.AddLink(link_beltDE)

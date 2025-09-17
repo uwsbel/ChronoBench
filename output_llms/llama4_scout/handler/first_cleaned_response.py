@@ -1,6 +1,7 @@
 import chrono as ch
 import rospy
 from rospy.topics import Publisher
+from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Int32
 
 
@@ -11,14 +12,23 @@ system = ch.ChronoSystem()
 system.SetGravitationalAcceleration(ch.ChVector3(0, -9.81, 0))
 
 
-floor_body = ch.ChBodyEasyFloor("floor", ch.ChVector3(0, -10, 0))
-floor_body.SetFixed(True)
-system.Add(floor_body)
+floor_body = ch.ChBodyEasyFloor(
+    ch.ChVector3(0, -5, 0),  
+    ch.ChVector3(10, 0.1, 10),  
+    ch.ChColor(0.5, 0.5, 0.5)  
+)
+floor_body.SetBodyFixed(True)
+system.AddBody(floor_body)
 
 
-box_body = ch.ChBodyEasyBox(ch.ChVector3(1, 0, 0), ch.ChVector3(1, 1, 1), "box", ch.ChMaterialDesc().GetDefault())
-box_body.SetPos(ch.ChVector3(0, 1, 0))
-system.Add(box_body)
+box_body = ch.ChBodyEasyBox(
+    ch.ChVector3(0, 0, 0),  
+    ch.ChVector3(1, 1, 1),  
+    ch.ChColor(1, 0, 0)  
+)
+box_body.SetMass(10)
+box_body.SetInertiaXX(ch.ChVector3(1, 1, 1))
+system.AddBody(box_body)
 
 
 class CustomROSHandler:
@@ -31,42 +41,33 @@ class CustomROSHandler:
         self.publisher.publish(msg)
 
 
-class ChronoROSMgr:
-    def __init__(self, system, topic_name):
-        self.system = system
-        self.topic_name = topic_name
-        self.clock_handler = ch.ChROS_ClockHandler(system.GetChTimeStep())
-        self.body_handler = ch.ChROS_BodyHandler(system)
-        self.transform_handler = ch.ChROS_TransformHandler(system)
-        self.custom_handler = CustomROSHandler(topic_name)
+rospy.init_node('chrono_ros_simulation')
 
-    def configure(self):
-        self.clock_handler.Initialize()
-        self.body_handler.Initialize()
-        self.transform_handler.Initialize()
 
-    def register_handlers(self):
-        ch.ChROS_Manager.RegisterHandler(self.clock_handler)
-        ch.ChROS_Manager.RegisterHandler(self.body_handler)
-        ch.ChROS_Manager.RegisterHandler(self.transform_handler)
-        ch.ChROS_Manager.RegisterHandler(self.custom_handler)
+clock_handler = ch.ChROS_ClockHandler()
+body_handler = ch.ChROS_BodyHandler(system)
+transform_handler = ch.ChROS_TransformHandler(system)
+custom_handler = CustomROSHandler('/chrono_simulation/message')
 
-    def run(self):
-        rate = rospy.Rate(1 / self.system.GetChTimeStep())
-        while not rospy.is_shutdown():
-            self.system.DoStepDynamics()
-            self.clock_handler.Update()
-            self.body_handler.Update()
-            self.transform_handler.Update()
-            self.custom_handler.publish_message(int(self.system.GetChTime()))
-            rate.sleep()
 
-if __name__ == "__main__":
-    rospy.init_node('chrono_ros_integration', anonymous=True)
-    system.SetChTimeStep(0.01)
+ros_manager = ch.ChROS_Manager()
+ros_manager.RegisterHandler(clock_handler)
+ros_manager.RegisterHandler(body_handler)
+ros_manager.RegisterHandler(transform_handler)
+ros_manager.RegisterHandler(custom_handler)
 
-    chrono_ros_mgr = ChronoROSMgr(system, "/chrono_sim_time")
-    chrono_ros_mgr.configure()
-    chrono_ros_mgr.register_handlers()
 
-    chrono_ros_mgr.run()
+time_step = 0.01
+while not rospy.is_shutdown():
+    
+    system.DoStepDynamics(time_step)
+
+    
+    ros_manager.SpinOnce(time_step)
+
+    
+    custom_handler.publish_message(int(system.GetChTime()))
+
+    
+    rate = rospy.Rate(100)  
+    rate.sleep()

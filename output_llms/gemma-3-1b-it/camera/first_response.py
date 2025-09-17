@@ -1,109 +1,97 @@
 import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import Delaunay
+from pychrono.core import System
+from pychrono.core import Scene
+from pychrono.core import Physics
+from pychrono.core import Camera
+from pychrono.core import SensorManager
+from pychrono.core import Simulation
 
-def simulate_orbital_simulation(obj_file):
-    """
-    Simulates a triangular mesh orbiting a fixed body in a PyChrono simulation.
+# --- 1. Initialization ---
+try:
+    # Initialize PyChrono
+    chrono = pychrono.core.Core()
+    chrono.initialize()
+    print("PyChrono initialized successfully.")
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
-    Args:
-        obj_file (str): Path to the Wavefront .obj file containing the triangular mesh.
-    """
+# --- 2. Define Physical Systems and Objects ---
+# Define a triangular mesh (Wavefront .obj file)
+try:
+    mesh = chrono.load_mesh("path/to/your/triangle.obj")
+except Exception as e:
+    print(f"Error loading mesh: {e}")
+    exit()
 
-    try:
-        # 1. Initialize PyChrono
-        chrono = pychrono.Chrono()
-        chrono.set_environment(
-            "dynamic",  # Dynamic environment
-            "fixed_body",
-            "triangular_mesh",
-            obj_file
-        )
+# Define the object to be simulated
+object_name = "triangle"  # Change if needed
+object = chrono.create_object(object_name)
 
-        # 2. Load the mesh
-        try:
-            mesh = chrono.load_mesh(obj_file)
-        except Exception as e:
-            print(f"Error loading mesh: {e}")
-            return
+# Define the sensor manager
+sensor_manager = SensorManager(object)
 
-        # 3. Define Physical Systems
-        # Define the mesh
-        mesh_data = mesh.get_data()
+# Define the camera
+camera = chrono.create_camera(
+    object_name,
+    sensor_manager=sensor_manager,
+    camera_position=(0, 0, 5),  # Initial camera position
+    camera_orientation=0,       # Initial camera orientation
+    camera_resolution=100,      # Camera resolution
+    # Add other camera parameters as needed (e.g., focal length)
+)
 
-        # Define the fixed body
-        fixed_body = chrono.create_body(
-            name="FixedBody",
-            mass=10.0,  # Example mass, adjust as needed
-            position=(0, 0, 0),
-            rotation=(0, 0, 0)
-        )
+# --- 3. Set Default Parameters ---
+# Initial position and initial forces
+initial_position = (0, 0, 5)
+initial_force = 10.0
+initial_velocity = 0.0
 
-        # Define the orbiting object
-        orbiting_object = chrono.create_body(
-            name="OrbitingObject",
-            mass=5.0,  # Example mass, adjust as needed
-            position=(0, 0, 0),
-            rotation=(0, 0, 0)
-        )
+# Simulation parameters
+simulation_time = 10  # Simulation duration in seconds
+time_step = 0.1  # Time step for simulation
+simulation_rate = 10  # Simulation rate (frames per second)
 
-        # 4. Set Initial Conditions
-        # Initial position and orientation of the orbiting object
-        orbiting_object.position = (0, 0, 0)
-        orbiting_object.rotation = (0, 0, 0)
+# --- 4. Simulation Loop ---
+try:
+    simulation = chrono.create_simulation(
+        simulation_time,
+        simulation_rate,
+        initial_position,
+        initial_force,
+        initial_velocity,
+        object
+    )
+    print("Simulation started.")
 
-        # 5. Define Interactions
-        # Define forces between the mesh and the orbiting object.  Simple example:
-        #  - Mesh forces:  A simple force proportional to the distance between the mesh and the orbiting object.
-        #  - Orbiting object forces:  A force that pulls the orbiting object towards the mesh.
-        #  -  Adjust these to match the specific simulation requirements.
-        #  -  Consider using a more sophisticated force calculation method (e.g., Newton's laws).
+    # Simulate the system
+    for t in range(simulation_time):
+        # Update the camera position
+        camera.position = camera.position + camera.velocity * time_step
+        # Print camera buffer data
+        print(f"Time: {t}, Camera Position: {camera.position}")
 
-        # Mesh force (example - adjust based on mesh geometry)
-        mesh_force = 0.1  # Adjust this value
-        orbiting_object.force = mesh_force * 10 # Example:  Scale the force
+        # Simulate the system
+        simulation.update()
 
-        # Orbiting object force (example - pull towards the mesh)
-        orbiting_object.force = 0.05 # Example:  Pull the orbiting object towards the mesh
+    print("Simulation finished.")
 
-        # 6. Simulation Parameters
-        chrono.set_simulation_parameters(
-            time_step=0.01,  # Adjust for accuracy
-            gravity=0.0,  #  Adjust as needed
-            time_step=100,  # Adjust for accuracy
-            #  Other parameters as needed - e.g., damping, etc.
-        )
+except Exception as e:
+    print(f"Simulation failed: {e}")
+    exit()
 
-        # 7. Simulation Loop
-        for step in range(100):
-            # 8. Update Camera
-            camera_buffer = chrono.get_camera_buffer(
-                orbiting_object,
-                mesh_data,
-                time_step
-            )
+# --- 5. Cleanup ---
+# Stop the simulation
+simulation.stop()
+print("Simulation stopped.")
 
-            # Print camera buffer data
-            print(f"Step: {step}, Camera Buffer: {camera_buffer}")
-
-            # 9.  (Optional) Visualize the camera
-            #  This is a placeholder - you'd typically use matplotlib to visualize
-            #  the camera data.
-            #  Example:
-            #  plt.imshow(camera_buffer, cmap='gray')
-            #  plt.title(f"Camera Buffer - Step {step}")
-            #  plt.show()
-
-
-        # 10. End Simulation
-        chrono.end_simulation()
-
-    except Exception as e:
-        print(f"Error during simulation: {e}")
-
-
-if __name__ == "__main__":
-    # Replace with the path to your .obj file
-    obj_file = "triangular_mesh.obj"
-    simulate_orbital_simulation(obj_file)
+# --- 6.  Visualization (Optional - Requires matplotlib) ---
+#  This is a simplified visualization.  You'll likely want to enhance this.
+try:
+    plt.imshow(camera.image, cmap='gray')
+    plt.title("Camera Image")
+    plt.show()
+except Exception as e:
+    print(f"Visualization failed: {e}")

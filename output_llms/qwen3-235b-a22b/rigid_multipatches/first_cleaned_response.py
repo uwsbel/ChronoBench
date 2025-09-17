@@ -9,62 +9,34 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 vehicle = veh.HMMWV_Full(system)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
 vehicle.SetEngineType(veh.EngineModelType_SIMPLE)
-vehicle.SetDrivetrainType(veh.DrivetrainType4WD)
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
-vehicle.SetMeshVisualization(True)
+vehicle.SetDrivetrainType(veh.DrivetrainModelType_SHAFTS)
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.Initialize()
+vehicle.AddVisualizationAssets(veh.VisualizationType_MESH)
 
 
 terrain = veh.ChTerrain(system)
 
 
-patch_flat1 = terrain.AddPatch(
-    chrono.ChMaterialSurfaceNSC(),
-    chrono.ChVectorD(0, 0, 0),
-    chrono.ChVectorD(100, 100, 1),
-    "path/to/texture1.jpg"
-)
+patch_flat1 = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(20, 1, 20), "textures/concrete.jpg")
 
 
-patch_flat2 = terrain.AddPatch(
-    chrono.ChMaterialSurfaceNSC(),
-    chrono.ChVectorD(0, 50, 0),
-    chrono.ChVectorD(100, 100, 1),
-    "path/to/texture2.jpg"
-)
+patch_flat2 = terrain.AddPatch(chrono.ChVectorD(20, 0, 0), chrono.ChVectorD(20, 1, 20), "textures/grass.jpg")
 
 
-mesh = chrono.ChTriangleMeshConnected()
-mesh.BeginMesh()
-
-v0 = chrono.ChVectorD(-1, 0, 0.5)
-v1 = chrono.ChVectorD(1, 0, 0.5)
-v2 = chrono.ChVectorD(0, 0, 1.0)
-mesh.AddTriangle(v0, v1, v2)
-mesh.AddTriangle(v0, v2, v1)  
-mesh.EndMesh()
-patch_bump = terrain.AddPatch(
-    chrono.ChMaterialSurfaceNSC(),
-    mesh,
-    chrono.ChVectorD(0, 20, 0),
-    "path/to/bump_texture.jpg"
-)
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile("models/bump.obj"), False, False)
+patch_bump = terrain.AddPatch(bump_mesh, chrono.ChCoordsysD(chrono.ChVectorD(10, 0, 10), chrono.QUNIT), "textures/bump.jpg")
 
 
-
-patch_heightmap = terrain.AddPatch(
-    chrono.ChMaterialSurfaceNSC(),
-    "path/to/heightmap.png",
-    chrono.ChVectorD(20, 0, 0),
-    10, 10, 0.1,  
-    "path/to/heightmap_texture.jpg"
-)
+heightmap = veh.ChHeightmapTerrain(system)
+heightmap.SetHeightmap(chrono.GetChronoDataFile("heightmaps/heightmap_1.png"), 100, 100, 10, 10)
+patch_heightmap = terrain.AddPatch(heightmap, chrono.ChCoordsysD(chrono.ChVectorD(40, 0, 0), chrono.QUNIT), "textures/heightmap.jpg")
 
 
-system.Add(terrain)
-
-
-application = irr.ChIrrApp(system, 'HMMWV on Complex Terrain', irr.dimension2du(1024, 768))
+application = irr.ChIrrApp(system, "HMMWV Simulation", irr.dimension2du(1024, 768))
 application.AddTypicalLights()
 application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
 
@@ -76,7 +48,9 @@ driver = driver.ChIrrGuiDriver(application.GetDevice())
 driver.Initialize()
 
 
-step_timer = chrono.ChRealtimeStepTimer()
+step_size = 1e-3
+realtime_timer = chrono.ChRealtimeStepTimer()
+
 while application.GetDevice().run():
     time = system.GetChTime()
 
@@ -84,11 +58,13 @@ while application.GetDevice().run():
     driver_inputs = driver.GetInputs()
 
     
-    vehicle.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
 
     
-    step_timer.Spin(0.01)  
-    system.DoStepDynamics(step_timer.GetStep())
+    realtime_timer.Spin(step_size)
+    system.DoStepDynamics(step_size)
 
     
     application.BeginScene()

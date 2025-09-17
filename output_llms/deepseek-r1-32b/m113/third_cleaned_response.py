@@ -55,6 +55,8 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
 
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
 
 patch_mat = chrono.ChContactMaterialSMC()
 patch_mat.SetFriction(0.9)
@@ -69,11 +71,10 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBody()
+box = chrono.ChBodyEasyBox(10, 1, 1, 1000)
 box.SetPos(chrono.ChVector3d(5, 0, 0.5))  
-box.SetDimensions(chrono.ChVector3d(2, 1, 1))  
-box.SetMaterialSurface(patch_mat)  
-vehicle.GetSystem().AddBody(box)
+box.SetColor(chrono.ChColor(0.5, 0, 0))  
+vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -100,10 +101,11 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,12 +114,10 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -125,7 +125,6 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    
     driver_inputs.throttle = 0.8  
     
     
@@ -134,11 +133,9 @@ while vis.Run():
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
     
     step_number += 1

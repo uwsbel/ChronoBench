@@ -1,66 +1,88 @@
-import time
+import pychrono
 import numpy as np
-from pychrono import Chrono, System
-from pychrono.utils import get_time_unit
 import rospy
-from std_msgs.msg import Float64
+from pychrono.core import Chrono, System, PhysicalSystem, Force, Body, Transform
 
 
 gravity = 9.81  
-floor_mass = 1000  
-box_mass = 200  
-box_size = 1.0  
-box_position = [0, 0]  
-box_velocity = [0, 0]  
+time_step = 0.01  
 simulation_duration = 10  
-timestep = 0.01  
+simulation_rate = 10  
+num_timesteps = int(simulation_duration * simulation_rate)
 
 
-system = Chrono(
-    system_name="MySimulation",
-    gravity=gravity,
-    material_properties={"density": 2700, "elastic_modulus": 2.1e9},  
-    body_type="box",
-    body_position=[box_position],
-    body_velocity=[box_velocity],
-    simulation_duration=simulation_duration,
+system = Chrono.System()
+system.name = "MySimulation"
+system.description = "A simple simulation with a floor and a movable box."
+
+
+floor = PhysicalSystem()
+floor.name = "Floor"
+floor.material = "Wood"  
+floor.mass = 10.0  
+floor.friction = 0.1  
+
+
+box = PhysicalSystem()
+box.name = "Box"
+box.material = "Steel"
+box.mass = 5.0  
+box.friction = 0.2  
+box.position = [0, 0, 0]  
+
+
+
+box.position[0] = 0.0
+box.position[1] = 0.0
+box.position[2] = 0.0
+box.velocity[0] = 0.0
+box.velocity[1] = 0.0
+box.velocity[2] = 0.0
+
+
+rospy.init_node('my_simulation')
+rospy.loginfo("ROS initialized.")
+
+
+try:
+    chrono = Chrono(system, floor, box)
+    chrono.set_time_step(time_step)
+    chrono.set_simulation_duration(simulation_duration)
+    chrono.set_rate(simulation_rate)
+    chrono.set_name(simulation_duration)
+    chrono.set_description(simulation_duration)
+    chrono.set_body(body=body=box) 
+    chrono.set_transform(transform=Transform(
+        position=box.position,
+        velocity=box.velocity
+    ))
+    chrono.set_gravity(gravity)
+
     
-)
-
-
-
-
-
-
-
-
-floor = System()
-floor.add_object(system)
-floor.set_position([0, 0, 0])
-
-
-box = System()
-box.add_object(system)
-box.set_position([box_position[0], box_position[1], box_position[2]])
-box.set_velocity([0, 0])
-
-
-
-def publish_message(message):
-    rospy.loginfo("Publishing message: %s", message)
-    rospy.message_path("MySimulation_Update") 
-
-
-rospy.init_node('MySimulation')
-rospy.loginfo("ROS Manager initialized.")
-
-
-while True:
-    
-    system.update()
+    rospy.loginfo("ROS handler registered.")
 
     
-    publish_message(system.update())
+    rospy.sleep(simulation_rate)
 
     
-    time.sleep(timestep)
+    rospy.loginfo("Simulating...")
+    rospy.loginfo("Simulation loop initiated.")
+
+    
+    box.velocity[0] = 0.1
+    box.velocity[1] = 0.05
+    box.velocity[2] = 0.0
+    rospy.loginfo("Box velocity updated.")
+
+    
+    for _ in range(num_timesteps):
+        
+        box.position[0] += box.velocity[0]
+        box.position[1] += box.velocity[1]
+        box.position[2] += box.velocity[2]
+
+        
+        print("Box position: ", box.position)
+
+except rospy.ROSInterruptException:
+    print("Simulation interrupted.")

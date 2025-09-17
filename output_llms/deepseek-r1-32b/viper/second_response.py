@@ -54,7 +54,10 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 # Create camera sensor
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.ChQuatD(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))))
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(1.0, 0, 1.45),
+    chrono.ChQuaterniond(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0)))
+)
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  # update rate
@@ -70,9 +73,9 @@ manager.AddSensor(cam)
 # Set the simulation time step
 time_step = 1e-3
 
-# Variables for simulation and rendering control
+# Variables for simulation step and render step size
 step_number = 0
-render_step_size = 1.0 / 25  # Target FPS = 25
+render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
 
 # Simulation loop

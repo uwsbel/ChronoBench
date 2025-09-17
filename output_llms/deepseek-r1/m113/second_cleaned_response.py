@@ -3,7 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -17,9 +17,9 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -58,24 +58,27 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-
-Kphi = 2e6      
-Kc = 0          
-n = 1.1
-c = 20e3        
-phi = 30        
-K = 4e7         
-E_elastic = 2e7 
-damping = 0.0
-terrain.SetSoilParameters(Kphi, Kc, n, c, phi, K, E_elastic, damping)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 
 
-terrain.Initialize(terrainLength, terrainWidth, 0.2)  
-terrain.SetFlat(True, 0.0)  
+terrain.SetSoilParameters(
+    2e6,    
+    0,      
+    1.2,    
+    0.01,   
+    30,     
+    1e4,    
+    0.003,  
+    3e4     
+)
 
 
-terrain.GetMesh().SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
+heightmap_path = chrono.GetChronoDataFile("terrain/height_maps/flat.png")
+terrain.Initialize(heightmap_path, terrainLength, terrainWidth, 0, 0)
+
+
+texture_path = veh.GetDataFile("terrain/textures/dirt.jpg")
+terrain.GetMesh().SetTexture(texture_path, 100, 100)
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -92,33 +95,30 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
-
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
-
-
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
-while vis.Run() :
+
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -139,6 +139,5 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
     
     step_number += 1

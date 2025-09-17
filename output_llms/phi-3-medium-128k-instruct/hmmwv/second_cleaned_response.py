@@ -83,22 +83,23 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-kp = 1.0
-ki = 0.1
-kd = 0.01
-pid_controller = chrono.ChPIDController(vehicle.GetVehicle())
+kp = 1.0  
+ki = 0.1  
+kd = 0.05  
+
+
+pid_controller = chrono.ChPIDController(vehicle.GetSystem())
 pid_controller.SetP(kp)
 pid_controller.SetI(ki)
 pid_controller.SetD(kd)
-pid_controller.SetSaturationLimits(0.0, 1.0)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
 
 
 throttle_value = 0.3
-
-
-path_radius = 10.0
-sentinel_pos = chrono.ChVector3d(0, 0, 0.5)
-target_pos = chrono.ChVector3d(0, 0, 0.5)
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -107,6 +108,17 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+path_radius = 50.0
+path_center = chrono.ChVector3d(0, 0, 0.5)
+sentinel_point = chrono.ChVector3d(path_center.X() + path_radius, path_center.Y(), path_center.Z())
+target_point = chrono.ChVector3d(path_center.X() + path_radius, path_center.Y() + path_radius, path_center.Z())
+
+
+path_follower = chrono.ChPathFollower(vehicle.GetSystem())
+path_follower.SetPath(chrono.ChPath())
+path_follower.AddCircularPath(path_center, path_radius, 0.0, 2.0 * math.pi)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -120,17 +132,16 @@ while vis.Run() :
 
     
     
-    
-    target_pos.z = path_radius * math.sin(time)
-    target_pos.x = path_radius * math.cos(time)
-    driver_inputs = [throttle_value, pid_controller.ComputeSteering(sentinel_pos, target_pos)]
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
 
     
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
+    
+    path_follower.Update(step_size)
+    vehicle.Synchronize(time)
+    terrain.Synchronize(time)
+    vis.Synchronize(time)
+
+    
+    path_follower.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
@@ -141,5 +152,8 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    vis.AddSphere(sentinel_pos, 0.1, chrono.ChColor(1, 0, 0))  
-    vis.AddSphere(target_pos, 0.1, chrono.ChColor(0, 0, 1))
+    steering_input = pid_controller.Compute(vehicle.GetSystem().GetChVelocity(vehicle.GetSystem().GetChVelocity(vehicle.GetVehicle()))
+    vehicle.GetSystem().SetSteering(steering_input)
+
+    
+    vehicle.GetSystem().SetThrottle(throttle_value)

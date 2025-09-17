@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Modified initial position
+initLoc = chrono.ChVector3d(-40, 0, 0.5)  # Changed initial position
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -110,10 +110,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver parameters
-lane_change_duration = 5.0  # seconds
-lane_width = 3.0  # meters
-steering_angle = 0.5  # radians
+# Lane change maneuver parameters
+lane_change_start_time = 5.0  # seconds
+lane_change_duration = 2.0  # seconds
+lane_width = 3.7  # meters
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -125,20 +125,17 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Lane change logic
-    if time < lane_change_duration:
-        # Calculate steering angle based on time and lane width
-        steering_input = steering_angle * math.sin(math.pi * time / lane_change_duration)
-        driver.SetSteeringInput(steering_input)
-        driver.SetThrottleInput(0.5)  # Maintain constant speed during lane change
-    else:
-        # After lane change, apply braking
-        driver.SetSteeringInput(0)
-        driver.SetThrottleInput(0)
-        driver.SetBrakingInput(1)
-
     # Get driver inputs
     driver_inputs = driver.GetInputs()
+
+    # Lane change logic
+    if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
+        steering_angle = math.sin((time - lane_change_start_time) / lane_change_duration * math.pi) * lane_width / vehicle.GetVehicle().GetWheelbase()
+        driver_inputs.steering = steering_angle
+        
+    if time > lane_change_start_time + lane_change_duration + 2:
+        driver_inputs.throttle = 0
+        driver_inputs.braking = 1
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

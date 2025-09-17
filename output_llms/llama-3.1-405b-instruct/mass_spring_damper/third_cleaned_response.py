@@ -106,7 +106,6 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
 
-
 while vis.Run():
     vis.BeginScene()
     vis.Render()

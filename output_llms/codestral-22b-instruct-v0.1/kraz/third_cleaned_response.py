@@ -39,43 +39,44 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+truck = veh.Kraz()
+truck.SetContactMethod(contact_method)
+truck.SetChassisCollisionType(chassis_collision_type)
+truck.SetChassisFixed(False)
+truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
+truck.Initialize()
 
-vehicle_truck = veh.Kraz()
-vehicle_truck.SetContactMethod(contact_method)
-vehicle_truck.SetChassisCollisionType(chassis_collision_type)
-vehicle_truck.SetChassisFixed(False)
-vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
-vehicle_truck.Initialize()
-
-vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
-vehicle_truck.SetSteeringVisualizationType(vis_type)
-vehicle_truck.SetSuspensionVisualizationType(vis_type, vis_type)
-vehicle_truck.SetWheelVisualizationType(vis_type, vis_type)
-vehicle_truck.SetTireVisualizationType(vis_type, vis_type)
-
+truck.SetChassisVisualizationType(vis_type, vis_type)
+truck.SetSteeringVisualizationType(vis_type)
+truck.SetSuspensionVisualizationType(vis_type, vis_type)
+truck.SetWheelVisualizationType(vis_type, vis_type)
+truck.SetTireVisualizationType(vis_type, vis_type)
 
 
-vehicle_sedan = veh.Sedan()
-vehicle_sedan.SetContactMethod(contact_method)
-vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
-vehicle_sedan.SetChassisFixed(False)
-vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
-vehicle_sedan.Initialize()
+sedan = veh.Hmmwv()
+sedan.SetContactMethod(contact_method)
+sedan.SetChassisCollisionType(chassis_collision_type)
+sedan.SetChassisFixed(False)
+sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
+sedan.Initialize()
 
-vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
-vehicle_sedan.SetSteeringVisualizationType(vis_type)
-vehicle_sedan.SetSuspensionVisualizationType(vis_type, vis_type)
-vehicle_sedan.SetWheelVisualizationType(vis_type, vis_type)
-vehicle_sedan.SetTireVisualizationType(vis_type, vis_type)
+sedan.SetChassisVisualizationType(vis_type, vis_type)
+sedan.SetSteeringVisualizationType(vis_type)
+sedan.SetSuspensionVisualizationType(vis_type, vis_type)
+sedan.SetWheelVisualizationType(vis_type, vis_type)
+sedan.SetTireVisualizationType(vis_type, vis_type)
 
-vehicle_truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle_system = chrono.ChSystemNSC()
+vehicle_system.Add(truck.GetSystem())
+vehicle_system.Add(sedan.GetSystem())
+vehicle_system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle_truck.GetSystem())
-patch = terrain.AddPatch(patch_mat, terrain_mesh)
+terrain = veh.RigidTerrain(vehicle_system)
+patch = terrain.AddMesh(patch_mat, terrain_mesh)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -83,19 +84,19 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Vehicle Simulation')
+vis.SetWindowTitle('Kraz and Sedan Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(initLoc_truck, 25.0, 1.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle_truck.GetTractor())
-vis.AttachVehicle(vehicle_sedan.GetVehicle())
+vis.AttachVehicle(truck.GetTractor())
+vis.AttachVehicle(sedan.GetVehicle())
 
 
 driver_truck = veh.ChInteractiveDriverIRR(vis)
-driver_sedan = veh.ChDriver(vehicle_sedan.GetVehicle())
+driver_sedan = veh.ChPathFollowerDriver(sedan.GetVehicle(), "", 0)
 
 
 steering_time = 1.0  
@@ -109,8 +110,12 @@ driver_truck.Initialize()
 driver_sedan.Initialize()
 
 
-print("TRUCK MASS: ", vehicle_truck.GetTractor().GetMass())
-print("SEDAN MASS: ", vehicle_sedan.GetVehicle().GetMass())
+driver_sedan.SetThrottle(0.5)
+driver_sedan.SetSteering(0.0)
+
+
+print("TRUCK MASS: ", truck.GetTractor().GetMass())
+print("SEDAN MASS: ", sedan.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -125,7 +130,7 @@ tractor_state = []
 trailer_state = []
 
 while vis.Run():
-    time = vehicle_truck.GetSystem().GetChTime()
+    time = vehicle_system.GetChTime()
 
     
     if (step_number % render_steps == 0):
@@ -136,27 +141,26 @@ while vis.Run():
 
     
     driver_inputs_truck = driver_truck.GetInputs()
-    driver_inputs_sedan = veh.ChDriverInputs()
-    driver_inputs_sedan.m_throttle = 0.5
-    driver_inputs_sedan.m_steering = 0.0
 
     
     driver_truck.Synchronize(time)
+    driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
-    vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
+    truck.Synchronize(time, driver_inputs_truck, terrain)
+    sedan.Synchronize(time)
     vis.Synchronize(time, driver_inputs_truck)
 
     
     driver_truck.Advance(step_size)
+    driver_sedan.Advance(step_size)
     terrain.Advance(step_size)
-    vehicle_truck.Advance(step_size)
-    vehicle_sedan.Advance(step_size)
+    truck.Advance(step_size)
+    sedan.Advance(step_size)
     vis.Advance(step_size)
 
     
-    tractor_state.append(vehicle_truck.GetTractor().GetPos())
-    trailer_state.append(vehicle_truck.GetTrailer().GetPos())
+    tractor_state.append(truck.GetTractor().GetPos())
+    trailer_state.append(truck.GetTrailer().GetPos())
 
     
     step_number += 1

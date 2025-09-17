@@ -47,23 +47,22 @@ vis Irrlicht.SetChaseCameraDistance(5)
 vis Irrlicht.SetChaseCameraHeight(1.5)
 vis Irrlicht.SetLightDirection(chrono.ChVectorD(1, -1, 1))
 vis Irrlicht.SetSkybox("skybox")
-vis Irrlicht.SetTerrain(terrain)
+vis Irrlicht.SetTerrainTexture("terrain_texture.jpg")
+vis Irrlicht.SetVehicleLogo("bmw_logo.png")
+vis Irrlicht.Initialize()
 
-# Add materials for textures
-material = vis.ChVisualMaterial()
-material.SetTexture("vehicle_texture.jpg")
-material.SetEmissive(0.5, 0.5, 0.5)
-vis Irrlicht.AddMaterial(material)
-
-# Run the simulation
+# Simulation loop
 while vis Irrlicht.Run():
+    # Update driver inputs
     keyboard_driver.Update()
-    system.DoStepDynamics()
-    vis Irrlicht.Render()
     
-    # Check for exit condition
-    if vis Irrlicht.GetKeyboard().KeyDown(chrono.CH_KEY_ESCAPE):
-        break
+    # Advance simulation
+    system.DoStepDynamics()
+    
+    # Render scene
+    vis Irrlicht.BeginScene()
+    vis Irrlicht.Render()
+    vis Irrlicht.EndScene()
 
 # Cleanup
 vis Irrlicht.Close()

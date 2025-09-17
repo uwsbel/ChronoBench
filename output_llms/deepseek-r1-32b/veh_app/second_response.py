@@ -11,7 +11,7 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 print(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(0, -5, 0.4)  # Modified initial position
+initLoc = chrono.ChVector3d(0, -5, 0.4)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -95,31 +95,23 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
-# ------------------
-# Add box object
-# ------------------
+# Create a box object
 box = chrono.ChBody()
-box.SetBodyType(chrono.ChBodyType.STEPPED)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetMass(1)
 box.SetDimensions(chrono.ChVector3d(1, 1, 1))
-box.GetCollisionModel().AddBox(chrono.ChVector3d(0.5, 0.5, 0.5))
-box_texture = chrono.ChTexture()
-box_texture.SetTextureFilename(veh.GetDataFile("textures/blue.png"))
-box.GetAssets().push_back(box_texture)
+box.SetBodyFixed(True)
+box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().Add(box)
 
-# ------------------
-# Add cylinder object
-# ------------------
+# Create a cylinder object
 cylinder = chrono.ChBody()
-cylinder.SetBodyType(chrono.ChBodyType.STEPPED)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetMass(1)
-cylinder.GetCollisionModel().AddCylinder(0.5, 0.5, 1)
-cylinder_texture = chrono.ChTexture()
-cylinder_texture.SetTextureFilename(veh.GetDataFile("textures/blue.png"))
-cylinder.GetAssets().push_back(cylinder_texture)
+cylinder.SetBodyFixed(True)
+cylinder_shape = chrono.ChCylinder()
+cylinder_shape.SetRadius(0.5)
+cylinder_shape.SetHeight(1)
+cylinder.GetAssets().push_back(cylinder_shape)
+cylinder.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
 gator.GetSystem().Add(cylinder)
 
 # Create the interactive driver system
@@ -147,9 +139,7 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# ------------------
-# Add Lidar sensor
-# ------------------
+# Create and add Lidar sensor
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
@@ -158,7 +148,7 @@ lidar = sens.ChLidarSensor(
 lidar.SetName("Lidar Sensor")
 lidar.SetHorizontalSamples(800)
 lidar.SetVerticalChannels(300)
-lidar.SetHorizontalFOV(2 * math.pi)  # 360 degrees
+lidar.SetHorizontalFOV(2 * math.pi)
 lidar.SetMaxVerticalFOV(math.pi / 12)
 lidar.SetMinVerticalFOV(-math.pi / 6)
 lidar.SetMaxRange(100.0)
@@ -166,12 +156,10 @@ lidar.SetBeamShape(sens.ChLidarSensor.BeamShape_Rectangular)
 lidar.SetSampleRadius(2)
 lidar.SetDivergenceAngle(0.003)
 lidar.SetReturnMode(sens.ChLidarSensor.ReturnMode_Strongest)
-
-# Add filters
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZI())
-lidar.PushFilter(sens.ChFilterVisualizeLidar("Lidar Visualization"))
+lidar.PushFilter(sens.ChFilterVisualizeLidar())
 manager.AddSensor(lidar)
 
 # ---------------
@@ -180,13 +168,11 @@ manager.AddSensor(lidar)
 
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = tend  # Fixed end time to match simulation end time
-while time < end_time:
+while time < tend:
     time = gator.GetSystem().GetChTime()
-    # Set driver inputs
+    # set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-    
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
 

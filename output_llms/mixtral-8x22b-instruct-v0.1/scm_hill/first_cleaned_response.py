@@ -10,63 +10,54 @@ my_vehicle.Initialize(my_system)
 
 
 vehicle_model = veh.HMMWV()
-vehicle_model.SetContactMaterial(veh.ChMaterialSurfaceNSC(0.9, 0.9, 0.0005))
-vehicle_model.SetChassisCollisionType(veh.ChVehicle.CollisionType.NONE)
-vehicle_model.SetTireType(veh.ChVehicle.TireType.RIGID)
+vehicle_model.SetContactMaterial(veh.ChMaterialSurfaceNSC(0.9, 0.5, 0.0001))
+vehicle_model.SetChassisCollisionType(veh.ChVehicleCollisionType.NONE)
+vehicle_model.SetTireType(veh.ChVehicleTire.TYPE_TMEASY)
 vehicle_model.SetTireStepSize(0.01)
 
-my_vehicle.AddVehicle(vehicle_model)
+
+my_vehicle.SetChassisFixed(False)
+my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngZ(chrono.CH_C_PI_2)))
 
 
-my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngZ(chrono.CH_C_PI_2)))
-my_vehicle.SetInitVelocity(chrono.ChVectorD(0, 0, 0))
+terrain = veh.SCMDeformableTerrain(my_system, 20, 20, 0.1)
+terrain.SetPlasticFoundation(0.001)
+terrain.SetPlasticYield(0.1)
+terrain.SetPlasticHardening(0.1)
+terrain.SetElasticity(0.01)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.05)
+terrain.SetDampingF(0.2)
+terrain.SetDampingD(0.8)
+terrain.SetNearFar(1, 10)
+terrain.Initialize(vehicle_model)
 
 
-
-soil_properties = veh.ChMaterialSurfaceNSC()
-soil_properties.SetFriction(0.9)
-soil_properties.SetRestitution(0.01)
-soil_properties.SetYoungModulus(2e7)
-soil_properties.SetPlasticityDepth(0.001)
+height_map = np.zeros((20, 20))
+terrain.SetHeightMap(height_map)
 
 
-terrain = veh.ChTerrain()
-terrain.SetSCMFriction(0.9, 0.9, 0.0005)
-terrain.SetPlasticity(0.2)
-terrain.SetPlasticityDepth(0.001)
-terrain.SetSCMCohesion(100000)
-terrain.SetSCMFriction(0.9, 0.9, 0.0005)
+driver = veh.ChPathFollowerDriver(my_vehicle, 0.05, 1)
+driver.SetTargetSpeed(20)
 
 
-height_map = np.loadtxt("height_map.txt")
-terrain.SetTexture(veh.LoadTexture("terrain.png"))
-terrain.SetContactMaterial(soil_properties)
-terrain.Initialize(height_map)
+my_vehicle.SetContactMethod(veh.ChVehicle::CONTACT_METHOD_LINEAR)
+my_vehicle.SetChassisFixed(False)
+my_vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngZ(chrono.CH_C_PI_2)))
+my_vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizationType.PRIMITIVES)
 
 
-driver = veh.ChIrrGuiDriver()
-driver.SetChaseCamera(chrono.ChVectorD(0, -30, 1), 20, 0.05)
-driver.SetChaseCameraOffset(chrono.ChVectorD(0, 0, 0))
-driver.SetLightDirection(chrono.ChVectorD(0, -1, -1))
-driver.SetLightPosition(chrono.ChVectorD(0, 10, -10))
-driver.SetLightAmbient(chrono.ChVectorD(0.3, 0.3, 0.3))
-driver.SetLightDiffuse(chrono.ChVectorD(0.7, 0.7, 0.7))
-driver.SetLightSpecular(chrono.ChVectorD(0.5, 0.5, 0.5))
+visual_system = chronoirr.ChIrrApp(my_system, 'PyChrono HMMWV Simulation', chronoirr.dimension2du(800, 600))
+visual_system.AddTypicalSky()
+visual_system.AddTypicalLogo(chronoirr.vector3df(10, 0, 0))
+visual_system.AddTypicalCamera(chronoirr.vector3df(0, 0, 5), chronoirr.vector3df(0, 0, 0))
+visual_system.AddLightWithShadow(chronoirr.vector3df(10, 10, 10), chronoirr.vector3df(0, 0, 0), 10, 10, 50, 200, 250, 250, 250)
 
 
-driver.SetTimestep(0.01)
-driver.Initialize()
+while visual_system.GetDevice().run():
+    visual_system.BeginScene()
+    visual_system.DrawAll()
+    visual_system.DoStepDynamics(0.01)
+    visual_system.EndScene()
 
-while driver.Run():
-    
-    my_system.DoStepDynamics(driver.GetTimestep())
-    my_vehicle.Synchronize(driver.GetTimestep())
-    driver.BeginScene()
-    driver.DrawAll()
-    driver.EndScene()
-
-    
-    driver.WaitForRetrace()
-
-
-driver.Finish()
+visual_system.GetDevice().closeDevice()

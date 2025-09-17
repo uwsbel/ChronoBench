@@ -125,9 +125,7 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
-
     
     realtime_timer.Spin(step_size)

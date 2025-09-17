@@ -17,8 +17,6 @@ crank_thick = 0.1
 rod_length = 1.5
 
 
-
-
 mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))
 mfloor.SetFixed(True)
@@ -27,7 +25,6 @@ sys.Add(mfloor)
 
 mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
 mcrank.SetPos(crank_center + chrono.ChVector3d(0, 0, -0.1))
-
 mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
 sys.Add(mcrank)
 
@@ -70,9 +67,9 @@ mjointC = chrono.ChLinkLockPlane()
 mjointC.Initialize(mpiston,
                    mfloor,
                    chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+                                   chrono.Q_ROTATE_Z_TO_X))
 sys.Add(mjointC)
+
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
@@ -97,6 +94,7 @@ while vis.Run():
     array_angle.append(my_motor.GetMotorAngle())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPosDt().x)
+    
     
     vis.BeginScene()
     vis.Render()

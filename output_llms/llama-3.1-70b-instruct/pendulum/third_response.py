@@ -6,29 +6,42 @@ import math
 sys = chrono.ChSystemNSC()
 
 # Set the gravitational acceleration for the system (in m/s^2)
-sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))  # g = 9.81 m/s^2
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
 
 # Create the ground body and add it to the simulation
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, chrono.ChVectorD(0, -1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+ground = chrono.ChBodyEasyBox(sys, 4, 0.5, 4, 1000, True, chrono.ChVector3d(0, -2, 0))
 sys.Add(ground)
 
 # Create the first pendulum body and add it to the simulation
-pend_1 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True, chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+pend_1 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True, chrono.ChVector3d(1, 0, 1))
 sys.Add(pend_1)
-
-# Create the second pendulum body and add it to the simulation
-pend_2 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True, chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-sys.Add(pend_2)
 
 # Create a revolute joint to connect the first pendulum to the ground
 rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)))
 sys.AddLink(rev_1)
+
+# Create the second pendulum body and add it to the simulation
+pend_2 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True, chrono.ChVector3d(2, 0, 1))
+sys.Add(pend_2)
 
 # Create a revolute joint to connect the second pendulum to the first pendulum
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVector3d(0, 0, 1)))
 sys.AddLink(rev_2)
+
+# Add visualization to the bodies
+vis_ground = chrono.ChVisualShapeBox(chrono.ChVector3d(4, 0.5, 4))
+vis_ground.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+ground.AddVisualShape(vis_ground)
+
+vis_pend_1 = chrono.ChVisualShapeCylinder(0.2, 2)
+vis_pend_1.SetColor(chrono.ChColor(0.6, 0, 0))
+pend_1.AddVisualShape(vis_pend_1)
+
+vis_pend_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+vis_pend_2.SetColor(chrono.ChColor(0, 0.6, 0))
+pend_2.AddVisualShape(vis_pend_2)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -38,16 +51,8 @@ vis.SetWindowTitle('Double Pendulum demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
-vis.AddCamera(chrono.ChVectorD(0, 3, 6))  # Add a camera to the visualization
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization
-
-# Set the initial position of the first pendulum
-pend_1.SetPos(chrono.ChVectorD(1, 2, 0))
-pend_1.SetPosDt(chrono.ChVectorD(0, 0, 0))
-
-# Set the initial position of the second pendulum
-pend_2.SetPos(chrono.ChVectorD(1, 4, 0))
-pend_2.SetPosDt(chrono.ChVectorD(0, 0, 0))
 
 # Simulation loop
 log_info = True  # Flag to control logging
@@ -69,4 +74,5 @@ while vis.Run():
         print("     ", pos_2.x, "  ", pos_2.y)
         lin_vel_2 = pend_2.GetPosDt()  # Get the linear velocity of the second pendulum
         print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
+
         log_info = False  # Disable further logging

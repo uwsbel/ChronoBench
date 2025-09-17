@@ -6,6 +6,7 @@ import math
 import matplotlib.pyplot as plt
 
 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
@@ -22,9 +23,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0     
+terrainHeight = 0  
 terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainWidth = 100.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -39,7 +40,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
-log_step_size = 1.0 / 20    
+log_step_size = 1.0 / 20  
 
 
 vehicle = veh.HMMWV_Full()
@@ -106,7 +107,7 @@ imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
-imu.PushFilter(sens.ChFilterAccelAccess())  
+imu.PushFilter(sens.ChFilterAccelAccess())
 manager.AddSensor(imu)
 
 
@@ -118,7 +119,7 @@ gps = sens.ChGPSSensor(vehicle.GetChassisBody(),
 gps.SetName("GPS Sensor")
 gps.SetLag(0)
 gps.SetCollectionWindow(0)
-gps.PushFilter(sens.ChFilterGPSAccess())  
+gps.PushFilter(sens.ChFilterGPSAccess())
 manager.AddSensor(gps)
 
 
@@ -142,8 +143,7 @@ while vis.Run():
 
     if step_number % log_steps == 0:
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
-        if gps_coor is not None and len(gps_coor) > 0:
-            gps_data.append([gps_coor[0], gps_coor[1]])
+        gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
 
     
     driver.SetSteering(0.6)
@@ -172,14 +172,12 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-if gps_data:
-    gps_data = list(zip(*gps_data))
-    plt.figure(figsize=(10, 6))
-    plt.plot(gps_data[1], gps_data[0], label='GPS Trajectory')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('GPS Trajectory')
-    plt.legend()
-    plt.show()
-
-print("GPS Data: ", gps_data)
+gps_lat = [data[0] for data in gps_data]
+gps_long = [data[1] for data in gps_data]
+plt.figure(figsize=(10, 6))
+plt.plot(gps_long, gps_lat, label='GPS Trajectory')
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.title('GPS Trajectory')
+plt.legend()
+plt.show()

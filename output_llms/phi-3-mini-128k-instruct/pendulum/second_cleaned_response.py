@@ -1,4 +1,3 @@
-```python
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import math
@@ -46,4 +45,30 @@ pend_1.SetAngVel(chrono.ChVector3d(0, 0.5, 0))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
+vis.AttachSystem(sys)  
+vis.SetWindowSize(1024, 768)  
+vis.SetWindowTitle('ChBodyAuxRef demo')  
+vis.Initialize()  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddSkyBox()  
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))  
+vis.AddTypicalLights()  
+
+
+log_info = True  
+while vis.Run():
+    vis.BeginScene()  
+    vis.Render()  
+    vis.EndScene()  
+    sys.DoStepDynamics(1e-3)  
+
+    
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()  
+        print("t = ", sys.GetChTime())
+        print("     ", pos_1.x, "  ", pos_1.y)
+        lin_vel_1 = pend_1.GetPosDt()  
+        print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
+        ang_vel_1 = pend_1.GetAngVel()  
+        print("     ", ang_vel_1.x, "  ", ang_vel_1.y, "  ", ang_vel_1.z)
+        log_info = False

@@ -1,93 +1,91 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-from pychrono.vehicle.wheeled_vehicle import WheeledVehicleVisualizationType
-from pychrono.vehicle.wheeled_vehicle import ChWheeledVehicleVisualizationType
+import pychrono.vehicle.artcar as artcar
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
+chrono.SetChronoDataPath("path_to_chrono_data")  
+sys_path = "path_to_vehicle_data"  
 
 
-vehicle_system = chrono.ChSystemNSC()
-vehicle_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-
-
-
-vehicle = veh.ARTcar(vehicle_system)
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle = veh.Vehicle(sys_path)
 vehicle.SetChassisFixed(False)
-vehicle.SetChassisVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetSteeringVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetWheelVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
+vehicle.SetChassisCollide(True)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetChassisVisualizationFile("path_to_chassis_mesh.obj")  
 
 
-vehicle.Initialize(chrono.ChCoordinatorys(chrono.ChVectorD(0, 0, 0.5),
-                                         chrono.ChQuaternionD(1, 0, 0, 0)))
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+vehicle.Initialize(init_pos, init_rot)
 
 
-terrain = veh.RigidTerrain(vehicle_system)
+vehicle.SetTireContactMethod(veh.TireContactMethod_DEM)
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactMaterialProperties(2e5, 0.8)
 terrain.SetContactFrictionCoefficient(0.9)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(2e7, 0.3)
-terrain.SetContactForceModel(chrono.ChSystemNSC::ContactForceModel::Hertz)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactYoungModulus(2e5)
+terrain.SetContactPoissonRatio(0.3)
 
 
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
-                         chrono.ChVectorD(20, 20, 0),
-                         20, 20)
-patch.SetTexture(veh.RigidTerrain::Texture("PATH_TO_TEXTURE.png"))  
+terrain_patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
+                                chrono.ChVectorD(20, 20, 0),
+                                0, 0, 200, 200)
+terrain_patch.SetTexture("path_to_texture.png")  
 
 
-driver = veh.ChInteractiveDriverIRR(vehicle)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
+artcar.Create(vehicle)
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("ARTcar Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
-vis.AddSkyBox()
+vis = chronoirr.ChIrrApp(vehicle.GetSystem(), "ARTcar Simulation", chrono.ChVectorD(1280, 720))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))
-vis.AttachSystem(vehicle_system)
+vis.AddTypicalCamera(chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
 
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.GetChassisBody().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.GetChassisBody().SetBodyFixed(False)
+driver = veh.ChDriver(vehicle)
+vehicle.SetDriver(driver)
 
 
-veh.ChWheeledVehicleVisualSystemIRR(vis).AddVehicle(vehicle)
+step_size = 1e-3
+time_end = 100
+output_freq = 50  
 
-
-time_step = 0.01
-sim_time = 0
-target_fps = 50
-frame_time = 1.0 / target_fps
 
 while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    
+    throttle = 0.5
+    steering = 0.0
+    braking = 0.0
+
+    
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_W):
+        throttle = 1.0
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_S):
+        braking = 1.0
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_A):
+        steering = -0.5
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_D):
+        steering = 0.5
+
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
+
+    
     vis.BeginScene()
-    vis.Render()
-
-    
-    driver_inputs = driver.GetInputs()
-
-    
-    vehicle.Update(sim_time, driver_inputs)
-
-    
-    vehicle_system.DoStepDynamics(time_step)
-
-    
-    veh.ChWheeledVehicleVisualSystemIRR(vis).Update()
-
+    vis.DrawAll()
+    vis.DoStepDynamics(step_size)
     vis.EndScene()
 
     
-    sim_time += time_step
-    chrono.ChTime.sleep(frame_time)
+    if time > time_end:
+        break

@@ -1,565 +1,444 @@
-Okay, let's tackle this PyChrono simulation problem. The user wants a full HMMWV on a custom mesh terrain with specific parameters. First, I need to recall how to set up PyChrono simulations, especially with the vehicle module and Irrlicht.
+Okay, I need to create a PyChrono simulation based on the user's instructions. Let me start by recalling the steps required. 
 
-Starting with initializing the environment. I'll need to import pychrono and the vehicle module. Then create a Chrono::System and set the gravity. Also, enable the Irrlicht visualizer for rendering. Wait, but the user mentioned using Irrlicht specifically, so I should make sure to use that instead of other visualizers like Chrono::Engine's other options.
+First, the user wants a HMMWV on a custom mesh terrain using Irrlicht. So I'll need to import the necessary modules. PyChrono's vehicle and irrlicht modules are essential here. I'll start by importing chrono, chronovehicle, and chronoirr.
 
-Next, adding the vehicle. The HMMWV is a predefined vehicle in Chrono, so I can use the CreateHMMWV function. But they specified parameters like location, orientation, contact method, and TMEASY tire model. The location probably means setting the initial position and orientation of the vehicle. The contact method might be Chrono's default, but I need to check if there's a specific contact method required. The TMEASY tire model is part of the tire models in the vehicle module, so I need to set the tire type to TMEasyTire.
+Next, initializing the environment. The simulation needs to have core components like the physical system and visualization. The user mentioned using Irrlicht, so I'll set up the Irrlicht application with appropriate settings. The window title and camera position should be set to give a good view of the scene.
 
-For the terrain, they want a custom mesh using Highway_col.obj and Highway_vis.obj. The terrain can be created using the vehicle module's ChTerrain class. I'll need to load the collision and visual meshes. The collision mesh is for physics, and the visual mesh for rendering. The terrain should be added to the system, and the vehicle's terrain callback should point to it.
+Then, the terrain. The user specified using Highway_col.obj for collision and Highway_vis.obj for visualization. I need to load these meshes. The terrain system in Chrono::Vehicle can be used here. I'll create a chrono::vehicle::ChTerrain object, but since it's a custom mesh, maybe I need to use a chrono::collision::ChCollisionModel or perhaps a specific terrain class that allows custom meshes. Wait, the standard terrain in Chrono::Vehicle uses heightmaps, but here it's a mesh. Hmm, maybe I need to create a ChBody from the mesh files. Alternatively, there's a way to import the mesh as a terrain object. Let me think. The user wants both collision and visual meshes, so perhaps creating a ChBody that contains both collision shapes from the collision mesh and the visual mesh for rendering. 
 
-The interactive driver system requires handling user inputs for steering, throttle, and braking. In PyChrono, the driver can be an InputDriver, which might read from keyboard or joystick. The user probably expects keyboard controls. So I'll need to set up a keyboard driver, maybe using the Chrono::Vehicle::KeyboardDriver.
+Wait, the standard approach for custom terrain might involve importing the mesh as a static body. So I'll create a ChBody, set its collision shape using the collision mesh, and add the visual mesh for rendering. That makes sense. So I'll need to use chrono::ChBody and load the collision and visual meshes into it. The position and orientation of the terrain need to be set so the vehicle can drive on it. Maybe place it at the origin, but perhaps the user expects it to be flat? Or maybe the mesh's position is already defined. The user didn't specify, so I'll assume it's positioned correctly in the mesh files, but I might need to adjust.
 
-The simulation loop needs to run in real time at 50 frames per second. That means setting the step size to 1/50, and using the system's DoStepDynamics with that step. Also, the Irrlicht loop should handle rendering and input events each frame.
+Next, the HMMWV. The vehicle is a standard model in Chrono::Vehicle, so I can use the ChHMMWV class. The parameters include location, orientation, contact method, and TMEASY tires. The contact method could be set via the system's settings. The TMEASY tire model is specified, so when creating the vehicle, I need to set the tire model to TMEASY. Also, all components should use mesh visualization, so when creating the vehicle, set the visualization type to MESH.
+
+The vehicle's initial position and orientation: probably set to a point above the terrain. Maybe at (0,0,1) meters, assuming the terrain is at z=0. Orientation is typically along the x-axis, so using the default quaternion (no rotation). 
+
+Setting up the driver system. The user wants interactive controls for steering, throttle, and braking. The driver can be a ChIrrGuiDriver which allows keyboard/mouse input. I'll need to initialize that and link it to the vehicle.
+
+Simulation loop needs to run in real-time at 50 FPS. So the time step would be 1/50 seconds. The loop should handle user input, update the driver, update the vehicle, advance the simulation step, and render. Also, the Irrlicht window should be updated each frame.
 
 Let me outline the steps in code:
 
-1. Import necessary modules (chrono, chrono.vehicle, chrono.irrlicht)
-2. Create the Chrono system with gravity.
-3. Initialize the Irrlicht visualizer, set camera position.
-4. Create the HMMWV vehicle with specified parameters:
-   - Position and orientation (maybe at (0,0,1) to be above terrain)
-   - Contact method (Chrono::GetChronoContactMethod())
-   - Tire model set to TMEasyTire
-   - Enable visualization for all components (mesh visualization)
-5. Create the terrain with the custom meshes:
-   - Load collision and visual meshes
-   - Create terrain object, set meshes, add to system
-   - Set vehicle's terrain callback to this terrain
-6. Setup driver: KeyboardDriver for steering, throttle, brake
-7. Initialize simulation: set initial vehicle state, maybe set drive train mode to forward.
-8. Simulation loop:
-   - Update driver inputs
-   - Advance simulation step
-   - Render with Irrlicht
-   - Control frame rate to 50 Hz (maybe using time.sleep or Irrlicht's timing)
-   
-Wait, in PyChrono, the Irrlicht loop is usually handled with a while loop that checks for exit events. The step size is important here. Let me think about the exact parameters.
+1. Import modules and create the Irrlicht application.
+2. Create the terrain as a ChBody with collision and visual meshes.
+3. Create the HMMWV vehicle with specified parameters.
+4. Initialize the driver.
+5. Set up the simulation loop with the desired time step and real-time factor.
+6. Update the driver inputs each step and simulate.
 
-For the vehicle creation, the initial location might be a ChVector(0,0,1) to avoid intersecting with the terrain. The orientation could be identity (no rotation). The contact method is passed to the vehicle's constructor. The tire model is set via vehicle.SetTireModel(tire_model).
+Wait, but how exactly to load the mesh files for terrain? Using chrono::ChBody::AddAsset and chrono::ChTriangleMeshShape for collision and visualization. For collision, the mesh should be loaded as a convex or concave shape. Maybe using ChTriangleMeshShape with the collision mesh for collision detection, and another for visualization. Need to make sure the collision mesh is loaded correctly for physics interactions.
 
-The terrain's collision and visual meshes need to be loaded. The terrain's collision mesh is for physics, and visual for rendering. The terrain's position and rotation should be set so that the vehicle is on top. Maybe position the terrain at (0,0,0), and the vehicle's initial position above that.
+Also, when creating the vehicle, parameters like the location are set via the vehicle's initialization. The contact method is part of the system settings, so perhaps setting the system's contact method before creating the vehicle. The TMEASY tire model is set when creating the tires. The vehicle's visualization type should be set to use mesh files.
 
-The driver's inputs: steering, throttle, brake. The KeyboardDriver can be initialized with the vehicle's steering, throttle, and braking functions. Need to set up the driver's input functions properly.
+Let me start writing the code step by step.
 
-Wait, in the vehicle module, the driver is usually attached to the vehicle via vehicle.SetDriver(driver). The driver should have methods to update steering, throttle, etc.
+First, the imports:
 
-Also, for the simulation loop, each iteration should:
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-- Update the driver's inputs (steering, etc.)
-- Advance the system time step
-- Update the vehicle's state
-- Render the scene
-- Control the frame rate.
+Then, create the Irrlicht app:
 
-The Irrlicht visualizer's ShouldExit() and OnEvent() should be handled in the loop.
+my_system = chrono.ChSystemMulticore()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-Potential issues: making sure the terrain's meshes are correctly loaded and positioned. Also, ensuring that the tire model is properly set to TMEasyTire. Need to check the correct parameters for CreateHMMWV, like whether the tire model is a string or an instance of a tire class.
+application = irr.ChIrrApp(my_system, 'HMMWV on Custom Terrain', irr.dimension2du(1024,768))
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0,0,0))
+application.SetSymbolscale(0.01)
+application.SetTimestep(0.01)  # 100Hz, but need to adjust for real-time 50fps?
+Wait, the simulation time step and the render step might need to be considered. The user wants 50 frames per second, so the time step could be 0.02 seconds (1/50), but that's a bit large. Alternatively, the time step can be smaller and use a fixed step, then render at 50 FPS. The application.SetTimestep() sets the simulation time step. But the real-time factor is important here. The user wants real-time simulation, so the time step should be such that each step takes roughly the real time. So perhaps 0.01 seconds (100Hz) is better, and the render loop will handle it.
 
-Looking at the PyChrono documentation for CreateHMMWV: the tire model is specified by passing a tire_model parameter, which can be 'tmeasy' for TMEasyTire. So maybe:
+Wait, the user says "simulation loop runs in real time at 50 frames per second". So the simulation's time step should be 0.02 seconds (1/50) to match the frame rate. But that might be too large for some simulations. Alternatively, maybe the simulation runs with a smaller time step, but the rendering is synchronized to 50 FPS. Hmm, perhaps better to set the time step to 0.002 (500Hz) and then use the real-time factor. Wait, maybe the application should be set to real-time with the desired frame rate. Let me think again.
 
-vehicle = vehicle_types.CreateHMMWV(chrono.GetChronoDataFile('hmmwv/'),   # directory where HMMWV data is located
-                                   chassisPos=chrono.ChVectorD(0,0,1),
-                                   chassisFwd=chrono.ChVectorD(1,0,0),
-                                   chassisUp=chrono.ChVectorD(0,0,1),
-                                   fixed=False,
-                                   collision_type=chrono.ChCollisionSystem.GetChronoContactMethod(),
-                                   tire_model='tmeasy',
-                                   use_mesh=False)  # Wait, but user wants mesh visualization. Maybe the use_mesh parameter is different?
+The application's SetTimestep() sets the time step for the simulation. To run in real-time at 50 FPS, the time step should be 1/50 = 0.02 seconds. So application.SetTimestep(0.02). Then, in the loop, we can use application.DoStepDynamics() which advances the simulation by one time step each frame. The Irrlicht app's loop will handle the rendering at the specified frame rate. So that's probably the way.
 
-Wait, perhaps the vehicle's visualization is enabled via the visualization parameters. The user says "utilizing mesh visualization for all vehicle components", so maybe the vehicle should be created with mesh visualization enabled. The CreateHMMWV function might have parameters for that. Alternatively, after creating the vehicle, enable the visualization for each component.
+Next, creating the terrain. The terrain is a custom mesh. Let's create a static body for the terrain:
 
-Alternatively, maybe the use_mesh parameter is set to True. Let me check the parameters for CreateHMMWV in PyChrono. Assuming that there's an option to use mesh visualization, so perhaps setting use_mesh=True.
+terrain_body = chrono.ChBodyEasyStatic()
+terrain_body.SetCollide(True)
 
-Wait, the user's instruction says "utilizing mesh visualization for all vehicle components", so I need to ensure that when creating the vehicle, the mesh visualization is enabled. So in the CreateHMMWV function, perhaps passing a parameter like 'use_mesh' or 'use_visualization'.
-
-Alternatively, after creating the vehicle, we can call vehicle.SetChassisVisualizationType(chrono.ChassisVisualizationType_MESH) and similarly for other components. But maybe the CreateHMMWV function has an option to enable mesh visualization by default.
-
-Hmm, perhaps I should look up the PyChrono vehicle module's CreateHMMWV function parameters. Since I can't do that right now, I'll proceed with the assumption that there's a parameter to enable mesh visualization, or that it's part of the creation process.
-
-Alternatively, the user might have the vehicle components visualized via meshes, so after creating the vehicle, we can set each part's visualization type to mesh. For example:
-
-vehicle.GetChassis().SetVisualizationType(chrono.ChassisVisualizationType_MESH)
-vehicle.GetSuspension().SetVisualizationType(chrono.ChassisVisualizationType_MESH)
-and so on for wheels, etc. But that might be tedious. Alternatively, maybe the CreateHMMWV function has an option to use mesh visualization.
-
-Alternatively, perhaps the 'use_mesh' parameter in CreateHMMWV is set to True. Let me proceed with that.
-
-Now, the terrain: the collision and visual meshes are Highway_col.obj and Highway_vis.obj. So, the terrain is created with:
-
-collision_mesh = terrain.GetCollisionMesh()
-collision_mesh.SetFilename('Highway_col.obj')
-visual_mesh = terrain.GetVisualMesh()
-visual_mesh.SetFilename('Highway_vis.obj')
-
-Wait, the ChTerrain class requires specifying the collision and visual meshes. So when creating the terrain, we need to set those filenames. Also, the terrain's position and rotation.
-
-Wait, the ChTerrain class in Chrono::Vehicle requires passing the collision and visual meshes. So in code:
-
+# Load collision mesh
 collision_mesh = chrono.ChTriangleMeshShape()
-collision_mesh.SetName('collision_mesh')
+collision_mesh.SetName("Highway_collision")
 collision_mesh.SetMesh(chrono.ChTriangleMesh())
-collision_mesh.GetMesh().LoadWavefrontFile('Highway_col.obj')
-collision_mesh_pos = chrono.ChVectorD(0,0,0)  # position of the terrain
-collision_mesh.SetPos(collision_mesh_pos)
-collision_mesh.SetScale(1)  # assuming scale is 1
+collision_mesh.GetMesh().LoadWavefrontMesh("Highway_col.obj")
+terrain_body.GetCollisionModel().ClearModel()
+terrain_body.GetCollisionModel().AddTriangleMesh(collision_mesh.GetMesh(), False, False)
+terrain_body.GetCollisionModel().BuildModel()
+terrain_body.SetCollide(True)
 
-Similarly for visual mesh.
-
-Wait, perhaps the ChTerrain class is created with those meshes. Let me think:
-
-terrain = chrono.ChTerrain()
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(visual_mesh)
-terrain.SetPos(chrono.ChVectorD(0,0,0))
-system.Add(terrain)
-
-Alternatively, maybe the ChTerrain class requires the filenames directly. Wait, perhaps the code should be:
-
-terrain = chrono.vehicle.terrain.ChTerrain()
-terrain.SetCollisionMesh(chrono.ChTriangleMesh())
-terrain.GetCollisionMesh().LoadWavefrontFile('Highway_col.obj')
-terrain.SetVisualShape(chrono.ChTriangleMeshShape())
-terrain.GetVisualShape().GetMesh().LoadWavefrontFile('Highway_vis.obj')
-terrain.SetPos(chrono.ChVectorD(0,0,0))
-system.Add(terrain)
-
-Wait, maybe I need to create the collision and visual meshes as ChTriangleMeshShape objects. Let me structure it step by step.
-
-Alternatively, perhaps the ChTerrain constructor takes the collision and visual mesh filenames. But I'm not sure. Maybe it's better to look at an example. For example, in the Chrono tutorials, when creating a terrain with custom meshes:
-
-In some examples, they might do:
-
-collision_mesh = chrono.ChTriangleMeshShape()
-collision_mesh.SetName('collision')
-collision_mesh.SetMesh(chrono.ChTriangleMesh())
-collision_mesh.GetMesh().LoadWavefrontFile('Highway_col.obj')
-collision_mesh_pos = chrono.ChVectorD(0,0,0)
-collision_mesh.SetPos(collision_mesh_pos)
-collision_mesh.SetScale(1)
-
+# Load visual mesh
 visual_mesh = chrono.ChTriangleMeshShape()
-visual_mesh.SetName('visual')
+visual_mesh.SetName("Highway_visual")
 visual_mesh.SetMesh(chrono.ChTriangleMesh())
-visual_mesh.GetMesh().LoadWavefrontFile('Highway_vis.obj')
-visual_mesh.SetPos(visual_mesh_pos)
-visual_mesh.SetScale(1)
-
-Then, create the terrain object and set these meshes.
-
-Wait, but the terrain is a ChTerrain object which requires a terrain system. Alternatively, perhaps the terrain is part of the vehicle's terrain system. Wait, the vehicle's terrain callback is set to the terrain's collision system.
-
-Alternatively, maybe the terrain is added as a Chrono body with collision and visual shapes. Let me think differently: create a terrain body with the collision and visual meshes.
-
-Wait, perhaps the terrain is a ChBody, which has a collision mesh and a visual mesh. So:
-
-terrain_body = chrono.ChBodyEasyMesh('Highway_col.obj',  # collision mesh
-                                    1000,  # density
-                                    True,  # visualize
-                                    'terrain')
-terrain_body.SetPos(chrono.ChVectorD(0,0,0))
-terrain_body.SetBodyFixed(True)
-system.Add(terrain_body)
-
-But then the visual mesh would be separate. Hmm, perhaps the user's terrain requires both collision and visual meshes. So maybe:
-
-terrain_body = chrono.ChBody()
-terrain_body.SetBodyFixed(True)
-terrain_body.SetPos(chrono.ChVectorD(0,0,0))
-
-# Add collision mesh
-collision_mesh = chrono.ChTriangleMeshShape()
-collision_mesh.SetMesh(chrono.ChTriangleMesh())
-collision_mesh.GetMesh().LoadWavefrontFile('Highway_col.obj')
-collision_mesh.SetName('collision')
-terrain_body.AddAsset(collision_mesh)
-
-# Add visual mesh
-visual_mesh = chrono.ChTriangleMeshShape()
-visual_mesh.SetMesh(chrono.ChTriangleMesh())
-visual_mesh.GetMesh().LoadWavefrontFile('Highway_vis.obj')
-visual_mesh.SetName('visual')
+visual_mesh.GetMesh().LoadWavefrontMesh("Highway_vis.obj")
+visual_mesh.SetColor(chrono.ChColor(0.8,0.8,0.8))  # or whatever color
 terrain_body.AddAsset(visual_mesh)
 
-system.Add(terrain_body)
+my_system.Add(terrain_body)
 
-Then, the vehicle's terrain callback needs to be set to the terrain's collision system. Wait, the vehicle's terrain system is separate. The vehicle's terrain callback is a pointer to the terrain's collision system. So perhaps the terrain must be a ChTerrain object.
+Wait, but the collision mesh and visual mesh are separate. The code above adds the collision mesh to the collision model, and the visual mesh as an asset. That should work. The terrain body is static, so it doesn't move.
 
-Alternatively, maybe the vehicle's terrain system is set to use the terrain_body's collision information. This might be more complicated. Alternatively, perhaps the ChTerrain class is the right way.
+Now, the vehicle. Initialize the HMMWV with specific parameters. Let's see:
 
-Alternatively, perhaps the user's terrain is a flat plane, but here it's a custom mesh. So the ChTerrain class might be better suited. Let me check the ChTerrain documentation.
+First, set the system's contact method. The user mentioned contact method, perhaps default isChrono's solver. But maybe they want a specific one like NSC or something else. The user didn't specify, so I'll assume the default, but perhaps it's better to set it explicitly. Wait, in Chrono::Vehicle, the tire models like TMEASY require certain contact settings. The TMEASY tire uses a tread mesh, so maybe the contact method is set via the system's settings. Let me check.
 
-The ChTerrain class in Chrono::Vehicle is designed to handle terrains, including custom meshes. It requires a collision mesh and a visual mesh. So, to create it:
+The ChHMMWV class has parameters for location and orientation. The contact method for the vehicle's tires is set when creating the tires. The TMEASY tire model is selected via the tire type. 
 
-terrain = chrono.vehicle.terrain.ChTerrain(system)  # passing the system
+So, creating the vehicle:
 
-# Set the collision mesh
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-terrain.SetCollisionMesh(collision_mesh)
+vehicle = veh.ChHMMWV()
 
-# Set the visual mesh
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-terrain.SetVisualShape(visual_mesh)
+# Set vehicle position and orientation
+init_position = chrono.ChVectorD(0, 0, 1)  # assuming terrain is at z=0
+init_orientation = chrono.ChQuaternionD(1,0,0,0)
+vehicle.Initialize( init_position, init_orientation, my_system )
 
-terrain.SetPos(chrono.ChVectorD(0,0,0))  # position of the terrain
+Wait, but the HMMWV's Initialize function might require more parameters. Let me check the API. The ChHMMWV::Initialize function has parameters for the system, location, orientation, fixed (boolean), tire type, and terrain.
 
-# Add the terrain to the system
-system.Add(terrain)
+Wait, perhaps the correct parameters are:
 
-Wait, but I'm not sure if that's the correct way. Alternatively, the ChTerrain class might require a terrain system, but perhaps in PyChrono it's handled differently.
+vehicle.Initialize(my_system, 
+                  init_position, 
+                  init_orientation, 
+                  veh.ChTerrain(terrain_body.GetCollisionModel()), 
+                  veh.ChTireModelType.TMEASY)
 
-Alternatively, perhaps the code for the terrain is:
+Wait, maybe I need to pass the terrain's collision model to the vehicle's Initialize function. Alternatively, maybe the terrain is a separate object, and the vehicle's wheels will automatically interact via the system's collision detection. Hmm, perhaps the vehicle's Initialize function needs the terrain as a pointer to the terrain body's collision model. Alternatively, maybe the terrain is a separate object, and the vehicle's Initialize just needs the system and position.
 
-terrain = chrono.vehicle.terrain.ChTerrain()
-terrain.SetCollisionMesh(chrono.ChTriangleMesh())
-terrain.GetCollisionMesh().LoadWavefrontFile('Highway_col.obj')
-terrain.SetVisualShape(chrono.ChTriangleMeshShape())
-terrain.GetVisualShape().GetMesh().LoadWavefrontFile('Highway_vis.obj')
-terrain.SetPos(chrono.ChVectorD(0,0,0))
-system.Add(terrain)
+Wait, looking at the ChHMMWV documentation, the Initialize function typically takes:
 
-Hmm, perhaps I need to set the visual shape as a ChTriangleMeshShape. Let me see:
+void Initialize(ChSystem* system,
+                const ChVector<>& pos,
+                const ChQuaternion<>& rot,
+                bool chassis_fixed = false,
+                TireModelType tire_model = TireModelType::RIGID_TIRE,
+                bool use_suspension = true,
+                bool use_antiroll = true,
+                bool use_tank = false,
+                bool use_terrain = false)
 
-The SetVisualShape function expects a chrono.ChVisualShape object. So:
+Wait, perhaps I'm mixing up the parameters. Alternatively, maybe the TMEASY tire requires a specific terrain type. Maybe the terrain is a separate object, like a chrono::vehicle::ChTerrain, which might be a flat plane or a mesh. Alternatively, perhaps the terrain is represented by the collision model of the terrain body.
 
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(chrono.ChTriangleMesh())
-visual_shape.GetMesh().LoadWavefrontFile('Highway_vis.obj')
-terrain.SetVisualShape(visual_shape)
+Alternatively, perhaps the vehicle's wheels will automatically detect collisions with the terrain body's collision model, so the terrain doesn't need to be passed explicitly. Maybe I can proceed by just initializing the vehicle's position and orientation, and let the system handle the collisions.
 
-Similarly for collision.
+Wait, maybe the correct way is:
 
-This might be the way. So putting it all together.
+vehicle.SetTireType(veh.ChTireModelType.TMEASY)
+vehicle.Initialize(my_system, init_position, init_orientation)
 
-Once the terrain is set up, the vehicle's terrain system must be informed of it. The vehicle's terrain callback is set via vehicle.SetTerrain(terrain).
+But I'm not entirely sure. Let me think. The TMEASY tire model requires a specific setup. Maybe when creating the tires, the model is set, and the system's contact settings are sufficient. 
 
-Now, the driver. The keyboard driver in PyChrono is typically set up with:
+Also, the user wants all vehicle components to use mesh visualization. The HMMWV can be set to use mesh visualization via:
 
-driver = chrono.ChDriver()
-keyboard = chrono.ChKeyboard()
-driver.SetSteeringFunction(lambda: keyboard.GetSteering())
-driver.SetThrottleFunction(lambda: keyboard.GetThrottle())
-driver.SetBrakingFunction(lambda: keyboard.GetBraking())
+vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
+vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.MESH)
+vehicle.SetSuspensionVisualizationType(veh.SuspensionVisualizationType.MESH)
+vehicle.SetSteeringVisualizationType(veh.SteeringVisualizationType.MESH)
+vehicle.SetTireVisualizationType(veh.TireVisualizationType.MESH)
 
-Wait, but the exact functions might vary. Alternatively, using the vehicle's KeyboardDriver class.
+So that's important to include.
 
-Wait, in the vehicle module, there is a class chrono.vehicle.ChKeyboardDriver which can be attached to the vehicle.
+Now, the driver. The interactive driver is a ChIrrGuiDriver, which requires the Irrlicht application and the vehicle.
 
-So:
+driver = veh.ChIrrGuiDriver(application)
+driver.SetSteeringDelta(0.01)
+driver.SetThrottleDelta(0.01)
+driver.SetBrakingDelta(0.01)
 
-driver = chrono.vehicle.ChKeyboardDriver()
-vehicle.SetDriver(driver)
+Then, adding the vehicle's assets to the Irrlicht app. The vehicle's visualization must be added:
 
-Then, in the simulation loop, the driver's Update function is called each step.
+application.Add(vehicle.GetChassis())
 
-Putting all together, the code structure would be:
+Also, adding the terrain body to the application:
+
+application.Add(terrain_body)
+
+Wait, but the terrain body's assets are already set, so adding it to the application should display it.
+
+Now, the simulation loop. The user wants real-time at 50 FPS. So the time step is 0.02 seconds, and the loop should process each step and render.
+
+The application's main loop would typically look like:
+
+while application.GetDevice().run():
+    application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+But to control the frame rate, perhaps we need to set the real-time factor. The application has a method SetRealtimeFactor(1) to run in real-time. Also, the time step was set to 0.02, so each step is 0.02 seconds, and the loop runs at 50 FPS.
+
+Wait, the application's DoStep() function advances the simulation by one time step. So with the time step set to 0.02, each frame corresponds to one simulation step, which is real-time at 50 FPS.
+
+Putting it all together:
+
+Wait, also need to make sure that the driver is updated each step. The driver's Update() function is called each time to get user inputs and set the vehicle's controls.
+
+So inside the loop, before DoStep():
+
+driver.Synchronize(time, vehicle)
+driver.Update()
+
+Wait, the driver's Synchronize function is used to sync the simulation time with the driver's inputs. The Update function is to process user input.
+
+Wait, perhaps the correct sequence is:
+
+while application.GetDevice().run():
+    driver.SetInputs()
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+Wait, the exact steps might vary. The ChIrrGuiDriver has a method that needs to be called each frame to process input. The driver is linked to the vehicle, so each frame, the driver's Update() is called, which sends steering, throttle, etc., to the vehicle.
+
+Alternatively, the driver's Update() is called inside the loop, then the simulation step.
+
+Putting it all together, the code would look something like:
+
+...
+
+while application.GetDevice().run():
+    driver.SetInputs(vehicle)  # or driver.Update() ?
+
+    application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    application.DrawAll()
+    application.DoStepDynamics()  # advance simulation
+    application.EndScene()
+
+Wait, perhaps the driver's Update() is called before the simulation step. Let me check the standard example code from Chrono::Vehicle.
+
+Looking at the example files like vehicle/wheeled/ChIrrGuiDriver.cpp, the typical loop is:
+
+while (application.GetDevice().run())
+{
+    driver->Synchronize(time, vehicle);
+
+    application.BeginScene();
+    application.DrawAll();
+    application.DoStep();
+    application.EndScene();
+}
+
+So the driver's Synchronize function is called each frame to set the driver inputs based on the current time and vehicle state.
+
+Therefore, in the code:
+
+Inside the loop:
+
+driver.Synchronize(time, vehicle)
+application.DoStepDynamics() 
+
+Wait, but how to get the time? The time can be obtained from the system's current time.
+
+Alternatively, perhaps the driver's Synchronize function requires the current simulation time. So:
+
+current_time = my_system.GetChTime()
+driver.Synchronize(current_time, vehicle)
+
+But in the loop, the time is advancing each step. So in each iteration, after the simulation step, the time increases.
+
+Hmm, perhaps the correct sequence is:
+
+Inside the loop:
+
+current_time = my_system.GetChTime()
+
+driver.Synchronize(current_time, vehicle)
+application.DoStepDynamics()  # which advances the time by one step
+
+Wait, but the order matters. The driver should set the inputs before the simulation step. So the order is correct.
+
+Putting all together, the code steps are:
+
+Initialize system and application.
+
+Create terrain body with collision and visual meshes.
+
+Create vehicle with specified parameters (position, orientation, tire model TMEASY, mesh visualization).
+
+Add driver.
+
+Add all items to the application.
+
+Then the loop.
+
+Now, checking for any missing parts. The user mentioned "custom mesh terrain using collision and visual meshes (Highway_col.obj and Highway_vis.obj)". So the code above loads those files. Need to ensure the files are in the correct path. The user might need to have those files in the working directory, but the code assumes that.
+
+Also, the vehicle's initialization: the position should be set so that the vehicle is above the terrain. The default HMMWV's chassis height might be such that (0,0,1) is appropriate, but maybe it's better to compute the terrain's height at that point. However, since it's a custom mesh, that's complicated. Alternatively, just set it to a point above the terrain.
+
+Another thing: the contact method. The user mentioned "contact method" but didn't specify which. The default in Chrono is NSC (no slip contact?), but maybe for the tires, TMEASY requires a specific contact method. The TMEASY tire model uses a tread mesh, so the system's contact method must be set to handle triangle meshes. 
+
+Wait, the system's contact method can be set via my_system.SetSolverType(chrono.ChSolver.Type.XXX). For example, to use the NSC solver, set:
+
+my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+
+But perhaps the default is okay. Alternatively, the TMEASY tire may require the system to have a certain contact method. Since the user didn't specify, maybe just proceed with defaults.
+
+Another thing: the vehicle's suspension and other parameters. The user didn't specify any changes beyond the tire model, so using defaults is okay.
+
+Now, putting all together into code.
+
+Wait, also, the vehicle's initialization may require passing the terrain's collision model. Let me check the ChHMMWV::Initialize function.
+
+Looking at the API, the ChHMMWV::Initialize function has parameters:
+
+void Initialize(ChSystem* system,
+                const ChVector<>& pos,
+                const ChQuaternion<>& rot,
+                bool chassis_fixed = false,
+                TireModelType tire_model = TireModelType::RIGID_TIRE,
+                bool use_suspension = true,
+                bool use_antiroll = true,
+                bool use_tank = false,
+                bool use_terrain = false)
+
+Hmm, the 'use_terrain' parameter is a boolean. Maybe that's for using a specific terrain object. Alternatively, perhaps the terrain is handled via the system's collision detection. Since the terrain is a static body in the system, the wheels should automatically collide with it.
+
+So the code for vehicle initialization would be:
+
+vehicle = veh.ChHMMWV()
+vehicle.SetTireType(veh.ChTireModelType.TMEASY)
+vehicle.Initialize(my_system, init_position, init_orientation)
+
+Wait, but the parameters for the Initialize function may require more arguments. Let me see an example from the Chrono examples.
+
+Looking at the example 'vehicle/wheeled/ChTMeasyTire.cpp', the code initializes the vehicle like:
+
+m_vehicle = std::make_shared<ChHMMWV>();
+m_vehicle->Initialize(m_system, ChVector<>(0, 0, 1), QUNIT, false, m_tire_model);
+
+Wait, so in Python, it would be:
+
+vehicle.Initialize(my_system, init_position, init_orientation, False, veh.ChTireModelType.TMEASY)
+
+Ah, that's better. So the parameters are:
+
+system, position, orientation, chassis_fixed (False), tire_model.
+
+So that's the correct way.
+
+Therefore, the vehicle initialization code is:
+
+vehicle = veh.ChHMMWV()
+vehicle.Initialize(my_system, init_position, init_orientation, False, veh.ChTireModelType.TMEASY)
+
+Also, setting the visualization types:
+
+vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
+vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.MESH)
+vehicle.SetSuspensionVisualizationType(veh.SuspensionVisualizationType.MESH)
+vehicle.SetSteeringVisualizationType(veh.SteeringVisualizationType.MESH)
+vehicle.SetTireVisualizationType(veh.TireVisualizationType.MESH)
+
+This ensures all parts use mesh visualization.
+
+Now, putting all together:
+
+The code would be:
 
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemMulticore()
+    my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Create the Irrlicht application
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024,768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0,0,0))
-app.AssetBind()
-app.AssetUpdate()
+    # Create the Irrlicht application
+    application = irr.ChIrrApp(my_system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
+    application.AddTypicalLights()
+    application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
+    application.SetSymbolscale(0.01)
+    application.SetTimestep(0.02)  # 50 Hz simulation step
+    application.SetRealtimeFactor(1)  # Real-time simulation
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV()
-vehicle.Initialize(chrono.ChVectorD(0,0,1), chrono.ChQuaternionD(1,0,0,0), system)
-vehicle.SetTireModel(veh.TireModelType.TMEASY)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    # Create terrain
+    terrain_body = chrono.ChBodyEasyStatic()
+    terrain_body.SetCollide(True)
 
-# Create the terrain
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
+    # Load collision mesh
+    collision_mesh = chrono.ChTriangleMeshShape()
+    collision_mesh.SetName("Highway_collision")
+    collision_mesh.SetMesh(chrono.ChTriangleMesh())
+    collision_mesh.GetMesh().LoadWavefrontMesh("Highway_col.obj")
+    terrain_body.GetCollisionModel().ClearModel()
+    terrain_body.GetCollisionModel().AddTriangleMesh(collision_mesh.GetMesh(), False, False)
+    terrain_body.GetCollisionModel().BuildModel()
+    terrain_body.SetCollide(True)
 
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(chrono.ChTriangleMeshShape())
-terrain.GetVisualShape().SetMesh(visual_mesh)
-terrain.SetPos(chrono.ChVectorD(0,0,0))
-system.Add(terrain)
+    # Load visual mesh
+    visual_mesh = chrono.ChTriangleMeshShape()
+    visual_mesh.SetName("Highway_visual")
+    visual_mesh.SetMesh(chrono.ChTriangleMesh())
+    visual_mesh.GetMesh().LoadWavefrontMesh("Highway_vis.obj")
+    visual_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    terrain_body.AddAsset(visual_mesh)
 
-vehicle.SetTerrain(terrain)
+    my_system.Add(terrain_body)
 
-# Create driver
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
+    # Create HMMWV vehicle
+    init_position = chrono.ChVectorD(0, 0, 1)
+    init_orientation = chrono.ChQuaternionD(1, 0, 0, 0)
+    vehicle = veh.ChHMMWV()
+    vehicle.Initialize(my_system, init_position, init_orientation, False, veh.ChTireModelType.TMEASY)
 
-# Simulation loop
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time)
-    
-    # Advance simulation
-    system.DoStepDynamics(1/50)
-    
-    # Render
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Control frame rate
-    irr.core.Sleeper().SleepMs(int(1000/50))
+    # Set visualization types to mesh
+    vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
+    vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.MESH)
+    vehicle.SetSuspensionVisualizationType(veh.SuspensionVisualizationType.MESH)
+    vehicle.SetSteeringVisualizationType(veh.SteeringVisualizationType.MESH)
+    vehicle.SetTireVisualizationType(veh.TireVisualizationType.MESH)
 
-Wait, but there might be some errors here. For example, the way the terrain is created may not be correct. Also, the vehicle's initialization parameters might need more details like the directory path for the vehicle data. The CreateHMMWV function might require a path to the data files, so perhaps:
+    # Add vehicle to the application
+    application.Add(vehicle.GetChassis())
 
-vehicle = veh.HMMWV(chrono.GetChronoDataFile('hmmwv/'))  # directory where HMMWV data is located
+    # Create driver
+    driver = veh.ChIrrGuiDriver(application)
+    driver.SetSteeringDelta(0.01)
+    driver.SetThrottleDelta(0.01)
+    driver.SetBrakingDelta(0.01)
 
-Wait, the HMMWV() constructor might take the path as an argument. Alternatively, the initialization function requires parameters like the system, location, etc.
+    # Simulation loop
+    while application.GetDevice().run():
+        current_time = my_system.GetChTime()
+        driver.Synchronize(current_time, vehicle)
 
-Wait, in the code above, I used vehicle.Initialize(...) which is correct. The Initialize function takes the position, orientation, system, etc.
+        application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
-Wait, the HMMWV class in PyChrono might have an __init__ that requires parameters. Alternatively, perhaps the correct way is to use the CreateHMMWV function from the vehicle_types module.
+if __name__ == '__main__':
+    main()
 
-Wait, perhaps the code should be:
+Wait, but the terrain body wasn't added to the application. Need to add it:
 
-vehicle = veh.vehicle_types.CreateHMMWV(chrono.GetChronoDataFile('hmmwv/'),   # directory
-                                       chassisPos=chrono.ChVectorD(0,0,1),
-                                       chassisFwd=chrono.ChVectorD(1,0,0),
-                                       chassisUp=chrono.ChVectorD(0,0,1),
-                                       fixed=False,
-                                       collision_type=system.GetContactMethod(),
-                                       tire_model='tmeasy',
-                                       use_mesh=True)
+application.Add(terrain_body)
 
-Wait, maybe the CreateHMMWV function has those parameters. Alternatively, I might have to check the parameters again.
-
-Alternatively, the code may need to import the specific functions from the vehicle module. Let me try to structure it correctly.
-
-Another possible issue is the driver's synchronization with the simulation time. The driver's Synchronize function might need the step size or other parameters.
-
-Also, the Irrlicht loop's timing: using the Sleeper might not be accurate, but it's a common approach.
-
-Putting all together, here's the code:
-
-Wait, but I need to make sure that the vehicle is added to the system. The Initialize function should handle that, or perhaps we need to add the vehicle's subsystems to the system.
-
-Wait, the vehicle's subsystems (chassis, wheels, etc.) are automatically added when initialized.
-
-Hmm, perhaps the code is mostly correct but needs some adjustments. Let me write the code step by step, following the user's instructions carefully.
+Ah yes, forgot that. So after creating the terrain body, add it to the application:
 
-Final code steps:
+application.Add(terrain_body)
 
-1. Import modules.
+Also, in the loop, the driver's Synchronize is called with current_time and vehicle. The vehicle is passed as a parameter to Synchronize.
 
-2. Create system with gravity.
+Another thing: the application's camera position. The user might want to adjust it. The initial camera position is set to (0,5,10), looking at (0,0,0). That should give a good view.
 
-3. Initialize Irrlicht app.
+Testing this code, I think it should work. Let me check for any missing parts.
 
-4. Create HMMWV with specific parameters: position (0,0,1), orientation identity, contact method (Chrono's default), TMEasy tires, mesh visualization.
-
-5. Create terrain with collision and visual meshes.
+Wait, the vehicle's visualization is added via application.Add(vehicle.GetChassis()), but the other parts (wheels, suspension, etc.) are handled via the vehicle's visualization settings. Since we set the visualization types to MESH, the vehicle's components should display correctly.
 
-6. Set vehicle's terrain.
+The driver's synchronization is done each frame, which sends inputs to the vehicle.
 
-7. Add driver.
+The time step is set to 0.02 (50 Hz), and the real-time factor is 1, so it should run in real time.
 
-8. Simulation loop with real-time at 50 Hz.
+Potential issues: the mesh files must exist in the working directory. Also, the TMEASY tire requires proper setup. The vehicle's initialization with TMEASY should be okay as per the example.
 
-Now, implementing this in code with correct syntax.
+Another possible issue: the collision mesh might be too complex, leading to performance issues, but that's beyond the code's scope.
 
-Wait, also, the vehicle's initialization requires specifying the directory where the HMMWV data is stored. The user might have that in the Chrono data directory, so using chrono.GetChronoDataFile('hmmwv/').
-
-Also, for the terrain, the mesh files might need their paths specified. Assuming they are in the current directory, but if not, the path should be provided.
-
-Putting all together, here's the code:
-
-```python
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-
-# Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Initialize the Irrlicht visualization
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
-
-# Create the HMMWV vehicle
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  # Path to HMMWV data
-    chassisPos=chrono.ChVectorD(0, 0, 1),
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',
-    use_mesh=True  # Enable mesh visualization
-)
-
-# Create the custom terrain
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(chrono.ChTriangleMeshShape())
-terrain.GetVisualShape().SetMesh(visual_mesh)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(terrain)
-
-# Set the terrain for the vehicle
-vehicle.SetTerrain(terrain)
-
-# Create interactive driver
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
-
-# Simulation loop
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time)
-    
-    # Advance simulation
-    system.DoStepDynamics(1/50)
-    
-    # Render
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Control frame rate (50 FPS)
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
-```
-
-Wait, but I'm not sure if the ChTerrain is correctly set up. The ChTerrain's visual shape is set to a ChTriangleMeshShape whose mesh is set to visual_mesh. But maybe the visual mesh should be set as a separate asset. Alternatively, perhaps the SetVisualShape function requires a ChVisualShape object.
-
-Alternatively, perhaps the code should be:
-
-terrain.SetVisualShape(chrono.ChTriangleMeshShape(visual_mesh, False, False))
-
-Wait, the ChTriangleMeshShape constructor takes the mesh and other parameters. Alternatively, maybe I should create the visual shape explicitly:
-
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
-visual_shape.SetName("terrain_visual")
-terrain.SetVisualShape(visual_shape)
-
-So modifying the terrain setup:
-
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
-terrain.SetVisualShape(visual_shape)
-
-That might be better.
-
-Also, the vehicle's initialization might need to be checked. The CreateHMMWV function's parameters may vary. For example, the 'tire_model' parameter might need to be a string like 'tmeasy' as specified.
-
-Another possible issue is the vehicle's suspension and other components' visualization. The use_mesh parameter might handle that, but perhaps it's better to explicitly set each component's visualization type to MESH.
-
-Alternatively, the 'use_mesh' parameter in CreateHMMWV is sufficient.
-
-Also, the driver's Synchronize function might require the step size or other parameters. The Chrono documentation for ChKeyboardDriver's Synchronize method says it takes the time step, so perhaps:
-
-driver.Synchronize(time, 1/50)
-
-Wait, checking the API: ChDriver::Synchronize(time, step) so in Python:
-
-driver.Synchronize(time, system.GetChTimeStep())
-
-But since we set the step to 1/50, maybe:
-
-driver.Synchronize(time, 1/50)
-
-Hmm, perhaps the code should have that.
-
-So adjusting the driver part:
-
-driver.Synchronize(time, 1/50)
-
-Putting all together, the corrected code would be:
-
-```python
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-
-# Create the Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-# Initialize the Irrlicht visualization
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
-
-# Create the HMMWV vehicle
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  # Path to HMMWV data
-    chassisPos=chrono.ChVectorD(0, 0, 1),
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',
-    use_mesh=True  # Enable mesh visualization
-)
-
-# Create the custom terrain
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
-
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
-
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
-
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(visual_shape)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-system.Add(terrain)
-
-# Set the terrain for the vehicle
-vehicle.SetTerrain(terrain)
-
-# Create interactive driver
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
-
-# Simulation loop
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time, 1/50)  # Pass step size
-    
-    # Advance simulation
-    system.DoStepDynamics(1/50)
-    
-    # Render
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Control frame rate (50 FPS)
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
-```
-
-This should address the main points. The key parts are creating the vehicle with mesh visualization, setting up the terrain with collision and visual meshes, adding the driver, and running the simulation loop at 50 Hz.
+So this should fulfill the user's requirements.
 </think>
 
 ```python
@@ -567,66 +446,76 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
-# Initialize Chrono system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+def main():
+    # Initialize the Chrono system
+    my_system = chrono.ChSystemMulticore()
+    my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-# Set up Irrlicht visualization
-app = irr.ChIrrApp(system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
-app.SetCamera(chrono.ChVectorD(0, 0, 5), chrono.ChVectorD(0, 0, 0))
-app.AssetBind()
-app.AssetUpdate()
+    # Create the Irrlicht visualization application
+    application = irr.ChIrrApp(my_system, 'HMMWV on Custom Terrain', irr.dimension2du(1024, 768))
+    application.AddTypicalLights()
+    application.AddTypicalCamera(chrono.ChVectorD(0, 5, 10), chrono.ChVectorD(0, 0, 0))
+    application.SetSymbolscale(0.01)
+    application.SetTimestep(0.02)  # 50 Hz simulation step
+    application.SetRealtimeFactor(1)  # Real-time simulation
 
-# Create HMMWV with specific parameters
-vehicle = veh.vehicle_types.CreateHMMWV(
-    chrono.GetChronoDataFile('hmmwv/'),  # Path to HMMWV data
-    chassisPos=chrono.ChVectorD(0, 0, 1),  # Position above terrain
-    chassisFwd=chrono.ChVectorD(1, 0, 0),
-    chassisUp=chrono.ChVectorD(0, 0, 1),
-    fixed=False,
-    collision_type=system.GetContactMethod(),
-    tire_model='tmeasy',  # TMEasy tire model
-    use_mesh=True  # Enable mesh visualization
-)
+    # Create custom terrain using mesh files
+    terrain_body = chrono.ChBodyEasyStatic()
+    terrain_body.SetCollide(True)
 
-# Create custom terrain from meshes
-collision_mesh = chrono.ChTriangleMesh()
-collision_mesh.LoadWavefrontFile('Highway_col.obj')
+    # Load collision mesh for terrain
+    collision_mesh = chrono.ChTriangleMeshShape()
+    collision_mesh.SetName("Highway_collision")
+    collision_mesh.SetMesh(chrono.ChTriangleMesh())
+    collision_mesh.GetMesh().LoadWavefrontMesh("Highway_col.obj")
+    terrain_body.GetCollisionModel().ClearModel()
+    terrain_body.GetCollisionModel().AddTriangleMesh(collision_mesh.GetMesh(), False, False)
+    terrain_body.GetCollisionModel().BuildModel()
+    terrain_body.SetCollide(True)
 
-visual_mesh = chrono.ChTriangleMesh()
-visual_mesh.LoadWavefrontFile('Highway_vis.obj')
+    # Load visual mesh for terrain
+    visual_mesh = chrono.ChTriangleMeshShape()
+    visual_mesh.SetName("Highway_visual")
+    visual_mesh.SetMesh(chrono.ChTriangleMesh())
+    visual_mesh.GetMesh().LoadWavefrontMesh("Highway_vis.obj")
+    visual_mesh.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    terrain_body.AddAsset(visual_mesh)
 
-visual_shape = chrono.ChTriangleMeshShape()
-visual_shape.SetMesh(visual_mesh)
+    my_system.Add(terrain_body)
+    application.Add(terrain_body)  # Add terrain to the visualization
 
-terrain = veh.ChTerrain(system)
-terrain.SetCollisionMesh(collision_mesh)
-terrain.SetVisualShape(visual_shape)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))  # Terrain position
-system.Add(terrain)
+    # Initialize HMMWV vehicle with TMEASY tires and mesh visualization
+    init_position = chrono.ChVectorD(0, 0, 1)  # Position above terrain
+    init_orientation = chrono.ChQuaternionD(1, 0, 0, 0)
+    vehicle = veh.ChHMMWV()
+    vehicle.Initialize(my_system, init_position, init_orientation, False, veh.ChTireModelType.TMEASY)
 
-# Configure vehicle-terrain interaction
-vehicle.SetTerrain(terrain)
+    # Set visualization types to mesh for all vehicle components
+    vehicle.SetChassisVisualizationType(veh.ChassisVisualizationType.MESH)
+    vehicle.SetWheelVisualizationType(veh.WheelVisualizationType.MESH)
+    vehicle.SetSuspensionVisualizationType(veh.SuspensionVisualizationType.MESH)
+    vehicle.SetSteeringVisualizationType(veh.SteeringVisualizationType.MESH)
+    vehicle.SetTireVisualizationType(veh.TireVisualizationType.MESH)
 
-# Setup interactive driver
-driver = veh.ChKeyboardDriver()
-vehicle.SetDriver(driver)
+    # Add vehicle chassis to the visualization
+    application.Add(vehicle.GetChassis())
 
-# Simulation loop
-while app.GetDevice().run():
-    time = system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time, 1/50)  # Pass time and step
-    
-    # Advance simulation
-    system.DoStepDynamics(1/50)  # Step size for 50 FPS
-    
-    # Render scene
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Control frame rate (50 FPS)
-    irr.core.Sleeper().SleepMs(int(1000 / 50))
+    # Create interactive driver for steering, throttle, and braking
+    driver = veh.ChIrrGuiDriver(application)
+    driver.SetSteeringDelta(0.01)
+    driver.SetThrottleDelta(0.01)
+    driver.SetBrakingDelta(0.01)
+
+    # Simulation loop
+    while application.GetDevice().run():
+        current_time = my_system.GetChTime()
+        driver.Synchronize(current_time, vehicle)
+
+        application.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
+
+if __name__ == '__main__':
+    main()
 ```

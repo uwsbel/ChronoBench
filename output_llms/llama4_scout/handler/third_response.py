@@ -53,7 +53,7 @@ def main():
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
-    publish_rate = 10  # Define the publishing rate for ROS handlers.
+    publish_rate = 10  # Publish rate for ROS handlers
     ros_manager = chros.ChROSPythonManager()
 
     # Register a clock handler for the simulation time.
@@ -74,25 +74,17 @@ def main():
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Setup visualization with Irrlicht
+    # Visualization setup with Irrlicht
     vis = ch.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
-    vis.SetWindowSize(ch.ChVector2i(800, 600))  # Set window size.
-    vis.SetWindowTitle("PyChrono Simulation")  # Set window title.
-    vis.EnableShadows()  # Enable shadows.
-    vis.EnableAntiAliasing()  # Enable anti-aliasing.
+    vis.SetWindowSize(ch.ChVector2i(800, 600))
+    vis.SetWindowTitle("PyChrono Simulation")
+    vis.EnableShadows()
+    vis.EnableSFX()
+    vis.SetCameraLocation(ch.ChVector3d(0, -10, 5))
+    vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
 
-    # Set up camera and lights
-    camera = vis.GetCamera()
-    camera.SetPosition(ch.ChVector3d(0, -10, 5))  # Set camera position.
-    camera.LookAtPoint(ch.ChVector3d(0, 0, 0))  # Set camera target.
-
-    # Create a directional light
-    light = vis.AddDirectionalLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(-1, -1, -1))
-    light.SetIntensity(1.0)  # Set light intensity.
-
-    # Simulation loop variables
-    time = 0
+    # Simulation parameters
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
     step_number = 0
@@ -102,22 +94,22 @@ def main():
     # Create a real-time step timer.
     realtime_timer = ch.ChRealtimeStepTimer()
 
-    while time < time_end:
+    while time_end > sys.GetChTime():
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
-
-        # Conditional rendering
-        step_number += 1
-        if step_number % render_step_size == 0:
-            vis.Render()  # Render the scene.
-            render_steps += 1
 
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
-    vis.Exit()  # Exit the visualization.
+        # Conditional rendering
+        render_steps += 1
+        if render_steps >= render_step_size:
+            vis.Render()
+            render_steps = 0
+
+    vis.EndScene()
 
 if __name__ == "__main__":
     main()

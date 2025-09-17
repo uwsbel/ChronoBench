@@ -36,6 +36,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
 vehicle = veh.M113()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetTrackShoeType(veh.TrackShoeType_SINGLE_PIN)
@@ -58,17 +59,11 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-soil_params = veh.SCMSoilParams()
-soil_params.SetFriction(0.9)
-soil_params.SetRestitution(0.01)
-soil_params.SetDamping(0.1)
-soil_params.SetBounciness(0.5)
-terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParams(soil_params)
-terrain.InitializeFromHeightMap(terrainLength, terrainWidth, terrainHeight)
+scm_terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+scm_terrain.SetSoilParameters(0.01, 0.0005, 0.01, 0.5)
+scm_terrain.Initialize(terrainLength, terrainWidth, terrainHeight, "data/heightmap.dat")
+scm_terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 
-
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -121,12 +116,12 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    scm_terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
     driver.Advance(step_size)
-    terrain.Advance(step_size)
+    scm_terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     

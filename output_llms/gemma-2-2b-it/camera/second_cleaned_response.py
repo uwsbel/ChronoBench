@@ -52,7 +52,7 @@ def main():
     
     
     
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(0.1, chrono.ChVector3d(0, 1, 0)))
 
     
     cam = sens.ChCameraSensor(

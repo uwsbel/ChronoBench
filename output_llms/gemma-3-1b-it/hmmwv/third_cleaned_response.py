@@ -136,7 +136,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-
-
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

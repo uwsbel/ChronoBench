@@ -1,64 +1,79 @@
 import pychrono
-import pychrono.core as pc
-import pychrono.visual as v
+import pychrono.core as chrono
+import pychrono.visual as visual
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.visual import Scene
 from pychrono.visual.mesh import Mesh
+from pychrono.visual.renderer import Renderer
+from pychrono.visual.scene import Scene
 
 # --- Simulation Parameters ---
 vehicle_id = 1
-terrain_height = 1.0  # meters
-terrain_slope = 0.01 # meters per second^2
-terrain_density = 0.5 # Density of soil patches
-terrain_patch_size = 1.0 # Size of the terrain patch
-vehicle_speed = 1.0 # m/s
-simulation_rate = 50.0 # Frames per second
+vehicle_type = "HMMWV"
+terrain_type = "SCM"
+terrain_height = 0.1  # meters
+terrain_slope = 0.02  # meters per second^2
+vehicle_speed = 1.0  # m/s
+simulation_duration = 60  # seconds
+frame_rate = 50
+
+# --- Initial Vehicle Setup ---
+vehicle_position = (0, 0, 0)  # meters
+vehicle_orientation = (0, 0, 0)  # radians
+vehicle_rigid_tire_model = {
+    "tire": {"radius": 0.2, "height": 0.05},
+    "suspension": {"spring_rate": 0.05, "damping": 0.1}
+}
 
 # --- SCM Terrain Setup ---
-terrain_data = np.zeros((terrain_height, 10), dtype=np.float32)
-terrain_data[0:5, 0] = 0.0  # Start with a flat ground
-terrain_data[5:10, 0] = 0.0  # Slightly slope down
+terrain_patch_size = 10.0  # meters
+terrain_patch_height = 0.05 # meters
+terrain_slope_factor = 0.02 # meters/second^2
+terrain_soil_parameters = {
+    "water_level": 0.0,
+    "soil_density": 0.001
+}
 
-# --- Vehicle Parameters ---
-vehicle_x = 0.0
-vehicle_y = 0.0
-vehicle_z = 0.0
-vehicle_orientation = 0.0
-vehicle_radius = 0.2
-vehicle_mass = 100.0
-vehicle_type = "HMMWV"
-
-# --- Initial Terrain Setup ---
-terrain_patch = v.Patch(
-    v.Color(0.5, 0.5, 0.5),
-    v.Mesh(
-        v.Plane(
-            v.Vector(0, 0),
-            v.Vector(vehicle_radius, vehicle_radius)
-        ),
-        v.Texture(
-            v.Color(0.8, 0.8, 0.8),
-            v.Uniform(0.0, 1.0, 0.0)
-        )
-    )
-)
-
-# --- PyChrono Setup ---
-scene = Scene(
-    vehicle_id,
-    terrain_data,
-    vehicle_type,
-    terrain_patch,
-    vehicle_x,
-    vehicle_y,
-    vehicle_z,
-    vehicle_orientation,
-    vehicle_radius,
-    simulation_rate,
-    v.Color(0.5, 0.5, 0.5)
-)
+# --- Simulation Setup ---
+simulation = chrono.Simulation(vehicle_id, vehicle_type, terrain_type,
+                              vehicle_position, vehicle_orientation,
+                              vehicle_rigid_tire_model,
+                              terrain_patch_size, terrain_patch_height,
+                              terrain_slope_factor, terrain_soil_parameters)
 
 # --- Visualization ---
-v.draw(scene)
-v.show(scene)
+renderer = Renderer(vehicle_type=vehicle_type,
+                    vehicle_position=vehicle_position,
+                    vehicle_orientation=vehicle_orientation,
+                    vehicle_rigid_tire_model=vehicle_rigid_tire_model,
+                    terrain_patch_size=terrain_patch_size,
+                    terrain_patch_height=terrain_patch_height)
+scene = Scene(renderer=renderer)
+
+# --- Real-Time Simulation Loop ---
+for frame in range(simulation.frames):
+    # --- Update Vehicle Dynamics ---
+    vehicle_position += vehicle_speed * frame * 0.01  # Adjust speed for smoother simulation
+    vehicle_orientation += vehicle_speed * frame * 0.01  # Adjust speed for smoother simulation
+
+    # --- Terrain Update ---
+    terrain_patch_height += terrain_slope_factor * frame * 0.01
+    terrain_patch_height = max(0.0, terrain_patch_height) # Ensure height doesn't go negative
+
+    # --- Rendering ---
+    scene.render(renderer)
+    scene.update()
+    scene.display()
+
+    # --- Print Frame Information ---
+    print(f"Frame {frame}: {vehicle_position}, {vehicle_orientation}")
+
+    # --- Simulation Timer ---
+    simulation.update()
+    simulation.step()
+
+    # --- Optional:  Add a delay for visual clarity (adjust as needed) ---
+    #time.sleep(0.01)  # Adjust for desired visual smoothness
+
+# --- Simulation Completion ---
+simulation.end()

@@ -11,6 +11,8 @@ mat = chrono.ChContactMaterialNSC()
 
 radA = 1.5
 radB = 3.5
+radD = 5.0  
+radE = 2.0  
 
 
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2, 1000, True, False, mat)
@@ -43,7 +45,7 @@ mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),
-                                                       chrono.QuatFromAngleX(chrono.CH_PI_2)))
+                                                        chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
 
 link_motor = chrono.ChLinkMotorRotationSpeed()
@@ -88,16 +90,16 @@ sys.AddLink(link_gearBC)
 
 
 
-radD = 5
-mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radD, 0.5, 1000, True, False, mat)
+mbody_gearD = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radD, 1.0, 1000, True, False, mat)
 sys.Add(mbody_gearD)
 mbody_gearD.SetPos(chrono.ChVector3d(-10, 0, -9))
 mbody_gearD.SetRot(chrono.QuatFromAngleZ(m.pi / 2))  
+mbody_gearD.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 
-bevel_vis_mat = chrono.ChVisualMaterial()
-bevel_vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/blu.png'))
-mbody_gearD.GetVisualShape(0).SetMaterial(0, bevel_vis_mat)
+mshaft_shapeD = chrono.ChVisualShapeCylinder(radD * 0.2, 12)
+mbody_gearD.AddVisualShape(mshaft_shapeD, chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
+                                                         chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
 
 link_revoluteD = chrono.ChLinkLockRevolute()
@@ -111,19 +113,20 @@ link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
 link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_gearAD.SetTransmissionRatio(1.0)  
+link_gearAD.SetEnforcePhase(True)
 sys.AddLink(link_gearAD)
 
 
-radE = 2
-mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radE, 0.3, 1000, True, False, mat)
+mbody_pulleyE = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, radE, 0.5, 1000, True, False, mat)
 sys.Add(mbody_pulleyE)
 mbody_pulleyE.SetPos(chrono.ChVector3d(-10, -11, -9))
 mbody_pulleyE.SetRot(chrono.QuatFromAngleZ(m.pi / 2))  
+mbody_pulleyE.GetVisualShape(0).SetMaterial(0, vis_mat)
 
 
-pulley_vis_mat = chrono.ChVisualMaterial()
-pulley_vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/green.png'))
-mbody_pulleyE.GetVisualShape(0).SetMaterial(0, pulley_vis_mat)
+mshaft_shapeE = chrono.ChVisualShapeCylinder(radE * 0.2, 12)
+mbody_pulleyE.AddVisualShape(mshaft_shapeE, chrono.ChFramed(chrono.ChVector3d(0, 0, 0),
+                                                           chrono.QuatFromAngleX(chrono.CH_PI_2)))
 
 
 link_revoluteE = chrono.ChLinkLockRevolute()
@@ -137,21 +140,16 @@ link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())
 link_beltDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_beltDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_beltDE.SetTransmissionRatio(radD / radE)  
+link_beltDE.SetEnforcePhase(True)
 sys.AddLink(link_beltDE)
 
 
-
-belt_shape = chrono.ChVisualShapeBox(0.2, 11, 0.1)  
-belt_vis_mat = chrono.ChVisualMaterial()
-belt_vis_mat.SetKdColor(chrono.ChColor(0.5, 0.2, 0.1))  
-belt_shape.SetMaterial(0, belt_vis_mat)
-
-
-belt_body = chrono.ChBody()
-sys.Add(belt_body)
-belt_body.SetFixed(True)
-belt_body.AddVisualShape(belt_shape, chrono.ChFramed(chrono.ChVector3d(-10, -5.5, -9),
-                                                   chrono.QUNIT))
+belt_mat = chrono.ChVisualMaterial()
+belt_mat.SetKdColor(chrono.ChColor(0.8, 0.2, 0.2))  
+belt_shape = chrono.ChVisualShapeBox(0.2, 11, 0.2)  
+belt_shape.SetMaterial(0, belt_mat)
+mbody_truss.AddVisualShape(belt_shape, chrono.ChFramed(chrono.ChVector3d(-10, -5.5, -9),
+                                                      chrono.QUNIT))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -171,9 +169,5 @@ sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-
-    
-    
-
     vis.EndScene()
     sys.DoStepDynamics(1e-3)

@@ -1,60 +1,70 @@
-import chrono as chrono
+import chrono as ch
 import numpy as np
+import matplotlib.pyplot as plt
 
 
-chrono.Initialize()
+ch.initialize()
 
 
-scene = chrono.Scene()
+world = ch.ChWorld()
 
 
-
-mesh_path = 'path_to_mesh.obj'
-mesh = chrono.ImportOBJ(mesh_path)
-
-
-body = chrono.ChBody()
+body = ch.ChBody()
 body.SetBodyFixed(True)
-body.AddAsset(chrono.ChTriangleMeshAsset(mesh))
-scene.Add(body)
+body.SetBodyInertia(1, 1, 1, 0, 0, 0)
+body.LoadObjectFromWavefront("mesh.obj")
+world.Add(body)
 
 
-camera = chrono.ChCameraSensor()
-camera.SetBody(body)
-camera.SetSensorMode(chrono.ChCameraSensor.SENSOR_MODE_COLOR)
+camera = ch.ChCameraSensor()
+camera.SetSensorType(ch.CT_CAMERA_SENSOR)
+camera.SetSensorId(0)
+camera.SetSensorWidth(640)
+camera.SetSensorHeight(480)
+camera.SetSensorFocalLength(50)
+camera.SetSensorXsize(640)
+camera.SetSensorYsize(480)
+camera.SetSensorXcenter(320)
+camera.SetSensorYcenter(240)
 
 
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(camera)
+sensor_manager = ch.ChSensorManager()
+sensor_manager.Add(camera)
 
 
-camera.SetFilter(chrono.ChCameraSensor.FILTER_GAUSSIAN)
-camera.SetVisualizationMode(chrono.ChCameraSensor.VISUALIZATION_MODE_GRAYSCALE)
+noise_filter = ch.ChNoiseFilter()
+noise_filter.SetFilterType(ch.CT_FILTER_GAUSSIAN)
+noise_filter.SetFilterSigma(5)
 
 
-camera.SetPosition(chrono.ChVector(0, 10, 20))
+camera.SetSensorFilter(noise_filter)
 
 
-t = 0
-dt = 0.01
-step = 0
-max_steps = 1000
-
-while t < max_steps * dt:
-    
-    body_pos = body.GetPos()
-    camera_pos = chrono.ChVector(np.cos(t) * 5, np.sin(t) * 5, 20)
-    camera.SetPosition(camera_pos)
-
-    
-    print(camera.GetBuffer())
-
-    
-    scene.DoStepDynamics(dt)
-
-    
-    t += dt
-    step += 1
+camera_visualization = ch.ChCameraVisualization()
+camera_visualization.SetVisualizationType(ch.CT_VISUALIZATION_CAMERA)
+camera_visualization.SetVisualizationId(0)
+camera_visualization.SetVisualizationWidth(640)
+camera_visualization.SetVisualizationHeight(480)
+camera_visualization.SetVisualizationFocalLength(50)
+camera_visualization.SetVisualizationXsize(640)
+camera_visualization.SetVisualizationYsize(480)
+camera_visualization.SetVisualizationXcenter(320)
+camera_visualization.SetVisualizationYcenter(240)
 
 
-chrono.CleanUp()
+sensor_manager.Add(camera_visualization)
+
+
+camera.SetSensorPosition(1, 0, 0)
+camera.SetSensorOrientation(0, 0, 0, 1)
+
+
+for i in range(100):
+    world.StepSimulation(0.01)
+    camera_data = camera.GetSensorData()
+    print(camera_data)
+    camera.SetSensorPosition(np.cos(i * 0.1) * 2, 0, np.sin(i * 0.1) * 2)
+    camera.SetSensorOrientation(0, 0, 0, 1)
+
+
+ch.finalize()

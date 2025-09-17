@@ -101,7 +101,7 @@ driver.Initialize()
 manager = sens.ChSensorManager(vehicle.GetSystem())
 
 
-offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QUNIT)
+offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuaternionD(1, 0, 0, 0))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
                                  10,        
                                  offset_pose,          
@@ -187,9 +187,10 @@ print("GPS Data: ", gps_data)
 
 
 gps_data = np.array(gps_data)
-plt.figure(figsize=(10, 10))
+plt.figure(figsize=(10, 8))
 plt.plot(gps_data[:, 0], gps_data[:, 1])
 plt.xlabel('Latitude')
 plt.ylabel('Longitude')
 plt.title('GPS Trajectory')
+plt.grid(True)
 plt.show()

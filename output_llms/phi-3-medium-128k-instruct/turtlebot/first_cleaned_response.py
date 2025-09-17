@@ -1,10 +1,12 @@
 import chrono
 
-import chrono_irrlicht_sensor as irr
+import chrono_irrlicht_sensor
 
-import chrono
+import chrono_implicit_impulse_dynamics_sensor
 
-import chrono_impact_sensor as impact
+import chrono_irrlicht_vis
+
+import chrono_vehicle_implicit_dynamics
 
 import numpy as np
 
@@ -16,132 +18,105 @@ chrono.Init()
 
 
 
-ground = chrono.ChBodyAux()
+ground_body = chrono.ChBodyAux()
 
-ground.SetName("Ground")
+ground_body.SetName("Ground")
 
-ground.SetBodyType(chrono.ChBodyType.STATIC)
+ground_body.SetMass(0)
 
-ground.SetMass(0)
+ground_body.SetDynamic(False)
 
-ground.SetInertiaTensor(chrono.ChVector3(0, 0, 0))
+ground_body.SetInertiaTensor(chrono.ChBoxInertia(1.0e10, 1.0e10, 1.0e10)
 
-ground.SetStaticFriction(0.0)
+ground_body.SetPos(chrono.ChVector(0, 0, 0))
 
-ground.SetDynamicFriction(0.0)
-
-ground.SetColor(chrono.ChColor(0, 0, 0))
+ground_body.SetRot(chrono.ChQuaternion(1, 0, 0, 0))
 
 
 
 
-turtlebot = chrono.ChBodyAux()
+ground_body_pair = chrono.ChBodySoftLink(ground_body)
 
-turtlebot.SetName("Turtlebot")
-
-turtlebot.SetBodyType(chrono.ChBodyType.DYNAMIC)
-
-turtlebot.SetMass(10.0)
-
-turtlebot.SetInertiaTensor(chrono.ChVector3(0.1, 0.1, 0.1))
-
-turtlebot.SetColor(chrono.ChColor(1, 0, 0))
+chrono.ChSystem.GetChSystem().AddBody(ground_body_pair)
 
 
 
 
-chrono.ChSystem.CreateChBody(ground)
+turtlebot = chrono_vehicle_implicit_impulse_dynamics_sensor.CreateTurtlebot(ground_body)
 
-
-
-
-turtlebot.SetPos(chrono.ChVector(0, 0, 0))
+turtlebot.SetPos(chrono.ChVector(0, 0, 0.1))
 
 turtlebot.SetRot(chrono.ChQuaternion(1, 0, 0, 0))
 
-
-
-
-chrono.ChSystem.CreateChBody(turtlebot)
-
-
-
-
-camera = irr.ChCamera()
-
-camera.SetName("Camera")
-
-camera.SetCameraPos(chrono.ChVector(0, 0, 5))
-
-camera.SetLookAt(chrono.ChVector(0, 0, 0))
-
-camera.SetFOV(chrono.ChVector(60, 0, 0))
-
-camera.SetNearClip(0.1)
-
-camera.SetFarClip(100)
-
-camera.SetUpAxis(chrono.ChVector(0, 1, 0))
-
-camera.SetColor(chrono.ChColor(0, 0, 0))
-
-camera.SetNearClipColor(chrono.ChColor(0, 0, 0))
-
-camera.SetFarClipColor(chrono.ChColor(0, 0, 0))
-
-camera.SetAmbientColor(chrono.ChColor(0, 0, 0))
-
-camera.SetBackgroundColor(chrono.ChColor(0, 0, 0))
+chrono.ChSystem.GetChSystem().AddBody(turtlebot)
 
 
 
 
-chrono.ChSystem.CreateCamera(camera)
+visualization = chrono_irrlicht_vis.CreateVisualizer()
+
+visualization.Init()
 
 
 
 
-irr.ChSensor.CreateSensor(camera)
+visualization.SetCamera(chrono.ChVector(1, 0, 1))
+
+visualization.SetTargetFrame(turtlebot)
+
+visualization.SetColor(chrono.ChVector(1, 1, 1))
 
 
 
 
-chrono.ChSystem.SetGravity(chrono.ChVector(0, 0, -9.81))
+visualization.SetLighting(chrono.ChColor(0.5, 0.5, 0.5))
 
 
 
 
-vis = irr.ChIrrApp()
+dt = 0.01
 
-vis.SetWindowSize(800, 600)
+time = 0
 
-vis.SetTitle("PyChrono Turtlebot Simulation")
-
-vis.SetTargetFrameRate(30)
-
-vis.AddSensor(camera.GetSensor())
-
-
-
-
-vis.Run()
-
-
-
-
-while vis.GetDoEvents():
+while chrono.ChSystem.GetChSystem().GetChTime() < 10:
 
     
 
-    turtlebot.SetMotorSpeed(chrono.ChVector(0.5, -0.5))
+    if time < 5:
 
-    chrono.ChSystem.DoStepDynamics(1.0 / 60.0)
+        turtlebot.SetMotor(0, 1)  
+
+        turtlebot.SetMotor(1, 0)  
+
+    elif time < 10:
+
+        turtlebot.SetMotor(0, 0)  
+
+        turtlebot.SetMotor(1, 1)  
+
+    else:
+
+        turtlebot.SetMotor(0, 0)  
+
+        turtlebot.SetMotor(1, 0)  
 
     
 
-    vis.Step()
+    chrono.ChSystem.GetChSystem().DoStepDynamics(dt)
+
+    
+
+    visualization.UpdateScene()
+
+    visualization.Render()
+
+    
+
+    time += dt
 
 
 
 
-chrono.ChSystem.Destroy()
+chrono.ChSystem.GetChSystem().Destroy()
+
+chrono.reset()

@@ -1,70 +1,51 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-from pychrono.irrlicht import IrrlichtDevice
-from pychrono.irrlicht import IrrlichtScene
+import pychrono.irrlicht as irrlicht
 
 # Initialize PyChrono
 chrono.init()
 
-# Create Irrlicht device and scene
-device = IrrlichtDevice()
-scene = IrrlichtScene(device)
+# Create Irrlicht environment
+engine = irrlicht.IrrlichtEngine()
+engine.createWindow("HMMWV Simulation", 800, 600)
+engine.run()
+
+# Create a RigidTerrain
+terrain = chrono.RigidTerrain()
+terrain.setDimensions(10, 10, 0.1)
+terrain.setTexture("terrain.jpg")
+terrain.setFriction(0.5)
+
+# Create a HMMWV
+vehicle = chrono.Vehicle()
+vehicle.setName("HMMWV")
+vehicle.setMass(1500)
+vehicle.setCenterOfMass(chrono.Vector3(0, 0, 0))
+
+# Set TMEASY tire model
+vehicle.setTireModel(chrono.TireModel.TMEASY)
 
 # Define vehicle parameters
-vehicle_mass = 2000.0  # kg
-vehicle_length = 4.0  # m
-vehicle_width = 2.0  # m
-vehicle_height = 1.5  # m
-vehicle_center_mass = (vehicle_length / 2.0, vehicle_width / 2.0, vehicle_height / 2.0)
+vehicle.setWheelRadius(0.2)
+vehicle.setWheelBase(2.5)
+vehicle.setWheelCount(4)
+vehicle.setContactMethod(chrono.ContactMethod.CONTACT)
 
-# Create vehicle model
-vehicle = chrono.Vehicle(
-    chrono.Body(chrono.Point(vehicle_center_mass[0], vehicle_center_mass[1], vehicle_center_mass[2])),
-    chrono.Shape(chrono.ShapeType.Box),
-    chrono.ContactMethod.Static,
-    chrono.TMEASY(
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-        chrono.TMEASYModel.Default,
-    ),
-)
-
-# Define terrain parameters
-terrain_width = 10.0  # m
-terrain_height = 0.5  # m
-terrain_texture = "terrain.png"
-
-# Create terrain model
-terrain = chrono.RigidTerrain(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.Size(terrain_width, terrain_height),
-    chrono.Texture(terrain_texture),
-)
+# Set initial position and orientation
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
+vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
 
 # Initialize driver system
-driver = chrono.Driver(
-    chrono.Point(0.0, 0.0, 0.0),
-    chrono.ControlMode.Steering,
-    chrono.ControlMode.Throttle,
-    chrono.ControlMode.Braking,
-)
+driver = chrono.Driver()
+driver.setThrottle(0.5)
+driver.setBrake(0.2)
+driver.setSteering(0.1)
 
-# Set simulation parameters
-dt = 0.01  # seconds
-fps = 50
+# Add the vehicle and terrain to the simulation
+engine.addTerrain(terrain)
+engine.addVehicle(vehicle)
 
-# Set up simulation loop
-while True:
-    # Update driver system
-    driver.update()
+# Set the simulation loop
+engine.setUpdateRate(50)
 
-    # Update vehicle dynamics
-    vehicle.update(dt)
-
-    # Render the scene
-    scene.render()
-
-    # Wait for next frame
-    chrono.wait(1.0 / fps)
+# Start the simulation
+engine.run()

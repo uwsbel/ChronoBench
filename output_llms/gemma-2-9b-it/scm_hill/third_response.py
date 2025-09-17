@@ -23,7 +23,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -65,10 +64,11 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetTerrainType(terrain_model)
-terrain.SetTerrainSize(terrainLength, terrainWidth, terrainHeight)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"))
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"))
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetSize(terrainLength, terrainWidth)
+terrain.Initialize()
+
 
 # Create the vehicle Irrlicht interface
 

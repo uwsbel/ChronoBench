@@ -65,6 +65,9 @@ spring_1.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_1)
 
 
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+
 
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_1, body_2, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
@@ -72,6 +75,9 @@ spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_2)
+
+
+spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
 
@@ -83,8 +89,6 @@ spring_3.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_3)
 
 
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 vis = chronoirr.ChVisualSystemIrrlicht()

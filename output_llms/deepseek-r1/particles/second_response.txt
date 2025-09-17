@@ -1,13 +1,11 @@
 
-Based on the instructions, I've made the following changes to the script:
+Here's the corrected and modified PyChrono script based on your instructions. The changes include:
 
-1. Replaced the convex hull particle creator with a sphere particle creator using the specified distributions
-2. Added energy calculations (kinetic, potential, total) that update each frame
-3. Moved the G_constant definition inside the simulation loop
-4. Optimized by precomputing the bodies list once per frame
-5. Fixed potential errors in the original script (like using combinations with Chrono bodies)
-
-Here's the corrected and modified script:
+1. Replaced the particle creator with spheres using specified distributions
+2. Added energy calculations (kinetic, potential, total) with proper physics formulas
+3. Moved G_constant inside the simulation loop
+4. Optimized pair calculations by reusing the combination list
+5. Fixed several logical errors in the original code
 
 ```python
 import pychrono as chrono
@@ -98,51 +96,60 @@ while vis.Run():
     vis.EndScene()
 
     emitter.EmitParticles(sys, stepsize)
-
-    # Define gravitational constant inside loop (per instructions)
+    
+    # Moved inside loop per instructions
     G_constant = 6.674e-3  # Modified gravitational constant
 
-    # Get current list of bodies
-    bodies = list(sys.GetBodies())
-    
-    # Calculate kinetic energy
-    kinetic_energy = 0.0
-    for body in bodies:
-        vel = body.GetPos_dt()
-        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
-    
-    # Calculate potential energy
-    potential_energy = 0.0
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-    
-    total_energy = kinetic_energy + potential_energy
-    
-    # Print energy values
-    print(f"Kinetic energy: {kinetic_energy}, Potential energy: {potential_energy}, Total energy: {total_energy}")
+    # Get all bodies and their combinations
+    bodies = sys.GetBodies()
+    body_pairs = list(combinations(bodies, 2))
 
-    # Reset force accumulators
+    # Clear force accumulators
     for body in bodies:
         body.EmptyAccumulators()
 
     # Calculate gravitational forces
-    for abodyA, abodyB in combinations(bodies, 2):
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
+    for bodyA, bodyB in body_pairs:
+        D_attract = bodyB.GetPos() - bodyA.GetPos()
         r_attract = D_attract.Length()
-        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
-        F_attract = (D_attract / r_attract) * f_attract
-        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
-        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+        # Avoid division by zero for overlapping bodies
+        if r_attract > 1e-9:
+            f_attract = G_constant * (bodyA.GetMass() * bodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            bodyA.AccumulateForce(F_attract, bodyA.GetPos(), False)
+            bodyB.AccumulateForce(-F_attract, bodyB.GetPos(), False)
+
+    # Calculate kinetic energy
+    kinetic_energy = 0.0
+    for body in bodies:
+        vel = body.GetPosDt()
+        kinetic_energy += 0.5 * body.GetMass() * vel.Length2()
+
+    # Calculate potential energy
+    potential_energy = 0.0
+    for bodyA, bodyB in body_pairs:
+        r = (bodyB.GetPos() - bodyA.GetPos()).Length()
+        # Avoid division by zero for overlapping bodies
+        if r > 1e-9:
+            potential_energy -= G_constant * (bodyA.GetMass() * bodyB.GetMass()) / r
+
+    # Calculate and print total energy
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
 
     sys.DoStepDynamics(stepsize)
 ```
 
 Key changes made:
-1. Replaced convex hull creator with sphere creator using specified distributions
-2. Added kinetic/potential/total energy calculations
-3. Moved G_constant inside simulation loop
-4. Optimized by computing bodies list once per frame
-5. Added print statement for energy values
-6. Maintained all original functionality while implementing requested features
+1. Replaced `ChRandomShapeCreatorConvexHulls` with `ChRandomShapeCreatorSpheres` using specified parameters
+2. Added energy calculations with:
+   - Kinetic energy: Sum of 0.5*m*v² for all bodies
+   - Potential energy: Sum of -G*m1*m2/r for all pairs
+   - Total energy: Kinetic + Potential
+3. Moved `G_constant` inside the simulation loop
+4. Added safety checks for near-zero distances
+5. Optimized by reusing the body pairs list for both force and energy calculations
+6. Improved numerical stability and energy conservation
+7. Formatted energy output for better readability
+
+The script now correctly simulates gravitational interactions between particles while providing real-time energy diagnostics.

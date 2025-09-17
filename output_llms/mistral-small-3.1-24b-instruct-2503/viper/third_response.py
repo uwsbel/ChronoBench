@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh  # Added import statement for pychrono.vehicle
+import pychrono.vehicle as veh  # Import statement added for pychrono.vehicle
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -15,17 +15,13 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 # Create SCM deformable terrain
 terrain = veh.SCMDeformableTerrain(system)
-plane = chrono.ChPlane(chrono.ChVector3d(0, 0, 1), 0)  # Plane equation: z = 0
-terrain.Initialize(plane, 100, 100, 0.25, 0.25)  # Length, width, mesh resolution
-soil_material = chrono.ChMaterialSurfaceSCM()
-soil_material.SetDensity(1500)  # Soil density in kg/m^3
-soil_material.SetRestitution(0.01)  # Restitution coefficient
-soil_material.SetFriction(0.4)  # Friction coefficient
-soil_material.SetAdhesion(500)  # Adhesion in Pa
-soil_material.SetYoungModulus(2e6)  # Young's modulus in Pa
-soil_material.SetPlasticity(0.2)  # Plasticity parameter
-soil_material.SetDampingRatio(0.05)  # Damping ratio
-terrain.SetMaterialSurface(soil_material)
+terrain.Initialize(chrono.ChVector3d(0, 0, 0),    # plane origin
+                   chrono.ChVector3d(1, 0, 0),    # plane normal
+                   100, 100,                        # terrain dimensions
+                   0.1, 0.1,                        # mesh resolution
+                   chrono.ChVector3d(0.5, 0.5, 0.5))  # soil parameters (density, cohesion, friction)
+terrain.SetContactMaterial(chrono.ChContactMaterialNSC())
+terrain.SetVisualizationType(veh.SCMDeformableTerrain.VisualizationType.TRIANGLES)
 system.Add(terrain)
 
 # Create Viper rover
@@ -43,7 +39,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Rigid terrain')
+vis.SetWindowTitle('Viper rover - Deformable terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

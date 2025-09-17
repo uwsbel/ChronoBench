@@ -21,6 +21,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
+
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -106,27 +107,6 @@ driver.Initialize()
 
 
 
-sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
-
-
-sensor_manager.AddPointLight(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1))
-sensor_manager.AddPointLight(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1, 1, 1))
-
-
-camera_sensor = chrono.ChCameraSensor(vehicle.GetChassisBody())
-camera_sensor.SetCameraPosition(chrono.ChVector3d(0, 0, 2))
-camera_sensor.SetCameraDirection(chrono.ChVector3d(0, 0, -1))
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(60)
-sensor_manager.AddSensor(camera_sensor)
-
-
-filter = chrono.ChFilterVisualizeCamera(camera_sensor)
-sensor_manager.AddFilter(filter)
-
-
-
-
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -138,6 +118,37 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
+
+system = vehicle.GetSystem()
+for i in range(10):
+    box_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), 0.5)
+    while (box_pos - initLoc).Length() < 5: 
+        box_pos = chrono.ChVector3d(random.uniform(-50, 50), random.uniform(-50, 50), 0.5)
+    box = chrono.ChBodyEasyBox(10, 10, 1, 1000)
+    box.SetPos(box_pos)
+    system.AddBody(box)
+
+
+sensor_manager = chrono.ChSensorManager(system)
+
+
+sensor_manager.AddPointLight(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1))
+sensor_manager.AddPointLight(chrono.ChVector3d(-5, -5, 5), chrono.ChColor(1, 1, 1))
+
+
+camera = chrono.ChCameraSensor()
+camera.SetPos(vehicle.GetChassisBody().GetPos())
+camera.SetRot(vehicle.GetChassisBody().GetRot())
+camera.SetForwardDirection(chrono.ChVector3d(0, 0, -1))
+camera.SetResolution(640, 480)
+camera.SetFieldOfView(90)
+sensor_manager.AddSensor(camera)
+
+
+filter = chrono.ChFilterVisualize()
+filter.SetSensor(camera)
+vis.AddFilter(filter)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -157,27 +168,17 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
-    
-    sensor_manager.Update()
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if step_number % 100 == 0:
-        box_x = random.uniform(-20, 20)
-        box_y = random.uniform(-20, 20)
-        box_z = 0.5
-        box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-        box.SetPos(chrono.ChVector3d(box_x, box_y, box_z))
-        vehicle.GetSystem().Add(box)

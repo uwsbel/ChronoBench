@@ -118,3 +118,10 @@ ch_iterate.doMotion(chsys, sim_time, dt)
 
 
 pychrono_gui.main()
+
+
+
+
+if __name__ == '__main__':
+
+    ch_iterate.iterate(chsys, sim_time, dt)

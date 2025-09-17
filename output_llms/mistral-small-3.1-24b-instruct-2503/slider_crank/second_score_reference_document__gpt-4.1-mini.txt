@@ -5,126 +5,124 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:** Present and correct. (No deduction)
-- **Body Creation:** All four bodies (floor, crank, rod, piston) are created and added to the system. (No deduction)
-- **Visualization Setup:** Visualization system is created and attached, window size and title set, initialized, and typical elements (logo, skybox, camera, lights) added. (No deduction)
-- **Joints and Motor:** All three joints (revolute, revolute, prismatic) and the motor are created and added. (No deduction)
-- **Data Collection and Plotting:** Arrays for time, angle, position, and speed are created and populated; plotting is done at the end. (No deduction)
-- **Simulation Loop:** Present, but implemented differently from the reference:
-  - The provided code uses a manual `simulation_time` variable and a `while vis.Run() and simulation_time < total_simulation_time` loop.
-  - The reference uses `while vis.Run():` and inside the loop checks `if sys.GetChTime() > 20: vis.GetDevice().closeDevice()` to stop.
-  
-  This is a minor deviation but functionally equivalent. (No deduction)
+- **Body Creation:** All four bodies (floor, crank, rod, piston) are created. However:
+  - The crank is created with axis `chrono.ChAxis_Z` instead of `chrono.ChAxis_Y` as in the reference.
+  - The crank rotation is not set to `chrono.Q_ROTATE_Y_TO_Z` as in the reference, which is necessary because `ChBodyEasyCylinder` creates a vertical cylinder along Y by default, and the crank is expected to rotate about Z.
+  - The piston and rod are created correctly.
+- **Joint Creation:**
+  - Motor joint initialization uses `chrono.ChFrameD(mcrank.GetFrame_REF_to_abs())` instead of `chrono.ChFramed(crank_center)`. This is a significant difference because the motor should be placed at the crank center, not at the crank's current frame.
+  - Revolute joints `mjointA` and `mjointB` are initialized with `chrono.ChFrameD` and with extra parameters that do not match the reference's simpler `chrono.ChFramed` with position only.
+  - The prismatic joint `mjointC` is initialized similarly but with a rotation frame, which is consistent with the reference.
+- **Visualization Setup:** Present and mostly complete.
+- **Simulation Loop:** Present, but:
+  - The loop uses a manual `simulation_time` variable incremented by fixed timestep instead of querying `sys.GetChTime()`.
+  - The loop condition is `while vis.Run() and simulation_time < 20.0:` instead of `while vis.Run():` with an internal break condition.
+- **Data Collection and Plotting:** Present and functional, but:
+  - The crank angle is obtained via `mcrank.GetRot().Q_to_Euler().z` instead of using `my_motor.GetMotorAngle()`, which is more direct and accurate.
+  - The plotting uses hardcoded tick labels instead of LaTeX formatted labels as in the reference.
+- **Comments:** Minimal comments; the reference script contains more explanatory comments.
 
-- **Missing `chrono.SetChronoDataPath()` call:** The reference has a commented-out line for setting the data path. The provided code omits this entirely. This is minor and optional depending on environment setup. (No deduction)
+**Deductions:**
 
-- **Use of `chrono.ChFrameD` vs `chrono.ChFramed` or `chrono.ChCoordsysD`:** The provided code uses `chrono.ChFrameD` for joint initialization frames and motor initialization, while the reference uses `chrono.ChFramed` or `chrono.ChCoordsysD`. According to the PyChrono API, `ChFrameD` is a valid alias or equivalent to `ChCoordsysD` (both represent coordinate systems). This is acceptable. (No deduction)
+- Crank creation and orientation missing important details: **-10 points**
+- Motor joint initialization frame incorrect: **-15 points**
+- Revolute joint initialization frames overly complicated and inconsistent: **-10 points**
+- Simulation loop uses manual time instead of `sys.GetChTime()`: **-5 points**
+- Minor omissions in comments/documentation: **-5 points**
 
-- **Missing rotation in piston-truss prismatic joint frame:** The reference applies a rotation `chrono.Q_ROTATE_Z_TO_X` to the prismatic joint frame; the provided code does not. This is an important detail affecting joint behavior. (Deduct 10 points)
-
-- **Use of `my_motor.Initialize` frame:** The provided code uses `mcrank.GetFrame_REF_to_abs()` as the frame for motor initialization, while the reference uses `chrono.ChFramed(crank_center)`. Using the crank's absolute frame is acceptable but less clear than using the explicit crank center frame. This is a minor deviation. (Deduct 5 points)
-
-- **Data collection of time:** The provided code uses a manual `simulation_time` variable, while the reference uses `sys.GetChTime()`. Using `sys.GetChTime()` is more robust and recommended. (Deduct 5 points)
-
-**Total Completeness deduction: 10 + 5 + 5 = 20 points**
+**Total Completeness deduction: 10 + 15 + 10 + 5 + 5 = 45 points**  
+Since max is 40 points, cap deduction at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `chrono.ChBodyEasyCylinder` constructor:** The provided code calls `chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)`. According to the PyChrono API, `ChBodyEasyCylinder` expects parameters `(radius, height, density, visualize=True, collision=True, material=None)`. The axis is not a parameter. The reference does not pass an axis; it creates the cylinder and then rotates it.
+- **Crank axis and rotation:** Using `chrono.ChAxis_Z` without rotation leads to incorrect orientation and behavior of the crank. This is a significant API misuse affecting simulation correctness. **-15 points**
+- **Motor initialization frame:** Using `mcrank.GetFrame_REF_to_abs()` instead of `chrono.ChFramed(crank_center)` means the motor is not fixed at the crank center, potentially causing incorrect motor behavior. **-15 points**
+- **Joint initialization frames:** Using `chrono.ChFrameD` with extra parameters (position and rotation) incorrectly; the reference uses `chrono.ChFramed` with position only for revolute joints. This can cause joint misalignment. **-10 points**
+- **Angle measurement:** Using Euler angles from the crank rotation quaternion is less reliable than `my_motor.GetMotorAngle()`. This is a minor correctness issue. **-5 points**
+- **Use of `GetPos_dt()` vs `GetPosDt()`:** The code uses `GetPos_dt()`, which is not the documented method; the reference uses `GetPosDt()`. This is a minor API misuse. **-5 points**
 
-  This is a significant API misuse and will cause an error or unexpected behavior. (Deduct 15 points)
-
-- **Rotation of crank:** The provided code uses `chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(1, 0, 0))` to rotate the crank, while the reference uses `chrono.Q_ROTATE_Y_TO_Z`. Both represent a 90-degree rotation but around different axes. The reference's `Q_ROTATE_Y_TO_Z` is a predefined quaternion for rotating Y-axis aligned cylinders to Z-axis. The provided code rotates around X-axis, which is likely incorrect for this purpose.
-
-  This will cause incorrect orientation of the crank. (Deduct 15 points)
-
-- **Rotation of piston:** The provided code uses `chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVector3d(0, 1, 0))`, while the reference uses `chrono.Q_ROTATE_Y_TO_X`. The reference rotates the piston from Y to X axis, which is correct for the piston orientation. The provided code rotates around Y-axis, which is likely incorrect.
-
-  (Deduct 15 points)
-
-- **Motor initialization frame:** Using `mcrank.GetFrame_REF_to_abs()` is less clear and may cause issues if the crank frame changes during simulation. The reference uses a fixed frame at `crank_center`. This can affect motor behavior. (Deduct 10 points)
-
-- **Joint initialization frames:** The provided code uses `chrono.ChFrameD` with position only, no rotation for joints A and B, which is acceptable. For joint C (prismatic), the provided code omits the rotation frame, which is important for defining the prismatic axis. (Deduct 15 points)
-
-- **Data collection calls:** The provided code uses `my_motor.GetMotorRotation().GetAngle()` and `mpiston.GetPos_dt().x`. The reference uses `my_motor.GetMotorAngle()` and `mpiston.GetPosDt().x`. The reference's methods are the documented ones; the provided code's methods may not exist or may be incorrect.
-
-  (Deduct 15 points)
-
-**Total Correctness deduction: 15 + 15 + 15 + 10 + 15 + 15 = 85 points**
-
-Since the total correctness points are 30, and deductions exceed that, cap at 30 points deduction.
+**Total Correctness deduction: 15 + 15 + 10 + 5 + 5 = 50 points**  
+Cap at 30 points max deduction.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The provided code lacks comments explaining the purpose of each block, unlike the reference which has descriptive comments.
+- The provided code lacks meaningful comments explaining the steps, unlike the reference.
+- Variable names are acceptable but could be more descriptive.
+- The code formatting is mostly fine.
+- The plotting code is more verbose and less clean than the reference.
+- No use of raw strings or LaTeX in plot labels as in the reference.
 
-- Variable names are meaningful and consistent.
+**Deductions:**
 
-- Formatting is acceptable but could be improved with spacing and comments.
+- Lack of comments and documentation: **-5 points**
+- Slightly less clean plotting and minor readability issues: **-3 points**
 
-- (Deduct 5 points for lack of comments/documentation)
+Total: 8 points deduction.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The provided code uses a manual `simulation_time` variable instead of `sys.GetChTime()`, which is less efficient and more error-prone.
+- The simulation loop increments time manually instead of using `sys.GetChTime()`, which is less robust and potentially error-prone. **-3 points**
+- The angle extraction via Euler angles is less efficient and less accurate than directly querying the motor angle. **-3 points**
+- No other significant inefficiencies.
 
-- The plotting code uses fixed major locators with `plt.MultipleLocator(np.pi / 2)`, which is fine but less informative than the reference's use of `plt.xticks` with LaTeX labels.
-
-- No major inefficiencies, but minor missed optimization opportunities.
-
-- (Deduct 3 points)
+Total: 6 points deduction.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or simulation stop condition inside the loop other than the manual time check.
+- No explicit error handling in either script, but the reference gracefully closes the visualization device after 20 seconds.
+- The provided script relies on manual time check in the loop condition, which is less robust.
+- No handling of visualization device closure.
 
-- The reference closes the Irrlicht device to stop visualization cleanly.
+**Deductions:**
 
-- (Deduct 3 points)
+- Lack of proper simulation stop and visualization device closure: **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
 - Visualization setup is mostly complete.
+- The crank rotation is not set correctly, which affects visual correctness.
+- Camera and lighting setup matches the reference.
+- No obvious missing visualization elements.
 
-- The camera is added with two arguments in the provided code: `vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))`, which matches the reference.
+**Deductions:**
 
-- The reference adds a logo, skybox, camera, and typical lights; the provided code does the same.
-
-- Minor issue: The reference uses `chrono.GetChronoDataFile` for the logo path; the provided code does the same.
-
-- (No deduction)
+- Incorrect crank orientation affects visualization correctness: **-3 points**
 
 ---
 
-### Summary of Deductions:
+### Summary of deductions:
 
-| Criterion                  | Deduction |
-|----------------------------|-----------|
-| Completeness               | 20        |
-| Correctness                | 30 (capped)|
-| Code Quality               | 5         |
-| Efficiency                 | 3         |
-| Error Handling & Robustness| 3         |
-| Visualization             | 0         |
-| **Total**                 | **61**    |
+| Category                   | Deduction (points) |
+|----------------------------|--------------------|
+| Completeness               | 40 (max)           |
+| Correctness               | 30 (max)           |
+| Code Quality              | 8                  |
+| Efficiency                | 6                  |
+| Error Handling & Robustness | 5                  |
+| Visualization Tools       | 3                  |
+| **Total**                 | 92                 |
 
 ---
 
 ### Final Score:
 
-100 - 61 = 39
+100 - 92 = 8 points
 
 ---
 
-**Final score:**
+**Final remarks:**  
+The provided script captures the general structure of the simulation but has several critical errors in body orientation, joint initialization, and motor setup that would significantly affect the simulation's correctness and behavior. The lack of comments and less robust simulation loop further reduce code quality and robustness. Visualization is mostly correct but affected by the crank orientation issue.
 
-[[39]]
+---
+
+[[8]]

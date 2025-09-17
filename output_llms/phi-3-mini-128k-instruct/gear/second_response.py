@@ -27,7 +27,7 @@ vis_mat = chrono.ChVisualMaterial()                       # Creating a visual ma
 vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))  # Setting a texture for the visual material
 
 # Create the rotating bar support for the two epicycloidal wheels
-mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0,  # Modified: Creating a box-shaped rotating bar with dimensions 8x1.5x1.0
+mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, # Modified: Creating a box-shaped rotating bar with dimensions 8x1.5x1.0
                                    1000,          # Setting mass
                                    True,          # Enable visualization
                                    False,         # Disable collision
@@ -51,10 +51,10 @@ mbody_gearA.SetPos(chrono.ChVector3d(0, 0, -1))                     # Modified: 
 mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 # Rotating the gear by 90 degrees around X-axis
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               # Applying the visual material to the gear
 
-# Add a thin cylinder only for visualization purpose
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                # Modified: Creating a thin cylinder for visualization with a smaller height
+# Modify the size of the visual shaft for the first gear
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                # Modified: Creating a smaller cylinder for visualization
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     # Modified: Adding the visual shape to the gear body
-                                                          chrono.QuatFromAngleX(chrono.CH_PI_2)))  # Modified: Positioning and rotating the visual cylinder
+                                                          chrono.QuatFromAngleX(chrono.CH_PI_2)))  # Positioning and rotating the visual cylinder
 
 # Impose rotation speed on the first gear relative to the fixed truss
 link_motor = chrono.ChLinkMotorRotationSpeed()                      # Creating a motor link to impose rotation
@@ -86,18 +86,18 @@ link_gearAB = chrono.ChLinkLockGear()                                     # Crea
 link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFramed())       # Initializing the gear link between gear A & B
 link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for shaft1
 link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))        # Setting frame for shaft2
-link_gearAB.SetTransmissionRatio(radA / radB)                             # Modified: Setting transmission ratio as radA/radB
+link_gearAB.SetTransmissionRatio(radA / radB)                             # Setting transmission ratio as radA/radB
 link_gearAB.SetEnforcePhase(True)                                         # Enforcing phase matching between gears
 sys.AddLink(link_gearAB)                                                  # Adding the gear constraint to the system
 
 # Create the gear constraint between second gear B and a large wheel C with inner teeth
 # Note: here, the last wheel C is the truss itself
-radC = 2 * radB + radA                                                    # Modified: Calculating radius for large wheel C
+radC = 2 * radB + radA                                                    # Calculating radius for large wheel C
 link_gearBC = chrono.ChLinkLockGear()                                     # Creating a gear constraint link
 link_gearBC.Initialize(mbody_gearB, mbody_truss, chrono.ChFramed())       # Initializing the gear link between gear B & truss
 link_gearBC.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))    # Setting frame for second gear B shaft
 link_gearBC.SetFrameShaft2(chrono.ChVector3d(0, 0, -4), chrono.QUNIT))        # Setting frame for large wheel C shaft
-link_gearBC.SetTransmissionRatio(radB / radC)                             # Modified: Setting transmission ratio as radB/radC
+link_gearBC.SetTransmissionRatio(radB / radC)                             # Setting transmission ratio as radB/radC
 link_gearBC.SetEpicyclic(True)                                            # Enabling epicyclic gear set (internal teeth)
 sys.AddLink(link_gearBC)                                                  # Adding the gear constraint to the system
 

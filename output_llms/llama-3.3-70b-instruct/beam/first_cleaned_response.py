@@ -1,52 +1,39 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
+import pychrono.beams as chronobeam
 
 
 sys = chrono.ChSystemNSC()
 
 
-mesh = fea.ChMesh()
+contact_material = chrono.ChMaterialSurfaceNSC()
+contact_material.SetFriction(0.5)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(1e-9)
+contact_material.SetComplianceT(1e-9)
+sys.SetDefaultContactMaterial(contact_material)
 
 
-node1 = fea.ChNodeFEAxyz(0, 0, 0)
-node2 = fea.ChNodeFEAxyz(1, 0, 0)
-node3 = fea.ChNodeFEAxyz(2, 0, 0)
-mesh.AddNode(node1)
-mesh.AddNode(node2)
-mesh.AddNode(node3)
+beam_mesh = chronobeam.ChBeamSectionEuler()
+beam_mesh.SetYoungModulus(200e9)  
+beam_mesh.SetArea(0.01)  
+beam_mesh.SetIyy(1e-5)  
+beam_mesh.SetIzz(1e-5)  
+beam_mesh.SetJ(1e-6)  
+beam_mesh.SetDensity(7850)  
 
 
-beam1 = fea.ChElementBeamEuler()
-beam1.SetNodes(node1, node2)
-beam1.SetSection(fea.ChSectionEulerSimple(0.1, 0.1, 1000, 1000))
-mesh.AddElement(beam1)
-
-beam2 = fea.ChElementBeamEuler()
-beam2.SetNodes(node2, node3)
-beam2.SetSection(fea.ChSectionEulerSimple(0.1, 0.1, 1000, 1000))
-mesh.AddElement(beam2)
-
-
-sys.Add(mesh)
-
-
-sys.Set_G(chrono.ChVectorD(0, -9.81, 0))  
+beam = chronobeam.ChBeamSectionEuler()
+beam.SetMesh(beam_mesh)
+beam.SetNodes([chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(1, 0, 0)])
+sys.Add(beam)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-
-
-vis.AddCamera(chrono.ChCamera())
+vis.AddCamera(chrono.ChVectorD(0, 0, 5))
 vis.AddTypicalLights()
-vis.SetWindowSize(1024, 768)
-vis.SetCamera(chrono.ChCamera().GetCamera())
-vis.SetCameraDistance(5)
-vis.AddSkyBox()
-vis.AddTypicalLights()
-vis.AddSystem(sys)
 
 
 while vis.Run():

@@ -4,128 +4,151 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`.  
-- **Gravity Setting:** Correctly set with `Set_G_acc`.  
-- **Body Creation:**  
-  - Ground body created with `ChBodyEasyBox` with reasonable size and density.  
-  - Turtlebot body created similarly.  
-  - Both bodies added to the system.  
-- **Visualization:**  
-  - Uses `chronoirr.ChIrrApp` for visualization, which is a high-level wrapper for Irrlicht visualization.  
-  - Adds sky, logo, camera, and light with shadow.  
-- **Simulation Loop:** Present, with `visualizer.Run()`, `BeginScene()`, `DrawAll()`, `EndScene()`, and `DoStepDynamics()`.  
-- **Control Logic:** Applies angular velocity to the turtlebot between certain time intervals.  
+- **System Initialization**: Present and correct (`chrono.ChSystemNSC()`), gravity set properly. No deduction.
+- **Body Creation**: Ground and turtlebot bodies created using `ChBodyEasyBox` and `ChBodyEasyCylinder`. However:
+  - No material specified for bodies (optional but recommended for realistic contact).
+  - No collision model parameters or contact materials explicitly set.
+  - Ground is not fixed (`SetFixed(True)` missing), so it will fall under gravity, which is usually undesirable for ground.
+  - The ground is positioned at z = -0.1 with thickness 0.1, which is reasonable.
+- **Visualization**: Visualization system created and initialized, but:
+  - The visualization system is **not attached to the physical system** (`visualizer.AttachSystem(system)` missing), which is essential for visualization to reflect the system state.
+  - Lighting setup uses `AddLightDirectional()` and `AddTypicalCamera()`, but `AddTypicalLights()` (recommended) is not used.
+- **Simulation Loop**: Present, but:
+  - The loop does not check `visualizer.Run()` to keep the window open properly.
+  - The turtlebot's position is reset every step during turns, which is unusual and may cause unrealistic behavior.
+  - The rotation quaternion is manually set with `math.cos` and `math.sin` without normalization or using PyChrono quaternion utilities.
+- **Ending the simulation**: `visualizer.Close()` and `chrono.EndChrono()` are called, but `chrono.EndChrono()` is not a standard PyChrono API call.
 
-**Deductions:**  
-- The script uses `chrono.InitChrono()`, which is not part of the documented API and unnecessary. Minor deviation: **-5 points**.  
-- The gravity is set using `Set_G_acc`, but the documented API uses `Set_G_acc` or `Set_G_acceleration`? The official API uses `Set_G_acc`. So this is correct.  
-- The visualization uses `ChIrrApp` which is a convenience class but the documentation recommends `ChVisualSystemIrrlicht` with explicit initialization and attachment. This is acceptable but less explicit. Minor deviation: **-5 points**.  
-- The ground and turtlebot bodies are created without specifying materials. The API recommends specifying contact materials for better control, especially for NSC systems. Missing material setup: **-15 points** (essential component missing).  
-- The ground body is created with `visualize=False` (4th argument), but the API example usually sets visualize=True for ground to see it. Minor omission: **-5 points**.  
-- The simulation loop uses `DrawAll()` instead of `Render()`. The API documentation shows `vis.Render()`. This is a minor deviation: **-5 points**.  
-- The angular velocity is set via `SetWvel_loc` on the turtlebot, but this sets the local angular velocity directly, which is unusual for controlling a robot. Usually, motors or forces are applied. This is a logical simplification but not necessarily incorrect. No deduction here.  
-- The script calls `chrono.ChEnd()` at the end, which is not part of the documented API and unnecessary. Minor deviation: **-5 points**.
+**Deductions:**
 
-**Total Completeness deductions:** 15 (missing material) + 5 + 5 + 5 + 5 = 35 points deducted.
+- Missing `visualizer.AttachSystem(system)` → -15 points (essential for visualization).
+- Ground not fixed → -10 points (logical error, ground should be fixed).
+- Missing `visualizer.Run()` check in loop → -10 points (logical error in visualization loop).
+- Use of `chrono.EndChrono()` (nonexistent API) → -10 points (incorrect API usage).
+- Minor: No material specified for bodies (minor omission) → -5 points.
+
+**Subtotal Completeness:** 40 - 15 - 10 - 10 - 10 - 5 = **-10 points** (so 30 points remaining)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **API usage:**  
-  - `chrono.SetChronoDataPath()` is correctly used.  
-  - `chrono.InitChrono()` and `chrono.ChEnd()` are not documented and unnecessary, but do not cause errors. Minor inaccuracies: **-5 points**.  
-  - `system.Set_G_acc()` is correct.  
-  - `ChBodyEasyBox` usage is correct.  
-  - `system.AddBody()` is correct.  
-  - Visualization with `ChIrrApp` is correct but uses `DrawAll()` instead of `Render()`. Minor inaccuracy: **-5 points**.  
-  - The time step in `DoStepDynamics(1/60)` is correct.  
-  - The logic for setting angular velocity is syntactically correct but may not produce expected robot motion since no forces or motors are applied. This is a logical simplification but not an error.  
-- **Logical errors:**  
-  - The ground body is not fixed (`SetFixed(True)` missing), so it will fall under gravity, which is incorrect for a ground plane. This is a significant logical error: **-10 points**.  
-  - The turtlebot is created with `visualize=True` and `collision=True` (5th and 6th arguments), which is correct.  
-  - The camera is positioned at `(0, 0, -5)`, which may be behind the objects (depending on coordinate system), but this is acceptable.  
-- **Use of `SetWvel_loc`:** This sets angular velocity in local coordinates directly, which is unusual for controlling a robot but not incorrect per se. No deduction.  
+- **API usage**:
+  - `system.Set_G_acc()` is deprecated; correct method is `system.Set_G_acc(chrono.ChVectorD(...))` — this is used correctly.
+  - `chrono.InitChrono()` is called, but this is not a standard PyChrono API function; PyChrono does not require explicit initialization like this. This may be harmless but unnecessary.
+  - Setting position and rotation of bodies directly inside the simulation loop is not typical; bodies should be moved via forces or constraints, not by resetting position and rotation every step.
+  - Quaternion construction is incorrect: `ChQuaternionD(w, x, y, z)` expects a normalized quaternion; the code uses `math.cos` and `math.sin` of `current_time * pi/2` directly without normalization or correct axis-angle conversion.
+  - The rotation quaternion is constructed as `(cos(angle), 0, sin(angle), 0)`, which corresponds to a rotation around the Y-axis if the quaternion is `(w, x, y, z)`. But the quaternion constructor in PyChrono uses `(w, x, y, z)` order, so this is likely intended as rotation about Y-axis. However, the sine term is assigned to the y component, which is correct if the axis is Y. So this is acceptable but should be done with utility functions.
+- **Logical errors**:
+  - Resetting position and rotation every step during turns will override physics simulation, causing unrealistic behavior.
+  - No joints or motors are used to simulate turning, which would be more physically accurate.
+- **Minor inaccuracies**:
+  - `ground.SetPos(chrono.ChVectorD(0, 0, -0.1))` is fine.
+  - `turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))` is identity quaternion, correct.
+  - No collision or friction parameters set, which may affect simulation realism.
 
-**Total Correctness deductions:** 10 (ground not fixed) + 5 (InitChrono/ChEnd) + 5 (DrawAll vs Render) = 20 points deducted.
+**Deductions:**
+
+- Incorrect use of `chrono.EndChrono()` → -15 points (significant API misuse).
+- Logical error: resetting position and rotation every step → -10 points.
+- Minor: unnecessary call to `chrono.InitChrono()` → -5 points.
+
+**Subtotal Correctness:** 30 - 15 - 10 - 5 = **0 points remaining**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code is mostly readable with meaningful variable names (`system`, `ground`, `turtlebot`, `visualizer`).  
-- The code lacks comments explaining the purpose of blocks or parameters.  
-- The formatting is acceptable but could be improved with blank lines between logical blocks.  
-- The time variable `t` is used but not documented.  
-- The use of magic numbers (e.g., `1/60`, `5`, `10`, `15`, `20`) without explanation reduces readability.  
-- No docstrings or comments at all.  
+- Code is mostly readable with meaningful variable names.
+- Lack of comments explaining key parts of the simulation, especially the turning logic.
+- No docstrings or inline comments.
+- Formatting is acceptable.
+- Minor inconsistency: mixing `chrono.ChVectorD` and `chrono.ChVector3d` (the doc uses `ChVector3d` but code uses `ChVectorD` which is acceptable as alias).
 
-**Deductions:**  
-- Lack of comments: **-5 points**.  
-- Minor readability issues (magic numbers, no blank lines): **-3 points**.
+**Deductions:**
+
+- Lack of comments → -5 points.
+- Minor readability issues due to lack of explanation of turning logic → -3 points.
+
+**Subtotal Code Quality:** 10 - 5 - 3 = **2 points remaining**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- The time step `1/60` is recalculated every loop iteration; better to predefine as a constant. Minor inefficiency: **-3 points**.  
-- The angular velocity is set every loop iteration even when it does not change (e.g., when `t` is outside the intervals). This is unnecessary repeated calls: **-5 points**.  
-- No other obvious inefficiencies.
+- The position and rotation of the turtlebot are reset every step during turning intervals, which is inefficient and breaks physics simulation.
+- Quaternion recalculation uses `math.cos` and `math.sin` every step; could be optimized or replaced with PyChrono quaternion utilities.
+- The loop does not check for visualization window status (`visualizer.Run()`), which may cause unnecessary computations after window is closed.
+- No use of motor joints or forces to simulate turning, which would be more efficient and realistic.
 
-**Total Efficiency deductions:** 5 + 3 = 8 points.
+**Deductions:**
+
+- Inefficient resetting of position and rotation → -5 points.
+- Missing `visualizer.Run()` check → -3 points.
+
+**Subtotal Efficiency:** 10 - 5 - 3 = **2 points remaining**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling is present (e.g., no try-except blocks).  
-- No checks for visualization initialization success or system state.  
-- No handling of edge cases (e.g., what if visualization window closes early).  
+- No error handling for file paths (e.g., `chrono.SetChronoDataPath("/path/to/chrono/data")` could fail if path is invalid).
+- No checks for visualization initialization success.
+- No handling of simulation end conditions or exceptions.
+- No handling of edge cases such as zero duration turns or overlapping turn intervals.
 
-**Deductions:**  
-- Lack of basic error handling: **-5 points**.
+**Deductions:**
+
+- Lack of basic error handling → -5 points.
+
+**Subtotal Error Handling:** 0 points remaining.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up with sky, logo, camera, and light with shadow, which is good.  
-- However, the API documentation recommends `AddTypicalSky()`, `AddTypicalLogo()`, `AddTypicalCamera()`, and `AddTypicalLights()`. The code uses `AddLightWithShadow()` instead of `AddTypicalLights()`. This is acceptable but less standard. Minor deviation: **-2 points**.  
-- The camera is placed at `(0, 0, -5)`, which may not provide the best view (usually camera is above or at an angle). Minor visualization issue: **-2 points**.  
-- The visualization loop uses `DrawAll()` instead of `Render()`, which is not standard per documentation. Minor visualization issue: **-2 points**.
+- Visualization system created and initialized.
+- Missing `AttachSystem(system)` call, which is essential.
+- Uses `AddLightDirectional()` but not `AddTypicalLights()`, which is recommended.
+- Uses `AddTypicalCamera()` with two arguments, but the doc shows `AddTypicalCamera(position)` with one argument; this may be acceptable but inconsistent.
+- Uses `AddSkyBox()` and `AddLogo()`, which is good.
+- No check for `visualizer.Run()` in loop, which is standard practice.
+- Uses `BeginScene()`, `DrawAll()`, `EndScene()` correctly.
 
-**Total Visualization deductions:** 2 + 2 + 2 = 6 points (cap at 5 points max per guidelines).
+**Deductions:**
 
----
+- Missing `AttachSystem()` → -5 points.
+- Minor visualization issues (lighting and camera usage) → -2 points.
 
-### Summary of deductions:
-
-| Criterion                  | Points Deducted |
-|----------------------------|----------------|
-| Completeness               | 35             |
-| Correctness               | 20             |
-| Code Quality              | 8              |
-| Efficiency                | 8              |
-| Error Handling & Robustness | 5              |
-| Visualization             | 5              |
-| **Total**                 | 81             |
+**Subtotal Visualization:** 5 - 5 - 2 = **-2 points (minimum 0)**
 
 ---
 
-### Final score:
+### **Final Scoring**
 
-100 - 81 = 19 points
-
----
-
-### Explanation:
-
-- The script misses essential setup of contact materials and does not fix the ground body, which are critical for a physically correct simulation.  
-- It uses some undocumented and unnecessary API calls (`InitChrono()`, `ChEnd()`).  
-- The visualization setup is mostly complete but uses some non-standard calls and minor suboptimal camera placement.  
-- The simulation loop is functional but inefficient in setting angular velocity every frame and recalculating the timestep.  
-- The code lacks comments and error handling, reducing maintainability and robustness.
+| Criterion                     | Max Points | Deductions | Score |
+|-------------------------------|------------|------------|-------|
+| Completeness                  | 40         | 10         | 30    |
+| Correctness                  | 30         | 30         | 0     |
+| Code Quality                 | 10         | 8          | 2     |
+| Efficiency                   | 10         | 8          | 2     |
+| Error Handling and Robustness| 5          | 5          | 0     |
+| Visualization Tools          | 5          | 7 (capped at 5) | 0     |
+| **Total**                   | **100**    | **68**     | **34**|
 
 ---
 
-[[19]]
+### **Summary of Major Issues**
+
+- Missing `visualizer.AttachSystem(system)` breaks visualization.
+- Ground body not fixed, so it will fall under gravity.
+- Incorrect simulation loop without `visualizer.Run()` check.
+- Incorrect use of `chrono.EndChrono()` (nonexistent API).
+- Position and rotation of the turtlebot forcibly reset every step, breaking physics simulation.
+- Lack of comments and error handling.
+- Inefficient and non-idiomatic quaternion handling.
+- Visualization setup incomplete and inconsistent.
+
+---
+
+[[34]]

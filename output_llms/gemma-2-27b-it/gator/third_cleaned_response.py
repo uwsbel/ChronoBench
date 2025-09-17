@@ -93,9 +93,9 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 5.0  
-throttle_time = 5.0  
-braking_time = 2.0   
+steering_time = 3.0  
+throttle_time = 3.0  
+braking_time = 1.0   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)

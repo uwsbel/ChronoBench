@@ -107,54 +107,46 @@ render_frame = 0
 
 
 lane_change_start_time = 2.0
-lane_change_duration = 3.0
-second_lane_change_time = 5.0
-braking_start_time = 8.0
+first_lane_change_duration = 1.5
+second_lane_change_start = lane_change_start_time + first_lane_change_duration + 1.0
+second_lane_change_duration = 1.5
+braking_start_time = second_lane_change_start + second_lane_change_duration + 1.0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
-    
-    if time < lane_change_start_time:
-        
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.5
-    elif time < lane_change_start_time + lane_change_duration:
-        
-        progress = (time - lane_change_start_time) / lane_change_duration
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5 * progress
-        driver_inputs.m_throttle = 0.5
-    elif time < second_lane_change_time:
-        
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5
-        driver_inputs.m_throttle = 0.5
-    elif time < second_lane_change_time + lane_change_duration:
-        
-        progress = (time - second_lane_change_time) / lane_change_duration
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = -0.5 + 0.5 * progress
-        driver_inputs.m_throttle = 0.5
-    elif time < braking_start_time:
-        
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.5
-    else:
-        
-        driver_inputs = veh.ChDriverInputs()
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 0.8
-
     
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    
+    driver_inputs = driver.GetInputs()
+
+    
+    if lane_change_start_time < time < lane_change_start_time + first_lane_change_duration:
+        driver_inputs.m_steering = -0.8  
+        driver_inputs.m_throttle = 0.5
+
+    
+    elif time > lane_change_start_time + first_lane_change_duration and time < second_lane_change_start:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.7
+
+    
+    elif second_lane_change_start < time < second_lane_change_start + second_lane_change_duration:
+        driver_inputs.m_steering = 0.8  
+        driver_inputs.m_throttle = 0.5
+
+    
+    elif time > second_lane_change_start + second_lane_change_duration:
+        driver_inputs.m_steering = 0.0
+        if time < braking_start_time:
+            driver_inputs.m_throttle = 0.7
+        else:
+            driver_inputs.m_throttle = 0.0
+            driver_inputs.m_braking = 1.0
 
     
     driver.Synchronize(time)

@@ -14,9 +14,10 @@ initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 vis_type = veh.VisualizationType_MESH
 
 
-contact_method = chrono.ChContactMethod_SMC
+chassis_collision_type = veh.CollisionType_NONE
 
 
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -24,7 +25,14 @@ terrainWidth = 100.0
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
 
 
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
+
+
 step_size = 5e-4
+tire_step_size = step_size
+
+
 render_step_size = 1.0 / 50  
 
 
@@ -50,22 +58,24 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-terrain = veh.ScmDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(2e6,   
-                           0,     
-                           1.1,   
-                           0,     
-                           30,    
-                           1e4,   
-                           2e5,   
-                           3e4)   
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth
+)
 
+patch.SetSoilParameters(
+    2e6,    
+    0,      
+    1.1,    
+    0,      
+    30,     
+    0.01,   
+    0.005,  
+    20000   
+)
 
-height_func = lambda x, y: 0.0  
-terrain.InitializeHeightMap(chrono.ChVector3d(0, 0, 0),  
-                             terrainLength, terrainWidth,  
-                             height_func)  
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))  
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 terrain.Initialize()
 
 
@@ -125,7 +135,7 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-
+    
     
     driver.Advance(step_size)
     terrain.Advance(step_size)

@@ -4,176 +4,171 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
-- **Body Creation:**
-  - Ground and rover bodies created using `ChBodyEasyBox`. However, the API requires the first arguments to be the dimensions (lengthX, lengthY, lengthZ), then density, visualize, collision, and optionally material. The code passes `sys` as the first argument, which is incorrect. This is a significant error (see correctness).
-  - No material is specified for the bodies, which is acceptable since `ChBodyEasyBox` can create default materials, but best practice is to specify or at least set friction/damping for contact materials.
-- **Motor Setup:**
-  - Uses `ChPartMotor`, which is not documented in the provided API. The documentation only mentions `ChLinkMotorRotationSpeed` for motors.
-  - The motor is set with torque function and direction, but no initialization linking bodies or frames is done.
-- **Visualization:**
-  - Uses `chronoirr.ChIrrApp`, which is a higher-level wrapper for visualization and simulation loop.
-  - Adds camera, lights, shadows, binds assets, and updates assets. This is good.
-- **Simulation Loop:**
-  - Uses `application.GetDevice().run()` loop with `BeginScene()`, `DrawAll()`, `DoStep()`, `EndScene()`. This is consistent with `ChIrrApp` usage.
-- **Gravity:**
-  - Gravity is set via `application.GetSystem().Set_G_acc(...)`, which is acceptable.
+- **System Initialization:**  
+  Present and correctly done with `chrono.ChSystemNSC()`. No deduction.
 
-**Deductions:**
+- **Body Creation:**  
+  - Ground body created with `ChBodyEasyBox`.  
+  - Rover body created similarly.  
+  - However, the constructor calls for `ChBodyEasyBox` are incorrect: the first argument should be lengthX, lengthY, lengthZ (dimensions), but the code passes `sys` as the first argument, which is not correct. The correct usage is:  
+    ```python
+    ground_body = chrono.ChBodyEasyBox(ground_length, ground_width, 0.1, 1000, True, True, ground_mat)
+    ```  
+    but the code uses:  
+    ```python
+    ground_body = chrono.ChBodyEasyBox(sys, ground_length, ground_width, 0.1, 1000, True, True, ground_mat)
+    ```  
+    This is a **significant error** (see correctness below).  
+  - Also, the bodies are added to the system with `sys.AddBody()`, but the API documentation shows `sys.Add(body)`. This is a minor inconsistency but important.  
+  - The bodies lack explicit positioning (`SetPos`), so both will be at the origin by default, which may cause overlap. This is a minor omission.
 
-- Missing or incorrect body creation arguments (see correctness).
-- Missing collision material setup or friction settings (minor omission): -5 points.
-- Motor is created but not properly initialized or linked to bodies via a joint frame (essential for correct motor behavior): -15 points.
-- No collision system type set (e.g., Bullet or default), which can be important for collision handling: minor omission, but not critical here.
+- **Motor Setup:**  
+  - The code uses `chrono.ChPartMotor(sys)`, which is **not** a documented class in the API. The API shows motor joints like `ChLinkMotorRotationSpeed()`.  
+  - The motor is configured with `SetMotorType`, `SetMotorTorque`, and `SetMaxSpeed`, but these methods do not exist in the documented API.  
+  - The motor is added to the system with `sys.AddPart()`, which is also not documented.  
+  - The motor is attached only to `rover_body` with `AddBody(rover_body)`, which is insufficient; motors/joints require two bodies and a frame to initialize.  
+  - This is a **major missing component**: no proper joint or motor link is created between the rover and ground or any other body.
 
-**Total Completeness deduction: 15 + 5 = 20 points**
+- **Visualization Setup:**  
+  - Visualization system created with `chronoirr.ChVisualSystemIrrlicht()`.  
+  - However, `vis.AttachSystem(sys)` is missing, which is essential to link the physics system to the visualization.  
+  - `vis.Initialize()` is also missing, which is required to prepare the visualization system before rendering.  
+  - The camera is set with `SetCameraPosition` and `SetCameraLookAt`, but the API recommends `AddCamera(position)` instead.  
+  - The calls to `AddSkyBox()`, `AddLogo()`, and `AddTypicalLights()` are correct, but `AddLogo()` is called without a path argument, which is required.  
+  - The visualization of meshes is attempted with `vis.AddMesh()`, but this method is not documented in the API. Usually, visual shapes are added to bodies or the visualization system uses the body's visual assets.  
+  - The simulation loop does not use the standard visualization loop pattern (`while vis.Run():`), and calls `vis.Simulate(sys, time_step)`, which is not a documented method.  
+  - The rendering calls do not include `BeginScene()` and `EndScene()`, which are necessary for proper rendering.
+
+- **Simulation Loop:**  
+  - The loop uses `sys.GetChTime()` and `sys.DoStepDynamics(time_step)`, which is correct.  
+  - However, the visualization loop is not properly integrated, as noted above.
+
+**Deductions:**  
+- Missing proper motor/joint setup: **-15 points**  
+- Incorrect body creation and adding to system: **-15 points**  
+- Incomplete visualization setup (missing AttachSystem, Initialize, BeginScene/EndScene, incorrect camera setup): **-15 points**  
+- Minor omission: no explicit body positioning: **-5 points**
+
+**Total Completeness deduction: 15 + 15 + 15 + 5 = 50 points** (But max deduction is 40, so capped at 40)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of `ChBodyEasyBox`:** The constructor signature is:
+- **Incorrect use of `ChBodyEasyBox`:**  
+  Passing `sys` as the first argument is incorrect and will cause runtime errors.  
+  **-15 points**
 
-  ```python
-  ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)
-  ```
+- **Incorrect motor class and methods:**  
+  `ChPartMotor` does not exist; `SetMotorType`, `SetMotorTorque`, `SetMaxSpeed`, `AddBody` are not documented methods.  
+  This will cause the motor to not function or cause errors.  
+  **-15 points**
 
-  The code calls:
+- **Incorrect visualization calls:**  
+  Missing `AttachSystem` and `Initialize`, incorrect camera setup, and use of `AddMesh` and `Simulate` methods not in API.  
+  This will prevent visualization from working correctly.  
+  **-10 points**
 
-  ```python
-  ground = chrono.ChBodyEasyBox(sys, ground_length, ground_width, 0.1, 1000, True, True)
-  ```
+- **Use of `sys.AddBody()` instead of `sys.Add()`:**  
+  Minor API misuse, but may cause errors or be unsupported.  
+  **-5 points**
 
-  Here, `sys` is passed as the first argument, which is wrong. This will cause a runtime error or unexpected behavior.
+- **Simulation loop does not check `vis.Run()` to continue:**  
+  Minor logical error in visualization loop control.  
+  **-5 points**
 
-- **Motor usage:**
-
-  - `ChPartMotor` is not part of the documented API. The documented motor class is `ChLinkMotorRotationSpeed`.
-  - The motor is not initialized with bodies and frames, which is necessary.
-  - `SetMotorDirection` is not documented; the correct way is to initialize the motor with bodies and a coordinate system.
-  - Using `SetTorqueFunction` is acceptable if the motor supports torque control, but since the motor is not properly initialized, this is incorrect.
-
-- **Gravity setting:**
-
-  - `application.GetSystem().Set_G_acc(...)` is not a documented method. The documented method is `sys.Set_G_acc(...)`.
-  - Since `application.GetSystem()` returns the system, this may work, but the method name should be `Set_G_acc` or `Set_G_acceleration`? The standard documented method is `Set_G_acc`.
-
-- **Simulation step:**
-
-  - The loop calls `application.DoStep()`, which is correct for `ChIrrApp`.
-
-**Deductions:**
-
-- Incorrect `ChBodyEasyBox` usage: -15 points.
-- Incorrect motor setup and usage: -15 points.
-- Gravity method usage is slightly off but likely works; minor deduction: -5 points.
-
-**Total Correctness deduction: 15 + 15 + 5 = 35 points**
+**Total Correctness deduction: 15 + 15 + 10 + 5 + 5 = 50 points** (Capped at 30)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code lacks comments explaining the purpose of variables and steps.
-- Variable names are meaningful.
-- Formatting is acceptable.
-- No docstrings or inline comments.
-- Imports include `numpy` but it is unused.
+- No comments explaining the purpose of variables or steps.  
+- Variable names are reasonable and descriptive.  
+- Formatting is acceptable.  
+- Lack of comments reduces understandability.  
+- Minor inconsistency in method names (`AddBody` vs `Add`).  
+- No docstrings or function encapsulation; all code is in global scope.
 
-**Deductions:**
+**Deductions:**  
+- Lack of comments: **-5 points**  
+- Minor naming and structure issues: **-3 points**
 
-- Lack of comments/documentation: -5 points.
-- Unused import (`numpy`): minor issue but not severe.
-
-**Total Code Quality deduction: 5 points**
+Total: 8 points deducted (capped at 10)
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No redundant calculations or repeated code.
-- Unused import (`numpy`) is inefficient.
-- Motor setup without initialization wastes resources.
-- No optimization opportunities missed.
+- No obvious redundant calculations or code.  
+- However, the visualization loop calls `vis.Simulate(sys, time_step)` which is not documented and likely unnecessary.  
+- The motor setup is incorrect, so no efficient control of motor speed or torque.  
+- No use of `chrono.SetChronoDataPath()` to set data path for meshes, which could cause mesh loading issues.  
+- No optimization in simulation loop (e.g., no conditional rendering or time step adaptation).
 
-**Deductions:**
+**Deductions:**  
+- Use of undocumented and likely unnecessary `vis.Simulate()`: **-5 points**  
+- Missing `SetChronoDataPath()` for mesh loading: **-3 points**
 
-- Unused import: -3 points.
-- Motor setup without proper initialization is inefficient: -5 points.
-
-**Total Efficiency deduction: 8 points**
+Total: 8 points deducted (capped at 10)
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks.
-- No try-except blocks or validation of inputs.
-- For a simple simulation script, this is common, but best practice is to include minimal error handling or at least assertions.
+- No error handling or try-except blocks.  
+- No checks for mesh file existence or loading success.  
+- No handling of visualization initialization failure.  
+- No checks on motor or joint initialization.  
+- No handling of simulation termination conditions other than time.
 
-**Deductions:**
-
-- Lack of error handling: -5 points.
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization is set up using `ChIrrApp`, which is a high-level wrapper.
-- Camera and lights are added.
-- Shadows enabled.
-- Assets bound and updated.
-- However, the API documentation suggests using `ChVisualSystemIrrlicht` with explicit calls to `Initialize()`, `AddCamera()`, `AddTypicalLights()`, etc.
-- `ChIrrApp` is a valid approach but not documented here; it is a convenience class.
-- The camera position is somewhat arbitrary but acceptable.
-- No skybox or logo added, which are recommended for better visualization.
-- Minor issue: `application.DrawAll()` is used instead of `application.Render()`, but `DrawAll()` is a method of `ChIrrApp`.
+- Missing `AttachSystem()` and `Initialize()` calls.  
+- Missing `BeginScene()` and `EndScene()` calls in the rendering loop.  
+- Incorrect camera setup (should use `AddCamera()`).  
+- `AddLogo()` called without path argument.  
+- Use of `AddMesh()` and `Simulate()` methods not documented.  
+- Lighting and skybox are added correctly.
 
-**Deductions:**
-
-- Minor visualization omissions (no skybox, no logo): -2 points.
+**Deductions:**  
+- Major visualization setup issues: **-5 points**
 
 ---
 
-### **Summary of deductions:**
+### Summary of deductions:
 
-| Criterion                     | Points | Deduction | Notes                                      |
-|-------------------------------|--------|-----------|--------------------------------------------|
-| Completeness                  | 40     | 20        | Motor not properly initialized, minor friction omission |
-| Correctness                  | 30     | 35        | Wrong `ChBodyEasyBox` usage, motor misuse, gravity method minor issue |
-| Code Quality                 | 10     | 5         | No comments, unused import                  |
-| Efficiency                  | 10     | 8         | Unused import, inefficient motor setup     |
-| Error Handling and Robustness | 5      | 5         | No error handling                           |
-| Visualization Tools          | 5      | 2         | Minor visualization omissions               |
-| **Total deductions**          | 100    | 75        |                                            |
-
----
-
-### **Final Score:**
-
-40 + 30 + 10 + 10 + 5 + 5 = 100 total points
-
-Deductions = 75
-
-**Score = 100 - 75 = 25**
+| Criterion                     | Max Points | Deduction | Points Awarded |
+|-------------------------------|------------|-----------|---------------|
+| Completeness                  | 40         | 40        | 0             |
+| Correctness                  | 30         | 30        | 0             |
+| Code Quality                 | 10         | 8         | 2             |
+| Efficiency                  | 10         | 8         | 2             |
+| Error Handling and Robustness | 5          | 5         | 0             |
+| Use of Visualization Tools   | 5          | 5         | 0             |
+| **Total**                    | **100**    | **96**    | **4**         |
 
 ---
 
-**Final output:**
-
-[[25]]
+### Final Score: [[4]]
 
 ---
 
-**Explanation:**
+### Explanation:
 
-The script includes the basic components of a PyChrono simulation: system initialization, body creation, motor setup, visualization, and simulation loop. However, critical API misuse severely impacts correctness and completeness:
+The script contains fundamental errors in API usage that would prevent it from running correctly:
 
-- The `ChBodyEasyBox` constructor is called incorrectly by passing the system object as the first argument, which will cause errors.
-- The motor is created using a non-documented class `ChPartMotor` and is not properly initialized with bodies and frames, making it non-functional.
-- Gravity is set via a method that is not clearly documented, though this is a minor issue.
-- The script lacks comments and includes an unused import (`numpy`).
-- No error handling is present.
-- Visualization setup is mostly correct but misses some best practices like adding a skybox or logo.
+- The `ChBodyEasyBox` constructor is called incorrectly with the system as the first argument, which is not supported.  
+- The motor is created using a non-existent class `ChPartMotor` and methods that do not exist in the PyChrono API.  
+- Visualization setup is incomplete and uses undocumented methods; critical calls like `AttachSystem()` and `Initialize()` are missing, and the rendering loop does not follow the documented pattern.  
+- The simulation loop does not properly integrate visualization control (`vis.Run()`), and rendering calls lack `BeginScene()` and `EndScene()`.  
+- No error handling or robustness measures are implemented.  
+- The code lacks comments and documentation, reducing readability and maintainability.  
+- Efficiency is impacted by unnecessary or incorrect calls.
 
-These issues lead to a significant deduction in correctness and completeness, resulting in a low overall score despite the script's general structure being recognizable as a PyChrono simulation.
+Due to these issues, the script is not functional as is and requires significant revision to meet PyChrono API standards and best practices.

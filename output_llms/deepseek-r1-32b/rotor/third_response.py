@@ -4,7 +4,7 @@ import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
 
-# Define custom motor function class
+# Custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
         super().__init__()
@@ -16,12 +16,13 @@ class ChFunctionMyFun(chrono.ChFunction):
         self.w = w
         
     def GetVal(self, x):
-        if x < self.T1:
+        if x <= self.T1:
             return self.A1 * m.sin(self.w * x)
-        elif self.T1 <= x < self.T2:
-            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(2 * self.w * x)
-        elif self.T2 <= x < self.T3:
-            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(2 * self.w * x) + self.A2 * m.sin(3 * self.w * x)
+        elif x <= self.T2:
+            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(2 * self.w * (x - self.T1))
+        elif x <= self.T3:
+            return self.A1 * m.sin(self.w * x) + self.A2 * m.sin(2 * self.w * (x - self.T1)) + \
+                   self.A1 * m.sin(self.w * (x - self.T2))
         else:
             return 0
 
@@ -57,12 +58,12 @@ msection.SetDrawCircularRadius(beam_ro)
 
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,
-                 msection,
-                 20,
-                 chrono.ChVector3d(0, 0, 0),
-                 chrono.ChVector3d(beam_L, 0, 0),
-                 chrono.VECT_Y,
-                 1)
+                  msection,
+                  20,
+                  chrono.ChVector3d(0, 0, 0),
+                  chrono.ChVector3d(beam_L, 0, 0),
+                  chrono.VECT_Y,
+                  1)
 
 node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
 
@@ -92,19 +93,13 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
                      truss,
                      chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
                                      chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
-
-# Create and set the custom motor function
-A1 = 40
-A2 = 0.2
-T1 = 1
-T2 = 2
-T3 = 3
-w = 1
-f_custom = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
-rotmotor1.SetMotorFunction(f_custom)
-
 sys.Add(rotmotor1)
 
+# Create and set custom motor function
+custom_function = ChFunctionMyFun(A1=40, A2=0.2, T1=5, T2=10, T3=15, w=1)
+rotmotor1.SetMotorFunction(custom_function)
+
+# Visualization setup
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
 mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
 mvisualizebeamA.SetSmoothFaces(True)
@@ -131,13 +126,10 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Optional: Set up HHT timestepper for better precision
-# tstep = chrono.ChTimestepperHHT(sys)
-# tstep.SetAlpha(0.05)
-# tstep.SetMaxit(10)
-# tstep.SetAbsTol(1e-8)
-# tstep.SetRelTol(1e-8)
-# sys.SetTimestepper(tstep)
+# Optional: Uncomment to use HHT timestepper
+# hht = chrono.ChTimestepperHHT(sys)
+# hht.SetAlpha(0.05)
+# sys.SetTimestepper(hht)
 
 sys.DoStaticLinear()
 

@@ -62,9 +62,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -83,25 +82,29 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-points = [
-    chrono.ChVector3d(-50, 0, 0.1),
-    chrono.ChVector3d(-20, 0, 0.1),
-    chrono.ChVector3d(0,   0, 0.1),
-    chrono.ChVector3d(15, -1.75, 0.1),  
-    chrono.ChVector3d(30, -1.75, 0.1),
-    chrono.ChVector3d(45,  0, 0.1),     
-    chrono.ChVector3d(60,  1.75, 0.1),  
-    chrono.ChVector3d(75,  1.75, 0.1),
-    chrono.ChVector3d(90,  0, 0.1),     
-    chrono.ChVector3d(150, 0, 0.1)
-]
+points = chrono.vector_ChVector3d()
+points.append(chrono.ChVector3d(-50, 0, 0))        
+points.append(chrono.ChVector3d(-20, 0, 0))         
+points.append(chrono.ChVector3d(10, -3.5, 0))       
+points.append(chrono.ChVector3d(40, 0, 0))          
+points.append(chrono.ChVector3d(70, 3.5, 0))        
+points.append(chrono.ChVector3d(100, 0, 0))         
+points.append(chrono.ChVector3d(150, 0, 0))         
+
 path = chrono.ChBezierCurve(points)
 
 
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "double_lane_change", 10.0)
-driver.GetSteeringController().SetLookAheadDistance(5.0)
-driver.GetSteeringController().SetGains(0.5, 0, 0)
-driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "DoubleLaneChange", 10.0)  
+
+
+steering_controller = driver.GetSteeringController()
+steering_controller.SetLookAheadDistance(5.0)  
+steering_controller.SetGains(0.5, 0.0, 0.0)    
+
+
+speed_controller = driver.GetSpeedController()
+speed_controller.SetGains(0.4, 0.0, 0.0)       
+
 driver.Initialize()
 
 
@@ -123,9 +126,10 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         
-        points = path.GetPoints()
-        for i in range(len(points) - 1):
-            vis.DrawLine(points[i], points[i+1], chrono.ChColor(0.8, 0.2, 0.2), True)
+        path_asset = path.GetVisualModel()
+        path_asset.SetTransform(chrono.ChFramed())
+        vis.BindItem(path_asset)
+        vis.GetSceneManager().drawAll()
         vis.EndScene()
         render_frame += 1
 

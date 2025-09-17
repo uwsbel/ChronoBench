@@ -87,11 +87,11 @@ while vis.Run():
     if log_info and sys.GetChTime() > 1:
         pos_1 = pend_1.GetPos()  
         print("t = ", sys.GetChTime())
-        print("     ", pos_1.x, "  ", pos_1.y)
+        print("     Pendulum 1: ", pos_1.x, "  ", pos_1.y)
         lin_vel_1 = pend_1.GetPosDt()  
         print("     ", lin_vel_1.x, "  ", lin_vel_1.y)
         pos_2 = pend_2.GetPos()  
-        print("     ", pos_2.x, "  ", pos_2.y)
+        print("     Pendulum 2: ", pos_2.x, "  ", pos_2.y)
         lin_vel_2 = pend_2.GetPosDt()  
         print("     ", lin_vel_2.x, "  ", lin_vel_2.y)
         log_info = False

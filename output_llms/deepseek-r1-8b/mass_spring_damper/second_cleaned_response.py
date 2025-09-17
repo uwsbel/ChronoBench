@@ -1,32 +1,12 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-
-class MySpringForce(chrono.ForceFunctor):
-    def __init__(self, spring_coef, damping_coef):
-        super().__init__()
-        self.spring_coef = spring_coef
-        self.damping_coef = damping_coef
-
-    def ComputeForce(self, body, other, frame):
-        
-        pos = body.GetPos(frame) - other.GetPos(frame)
-        
-        spring_force = self.spring_coef * (0.1 - pos.GetZ())
-        
-        damping_force = -self.damping_coef * pos.GetVelocity(frame).GetZ()
-        
-        return chrono.ChVector3d(0, 0, spring_force + damping_force)
-
-
-rest_length = 0.1
+rest_length = 1.5
 spring_coef = 50
 damping_coef = 1
 
-
 sys = chrono.ChSystemNSC()
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
-
 
 ground = chrono.ChBody()
 sys.AddBody(ground)
@@ -36,9 +16,9 @@ ground.EnableCollision(False)
 
 sph_1 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
+
 sph_2 = chrono.ChVisualShapeSphere(0.1)
 ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
-
 
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
@@ -52,18 +32,6 @@ body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 box_1.SetColor(chrono.ChColor(0.6, 0, 0))
 body_1.AddVisualShape(box_1)
-
-
-spring_1 = chrono.ChLinkTSDA()
-spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
-spring_1.SetRestLength(rest_length)
-spring_1.SetSpringCoefficient(spring_coef)
-spring_1.SetDampingCoefficient(damping_coef)
-sys.AddLink(spring_1)
-
-
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-
 
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
@@ -79,25 +47,27 @@ box_2.SetColor(chrono.ChColor(0.6, 0, 0))
 body_2.AddVisualShape(box_2)
 
 
-class MySpringForce2(chrono.ForceFunctor):
-    def __init__(self, spring_coef, damping_coef):
-        super().__init__()
-        self.spring_coef = spring_coef
-        self.damping_coef = damping_coef
+class MySpringForce(chrono.ForceFunctor):
+    def ComputeForce(self, body, other, local_pos, local_vel, local_acc):
+        spring_force = self.spring_coef * self.rest_length * (other.GetPos() - body.GetPos())
+        damping_force = -self.damping_coef * body.GetMass() * body.GetLocalVel() * body.GetLocalVel()
+        return chrono.ChVector3d(spring_force.x, damping_force.y, damping_force.z)
 
-    def ComputeForce(self, body, other, frame):
-        pos = body.GetPos(frame) - other.GetPos(frame)
-        spring_force = self.spring_coef * (0.1 - pos.GetZ())
-        damping_force = -self.damping_coef * pos.GetVelocity(frame).GetZ()
-        return chrono.ChVector3d(0, 0, spring_force + damping_force)
+
+spring_1 = chrono.ChLinkTSDA()
+spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_1.SetRestLength(rest_length)
+spring_1.SetSpringCoefficient(spring_coef)
+spring_1.SetDampingCoefficient(damping_coef)
+sys.AddLink(spring_1)
+
 
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_2.SetForceFunctor(MySpringForce())
 spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)
-
-spring_2.SetForceFunctor(MySpringForce2(spring_coef, damping_coef))
 sys.AddLink(spring_2)
 
 

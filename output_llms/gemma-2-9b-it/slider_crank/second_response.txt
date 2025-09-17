@@ -58,12 +58,6 @@ mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
 mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0) with rotation aligning the Z-axis to the X-axis
 sys.Add(mjointC)  # Add the joint to the simulation system
 
-# Array Initialization for Plotting
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
 # Set up the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()  # Create the Irrlicht visualization system
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
@@ -75,18 +69,25 @@ vis.AddSkyBox()  # Add a skybox for better visual appearance
 vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a camera to the visualization, positioned at (x=1, y=1, z=3) and looking at (x=0, y=1, z=0)
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
-# Run the interactive simulation loop
+# Array Initialization for Plotting
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+# Collect Data During Simulation
 start_time = chrono.ChTime()
-while vis.Run() and chrono.ChTime() - start_time < 20:  # Stop simulation after 20 seconds
+end_time = start_time + chrono.ChTime(20)  # Set simulation end time to 20 seconds
+while vis.Run() and sys.GetChTime() < end_time:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()
     sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
-    # Collect Data During Simulation
-    array_time.append(chrono.ChTime() - start_time)
-    array_angle.append(mcrank.GetRot().GetAngle())
+    # Collect Data
+    array_time.append(sys.GetChTime())
+    array_angle.append(mcrank.GetRot().GetAngleRad())
     array_pos.append(mpiston.GetPos().x)
     array_speed.append(mpiston.GetPos().v.x)
 
@@ -99,4 +100,4 @@ plt.plot(array_angle, array_pos)
 plt.xlabel('Crank Angle [rad]')
 plt.ylabel('Position [m]')
 plt.title('Piston Position vs. Crank Angle')
-plt.xticks(np.arange(0, 2
+plt.

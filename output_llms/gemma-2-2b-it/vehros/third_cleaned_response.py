@@ -60,18 +60,17 @@ def main():
 
     
     sens_manager = ch.ChSensorManager()
+    
+    lidar = ch.ChLidarSensor(sens_manager, ch.ChVector3d(0, 0, 0), 100)
+    
+    lidar.SetFilter(ch.ChLidarFilterType_NONE)
+    lidar.SetDistanceFilter(100)
+    lidar.SetAngleFilter(10)
+    
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/input/lidar"))
 
     
-    lidar = ch.ChLidarSensor(sens_manager, ch.ChSensorType_LIDAR)
-    
-    lidar.SetResolution(0.1)  
-    lidar.SetDistanceThreshold(0.5)  
-    lidar.SetAngleThreshold(0.1)  
-    lidar.SetFilter(ch.ChLidarFilterType_NONE)  
-    lidar.Initialize()  
-
-    
-    ros_manager.RegisterSensor(lidar)
+    sens_manager.Update()
 
     
     time = 0

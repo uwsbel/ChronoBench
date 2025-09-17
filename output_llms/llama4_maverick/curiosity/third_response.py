@@ -5,7 +5,6 @@ import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
-from pychrono.sensor import *
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -41,22 +40,6 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFrame(init_pos, init_rot))
 
-# Create a sensor manager
-manager = sens.ChSensorManager(system)
-
-# Create a lidar sensor
-lidar_update_rate = 10  # Hz
-lidar = sens.ChLidarSensor(rover.GetChassisBody(), lidar_update_rate, chrono.ChFrame(chrono.ChVector3d(0, 0, 0.3), chrono.Q_from_AngZ(0)),
-                           100, chrono.CH_C_PI / 4,  # horizontal samples, horizontal fov
-                           100, chrono.CH_C_PI / 8)  # vertical samples, vertical fov
-lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
-lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data/"))
-
-# Add the lidar sensor to the sensor manager
-manager.AddSensor(lidar)
-
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
@@ -70,6 +53,26 @@ vis.AddCamera(chrono.ChVector3d(0, 3, 3), chrono.ChVector3d(0, 0, 0))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
+# Create a sensor manager
+manager = sens.ChSensorManager(system)
+
+# Define lidar parameters
+update_rate = 10
+horizontal_samples = 4500
+vertical_samples = 32
+horizontal_fov = 2 * math.pi
+vertical_fov = math.radians(26.8)
+max_distance = 100
+lidar_pose = chrono.ChFrame(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+# Create the lidar sensor
+lidar = sens.ChLidarSensor(rover.GetChassisBody(), update_rate, lidar_pose, horizontal_samples, vertical_samples, horizontal_fov, vertical_fov, max_distance)
+lidar.PushFilter(sens.ChFilterDIArea())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1.0))
+
+# Add the lidar sensor to the sensor manager
+manager.AddSensor(lidar)
+
 # Set the simulation time step
 time_step = 1e-3
 
@@ -77,20 +80,20 @@ time_step = 1e-3
 time = 0
 while vis.Run():
     time += time_step
-
+    
     # ask rover to move forward
     driver.SetSteering(0.0)
-
+    
     # Update rover dynamics
     rover.Update()
-
-    # Update the sensor manager
+    
+    # Update sensor manager
     manager.Update()
-
+    
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     # Advance simulation by one time step
     system.DoStepDynamics(time_step)

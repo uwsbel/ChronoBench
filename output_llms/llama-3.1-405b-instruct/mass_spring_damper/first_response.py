@@ -38,17 +38,18 @@ spring.SetDampingCoefficient(10)
 app = chronoirr.ChIrrApp(sys, "Mass-Spring-Damper Demo", chronoirr.dimension2du(800, 600))
 
 # Add a camera
-app.AddCamera(chronoirr.vector3df(0, 0, -3))
-app.AddTypicalLights()
+app.AddCamera(chronoirr.vector3df(0, 0, -2), chronoirr.vector3df(0, 0, 0))
+
+# Add lighting
+app.AddLightWithShadow(chronoirr.vector3df(2, 4, 2), chronoirr.vector3df(0, 0, 0), 3, 2, 2, 30, 512)
 
 # Add visual shapes for mass and spring
-mass_shape = chrono.ChSphereShape()
-mass_shape.GetSphereGeometry().rad = 0.1
+mass_shape = chronoirr.ChIrrNodeAsset()
+mass_shape.SetSphere(0.1)
 mass.AddAsset(mass_shape)
 
-spring_shape = chrono.ChCylinderShape()
-spring_shape.GetCylinderGeometry().rad = 0.01
-spring_shape.GetCylinderGeometry().height = 1.5
+spring_shape = chronoirr.ChIrrNodeAsset()
+spring_shape.SetCylinder(0.05, 0.05, 1)
 spring.AddAsset(spring_shape)
 
 # Run the simulation
@@ -58,4 +59,3 @@ while app.GetDevice().run():
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
-    sys.DoStepDynamics(app.GetTimestep())

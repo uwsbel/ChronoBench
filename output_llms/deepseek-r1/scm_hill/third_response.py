@@ -22,11 +22,6 @@ chassis_collision_type = veh.CollisionType_NONE
 # Type of tire model (RIGID, TMEASY)
 tire_model = veh.TireModelType_RIGID
 
-# Rigid terrain
-terrainHeight = 0      # terrain height
-terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0   # size in Y direction
-
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
@@ -42,7 +37,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -60,15 +55,14 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create rigid terrain - REPLACED SCM WITH RIGID TERRAIN
+# Create rigid terrain with height map - REPLACED SCM TERRAIN
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(
-    chrono.CSYSNORM, 
+    chrono.ChCoordsysd(),  # Default position (origin)
     veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-    "my_terrain", 
-    40, 40,   # sizeX, sizeY in meters
-    -1, 1,    # height range min/max
-    0.02      # triangle size
+    "field_mesh",  # Mesh name
+    40, 40,        # Size in X and Y directions (meters)
+    -1, 1          # Height range
 )
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 terrain.Initialize()
@@ -87,7 +81,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs.
+# Set the time response for steering and throttle keyboard inputs
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -127,7 +121,7 @@ while vis.Run() :
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
-    terrain.Synchronize(time)
+    # REMOVED: terrain.Synchronize() - not needed for rigid terrain
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
@@ -142,17 +136,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-contact_method = chrono.ChContactMethod_NSC
-
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-   patch = terrain.AddPatch(
-       chrono.CSYSNORM, 
-       veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-       "my_terrain", 
-       40, 40,   # sizeX, sizeY in meters
-       -1, 1,    # height range min/max
-       0.02      # triangle size
-   )
-   patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-   terrain.Initialize()

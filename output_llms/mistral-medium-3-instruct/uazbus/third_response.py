@@ -46,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -69,17 +70,18 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
-# Create the box obstacle as per instructions
+# Create a box obstacle as per instructions
 box_body = chrono.ChBody()
-box_body.SetBodyFixed(True)
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_body.SetCollide(True)
+box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))  # Position as specified
+box_body.SetBodyFixed(True)  # Fixed in place
 box_body.GetCollisionModel().ClearModel()
-box_body.GetCollisionModel().AddBox(0.25, 2.5, 0.1)  # Half-dimensions of 0.5, 5, 0.2
+box_body.GetCollisionModel().AddBox(0.25, 2.5, 0.1)  # Half-dimensions (0.5, 5, 0.2)
 box_body.GetCollisionModel().BuildModel()
 box_body.GetVisualModel().ClearModel()
-box_body.GetVisualModel().AddBox(0.5, 5, 0.2)
-box_body.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+box_body.GetVisualModel().AddBox(0.5, 5, 0.2)  # Full dimensions
+box_body.GetVisualModel().BuildModel()
+box_body.SetCollide(True)
+box_body.SetMaterialSurface(patch_mat)  # Use same material as terrain
 vehicle.GetSystem().Add(box_body)
 
 # Create the vehicle Irrlicht interface
@@ -106,7 +108,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Set constant throttle as per instructions
+# Set constant throttle value as per instructions
 driver.SetThrottle(0.5)
 
 # output vehicle mass
@@ -115,7 +117,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0

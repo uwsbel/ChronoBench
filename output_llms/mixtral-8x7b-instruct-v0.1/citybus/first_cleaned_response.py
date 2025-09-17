@@ -1,3 +1,7 @@
 ```python
 import chrono
-import irrlich
+import chrono.irrlicht as irrl
+import chrono.collision as col
+import chrono.vehicle as veh
+import chrono.sensor as sensor
+import chrono.utility as util

@@ -65,7 +65,7 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.4)  # Updated friction value
+patch_mat.SetFriction(0.4) # Updated friction value
 patch_mat.SetRestitution(0.05) # Updated restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 

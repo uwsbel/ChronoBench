@@ -95,9 +95,9 @@ link_gearAB = chrono.ChLinkLockGear()
 link_gearAB.Initialize(mbody_gearA, mbody_gearB,  
                        chrono.ChFramed())  
 link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL,  
-                                            chrono.QuatFromAngleX(-m.pi / 2)))  
+                                           chrono.QuatFromAngleX(-m.pi / 2)))  
 link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.VNULL,  
-                                            chrono.QuatFromAngleX(-m.pi / 2)))  
+                                           chrono.QuatFromAngleX(-m.pi / 2)))  
 link_gearAB.SetTransmissionRatio(radA / radB)  
 link_gearAB.SetEnforcePhase(True)  
 sys.AddLink(link_gearAB)  
@@ -108,9 +108,9 @@ link_gearBC = chrono.ChLinkLockGear()
 link_gearBC.Initialize(mbody_gearB, mbody_truss,  
                        chrono.ChFramed())  
 link_gearBC.SetFrameShaft1(chrono.ChFramed(chrono.VNULL,  
-                                            chrono.QuatFromAngleX(-m.pi / 2)))  
+                                           chrono.QuatFromAngleX(-m.pi / 2)))  
 link_gearBC.SetFrameShaft2(chrono.ChFramed(chrono.ChVector3d(0, 0, -4),  
-                                            chrono.QUNIT))  
+                                           chrono.QUNIT))  
 link_gearBC.SetTransmissionRatio(radB / radC)  
 link_gearBC.SetEpicyclic(True)  
 sys.AddLink(link_gearBC)  

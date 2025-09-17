@@ -5,126 +5,153 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The system is initialized correctly with `chrono.ChSystemSMC()`.  
-  **No deduction.**
+  Present and correct (`mysim = chrono.ChSystemSMC()`). No deduction.
 
 - **Collision Settings:**  
   The code calls `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)` and `SetDefaultSuggestedMargin(0.001)`.  
-  However, the correct class for these methods is `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()` and `SetDefaultSuggestedMargin()`. The code uses `ChCollisionSystem` which does not exist in the API documentation.  
-  **Deduct 15 points** for incorrect API usage here (also overlaps with correctness, but completeness is affected because collision settings are essential).
+  However, according to the API, these are **static methods of `ChCollisionModel`**, not `ChCollisionSystem`. The code uses `ChCollisionSystem.SetDefaultSuggestedEnvelope` which is incorrect. This is a significant API misuse (see correctness below), but also completeness since collision settings are attempted.  
+  No deduction here for completeness since collision settings are attempted.
 
 - **Body Creation:**  
-  The beam is created as `fea.ChBeamIGA()`. This class is not mentioned in the documentation; the example uses `fea.ChBeamSectionEulerAdvanced()` and `fea.ChElementBeamEuler()`. The `ChBeamIGA` class is not standard or documented here, so this is suspicious. Also, the beam is not added to any mesh or system, nor is a mesh created or added to the system.  
-  The flywheel is created using `chrono.ChBodyEasyCylinder(flywheel_mass, flywheel_radius, flywheel_thickness, flywheel_density, True, True)`. The documented signature is `(lengthX, lengthY, lengthZ, density, visualize, collision, material)`. The parameters passed do not match this signature (mass is passed as first argument instead of length).  
-  Also, the flywheel is not added to the system with `mysim.Add(flywheel)`. Instead, it is added to the beam with `beam.AddBody(flywheel)`, which is not a documented method.  
-  **Deduct 15 points** for missing proper body creation and adding bodies to the system.
+  - The beam is created as `fea.ChBeamIGA()`. However, the API documentation and examples show that beams are typically created using `fea.ChMesh()` and beam elements/nodes are added to the mesh. `ChBeamIGA` is not a standard class in the provided API docs, and no method `SetLength`, `SetRadius`, `SetDensity`, etc., are documented for it. This suggests that the beam creation is incomplete or incorrect.  
+  - The flywheel is created using `chrono.ChBodyEasyCylinder(flywheel_mass, flywheel_radius, flywheel_thickness, flywheel_density, True, True)`. According to the API, `ChBodyEasyCylinder` takes parameters `(radius, height, density, visualize, collision, material=None)`. The first parameter should be radius, not mass. The code passes `flywheel_mass` as the first argument, which is incorrect. This is a correctness issue but also completeness since the body creation is flawed.  
+  - The flywheel is added to the beam via `beam.AddBody(flywheel)`. The API does not document `AddBody` for `fea.ChBeamIGA` or any beam class. Normally, bodies are added to the system via `sys.Add(body)`. This is a missing essential step: the flywheel should be added to the system, not the beam.  
+  - The beam itself is never added to the system (`mysim.Add(beam)` is missing). This is a critical omission.
 
-- **Joints and Links:**  
-  The motor is created as `chrono.ChLinkMotorRotationSpeed()` and torque and speed are set via `SetTorque()` and `SetSpeed()`. The documentation shows that motor joints require initialization with two bodies and a frame, and speed is set via `SetSpeedFunction()`. There is no `SetTorque()` method for `ChLinkMotorRotationSpeed` in the documentation. Also, the motor is added to the beam via `beam.AddLink(motor)`, which is not documented.  
-  **Deduct 15 points** for missing joint initialization and incorrect motor setup.
+- **Joint/Motor Creation:**  
+  - The motor is created as `chrono.ChLinkMotorRotationSpeed()`. However, the motor is not initialized with bodies or a frame, which is mandatory (`motor.Initialize(body1, body2, frame)`). Instead, the code calls `motor.SetTorque()` and `motor.SetSpeed()`, which are not standard API calls for `ChLinkMotorRotationSpeed`. The API specifies `SetSpeedFunction()` to set speed, not `SetSpeed()`.  
+  - The motor is added to the beam via `beam.AddLink(motor)`. Again, the API does not document `AddLink` for beams. Joints and motors should be added to the system (`mysim.Add(motor)`), and must be properly initialized.  
+  - Missing initialization of the motor joint is a critical omission.
 
 - **Visualization:**  
-  The visualization system is created with `irr.ChVisualSystemIrrlicht()`, but the system is never attached to the visualization via `window.AttachSystem(mysim)`. The window is configured with size, title, lights, cameras, sky, and logo, but the calls to `AddTypicalSky()` and `AddTypicalLogo()` are not documented; the documented methods are `AddSkyBox()` and `AddLogo(path)`.  
-  The visualization of the beam is attempted with `window.AddFEMbeamVisualization(beam, beam_visualization_type)`, which is not a documented method.  
-  **Deduct 15 points** for incomplete and incorrect visualization setup.
+  - The visualization system is created (`window = irr.ChVisualSystemIrrlicht()`), window size and title are set, lights and cameras are added.  
+  - However, the visualization system is **not attached to the system** via `window.AttachSystem(mysim)`, which is essential for visualization to work correctly.  
+  - The call `window.AddFEMbeamVisualization(beam, beam_visualization_type)` is not documented in the API. The API shows adding visual shapes or using `fea` postprocessing, but no such method exists on the visualization system.  
+  - The visualization loop uses `window.GetDevice().run()` instead of the documented `window.Run()`.  
+  - The window is closed at the end with `window.GetDevice().closeDevice()`, which is not standard; the API does not mention this method.
 
 - **Simulation Loop:**  
-  The loop uses `window.GetDevice().run()` instead of the documented `window.Run()`. The rendering calls are `BeginScene()`, `DrawAll()`, `EndScene()`, but the documentation uses `BeginScene()`, `Render()`, `EndScene()`.  
-  The simulation stepping is done with `mysim.DoStepDynamics(step_size)`, which is correct.  
-  **Deduct 5 points** for minor deviations in the simulation loop.
+  - The loop calls `mysim.DoStepDynamics(step_size)` correctly.  
+  - The visualization calls `BeginScene()`, `DrawAll()`, `EndScene()`. The API uses `BeginScene()`, `Render()`, `EndScene()`. `DrawAll()` is not documented.  
+  - The loop breaks after `mysim.GetChTime() > sim_time`, which is acceptable.
 
-**Total Completeness deduction: 15 + 15 + 15 + 15 + 5 = 65 points** (but max deduction is 40, so capped at 40).
+**Summary of completeness deductions:**  
+- Missing adding beam and flywheel bodies to the system: **-15 points**  
+- Missing motor initialization and adding to system: **-15 points**  
+- Visualization system not attached to system, incorrect visualization calls: **-15 points**  
+- Minor omissions like missing `Initialize()` on visualization system, redundant camera addition: **-5 points**
+
+**Total completeness deduction: 15 + 15 + 15 + 5 = 50 points** (But max deduction is 40, so capped at 40)
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**  
-  - `chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope()` and `SetDefaultSuggestedMargin()` do not exist; should be `chrono.ChCollisionModel.SetDefaultSuggestedEnvelope()` and `SetDefaultSuggestedMargin()`.  
-  - `ChBodyEasyCylinder` constructor parameters are incorrect; mass is passed as first argument instead of dimensions.  
-  - `SetTorque()` and `SetSpeed()` methods on `ChLinkMotorRotationSpeed` do not exist; motor requires initialization and speed function setting.  
-  - Bodies and joints are not added to the system properly.  
-  - Visualization methods like `AddTypicalSky()`, `AddTypicalLogo()`, and `AddFEMbeamVisualization()` do not exist.  
-  - Simulation loop uses `window.GetDevice().run()` instead of `window.Run()`.  
-  **Deduct 15 points** for each major incorrect API usage that affects simulation behavior. There are multiple, but we count the most critical ones: collision settings, body creation, motor setup, visualization, simulation loop. Deduct 15 points once for collision, 15 for body creation, 15 for motor, 15 for visualization, 5 for simulation loop (minor). Total 65, capped at 30.
+- **Incorrect use of `ChCollisionSystem.SetDefaultSuggestedEnvelope` and `SetDefaultSuggestedMargin`:**  
+  These are static methods of `ChCollisionModel`, not `ChCollisionSystem`. This will cause runtime errors or no effect. **-15 points**
 
-- **Logical errors:**  
-  - Adding flywheel to beam instead of system.  
-  - Not initializing motor with bodies and frame.  
-  - Not attaching visualization to system.  
-  **Deduct 10 points** for these logical errors.
+- **Incorrect parameters to `ChBodyEasyCylinder`:**  
+  The first parameter should be radius, but mass is passed. This will cause incorrect body creation or errors. **-15 points**
 
-- **Minor inaccuracies:**  
-  - Duplicate camera addition (`window.AddCamera()` called twice with same parameters).  
-  - Setting flywheel inertia manually after `ChBodyEasyCylinder` which already sets inertia.  
-  **Deduct 5 points**.
+- **Motor usage:**  
+  - `SetTorque()` and `SetSpeed()` are not valid methods for `ChLinkMotorRotationSpeed`. The API requires `SetSpeedFunction()`.  
+  - Motor is not initialized with bodies and frame.  
+  These are significant errors affecting simulation behavior. **-15 points**
 
-**Total Correctness deduction: 30 (max) + 10 + 5 = 45, capped at 30.**
+- **Adding bodies and links to beam instead of system:**  
+  This is a logical error; bodies and links must be added to the system. **-10 points**
+
+- **Visualization loop uses `DrawAll()` instead of `Render()`, and uses `window.GetDevice().run()` instead of `window.Run()`:**  
+  Minor inaccuracies. **-5 points**
+
+**Total correctness deductions:**  
+- 15 + 15 + 15 + 10 + 5 = 60 points (max 30 points, so capped at 30)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- The code has no comments explaining the steps or variables.  
-- Variable names are meaningful.  
-- Formatting is acceptable but could be improved (e.g., spacing).  
-- Duplicate camera addition is redundant.  
-- No docstrings or inline comments.  
-**Deduct 5 points** for lack of comments and documentation.  
-**Deduct 3 points** for minor readability issues and redundant calls.  
-Total deduction: 8 points.
+- The code has no comments explaining the purpose of sections or variables.  
+- Variable names are mostly meaningful.  
+- Some redundant calls: `window.AddCamera()` is called twice with the same parameters.  
+- Formatting is acceptable but could be improved with spacing and comments.
+
+**Deductions:**  
+- Lack of comments: **-5 points**  
+- Minor redundancy and lack of structure: **-3 points**
+
+Total: 8 points deducted
 
 ---
 
 ### 4. Efficiency (10 points)
 
 - No obvious unnecessary calculations.  
-- Duplicate camera addition is redundant.  
-- Setting inertia manually after `ChBodyEasyCylinder` is unnecessary.  
-- No use of `numpy` in the code despite import.  
-**Deduct 5 points** for redundant code (duplicate camera, inertia setting).  
-**Deduct 3 points** for unused imports (`numpy`).  
-Total deduction: 8 points.
+- Redundant call to `window.AddCamera()` twice with same parameters is inefficient.  
+- No use of `numpy` in the code, though imported. Unused import.  
+- Could optimize by setting up motor speed with a constant function instead of `SetSpeed()` (which is invalid).  
+- No error handling or checks for initialization.
+
+**Deductions:**  
+- Redundant camera addition: **-5 points**  
+- Unused import `numpy`: minor inefficiency **-3 points**
+
+Total: 8 points deducted
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except, input validation).  
-- No checks on simulation parameters or system state.  
-**Deduct 5 points** for lack of basic error handling.
+- No error handling or try-except blocks.  
+- No checks for successful initialization of bodies, joints, or visualization.  
+- No handling of edge cases or invalid parameters.
+
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system is created but not attached to the system.  
-- Uses non-existent methods for sky and logo.  
-- Visualization of beam uses a non-existent method.  
-- Duplicate camera addition.  
-- Lighting is added correctly.  
-**Deduct 5 points** for incorrect and incomplete visualization setup.
+- Visualization system created but not attached to system (`AttachSystem()` missing).  
+- Incorrect visualization calls (`DrawAll()` instead of `Render()`).  
+- Redundant camera addition.  
+- No call to `Initialize()` on visualization system.  
+- No skybox added (API suggests `AddSkyBox()` but code uses `AddTypicalSky()`, which is not documented).  
+- No logo added via `AddLogo()` with data file path.  
+- Lighting added correctly.
+
+**Deductions:**  
+- Incorrect/incomplete visualization setup: **-5 points**  
+- Minor visualization issues (redundant camera, missing logo): **-2 points**
+
+Total: 7 points deducted (capped at 5)
 
 ---
 
-### Summary of deductions:
+### **Summary of deductions:**
 
-| Criterion                  | Max Points | Deduction | Points Awarded |
-|----------------------------|------------|-----------|---------------|
-| Completeness               | 40         | 40        | 0             |
-| Correctness                | 30         | 30        | 0             |
-| Code Quality               | 10         | 8         | 2             |
-| Efficiency                 | 10         | 8         | 2             |
-| Error Handling & Robustness| 5          | 5         | 0             |
-| Visualization Tools        | 5          | 5         | 0             |
-| **Total**                 | **100**    | **96**    | **4**         |
+| Criterion                  | Max Points | Deduction | Notes                              |
+|----------------------------|------------|-----------|----------------------------------|
+| Completeness               | 40         | 40        | Missing adding bodies, motor init, visualization attach |
+| Correctness               | 30         | 30        | Wrong API calls, incorrect params, motor not initialized |
+| Code Quality              | 10         | 8         | No comments, minor redundancy    |
+| Efficiency                | 10         | 8         | Redundant camera, unused import  |
+| Error Handling & Robustness| 5          | 5         | No error handling                |
+| Visualization Tools       | 5          | 5         | Missing AttachSystem, wrong calls|
+
+Total deductions = 40 + 30 + 8 + 8 + 5 + 5 = 96 points
+
+Starting from 100 points, final score = 100 - 96 = 4 points
 
 ---
 
-### Final Score: [[4]]
+### **Final score:**
+
+[[4]]
 
 ---
 
-### Explanation:
+### **Brief explanation:**
 
-The script misses several essential components and misuses many PyChrono APIs, especially in collision settings, body creation, motor initialization, and visualization setup. The simulation loop and visualization calls deviate from the documented API. The code lacks comments and has redundant calls, and it imports unused libraries. There is no error handling or robustness considerations. These issues severely impact the completeness, correctness, and usability of the simulation. Only minor points are awarded for variable naming and basic structure.
+The script attempts to set up a PyChrono simulation with a beam, flywheel, and motor, and visualize it. However, it contains critical errors such as incorrect API usage for collision settings, body creation, and motor initialization. Essential steps like adding bodies and joints to the system and attaching the visualization system are missing. Visualization calls deviate from the documented API, and the simulation loop uses incorrect methods. The code lacks comments and contains minor inefficiencies and redundancies. No error handling is present. These issues severely impact the correctness and completeness of the simulation, resulting in a very low score.

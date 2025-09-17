@@ -23,7 +23,7 @@ tire_model = veh.TireModelType_TMEASY
 
 terrainHeight = 0      
 terrainLength = 200.0  
-terrainWidth = 200.0   
+terrainWidth = 100.0   
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -85,26 +85,58 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 
-class PathFollowerDriver(veh.ChInteractiveDriverIRR):
-    def __init__(self, vis):
-        super().__init__(vis)
-        self.target_speed = 10.0
-        self.look_ahead_distance = 5.0
-
-    def GetInputs(self):
-        
+driver = veh.ChPathFollowerDriverIRR(vis)
+driver.SetTargetSpeed(10.0)
 
 
-steering_controller = veh.ChSteeringController()
-steering_controller.SetLookAheadDistance(self.look_ahead_distance)
-steering_controller.SetGain(0.1)  
+driver.SetLookAheadDistance(5.0)
+driver.SetSteeringGain(1.0)  
+driver.SetSteeringDerivativeGain(1.0)  
 
 
-speed_controller = veh.ChSpeedController()
-speed_controller.SetTargetSpeed(self.target_speed)
-speed_controller.SetGain(0.2)  
+driver.SetSpeedGain(1.0)  
+driver.SetSpeedDerivativeGain(1.0)  
+
+driver.Initialize()
 
 
-driver = PathFollowerDriver(vis)
-driver.SetSteeringController(steering_controller)
-driver.SetSpeedController(speed_controller)
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run() :
+    time = vehicle.GetSystem().GetChTime()
+
+    
+    if (step_number % render_steps == 0) :
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    
+    driver_inputs = driver.GetInputs()
+
+    
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    
+    step_number += 1
+
+    
+    realtime_timer.Spin(step_size)

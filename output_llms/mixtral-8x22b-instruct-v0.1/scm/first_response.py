@@ -34,34 +34,29 @@ vehicle.AddVisualizationAssets(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv.obj
 
 # Create the SCM terrain
 terrain = chronoterrain.ChSCMTerrain()
-terrain.SetSoilParameters(chronoterrain.ChSCMSoilParameters(1500, 100, 0.4, 5, 0.01, 0.005, 0.001))
-terrain.SetPlotType(chronoterrain.ChSCMTerrain::PLOT_SINKAGE, 0.01)
-terrain.Initialize(20, 20, 0.5)
-
-# Enable moving patch feature
+terrain.SetSoilParameters(chronoterrain.ChSCMSoilParameters(1000, 100, 0.5, 0.1, 100, 0.01, 0.01, 0.01, 0.01))
+terrain.SetPlotType(chronoterrain.ChSCMTerrain::PLOT_SINKAGE_FALSE_COLOR)
+terrain.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 0.5), 50, 50)
 terrain.SetMovingPatch(True)
 terrain.SetMovingPatchRadius(1.5)
-terrain.SetMovingPatchHeight(0.1)
-terrain.SetMovingPatchPosition(chrono.ChVectorD(0, 0, 0))
+terrain.SetMovingPatchCenter(chrono.ChVectorD(0, 0, 0))
 
 # Add the terrain to the system
 system.Add(terrain)
 
 # Set up the interactive driver system
-driver = chronodriver.ChIrrGuiDriver()
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-application.AddTypicalSuspensionDriver(driver, vehicle)
+driver = chronodriver.ChSCMDriver()
+driver.SetVehicle(vehicle)
+driver.Initialize()
 
 # Set the simulation to run in real time
 application.SetTimestep(0.02)
 
 # Run the simulation
-while (application.GetDevice().run()):
+while application.GetDevice().run():
+    system.DoStepDynamics(0.02)
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()
 
 chrono.ChronoEngine_Terminate()

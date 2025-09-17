@@ -14,33 +14,33 @@ sys.Add(ground)
 
 # Create a pendulum body and add it to the simulation
 pend_1 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True)
-pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+pend_1.SetPos(chrono.ChVectorD(0, 2, 0))
 sys.Add(pend_1)
 
 # Create a revolute joint to connect the pendulum to the ground
 rev_1 = chrono.ChLinkLockRevolute()
-rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngY(chrono.CH_PI_2)))
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.Q_from_AngY(0)))
 sys.AddLink(rev_1)
 
-# Create the second pendulum body and add it to the simulation
+# Create a second pendulum body and add it to the simulation
 pend_2 = chrono.ChBodyEasyCylinder(sys, 0.2, 2, 1000, True)
-pend_2.SetPos(chrono.ChVectorD(3, 0, 1))
+pend_2.SetPos(chrono.ChVectorD(0, 4, 0))
 sys.Add(pend_2)
 
 # Create a revolute joint to connect the second pendulum to the first pendulum
 rev_2 = chrono.ChLinkLockRevolute()
-rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(2, 0, 1), chrono.Q_from_AngY(chrono.CH_PI_2)))
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(0, 2, 0), chrono.Q_from_AngY(0)))
 sys.AddLink(rev_2)
 
 # Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Double Pendulum Demo')  # Set the window title
+vis.SetWindowTitle('Double Pendulum Simulation')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance
-vis.AddCamera(chrono.ChVectorD(0, 3, 6))  # Add a camera to the visualization
+vis.AddCamera(chrono.ChVectorD(0, 10, 10))  # Add a camera to the visualization
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Simulation loop

@@ -13,7 +13,7 @@ try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print("Error creating output directory ")
+        print("Error creating output directory")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
@@ -83,12 +83,12 @@ if (True):  # Block to execute the following setup
             mesh.AddElement(melementA)
 
             if (iz == 0 and ix == 1):
-                melementmonitor = melementA  # Assign element to monitor
+                melementmonitor = melementA  # Assign element to monitor (fixed typo from ementmonitor to melementmonitor)
 
             # Define boundary nodes
             boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix] if (ix > 0) else None
-            boundary_3 = mynodes[(iz) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0) else None
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
             # Set nodes to the element
             melementA.SetNodes(

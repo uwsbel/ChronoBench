@@ -1,69 +1,62 @@
-import chrono as c
-import irrlicht as irr
-import time
+import chrono as ch
+import chrono.vehicle as chv
+import chrono.terrain as cht
+import chrono.interactive as chi
 
-# Initialize PyChrono environment and core components
-c.init()
+# Initialize the PyChrono environment
+ch.Init()
 
-# Create a new simulation
-sim = c.Simulation()
+# Create a rigid terrain with specified dimensions and texture
+terrain = cht.RigidTerrain(
+    name='terrain',
+    dim=[100, 100, 0.1],
+    texture='path/to/texture.jpg',
+    friction=0.7,
+    restitution=0.5
+)
 
-# Create a rigid terrain with dimensions 10x10 meters and a texture
-terrain = c.RigidTerrain(sim, 10, 10, c.Vector3(0, 0, 0))
-terrain.set_texture("path/to/terrain/texture.jpg")
+# Create a HMMWV vehicle with specific parameters
+vehicle = chv.HMMWV(
+    name='hmmwv',
+    pos=[0, 0, 0],
+    euler=[0, 0, 0],
+    contact_method=ch.ContactMethod.PREDICTION,
+    tire_model='TMEASY',
+    wheel_radius=0.3,
+    wheel_width=0.2,
+    wheel_distance=1.5,
+    suspension_stiffness=100000,
+    damping_coefficient=500,
+    camber_angle=0,
+    steering_angle=0,
+    brake_force=1000,
+    max_speed=100
+)
 
-# Create a full HMMWV vehicle with specific parameters
-vehicle = c.RigidBody(sim, "HMMWV")
-vehicle.set_position(c.Vector3(0, 0, 0))
-vehicle.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.set_contact_method(c.ContactMethod.SWEEPER)
-vehicle.set_tire_model(c.TireModel.TMEASY)
+# Add primitive visualization for the vehicle components
+vehicle.add_primitive(ch.Box(name='chassis', pos=[0, 0, 0], size=[2, 2, 0.1]))
+vehicle.add_primitive(ch.Box(name='body', pos=[0, 0, 0.1], size=[2, 2, 1]))
+vehicle.add_primitive(ch.Box(name='engine', pos=[0, 0, 1.1], size=[1, 1, 0.1]))
 
-# Add vehicle components (e.g., chassis, engine, wheels)
-chassis = c.RigidBody(sim, "Chassis")
-chassis.set_position(c.Vector3(0, 0, 0))
-chassis.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.add_component(chassis)
+# Set up an interactive driver system for steering, throttle, and braking
+driver = chi.InteractiveDriver(
+    name='driver',
+    steering_gain=0.1,
+    throttle_gain=0.1,
+    brake_gain=0.1
+)
 
-engine = c.RigidBody(sim, "Engine")
-engine.set_position(c.Vector3(0, 0, 0))
-engine.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.add_component(engine)
+# Configure the simulation loop to run in real time at 50 frames per second
+ch.SetRealTime(50)
 
-wheels = []
-for i in range(4):
-    wheel = c.RigidBody(sim, f"Wheel {i}")
-    wheel.set_position(c.Vector3(-2, 0, -1 + i * 1.5))
-    wheel.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-    vehicle.add_component(wheel)
-    wheels.append(wheel)
+# Set up the simulation loop
+def simulation_step():
+    # Update the vehicle dynamics
+    vehicle.update()
+    
+    # Render the scene
+    ch.Render()
 
-# Configure primitive visualization for vehicle components
-for component in [chassis, engine] + wheels:
-    component.set_primitive_type(c.PrimitiveType.BOX)
-
-# Create an interactive driver system for steering, throttle, and braking
-driver = c.Driver(sim)
-driver.set_steering_gain(1.0)
-driver.set_throttle_gain(1.0)
-driver.set_braking_gain(1.0)
-
-# Set up simulation loop to run in real time at 50 frames per second
-sim.set_fps(50)
-sim.set_real_time(True)
-
-# Simulation loop
+# Run the simulation loop
 while True:
-    sim.update()
-    time.sleep(1 / 50)  # Update at 50 Hz
-
-    # Render the scene using Irrlicht
-    irr.init()
-    irr.set_window_title("HMMWV Simulation")
-    irr.set_window_size(800, 600)
-    irr.begin()
-    irr.draw_terrain(terrain)
-    irr.draw_rigid_body(vehicle)
-    irr.end()
-    irr.update()
-    irr.wait_key()
+    simulation_step()

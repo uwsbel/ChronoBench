@@ -1,107 +1,134 @@
 import pychrono as pychrono
-from pychrono import Vehicle, VehicleComponent, Scene, Tensor
-import pychrono.vehicles as pyvehicles
-from pychrono.render import *
+from pychrono import Vehicle, Component, Physics, Scene, Input, Visualization
 import numpy as np
 
 
 scene = Scene()
-scene.set_ground_friction(1000.0)  
-scene.set_air_resistance(100.0)    
+scene.set_physx_num_threads(4)
+scene.set Visualization("Irrlicht")
 
 
-vehicle = Vehicle(scene, "HMMWV")
-vehicle.set_position(pychrono.Vector3(0, 0, 0))  
-vehicle.set驾驶类型("4轮驱动")  
-vehicle.set发动机类型("水平-opel")  
-vehicle.set_max速度(30, 30)  
-
-
-suspension = VehicleComponent(vehicle, "悬挂系统", pychrono.ComponentType.SUSPENSION)
-suspension.set参数("压缩率", 0.3)  
-suspension.set参数("阻尼", 0.5)    
-
-
-wheel1 = VehicleComponent(vehicle, "前轮", pychrono.ComponentType.WHEEL)
-wheel1.set参数("半径", 0.3)
-wheel1.set参数("摩擦系数", 0.7)
-wheel1.set参数("驱动力", True)
-
-wheel2 = VehicleComponent(vehicle, "后轮", pychrono.ComponentType.WHEEL)
-wheel2.set参数("半径", 0.3)
-wheel2.set参数("摩擦系数", 0.7)
-wheel2.set参数("驱动力", True)
+vehicle = Vehicle()
+vehicle.set_name("HMMWV")
+vehicle.set_position(pychrono.Vector3(0, 0, 0))
+vehicle.set_mass(2000)  
+vehicle.set_engine_type(pychrono.EngineType.Diesel)  
+vehicle.set_drivetrain_type(pychrono.DrivetrainType.FourWheeled)  
 
 
 
-flat_patch = pychrono.TerrainPatch(scene, "flat", pychrono.TerrainType.GRASS, pychrono.TerrainSurfaceType.FLAT)
+wheel1 = Component("wheel1", ComponentType.SpringDamper)
+wheel1.set_position(pychrono.Vector3(1, 0.5, 0))
+wheel1.set_size(0.5, 0.5, 0.5)
+wheel1.set_damping(0.5, 0.5)
+wheel1.set_rest_position(0, 0, 0)
+
+wheel2 = Component("wheel2", ComponentType.SpringDamper)
+wheel2.set_position(pychrono.Vector3(-1, 0.5, 0))
+wheel2.set_size(0.5, 0.5, 0.5)
+wheel2.set_damping(0.5, 0.5)
+wheel2.set_rest_position(0, 0, 0)
+
+wheel3 = Component("wheel3", ComponentType.SpringDamper)
+wheel3.set_position(pychrono.Vector3(1, -0.5, 0))
+wheel3.set_size(0.5, 0.5, 0.5)
+wheel3.set_damping(0.5, 0.5)
+wheel3.set_rest_position(0, 0, 0)
+
+wheel4 = Component("wheel4", ComponentType.SpringDamper)
+wheel4.set_position(pychrono.Vector3(-1, -0.5, 0))
+wheel4.set_size(0.5, 0.5, 0.5)
+wheel4.set_damping(0.5, 0.5)
+wheel4.set_rest_position(0, 0, 0)
+
+
+scene.add_component(wheel1, vehicle)
+scene.add_component(wheel2, vehicle)
+scene.add_component(wheel3, vehicle)
+scene.add_component(wheel4, vehicle)
+
+
+
+flat_patch = Component("flat_patch", ComponentType.Mesh)
+flat_patch.set_mesh("flat", "data/flat_mesh.obj")
 flat_patch.set_position(pychrono.Vector3(0, 0, 0))
-flat_patch.set_height(0)
+flat_patch.set_size(10, 10, 0.1)
+scene.add_component(flat_patch)
 
 
-bump_mesh = pychrono.TerrainPatch(scene, "bump", pychrono.TerrainType.ASPhALT, pychrono.TerrainSurfaceType.MESH)
-bump_mesh.set_position(pychrono.Vector3(5, 0, 0))
-bump_mesh.load_mesh("bump_mesh.obj")  
+bump_patch = Component("bump_patch", ComponentType.Mesh)
+bump_patch.set_mesh("bump", "data/bump_mesh.obj")
+bump_patch.set_position(pychrono.Vector3(5, 0, 1))
+bump_patch.set_size(5, 5, 0.5)
+scene.add_component(bump_patch)
 
 
-heightmap_patch = pychrono.TerrainPatch(scene, "heightmap", pychrono.TerrainType.GRASS, pychrono.TerrainSurfaceType.HEIGHTMAP)
-heightmap_patch.set_position(pychrono.Vector3(10, 0, 0))
-heightmap_patch.load_heightmap("heightmap.hgt")  
+heightmap_patch = Component("heightmap_patch", ComponentType.Mesh)
+heightmap_patch.set_mesh("heightmap", "data/heightmap.obj")
+heightmap_patch.set_position(pychrono.Vector3(0, 5, 0))
+heightmap_patch.set_size(10, 5, 0.5)
+scene.add_component(heightmap_patch)
 
 
-renderer = IrrlichtRenderer(scene)
-renderer.set_camera_position(pychrono.Vector3(5, 5, 5))
-renderer.set_view_vector(pychrono.Vector3(0, 0, 1))
-renderer.set_up_vector(pychrono.Vector3(0, 1, 0))
-renderer.set_light_color(pychrono.Vector3(1, 1, 1))
-renderer.set_light_position(pychrono.Vector3(10, 10, 10))
+scene.getVisualization().set_camera_position(pychrono.Vector3(5, 5, 5))
+scene.getVisualization().set_look_at(pychrono.Vector3(0, 0, 0))
+scene.getVisualization().set_up_vector(pychrono.Vector3(0, 1, 0))
+scene.getVisualization().set_light_position(pychrono.Vector3(10, 10, 10))
+scene.getVisualization().set_light_direction(pychrono.Vector3(-1, -1, -1))
 
 
-renderer.set_wireframe_mode(True)
+driver = pychrono.Driver()
+driver.set_steering_sensitivity(0.5)
+driver.set_throttle_sensitivity(0.5)
+driver.set_brake_sensitivity(0.5)
 
 
-controls = pychrono.Controls()
-steering = 0
-throttle = 0
-braking = 0
+timestep = 0.01
+last_time = 0
+delta_time = 0
 
-
-def update_controls():
-    global steering, throttle, braking
-    if controls.is_key_pressed(pychrono.Key.LEFT):
-        steering = -0.5
-    if controls.is_key_pressed(pychrono.Key.RIGHT):
-        steering = 0.5
-    if controls.is_key_pressed(pychrono.Key.ACCELERATE):
-        throttle = 1.0
-    if controls.is_key_pressed(pychrono.Key.BRAKE):
-        braking = 1.0
-    else:
-        steering = 0
-        throttle = 0
-        braking = 0
-
-
-timestep = 1.0 / 60.0  
 while True:
+    current_time = scene.get_current_time()
+    delta_time = current_time - last_time
+    last_time = current_time
+
     
-    update_controls()
+    scene.update_physics(delta_time)
+
     
+    speed = vehicle.get_speed()
+    angle = vehicle.get_angle()
+
     
-    vehicle.update(timestep)
+    if driver.get_throttle():
+        vehicle.set_throttle(0.5 * driver.get_throttle())
+    else:
+        vehicle.set_throttle(0)
+
     
+    if driver.get_steering():
+        vehicle.set_steering(1.0 * driver.get_steering())
+
     
-    renderer.begin_frame()
-    renderer.render()
-    renderer.end_frame()
+    if driver.get_brake():
+        vehicle.set_brake(0.5 * driver.get_brake())
+    else:
+        vehicle.set_brake(0)
+
     
+    scene.update_visualization()
+
     
-    forces = vehicle.get_forces()
-    if forces[0].x != 0 or forces[0].y != 0:
-        vehicle.apply_force(forces[0])
+    if delta_time > 0.1:
+        delta_time = 0.1
+
     
+    print(f"Time: {current_time}, Speed: {speed}, Angle: {angle}")
+    print(f"Throttle: {vehicle.get_throttle() * 100}")
+    print(f"Steering: {vehicle.get_steering() * 100}")
+    print(f"Brake: {vehicle.get_brake() * 100}")
+    print("-------------------")
+
     
-    print(f"Speed: {vehicle.get_speed():.2f} m/s")
-    
-    
-    pychrono timestep(timestep)
+    if delta_time < 0.01:
+        continue

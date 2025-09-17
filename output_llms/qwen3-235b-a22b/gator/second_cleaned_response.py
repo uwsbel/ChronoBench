@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 
 
 terrainHeight = 0
-terrainLength = 100.0  
+terrainLength = 50.0  
 terrainWidth = 100.0
 
 
@@ -36,7 +36,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 
-render_step_size = 1.0 / 50
+render_step_size = 1.0 / 50  
 
 
 vehicle = veh.Gator()
@@ -62,54 +62,46 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
+
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-patch_heightmap = terrain.AddPatch(
-    patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, -25, 0), chrono.QUNIT),
-    veh.GetDataFile("terrain/heightmaps/heightmap1.png"),
-    0.05,
-    5.0
-)
-patch_heightmap.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch_heightmap.SetColor(chrono.ChColor(0.6, 0.8, 0.6))
+patch1 = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(-75, 0, 0), chrono.QUNIT),
+    50, terrainWidth)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
-patch_bump = terrain.AddPatch(
-    patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(25, -25, 0), chrono.QUNIT),
-    1.0,  
-    5.0   
-)
-patch_bump.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 50, 50)
-patch_bump.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+patch2 = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, 0, 0), chrono.QUNIT),
+    50, terrainWidth)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
 
 
-patch_tile1 = terrain.AddPatch(
-    patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(-25, 25, 0), chrono.QUNIT),
-    50.0,
-    50.0
-)
-patch_tile1.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 100, 100)
-patch_tile1.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+patch3 = terrain.AddPatch(patch_mat,
+    veh.GetDataFile("heightmaps/slope.png"),
+    chrono.ChVector3d(25, 0, 0.5),  
+    50, terrainWidth,
+    0, 1.0)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.4, 0.7, 0.4))
 
 
-patch_tile2 = terrain.AddPatch(
-    patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(25, 25, 0), chrono.QUNIT),
-    50.0,
-    50.0
-)
-patch_tile2.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 100, 100)
-patch_tile2.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
+patch4 = terrain.AddPatch(patch_mat,
+    veh.GetDataFile("heightmaps/bump10.png"),
+    chrono.ChVector3d(75, 0, 0.25),  
+    50, terrainWidth,
+    0, 0.5)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/rock.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
 
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Gator Vehicle - Multi-Terrain')
+vis.SetWindowTitle('Gator Vehicle with Multi-Terrain')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -120,6 +112,8 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
+
+
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
@@ -129,7 +123,8 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
+
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
@@ -137,18 +132,22 @@ step_number = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

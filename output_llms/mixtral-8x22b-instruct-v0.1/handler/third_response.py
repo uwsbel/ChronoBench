@@ -80,15 +80,21 @@ def main():
     vis.SetWindowTitle("PyChrono Simulation")
     vis.SetWindowSize(800, 600)
     vis.SetCameraVertical(ch.CameraVerticalType_FIX_UP)
-    vis.SetCameraPosition(ch.ChVector3d(0, 0, 5))
-    vis.SetCameraDirection(ch.ChVector3d(0, 0, -1))
-    vis.SetLightDirection(ch.ChVector3d(0, 0, -1))
-    sys.AddVisualSystem(vis)
+    vis.SetCameraVertical(ch.CameraVerticalType_FIX_UP)
+    vis.SetCameraVertical(ch.CameraVerticalType_FIX_UP)
+    vis.SetCameraVertical(ch.CameraVerticalType_FIX_UP)
+    vis.Initialize()
+    vis.AddLogo(ch.GetChronoDataFile("logo_pychrono.png"))
+    vis.AddSkyBox(ch.GetChronoDataFile("bluetile.jpg"))
+    vis.AddLight(ch.ChVector3d(5, 10, 10), ch.ChVector3d(0.3, 0.3, 0.3), ch.ChVector3d(0.3, 0.3, 0.3), 1, 100)
+    vis.AddLight(ch.ChVector3d(-5, 10, 10), ch.ChVector3d(0.3, 0.3, 0.3), ch.ChVector3d(0.3, 0.3, 0.3), 1, 100)
+    vis.AddLight(ch.ChVector3d(0, 10, -5), ch.ChVector3d(0.3, 0.3, 0.3), ch.ChVector3d(0.3, 0.3, 0.3), 1, 100)
+    vis.AttachSystem(sys)
 
-    # Define variables for controlling rendering frame rate.
+    # Variables for controlling rendering frame rate.
     step_number = 0
-    render_step_size = 10
-    render_steps = 5
+    render_step_size = 5
+    render_steps = 10
 
     # Run the simulation loop.
     time = 0
@@ -103,10 +109,15 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        if step_number % render_step_size == 0:  # Render the scene every few steps.
+        if step_number % render_step_size == 0:  # Conditional rendering.
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
+
+            if step_number % render_steps == 0:  # Update the scene every few steps.
+                vis.BeginScene()
+                vis.Render()
+                vis.EndScene()
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
         step_number += 1

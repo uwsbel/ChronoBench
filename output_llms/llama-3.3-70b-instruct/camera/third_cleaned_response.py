@@ -14,19 +14,17 @@ def main():
     
     
     
+    
     side = 1.0
     
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
-    box_body.SetBodyFixed(True)  
-    mphysicalSystem.Add(box_body)  
-
     
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetBox(side, side, side)
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  
-    box_body.AddVisualShape(box_shape)  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    
+    
+    box_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    
+    
+    mphysicalSystem.Add(box_body)
 
     
     
@@ -36,23 +34,27 @@ def main():
 
     
     intensity = 1.0  
-    manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
-    manager.scene.AddAreaLight(chrono.ChVector3f(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVector3f(1, 0, 0), chrono.ChVector3f(0, -1, 0))
+    manager.scene.AddPointLight(chrono.ChVectorD(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddPointLight(chrono.ChVectorD(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVectorD(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVectorD(1, 0, 0), chrono.ChVectorD(0, -1, 0))
 
     
     
     
     
-    offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 3), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
-
-    
-    update_rate = 30
-    image_width = 1280
-    image_height = 720
+    update_rate = 30  
+    image_width = 1280  
+    image_height = 720  
     fov = 1.408  
+    lag = 0  
+    exposure_time = 0  
+
+    
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7, 0, 3), chrono.Q_from_AngX(2))
+
+    
     cam = sens.ChCameraSensor(
         box_body,              
         update_rate,            
@@ -62,16 +64,16 @@ def main():
         fov                     
     )
     cam.SetName("Camera Sensor")
-    lag = 0
     cam.SetLag(lag)  
-    exposure_time = 0
     cam.SetCollectionWindow(exposure_time)  
 
     
     
     
     
-    noise_model = "CONST_NORMAL"
+    noise_model = "CONST_NORMAL"  
+
+    
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  
     elif noise_model == "PIXEL_DEPENDENT":
@@ -120,16 +122,16 @@ def main():
     orbit_radius = 10  
     orbit_rate = 0.5   
     ch_time = 0.0      
-    step_size = 1e-3
-    end_time = 20.0
+    step_size = 1e-3   
+    end_time = 20.0    
 
     t1 = time.time()  
 
     while ch_time < end_time:
         
-        cam.SetOffsetPose(chrono.ChFramed(
-            chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
-            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
+        cam.SetOffsetPose(chrono.ChFrameD(
+            chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+            chrono.Q_from_AngX(ch_time * orbit_rate)))
 
         
         rgba8_buffer = cam.GetMostRecentRGBA8Buffer()

@@ -6,114 +6,64 @@ import pychrono.sensor as chrono_sensor
 
 # Initialize the PyChrono environment
 chrono.SetChronoDataPath('./data/')
-system = chrono.ChSystemNSC()
 
-# Create the vehicle system
+# Create the simulation system
+mysystem = chrono.ChSystemNSC()
+
+# Create the vehicle
 veh = chrono_vehicle.HMMWV()
-veh.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
-veh.SetChassisMaterial(chrono.ChMaterialSurfaceNSC())
-veh.SetTireMaterial(chrono.ChMaterialSurfaceNSC())
-veh.SetTireFrictionCoefficient(0.9)
-veh.SetTireDampingCoefficient(0.9)
-veh.SetChassisVisualization(chrono.ChVisualizationType.PRIMITIVES)
-veh.SetTireVisualization(chrono.ChVisualizationType.MESH)
-veh.SetTireSmoothMesh(True)
-veh.SetChassisCollisionType(chrono.ChCollisionType.BULLET)
-veh.SetTireCollisionType(chrono.ChCollisionType.BULLET)
-veh.SetChassisSuggestedEnvelope(chrono.ChVectorD(1, 1, 1))
-veh.SetTireSuggestedEnvelope(chrono.ChVectorD(1, 1, 1))
-veh.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-
-# Add the vehicle to the system
-system.Add(veh.GetChassisBody())
-system.Add(veh.GetBodyList())
+veh.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+mysystem.Add(veh.GetChassisBody())
+mysystem.Add(veh.GetHull())
+mysystem.Add(veh.GetChassis())
+mysystem.Add(veh.GetWheel(chrono_vehicle.WheelSide.LEFT_FRONT))
+mysystem.Add(veh.GetWheel(chrono_vehicle.WheelSide.RIGHT_FRONT))
+mysystem.Add(veh.GetWheel(chrono_vehicle.WheelSide.LEFT_REAR))
+mysystem.Add(veh.GetWheel(chrono_vehicle.WheelSide.RIGHT_REAR))
 
 # Create the terrain
-terrain = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetFriction(0.9)
-terrain.SetDamping(0.9)
-system.Add(terrain)
+terrain = chrono.ChTerrain()
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+mysystem.Add(terrain)
 
 # Create the driver
 driver = chrono_vehicle.ChIrrVehicleDriver(veh)
-driver.SetSteeringDelta(chrono.CH_C_PI/180)
-driver.SetThrottleDelta(0.01)
-driver.SetBrakingDelta(0.1)
-driver.SetTractionLag(0.2)
-driver.SetSteeringLag(0.2)
-driver.SetThrottleLag(0.2)
-driver.SetBrakingLag(0.2)
-driver.Initialize()
+mysystem.Add(driver.GetChassisBody())
 
-# Create the IMU and GPS sensors
-imu = chrono_sensor.ChSensorIMU(veh.GetChassisBody())
-imu.SetNoiseAcc(0.1)
-imu.SetNoiseGyr(0.1)
-imu.SetNoiseMag(0.1)
-imu.SetFrequency(100)
-imu.SetPosition(chrono.ChVectorD(0, 0, 0))
-imu.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-imu.Initialize()
+# Create the visual system
+visual_system = chronoirr.ChVisualSystemIrrlicht(mysystem)
+visual_system.SetWindowSize(800, 600)
+visual_system.SetWindowTitle('HMMWV Simulation')
+visual_system.AddTypicalLights()
+visual_system.AddSkyBox()
+visual_system.AddLogo()
+visual_system.SetShowInfos(True)
 
-gps = chrono_sensor.ChSensorGPS(veh.GetChassisBody())
-gps.SetNoisePos(0.1)
-gps.SetNoiseVel(0.1)
-gps.SetFrequency(100)
-gps.SetPosition(chrono.ChVectorD(0, 0, 0))
-gps.SetOrientation(chrono.Q_from_AngX(chrono.CH_C_PI_2))
-gps.Initialize()
+# Create IMU and GPS sensors
+imu_sensor = chrono_sensor.ChSensorIMU(veh.GetChassisBody(), chrono.ChVectorD(0, 0, 1.5))
+gps_sensor = chrono_sensor.ChSensorGPS(veh.GetChassisBody(), chrono.ChVectorD(0, 0, 1.5))
+mysystem.Add(imu_sensor)
+mysystem.Add(gps_sensor)
 
-# Create the visual interface
-application = chronoirr.ChVisualSystemIrrlicht()
-application.SetWindowSize(1024, 768)
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.ChVectorD(0, 1, -2))
-application.AddSkyBox()
-application.AddLogo()
-application.SetShowInfo(True)
-application.SetShowLogo(True)
-application.SetCamera(chronoirr.ChVectorD(0, 1, -2))
+# Set the simulation step and time
+step = 0.01
+time = 0
 
-# Simulation loop
-steering = 0
-throttle = 0
-braking = 0
-while application.Run():
-    application.BeginScene()
-    application.DrawAll()
-    
-    # Update the driver inputs
-    driver.SetSteering(steering)
-    driver.SetThrottle(throttle)
-    driver.SetBraking(braking)
-    
-    # Update the vehicle
-    veh.Update(1e-3)
-    
-    # Update the terrain
-    terrain.Update(1e-3)
-    
-    # Update the IMU and GPS sensors
-    imu.Update(1e-3)
-    gps.Update(1e-3)
-    
-    # Output the vehicle mass
-    print("Vehicle mass: ", veh.GetChassisBody().GetMass())
-    
-    # Advance the simulation
-    system.DoStepDynamics(1e-3)
-    
-    # Synchronize the visual system
-    application.EndScene()
-    
-    # Update the steering, throttle, and braking inputs
-    steering += 0.01
-    throttle += 0.01
-    braking += 0.01
-    
-    # Limit the steering, throttle, and braking inputs
-    steering = max(-chrono.CH_C_PI, min(chrono.CH_C_PI, steering))
-    throttle = max(0, min(1, throttle))
-    braking = max(0, min(1, braking))
+# Run the simulation loop
+while time < 10:
+    # Update the vehicle, terrain, driver, and visual system modules
+    veh.Update(step)
+    terrain.Update(step)
+    driver.Update(step)
+    visual_system.Update()
+
+    # Process and update sensor data
+    imu_sensor.Process(step)
+    gps_sensor.Process(step)
+
+    # Output vehicle mass and render the scene
+    print('Vehicle mass: ', veh.GetChassisBody().GetMass())
+    visual_system.Render()
+
+    # Advance the simulation time
+    time += step

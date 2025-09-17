@@ -8,30 +8,6 @@ import numpy as np
 import time
 import math
 
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 40.0
-
-# Save camera images
-save = False
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
-
-# The path to the Chrono data directory containing various assets (meshes, textures, data files)
-# is automatically set, relative to the default location of this demo.
-# If running from a different directory, you must change the path to the data directory with:
-# chrono.SetChronoDataPath('path/to/data')
-
 # -----------------
 # Lidar parameters
 # -----------------
@@ -71,34 +47,47 @@ sample_radius = 2
 # 3mm radius (as cited by velodyne)
 divergence_angle = 0.003
 
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 40.0
+
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
 def main():
     # ----------------------------------
     # Create the vehicle system
     # ----------------------------------
     system = chrono.ChSystemNSC()
-    vehicle = veh.ARTcar(system)
+
+    # Create the vehicle
+    vehicle = veh.ARTcar("ARTcar", system)
     vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
 
-    # ----------------------------------
-    # Create the driver
-    # ----------------------------------
+    # Create a driver
     driver = veh.ChDriver(vehicle.GetChassis())
-    vehicle.SetDriver(driver)
 
-    # ----------------------------------
     # Create the terrain
-    # ----------------------------------
     terrain = chrono.ChRigidBody()
     terrain.SetBodyFixed(True)
     terrain.SetCollide(True)
-    terrain.GetCollisionModel().ClearModel()
-    terrain.GetCollisionModel().AddBox(chrono.ChVector3d(100, 100, 0.1), chrono.ChVector3d(0, 0, -0.05))
-    terrain.GetCollisionModel().BuildModel()
-    terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC.CreateDefault())
-    terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/grass.png"))
-    terrain.GetVisualModel().SetMaterialColor(chrono.ChColor(0.5, 0.5, 0.5))
+    terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
+    terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
+    terrain.GetVisualModel().AddPrimitive(chrono.ChBoxShape(chrono.ChVector3d(100, 100, 0.1)))
+    terrain.GetVisualModel().SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
+    terrain.GetVisualModel().SetColor(chrono.ChColor(0.8, 0.8, 0.8))
     system.Add(terrain)
 
     # -----------------------
@@ -113,7 +102,7 @@ def main():
         chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        vehicle.GetChassisBody(),              # Body lidar is attached to
+        vehicle.GetChassis(),              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
@@ -149,3 +138,15 @@ def main():
     lidar.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
         # Visualize the point cloud
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    # Provides the host access to the XYZI data
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    # Add the lidar to the sensor manager
+    manager.AddSensor(lidar)
+
+    # Create 2D lidar sensor
+    lidar_2d =  sens.ChLidarSensor(
+        vehicle.GetChassis(),              # Body lidar is attached to
+        update_rate,            # Scanning rate in Hz
+        offset_pose,            # Offset pose
+        horizontal_samples,     # Number of horizontal samples

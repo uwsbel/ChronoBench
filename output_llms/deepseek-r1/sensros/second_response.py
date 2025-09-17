@@ -30,7 +30,7 @@ def main():
     ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
     ground_body.SetPos(ch.ChVector3d(0, 0, 0))
     ground_body.SetFixed(False)  # Make the body movable.
-    # Removed SetMass(0) to allow proper rotation
+    # Removed SetMass(0) to allow dynamic movement
     sys.Add(ground_body)
 
     # Create the sensor manager.
@@ -51,28 +51,38 @@ def main():
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a lidar sensor with visualization name.
+    # Create and configure a lidar sensor with named visualization filter
     lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
     lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "3D Lidar Point Cloud"))  # Named visualization
+    # Add named visualization filter for 3D LiDAR
+    vis_3d = sens.ChFilterVisualizePointCloud(1280, 720, 1)
+    vis_3d.SetName("3D LiDAR Point Cloud")
+    lidar.PushFilter(vis_3d)
     lidar.SetName("lidar")
     sens_manager.AddSensor(lidar)
 
-    # Create and configure a 2D lidar sensor.
-    lidar2d = sens.ChLidar2DSensor(
-        ground_body,      # Attach to ground body
-        10,               # Update rate: 10 Hz
-        offset_pose,      # Same position/orientation as other sensors
-        360,              # Horizontal samples (360 for 1° resolution)
-        2 * ch.CH_PI,     # Horizontal FOV: 360°
-        100.0,            # Max distance: 100m
-        0                 # Lag: 0s
+    # Create and configure a 2D LiDAR sensor
+    lidar2d = sens.ChLidarSensor(
+        ground_body,       # Parent body
+        10,                # Update rate (Hz)
+        offset_pose,       # Sensor position/orientation
+        360,               # Horizontal samples
+        1,                 # Vertical samples (1 for 2D)
+        2 * ch.CH_PI,      # Horizontal FOV (360°)
+        0,                 # Vertical max angle (0°)
+        0,                 # Vertical min angle (0°)
+        100.0,             # Max detection distance
+        0                  # Lag time
     )
     lidar2d.PushFilter(sens.ChFilterDIAccess())
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth2D())
-    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Point Cloud"))  # Named visualization
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
+    # Add named visualization filter for 2D LiDAR
+    vis_2d = sens.ChFilterVisualizePointCloud(1280, 720, 1)
+    vis_2d.SetName("2D LiDAR Point Cloud")
+    lidar2d.PushFilter(vis_2d)
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -112,7 +122,8 @@ def main():
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))  # New 2D LiDAR handler
+    # Add ROS handler for 2D LiDAR
+    ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
     gyro_handler = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")

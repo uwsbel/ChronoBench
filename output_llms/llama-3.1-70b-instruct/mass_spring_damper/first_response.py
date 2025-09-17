@@ -3,54 +3,58 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.engine as chronoengine
 
-# Create the simulation system and add it to the ChSystem
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('./data/')
 
-# Create the Irrlicht visualization (for 3D rendering with lighting, shadows, etc.)
-visual_system = chronoirr.ChVisualSystemIrrlicht()
-visual_system.SetWindowSize(800, 600)
-visual_system.SetWindowTitle("Mass-Spring-Damper System")
-visual_system.SetCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
-visual_system.AddTypicalLights()
+# Create the simulation system and set the default parameters
+mysystem = chrono.ChSystemNSC()
+mysystem.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+mysystem.SetMaxItersSolverSpeed(100)
 
-# Create a contact material (used for collision between objects)
-material = chrono.ChMaterialSurfaceNSC()
-material.SetFriction(0.4)
-material.SetRestitution(0.1)
-material.SetYoungModulus(1e6)
-
-# Create a mass (ChBodyEasySphere) and add it to the system
-mass = chrono.ChBodyEasySphere(system, 0.5, 1000, material)
-mass.SetPos(chrono.ChVectorD(0, 0, 0))
-mass.SetMass(1)
-mass.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
-
-# Create a ground body and add it to the system
-ground = chrono.ChBodyEasyBox(system, 10, 2, 10, 1000, material, True, True)
-ground.SetPos(chrono.ChVectorD(0, -2, 0))
+# Create the ground body
+ground = chrono.ChBodyEasyBox(mysystem, 4, 4, 1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -3, 0))
 ground.SetBodyFixed(True)
 
-# Create a mass-spring-damper connection (ChLinkTSDA) between the mass and the ground
-spring_damper = chrono.ChLinkTSDA()
-spring_damper.Initialize(mass, ground, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -2, 0))
-spring_damper.SetSpringCoefficient(100)
-spring_damper.SetDampingCoefficient(5)
-system.AddLink(spring_damper)
+# Create the mass body
+mass = chrono.ChBodyEasySphere(mysystem, 1, 1500, True, True)
+mass.SetPos(chrono.ChVectorD(0, 2, 0))
+mass.SetMass(10)
+
+# Create the mass-spring-damper system using ChLinkTSDA
+spring = chrono.ChLinkTSDA()
+spring.Initialize(ground, mass, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 2, 0))
+mysystem.Add(spring)
+
+# Set default linear spring-damper parameters
+spring.SetSpringCoefficient(100)
+spring.SetDampingCoefficient(10)
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Mass-Spring-Damper System')
+vis.SetCamera(chrono.ChVectorD(0, -10, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
 
 # Add visual shapes for the mass and spring
-mass_shape = chrono.ChSphere(chrono.ChVectorD(0, 0, 0), 0.5)
-mass_shape.SetColor(chrono.ChColor(1, 0, 0))
-mass.AddVisualShape(mass_shape)
+mass_shape = chrono.ChSphereShape()
+mass_shape.Radius(1)
+mass.GetCollisionModel().AddShape(mass_shape)
+mass.GetCollisionModel().BuildModel()
 
-spring_shape = chrono.ChLineSegment(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -2, 0))
-spring_shape.SetColor(chrono.ChColor(0, 1, 0))
-system.AddVisualShape(spring_shape)
+spring_shape = chrono.ChCylinderShape()
+spring_shape.Radius(0.1)
+spring_shape.Length(2)
+spring.GetCollisionModel().AddShape(spring_shape)
+spring.GetCollisionModel().BuildModel()
 
-# Simulation loop
-step = 0.01
-while visual_system.Run():
-    system.DoStepDynamics(step)
-    visual_system.BeginScene()
-    visual_system.DrawAll()
-    visual_system.EndScene()
+# Add lights and camera to the visualization
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, -10, 0))
+
+# Simulate the system
+while vis.Run():
+    mysystem.DoStepDynamics(0.01)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

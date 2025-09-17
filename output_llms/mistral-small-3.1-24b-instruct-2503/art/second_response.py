@@ -24,7 +24,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Point tracked by the camera
+# Point chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.2)
 
 # Contact method
@@ -77,7 +77,7 @@ terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('ARTcar Simulation')
+vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()

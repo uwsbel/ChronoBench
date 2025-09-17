@@ -2,85 +2,185 @@ import pychrono
 
 import pychrono.irrlicht
 
-import pychrono.vehicle as vehicle
+import pychrono.vehicle_drivetrain
 
-import pychrono.vehicle.vehicle_dynamics as vd
+import pychrono.vehicle_suspension
 
-import pychrono.vehicle.vehicle_dynamics_vehicle as vd_vehicle
+import pychrono.vehicle_driver
 
-import pychrono.vehicle.vehicle_dynamics_terrain as vd_terrain
+import pychrono.vehicle_wheel
 
-import pychrono.vehicle.vehicle_dynamics_driver as vd_driver
+import pychrono.vehicle_chassis
 
-import pychrono.vehicle.vehicle_dynamics_visual as vd_visual
+import pychrono.vehicle_body
 
-import pychrono.vehicle.vehicle_dynamics_terrain_visual as vd_terrain_visual
+import pychrono.vehicle_engine
 
-import pychrono.irrlicht as irr
+import pychrono.vehicle_brake
 
-import pychrono.irrlicht.irrlicht as irr
+import pychrono.vehicle_wheel_brake
 
-import pychrono.irrlicht.irrlicht_visualizer as iv
+import pychrono.vehicle_steering
 
+import pychrono.vehicle_differential
 
+import pychrono.vehicle_brake_disk
 
+import pychrono.vehicle_brake_shoe
 
-world = pychrono.ChWorld()
+import pychrono.vehicle_wheel_brake_disk
 
+import pychrono.vehicle_shock
 
+import pychrono.vehicle_spring
 
+import pychrono.vehicle_damper
 
-terrain = vd_terrain.RigidTerrain(world)
+import pychrono.vehicle_shock_damper
 
-terrain.SetFriction(0.5)
+import pychrono.vehicle_wheel_spring
 
-terrain.SetRestitution(0.2)
+import pychrono.vehicle_shock_damper
 
+import pychrono.vehicle_suspension_damper
 
+import pychrono.vehicle_wheel_suspension
 
+import pychrono.vehicle_suspension_spring
 
-m113 = vd_vehicle.VehicleDynamicsVehicle(world)
+import pychrono.vehicle_wheel_suspension_damper
 
-m113.SetVehicleType(pychrono.vehicle.VehicleType.M113)
+import pychrono.vehicle_steering_damper
 
-m113.SetMass(15000.0)
+import pychrono.vehicle_steering_spring
 
-m113.SetLength(5.0)
+import pychrono.vehicle_wheel_steering
 
-m113.SetWidth(2.5)
-
-m113.SetWheelRadius(0.3)
-
-m113.SetTrackWidth(1.5)
-
-m113.SetWheelBase(2.7)
-
-m113.SetCenterOfMass([0.0, 0.0, 0.0])
-
-
-
-
-driver = vd_driver.Driver(world)
-
-driver.SetVehicle(m113)
+import pychrono.vehicle_wheel_steering_spring
 
 
+import pychrono.vehicle_engine_steering
 
+import pychrono.vehicle_engine_steering_spring
 
-visualizer = iv.IrrlichtVisualizer(world)
-
-visualizer.SetCameraPosition(0, 0, 10)
-
-visualizer.SetLightPosition(0, 0, 10)
+import pychrono.vehicle_engine_steering_damper
 
 
 
 
-irrlicht = irr.IrrLicht()
+ch = pychrono.ChLink_CreateHingeJoint(1, 0, 0, 0, 0, 0, 0, 0)
 
-irrlicht.SetWindowTitle("PyChrono M113 Simulation")
 
-irrlicht.SetMainLightPosition(0, 0, 10)
+
+
+ground = pychrono.ChBody_CreatePrismatic(1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+ground.SetMass(1e6)
+
+ground.SetStatic(True)
+
+
+
+
+ground.SetFriction(0.8)
+
+ground.SetRestitution(0.1)
+
+
+
+
+vehicle = pychrono.ChBody_CreatePrismatic(1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+vehicle.SetMass(1000)
+
+vehicle.SetStatic(False)
+
+
+
+
+suspension = pychrono.vehicle_suspension.ChSuspension_CreateLinear(vehicle)
+
+suspension.SetStiffness(1e5)
+
+suspension.SetDamping(100)
+
+
+
+
+front_left_wheel = pychrono.vehicle_wheel.ChWheel_CreateStandard(vehicle, -0.5, 0.2, 0.3, 10)
+
+front_right_wheel = pychrono.vehicle_wheel.ChWheel_CreateStandard(vehicle, 0.5, 0.2, 0.3, 10)
+
+rear_left_wheel = pychrono.vehicle_wheel.ChWheel_CreateStandard(vehicle, -0.5, 0.2, 0.3, 10)
+
+rear_right_wheel = pychrono.vehicle_wheel.ChWheel_CreateStandard(vehicle, 0.5, 0.2, 0.3, 10)
+
+
+
+
+vehicle.AddJoint(front_left_wheel, "wheel_front_left", pychrono.ChJoint_CreateUniversal(vehicle, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+vehicle.AddJoint(front_right_wheel, "wheel_front_right", pychrono.ChJoint_CreateUniversal(vehicle, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+vehicle.AddJoint(rear_left_wheel, "wheel_rear_left", pychrono.ChJoint_CreateUniversal(vehicle, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+vehicle.AddJoint(rear_right_wheel, "wheel_rear_right", pychrono.ChJoint_CreateUniversal(vehicle, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+
+
+
+engine = pychrono.vehicle_engine.ChEngine_CreateStandard(vehicle)
+
+engine.SetPower(500)
+
+
+
+
+brake = pychrono.vehicle_brake.ChBrake_CreateStandard(vehicle)
+
+brake.SetPower(100)
+
+
+
+
+steering = pychrono.vehicle_steering.ChSteering_CreateStandard(vehicle)
+
+steering.SetMaxAngle(30)
+
+
+
+
+driver = pychrono.vehicle_driver.ChDriver_CreateStandard(vehicle)
+
+driver.SetSteering(0)
+
+
+
+
+irr = pychrono.irrlicht.ChIrrApp()
+
+irr.SetIrrlichtOptions(window_title="PyChrono M113 Simulation")
+
+irr.SetWindowSize(1280, 720)
+
+irr.SetVisible(True)
+
+
+
+
+irr.AddBody(ground)
+
+irr.AddBody(vehicle)
+
+
+
+
+irr.SetCamera(pychrono.irrlicht.ChCamera_CreateFraming(vehicle.GetPos(), pychrono.ChVector_Y(0, 0, 0))
+
+
+
+
+irr.SetLighting(pychrono.irrlicht.ChIrrApp.SURFACE_LIGHTING, pychrono.irrlicht.E_LIGHTING_SOLID)
 
 
 
@@ -89,28 +189,26 @@ while True:
 
     
 
-    world.Advance(0.01)
-
+    ch.DoStepDynamics(0.01)
 
     
 
     driver.Update(0.01)
 
+    
+
+    irr.DoStepPhysics(0.01)
+
+    irr.SetCamera(pychrono.irrlicht.ChCamera_CreateFraming(vehicle.GetPos(), pychrono.ChVector_Y(0, 0, 0))
+
+    irr.BeginScene()
+
+    irr.DrawAll()
+
+    irr.EndScene()
 
     
 
-    visualizer.Update(0.01)
-
-    irrlicht.BeginScene()
-
-    irrlicht.DrawAll()
-
-    irrlicht.EndScene()
-
-    irrlicht.Finish()
-
-    
-
-    if irrlicht.IsCancelKeyHit():
+    if irr.IsQuitRequested():
 
         break

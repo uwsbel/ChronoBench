@@ -1,21 +1,22 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
 
 def main():
     
     system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
     
     mesh = fea.ChMesh()
     system.Add(mesh)
 
     
-    rho = 1000  
-    E = 2e6     
-    nu = 0.3    
-    material = fea.ChMaterialShellReissnerIsothropic(E, nu, rho)
+    rho = 1000    
+    E = 2e9       
+    nu = 0.3      
+    thickness = 0.002  
+    material = fea.ChMaterialShellKirchhoff(rho, E, nu)
 
     
     length_x = 1.0  
@@ -39,50 +40,62 @@ def main():
     
     for iy in range(num_div_y):
         for ix in range(num_div_x):
-            n0 = nodes[iy * (num_div_x + 1) + ix]
-            n1 = nodes[iy * (num_div_x + 1) + ix + 1]
-            n2 = nodes[(iy + 1) * (num_div_x + 1) + ix + 1]
-            n3 = nodes[(iy + 1) * (num_div_x + 1) + ix]
+            
+            n0 = iy * (num_div_x + 1) + ix
+            n1 = n0 + 1
+            n2 = n0 + num_div_x + 1
+            n3 = n2 + 1
 
-            element = fea.ChElementShellReissner4()
-            element.SetNodes(n0, n1, n2, n3)
-            element.SetMaterial(material)
-            mesh.AddElement(element)
+            
+            element1 = fea.ChElementShellKirchhoff()
+            element1.SetNodes(nodes[n0], nodes[n1], nodes[n2])
+            element1.SetMaterial(material)
+            element1.SetThickness(thickness)
+            mesh.AddElement(element1)
+
+            
+            element2 = fea.ChElementShellKirchhoff()
+            element2.SetNodes(nodes[n1], nodes[n3], nodes[n2])
+            element2.SetMaterial(material)
+            element2.SetThickness(thickness)
+            mesh.AddElement(element2)
 
     
-    for ix in range(num_div_x + 1):
-        nodes[ix].SetFixed(True)  
-
-    
-    solver = chrono.ChSolverPardisoMKL()
-    system.SetSolver(solver)
-    system.SetSolverForceTolerance(1e-8)
+    nodes[0].SetFixed(True)                 
+    nodes[num_div_x].SetFixed(True)         
+    nodes[-num_div_x-1].SetFixed(True)      
+    nodes[-1].SetFixed(True)                
 
     
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
-    vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle("Tablecloth Folding")
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Tablecloth Folding Simulation")
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(1, 0.5, 1.2))
+    vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1.5), chrono.ChVectorD(0.5, 0, 0))
     vis.AddTypicalLights()
 
     
-    vis_mesh = fea.ChVisualizationFEAmesh(mesh)
-    vis_mesh.SetFEMdataType(fea.VisFEAmeshDataType_ELEM_SHELL)
-    vis_mesh.SetShellResolution(2)
-    vis_mesh.SetColorscaleMinMax(-0.5, 0.5)
-    mesh.AddVisualizationFEA(vis_mesh)
+    mvisual = fea.ChVisualizationFEAmesh(mesh)
+    mvisual.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+    mvisual.SetShellResolution(2)
+    mvisual.SetColorscaleMinMax(-0.1, 0.1)
+    mesh.AddVisualizationFEA(mvisual)
 
     
-    time_step = 0.001
+    solver = chrono.ChSolverPardisoMKL()
+    system.SetSolver(solver)
+    solver.SetSparsityPatternLock(True)
+
+    
+    timestep = 0.001
     while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        system.DoStepDynamics(time_step)
+        system.DoStepDynamics(timestep)
 
 if __name__ == "__main__":
     main()

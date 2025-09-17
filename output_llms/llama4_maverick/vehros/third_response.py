@@ -1,8 +1,8 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
 import math
 
 def main():
@@ -27,7 +27,7 @@ def main():
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
 
-    # Create the terrain
+    # Create the terrain.
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
     patch_mat = ch.ChContactMaterialNSC()
     patch_mat.SetFriction(0.9)
@@ -37,8 +37,8 @@ def main():
     terrain.Initialize()
 
     # Add a visualization box
-    box_body = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box_body.SetPos(ch.ChVector3d(10, 0, 0.5))
+    box_body = ch.ChBodyEasyBox(2, 2, 2, 1000, True, True)
+    box_body.SetPos(ch.ChVector3d(10, 0, 0))
     hmmwv.GetSystem().Add(box_body)
 
     # Create run-time visualization
@@ -54,38 +54,31 @@ def main():
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
-    # Create and initialize the driver system
+    # Create and initialize the driver system.
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()
 
-    # Create the ROS manager and register handlers for communication
+    # Create the ROS manager and register handlers for communication.
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()
 
-    # Initialize the ROS manager
-    if not ros_manager.Initialize():
-        return
-
-    # Set up the sensor manager
+    # Set up sensor manager
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    # Add a lidar sensor
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 10, ch.ChFrame(ch.ChVector3d(0, 0, 1), ch.Q_from_AngZ(0)), 900, 30, ch.ChVector3d(0.5, 0, 0.2), ch.ChVector3d(3, 3, 0.1))
-    lidar.SetName("Lidar")
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 100, ch.ChFrame(ch.ChVector3d(0, 0, 1), ch.Q_from_AngZ(0)), 100, 0.1, -ch.CH_C_PI / 2, ch.CH_C_PI / 2, 0.1)
     lidar.PushFilter(sens.ChFilterDIArea())
     lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
-    lidar.PushFilter(sens.ChFilterLidarReduce(4))
-    lidar.PushFilter(sens.ChFilterLidarIntensityNormalize(100))
-    lidar.PushFilter(sens.ChFilterLidarRangeClip(10, 50))
-    lidar.PushFilter(sens.ChFilterXYZReturn(0))
+    lidar.PushFilter(sens.ChFilterLidarMinMax(0.1, 100))
+    lidar.PushFilter(sens.ChFilterLidarNoise(0.01, 0, .01))
+    lidar.PushFilter(sens.ChFilterAccess())
     sens_manager.AddSensor(lidar)
 
-    # Register the lidar handler to publish lidar data to ROS
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+    # Register ChROSLidarHandler to publish lidar data to ROS
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
 
-    # Start the simulation loop
+    # Simulation loop
     time = 0
     time_step = 1e-3
     time_end = 30
@@ -96,32 +89,31 @@ def main():
 
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
-
-        # Render the scene
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
 
-        # Get driver inputs and synchronize the vehicle, terrain, and driver systems
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
 
-        # Advance the simulation for all modules by one timestep
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Update the sensor manager
+        # Update sensor manager
         sens_manager.Update()
 
-        # Update the ROS manager
         if not ros_manager.Update(time, time_step):
             break
 
         step_number += 1
 
+if __name__ == "__main__":
+    main()
+
+# Execution example
 if __name__ == "__main__":
     main()

@@ -26,11 +26,11 @@ sys = chrono.ChSystemSMC()
 L = 1.2  
 H = 0.3  
 K = 0.07  
-vA = chrono.ChVector3d(0, 0, 0)
-vC = chrono.ChVector3d(L, 0, 0)
-vB = chrono.ChVector3d(L, -H, 0)
-vG = chrono.ChVector3d(L - K, -H, 0)
-vd = chrono.ChVector3d(0, 0, 0.0001)
+vA = chrono.ChVector3d(0, 0, 0)  
+vC = chrono.ChVector3d(L, 0, 0)  
+vB = chrono.ChVector3d(L, -H, 0)  
+vG = chrono.ChVector3d(L - K, -H, 0)  
+vd = chrono.ChVector3d(0, 0, 0.0001)  
 
 
 body_truss = chrono.ChBody()
@@ -81,7 +81,7 @@ builder_iga = fea.ChBuilderBeamIGA()
 builder_iga.BuildBeam(mesh, msection1, 32, vA, vC, chrono.VECT_Y, 3)
 
 
-builder_iga.GetLastBeamNodes().front().SetFixed(True)
+builder_iga.GetLastBeamNodes()[0].SetFixed(True)
 node_tip = builder_iga.GetLastBeamNodes()[-1]
 node_mid = builder_iga.GetLastBeamNodes()[17]
 
@@ -104,7 +104,7 @@ node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateGeneric()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
+constr_bb.Initialize(node_top.Frame(), node_tip.Frame(), False, chrono.ChFrameD(), chrono.ChFrameD())
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 
@@ -130,14 +130,14 @@ node_crankG = builderB.GetLastBeamNodes()[0]
 node_crankB = builderB.GetLastBeamNodes()[-1]
 
 
-constr_cbd = chrono.ChLinkMateGeneric()
-constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
+constr_cbd = chrono.ChLinkNodeFrame()
+constr_cbd.Initialize(node_crankG, body_crank)
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
 
 
 constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+constr_bc.Initialize(node_down.Frame(), node_crankB.Frame(), False, chrono.ChFrameD(), chrono.ChFrameD())
 sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
 
@@ -191,6 +191,7 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    chronoirr.drawGrid(vis, 0.05, 0.05, 20, 20,
+                       chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
     vis.EndScene()
     sys.DoStepDynamics(0.001)

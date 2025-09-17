@@ -186,10 +186,10 @@ while vis.Run():
 print("GPS Data: ", gps_data)
 
 
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(10, 10))
 plt.plot([x[0] for x in gps_data], [x[1] for x in gps_data], label='GPS Trajectory')
-plt.xlabel('Latitude')
-plt.ylabel('Longitude')
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
 plt.title('GPS Trajectory')
 plt.legend()
 plt.show()

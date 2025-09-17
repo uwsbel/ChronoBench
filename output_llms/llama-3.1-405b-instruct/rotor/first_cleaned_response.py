@@ -59,4 +59,10 @@ app.AssetUpdateAll()
 app.Simulate()
 
 
-app.Run()
+app.BeginScene()
+app.DrawAll()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

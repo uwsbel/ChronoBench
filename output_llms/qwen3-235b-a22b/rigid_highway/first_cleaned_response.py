@@ -1,78 +1,84 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import pychrono.driver as driver
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-system.SetStep(0.02)  
 
 
 vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)  
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.QUNIT))
+
+init_pos = chrono.ChVectorD(0, 0, 1.0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+vehicle.SetTireType(veh.TireModelType_TMeasy)  
+
 vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
 vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-
-
-tire_model = veh.TMeasy()
-for i in range(vehicle.GetNumberAxles()):
-    axle = vehicle.GetAxle(i)
-    axle.GetWheelLeft().SetTireModel(tire_model)
-    axle.GetWheelRight().SetTireModel(tire_model)
-
 vehicle.Initialize()
 
 
-terrain = chrono.ChBody()
-terrain.SetBodyFixed(True)
-system.Add(terrain)
+terrain = veh.RigidTerrain(system)
+
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(),
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                         "Highway_col.obj",
+                         1.0)  
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.8))  
+terrain.Initialize()
 
 
-mesh_col = chrono.ChTriangleMeshConnected()
-mesh_col.LoadWavefrontMesh("Highway_col.obj", False, True)
-terrain.GetCollisionModel().AddTriangleMesh(mesh_col, False, False, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
-terrain.GetCollisionModel().Build()
+application = irrlicht.ChIrrApp(system, 
+                                'PyChrono HMMWV Simulation', 
+                                irrlicht.dimension2du(1024, 768),
+                                irrlicht.E_DRIVER_TYPE.EDT_OPENGL)
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights(irrlicht.vector3df(30, 100, 30), irrlicht.vector3df(30, 0, 30), 256)
+application.AddTypicalCamera(irrlicht.vector3df(0, 3, -6), irrlicht.vector3df(0, 0, 0))
 
 
-mesh_vis = chrono.ChTriangleMeshConnected()
-mesh_vis.LoadWavefrontMesh("Highway_vis.obj", False, True)
-vis_shape = chrono.ChVisualShapeTriangleMesh()
-vis_shape.SetMesh(mesh_vis)
-terrain.AddVisualShape(vis_shape)
+vis_mesh = application.GetSceneManager().getMesh("Highway_vis.obj")
+if vis_mesh:
+    vis_node = application.GetSceneManager().addMeshSceneNode(vis_mesh)
+    vis_node.setMaterialFlag(irrlicht.EMF_LIGHTING, True)
+    
+else:
+    print("Error: Could not load visual mesh file 'Highway_vis.obj'")
 
 
-application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 3, -6), chrono.ChVectorD(0, 0, 0))
 application.AssetBindAll()
 application.AssetUpdateAll()
 
 
-driver = veh.ChIrrGuiDriver(application.GetDevice())
+driver = veh.ChInteractiveDriverIRR(application.GetDevice(), vehicle)
 driver.SetSteeringDelta(0.05)
 driver.SetThrottleDelta(0.05)
 driver.SetBrakingDelta(0.05)
 driver.Initialize()
 
 
-rt_timer = chrono.ChRealtimeStepTimer()
-
+step_size = 1.0 / 50.0  
+realtime_timer = chrono.ChRealtimeStepTimer()
 
 while application.GetDevice().run():
-    rt_timer.Spin(system.GetStep())
     
+    time = system.GetChTime()
+
     
-    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    terrain.Synchronize(time)
+
     
-    
-    vehicle.Synchronize(driver_inputs)
-    
-    
-    system.DoStepDynamics()
-    
+    system.DoStepDynamics(step_size)
+    realtime_timer.Spin(step_size)  
+
     
     application.BeginScene()
     application.DrawAll()

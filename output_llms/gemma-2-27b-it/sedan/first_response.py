@@ -4,79 +4,62 @@ import pychrono.vehicle as chronovehicle
 
 # ---------------------------------------------------------------------
 #
-#  Create the simulation system and add the vehicle
+#  Create the simulation system and add items
 #
 # ---------------------------------------------------------------------
 
-system = chrono.ChSystemNSC()
+# Create the physical system
+my_system = chrono.ChSystemNSC()
 
 # Set gravitational acceleration
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(1200, 800)
+vis.SetWindowTitle('BMW E90 Simulation')
+vis.Initialize()
+vis.AddCamera(chronoirr.ChCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0)))
+vis.AddSkyBox()
+
+# Create a material for the terrain
+terrain_material = chrono.ChMaterialSurfaceNSC()
+terrain_material.SetFriction(0.8)
+terrain_material.SetRestitution(0.2)
+
+# Create a ground body
+ground = chrono.ChBodyEasyBox(100, 100, 0.1, 1000, True, True, terrain_material)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+my_system.Add(ground)
 
 # Create the vehicle
-vehicle = chronovehicle.ChVehicle("BMW E90", system)
+vehicle = chronovehicle.ChVehicle("E90")
 
-# Set vehicle visualization parameters
-vehicle.SetChassisVisualizationType(chronovehicle.VisualizationType_MESH)
-vehicle.SetChassisCollide(True)
-vehicle.SetSuspensionVisualizationType(chronovehicle.VisualizationType_PRIMITIVES)
-vehicle.SetWheelVisualizationType(chronovehicle.VisualizationType_MESH)
+# Set vehicle parameters (mass, inertia, etc.)
+vehicle.SetChassisMass(1500)
+vehicle.SetChassisInertia(chrono.ChVectorD(100, 100, 100))
 
-# Load vehicle model and set initial position
-vehicle.SetVehicleModel(chronovehicle.VehicleModelData("E90.json"))
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0)))
+# Add a TMEASY tire model to each wheel
+tire_model = chronovehicle.ChTMeasyTire()
+vehicle.AddWheel(chrono.ChVectorD(1.5, -0.8, 0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, -0.8, 0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(1.5, -0.8, -0.5), chrono.ChVectorD(0, -1, 0), tire_model)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, -0.8, -0.5), chrono.ChVectorD(0, -1, 0), tire_model)
 
-# Add TMEASY tire model
-tire_model = chronovehicle.TMeasyTire()
-vehicle.SetTireModel(tire_model)
-
-# ---------------------------------------------------------------------
-#
-#  Create the terrain
-#
-# ---------------------------------------------------------------------
-
-terrain = chrono.ChRigidBody()
-terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetCollide(True)
-
-# Load terrain mesh and set collision shape
-terrain.GetCollisionModel().ClearModel()
-terrain.GetCollisionModel().AddMesh(chrono.ChTriangleMeshSoup(), False, False)
-terrain.GetCollisionModel().BuildModel()
-
-# Add ground texture and logo
-terrain.AddAsset(chronoirr.ChIrrAssetType_TEXTURE, "ground_texture.jpg")
-terrain.AddAsset(chronoirr.ChIrrAssetType_LOGO, "logo.png")
+# Add the vehicle to the system
+my_system.Add(vehicle)
 
 # ---------------------------------------------------------------------
 #
-#  Create the driver system
+#  Add driver system and control
 #
 # ---------------------------------------------------------------------
 
-driver = chronovehicle.ChInteractiveDriver(vehicle)
+# Create an interactive driver system
+driver = chronovehicle.ChDriver(vehicle)
 
-# Set driver controls
-driver.SetSteeringControl(chrono.ChFunction_Const(0))
-driver.SetThrottleControl(chrono.ChFunction_Const(0))
-driver.SetBrakingControl(chrono.ChFunction_Const(0))
-
-# ---------------------------------------------------------------------
-#
-#  Create the Irrlicht visualization system
-#
-# ---------------------------------------------------------------------
-
-vis = chronoirr.ChIrrApp(system, "BMW E90 Simulation", chronoirr.dimension2du(1280, 720))
-vis.AddTypicalSky()
-vis.AddTypicalLights()
-vis.SetChaseCamera(chrono.ChVectorD(0, 2.0, 5.0), chrono.ChVectorD(0, 1.0, 0))
-
-# Add vehicle and terrain to the visualization
-vis.AddAsset(vehicle, True)
-vis.AddAsset(terrain, True)
+# Connect driver inputs to vehicle controls
 
 # ---------------------------------------------------------------------
 #
@@ -84,8 +67,14 @@ vis.AddAsset(terrain, True)
 #
 # ---------------------------------------------------------------------
 
-while vis.GetDevice().run():
+while vis.Run():
+    # Update driver inputs (steering, throttle, braking)
+    # ...
+
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
+
+    # Update visualization
     vis.BeginScene()
     vis.Render()
-    system.DoStepDynamics(0.01)
     vis.EndScene()

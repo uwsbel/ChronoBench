@@ -13,7 +13,6 @@ mesh = fea.ChMesh()
 
 
 
-
 msection = fea.ChBeamSectionEulerAdvanced()
 
 beam_wy = 0.012
@@ -24,32 +23,27 @@ msection.SetShearModulus(0.01e9 * 0.3)
 msection.SetRayleighDamping(0.000)
 msection.SetCentroid(0, 0.02)
 msection.SetShearCenter(0, 0.1)
-msection.SetSectionRotation(45 * chrono.CH_C_DEG_TO_RAD)
-
+msection.SetSectionRotation(45 * chrono.CH_C_PI / 180)  
 
 
 beam_L = 0.1
 
-hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVector3d(0, 0, 0)))
-hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVector3d(beam_L, 0, 0)))
-hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVector3d(beam_L * 2, 0, 0)))
+hnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+hnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0)))
+hnode3 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0)))
 
 mesh.AddNode(hnode1)
 mesh.AddNode(hnode2)
 mesh.AddNode(hnode3)
 
 belement1 = fea.ChElementBeamEuler()
-
 belement1.SetNodes(hnode1, hnode2)
 belement1.SetSection(msection)
-
 mesh.AddElement(belement1)
 
 belement2 = fea.ChElementBeamEuler()
-
 belement2.SetNodes(hnode2, hnode3)
 belement2.SetSection(msection)
-
 mesh.AddElement(belement2)
 
 
@@ -88,27 +82,24 @@ builder = fea.ChBuilderBeamEuler()
 
 
 builder.BuildBeam(mesh,                   
-                  msection,                  
-                  5,                         
+                  msection,               
+                  5,                      
                   chrono.ChVector3d(0, 0, -0.1),   
                   chrono.ChVector3d(0.2, 0, -0.1), 
                   chrono.ChVector3d(0, 1, 0))      
 
 
-
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
-
-
+last_beam_nodes = builder.GetLastBeamNodes()
+last_beam_nodes.back().SetFixed(True)
+last_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-last_node = builder.GetLastBeamNodes().back()
 builder.BuildBeam(mesh,                   
-                  msection,                  
-                  5,                         
-                  last_node.GetPos(),        
-                  chrono.ChVector3d(0.2, 0.1, -0.1), 
-                  chrono.ChVector3d(0, 1, 0))      
+                  msection,               
+                  5,                      
+                  last_beam_nodes.back().Frame().GetPos(),   
+                  chrono.ChVector3d(0.2, 0.1, -0.1),         
+                  chrono.ChVector3d(0, 1, 0))                
 
 
 mesh.SetAutomaticGravity(False)

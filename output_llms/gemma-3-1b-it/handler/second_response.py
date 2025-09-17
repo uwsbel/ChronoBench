@@ -58,7 +58,7 @@ def main():
     
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    
+
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, box, "~/box"))
     

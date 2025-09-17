@@ -45,7 +45,6 @@ vehicle.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
 vehicle.SetBrakeType(veh.BrakeType_SIMPLE)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSprocketVisualizationType(vis_type)
 vehicle.SetIdlerVisualizationType(vis_type)
@@ -53,7 +52,6 @@ vehicle.SetIdlerWheelVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetRoadWheelVisualizationType(vis_type)
 vehicle.SetTrackShoeVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
@@ -68,12 +66,12 @@ terrain.Initialize()
 
 
 box_body = chrono.ChBody()
-box_body.SetMass(1000)
-box_body.SetInertiaXX(1000, 1000, 1000)
-box_body.SetPos(chrono.ChVector3d(10, 0, 0.5))
-box_shape = chrono.ChBox(chrono.ChVector3d(5, 2, 1))
+box_shape = chrono.ChBox(chrono.ChVector3d(10, 2, 0.2))
 box_shape.SetColor(chrono.ChColor(1, 0, 0))
 box_body.AddShape(box_shape)
+box_body.SetPos(chrono.ChVector3d(0, 0, 0.2))
+box_body.SetMass(1000)
+box_body.SetInertiaXX(1000, 1000, 1000)
 vehicle.GetSystem().AddBody(box_body)
 
 

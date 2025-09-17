@@ -1,78 +1,70 @@
 import chrono as ch
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
 
 
-ch.ChEngine.Initialize()
+ch.CH_Environment.SetSimulationProfilerEnabled(ch.C profiler_mode)
 
 
-app = irr.ChIrrApp()
+system = ch.ChSystemNSC()
 
 
-app.SetWindowTitle('Crank-Slider Mechanism Simulation')
+app = chirr.ChIrrApp(system, 'Crank-Slider Mechanism')
 
 
-app.SetCameraController()
+floor = ch.ChBodyEasyFloor('floor')
+floor.SetPos(ch.ChVector3d(0, -5, 0))
+system.AddBody(floor)
 
 
-system = ch.ChSystem()
+crankshaft = ch.ChBody()
+crankshaft.SetPos(ch.ChVector3d(0, 0, 0))
+crankshaft.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+crankshaft.EnableCollisionShape(True)
+crankshaft_shape = ch.ChBoxShape(crankshaft, ch.ChVector3d(0.5, 0.1, 0.1), ch.ChVector3d(0, 0, 0))
+crankshaft_shape.SetColor(ch.ChColor(1, 0, 0))
+crankshaft.AddVisualShape(crankshaft_shape)
+system.AddBody(crankshaft)
 
 
-floor_body = ch.ChBodyEasyBox(100, 0.1, 100, 1000, False, False, False)
-floor_body.SetPos(ch.ChVector3d(0, -5, 0))
-floor_body.SetBodyFixed(True)
-system.Add(floor_body)
+connecting_rod = ch.ChBody()
+connecting_rod.SetPos(ch.ChVector3d(2, 0, 0))
+connecting_rod.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+connecting_rod.EnableCollisionShape(True)
+connecting_rod_shape = ch.ChBoxShape(connecting_rod, ch.ChVector3d(1, 0.1, 0.1), ch.ChVector3d(0, 0, 0))
+connecting_rod_shape.SetColor(ch.ChColor(0, 1, 0))
+connecting_rod.AddVisualShape(connecting_rod_shape)
+system.AddBody(connecting_rod)
 
 
-crankshaft_body = ch.ChBodyEasyCylinder(0.1, 1, 32, False, False, False)
-crankshaft_body.SetPos(ch.ChVector3d(0, 0, 0))
-crankshaft_body.SetRot(ch.ChQuaternion(0, 0, 0, 1))
-system.Add(crankshaft_body)
+piston = ch.ChBody()
+piston.SetPos(ch.ChVector3d(4, 0, 0))
+piston.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
+piston.EnableCollisionShape(True)
+piston_shape = ch.ChBoxShape(piston, ch.ChVector3d(0.5, 0.1, 0.1), ch.ChVector3d(0, 0, 0))
+piston_shape.SetColor(ch.ChColor(0, 0, 1))
+piston.AddVisualShape(piston_shape)
+system.AddBody(piston)
 
 
-connecting_rod_body = ch.ChBodyEasyCylinder(0.05, 2, 32, False, False, False)
-connecting_rod_body.SetPos(ch.ChVector3d(1, 0, 0))
-system.Add(connecting_rod_body)
+crankshaft_joint = ch.ChLinkLockPrizmaticLock(crankshaft, connecting_rod, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)))
+connecting_rod_joint = ch.ChLinkLockPrizmaticLock(connecting_rod, piston, ch.ChFrame3d(ch.ChVector3d(2, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)))
+system.AddLink(crankshaft_joint)
+system.AddLink(connecting_rod_joint)
 
 
-piston_body = ch.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, False, False, False)
-piston_body.SetPos(ch.ChVector3d(2, 0, 0))
-system.Add(piston_body)
+crankshaft_motor = ch.ChLinkMotorRotationSpeed()
+crankshaft_motor.Initialize(crankshaft, floor, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(0, 0, 0, 1)))
+crankshaft_motor.SetSpeedFunction(ch.ChFunction_Const(1))
+system.AddLink(crankshaft_motor)
 
 
-crankshaft_joint = ch.ChLinkLockRevolute()
-crankshaft_joint.Initialize(crankshaft_body, floor_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
-system.Add(crankshaft_joint)
-
-connecting_rod_joint1 = ch.ChLinkLockSpherical()
-connecting_rod_joint1.Initialize(connecting_rod_body, crankshaft_body, ch.ChFrame3d(ch.ChVector3d(0.5, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
-system.Add(connecting_rod_joint1)
-
-connecting_rod_joint2 = ch.ChLinkLockUniversal()
-connecting_rod_joint2.Initialize(connecting_rod_body, piston_body, ch.ChFrame3d(ch.ChVector3d(1, 0, 0), ch.ChQuaternion(0, 0, 0, 1)), ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
-system.Add(connecting_rod_joint2)
+system.SetGravitationalAcceleration(ch.ChVector3d(0, -9.81, 0))
 
 
-motor = ch.ChLinkMotorRotationSpeed()
-motor.Initialize(crankshaft_body, floor_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaternion(0, 0, 0, 1)))
-motor.SetSpeedFunction(ch.ChFunction_Const(1))  
-system.Add(motor)
+app.SetCameraVertical(ch.ChVector3d(0, 0, 1))
+app.SetCameraTarget(ch.ChVector3d(0, 0, 0))
+app.SetCameraDistance(10)
 
 
-irr.AddCameraSettings(app, ch.ChVector3d(0, -10, 5), ch.ChVector3d(0, 0, 0))
-
-
-ch.ChVisualShapeBox(floor_body, ch.ChFrame3d(ch.ChVector3d(0, -0.05, 0)), ch.ChVector3d(50, 0.1, 50), ch.ChColor(0.2, 0.4, 0.2)).SetTexture(ch.GetChronoDataFile('textures/brick1.jpg'))
-
-ch.ChVisualShapeCylinder(crankshaft_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), 0.1, 1, 32).SetColor(ch.ChColor(0.8, 0.2, 0.2))
-
-ch.ChVisualShapeCylinder(connecting_rod_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), 0.05, 2, 32).SetColor(ch.ChColor(0.2, 0.8, 0.2))
-
-ch.ChVisualShapeBox(piston_body, ch.ChFrame3d(ch.ChVector3d(0, 0, 0)), ch.ChVector3d(0.2, 0.2, 0.2), ch.ChColor(0.2, 0.2, 0.8)).SetTexture(ch.GetChronoDataFile('textures/white.jpg'))
-
-
-app.SetSimulation(system)
-app.SetTimestep(0.01)
-app.DoRun()
-
-
-ch.ChEngine.Exit()
+app.SetMaxSimFPS(1000)
+app.Run()

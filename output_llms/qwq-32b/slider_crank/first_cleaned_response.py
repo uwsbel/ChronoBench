@@ -1,101 +1,187 @@
 import pychrono as chrono
 import pychrono.irrlicht as irr
-import math
+
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+
+visualiz = irr.ChIrrApp(system, 'Crank-Slider Mechanism', irr.dimension2du(800,600))
+visualiz.AddTypicalSky()
+visualiz.AddTypicalLogo()
+visualiz.AddTypicalLights()
+
+
+camera_location = chrono.ChVectorD(3, 3, 3)
+camera_target = chrono.ChVectorD(0, 0, 0)
+visualiz.SetCamera(camera_location, camera_target, chrono.ChVectorD(0, 1, 0))
+
+
+floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
+floor.SetBodyFixed(True)
+system.Add(floor)
+
+
+texture_floor = irr.ChTexture()
+texture_floor.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+floor.GetAssets().append(texture_floor)
+
+
+crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True)
+crank.SetPos(chrono.ChVectorD(0, 0.25, 0))
+system.Add(crank)
+
+
+rev_crank_floor = chrono.ChLinkLockRevolute()
+rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT))
+system.AddLink(rev_crank_floor)
+
+
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  
+system.Add(motor)
+
+
+rod = chrono.ChBodyEasyCylinder(0.05, 1.0, 1000, True, True)
+rod.SetPos(chrono.ChVectorD(0.5, 0.25, 0))
+system.Add(rod)
+
+
+rev_rod_crank = chrono.ChLinkLockRevolute()
+rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.QUNIT))
+system.AddLink(rev_rod_crank)
+
+
+piston = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
+piston.SetPos(chrono.ChVectorD(1.1, 0.25, 0))
+system.Add(piston)
+
+
+prismatic = chrono.ChLinkLockPrismatic()
+prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT), chrono.ChVectorD(1, 0, 0))
+system.AddLink(prismatic)
+
+
+rev_rod_piston = chrono.ChLinkLockRevolute()
+rev_rod_piston.Initialize(rod, piston, 
+                        chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(0.15, 0, 0), chrono.QUNIT))
+system.AddLink(rev_rod_piston)
+
+
+crank.GetVisualShape(0).SetColor(chrono.ChColor(0,0,1))
+rod.GetVisualShape(0).SetColor(chrono.ChColor(1,0,0))
+piston.GetVisualShape(0).SetColor(chrono.ChColor(0,1,0))
+
+
+billboard = irr.ChBillboard()
+billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+billboard.SetSize(0.5)
+billboard.SetPos(chrono.ChVectorD(0, 1, 0))
+visualiz.AddBillboard(billboard)
+
+
+visualiz.SetTimestep(0.005)
+visualiz.SetTryRealtime(True)
+
+
+visualiz.MainLoop()
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
 
 def main():
     
     system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
     
-    visualizer = irr.ChVisualSystemIrrlicht()
-    visualizer.SetWindowSize(1024, 768)
-    visualizer.SetWindowTitle('Crank-Slider Mechanism')
-    visualizer.SetSymbolscale(0.01)
-    visualizer.SetShadows(True)
-    visualizer.SetLightDirection(chrono.ChVectorD(0.7, -0.2, -0.3))
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
-    system.SetVisualSystem(visualizer)
+    visualiz = irr.ChIrrApp(system, 'Crank-Slider Mechanism', irr.dimension2du(800, 600))
+    visualiz.AddTypicalSky()
+    visualiz.AddTypicalLogo()
+    visualiz.AddTypicalLights()
 
     
-    billboard = chrono.ChBillboard()
-    billboard.SetTexture(chrono.GetChronoDataFile('logo_chrono.png'))
-    billboard.SetSize(0.2)
-    billboard.SetPosition(chrono.ChVectorD(-2, 1, 2))
-    visualizer.AddBillboard(billboard)
+    camera_location = chrono.ChVectorD(3, 3, 3)
+    camera_target = chrono.ChVectorD(0, 0, 0)
+    visualiz.SetCamera(camera_location, camera_target, chrono.ChVectorD(0, 1, 0))
 
     
     floor = chrono.ChBodyEasyBox(5, 0.1, 5, 1000, True, True)
-    floor.SetPos(chrono.ChVectorD(0, -0.05, 0))
+    floor.SetPos(chrono.ChVectorD(0, -0.1, 0))
     floor.SetBodyFixed(True)
     system.Add(floor)
 
     
-    texture_floor = chrono.ChTexture()
-    texture_floor.SetTextureFilename(chrono.GetChronoDataFile('textures/wood.jpg'))
-    floor.AddAsset(texture_floor)
+    texture_floor = irr.ChTexture()
+    texture_floor.SetTextureFilename(chrono.GetChronoDataPath() + 'textures/concrete.jpg')
+    floor.GetAssets().append(texture_floor)
 
     
-    crank_length = 0.3
-    crank_radius = 0.1
-    crank = chrono.ChBodyEasyCylinder(crank_radius, crank_length, 1000, True, True)
-    crank.SetPos(chrono.ChVectorD(0, 0, 0))
+    crank = chrono.ChBodyEasyCylinder(0.1, 0.5, 1000, True, True)
+    crank.SetPos(chrono.ChVectorD(0, 0.25, 0))
     system.Add(crank)
-    crank.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.8, 0.8)))
 
     
-    rev_crank = chrono.ChLinkLockRevolute()
-    rev_crank.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
-    system.AddLink(rev_crank)
+    rev_crank_floor = chrono.ChLinkLockRevolute()
+    rev_crank_floor.Initialize(floor, crank, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT))
+    system.AddLink(rev_crank_floor)
 
     
     motor = chrono.ChLinkMotorRotationSpeed()
-    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.VNULL, chrono.QUNIT))
-    motor.SetSpeedFunction(lambda: 2.0)  
+    motor.Initialize(crank, floor, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    motor.SetSpeed(chrono.ChFunction_Const(chrono.ChVariableDouble(chrono.CH_C_PI)))  
     system.Add(motor)
 
     
-    rod_length = math.sqrt(0.5**2 + 0.15**2)  
-    rod_radius = 0.05
-    rod = chrono.ChBodyEasyCylinder(rod_radius, rod_length, 1000, True, True)
-    rod.SetPos(chrono.ChVectorD(0.25, 0.075, 0))  
+    rod = chrono.ChBodyEasyCylinder(0.05, 1.0, 1000, True, True)
+    rod.SetPos(chrono.ChVectorD(0.5, 0.25, 0))
     system.Add(rod)
-    rod.AddAsset(chrono.ChColorAsset(chrono.ChColor(0, 0, 1)))
 
     
-    rev_crank_rod = chrono.ChLinkLockRevolute()
-    rev_crank_rod.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0, 0.15, 0), chrono.QUNIT))
-    system.AddLink(rev_crank_rod)
+    rev_rod_crank = chrono.ChLinkLockRevolute()
+    rev_rod_crank.Initialize(crank, rod, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.QUNIT))
+    system.AddLink(rev_rod_crank)
 
     
-    piston_radius = 0.15
-    piston_length = 0.2
-    piston = chrono.ChBodyEasyCylinder(piston_radius, piston_length, 1000, True, True)
-    piston.SetPos(chrono.ChVectorD(0.5, 0, 0))
+    piston = chrono.ChBodyEasyCylinder(0.1, 0.3, 1000, True, True)
+    piston.SetPos(chrono.ChVectorD(1.1, 0.25, 0))
     system.Add(piston)
-    piston.AddAsset(chrono.ChColorAsset(chrono.ChColor(1, 0, 0)))
 
     
     prismatic = chrono.ChLinkLockPrismatic()
-    prismatic.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT), chrono.VECT_X)
+    prismatic.Initialize(floor, piston, chrono.ChFrameD(chrono.ChVectorD(0, 0.35, 0), chrono.QUNIT), chrono.ChVectorD(1, 0, 0))
     system.AddLink(prismatic)
 
     
     rev_rod_piston = chrono.ChLinkLockRevolute()
-    rev_rod_piston.Initialize(rod, piston, chrono.ChFrameD(chrono.ChVectorD(0.5, 0, 0), chrono.QUNIT))
+    rev_rod_piston.Initialize(
+        rod, piston,
+        chrono.ChFrameD(chrono.ChVectorD(-0.5, 0, 0), chrono.QUNIT),
+        chrono.ChFrameD(chrono.ChVectorD(0.15, 0, 0), chrono.QUNIT)
+    )
     system.AddLink(rev_rod_piston)
 
     
-    visualizer.AddLogo(chrono.GetChronoDataFile('logo_chrono.png'))
-    visualizer.SetCameraPosition(chrono.ChVectorD(0.5, 1.5, 2))
-    visualizer.SetCameraRotation(chrono.Q_from_Euler_123(chrono.ChVectorD(-1.2, 0, 0)))
+    crank.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  
+    rod.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))    
+    piston.GetVisualShape(0).SetColor(chrono.ChColor(0, 1, 0)) 
 
-    while visualizer.Run():
-        system.DoStepDynamics(1e-3)
-        visualizer.BeginScene()
-        visualizer.DrawAll()
-        visualizer.EndScene()
+    
+    billboard = irr.ChBillboard()
+    billboard.SetTexture(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+    billboard.SetSize(0.5)
+    billboard.SetPos(chrono.ChVectorD(0, 1, 0))
+    visualiz.AddBillboard(billboard)
+
+    
+    visualiz.SetTimestep(0.005)
+    visualiz.SetTryRealtime(True)
+
+    
+    visualiz.MainLoop()
 
 if __name__ == '__main__':
     main()

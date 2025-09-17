@@ -5,87 +5,56 @@ import PyChrono.Vehicle as chronovehicle
 import PyChrono.Postprocess as chronopost
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")
-chrono.SetChronoOutputMode(chrono.Ch chrono::OUTPUT_FILES)
+chrono.SetChronoDataPath("path/to/chrono/data/directory")
+chrono.SetChronoDataPath("path/to/irrlicht/data/directory")
 
 
-application = chronoirr.ChIrrApp(chronoirr.NullMaterial(), chronoirr.COGLFW, 1280, 720)
-application.AddTypicalSky()
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.Vector3(0, 0, -10))
-application.AddLightWithShadow(chronoirr.Vector3(0, 10, 0), 0.3, 120, 2, 50, 100, 50, 0.5)
+application = chronoirr.ChIrrApp(chronoirr.NullDriver(), chronoirr.NullDevice(), 1024, 768, "HMMWV Simulation")
 
 
-vehicle = chronovehicle.ChVehicle()
-vehicle.SetContactMethod(chronovehicle.ChVehicle::CONTACT_METHOD_LINEAR)
+system = chrono.ChSystemNSC()
+
+
+terrain = chronoterrain.ChTerrain()
+terrain.SetMesh("Highway_col.obj", "Highway_vis.obj")
+system.Add(terrain)
+
+
+vehicle = chronovehicle.ChVehicle("HMMWV")
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chronovehicle.ChVehicle::CONTACT_METHOD_LINEAR)
+vehicle.SetTireType(chronovehicle.ChVehicle::TMEASY)
 
 
-chassis_mesh = chrono.ChTriangleMeshConnected()
-chassis_mesh.LoadWavefrontMesh("path/to/HMMWV_chassis.obj")
-chassis_shape = chrono.ChTriangleMeshShape()
-chassis_shape.SetMesh(chassis_mesh)
-chassis_shape.SetName("chassis")
-vehicle.AddAsset(chassis_shape)
+vehicle.AddVisualizationAssets()
+system.Add(vehicle)
 
 
-wheel_mesh = chrono.ChTriangleMeshConnected()
-wheel_mesh.LoadWavefrontMesh("path/to/HMMWV_wheel.obj")
-wheel_shape = chrono.ChTriangleMeshShape()
-wheel_shape.SetMesh(wheel_mesh)
-wheel_shape.SetName("wheel")
-vehicle.AddAsset(wheel_shape)
-
-
-tire_model = chronovehicle.ChTMeasyTire()
-tire_model.SetName("tire")
-vehicle.AddAsset(tire_model)
-
-
-terrain = chronoterrain.ChTriangleMeshShape()
-terrain.SetMesh(chrono.ChTriangleMeshConnected("path/to/Highway_col.obj"))
-terrain.SetName("terrain")
-terrain.SetTexture(chronoirr.GetVideoDriver(), "path/to/Highway_vis.jpg")
-terrain.SetColor(chronoirr.SColor(255, 255, 255, 255))
-
-
-vehicle.AddAsset(terrain)
-
-
-driver = chronovehicle.ChIrrGuiDriver()
-driver.SetSteeringDelta(0.04)
-driver.SetSteeringIncrement(0.04)
-driver.SetThrottleDelta(0.2)
-driver.SetBrakingDelta(0.3)
-driver.Initialize(vehicle, application.GetDevice())
-
-
-simulation = chrono.ChSystemNSC()
-simulation.Set_G_acc(chrono.ChVector<>(0, 0, -9.81))
-
-
-simulation.Add(vehicle)
-simulation.Add(terrain)
-
-
-postprocessor = chronopost.ChVehiclePostprocess()
-postprocessor.SetChartsMode(chronopost.ChVehiclePostprocess::CHARTS_OFF)
-postprocessor.SetChartsFilename("path/to/output/charts.png")
-postprocessor.SetChartsFilename("path/to/output/charts.txt")
+driver = chronovehicle.ChIrrGuiDriver(application)
+driver.Initialize(vehicle)
 
 
 application.SetTimestep(0.02)
 
 
 while application.GetDevice().run():
-    simulation.DoStepDynamics(application.GetTimestep())
-    vehicle.Synchronize(application.GetTimestep())
-    driver.Update(application.GetTimestep())
+    
+    system.DoFrameDynamics(0.02)
+
+    
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()
 
+    
+    driver.Update(0.02)
 
-postprocessor.WriteFiles(vehicle, "path/to/output")
+    
+    chronopost.Postprocess(system)
+
+
+application.GetSystem().RemoveAll()
+application.GetSystem().Clear()
+application.Close()

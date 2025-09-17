@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens
+import pychrono.sensor as sens  
 
 
 system = chrono.ChSystemNSC()
@@ -38,7 +38,37 @@ rover.SetDriver(driver)
 
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFrameD(init_pos, init_rot))
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+
+manager = sens.ChSensorManager(system)  
+
+
+update_rate = 10  
+horizontal_samples = 360
+vertical_samples = 1
+field_of_view = math.pi  
+min_distance = 0.1
+max_distance = 10.0
+
+
+lidar = sens.ChLidarSensor(
+    update_rate, 
+    horizontal_samples, 
+    vertical_samples, 
+    field_of_view, 
+    min_distance, 
+    max_distance
+)
+
+
+rover.GetChassis().AddChild(lidar)
+
+
+lidar.AddFilter(sens.ChFilterPassthrough("z", -1.5, 1.5))  
+
+
+manager.AddSensor(lidar)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -60,32 +90,6 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 time_step = 1e-3
 
 
-manager = sens.ChSensorManager(system)
-
-
-lidar_update_rate = 10.0  
-lidar_horizontal_samples = 360
-lidar_vertical_samples = 1
-lidar_field_of_view = math.pi  
-lidar_range = 10.0  
-lidar_noise = 0.01  
-lidar = sens.ChLidarSensor(
-    lidar_update_rate,
-    lidar_horizontal_samples,
-    lidar_vertical_samples,
-    lidar_field_of_view,
-    lidar_range,
-    lidar_noise
-)
-lidar.SetName("Lidar")
-lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))  
-lidar.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
-lidar.AddFilter(sens.ChFilterPassthrough("z", 0.0, 2.0))  
-lidar.AddFilter(sens.ChFilterIntensityThreshold(0.0, 1.0))  
-rover.GetChassis().AddSensor(lidar)
-manager.AddSensor(lidar)
-
-
 time = 0
 while vis.Run():
     time += time_step
@@ -97,7 +101,7 @@ while vis.Run():
     rover.Update()
 
     
-    manager.Update()
+    manager.Update()  
 
     
     vis.BeginScene()

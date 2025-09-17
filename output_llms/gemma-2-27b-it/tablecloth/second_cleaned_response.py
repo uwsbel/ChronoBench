@@ -46,21 +46,21 @@ for iz in range(nsections_z + 1):
 
 
 nodePlotA = mynodes[int(nsections_x / 2) * (nsections_x + 1) + int(nsections_z / 2)]
-nodePlotB = mynodes[int(nsections_x / 4) * (nsections_x + 1) + int(nsections_z / 4)]
+nodePlotB = mynodes[int(nsections_x / 2) * (nsections_x + 1) + int(nsections_z / 2) + 1]
 nodesLoad = [mynodes[i * (nsections_x + 1) + int(nsections_x / 2)] for i in range(int(nsections_z / 2), int(nsections_z / 2) + 5)]
 
 
 def ref_X(t):
-    return 0.01 * chrono.ChMath.Sin(t)
+    return 0.01 * t
 
 def ref_Y(t):
-    return 0.01 * chrono.ChMath.Cos(t)
+    return 0.0
 
 
-load_force = chrono.ChVectorD(0, -100, 0)
+load_force = chrono.ChVector3d(0, -100, 0)
 
 
-mnodemonitor = mynodes[0]
+mnodemonitor = mynodes[10]
 melementmonitor = None
 
 
@@ -103,9 +103,9 @@ mvisualizeshellA.SetShellResolution(2)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
 mvisualizeshellB.SetSymbolsThickness(0.006)
-mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
 

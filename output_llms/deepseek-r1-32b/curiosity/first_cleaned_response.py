@@ -1,140 +1,96 @@
 importchrono
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import numpy as np
-import matplotlib.pyplot as plt
 
 
+chrono.ChSystem.SetRootPath("chrono_data/")
 system = chrono.ChSystemNSC()
-system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
-
-
-visualizer = chrono.ChVisualSystemIrrlicht()
-visualizer.SetWindowTitle('Curiosity Rover Simulation')
-visualizer.SetWindowSize(1024, 768)
-visualizer.SetClearColor(chrono.ChColor(0.9, 0.9, 0.9))
-visualizer.SetLightPosition(chrono.ChVectorD(0, 10, 10))
-visualizer.SetLightIntensity(1)
-visualizer.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
-visualizer.SetCameraRotation(chrono.ChVectorD(45, 45, 0))
-system.SetVisualSystem(visualizer)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 ground = chrono.ChBody()
-ground.SetBodyFixed(True)
 ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.GetCollisionModel().AddBox(chrono.ChCollisionModel(), 100, 100, 1)
-ground.GetVisualShape().SetTexture(chrono.GetChronoDataPath() + 'textures/ground.jpg')
+ground.SetMass(0)  
+ground.GetCollisionModel().AddBox(chrono.ChCollisionBox(chrono.ChVectorD(10, 1, 10)))
+ground_mat = chrono.ChMaterialSurface()
+ground_mat.SetFriction(0.5)
+ground_mat.SetRestitution(0.2)
+ground.GetCollisionModel().SetMaterial(ground_mat)
 system.Add(ground)
 
 
-rover = chrono.ChVehicle()
-rover.SetChassisMass(100)
-rover.SetChassisInertia(chrono.ChMatrix33D(100))
-rover.SetChassisDimensions(1, 0.5, 0.5)
-rover.SetChassisPos(chrono.ChVectorD(0, 0.25, 0))
+rover = chrono.ChBody()
+rover.SetPos(chrono.ChVectorD(0, 0.5, 0))
+rover.SetMass(200)
+rover.GetCollisionModel().AddBox(chrono.ChCollisionBox(chrono.ChVectorD(0.5, 0.5, 0.5)))
+system.Add(rover)
 
 
-wheel_mass = 10
-wheel_inertia = chrono.ChMatrix33D(10)
-wheel_radius = 0.2
-wheel_width = 0.1
-
-for i in range(4):
-    wheel = chrono.ChWheel()
-    wheel.SetMass(wheel_mass)
-    wheel.SetInertia(wheel_inertia)
-    wheel.SetRadius(wheel_radius)
-    wheel.SetWidth(wheel_width)
-    wheel.SetVisualShape(chrono.ChVisualShapeType.SPHERE)
+wheel_pos = [(-0.5, -0.25, 0.5), (-0.5, -0.25, -0.5), (0.5, -0.25, 0.5), (0.5, -0.25, -0.5)]
+for pos in wheel_pos:
+    wheel = chrono.ChBody()
+    wheel.SetPos(chrono.ChVectorD(*pos))
+    wheel.SetMass(10)
+    wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionCylinder(0.2, 0.1))
+    system.Add(wheel)
     
     
-    x_pos = [0.3, -0.3, 0.3, -0.3]
-    z_pos = [0.3, 0.3, -0.3, -0.3]
-    wheel.SetPos(chrono.ChVectorD(x_pos[i], 0, z_pos[i]))
-    
-    
-    joint = chrono.ChRevoluteJoint()
-    joint.Initialize(rover.GetChassis(), wheel, chrono.ChCoordsysD(wheel.GetPos(), chrono.ChQuaternionD(1, 0, 0, 0)))
+    joint = chrono.ChLinkRev()
+    joint.Initialize(rover, wheel, chrono.ChCoordsysD(chrono.ChVectorD(*pos), chrono.ChQuaternionD(1,0,0,0)))
     system.Add(joint)
     
-    rover.AddWheel(wheel)
+    
+    motor = chrono.ChMotorRotation()
+    motor.SetMode(chrono.ChMotorRotation::MODE_SPEED)
+    motor.SetSpeedTarget(0)
+    motor.Initialize(joint.Get ShaftA(), joint.Get ShaftB(), chrono.ChVectorD(0,1,0))
+    system.Add(motor)
 
 
 driver = chrono.ChDriver()
-driver.SetSteering(0)
-rover.SetDriver(driver)
+driver.Attach(rover)
+system.Add(driver)
 
 
-rover.GetChassis().GetCollisionModel().AddBox(chrono.ChCollisionModel(), 0.5, 0.5, 0.5)
-for wheel in rover.GetWheels():
-    wheel.GetCollisionModel().AddCylinder(chrono.ChCollisionModel(), wheel_radius, wheel_width/2)
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowTitle("Curiosity Rover Simulation")
+vis.SetCamera(chronoirr.ChCamera(60, 1.2, 100))
+vis.SetLightDirection(chrono.ChVectorD(0, -1, 0))
+vis.SetLightIntensity(1)
+vis.SetLightPosition(chrono.ChVectorD(0, 10, 0))
+vis.AddSky()
+vis.AddLogo()
 
 
-rover.GetChassis().GetVisualShape().SetTexture('path_to_texture_file.jpg')  
+ground_texture = chronoirr.ChTexture()
+ground_texture.SetTextureFilename("textures/concrete.jpg")
+ground.GetAssets().push_back(ground_texture)
+
+rover_texture = chronoirr.ChTexture()
+rover_texture.SetTextureFilename("textures/metal.jpg")
+rover.GetAssets().push_back(rover_texture)
 
 
-visualizer.AddLight(chrono.ChVectorD(0, 10, 10), 1, True)
-visualizer.AddLight(chrono.ChVectorD(0, -10, 10), 1, True)
-visualizer.SetAmbientLight(chrono.ChColor(0.5, 0.5, 0.5))
+logo = chronoirr.ChBillboard()
+logo.SetPosition(chrono.ChVectorD(0, 0.5, 0))
+logo.SetSize(0.2, 0.1)
+logo.SetTextureFilename("textures/logo.png")
+vis.AddBillboard(logo)
 
 
-visualizer.AddSky()
-
-
-
-
-
-
-
-
-system.SetMaxPenetration(0.001)
-system.SetSolverType(chrono.ChSolverType.SOR)
-system.SetTolerance(1e-6)
-system.SetIterMax(100)
-
-
-simulation_time = 0
-step_size = 0.001
-
-
-positions = []
-times = []
-
-
-while simulation_time < 10:
+while vis.Run():
     
-    system.DoStepDynamics(step_size)
+    if vis.KeyPress(chrono.CH_KEY_UP):
+        driver.GetSteering().SetSpeed(1)
+    elif vis.KeyPress(chrono.CH_KEY_DOWN):
+        driver.GetSteering().SetSpeed(-1)
+    elif vis.KeyPress(chrono.CH_KEY_LEFT):
+        driver.GetSteering().SetSteering(-0.5)
+    elif vis.KeyPress(chrono.CH_KEY_RIGHT):
+        driver.GetSteering().SetSteering(0.5)
     
     
-    pos = rover.GetChassis().GetPos()
-    positions.append(pos)
-    times.append(simulation_time)
-    
-    
-    visualizer.Render()
-    
-    
-    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_ESCAPE):
-        break
-    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_LEFT):
-        driver.SetSteering(-0.1)
-    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_RIGHT):
-        driver.SetSteering(0.1)
-    if visualizer.GetKeyboard().IsKeyDown(chrono.KEY_SPACE):
-        driver.SetThrottle(1)
-    else:
-        driver.SetThrottle(0)
-    
-    simulation_time += step_size
-
-
-plt.plot(times, [p.x for p in positions], label='X Position')
-plt.plot(times, [p.y for p in positions], label='Y Position')
-plt.plot(times, [p.z for p in positions], label='Z Position')
-plt.xlabel('Time (s)')
-plt.ylabel('Position (m)')
-plt.title('Rover Position Over Time')
-plt.legend()
-plt.show()
-
-
-chrono.ChDeleteAll()
+    system.DoStepDynamics(0.001)
+    vis.Render()

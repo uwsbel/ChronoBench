@@ -128,12 +128,16 @@ if (True):  # Block to execute the following setup
 
     # Create visualizations for shell elements
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
-    mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces
-    mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
-    mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
-    mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
-    # mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling (optional)
-    mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
+    # Enable smooth faces for the shell
+    mvisualizeshellA.SetSmoothFaces(True)
+    # Enable wireframe mode for the shell
+    mvisualizeshellA.SetWireframe(True)
+    # Enable backface culling for the shell
+    mvisualizeshellA.SetBackfaceCull(True)
+    # Set resolution for shell visualization
+    mvisualizeshellA.SetShellResolution(2)
+    # Add visual shape to mesh
+    mesh.AddVisualShapeFEA(mvisualizeshellA)
 
     # Create visualization of FEM data
     mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)

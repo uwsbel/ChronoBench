@@ -135,7 +135,7 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Create Depth Camera as requested
+# Create depth camera with specified parameters
 offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
@@ -148,14 +148,12 @@ depth_cam = sens.ChCameraSensor(
 depth_cam.SetName("Depth Camera")
 depth_cam.SetLag(lag)
 depth_cam.SetCollectionWindow(exposure_time)
-depth_cam.SetDepth(True)  # Enable depth sensing
-depth_cam.SetDepthMax(30)  # Set maximum depth to 30 meters
-# Add visualization filter for depth map
-if vis:
-    depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
+depth_cam.SetDepthRange(0.1, 30)  # Set max depth to 30
+depth_cam.SetCameraModel(sens.CameraModelType_DEPTH)
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Map"))
 manager.AddSensor(depth_cam)
 
-# create lidar sensor with corrected parameters
+# create lidar sensor (with corrected parameters)
 offset_pose = chrono.ChFramed(
         chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
@@ -166,15 +164,15 @@ lidar = sens.ChLidarSensor(
     800,     # Number of horizontal samples
     300,       # Number of vertical channels
     2 * chrono.CH_PI,         # Horizontal field of view
-    chrono.CH_PI / 12,         # Maximum vertical field of view
-    -chrono.CH_PI / 6,         # Minimum vertical field of view
+    -chrono.CH_PI / 6,         # Minimum vertical field of view (corrected order)
+    chrono.CH_PI / 12,         # Maximum vertical field of view (corrected order)
     100.0,                  # Maximum lidar range
-    sens.LidarReturnMode_STRONGEST_RETURN,  # Return mode for the lidar
     sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
+    2,          # Sample radius
+    0.003,       # Divergence angle
     0.003,       # Vertical divergence angle
-    0.003,       # Horizontal divergence angle
-    0.0          # Beam radius
 )
+lidar.SetReturnMode(sens.LidarReturnMode_STRONGEST_RETURN)  # Set return mode separately
 lidar.SetName("Lidar Sensor")
 lidar.SetLag(lag)
 lidar.SetCollectionWindow(1/update_rate)
@@ -184,18 +182,14 @@ lidar.PushFilter(sens.ChFilterDIAccess())
 lidar.PushFilter(sens.ChFilterPCfromDepth())
 # Provides the host access to the XYZI data
 lidar.PushFilter(sens.ChFilterXYZIAccess())
-if vis:
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
-
-# Open log file for vehicle state
-log_file = open("vehicle_state.log", "w")
-log_file.write("time,x,y,z,heading\n")
-
 # ---------------
 # Simulation loop
 # ---------------
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
@@ -214,24 +208,15 @@ while time < end_time:
 
     manager.Update()
 
-    # Log vehicle state (position and heading)
-    chassis_body = gator.GetVehicle().GetChassisBody()
-    pos = chassis_body.GetPos()
-    rot = chassis_body.GetRot()
-    # Convert rotation to Euler angles (roll, pitch, yaw)
-    euler = rot.GetEulerAngles()
-    heading = euler.z  # yaw angle is the heading
-    
-    # Write to log file
-    log_file.write(f"{time},{pos.x},{pos.y},{pos.z},{heading}\n")
-
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     gator.Advance(step_size)
 
+    # Log vehicle state at every step
+    pos = gator.GetVehicle().GetPos()
+    yaw = gator.GetVehicle().GetYaw()
+    print(f"Time: {time:.3f}, Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}), Yaw: {yaw:.3f}")
+
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# Close log file after simulation
-log_file.close()

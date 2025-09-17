@@ -2,42 +2,36 @@ import pychrono as chrono
 import pychrono.irrlicht as vis
 
 
-chrono.SetChronoDataPath("path/to/your/chrono/data")  
-system = chrono.ChSystemNSC()
-
-
-
-m113_vehicle = chrono.ChBodyEasyCylinder(mass=10000, radius=2.5, height=3)
-m113_vehicle.SetPos(chrono.ChVectorD(0, 0, 0.5))
-system.Add(m113_vehicle)
-
-
-terrain = chrono.ChBodyEasyBox(mass=1e6, size=chrono.ChVectorD(10, 10, 1))
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
-terrain.SetBodyFixed(True)  
-system.Add(terrain)
-
-
-
-terrain.SetFriction(0.8, 0.6)  
-terrain.SetRestitution(0.2)
-
-
-driver = chrono.ChDriver()
-driver.SetVehicle(m113_vehicle)
-driver.SetSteering(0.5)  
-
-
-vis_app = vis.ChIrrApp(system, 'M113 Simulation', windowSize=(1024, 768))
-vis_app.AddCamera(
-    position=chrono.ChVectorD(10, 5, 10),
+app = chrono.ChSystemNSC()
+vis.ChVisualizationSystemIrrlicht.SetRenderMode(vis.CH_IRR_RENDER_WIREFRAME)  
+vis.ChVisualizationSystemIrrlicht.SetCamera(
+    vis.ChIrrlichtCamera(app.GetSystem()),
+    pos=chrono.ChVectorD(10, 10, 10),
     target=chrono.ChVectorD(0, 0, 0),
-    up=chrono.ChVectorD(0, 1, 0)
 )
-vis_app.AddLight(chrono.ChVectorD(10, 10, 10))
 
 
-while vis_app.Run():
-    system.DoStepDynamics(chrono.ChTime(0.01))  
+
+
+
+terrain_body = chrono.ChBodyEasySphere(10, 10, 10, 1000)  
+terrain_body.SetPos(chrono.ChVectorD(0, 0, 0))
+terrain_body.SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.2))  
+app.AddBody(terrain_body)
+
+vehicle_body = ...  
+
+
+driver = ...  
+
+
+vis_app = vis.ChVisualizationSystemIrrlicht(app)
+vis_app.AddCamera(vis.ChIrrlichtCamera(app.GetSystem()))
+vis_app.SetCamera(vis.ChIrrlichtCamera(app.GetSystem()))
+vis_app.Run()
+
+
+while True:
+    app.DoStepDynamics(1/60.0)  
     vis_app.Render()
     driver.Update()

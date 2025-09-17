@@ -9,65 +9,37 @@ def main():
     # -----------------
     # Create the vehicle
     # -----------------
-    veh.SetDataPath('path/to/chrono/data')  # Set the path to the Chrono data directory
-    art_car = veh.ARTcar()
-    art_car.SetContactMethod(chrono.ChContactMethod_NSC)
-    art_car.SetChassisFixed(False)
-    art_car.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1.0)))
-    art_car.Initialize()
-
-    # Create the terrain
-    terrain = veh.RigidTerrain(art_car.GetSystem())
-    terrain.SetContactFrictionCoefficient(0.9)
-    terrain.SetContactRestitutionCoefficient(0.01)
-    terrain.SetContactMaterial(chrono.GetMatrDataFile("materials/GT_Iso_terrain.mat"))
-    patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.Q_from_AngX(-chrono.CH_PI / 2)), chrono.ChVector3d(100, 100, 1))
-    patch.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 100, 100)
-    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-    terrain.Initialize()
-
-    # Initialize the driver
-    driver = veh.ChDriver(art_car.GetVehicle())
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+    my_ARTcar = veh.ARTcar()
+    my_ARTcar.SetContactMethod(chrono.ChContactMethod_NSC)
+    my_ARTcar.SetChassisFixed(False)
+    my_ARTcar.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1.0)))
+    my_ARTcar.Initialize()
 
     # -----------------------
     # Create a sensor manager
     # -----------------------
-    manager = sens.ChSensorManager(art_car.GetSystem())
+    manager = sens.ChSensorManager(my_ARTcar.GetSystem())
 
     # ------------------------------------------------
     # Create a lidar and add it to the sensor manager
     # ------------------------------------------------
-    offset_pose = chrono.ChFrame(chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+    # Lidar parameters
+    noise_model = "NONE"
     update_rate = 5.0
     horizontal_samples = 800
     vertical_samples = 300
     horizontal_fov = 2 * chrono.CH_PI
     max_vert_angle = chrono.CH_PI / 12
     min_vert_angle = -chrono.CH_PI / 6
-    max_range = 100.0
-    noise_model = "NONE"
+    lag = 0
+    collection_time = 1. / update_rate
     sample_radius = 2
     divergence_angle = 0.003
     return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-    lag = 0
-    collection_time = 1. / update_rate
 
-    lidar = sens.ChLidarSensor(
-        art_car.GetChassisBody(),
-        update_rate,
-        offset_pose,
-        horizontal_samples,
-        vertical_samples,
-        horizontal_fov,
-        max_vert_angle,
-        min_vert_angle,
-        max_range,
-        sens.LidarBeamShape_RECTANGULAR,
-        sample_radius,
-        divergence_angle,
-        divergence_angle,
-        return_mode
-    )
+    offset_pose = chrono.ChFrame(chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+    lidar = sens.ChLidarSensor(my_ARTcar.GetChassisBody(), update_rate, offset_pose, horizontal_samples, vertical_samples, horizontal_fov, max_vert_angle, min_vert_angle, 100.0, sens.LidarBeamShape_RECTANGULAR, sample_radius, divergence_angle, divergence_angle, return_mode)
     lidar.SetName("Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
@@ -77,35 +49,16 @@ def main():
     elif noise_model == "NONE":
         pass
 
+    lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
     lidar.PushFilter(sens.ChFilterDIAccess())
     lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
     lidar.PushFilter(sens.ChFilterXYZIAccess())
-
-    # Visualize the raw lidar data
-    vis = True
-    if vis:
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 
     manager.AddSensor(lidar)
 
     # Create 2D lidar sensor
-    lidar_2d = sens.ChLidarSensor(
-        art_car.GetChassisBody(),
-        update_rate,
-        offset_pose,
-        horizontal_samples,
-        1,
-        horizontal_fov,
-        0.0,
-        0.0,
-        max_range,
-        sens.LidarBeamShape_RECTANGULAR,
-        sample_radius,
-        divergence_angle,
-        divergence_angle,
-        return_mode
-    )
+    lidar_2d = sens.ChLidarSensor(my_ARTcar.GetChassisBody(), update_rate, offset_pose, horizontal_samples, 1, horizontal_fov, 0.0, 0.0, 100.0, sens.LidarBeamShape_RECTANGULAR, sample_radius, divergence_angle, divergence_angle, return_mode)
     lidar_2d.SetName("2D Lidar Sensor")
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
@@ -115,66 +68,62 @@ def main():
     elif noise_model == "NONE":
         pass
 
+    lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
-    if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
-
     manager.AddSensor(lidar_2d)
 
-    # Add a third-person camera
-    camera = sens.ChCameraSensor(
-        art_car.GetChassisBody(),
-        10.0,
-        chrono.ChFrame(chrono.ChVector3d(-10, 0, 3), chrono.QuatFromAngleAxis(chrono.CH_PI / 20, chrono.ChVector3d(0, 1, 0))),
-        640,
-        480,
-        0
-    )
-    camera.SetName("Third Person Camera")
-    manager.AddSensor(camera)
+    # Create a third-person camera
+    offset_pose_cam = chrono.ChFrame(chrono.ChVector3d(-5, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
+    cam = sens.ChCameraSensor(my_ARTcar.GetChassisBody(), 30, offset_pose_cam, 1280, 720)
+    cam.SetName("Third Person Camera")
+    cam.PushFilter(sens.ChFilterVisualize(1280, 720, "Third Person Camera"))
+    manager.AddSensor(cam)
+
+    # Create the terrain
+    terrain_material = chrono.ChMaterialSurfaceNSC()
+    terrain_material.SetFriction(0.9)
+    terrain = veh.RigidTerrain(my_ARTcar.GetSystem())
+    terrain.SetContactMaterial(terrain_material)
+    patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), chrono.ChVector3d(100, 100, 1))
+    patch.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 100, 100)
+    patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+    terrain.Initialize()
+
+    # Create the driver
+    driver = veh.ChDriver(my_ARTcar.GetVehicle())
 
     # ---------------
     # Simulate system
     # ---------------
     step_size = 1e-3
     end_time = 40.0
-    ch_time = 0.0
-    t1 = time.time()
 
+    my_ARTcar.GetSystem().SetStep(step_size)
+
+    t1 = time.time()
+    ch_time = 0.0
     while ch_time < end_time:
         # Update sensor manager
         manager.Update()
 
-        # Get the current driver inputs
-        driver_inputs = driver.GetInputs()
-
-        # Update the vehicle
-        art_car.Synchronize(time.time(), driver_inputs, terrain)
-        art_car.Advance(step_size)
-
-        # Advance the terrain
-        terrain.Synchronize(time.time())
-        terrain.Advance(step_size)
-
-        # Perform step of dynamics
-        art_car.GetSystem().DoStepDynamics(step_size)
-
         # Get the current time of the simulation
-        ch_time = art_car.GetSystem().GetChTime()
+        ch_time = my_ARTcar.GetSystem().GetChTime()
 
-        # Access the XYZI buffer from lidar
-        xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
-        if xyzi_buffer.HasData():
-            xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data)))
+        # Synchronize the driver and vehicle
+        driver_inputs = driver.GetInputs()
+        my_ARTcar.Synchronize(ch_time, driver_inputs, terrain)
+        terrain.Synchronize(ch_time)
+
+        # Advance the simulation
+        my_ARTcar.Advance(step_size)
+        my_ARTcar.GetSystem().DoStepDynamics(step_size)
 
         print("Sim time:", ch_time, "Wall time:", time.time() - t1)
 
 if __name__ == "__main__":
     main()
 
-### Code Provided Above
+# ... (the above code)

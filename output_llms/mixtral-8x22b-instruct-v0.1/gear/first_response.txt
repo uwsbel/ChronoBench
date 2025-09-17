@@ -3,62 +3,78 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import numpy as np
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath("/path/to/chrono/data")  # Replace with your Chrono data path
-chrono.SetChronoDataPath("/path/to/irrlicht/data")  # Replace with your Irrlicht data path
+# Initialize PyChrono environment and core components
+physics_time = 10  # Simulation time
+timestep = 0.01  # Time step
 
-# Create a system
 my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
 
-# Create a fixed truss
-fixed_truss = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+# Add the fixed truss
+fixed_truss = chrono.ChBodyEasyBox(2, 2, 0.1, 1000, True, True)  # Mass, size, density, collision, visualization
 fixed_truss.SetPos(chrono.ChVectorD(0, 0, 0))
+fixed_truss.SetBodyFixed(True)
 my_system.Add(fixed_truss)
 
-# Create a rotating bar
-rotating_bar = chrono.ChBodyEasyCylinder(0.1, 1, 1000, True, True)
+# Add the rotating bar
+rotating_bar = chrono.ChBodyEasyBox(0.2, 2, 0.2, 1000, True, True)
 rotating_bar.SetPos(chrono.ChVectorD(0, 0, 1))
-rotating_bar.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
+rotating_bar.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial rotation
 my_system.Add(rotating_bar)
 
-# Create two gears
-gear1 = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(0.5, 0, 0))
-gear1.SetWvel_loc(chrono.ChVectorD(0, 0, 1))
+# Add the first gear
+gear1 = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000, True, True)
+gear1.SetPos(chrono.ChVectorD(-1, 0, 1))
 my_system.Add(gear1)
 
-gear2 = chrono.ChBodyEasyCylinder(0.5, 0.1, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(-0.5, 0, 0))
-gear2.SetWvel_loc(chrono.ChVectorD(0, 0, -1))
+# Add the second gear
+gear2 = chrono.ChBodyEasyCylinder(0.1, 0.2, 1000, True, True)
+gear2.SetPos(chrono.ChVectorD(1, 0, 1))
 my_system.Add(gear2)
 
-# Create a gear joint
-gear_joint = chrono.ChLinkGear()
-gear_joint.Initialize(gear1, gear2, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, -1))
-gear_joint.SetGearRatio(1)
-my_system.Add(gear_joint)
-
-# Create a gear motor
+# Add the gear motor between the first and second gears
 gear_motor = chrono.ChLinkMotorRotationSpeed()
-gear_motor.Initialize(fixed_truss, gear1, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-gear_motor.Set_speed_reference(1)
-gear_motor.Set_speed_factor(1)
+gear_motor.Initialize(gear1, gear2, chrono.ChVectorD(-1, 0, 1), chrono.ChVectorD(1, 0, 1))
+gear_motor.Set_speed_reference(10)  # Rotation speed (rad/s)
 my_system.Add(gear_motor)
 
-# Create an Irrlicht application
-application = chronoirr.ChIrrApp(my_system, "Epicyclic Gears", chronoirr.Dim3D(800, 600), True, True)
+# Add the gear constraint between the first gear and the rotating bar
+gear_constraint = chrono.ChLinkLockRevolute()
+gear_constraint.Initialize(rotating_bar, gear1, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(-1, 0, 1))
+my_system.Add(gear_constraint)
+
+# Add the gear constraint between the second gear and the rotating bar
+gear_constraint2 = chrono.ChLinkLockRevolute()
+gear_constraint2.Initialize(rotating_bar, gear2, chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(1, 0, 1))
+my_system.Add(gear_constraint2)
+
+# Set visualization using Irrlicht
+visualizer = chronoirr.ChVisualSystemIrrlicht()
+visualizer.SetWindowSize(800, 600)
+visualizer.SetWindowTitle('Epicyclic Gears Simulation')
+visualizer.Initialize()
+visualizer.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+visualizer.AddSkyBox()
+visualizer.AddCamera(chrono.ChVectorD(0, -5, 2))
+visualizer.AddLight(chrono.ChVectorD(0, 0, 10), chrono.ChColor(0.8, 0.8, 0.8))
 
 # Set materials and lighting
-application.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono.png"))
-application.AddTypicalSky(chrono.GetChronoDataFile("sky_lake.png"))
-application.AddTypicalFloor(chrono.GetChronoDataFile("wood.jpg"), 10, 10)
-application.AddLightWithShadow(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(0, 0, 0), 1, 50, 5, 60, 0.5, 0.5)
+mat_red = chronoirr.ChIrrTools.ConvertMaterial(chrono.ChColor(0.8, 0, 0))
+mat_blue = chronoirr.ChIrrTools.ConvertMaterial(chrono.ChColor(0, 0, 0.8))
+mat_gray = chronoirr.ChIrrTools.ConvertMaterial(chrono.ChColor(0.5, 0.5, 0.5))
 
-# Set camera position
-application.SetCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+fixed_truss.GetMaterialSurface().SetRGBcolor(mat_gray)
+rotating_bar.GetMaterialSurface().SetRGBcolor(mat_red)
+gear1.GetMaterialSurface().SetRGBcolor(mat_blue)
+gear2.GetMaterialSurface().SetRGBcolor(mat_blue)
 
 # Run the simulation
-application.Run()
-```
+while visualizer.Run():
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.EndScene()
 
-This script initializes the PyChrono environment, creates a fixed truss, a rotating bar, and two gears with a gear motor. The Irrlicht visualization system is used to visualize the entire setup with appropriate materials and lighting. Make sure to replace the Chrono and Irrlicht data paths with the correct paths on your system.
+    my_system.DoStepDynamics(timestep)
+
+visualizer.CloseWindow()
+```

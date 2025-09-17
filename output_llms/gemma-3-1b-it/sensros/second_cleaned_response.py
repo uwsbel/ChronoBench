@@ -98,36 +98,15 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
 
     
-    offset_pose = ch.ChFramed(ch.ChVector3d(-8, 0, 2), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
-    cam = sens.ChCameraSensor(ground_body, 30, offset_pose, 1280, 720, 1.408)
-    cam.PushFilter(sens.ChFilterVisualizeDIAccess())  
-    cam.PushFilter(sens.ChFilterRGBA8Access())  
-    cam.SetName("camera")
-    sens_manager.AddSensor(cam)
-
-    
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, noise_model_none, gps_reference)
-    lidar.PushFilter(sens.ChFilterDIAccess())  
-    lidar.PushFilter(sens.ChFilterPCfromDepth())  
-    lidar.PushFilter(sens.ChFilterXYZIAccess())  
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  
-    lidar.SetName("lidar")
-    sens_manager.AddSensor(lidar)
-
-    
-    noise_model_none = sens.ChNoiseNone()
-    gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
-    gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none, gps_reference)
-    gps.PushFilter(sens.ChFilterGPSAccess())  
-    gps.SetName("gps")
-    sens_manager.AddSensor(gps)
-
-    
-    imu_handler = ch.ChROSIMUHandler(100, "~/output/imu/data")
-    imu_handler.SetAccelerometerHandler(acc_handler)
-    imu_handler.SetGyroscopeHandler(gyro_handler)
-    imu_handler.SetMagnetometerHandler(mag_handler)
-    ros_manager.RegisterHandler(imu_handler)
+    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
+    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
+    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
+    ros_manager.RegisterHandler(chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data"))
+    ros_manager.RegisterHandler(chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data"))
+    ros_manager.RegisterHandler(chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data"))
+    ros_manager.RegisterHandler(chros.ChROSSIMUHandler(100, "~/output/imu/data")
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  
 
     ros_manager.Initialize()  
 

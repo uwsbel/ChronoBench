@@ -90,7 +90,6 @@ sys.AddLink(spring_3)
 spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 
-
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)

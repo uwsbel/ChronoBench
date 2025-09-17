@@ -11,13 +11,11 @@ def main():
     # Load and transform a 3D mesh of a vehicle chassis.
     mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
-
     # Create a visual shape from the mesh.
     trimesh_shape = ch.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
-
     # Create a body for the mesh and add it to the simulation.
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
@@ -63,8 +61,8 @@ def main():
 
     # Create and configure a 2D Lidar sensor
     lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 1000, 0.1, 0.01)
-    lidar2d.PushFilter(sens.ChFilterScanAccess())
-    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))
+    lidar2d.PushFilter(sens.ChFilterScanAccess())  # Access raw scan data
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))  # Visualize the scan
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -100,7 +98,6 @@ def main():
     # Create the ROS manager and register handlers for the sensors.
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
-
     # Register handlers for each sensor, specifying ROS topics for output.
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
@@ -119,7 +116,7 @@ def main():
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    # Register handler for the 2D Lidar
+    # Register a ROS handler for the 2D Lidar sensor
     ros_manager.RegisterHandler(chros.ChROSLidar2DHandler(lidar2d, "~/output/lidar2d/data/scan"))
 
     ros_manager.Initialize()  # Initialize the ROS manager.
@@ -128,17 +125,14 @@ def main():
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 100  # Set the duration of the simulation.
-
     # Apply rotational velocity to the ground body for sensor motion.
     ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
     while time < time_end:
         time = sys.GetChTime()  # Update simulation time.
-
         # Update sensors and ROS data.
         sens_manager.Update()
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
-
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
 
 if __name__ == "__main__":

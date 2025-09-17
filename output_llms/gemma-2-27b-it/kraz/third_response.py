@@ -25,9 +25,10 @@ tire_model_sedan = veh.TireModelType_TMEASY
 
 # Highway terrain
 terrain_model = veh.RigidTerrain.MESH
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0,0, 2.1)
@@ -50,6 +51,7 @@ vehicle_truck.SetChassisCollisionType(chassis_collision_type)
 vehicle_truck.SetChassisFixed(False)
 vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
 vehicle_truck.Initialize()
+vehicle_truck.SetTireModelType(tire_model_truck)
 
 vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_truck.SetSteeringVisualizationType(vis_type)
@@ -66,6 +68,7 @@ vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
 vehicle_sedan.SetChassisFixed(False)
 vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
 vehicle_sedan.Initialize()
+vehicle_sedan.SetTireModelType(tire_model_sedan)
 
 vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
 vehicle_sedan.SetSteeringVisualizationType(vis_type)
@@ -100,21 +103,24 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle_truck.GetTractor())
 vis.AttachVehicle(vehicle_sedan.GetChassis())
 
-# Create the driver system for truck
+# Create the driver system
 driver_truck = veh.ChInteractiveDriverIRR(vis)
-steering_time_truck = 1.0  
-throttle_time_truck = 1.0  
-braking_time_truck = 0.3   
-driver_truck.SetSteeringDelta(render_step_size / steering_time_truck)
-driver_truck.SetThrottleDelta(render_step_size / throttle_time_truck)
-driver_truck.SetBrakingDelta(render_step_size / braking_time_truck)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver_truck.SetSteeringDelta(render_step_size / steering_time)
+driver_truck.SetThrottleDelta(render_step_size / throttle_time)
+driver_truck.SetBrakingDelta(render_step_size / braking_time)
+
 driver_truck.Initialize()
 
-# Create the driver system for sedan
-driver_sedan = veh.ChDriver(vehicle_sedan.GetChassis())
-driver_sedan.SetSteeringAngle(0.0)
-driver_sedan.SetThrottle(0.5)
-driver_sedan.SetBraking(0.0)
+# Create the driver system for the sedan
+driver_sedan = veh.ChIrrAppDriver(vis)
+driver_sedan.SetSteeringAngle(0.2)  # Fixed steering angle
+driver_sedan.SetThrottle(0.5)  # Fixed throttle
+driver_sedan.Initialize()
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle_truck.GetTractor().GetMass())
@@ -122,14 +128,14 @@ print( "VEHICLE MASS: ",  vehicle_truck.GetTractor().GetMass())
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter 
+# Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Store states
-states_truck = []
-states_sedan = []
+# Store truck state
+truck_tractor_states = []
+truck_trailer_states = []
 
 while vis.Run() :
     time = vehicle_truck.GetSystem().GetChTime()
@@ -143,13 +149,14 @@ while vis.Run() :
 
     # Get driver inputs
     driver_inputs_truck = driver_truck.GetInputs()
+    driver_inputs_sedan = driver_sedan.GetInputs()
 
     # Update modules (process inputs from other modules)
     driver_truck.Synchronize(time)
     driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
     vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
-    vehicle_sedan.Synchronize(time, driver_sedan, terrain)
+    vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
     vis.Synchronize(time, driver_inputs_truck)
 
     # Advance simulation for one timestep for all modules
@@ -160,9 +167,9 @@ while vis.Run() :
     vehicle_sedan.Advance(step_size)
     vis.Advance(step_size)
 
-    # Store states
-    states_truck.append((vehicle_truck.GetTractor().GetPos(), vehicle_truck.GetTractor().GetRot()))
-    states_sedan.append((vehicle_sedan.GetChassis().GetPos(), vehicle_sedan.GetChassis().GetRot()))
+    # Store truck state
+    truck_tractor_states.append(vehicle_truck.GetTractor().GetPos())
+    truck_trailer_states.append(vehicle_truck.GetTrailer().GetPos())
 
     # Increment frame number
     step_number += 1

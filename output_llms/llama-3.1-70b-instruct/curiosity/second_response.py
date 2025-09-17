@@ -20,10 +20,10 @@ ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
-# Create a long box obstacle
+# Create long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(5, 1, 2, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(2, 0, 1))  # Position the obstacle
+obstacle = chrono.ChBodyEasyBox(5, 1, 1, 1000, True, True, obstacle_mat)
+obstacle.SetPos(chrono.ChVector3d(2, 0, 0))  # Position the obstacle
 obstacle.SetFixed(True)  # Fix the obstacle in place
 system.Add(obstacle)
 
@@ -39,9 +39,9 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Set the rover to move forward with zero steering input
-driver.SetSpeed(1.0)  # Set the speed to a positive value
-driver.SetSteering(0.0)  # Set the steering input to zero
+# Set rover to move forward with zero steering input
+driver.SetSpeed(0.5)  # Set speed to 0.5 m/s
+driver.SetSteering(0)  # Set steering to 0
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()

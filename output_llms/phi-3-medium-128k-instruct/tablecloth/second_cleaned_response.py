@@ -59,8 +59,7 @@ for iz in range(nsections_z):
 
         melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix] if ix < nsections_x - 1 else None
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+        boundary_2 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
         melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
                            mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
@@ -74,7 +73,6 @@ mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
-mesh.AddVisualShapeFEA(mvisualizeshellB)
 mvisualizeshellB.SetSymbolsThickness(0.006)
 mesh.AddVisualShapeFEA(mvisualizeshellB)
 
@@ -114,17 +112,20 @@ nodePlotB = []
 nodesLoad = []
 
 
-for iz in range(nsections_z + 1):
-    for ix in range(nsections_x + 1):
-        if ix > 0 and iz > 0:
-            nodePlotA.append(mynodes[iz * (nsections_x + 1) + ix])
-            nodePlotB.append(mynodes[(iz + 1) * (nsections_x + 1) + ix])
-            nodesLoad.append(mynodes[iz * (nsections_x + 1) + ix])
+def ref_X(node):
+    
+    pass
+
+def ref_Y(node):
+    
+    pass
 
 
-ementmonitor = None
-if (iz == 0 and ix == 1):
-    ementmonitor = melementA
+load_force = chrono.ChVector3d(0, 0, -1000)  
+
+
+mnodemonitor = mynodes[0]  
+ementmentor = melementA  
 
 
 for j in range(30):
@@ -134,4 +135,13 @@ for j in range(30):
 
 mvisualizeshellA.SetSmoothFaces(True)
 mvisualizeshellA.SetWireMode(True)
-mvisualizeshellA.SetBackfaceCulling(False)
+
+
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

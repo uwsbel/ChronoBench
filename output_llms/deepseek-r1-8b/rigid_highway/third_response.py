@@ -44,7 +44,7 @@ render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
 
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -69,8 +69,7 @@ patch_mat.SetRestitution(0.05)  # Updated from 0.01 to 0.05
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0),  # Updated position
-                         chrono.QuatFromAngleZ(-1.5708)),  # Rotated -90 degrees about Z-axis
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QuatFromAngleZ(-1.57)),  # New position and rotation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 

@@ -36,58 +36,82 @@ L_x, L_z = 1, 1
 nsections_x, nsections_z = 40, 40
 
 
-mynodes = []
-nodePlotA = []
-nodePlotB = []
+nodePlotA, nodePlotB = 0, 0
 nodesLoad = []
-ref_X = []
-ref_Y = []
+
+
+ref_X = lambda x, y: x * (L_x / nsections_x)
+ref_Y = lambda x, y: y * (L_z / nsections_z)
+
+
+load_force = chrono.ChVectorD(0, 0, 0)
+
+
+mynodes = []
 for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
         p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
         mnode = fea.ChNodeFEAxyz(p)
         mesh.AddNode(mnode)
         mynodes.append(mnode)
-        if iz == 1 and ix == 1:
-            nodePlotA.append(mnode)
-            nodePlotB.append(mnode)
-        if iz == nsections_z // 2 and ix == nsections_x // 2:
-            nodesLoad.append(mnode)
-        ref_X.append(p.x)
-        ref_Y.append(p.y)
+        if iz == nsections_z and ix == 1:
+            nodePlotA = len(mynodes) - 1
+        if iz == nsections_z and ix == nsections_x - 1:
+            nodePlotB = len(mynodes) - 1
+        if iz > 0 and ix > 0:
+            nodesLoad.append(len(mynodes) - 1)
 
 
-melementA = fea.ChElementShellBST()
-melementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
-        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix] if ix > 0 else None
-        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix] if iz > 0 else None
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (ix > 0) else None
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if (ix > 0 and iz > 0) else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if (iz > 0) else None
 
         melementA.SetNodes(mynodes[iz * (nsections_x + 1) + ix], mynodes[iz * (nsections_x + 1) + ix + 1],
-                           mynodes[(iz + 1) * (nsections_x + 1) + ix], boundary_1, boundary_2, boundary_3)
+                           mynodes[(iz + 1) * (nsections_x + 1) + ix], mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+                           boundary_1, boundary_2, boundary_3)
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
-
+        melementB = fea.ChElementShellBST()
         boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
         boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
         boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
 
-        melementA.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                           mynodes[iz * (nsections_x + 1) + ix + 1], boundary_1, boundary_2, boundary_3)
-        melementA.AddLayer(thickness, 0, material)
-        mesh.AddElement(melementA)
+        melementB.SetNodes(mynodes[(iz + 1) * (nsections_x + 1) + ix + 1], mynodes[(iz + 1) * (nsections_x + 1) + ix],
+                           mynodes[iz * (nsections_x + 1) + ix + 1], mynodes[iz * (nsections_x + 1) + ix],
+                           boundary_1, boundary_2, boundary_3)
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
+
+
+mnodemonitor = fea.ChNodeFEAxyz()
+mesh.AddNode(mnodemonitor)
+melementmonitor = fea.ChElementShellBST()
+
+if nsections_z > 0 and nsections_x > 1:
+    melementmonitor.SetNodes(
+        mynodes[nsections_z * (nsections_x + 1) + 1], mynodes[nsections_z * (nsections_x + 1) + 2],
+        mynodes[(nsections_z + 1) * (nsections_x + 1) + 1], mynodes[(nsections_z + 1) * (nsections_x + 1) + 2],
+        mnodes[(nsections_z + 1) * (nsections_x + 1) + 2], mnodes[(nsections_z + 1) * (nsections_x + 1) + 3],
+        mnodes[nsections_z * (nsections_x + 1) + 2]
+    )
+    melementmonitor.AddLayer(thickness, 0, material)
+    mesh.AddElement(melementmonitor)
+
+
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
 
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)
-mvisualizeshellA.SetWireframe(True)
+mvisualizeshellA.SetWireframeMode(True)
 mvisualizeshellA.SetSmoothFaces(True)
-mvisualizeshellA.SetBackfaceCulling(True)
+mvisualizeshellA.SetBackfaceCulling(True)  
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
@@ -108,11 +132,6 @@ vis.AddCamera(chrono.ChVector3d(1, 0.3, 1.3), chrono.ChVector3d(0.5, -0.3, 0.5))
 vis.AddTypicalLights()
 
 
-for j in range(30):
-    for k in range(30):
-        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
-
-
 mkl_solver = mkl.ChSolverPardisoMKL()
 mkl_solver.LockSparsityPattern(True)
 sys.SetSolver(mkl_solver)
@@ -123,11 +142,6 @@ timestep = 0.005
 
 sys.Setup()
 sys.Update()
-
-
-load_force = chrono.ChVectorD(0, -1, 0)
-for node in nodesLoad:
-    node.AddForce(load_force)
 
 
 while vis.Run():

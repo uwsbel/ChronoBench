@@ -84,21 +84,32 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
+
 # Create the path follower driver
 path_follower = veh.ChPathFollower()
-path_follower.SetLookAheadDistance(5.0)  # Adjust look-ahead distance
-path_follower.SetTargetSpeed(10.0)      # Set target speed
-path_follower.SetSteeringGain(0.5)     # Adjust steering gain
-path_follower.SetSpeedGain(0.2)       # Adjust speed gain
+path_follower.SetTargetSpeed(10.0)  # Set target speed
+path_follower.SetLookAheadDistance(5.0)  # Set look-ahead distance
+path_follower.SetSteeringControllerGain(0.5)  # Set steering controller gain
+path_follower.SetSpeedControllerGain(0.2)  # Set speed controller gain
 
-# Define the path (ISO double lane change maneuver)
-# ... (Implement path definition here using PyChrono API)
+# Define the path for the double lane change maneuver
+path_points = [
+    chrono.ChVector3d(-50, 0, 0.5),
+    chrono.ChVector3d(-40, 0, 0.5),
+    chrono.ChVector3d(-30, 0, 0.5),
+    chrono.ChVector3d(-20, 0, 0.5),
+    chrono.ChVector3d(-10, 0, 0.5),
+    chrono.ChVector3d(0, 0, 0.5),
+    chrono.ChVector3d(10, 0, 0.5),
+    chrono.ChVector3d(20, 0, 0.5),
+    chrono.ChVector3d(30, 0, 0.5),
+    chrono.ChVector3d(40, 0, 0.5),
+]
 
-# Set the path to the path follower
-path_follower.SetPath(path)
+path_follower.SetPath(path_points)
 
-# Attach the path follower to the vehicle
-vehicle.AddDriver(path_follower)
+# Attach the driver to the vehicle
+vehicle.SetDriver(path_follower)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -122,13 +133,15 @@ while vis.Run() :
         render_frame += 1
 
     # Update modules (process inputs from other modules)
-    vehicle.Synchronize(time)
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time, None, terrain)  # No driver inputs for path follower
+    vis.Synchronize(time, None)  # No driver inputs for visualization
 
     # Advance simulation for one timestep for all modules
-    vehicle.Advance(step_size)
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
+    vehicle.Advance(step_size)
     vis.Advance(step_size)
 
     # Increment frame number

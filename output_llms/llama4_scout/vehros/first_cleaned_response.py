@@ -4,62 +4,58 @@ import chrono_ros as chr
 import rospy
 
 
-ch.Initialize()
+ch.ChronoEnvironment.set_G_acc(9.81)
 
 
-system = ch.ChronoSystemMultibody()
+simulation = ch.ChronoSimulation()
 
 
-vehicle_file = "path/to/hmmwv/vehicle_hmmwv.json"
-vehicle = chv.ChronoVehicle(system, vehicle_file)
+vehicle = chv.HMMWV(simulation.GetSystem())
 
 
-vehicle.SetContactMethod(ch.ContactMethod_NSC)
+vehicle.SetContactMethod(ch.ContactMethod_NC)
 vehicle.SetEngineType(ch.EngineType_SHAFTS)
-vehicle.SetTireModel(ch.TireModel_FM)
+vehicle.SetTireModel(ch.TireModel_Pacejka)
 
 
-terrain_file = "path/to/terrain/terrain_irregular.json"
-terrain = chv.ChronoTerrain(system, terrain_file)
+terrain = chv.GroundPlane(simulation.GetSystem())
 terrain.SetFrictionCoefficient(0.8)
 terrain.SetRestitutionCoefficient(0.7)
 
 
-driver = chv.ChronoDriver(vehicle)
-driver.SetSteeringType(chv.SteeringType_PURE_PURSUIT)
+driver = chv.DriverInputs(simulation.GetSystem())
 
 
-chr.ChronoRosManager(system)
+ros_manager = chr.ROSManager(simulation)
 
 
 def clock_cb(time):
-    system.Update()
+    ros_manager.Update(time)
 
 def driver_inputs_cb(inputs):
     driver.SetInputs(inputs)
 
 def vehicle_state_cb(state):
-    vehicle.SetState(state)
+    ros_manager.SetVehicleState(state)
 
-
-chr.RegisterClockCallback(clock_cb)
-chr.RegisterDriverInputsCallback(driver_inputs_cb)
-chr.RegisterVehicleStateCallback(vehicle_state_cb)
+ros_manager.RegisterClockCallback(clock_cb)
+ros_manager.RegisterDriverInputsCallback(driver_inputs_cb)
+ros_manager.RegisterVehicleStateCallback(vehicle_state_cb)
 
 
 def simulate():
     rate = rospy.Rate(100)  
+
     while not rospy.is_shutdown():
         
-        system.Advance(0.01)  
-        driver.Advance(0.01)
-        terrain.Advance(0.01)
+        simulation.Advance(0.01)  
+
         
-        
-        chr.UpdateRosManager()
-        
+        ros_manager.Update(simulation.GetChronoTime())
+
         rate.sleep()
 
-if __name__ == "__main__":
-    rospy.init_node("hmmwv_simulation")
+if __name__ == '__main__':
+    rospy.init_node('hmmwv_simulation')
+
     simulate()

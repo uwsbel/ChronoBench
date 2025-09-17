@@ -1,56 +1,64 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import chrono.ros as ros
+import pychrono.vehicle as chrono_vehicle
+import pychrono.irrlicht as chrono_irr
+import roslibpy
+import time
 
 
 chrono.SetChronoDataPath("data/")
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 
 
-terrain = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -1, 0))
-terrain.SetBodyFixed(True)
+
+terrain = chrono_vehicle.ChTerrainPlane()
+terrain.SetFriction(0.8)
+terrain.SetRestitution(0.2)
 my_system.Add(terrain)
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.2)
 
 
-vehicle = veh.ChVehicle("HMMWV")
-vehicle.SetChassisBody(chrono.ChBodyEasyBox(3, 1.5, 1, 1500, True, True))
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle = chrono_vehicle.ChVehicle("HMMWV")
+vehicle.SetContactMethod(chrono_vehicle.ChContactMethod_NSC)
+vehicle.SetEngineType(chrono_vehicle.ChVehicleEngineType_SIMPLE)
+vehicle.SetTireModel(chrono_vehicle.ChTireModelType_RIGID)
 
 
-vehicle.SetContactMethod(veh.ChContactMethod_NSC)
-vehicle.SetEngineType(veh.ChVehicleEngineType_SIMPLE)
-vehicle.SetTireModel(veh.ChTireModelNSC)
+vehicle.Initialize(my_system)
 
 
 
 
-driver = veh.ChDriver(vehicle)
+vehicle.SetPos(chrono.ChVectorD(0, 0.5, 0))
 
 
-ros_manager = ros.ChROSManager(my_system)
+driver = chrono_vehicle.ChDriver(vehicle)
 
 
-ros_manager.RegisterClockSynchronizationHandler()
-ros_manager.RegisterDriverInputHandler(driver)
-ros_manager.RegisterVehicleStatePublisher(vehicle)
 
 
-time_step = 0.01
-while my_system.GetChTime() < 10:
-    ros_manager.Update()  
+ros_node = roslibpy.Ros(host='localhost', port=9090)
 
-    
-    driver.Synchronize(time_step)
-    vehicle.Synchronize(time_step)
-    terrain.Synchronize(time_step)
-    my_system.DoStepDynamics(time_step)
+
+
+
+
+
+while True:
 
     
-    ros_manager.PublishVehicleState()
+    
+
+    
+    
+
+    
+    my_system.DoStepDynamics(0.01)
+
+    
+    
+
+    
+    
+
+    time.sleep(0.01)

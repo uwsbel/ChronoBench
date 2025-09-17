@@ -45,7 +45,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(ch.Texture("path/to/floor_texture.png"))  
+    floor.GetVisualModel().SetTexture(ch.Texture("floor_texture.png"))  
     sys.Add(floor)  
 
     
@@ -53,20 +53,13 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(ch.Texture("path/to/box_texture.png"))  
+    box.GetVisualModel().SetTexture(ch.Texture("box_texture.png"))  
     sys.Add(box)  
 
     
-    application = chirr.ChIrrApp(sys, "PyChrono Simulation", chirr.dimension2du(1024, 768))
-    application.AddTypicalLogo()
-    application.AddTypicalSky()
-    application.AddTypicalLights()
-    application.AddTypicalCamera(chirr.vector3df(0, 0, 3))
-    application.AssetBindAll()
-    application.AssetUpdateAll()
+    ros_manager = chros.ChROSPythonManager()
 
     
-    ros_manager = chros.ChROSPythonManager()
     publish_rate = 10  
 
     
@@ -88,17 +81,33 @@ def main():
     ros_manager.Initialize()
 
     
-    step_number = 0
-    render_step_size = 10  
-    render_steps = 0
+    
+    
+    vis = chirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("PyChrono ROS Simulation")
+    vis.Initialize()
+    vis.AddLogo()
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(5, 5, 2), ch.ChVector3d(0, 0, 1))
+    vis.AddTypicalLights()
+    vis.SetCameraVertical(ch.CameraVerticalDir.Z)
 
+    
+    
     
     time = 0
     time_step = 1e-3  
     time_end = 30  
 
+    
+    step_number = 0
+    render_step_size = 10  
+    render_steps = 0
+
     realtime_timer = ch.ChRealtimeStepTimer()  
-    while time < time_end and application.GetDevice().run():
+    while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
 
@@ -107,14 +116,16 @@ def main():
 
         
         if step_number % render_step_size == 0:
-            application.BeginScene()
-            application.DrawAll()
-            application.DoStep()
-            application.EndScene()
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
             render_steps += 1
 
         step_number += 1
         realtime_timer.Spin(time_step)  
+
+    
+    print(f"Simulation completed in {render_steps} rendered frames")
 
 
 if __name__ == "__main__":

@@ -148,15 +148,18 @@ depth_cam = sens.ChDepthCameraSensor(
     image_height,       
     fov,         
     30,       
-    sens.DepthCameraFilterType_DEPTH_MAP          
+    sens.DepthCameraFilterType_DEPTH_MAP 
 )
 depth_cam.SetName("Depth Camera")
 depth_cam.SetLag(lag)
 depth_cam.SetCollectionWindow(1/update_rate)
 
-depth_cam.PushFilter(sens.ChFilterDepthAccess())
+depth_cam.PushFilter(sens.ChFilterDIAccess())
 
-depth_cam.PushFilter(sens.ChFilterDepthMap(640, 480, 1.0, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterPCfromDepth())
+
+depth_cam.PushFilter(sens.ChFilterXYZIAccess())
+depth_cam.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Depth Map"))
 
 manager.AddSensor(depth_cam)
 
@@ -194,10 +197,15 @@ lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cl
 manager.AddSensor(lidar)
 
 
-logger = sens.ChLogger()
-logger.SetName("Vehicle State Logger")
-logger.SetCollectionWindow(1/update_rate)
-
+logger = sens.ChLogger(gator.GetSystem())
+logger.AddLogEntry(sens.ChLogEntryType_POSITION, "vehicle_position")
+logger.AddLogEntry(sens.ChLogEntryType_HEADING, "vehicle_heading")
+logger.AddLogEntry(sens.ChLogEntryType_VEL_X, "vehicle_vel_x")
+logger.AddLogEntry(sens.ChLogEntryType_VEL_Y, "vehicle_vel_y")
+logger.AddLogEntry(sens.ChLogEntryType_VEL_Z, "vehicle_vel_z")
+logger.AddLogEntry(sens.ChLogEntryType_ACCEL_X, "vehicle_accel_x")
+logger.AddLogEntry(sens.ChLogEntryType_ACCEL_Y, "vehicle_accel_y")
+logger.AddLogEntry(sens.ChLogEntryType_ACCEL_Z, "vehicle_accel_z")
 manager.AddSensor(logger)
 
 
@@ -231,7 +239,11 @@ while time < end_time:
     realtime_timer.Spin(step_size)
 
     
-    logger.Log(time, 
-              gator.GetVehicle().GetChassisBody().GetPos(), 
-              gator.GetVehicle().GetChassisBody().GetOrientation(), 
-              gator.GetVehicle().GetChassisBody().GetHeading())
+    logger.LogEntry("vehicle_position", gator.GetChassisBody().GetPos())
+    logger.LogEntry("vehicle_heading", gator.GetChassisBody().GetRot().GetAngleAxis(chrono.ChVector3d(0, 1, 0)))
+    logger.LogEntry("vehicle_vel_x", gator.GetChassisBody().GetVel().x)
+    logger.LogEntry("vehicle_vel_y", gator.GetChassisBody().GetVel().y)
+    logger.LogEntry("vehicle_vel_z", gator.GetChassisBody().GetVel().z)
+    logger.LogEntry("vehicle_accel_x", gator.GetChassisBody().GetAccel().x)
+    logger.LogEntry("vehicle_accel_y", gator.GetChassisBody().GetAccel().y)
+    logger.LogEntry("vehicle_accel_z", gator.GetChassisBody().GetAccel().z)

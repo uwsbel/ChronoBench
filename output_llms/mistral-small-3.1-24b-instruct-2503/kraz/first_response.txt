@@ -1,81 +1,75 @@
-Certainly! Below is the Python script that sets up a PyChrono simulation featuring a Kraz vehicle on a rigid terrain with the specified initial conditions and visualization settings using Irrlicht.
+Certainly! Below is the Python code for a PyChrono simulation featuring a Kraz vehicle with the specified requirements:
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono data directory
+chrono.SetChronoDataPath('path/to/chrono/data')
 
-# Create a Chrono::Engine physical system
+# Create the physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the rigid terrain
-terrain = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
-terrain.GetMaterialSurface().SetFriction(0.9)
-terrain.GetMaterialSurface().SetRestitution(0.2)
+# Create the terrain
+terrain = veh.ChTerrain(100, 100, 0.5, 0.5, 0.01)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3, 0.01, 0.01, 0.01)
+terrain.Initialize()
 system.Add(terrain)
 
 # Create the Kraz vehicle
-vehicle = chrono.ChVehicle()
-vehicle.SetChassisBody(chrono.ChBody())
-vehicle.Initialize()
+kraz = veh.KrazVehicle()
+kraz.SetChassisBodyPosition(chrono.ChVectorD(0, 1, 0))
+kraz.SetChassisBodyOrientation(chrono.Q_from_AngAxis(chrono.ChVectorD(1, 0, 0), chrono.CHRONO_PI / 2))
+kraz.SetChassisBodyFixed(False)
+kraz.Initialize()
+system.Add(kraz)
 
-# Set the initial position of the vehicle
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 1, 0))
-vehicle.GetChassisBody().SetRot(chrono.Q_from_AngAxis(chrono.CHRONO_PI / 2, chrono.ChVectorD(0, 0, 1)))
+# Create the driver system
+driver = veh.ChDriver()
+driver.Initialize(kraz)
+driver.SetSteeringControllerType(veh.ChDriver::STEERING_CONTROLLER_PI)
+driver.SetThrottleControllerType(veh.ChDriver::THROTTLE_CONTROLLER_PID)
+driver.SetBrakingControllerType(veh.ChDriver::BRAKING_CONTROLLER_PID)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+system.Add(driver)
 
-# Add the vehicle to the system
-system.Add(vehicle.GetChassisBody())
-
-# Initialize the driver system
-driver = chrono.ChDriver()
-driver.Initialize(vehicle)
-driver.SetSteeringController(chrono.ChSteeringControllerPID())
-driver.SetThrottleController(chrono.ChThrottleControllerPID())
-driver.SetBrakeController(chrono.ChBrakeControllerPID())
-
-# Set up real-time visualization using Irrlicht
-visualization = chronoirr.ChVisualSystemIrrlicht()
-visualization.AttachSystem(system)
-visualization.SetWindowSize(800, 600)
-visualization.SetWindowTitle('Kraz Vehicle Simulation')
-visualization.SetCameraTarget(chrono.ChVectorD(0, 1, 0))
-visualization.SetCameraPosition(chrono.ChVectorD(0, 5, -10))
-visualization.SetLightDirection(chrono.ChVectorD(1, -1, -1))
-visualization.Initialize()
-visualization.AddLogo()
-visualization.AddSkyBox()
-visualization.AddLights()
+# Create the Irrlicht visualization
+visualization = chronoirr.ChIrrApp()
+visualization.AddSystem(system)
+visualization.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10, 5, 100, 40, 512)
+visualization.SetCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+visualization.SetPointSize(4.0)
+visualization.SetContactDrawSize(0.01)
+visualization.SetContactForceEnabled(True)
+visualization.SetTimestep(0.01)
+visualization.SetTryRealTimeRate(30)
 
 # Simulation loop
-step_size = 0.01
-current_time = 0.0
-
 while visualization.Run():
     visualization.BeginScene()
     visualization.Render()
-
-    system.DoStepDynamics(step_size)
-    current_time += step_size
-
     visualization.EndScene()
-    visualization.SwapBuffers()
 
-# Clean up
-visualization.Close()
+    # Synchronize and advance the simulation
+    system.DoStepDynamics(visualization.GetTimestep())
+
+    # Update the driver system
+    driver.Synchronize(kraz, system.GetChTime())
+
+    # Update the visualization
+    visualization.Synchronize("Kraz Vehicle Simulation", system, chronoirr.drawingmode.WIREFRAME)
 ```
 
 ### Explanation:
-1. **Initialization**: The script initializes the PyChrono environment and sets the path to the Chrono data directory.
-2. **Physical System**: A `ChSystemNSC` object is created to represent the physical system, and gravity is set.
-3. **Terrain**: A rigid terrain is created using a box shape with specified friction and restitution properties.
-4. **Vehicle**: A Kraz vehicle is initialized and added to the system. The initial position and orientation of the vehicle are set.
-5. **Driver System**: A driver system is initialized to control the vehicle.
-6. **Visualization**: Real-time visualization is set up using Irrlicht, with camera settings and lighting configured.
-7. **Simulation Loop**: The simulation loop synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.
-
-Make sure to replace `'path/to/chrono/data'` with the actual path to your Chrono data directory. This script should be run in an environment where PyChrono and Irrlicht are properly installed and configured.
+1. **Initialization**: The PyChrono environment is initialized, and the physical system is created with gravity set to -9.81 m/s².
+2. **Terrain**: A rigid terrain is created with specified friction and restitution properties.
+3. **Kraz Vehicle**: The Kraz vehicle is initialized with a specified position and orientation.
+4. **Driver System**: A driver system is created to control the vehicle, with PID controllers for steering, throttle, and braking.
+5. **Visualization**: Irrlicht is used for real-time visualization with camera settings and lighting.
+6. **Simulation Loop**: The simulation loop synchronizes and advances the vehicle, terrain, driver, and visual system at each timestep, maintaining real-time execution.

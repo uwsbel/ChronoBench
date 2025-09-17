@@ -1,52 +1,98 @@
-import pychrono as pc
-import pychrono.viewer as v
-import numpy as np
+import PyChrono as pyc
+import pychrono.irrlicht as ic
 
 
-pc.init()
-viewer = v.Viewer(window_size=(800, 600), enable_antialiasing=True)
-viewer.add_light(ambient=True, color=(1,1,1), intensity=0.5)
+sim = pyc.Simulation()
+sim.setRenderingEngine(ic.createIrrlichtRenderer())
 
 
-body = pc.RigidBody("Beam Body", position=(0, 0, 0), mass=1)
-beam_length = 5.0
-beam_cross_section = 0.1  
-beam_young_modulus = 200  
+sim.addLightSource(ic.createLightSource(0, 0, 5, 0.5, 0.5))
+sim.addCameraDefaultPosition()
+sim.addGroundPlane(pyc.GroundPlaneType.XYZ, 0, 0, 0, 50, 50)
+sim.addWalls("left", pyc.WallType.XZ, -5, 0, 0, 10, 10)
+sim.addWalls("right", pyc.WallType.XZ, 5, 0, 0, 10, 10)
+sim.addTopViewProjection()
+sim.setCameraPosition(0, 5, 5)
+sim.setCameraLookAt(0, 0, 0)
+sim.setPanControls()
+sim.setZoomControls()
+sim.setFlyControls()
+
+
 nodes = []
-for i in range(0, beam_length, 0.1):
-    nodes.append(pc.Node(f"Node {i}", position=(i, 0, 0)))
-beam = pc.Beam(nodes[0], nodes[-1], cross_section=beam_cross_section, young_modulus=beam_young_modulus)
+beams = []
 
 
-scene = pc.Scene()
-scene.add_body(body)
-scene.add_mesh(beam)
-for node in nodes:
-    scene.add_node(node)
-spring = pc.Spring(nodes[0], 0.1, 100)  
-scene.add_spring(spring)
+node_positions = [
+    (0, 0, 0),
+    (1, 0, 0),
+    (2, 0, 0),
+    (3, 0, 0),
+    (4, 0, 0),
+    (5, 0, 0),
+    (6, 0, 0),
+    (7, 0, 0),
+    (8, 0, 0),
+    (9, 0, 0),
+    (10, 0, 0)
+]
+
+for i in range(len(node_positions)):
+    nodes.append(pyc.Node(node_positions[i][0], node_positions[i][1], node_positions[i][2]))
 
 
-force = pc.Forces()
-force.add_spring(nodes[0], nodes[1], 0.1, 100)
-body.add_forces(force)
-
-
-viewer.add_scene(scene)
-for node in nodes:
-    node.mesh.color = (node.index / len(nodes), 0.5, 0.5)
-scene.ambient_color = (0.2, 0.2, 0.2)
-
-def simulate():
-    viewer.clear_render()
+for i in range(len(nodes) - 1):
+    nodes[i].addBeam(nodes[i+1], pyc.BeamType.FE_Beam)
     
-    viewer.simulate()
-    
-    viewer.forces.update()
-    
-    viewer.render()
-    viewer.flip()
+    if i % 2 == 0:
+        nodes[i].getBeam(0).setMaterial(pyc.Material("Steel", 2000000000, 0.3, 0.2, 0.8))
+    else:
+        nodes[i].getBeam(0).setMaterial(pyc.Material("Aluminum", 700000000, 0.3, 0.2, 0.8))
 
 
-viewer.key_press_handler.add_handler(lambda: viewer.simulate(), " ")
-viewer.show()
+sim.setGravity(pyc.Vector3(0, -9.81, 0))
+sim.setDamping(0.5)
+
+
+sim.addVisualization("node", nodes, pyc.NodeVisualizationType.Sphere, 0.1, 0.5, 1, 1, 1)
+sim.addVisualization("beam", beams, pyc.BeamVisualizationType.Box, 0.1, 0.1, 0.1, 1, 1, 1)
+sim.addVisualization("ground", pyc.GroundVisualizationType.Plane, 0, 0, 0, 50, 50)
+sim.addVisualization("walls", pyc.WallVisualizationType.Box, 0.5, 0.5, 0, 10, 10)
+
+
+sim.setCameraPosition(0, 5, 5)
+sim.setCameraLookAt(0, 0, 0)
+
+
+while True:
+    
+    sim.update()
+
+    
+    renderer = sim.getRenderingEngine()
+    renderer.beginFrame()
+    renderer.drawScene()
+    
+    
+    for node in nodes:
+        renderer.drawNodeVisualization(node)
+    for beam in beams:
+        renderer.drawBeamVisualization(beam)
+    renderer.drawGroundVisualization()
+    renderer.drawWallsVisualization()
+    
+    
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key ArrowLeft):
+        renderer.camera.translate(-10, 0, 0)
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key ArrowRight):
+        renderer.camera.translate(10, 0, 0)
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key ArrowUp):
+        renderer.camera.translate(0, 10, 0)
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key ArrowDown):
+        renderer.camera.translate(0, -10, 0)
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key PageUp):
+        renderer.camera zoomIn()
+    if sim.keyboardKeyDown(sim.KeyboardKey.Key PageDown):
+        renderer.camera zoomOut()
+    
+    renderer.endFrame()

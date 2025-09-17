@@ -103,10 +103,14 @@ while application.GetDevice().Run():
         damping_force = -0.1 * velocity
         particle.AddForce(damping_force)
     
-    # Update simulation
+    # Update the system
     system.DoStepDynamics(0.005)
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
+    
+    # Render the scene
+    application.GetDevice().Render()
+    
+    # Break after some time
+    if system.GetChTime() > 10:
+        break
 
 application.End()

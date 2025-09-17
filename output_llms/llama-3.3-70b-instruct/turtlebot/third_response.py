@@ -16,7 +16,7 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 # Create ground body as terrain plane that robot will drive on
 ground_mat = chrono.ChContactMaterialNSC()
 ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
-ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
 ground.SetFixed(True)  # Fix the ground in place
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
@@ -32,24 +32,22 @@ sensor_manager = sens.ChSensorManager(system)
 
 # Configure and add lidar sensor
 lidar_sensor = sens.ChLidarSensor()
-lidar_sensor.SetName("LidarSensor")
-lidar_sensor.SetFrequency(10)
-lidar_sensor.SetRange(0, 10)
+lidar_sensor.SetName("Lidar")
+lidar_sensor.SetNoiseType(sens.ChLidarSensor.eUniformNoise)
+lidar_sensor.SetMinRange(0.1)
+lidar_sensor.SetMaxRange(10.0)
 lidar_sensor.SetHorizontalFOV(math.pi / 2)
 lidar_sensor.SetVerticalFOV(math.pi / 4)
-lidar_sensor.SetHorizontalResolution(180)
-lidar_sensor.SetVerticalResolution(60)
-lidar_sensor.SetNoiseLevel(0.01)
-lidar_sensor.SetMinDistance(0.1)
-lidar_sensor.SetMaxDistance(10)
-lidar_sensor.AddFilter(sens.ChFilterPassThrough("pass_through_filter", 0.5, 10))
+lidar_sensor.SetFrequency(10.0)
+lidar_sensor.AddFilter(sens.ChLidarFilter.eMinDistanceFilter, 0.5)
+lidar_sensor.AddFilter(sens.ChLidarFilter.eMaxDistanceFilter, 5.0)
 sensor_manager.AddSensor(lidar_sensor)
 
 # Create randomly placed boxes
-for _ in range(5):
+for i in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(1, 1, 1, 100, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.5))
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.25))
     box.SetFixed(False)
     system.Add(box)
 
@@ -72,22 +70,22 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 2e-3
 
-# Define motion control function
+# Define motion control function for Turtlebot
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(0.5, 0)
-        robot.SetMotorSpeed(0.5, 1)
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(0.5, 0)
-        robot.SetMotorSpeed(-0.5, 1)
+        robot.SetMotorSpeed(0, 0)
+        robot.SetMotorSpeed(math.pi, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(-0.5, 0)
-        robot.SetMotorSpeed(0.5, 1)
+        robot.SetMotorSpeed(math.pi, 0)
+        robot.SetMotorSpeed(0, 1)
 
 # Simulation loop
 time = 0
 while vis.Run():
-    move('straight')
+    move('straight')  # Use move function for Turtlebot's movement
 
     # Update sensor manager
     sensor_manager.Update()

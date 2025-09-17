@@ -1,91 +1,78 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import pychrono.vehicle as vehicle
 import pychrono.tmeasy as tmeasy
-import pychrono.collision as collision
+import pychrono.vehicle as vehicle
 
 
 chrono.init()
 
 
-scene = chrono.Scene()
+world = chrono.World()
 
 
 terrain = chrono.Terrain(
-    chrono.Shape(chrono.Cylinder(2, 10, 1)),
-    chrono.Material(chrono.Color(1, 1, 1, 1)),
-    chrono.Position(0, 0, 0),
+    "terrain.png",  
+    "terrain_logo.png",  
+    chrono.Vector3(0, 0, 0),  
+    chrono.Vector3(100, 100, 100),  
+    chrono.Vector3(1, 1, 1),  
 )
 
 
 truck = vehicle.Vehicle(
-    chrono.Model("truck"),
-    chrono.Position(0, 0, 0),
-    chrono.Rotation(0, 0, 0),
-    chrono.Scale(1, 1, 1),
-    chrono.Visualize(
-        chrono.Visualization(
-            chrono.Material(chrono.Color(1, 0, 0, 1)),
-            chrono.Shape(chrono.Cylinder(2, 10, 1)),
-            chrono.Position(0, 0, 0),
-        )
-    ),
+    "truck.obj",  
+    chrono.Vector3(0, 0, 0),  
+    chrono.Vector3(10, 10, 10),  
+    chrono.Vector3(1, 1, 1),  
 )
-
-
-truck.set_position(chrono.Position(0, 0, 0))
-truck.set_rotation(chrono.Rotation(0, 0, 0))
-truck.set_scale(chrono.Scale(1, 1, 1))
 
 
 tire = tmeasy.Tire(
-    chrono.Model("tire"),
-    chrono.Position(0, 0, 0),
-    chrono.Rotation(0, 0, 0),
-    chrono.Scale(1, 1, 1),
+    "tire.obj",  
+    chrono.Vector3(0, 0, 0),  
+    chrono.Vector3(1, 1, 1),  
 )
 
 
-driver_controls = chrono.DriverControls(
-    chrono.Throttle(0, 100),
-    chrono.Brake(0, 100),
-    chrono.Steering(0, 100),
+truck.set_visual_settings(
+    chrono.Color(1, 0, 0),  
+    chrono.Material(
+        chrono.Vector3(1, 1, 1),  
+        chrono.Vector3(1, 1, 1),  
+        chrono.Vector3(1, 1, 1),  
+    )
 )
 
 
-truck.add_tire(tire)
+tire.set_visual_settings(
+    chrono.Color(0, 1, 0),  
+    chrono.Material(
+        chrono.Vector3(0.5, 0.5, 0.5),  
+        chrono.Vector3(0.5, 0.5, 0.5),  
+        chrono.Vector3(0.5, 0.5, 0.5),  
+    )
+)
 
 
-truck.add_controls(driver_controls)
+world.add_object(truck)
+world.add_object(tire)
 
 
-scene.add_object(terrain)
+irrlicht_env = irrlicht.IrrlichtEnvironment()
 
 
-scene.add_object(truck)
+camera = irrlicht_env.get_camera()
+camera.setPosition(chrono.Vector3(0, 10, 0))
+camera.setLookAt(chrono.Vector3(0, 0, 0))
 
 
-irrlicht_engine = irrlicht.IrrlichtEngine()
+irrlicht_env.add_light(chrono.Light("DirectionalLight", chrono.Vector3(0, 1, 0)))
 
 
-irrlicht_engine.set_fullscreen(True)
-irrlicht_engine.set_window_title("MAN 10t Truck Simulation")
+irrlicht_env.add_terrain(terrain)
 
 
-camera = irrlicht_engine.create_camera()
-camera.setPosition(chrono.Position(0, 0, 10))
-camera.setRotation(chrono.Rotation(0, 0, 0))
+world.run()
 
 
-irrlicht_engine.set_directional_light(chrono.Position(0, 1, 0))
-irrlicht_engine.set_skybox(chrono.Skybox(chrono.Color(0, 0, 0, 1)))
-
-
-irrlicht_engine.set_visualization(irrlicht.Visualization(
-    irrlicht.Material(chrono.Color(1, 1, 1, 1)),
-    irrlicht.Shape(chrono.Cylinder(2, 10, 1)),
-    chrono.Position(0, 0, 0),
-))
-
-
-irrlicht_engine.run()
+irrlicht_env.run()

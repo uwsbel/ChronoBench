@@ -6,25 +6,33 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial vehicle location and orientation
-initLoc = chrono.ChVector3d(-15, 0, 0.0)  # Changed initial location
+# Initial vehicle location and orientation (modified)
+initLoc = chrono.ChVector3d(-15, 0, 0.0)  # Changed to (-15, 0, 0.0)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
 
-# Contact method
-contact_method = chrono.ChContactMethod_SMC
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
 
-# SCM terrain parameters
+# Terrain parameters
+terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Tracking point for camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_SMC
+contact_vis = False
 
 # Simulation step sizes
 step_size = 5e-4
+tire_step_size = step_size
+
+# Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the MAN vehicle, set parameters, and initialize
@@ -49,23 +57,25 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create SCM deformable terrain
-terrain = veh.ScmDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(2e6,   # Bekker Kphi
-                           0,     # Bekker Kc
-                           1.1,   # Bekker n exponent
-                           0,     # Mohr cohesion
-                           30,    # Mohr friction angle (degrees)
-                           1e4,   # Janosi shear coefficient
-                           2e5,   # elastic stiffness (Pa)
-                           3e4)   # damping (Pa*s)
-
-# Initialize SCM terrain with flat height map
-height_func = lambda x, y: 0.0  # Flat terrain
-terrain.InitializeHeightMap(chrono.ChVector3d(0, 0, 0),  # Center position
-                             terrainLength, terrainWidth,  # Terrain dimensions
-                             height_func)  # Height function
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))  # Set dirt texture
+# Create SCM deformable terrain (replaces rigid terrain)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth
+)
+# Set SCM soil parameters
+patch.SetSoilParameters(
+    2e6,    # Bekker Kphi (frictional modulus)
+    0,      # Bekker Kc (cohesion modulus)
+    1.1,    # Bekker n exponent
+    0,      # Mohr cohesion
+    30,     # Mohr friction angle (degrees)
+    0.01,   # Damping coefficient
+    0.005,  # Elastic stiffness (Ks)
+    20000   # Friction limit
+)
+# Set terrain texture to dirt
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -82,7 +92,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for steering and throttle keyboard inputs
+# Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
 throttle_time = 1.0  # time to go from 0 to +1
 braking_time = 0.3   # time to go from 0 to +1
@@ -116,16 +126,16 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Get and modify driver inputs
+    # Get driver inputs and override throttle
     driver_inputs = driver.GetInputs()
     driver_inputs.throttle = 0.8  # Hard-coded throttle value
 
-    # Synchronize modules
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
-
+    
     # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)

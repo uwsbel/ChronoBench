@@ -160,7 +160,6 @@ while vis.Run():
         gps_coor = gps.GetMostRecentGPSBuffer().GetGPSData()
         gps_data.append([gps_coor[0], gps_coor[1], gps_coor[2]])
     
-    
     driver.SetThrottle(0.5)
     driver.SetSteering(0.6)
 
@@ -170,3 +169,4 @@ while vis.Run():
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
+    vehicle

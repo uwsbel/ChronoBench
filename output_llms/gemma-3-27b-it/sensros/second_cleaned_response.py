@@ -11,13 +11,11 @@ def main():
     
     mmesh.LoadWavefrontMesh(ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
     mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
-
     
     trimesh_shape = ch.ChVisualShapeTriangleMesh()
     trimesh_shape.SetMesh(mmesh)
     trimesh_shape.SetName("HMMWV Chassis Mesh")
     trimesh_shape.SetMutable(False)
-
     
     mesh_body = ch.ChBody()
     mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
@@ -63,8 +61,8 @@ def main():
 
     
     lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 180, 1000, 0.1, 0.01)
-    lidar2d.PushFilter(sens.ChFilterScanAccess())
-    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))
+    lidar2d.PushFilter(sens.ChFilterScanAccess())  
+    lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1))  
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
 
@@ -100,7 +98,6 @@ def main():
     
     ros_manager = chros.ChROSPythonManager()
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
-
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
@@ -128,17 +125,14 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 100  
-
     
     ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
     while time < time_end:
         time = sys.GetChTime()  
-
         
         sens_manager.Update()
         if not ros_manager.Update(time, time_step):
             break  
-
         sys.DoStepDynamics(time_step)  
 
 if __name__ == "__main__":

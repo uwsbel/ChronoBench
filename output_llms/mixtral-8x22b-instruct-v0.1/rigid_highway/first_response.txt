@@ -6,88 +6,57 @@ import PyChrono.Vehicle as chronovehicle
 import PyChrono.Postprocess as chronopost
 
 # Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("path/to/chrono/data")
-chrono.SetChronoOutputMode(chrono.Ch chrono::OUTPUT_FILES)
+chrono.SetChronoDataPath("path/to/chrono/data/directory")
+chrono.SetChronoDataPath("path/to/irrlicht/data/directory")
 
 # Create the Irrlicht application
-application = chronoirr.ChIrrApp(chronoirr.NullMaterial(), chronoirr.COGLFW, 1280, 720)
-application.AddTypicalSky()
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.Vector3(0, 0, -10))
-application.AddLightWithShadow(chronoirr.Vector3(0, 10, 0), 0.3, 120, 2, 50, 100, 50, 0.5)
+application = chronoirr.ChIrrApp(chronoirr.NullDriver(), chronoirr.NullDevice(), 1024, 768, "HMMWV Simulation")
 
-# Create the vehicle
-vehicle = chronovehicle.ChVehicle()
-vehicle.SetContactMethod(chronovehicle.ChVehicle::CONTACT_METHOD_LINEAR)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-
-# Add the HMMWV chassis
-chassis_mesh = chrono.ChTriangleMeshConnected()
-chassis_mesh.LoadWavefrontMesh("path/to/HMMWV_chassis.obj")
-chassis_shape = chrono.ChTriangleMeshShape()
-chassis_shape.SetMesh(chassis_mesh)
-chassis_shape.SetName("chassis")
-vehicle.AddAsset(chassis_shape)
-
-# Add the HMMWV wheels
-wheel_mesh = chrono.ChTriangleMeshConnected()
-wheel_mesh.LoadWavefrontMesh("path/to/HMMWV_wheel.obj")
-wheel_shape = chrono.ChTriangleMeshShape()
-wheel_shape.SetMesh(wheel_mesh)
-wheel_shape.SetName("wheel")
-vehicle.AddAsset(wheel_shape)
-
-# Add the TMEASY tire model
-tire_model = chronovehicle.ChTMeasyTire()
-tire_model.SetName("tire")
-vehicle.AddAsset(tire_model)
+# Create the physical system
+system = chrono.ChSystemNSC()
 
 # Create the custom terrain
-terrain = chronoterrain.ChTriangleMeshShape()
-terrain.SetMesh(chrono.ChTriangleMeshConnected("path/to/Highway_col.obj"))
-terrain.SetName("terrain")
-terrain.SetTexture(chronoirr.GetVideoDriver(), "path/to/Highway_vis.jpg")
-terrain.SetColor(chronoirr.SColor(255, 255, 255, 255))
+terrain = chronoterrain.ChTerrain()
+terrain.SetMesh("Highway_col.obj", "Highway_vis.obj")
+system.Add(terrain)
 
-# Add the terrain to the vehicle
-vehicle.AddAsset(terrain)
+# Create the HMMWV vehicle
+vehicle = chronovehicle.ChVehicle("HMMWV")
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 1))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetContactMethod(chronovehicle.ChVehicle::CONTACT_METHOD_LINEAR)
+vehicle.SetTireType(chronovehicle.ChVehicle::TMEASY)
 
-# Create the interactive driver system
-driver = chronovehicle.ChIrrGuiDriver()
-driver.SetSteeringDelta(0.04)
-driver.SetSteeringIncrement(0.04)
-driver.SetThrottleDelta(0.2)
-driver.SetBrakingDelta(0.3)
-driver.Initialize(vehicle, application.GetDevice())
+# Add the HMMWV components
+vehicle.AddVisualizationAssets()
+system.Add(vehicle)
 
-# Create the simulation
-simulation = chrono.ChSystemNSC()
-simulation.Set_G_acc(chrono.ChVector<>(0, 0, -9.81))
-
-# Add the vehicle and terrain to the simulation
-simulation.Add(vehicle)
-simulation.Add(terrain)
-
-# Create the postprocessor
-postprocessor = chronopost.ChVehiclePostprocess()
-postprocessor.SetChartsMode(chronopost.ChVehiclePostprocess::CHARTS_OFF)
-postprocessor.SetChartsFilename("path/to/output/charts.png")
-postprocessor.SetChartsFilename("path/to/output/charts.txt")
+# Configure the interactive driver system
+driver = chronovehicle.ChIrrGuiDriver(application)
+driver.Initialize(vehicle)
 
 # Set the simulation loop to run in real time at 50 frames per second
 application.SetTimestep(0.02)
 
 # Run the simulation
 while application.GetDevice().run():
-    simulation.DoStepDynamics(application.GetTimestep())
-    vehicle.Synchronize(application.GetTimestep())
-    driver.Update(application.GetTimestep())
+    # Update vehicle dynamics
+    system.DoFrameDynamics(0.02)
+
+    # Render the scene
     application.BeginScene()
     application.DrawAll()
-    application.DoStep()
     application.EndScene()
 
-# Save the simulation data
-postprocessor.WriteFiles(vehicle, "path/to/output")
+    # Update the interactive driver system
+    driver.Update(0.02)
+
+    # Postprocess the simulation data
+    chronopost.Postprocess(system)
+
+# Clean up and exit
+application.GetSystem().RemoveAll()
+application.GetSystem().Clear()
+application.Close()
 ```

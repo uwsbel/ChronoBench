@@ -10,58 +10,49 @@ chrono.InitChrono()
 physics_system = chrono.ChSystemNSC()
 
 
-ground = chrono.ChBodyEasyBox(30, 1, 30, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -1, 0))
-physics_system.AddBody(ground)
+ground = chrono.ChBodyEasyBox(width=10, height=0.1, length=10, density=1000, material=chrono.ChMaterialSurfaceNSC())
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+physics_system.Add(ground)
 
 
-rover = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
-rover.SetPos(chrono.ChVectorD(0, 0, 0))
-physics_system.AddBody(rover)
+rover = chrono.ChBodyEasyBox(width=0.5, height=0.3, length=1.0, density=1000, material=chrono.ChMaterialSurfaceNSC())
+rover.SetPos(chrono.ChVectorD(0, 0.1, 0))
+physics_system.Add(rover)
 
 
-motor_driver = chrono.ChLinkMotorRotationSpeed()
-motor_driver.Initialize(rover, ground)
-physics_system.AddLink(motor_driver)
+motor_driver = chrono.ChSteeringController()
+motor_driver.SetSteeringValue(0.0)  
+rover.AddAsset(motor_driver)
 
 
-rover.SetWvel_loc(chrono.ChVectorD(0, 0, 1))  
-motor_driver.Set_speed_reference(0.5)  
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.SetWindowSize(800, 600)
+visualization.SetWindowTitle("Curiosity Rover Simulation")
+visualization.Initialize()
+visualization.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono.png")  
+visualization.AddSkyBox()  
+visualization.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))  
+visualization.AddLightWithShadow(chrono.ChVectorD(5, 5, -5), 0.4, 0.4, 12, 15, 50, 0.5, 0.5)  
 
 
-visual_system = chronoirr.ChVisualSystemIrrlicht()
-visual_system.SetWindowSize(800, 600)
-visual_system.SetWindowTitle("Curiosity Rover Simulation")
-visual_system.Initialize()
-visual_system.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono.png")  
-visual_system.AddSkyBox()  
-visual_system.AddTypicalLights()  
-
-
-camera_position = chrono.ChVectorD(5, 5, 5)
-camera_target = chrono.ChVectorD(0, 0, 0)
-visual_system.SetCamera(chronoirr.cameraFPS(camera_position, camera_target))
-
-
-rover_shape = chrono.ChCylinderShape()
-rover_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, 0, 0)
-rover_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, 1, 0)
-rover_shape.GetCylinderGeometry().rad = 0.5
+rover_shape = chronoirr.ChTriangleMeshShape()
+rover_shape.SetMesh(chrono.GetChronoDataPath() + "rover.obj")  
+rover_shape.SetTexture(chrono.GetChronoDataPath() + "rover.png")  
 rover.AddAsset(rover_shape)
 
 
-texture = chronoirr.LoadTexture(chrono.GetChronoDataPath() + "rover_texture.png")  
-rover_shape.SetTexture(chronoirr.GetChronoDataPath() + "rover_texture.png")
+visualization.SetTimestep(0.01)  
+visualization.Run()
 
+while visualization.Run():
+    physics_system.DoStepDynamics(visualization.GetTimestep())
+    visualization.BeginScene()
+    visualization.Render()
+    visualization.EndScene()
 
-rover_collision_model = chrono.ChCollisionModelBullet()
-rover_collision_model.ClearModel()
-rover_collision_model.AddCylinder(0.5, 1)
-rover_collision_model.BuildModel()
-rover.SetCollisionModel(rover_collision_model)
+    
+    
+    motor_driver.SetSteeringValue(np.sin(physics_system.GetChTime()) * 0.5)
 
-
-visual_system.AttachSystem(physics_system)
-visual_system.Run()
-
-chrono.FinalizeChrono()
+chrono.Chrono_Exit()

@@ -1,95 +1,87 @@
 import pychrono
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import time
+import random
+import numpy as np
+from pychrono.simulation import Simulation
+from pychrono.visualize import Irrlicht
 
 # Simulation Parameters
-simulation_time = 60  # Simulation duration in seconds
-dt = 0.1  # Time step in seconds
-gravity = 9.81
-ground_body_x = 0
-ground_body_y = 0
-turtlebot_x = 0
-turtlebot_y = 0
-velocity_x = 0
-velocity_y = 0
-angle_x = 0
-angle_y = 0
-rotation_speed = 0.5  # Rotation speed in degrees per second
+SIM_NAME = "TurtlebotSimulation"
+GRAVITY = 9.81
+GROUND_BODY_MASS = 1000  # kg
+GROUND_BODY_RADIUS = 0.5  # m
+GROUND_BODY_AREA = np.pi * (GROUND_BODY_RADIUS**2)
+GROUND_BODY_CENTER_X = 0.0
+GROUND_BODY_CENTER_Y = 0.0
+INITIAL_POSITION = (10, 10)
+INITIAL_ORIENTATION = 0.0  # Degrees
+SIM_TIME_STEP = 0.1  # Time steps for simulation
+SIM_DURATION = 60  # Seconds
 
-# Initialize PyChrono environment
-chrono = pychrono.Chrono()
+# Create Simulation
+simulation = Simulation(SIM_NAME)
 
-# Create a Turtlebot object
-turtlebot = chrono.Turtlebot(
-    x=turtlebot_x,
-    y=turtlebot_y,
-    radius=0.5,
-    speed=1,
-    orientation=chrono.Orientation.RIGHT,
-    color="white",
-    texture="white"
-)
+# Initialize the Turtlebot
+try:
+    turtlebot = simulation.create_turtlebot(
+        initial_position=INITIAL_POSITION,
+        initial_orientation=INITIAL_ORIENTATION,
+        mass=GROUND_BODY_MASS,
+        radius=GROUND_BODY_RADIUS,
+        area=GROUND_BODY_AREA,
+        center_x=GROUND_BODY_CENTER_X,
+        center_y=GROUND_BODY_CENTER_Y
+    )
+except Exception as e:
+    print(f"Error creating Turtlebot: {e}")
+    exit()
 
-# Set initial position and orientation
-turtlebot.set_position(ground_body_x, ground_body_y)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(ground_body_x, ground_body_y, 0)
 
-# Create a simple ground body
-ground_body = chrono.GroundBody(
-    x=0,
-    y=0,
-    radius=0.5,
-    color="brown",
-    texture="brown"
-)
+# Create Irrlicht visualization
+irrlicht = Irrlicht()
+irrlicht.initialize(800, 600)
+irrlicht.color = (1, 1, 1)  # White
+irrlicht.set_camera_position(100, 100, 200)  # Camera position
+irrlicht.set_camera_brightness(1.0)
+irrlicht.set_camera_fov(45)
+irrlicht.set_camera_location(100, 100)
+irrlicht.set_camera_orientation(0, 0, 0)  # Rotate the camera
+irrlicht.set_background_color(0)
+irrlicht.set_title("Turtlebot Simulation")
 
-# Create a camera object
-camera = chrono.Camera(
-    x=0,
-    y=0,
-    width=50,
-    height=50,
-    color="white",
-    texture="white"
-)
+# Set up the Turtlebot's motors
+def set_motor_speeds(left_speed, right_speed):
+    print(f"Setting left motor speed: {left_speed}, right motor speed: {right_speed}")
+    # Simulate motor control (replace with actual motor control logic)
+    # This is a placeholder for a simple simulation
+    time.sleep(0.1)  # Simulate time for the motor control
+    left_speed = left_speed * 0.5  # Example:  Reduce speed
+    right_speed = right_speed * 0.5
 
-# Animation setup
-def update_animation(frame_num):
-    """Updates the animation frame."""
-    global turtlebot, ground_body, camera
+# Update the Turtlebot's position
+def update_turtlebot():
+    left_speed = 0
+    right_speed = 0
+    
+    # Simulate a simple movement pattern
+    time.sleep(SIM_TIME_STEP)
+    left_speed = 0.5 * (1 - left_speed)
+    right_speed = 0.5 * (1 - right_speed)
+    
+    # Update the Turtlebot's position
+    turtlebot.set_position(INITIAL_POSITION + (left_speed, right_speed))
 
-    # Update turtlebot's position and orientation
-    turtlebot.set_position(turtlebot.position[0], turtlebot.position[1], 0)
-    turtlebot.set_orientation(chrono.Orientation.RIGHT)
-    turtlebot.set_translation(turtlebot.position[0], turtlebot.position[1], 0)
+# Simulation Loop
+try:
+    while True:
+        update_turtlebot()
+        irrlicht.clear()
+        irrlicht.display(turtlebot)
+        irrlicht.close()
+        time.sleep(SIM_DURATION)
 
-    # Update the camera
-    camera.set_position(turtlebot.position[0], turtlebot.position[1], 0)
-
-    # Update the frame
-    plt.clf()  # Clear the previous frame
-    plt.imshow(camera.image, cmap='gray')
-    plt.pause(0.01)
-
-    return camera
-
-# Simulation loop
-for frame_num in range(simulation_time):
-    update_animation(frame_num)
-    time.sleep(dt)  # Delay for simulation time
-
-# Clean up
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_position(0, 0)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_position(0, 0, 0)
-turtlebot.set_orientation(chrono.Orientation.RIGHT)
-turtlebot.set_translation(0, 0, 0)
-turtlebot.set_rotation(chrono.Rotation.NONE) # Reset rotation
-plt.close()  # Close the plot to free memory
+except KeyboardInterrupt:
+    print("Simulation stopped by user.")
+    irrlicht.close()
+    simulation.destroy()
+    exit()

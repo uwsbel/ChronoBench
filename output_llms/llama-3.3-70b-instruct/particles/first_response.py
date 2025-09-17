@@ -4,80 +4,79 @@ import pychrono.irrlicht as chronoirr
 import pychrono.pardisomkl as chronopardisomkl
 import numpy as np
 
-# Initialize the PyChrono environment and core components
+# Initialize the PyChrono environment
 sys = chrono.ChSystemNSC()
 
 # Set the default contact material properties
 contact_material = chrono.ChMaterialSurfaceNSC()
 contact_material.SetFriction(0.5)
-contact_material.SetRestitution(0.5)
-contact_material.SetYoungModulus(1e6)
+contact_material.SetDampingF(0.2)
+contact_material.SetCompliance(0.0001)
+contact_material.SetComplianceT(0.0001)
 
-# Create the particle emitter
+# Create a particle emitter
 class ParticleEmitter:
-    def __init__(self, sys):
-        self.sys = sys
+    def __init__(self, num_particles):
+        self.num_particles = num_particles
         self.particles = []
 
-    def emit_particle(self):
-        # Generate random shape, position, velocity, and orientation
-        shape = np.random.choice(['sphere', 'box', 'cylinder'])
-        pos = chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10))
-        vel = chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1))
-        rot = chrono.Q_from_AngXAxis(np.random.uniform(0, np.pi))
+    def emit_particles(self):
+        for _ in range(self.num_particles):
+            # Generate random shape, position, velocity, and orientation
+            shape = np.random.choice(['sphere', 'box', 'cylinder'])
+            position = np.random.uniform(-10, 10, 3)
+            velocity = np.random.uniform(-1, 1, 3)
+            orientation = np.random.uniform(0, np.pi, 3)
 
-        # Create the particle
-        if shape == 'sphere':
-            particle = chrono.ChBodyEasySphere(self.sys, 1, 1000, contact_material)
-        elif shape == 'box':
-            particle = chrono.ChBodyEasyBox(self.sys, 1, 1, 1, 1000, contact_material)
-        elif shape == 'cylinder':
-            particle = chrono.ChBodyEasyCylinder(self.sys, 1, 1, 1000, contact_material)
+            # Create a particle body
+            body = chrono.ChBodyEasySphere(sys, 0.1, 1000, contact_material)
+            body.SetPos(chrono.ChVectorD(*position))
+            body.SetLinearVel(chrono.ChVectorD(*velocity))
+            body.SetRot(chrono.Q_from_Euler123(chrono.ChVectorD(*orientation), 1))
 
-        # Set the particle's position, velocity, and orientation
-        particle.SetPos(pos)
-        particle.SetPos_dt(vel)
-        particle.SetRot(rot)
+            # Add the particle to the system
+            sys.Add(body)
+            self.particles.append(body)
 
-        # Add the particle to the system
-        self.sys.Add(particle)
-        self.particles.append(particle)
+# Create a particle emitter and emit particles
+emitter = ParticleEmitter(100)
+emitter.emit_particles()
 
-# Create the particle emitter and emit particles
-emitter = ParticleEmitter(sys)
-for _ in range(100):
-    emitter.emit_particle()
+# Apply custom gravitational forces to simulate particle attraction
+def apply_gravitational_forces():
+    for i in range(len(emitter.particles)):
+        for j in range(i + 1, len(emitter.particles)):
+            particle1 = emitter.particles[i]
+            particle2 = emitter.particles[j]
 
-# Create the custom gravitational force
-class CustomGravitationalForce(chrono.ChForce):
-    def __init__(self):
-        super().__init__()
+            # Calculate the distance between particles
+            distance = (particle2.GetPos() - particle1.GetPos()).Length()
 
-    def ComputeF(self, x, v, m):
-        force = chrono.ChVectorD(0, 0, 0)
-        for particle in emitter.particles:
-            if particle != self.GetBody():
-                distance = (particle.GetPos() - self.GetBody().GetPos()).Length()
-                force += (particle.GetPos() - self.GetBody().GetPos()) / distance * 0.1
-        return force
+            # Calculate the gravitational force
+            force = 0.1 * particle1.GetMass() * particle2.GetMass() / (distance ** 2)
 
-# Apply the custom gravitational force to each particle
-for particle in emitter.particles:
-    force = CustomGravitationalForce()
-    particle.AddForce(force)
+            # Apply the force to each particle
+            direction = (particle2.GetPos() - particle1.GetPos()).GetNormalized()
+            particle1.ApplyForce(chrono.ChForce(direction * force))
+            particle2.ApplyForce(chrono.ChForce(-direction * force))
 
-# Create the Irrlicht visualization
+# Create an Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 20))
-vis.AddTypicalCameraTracks()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
 vis.SetWindowSize(1024, 768)
-vis.SetLogo("")
+vis.SetWindowTitle("PyChrono Simulation")
 
-# Run the simulation
+# Simulation loop
 while vis.Run():
+    # Apply gravitational forces
+    apply_gravitational_forces()
+
+    # Advance the simulation
     sys.DoStepDynamics(0.01)
+
+    # Update the visualization
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()

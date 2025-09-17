@@ -12,42 +12,70 @@ sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
 
 
+msection = fea.ChBeamSectionEulerAdvanced()
 
-msection = fea.ChBeamSectionEulerBernoulli()
 
 beam_wy = 0.012
 beam_wz = 0.025
 msection.SetAsRectangularSection(beam_wy, beam_wz)
 
 
-msection.SetYoungModulus(0.01e9)  
-msection.SetShearModulus(0.01e9 * 0.3)  
-msection.SetRayleighDamping(0.000)  
+
+msection.SetYoungModulus(0.01e9) 
+msection.SetShearModulus(0.01e9 * 0.3) 
+msection.SetRayleighDamping(0.000) 
+msection.SetCentroid(0, 0.02) 
+msection.SetShearCenter(0, 0.1) 
+msection.SetSectionRotation(45 * chrono.CH_RAD_TO_DEG) 
+
 
 
 builder = fea.ChBuilderBeamEuler()
-builder.InitSection(msection)
-builder.SetNodesSpacing(0.04)  
-builder.SetNofElements(5)  
 
 
-points_A = chrono.ChVector3d(0, 0, -0.1)
-points_B = chrono.ChVector3d(0.2, 0, -0.1)
-up_dir = chrono.ChVector3d(0, 1, 0)  
-builder.BuildBeam(mesh, points_A, points_B, up_dir)
+builder.Init(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0), 5, msection)
 
 
-last_node = builder.GetLastBeamNodes().back()
-last_node.SetFixed(True)
+builder.BuildBeam(mesh, sys)
 
 
-first_node = builder.GetBeamNodes().front()
-first_node.SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetLastBeamNodes().back().SetFixed(True)
+
+
+builder.GetBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+
+
+constr_d = chrono.ChLinkMateGeneric()
+constr_d.Initialize(builder.GetBeamNodes().front(), chrono.ChBody(), False, builder.GetBeamNodes().front().Frame(), builder.GetBeamNodes().front().Frame())
+sys.Add(constr_d)
+constr_d.SetConstrainedCoords(False, True, True, False, False, False)
+
+
+mesh.SetAutomaticGravity(False)
+
+
+sys.Add(mesh)
+
+
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
-
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEA beams')
 vis.Initialize()
@@ -59,23 +87,6 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
-
-
-visualizebeamA = chrono.ChVisualShapeFEA(mesh)
-visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)  
-visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)  
-visualizebeamA.SetSmoothFaces(True)  
-visualizebeamA.SetWireframe(False)  
-mesh.AddVisualShapeFEA(visualizebeamA)
-
-
-visualizebeamC = chrono.ChVisualShapeFEA(mesh)
-visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)  
-visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-visualizebeamC.SetSymbolsThickness(0.006)  
-visualizebeamC.SetSymbolsScale(0.01)  
-visualizebeamC.SetZbufferHide(False)  
-mesh.AddVisualShapeFEA(visualizebeamC)
 
 
 while vis.Run():

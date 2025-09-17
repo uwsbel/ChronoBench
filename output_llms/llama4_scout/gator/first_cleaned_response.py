@@ -1,65 +1,59 @@
-import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-chrono.ChEngine.Initialize()
+ch.ChEngine.Initialize()
 
 
-app = irr.ChIrrApp()
+app = irr.IrrlichtApplication()
+app.SetTimestep(1 / 50.0)
 
 
-SIMULATION_FPS = 50
+gator = veh.Gator()
 
 
-gator = veh.ChGator()
+veh_params = veh.VehicleParams()
+veh_params.SetContactMethod(veh.ContactMethod_NURBS)
+veh_params.SetTireModel(veh.TireModel_TMEASY)
+veh_params.SetTireStepSize(0.02)
+veh_params.SetChassisVisualizationType(veh.VisualizationType_MESH)
+veh_params.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+gator.Initialize(veh_params)
 
 
-gator.SetChassisPos(chrono.ChVector3d(0, 0, 1))
-gator.SetChassisRot(chrono.ChQuaterniond(1, 0, 0, 0))
+gator.SetPos(ch.ChVector3d(0, 0, 1))
+gator.SetRot(ch.ChQuaterniond(0, 0, 0, 1))
 
 
-gator.SetContactMethod(veh.ChContactMethod_TM_EASY)
-gator.SetTireModel(veh.ChTireModel_TMEASY)
+terrain = veh.RigidTerrain(gator.GetSystem())
+terrain.SetTerrainSize(100, 100)
+terrain.SetSampleDensity(1)
+terrain.SetCoefficientFriction(0.8)
+terrain.AddPatch(ch.ChVector3d(0, 0, 0), ch.ChVector3d(100, 0, 0), ch.ChVector3d(100, 100, 0), ch.ChVector3d(0, 100, 0), ch.ChColor(1, 1, 1))
 
 
-gator.EnableVisualizationBodyFrames(True)
-gator.EnableVisualizationBodyWheels(True)
-gator.EnableVisualizationTirePoints(True)
+terrain_mat = ch.ChMaterialSurfaceNSC()
+terrain_mat.SetTexture(irr.GetChronoDataPath() + 'textures/terrain.jpg')
 
 
-terrain = veh.ChRigidTerrain(gator.GetChassisBody().GetWorldFrame().GetPos())
+driver = veh.Driver(gator.GetSystem(), gator.GetChassisBody())
+driver.SetSteering(veh.DriverSteering())
+driver.SetThrottle(veh.DriverThrottle())
+driver.SetBraking(veh.DriverBraking())
 
 
-terrain.SetTerrainSize(10, 10)
-terrain.SetTextureFilename("path/to/your/terrain_texture.jpg")
+scene_node = app.AddMeshSceneNode(gator.GetChassisBody())
 
 
-driver = veh.ChInteractiveDriverIRR()
+def Simulate(t):
+    gator.Update()
+    driver.Update()
+    terrain.Update()
+    app.Render()
+
+app.SetSimulationFunction(Simulate)
 
 
-driver.SetThrottleMax(1.0)
-driver.SetSteeringMax(1.0)
-driver.SetBrakingMax(1.0)
-
-
-chrono.ChSystemGlobals.SetVerbose(True)
-
-
-scene = irr.ChIrrSceneNode(app.GetDevice())
-
-
-scene.AddBody(gator.GetChassisBody())
-scene.AddTerrain(terrain)
-
-
-def SimulationLoop():
-    while app.Run():
-        scene.Update()
-        gator.Update()
-        driver.Update()
-        app.Render()
-
-
-chrono.ChScheduler.SetSimulationFps(SIMULATION_FPS)
-SimulationLoop()
+app.Run()

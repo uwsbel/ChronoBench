@@ -16,17 +16,16 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  
     hmmwv.SetTireStepSize(1e-3)  
+    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  
+
+    
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
     hmmwv.Initialize()  
-
-    
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')
-
-    
-    hmmwv.SetChassisVisualizationType(veh.ChassisVisType_PRIMITIVES)
-    hmmwv.SetSuspensionVisualizationType(veh.SuspensionVisType_PRIMITIVES)
-    hmmwv.SetSteeringVisualizationType(veh.SteeringVisType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.WheelVisType_PRIMITIVES)
-    hmmwv.SetTireVisualizationType(veh.TireVisType_PRIMITIVES)
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
@@ -51,15 +50,17 @@ def main():
     ros_manager.Initialize()  
 
     
-    visual_system = chronoirr.ChVisualSystemIrrlicht()
-    visual_system.SetWindowTitle('HMMWV Vehicle Simulation')
-    visual_system.SetWindowSize(1280, 720)
-    visual_system.SetCameraPosition(ch.ChVector3d(5, -5, 3))
-    visual_system.SetChaseCameraTarget(hmmwv.GetChassisBody())
-    visual_system.Initialize()
-    visual_system.AddLightWithShadow(ch.ChVector3d(5, -5, 5), ch.ChVector3d(0, 0, -1), 10, 10, 10, 40, 50)
-    visual_system.AddLogo(ch.GetChronoDataPath() + 'logo_pychrono_alpha.png')
-    visual_system.Render()
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.SetWindowTitle("HMMWV Simulation")
+    vis.SetWindowSize(1280, 720)
+    vis.SetChaseCamera(ch.ChVector3d(0, -10, 1.75), ch.ChVector3d(0, 0, 1.75), ch.ChVector3d(0, 0, 1))
+    vis.Initialize()
+    vis.AddLogo(ch.GetChronoDataPath() + 'logo/chrono_engine_logo.png')
+    vis.AddSkySphere(1.0, 20, ch.ChColorf(0.2, 0.6, 0.8))
+
+    
+    vis.Add(hmmwv.GetVehicle())
+    vis.Add(terrain.GetGroundBody())
 
     
     time = 0
@@ -86,10 +87,11 @@ def main():
             break  
 
         
-        visual_system.Render()
+        vis.Render()
+        vis.Update()
 
     
-    visual_system.Close()
+    vis.Close()
 
 if __name__ == "__main__":
     main()

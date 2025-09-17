@@ -12,40 +12,43 @@ ground = ch.ChBody()
 ground.SetPos(ch.ChVector3d(0, 0, 0))
 sys.Add(ground)
 
-# Create the mass body
+# Create a mass body
 mass = ch.ChBody()
 mass.SetMass(1.0)
-mass.SetInertiaXX(ch.ChVector3d(0.1, 0.1, 0.1))
-mass.SetPos(ch.ChVector3d(0, 5, 0))
+mass.SetInertiaXX(ch.ChVector3d(1, 1, 1))
+mass.SetPos(ch.ChVector3d(1, 1, 0))
 sys.Add(mass)
 
-# Create a Link_TSD_A (mass-spring-damper) between mass and ground
-link_tsda = ch.ChLinkTSDA()
-link_tsda.SetPoints(ch.ChVector3d(0, 0, 0), ch.ChVector3d(0, 5, 0))
-link_tsda.SetRestLength(5)
-link_tsda.SetSpringConstant(1000)
-link_tsda.SetDampingCoefficient(20)
-link_tsda.SetMinDistance(0.1)
-sys.Add(link_tsda)
+# Create a Link_TSD_A (spring-damper) connection
+link = ch.ChLinkTSDA()
+link.SetName('damper')
+link.Initialize(ground, mass, 
+                ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)), 
+                ch.ChFrame3d(ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
+link.RegisterVisualization(True)
+link.SetSpringConstant(1000.0)  # Default spring constant
+link.SetDampingCoefficient(10.0)  # Default damping coefficient
+sys.Add(link)
 
 # Create visual shapes for the mass and spring
-mass_shape = ch.ChSphereShape(0.2)
+mass_shape = ch.ChSphereShape(0.1)
 mass.AddVisualShape(mass_shape)
 
 spring_shape = ch.ChLineShape()
 spring_shape.SetNumSegments(10)
-spring_shape.SetSegmentPoints(link_tsda.GetPointA(), link_tsda.GetPointB())
-link_tsda.AddVisualShape(spring_shape)
+spring_shape.SetSegmentPositions(link.GetPointsInBodyA(), link.GetPointsInBodyB())
+link.AddVisualShape(spring_shape)
 
 # Irrlicht application
 app = irr.ChIrrApp(sys, 'Mass-Spring-Damper System', 800, 600)
 
 # Set up camera
-app.SetCameraPos(ch.ChVector3d(0, 10, 10))
+app.SetCameraPos(ch.ChVector3d(0, -5, 0))
 app.SetCameraTarget(ch.ChVector3d(0, 0, 0))
 
 # Enable default Irrlicht lighting
 app.EnableDefaultLights()
 
-# Run simulation
-app.Run()
+# Simulation loop
+while app.Run():
+    sys.Update()

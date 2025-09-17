@@ -8,10 +8,10 @@ sys = chrono.ChSystemNSC()
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.AddSkyBox()
+vis.AddTypicalLights()
 
-
-chrono.ChCollisionSystem.SetDefaultSuggestedEnvelope(0.001)
-chrono.ChCollisionSystem.SetDefaultSuggestedRadius(0.001)
 
 
 mesh = chrono.ChTriangleMesh()
@@ -24,47 +24,33 @@ body.SetRot(chrono.Q_from_AngX(0))
 sys.Add(body)
 
 
-cam = sensor.ChCameraSensor()
+body.SetBodyFixed(True)
+
+
+cam = sensor.ChCameraSensor(body)
 cam.SetName("camera")
 cam.SetImageSize(640, 480)
-cam.SetFocalLength(10)
-cam.SetPosition(chrono.ChVectorD(0, 0, 5))
+cam.SetFocalLength(30)
+cam.SetPosition(chrono.ChVectorD(0, 0, 1))
 cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
 
 
-sensor_manager = sensor.ChSensorManager()
-sensor_manager.AddSensor(cam)
+cam.AddNoiseFilter(sensor.ChNoiseFilterGaussian(0.1))
+cam.AddVisualization(sensor.ChVisualizationImage())
 
 
-noise_filter = sensor.ChNoiseFilterGaussian(0.1, 0.01)
-cam.AddFilter(noise_filter)
-vis.AddTypicalLights()
-vis.AddCamera(cam)
+sman = sensor.ChSensorManager(sys)
+sman.AddSensor(cam)
 
 
-time_step = 0.01
-t_end = 10
-t = 0
-while t < t_end:
-    
-    theta = t * np.pi / 180
-    cam.SetPosition(chrono.ChVectorD(5 * np.cos(theta), 0, 5 * np.sin(theta)))
-    cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
-
-    
-    sys.DoStepDynamics(time_step)
-
-    
-    buffer = cam.GetImageBuffer()
-    print(buffer)
-
-    
+for i in range(100):
+    angle = i * np.pi / 50
+    cam.SetPosition(chrono.ChVectorD(np.cos(angle), 0, np.sin(angle)))
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+    print(cam.GetImageBuffer())
 
-    
-    t += time_step
 
-    
-    chrono.ChSleep(0.01)
+vis.Run()

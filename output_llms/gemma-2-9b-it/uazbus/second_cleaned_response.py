@@ -112,23 +112,28 @@ render_frame = 0
 
 
 lane_change_time = 5.0  
-lane_change_start_time = 0
-lane_change_direction = 1  
+brake_time = 2.0  
+
+lane_change_step = 0
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
-    
-    if lane_change_start_time > 0 and time - lane_change_start_time > lane_change_time:
-        lane_change_start_time = 0
-        lane_change_direction *= -1 
-
-    if lane_change_start_time == 0 and time > 10:  
-        lane_change_start_time = time
-        
-    if lane_change_start_time > 0:
-        steering_angle = lane_change_direction * 0.5  
+    if lane_change_step == 0:
+      
+      if time < lane_change_time:
+        steering_angle = (time / lane_change_time) * 0.5  
         driver.SetSteering(steering_angle)
+      else:
+        lane_change_step = 1  
+
+    elif lane_change_step == 1:
+      
+      if time < lane_change_time + brake_time:
+        driver.SetBraking(1.0)  
+      else:
+        lane_change_step = 0
+        driver.SetSteering(0)  
 
     
     if (step_number % render_steps == 0) :

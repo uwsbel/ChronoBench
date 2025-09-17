@@ -3,6 +3,7 @@ import pychrono as chrono
 import pychrono.fea as fea
 import pychrono.pardisomkl as mkl
 import pychrono.irrlicht as chronoirr
+import sys
 
 
 class ChFunctionMyFun(chrono.ChFunction):
@@ -19,9 +20,9 @@ class ChFunctionMyFun(chrono.ChFunction):
         if x < self.T1:
             return self.A1 * m.sin(self.w * x)
         elif x < self.T2:
-            return self.A2 * m.sin(self.w * (x - self.T1))
+            return self.A2 * m.cos(self.w * (x - self.T1))
         else:
-            return self.A1 * m.sin(self.w * (x - self.T2))
+            return self.A1 * m.sin(self.w * (x - self.T2)) + self.A2 * m.cos(self.w * (x - self.T3))
 
 sys = chrono.ChSystemSMC()
 
@@ -35,6 +36,7 @@ beam_L = 6
 beam_ro = 0.050
 beam_ri = 0.045
 CH_PI = 3.141592653589793  
+
 
 
 minertia = fea.ChInertiaCosseratSimple()
@@ -56,6 +58,7 @@ msection.SetCircular(True)
 msection.SetDrawCircularRadius(beam_ro)  
 
 
+
 builder = fea.ChBuilderBeamIGA()
 builder.BuildBeam(mesh,  
                   msection,  
@@ -65,7 +68,8 @@ builder.BuildBeam(mesh,
                   chrono.VECT_Y,  
                   3)  
 
-node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
+node_mid = builder.GetLastBeamNodes()[int(builder.GetLastBeamNodes().size() / 2)]
+
 
 
 mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
@@ -106,8 +110,9 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),
 sys.Add(rotmotor1)
 
 
-f_custom = ChFunctionMyFun(A1=1.0, A2=0.5, T1=1.0, T2=2.0, T3=3.0, w=2.0)
+f_custom = ChFunctionMyFun(A1=10, A2=5, T1=2, T2=4, T3=6, w=2)
 rotmotor1.SetMotorFunction(f_custom)
+
 
 
 mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
@@ -137,10 +142,9 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
+sys.SetTimestepperType(chrono.ChTimestepper.HHT)  
+
 sys.DoStaticLinear()
-
-
-
 
 while vis.Run():
     vis.BeginScene()

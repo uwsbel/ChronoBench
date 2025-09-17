@@ -1,77 +1,80 @@
 import chrono
 import chrono.ros
 import rospy
-import time
-from std_msgs.msg import Int32
+import std_msgs.msg
 
-# Initialize the Chrono environment
-chrono.SetChronoDataPath('/path/to/chrono/data')
+# Initialize ROS node
+rospy.init_node('chrono_ros_simulation', anonymous=True)
 
-# Create a Chrono::Engine system
+# Create a ROS publisher for integer messages
+pub = rospy.Publisher('chrono_integer_topic', std_msgs.msg.Int32, queue_size=10)
+
+# Initialize Chrono::Engine
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono data
+
+# Create a system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
 
-# Create a material for the floor and box
-floor_material = chrono.ChMaterialSurfaceNSC()
-floor_material.SetFriction(0.6)
-floor_material.SetRestitution(0.2)
-
-box_material = chrono.ChMaterialSurfaceNSC()
-box_material.SetFriction(0.6)
-box_material.SetRestitution(0.2)
+# Create a material
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.6)
+material.SetRestitution(0.2)
 
 # Create a fixed floor
-floor = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True, floor_material)
-floor.SetPos(chrono.ChVectorD(0, -0.25, 0))
+floor = chrono.ChBodyEasyBox(10, 0.1, 10, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
 floor.SetBodyFixed(True)
 system.Add(floor)
 
 # Create a movable box
-box = chrono.ChBodyEasyBox(1, 1, 1, 100, True, True, box_material)
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)
 box.SetPos(chrono.ChVectorD(0, 1, 0))
 system.Add(box)
 
-# Initialize ROS
-rospy.init_node('chrono_ros_simulation', anonymous=True)
-rate = rospy.Rate(60)  # 60 Hz
-
 # Create a custom ROS handler to publish integer messages
-class CustomROSHandler(chrono.ros.ChRosHandler):
-    def __init__(self, system, topic_name):
+class CustomROSHandler(chrono.ros.ChROSPublisher):
+    def __init__(self, system, pub):
         super(CustomROSHandler, self).__init__(system)
-        self.publisher = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.pub = pub
         self.counter = 0
 
-    def Update(self, time):
+    def Publish(self):
+        msg = std_msgs.msg.Int32()
+        msg.data = self.counter
+        self.pub.publish(msg)
         self.counter += 1
-        self.publisher.publish(self.counter)
 
-# Configure the ROS manager with clock, body, and transform handlers
-ros_manager = chrono.ros.ChRosManager(system)
-ros_manager.AddHandler(chrono.ros.ChRosHandlerClock(system))
-ros_manager.AddHandler(chrono.ros.ChRosHandlerBody(system))
-ros_manager.AddHandler(chrono.ros.ChRosHandlerTransform(system))
+# Create a ROS manager
+ros_manager = chrono.ros.ChROSBridge()
+ros_manager.Initialize(system)
 
-# Register the custom handler
-custom_handler = CustomROSHandler(system, '/chrono_counter')
-ros_manager.AddHandler(custom_handler)
+# Register the custom ROS handler
+custom_handler = CustomROSHandler(system, pub)
+ros_manager.RegisterHandler(custom_handler)
+
+# Set up ROS clock, body, and transform handlers
+ros_manager.RegisterHandler(chrono.ros.ChROSBridgeHandlerClock())
+ros_manager.RegisterHandler(chrono.ros.ChROSBridgeHandlerBody())
+ros_manager.RegisterHandler(chrono.ros.ChROSBridgeHandlerTransform())
 
 # Run the simulation loop
-try:
-    while not rospy.is_shutdown():
-        start_time = time.time()
+step_size = 0.01
+simulation_time = 10.0
+current_time = 0.0
 
-        # Advance the simulation by one timestep
-        system.DoStepDynamics(1.0 / 60.0)
+while current_time < simulation_time:
+    # Advance the system
+    system.DoStepDynamics(step_size)
 
-        # Update ROS communication
-        ros_manager.Update()
+    # Update ROS communication
+    ros_manager.Update()
 
-        # Maintain real-time execution
-        elapsed_time = time.time() - start_time
-        if elapsed_time < 1.0 / 60.0:
-            time.sleep(1.0 / 60.0 - elapsed_time)
+    # Maintain real-time execution
+    rospy.sleep(step_size)
 
-        rate.sleep()
-except rospy.ROSInterruptException:
-    pass
+    # Update the current time
+    current_time += step_size
+
+# Shutdown ROS node
+rospy.signal_shutdown('Simulation completed')

@@ -65,40 +65,27 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-patch1 = terrain.AddPatch(patch_mat,
-                          chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                          terrainLength, terrainWidth)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patches = [
+    (chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+     veh.GetDataFile("terrain/textures/tile1.jpg"), 0.0),
+    (chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT),
+     veh.GetDataFile("terrain/textures/tile2.jpg"), 0.0),
+    (chrono.ChCoordsysd(chrono.ChVector3d(0, 50, 0), chrono.QUNIT),
+     veh.GetDataFile("terrain/textures/tile3.jpg"), 0.0),
+    (chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0), chrono.QUNIT),
+     veh.GetDataFile("terrain/textures/tile4.jpg"), 0.5)  
+]
 
-
-patch2 = terrain.AddPatch(patch_mat,
-                          chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT),
-                          terrainLength, terrainWidth)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
-patch2.AddBump(chrono.ChVector3d(25, 0, 0), 5, 1)
-
-
-patch3 = terrain.AddPatch(patch_mat,
-                          chrono.ChCoordsysd(chrono.ChVector3d(0, 50, 0), chrono.QUNIT),
-                          terrainLength, terrainWidth)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.7, 0.7, 0.7))
-
-
-patch4 = terrain.AddPatch(patch_mat,
-                          chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0), chrono.QUNIT),
-                          terrainLength, terrainWidth)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-patch4.AddHeightMap(veh.GetDataFile("terrain/heightmaps/hmap1.jpg"), 50, 50, 0.1)
+for coords, texture, height in patches:
+    patch = terrain.AddPatch(patch_mat,
+                             coords,
+                             terrainLength / 2, terrainWidth / 2)
+    patch.SetTexture(texture, 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    patch.SetHeight(height)
+    patch.AddBump(chrono.ChVector3d(25, 25, 1), 5, 10)
 
 terrain.Initialize()
-
-
-
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -123,10 +110,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
-
-
-
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

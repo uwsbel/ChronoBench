@@ -66,8 +66,7 @@ sys.Add(truss)
 
 
 bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
-bearing.Initialize(builder.GetLastBeamNodes().back(), truss,
-                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+bearing.Initialize(builder.GetLastBeamNodes().back(), truss, chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
 sys.Add(bearing)
 
 
@@ -76,10 +75,10 @@ rotmotor1 = chrono.ChLinkMotorRotationSpeed()
 
 rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
                      truss,  
-                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
-                                     chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))  
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(), chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y))  
                      )
 sys.Add(rotmotor1)
+
 
 
 class ChFunctionMyFun(chrono.ChFunction):
@@ -98,6 +97,7 @@ class ChFunctionMyFun(chrono.ChFunction):
             return self.A2 * m.sin(self.w * x)
         else:
             return self.A1 * m.sin(self.w * x)
+
 
 f_ramp = ChFunctionMyFun(A1=10, A2=5, T1=2, T2=5, T3=8, w=1)
 rotmotor1.SetMotorFunction(f_ramp)
@@ -130,6 +130,7 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
+sys.DoStaticLinear()
 
 while vis.Run():
     vis.BeginScene()

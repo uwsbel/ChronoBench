@@ -109,7 +109,6 @@ while vis.Run():
         kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
 
     total_energy = kinetic_energy + potential_energy
-
     print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 
     sys.DoStepDynamics(stepsize)

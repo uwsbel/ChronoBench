@@ -1,9 +1,9 @@
-import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrono  # Import the main PyChrono library
-import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
-import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
-import os  # Import the OS library for file and directory operations
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mklsolver
+import pychrono.irrlicht as irrlicht
+import os
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
@@ -33,17 +33,27 @@ vd = chrono.ChVectorD(0, 0, 0.0001)
 
 # Create a truss body, fixed in space:
 body_trss = chrono.ChBodyEasyBox(sys, 0.03, 0.25, 0.15, 1000, True)
-body_trss.SetPos(chrono.ChVectorD(-0.01, 0, 0))
+body_trss.SetBodyFixed(True)
 sys.AddBody(body_trss)
 
+# Attach a visualization shape to the truss
+boxtruss = chrono.ChVisualShapeBox(body_trss, 0.03, 0.25, 0.15)
+boxtruss.SetColor(chrono.ChColor(1, 0, 0))
+body_trss.AddVisualShape(boxtruss)
+
 # Create a crank body:
-body_crank = chrono.ChBodyEasyBox(sys, K, 0.05, 0.03, 1000, False)
-body_crank.SetPos((vC + vG) * 0.5)
+body_crank = chrono.ChBodyEasyBox(sys, K, 0.05, 0.03, 1000, True)
+body_crank.SetPos(chrono.ChVectorD((vC + vG).x() / 2, (vC + vG).y() / 2, (vC + vG).z() / 2))
 sys.AddBody(body_crank)
+
+# Attach a visualization shape to the crank
+boxcrank = chrono.ChVisualShapeBox(body_crank, K, 0.05, 0.03)
+boxcrank.SetColor(chrono.ChColor(0, 1, 0))
+body_crank.AddVisualShape(boxcrank)
 
 # Create a rotational motor
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrameD(vG))
+motor.Initialize(body_trss, body_crank, chrono.ChFrameD(chrono.ChVectorD(vG.x(), vG.y(), vG.z()), chrono.Q_from_AngX(0)))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -98,7 +108,7 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
+sphereconstr2 = chrono.ChVisualShapeSphere(constr_bb, 0.02)
 constr_bb.AddVisualShape(sphereconstr2)
 
 # Create a crank beam
@@ -131,7 +141,7 @@ sys.Add(constr_bc)
 constr_bc.SetConstrainedCoords(True, True, False, True, True, False)
 
 # Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
+sphereconstr3 = chrono.ChVisualShapeSphere(constr_bc, 0.01)
 constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:
@@ -155,7 +165,7 @@ mvisualizebeamC.SetZbufferHide(True)
 mesh.AddVisualShapeFEA(mvisualizebeamC)
 
 # Create the Irrlicht visualization system
-vis = chronicls.ChVisualSystemIrrlicht()
+vis = irrlicht.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Failed Beam Simulation')
@@ -177,6 +187,6 @@ sys.SetTimestepper(ts)
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    irrlicht.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(0)))
     vis.EndScene()
     sys.DoStepDynamics(0.002)

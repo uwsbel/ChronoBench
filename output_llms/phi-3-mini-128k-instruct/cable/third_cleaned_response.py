@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
@@ -48,7 +49,7 @@ class Model1:
 
             
             mbox = chrono.ChBody()
-            mbox.SetBodyFixed(True)  
+            mbox.SetBodyFixed(True)
             mbox.SetBodyPosition(end_nodes.GetPosition())
             self.system.Add(mbox)
 
@@ -65,79 +66,78 @@ class Model1:
             visualizebeamA.SetWireframe(False)  
             mesh.AddVisualShapeFEA(visualizebeamA)  
 
-            visualizebeamB = chrono.ChVisualShapeFEA(mesh)
-            visualizebeamB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-            visualizebeamB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-            visualizebeamB.SetSymbolsThickness(0.006)  
-            visualizebeamB.SetSymbolsScale(0.01)  
-            visualizebeamB.SetZbufferHide(False)  
-            mesh.AddVisualShapeFEA(visualizebeamB)  
-
             
-            vis = chronoirr.ChVisualSystemIrrlicht()
-            vis.AttachSystem(self.system)  
-            vis.SetWindowSize(1024, 768)  
-            vis.SetWindowTitle('FEA cables')  
-            vis.Initialize()  
-            vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
-            vis.AddSkyBox()  
-            vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  
-            vis.AddTypicalLights()  
+            visualizechain = chrono.ChVisualShapeFEA(mesh)
+            visualizechain.SetGlyphType(self.body)
+        self.body.SetPosition(self.body.GetPosition() + self.body.GetForward() * self.body.GetLength())
 
-            
-            visualizebox = chrono.ChVisualShapeFEA(mesh)
-            visualizebox.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BOX_MZ)  
-            visualizebox.SetColorscaleMinMax(-0.4, 0.4)  
-            visualizebox.SetSmoothFaces(True)  
-            visualizebox.SetWireframe(False)  
-            mesh.AddVisualShapeFEA(visualizebox)  
+    def GetBody(self):
+        return self.body
 
-            
-            visualizenode = chrono.ChVisualShapeFEA(mesh)
-            visualizenode.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  
-            visualizenode.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  
-            visualizenode.SetSymbolsThickness(0.006)  
-            visualizenode.SetSymbolsScale(0.01)  
-            visualizenode.SetZbufferHide(False)  
-            mesh.AddVisualShapeFEA(visualizenode)  
+    def SetBody(self, body):
+        self.body = body
 
-            
-            def PrintBodyPositions():
-                for chain in self.chains:
-                    print(f"Chain {chain.index}: Box position = {chain.box.GetBodyPosition()}, Truss position = {chain.truss.GetBodyPosition()}")
+    def SetBodyPosition(self, position):
+        self.body.SetPosition(position)
 
-        
-        self.system.Add(self.PrintBodyPositions)
+    def SetBodyOrientation(self, orientation):
+        self.body.SetOrientation(orientation)
+
+    def SetBodyVelocity(self, velocity):
+        self.body.SetLinearVelocity(velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
+
+    def SetBodyForce(self, force):
+        self.body.SetLinearForce(force)
+
+    def SetBodyTorque(self, torque):
+        self.body.SetAngularForce(torque)
+
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
+
+    def SetBodyLinearAcceleration(self, linear_acceleration):
+        self.body.SetLinearAcceleration(linear_acceleration)
+
+    def SetBodyAngularAcceleration(self, angular_acceleration):
+        self.body.SetAngularAcceleration(angular_acceleration)
+
+    def SetBodyLinearPosition(self, linear_position):
+        self.body.SetLinearPosition(linear_position)
+
+    def SetBodyAngularPosition(self, angular_position):
+        self.body.SetAngularPosition(angular_position)
+
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngularVelocity(angular_velocity)
+
+    def SetBodyLinearAcceleration(self, linear_acceleration):
+        self.body.SetLinearAcceleration(linear_acceleration)
+
+    def SetBodyAngularAcceleration(self, angular_acceleration):
+        self.body.SetAngularAcceleration(angular_acceleration)
+
+    def SetBodyLinearPosition(self, linear_position):
+        self.body.SetLinearPosition(linear_position)
+
+    def SetBodyAngularPosition(self, angular_position):
+        self.body.SetAngularPosition(angular_position)
+
+    def SetBodyLinearVelocity(self, linear_velocity):
+        self.body.SetLinearVelocity(linear_velocity)
+
+    def SetBodyAngularVelocity(self, angular_velocity):
+        self.body.SetAngarys):
 
 
-sys = chrono.ChSystemSMC()
-mesh = fea.ChMesh()
 
 
-model = Model1(sys, mesh)
-sys.Add(mesh)  
-
-
-solver = chrono.ChSolverMINRES()  
-if solver.GetType() == chrono.ChSolver.Type_MINRES:
-    print("Using MINRES solver")
-    sys.SetSolver(solver)
-    solver.SetMaxIterations(200)
-    solver.SetTolerance(1e-10)
-    solver.EnableDiagonalPreconditioner(True)
-    solver.EnableWarmStart(True)  
-    solver.SetVerbose(False)
-
-ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
-sys.SetTimestepper(ts)
-
-
-while vis.Run():
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-    sys.DoStepDynamics(0.01)  
-    model.PrintBodyPositions()  
-
-
-model.PrintBodyPositions()
+selfs

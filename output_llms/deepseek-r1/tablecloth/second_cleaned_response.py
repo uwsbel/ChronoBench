@@ -47,9 +47,49 @@ for iz in range(nsections_z + 1):
 
 for j in range(30):
     for k in range(30):
-        index = j * (nsections_x + 1) + k
-        if index < len(mynodes):
-            mynodes[index].SetFixed(True)
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
+
+
+melementmonitor = None  
+for iz in range(nsections_z):
+    for ix in range(nsections_x):
+        
+        melementA = fea.ChElementShellBST()
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
+        boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
+
+        melementA.SetNodes(
+            mynodes[iz * (nsections_x + 1) + ix],
+            mynodes[iz * (nsections_x + 1) + ix + 1],
+            mynodes[(iz + 1) * (nsections_x + 1) + ix],
+            boundary_1,
+            boundary_2,
+            boundary_3
+        )
+        melementA.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementA)
+
+        
+        melementB = fea.ChElementShellBST()
+        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
+        boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
+        boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
+
+        melementB.SetNodes(
+            mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
+            mynodes[(iz + 1) * (nsections_x + 1) + ix],
+            mynodes[iz * (nsections_x + 1) + ix + 1],
+            boundary_1,
+            boundary_2,
+            boundary_3
+        )
+        melementB.AddLayer(thickness, 0, material)
+        mesh.AddElement(melementB)
+
+        
+        if iz == 0 and ix == 1:
+            melementmonitor = melementA
 
 
 nodePlotA = mynodes[0]  
@@ -58,53 +98,11 @@ nodesLoad = []
 load_force = chrono.ChVector3d(0, -10, 0)  
 
 
-ref_X = chrono.ChFunction_Const(0)
-ref_Y = chrono.ChFunction_Const(0)
+ref_X = chrono.ChFunctionInterp()
+ref_Y = chrono.ChFunctionInterp()
 
 
-mnodemonitor = None
-melementmonitor = None
-
-
-for iz in range(nsections_z):
-    for ix in range(nsections_x):
-        
-        melementA = fea.ChElementShellBST()
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-        boundary_2 = (mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] 
-                      if ix > 0 else None)
-        boundary_3 = (mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] 
-                      if iz > 0 else None)
-
-        melementA.SetNodes(
-            mynodes[iz * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            boundary_1, boundary_2, boundary_3
-        )
-        melementA.AddLayer(thickness, 0, material)
-        mesh.AddElement(melementA)
-
-        
-        if iz == 0 and ix == 1:
-            melementmonitor = melementA
-
-        
-        melementB = fea.ChElementShellBST()
-        boundary_1 = mynodes[iz * (nsections_x + 1) + ix]
-        boundary_2 = (mynodes[iz * (nsections_x + 1) + ix + 2] 
-                      if ix < nsections_x - 1 else None)
-        boundary_3 = (mynodes[(iz + 2) * (nsections_x + 1) + ix] 
-                      if iz < nsections_z - 1 else None)
-
-        melementB.SetNodes(
-            mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
-            mynodes[(iz + 1) * (nsections_x + 1) + ix],
-            mynodes[iz * (nsections_x + 1) + ix + 1],
-            boundary_1, boundary_2, boundary_3
-        )
-        melementB.AddLayer(thickness, 0, material)
-        mesh.AddElement(melementB)
+mnodemonitor = mynodes[0]
 
 
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
@@ -112,7 +110,7 @@ mvisualizeshellA.SetShellResolution(2)
 
 mvisualizeshellA.SetSmoothFaces(True)
 mvisualizeshellA.SetWireframe(True)
-
+mvisualizeshellA.SetBackfaceCull(True)
 mesh.AddVisualShapeFEA(mvisualizeshellA)
 
 mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
@@ -136,6 +134,10 @@ vis.AddTypicalLights()
 mkl_solver = mkl.ChSolverPardisoMKL()
 mkl_solver.LockSparsityPattern(True)  
 sys.SetSolver(mkl_solver)
+
+
+for node in nodesLoad:
+    node.SetForce(load_force)
 
 
 timestep = 0.005  

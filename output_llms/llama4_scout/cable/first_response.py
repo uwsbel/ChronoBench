@@ -2,50 +2,75 @@ import numpy as np
 from chrono import chrono_types
 from chrono import ChronoEngine
 from chrono import Irrlicht
-from chrono import ChBeam
+from chrono import PyChrono
 
 # Initialize PyChrono environment and core components
-chrono_types.InitChrono()
+chrono_types.ChTimeStep.SetDefault(0.01)
 
 # Create the simulation system
-system = chrono_types.ChSystem()
+system = chrono.ChSystem()
 
 # Create the Irrlicht application
-app = Irrlicht.ChIrrApp(system, "ANCF Beam Simulation")
+application = Irrlicht.ChIrrApp(system, "ANCF Beam Simulation")
 
-# Set the gravity
-system.Set_G_acc(chrono_types.ChVectorD(0, -9.81, 0))
+# Enable Irrlicht rendering
+application.SetVerbose(True)
+application.SetFrameRate(60)
+application.SetCollisionSystemType(chrono.ChCollisionSystem.Type.BULLET)
 
 # Create the ground body
-ground = chrono_types.ChBody()
-ground.SetFixed(True)
+ground = chrono.ChBody()
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.SetBodyFixed(True)
 system.AddBody(ground)
 
-# Create the ANCF beam
-beam = ChBeam.ChBeam()
-beam.SetBeamLength(10.0)  # Length of the beam
-beam.SetNumElements(10)   # Number of beam elements
-beam.SetNumSections(1)    # Number of sections
-beam.SetSectionRadius(0.1) # Radius of the beam section
-beam.SetYoungModulus(2e6)  # Young's modulus
-beam.SetDensity(7850)      # Density of the beam material
+# Create a hinge constraint for the beam's end
+hinge = chrono.ChLinkLockHinge()
+hinge.Init(ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)), 
+           chrono.ChBody(), chrono.ChFrameD(chrono.ChVectorD(5, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.AddLink(hinge)
 
-# Initialize the beam with default parameters
-beam.Initialize(ground, chrono_types.ChVectorD(0, 0, 0), chrono_types.ChQuaternionD(1, 0, 0, 0))
+# Define beam properties
+num_elements = 10
+beam_length = 10.0
+beam_mass = 1.0
+beam_E = 2.0e6
+beam_rho = 2700
+beam_A = 0.01
 
-# Add the beam to the system
-system.Add(beam)
+# Create ANCF cable elements
+for i in range(num_elements):
+    node1 = chrono.ChNodeFEA(chrono.ChVectorD(i * beam_length / num_elements, 0, 0), 
+                             chrono.ChQuaternionD(1, 0, 0, 0), 
+                             beam_mass / num_elements, 
+                             beam_E, 
+                             beam_rho, 
+                             beam_A)
+    if i == 0:
+        node1.SetFixed(True)
+    system.AddNode(node1)
 
-# Add Irrlicht visualization
-viz = Irrlicht.ChIrrVisualization(beam)
-app.Add(viz)
+    if i > 0:
+        element = chrono.ChElementBeamANCF(beam_E, beam_rho, beam_A, 0.0)
+        element.SetNodes(node0, node1)
+        system.AddElement(element)
 
-# Set simulation parameters
-system.Set_Timestep(0.01)
-system.Set_StopTime(10.0)
+# Add gravity
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
 
-# Start the simulation
-app.Run()
+# Create a floor for collision
+floor = chrono.ChBody()
+floor.SetPos(chrono.ChVectorD(0, 0, -10))
+floor_shape = chrono.ChBoxShape(chrono.ChVectorD(0, 0, -10), chrono.ChVectorD(20, 20, 0.1))
+floor.AddShape(floor_shape)
+floor.SetBodyFixed(True)
+system.AddBody(floor)
 
-# Clean up
-chrono_types.ChronoEngine.Finalize()
+# Set visualization and collision for nodes
+for i in range(num_elements):
+    node = system.GetNode(i)
+    node_shape = chrono.ChSphereShape(chrono.ChVectorD(0, 0, 0), 0.05)
+    node.AddShape(node_shape)
+
+# Run the simulation
+application.Run()

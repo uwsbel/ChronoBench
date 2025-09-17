@@ -25,12 +25,11 @@ terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Path follower driver system
-path = veh.PathFollower()
-path.SetTargetSpeed(10.0)
-path.SetSteeringLookahead(5.0)
-path.SetSteeringGains(0.1, 0.1, 0.1)
-path.SetSpeedGains(0.1, 0.1)
+# Path follower driver parameters
+target_speed = 10.0
+look_ahead_distance = 5.0
+steering_gain = 0.1
+speed_gain = 0.01
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -55,8 +54,30 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Add path follower driver
-vehicle.AddDriver(veh.PathFollowerDriver(vehicle, path))
+# Create a path for the vehicle to follow
+path = veh.Path()
+path.AddWaypoint(chrono.ChVector3d(-50, 0, 0.5), chrono.ChVector3d(0, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(-40, 0, 0.5), chrono.ChVector3d(10, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(-30, 0, 0.5), chrono.ChVector3d(20, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(-20, 0, 0.5), chrono.ChVector3d(30, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(-10, 0, 0.5), chrono.ChVector3d(40, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(0, 0, 0.5), chrono.ChVector3d(50, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(10, 0, 0.5), chrono.ChVector3d(60, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(20, 0, 0.5), chrono.ChVector3d(70, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(30, 0, 0.5), chrono.ChVector3d(80, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(40, 0, 0.5), chrono.ChVector3d(90, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(50, 0, 0.5), chrono.ChVector3d(100, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(60, 0, 0.5), chrono.ChVector3d(110, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(70, 0, 0.5), chrono.ChVector3d(120, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(80, 0, 0.5), chrono.ChVector3d(130, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(90, 0, 0.5), chrono.ChVector3d(140, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(100, 0, 0.5), chrono.ChVector3d(150, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(110, 0, 0.5), chrono.ChVector3d(160, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(120, 0, 0.5), chrono.ChVector3d(170, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(130, 0, 0.5), chrono.ChVector3d(180, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(140, 0, 0.5), chrono.ChVector3d(190, 0, 0))
+path.AddWaypoint(chrono.ChVector3d(150, 0, 0.5), chrono.ChVector3d(200, 0, 0))
+vehicle.SetPath(path)
 
 vehicle.Initialize()
 
@@ -94,7 +115,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
+driver = veh.ChPathFollowerDriverIRR(vis, vehicle, path, target_speed, look_ahead_distance, steering_gain, speed_gain)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)

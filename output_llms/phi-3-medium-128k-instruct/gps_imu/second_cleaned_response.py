@@ -145,7 +145,12 @@ step_number = 0
 render_frame = 0
 
 
-gps_data = []
+log_steps = math.ceil(render_step_size / log_step_size)
+
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
 
 while vis.Run():
@@ -168,6 +173,11 @@ while vis.Run():
     vis.Synchronize(time, driver_inputs)
 
     
+    if time >= 6:
+        driver_inputs.throttle = 0  
+        driver_inputs.steering = 0
+
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
@@ -175,11 +185,7 @@ while vis.Run():
 
     
     manager.Update()
-
     
-    if step_number % log_step_size == 0:
-        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
-
     
     step_number += 1
 
@@ -187,9 +193,8 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
     
-    if time > 6.0:
-        driver_inputs['throttle'] = 0.0  
-        driver_inputs['steering'] = 0.0
+    if step_number % log_steps == 0:
+        gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())
 
 
 print("GPS Data: ", gps_data)

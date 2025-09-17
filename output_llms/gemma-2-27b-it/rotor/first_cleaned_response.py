@@ -1,59 +1,101 @@
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
 
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+
+
+
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+mysystem.Add(ground)
+
+
+
+
+
+
 
 
 beam_length = 1.0
 beam_radius = 0.05
-beam_nodes = 10  
+beam_material = fea.ChMaterialFEA(rho=7850, E=200e9, nu=0.3)
 
 
-knots = [0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 1.0]
-control_points = [chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0) for i in range(beam_nodes)]
-nurbs_curve = fea.ChBSplineCurve(knots, control_points, 3)  
+knots = [0, 0, 0.25, 0.5, 0.75, 1, 1, 1]
+control_points = [
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(beam_length / 4, 0, 0),
+    chrono.ChVectorD(beam_length / 2, 0, 0),
+    chrono.ChVectorD(3 * beam_length / 4, 0, 0),
+    chrono.ChVectorD(beam_length, 0, 0),
+]
 
 
-beam_section = fea.ChBeamSectionIGA(nurbs_curve, beam_radius)
-beam_element = fea.ChElementBeamIGA(beam_section)
+beam = fea.ChBeamIGA(beam_material, knots, control_points, beam_radius)
+beam.SetNumElements(10)
+
+
+mysystem.Add(beam)
+
+
+
+
+
+
 
 
 flywheel_radius = 0.2
-flywheel_mass = 10.0
-flywheel_inertia = 0.5 * flywheel_mass * flywheel_radius**2
+flywheel_mass = 10
 
-flywheel = chrono.ChBodyEasyBox(flywheel_radius * 2, flywheel_radius * 2, 0.1, 1000)
+
+flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, flywheel_radius, flywheel_mass)
+
+
 flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertiaXX(chrono.ChVectorD(flywheel_inertia, flywheel_inertia, flywheel_inertia))
+chrono.ChLinkMateFix(flywheel, beam, chrono.ChCoordsysD(chrono.ChVectorD(beam_length / 2, 0, 0)))
+mysystem.Add(flywheel)
 
 
-constraint = chrono.ChLinkLockRevolute(beam_element.GetNode(beam_nodes // 2), flywheel)
-my_system.Add(constraint)
 
 
-motor_speed = 100.0  
-
-motor = chrono.ChLinkMotorRotationSpeed(beam_element.GetNode(0))
-motor.SetTargetSpeed(motor_speed)
-my_system.Add(motor)
 
 
-viz = irr.ChIrrApp(my_system, "Jeffcott Rotor IGA Simulation", irr.dimension2du(800, 600))
-viz.AddTypicalSky()
-viz.AddTypicalLights()
-viz.AddCamera(chrono.ChVectorD(2, 1, 1))
 
 
-fea.ChVisualizationFEA(my_system)
+motor = chrono.ChBody()
+motor.SetBodyFixed(True)
+motor.SetPos(chrono.ChVectorD(0, 0, 0))
+mysystem.Add(motor)
 
 
-viz.SetTimestep(0.001)
-while viz.GetDevice().run():
-    viz.BeginScene()
-    viz.Render()
-    viz.DoStep()
-    viz.EndScene()
+motor_constraint = chrono.ChLinkMotorRotationSpeed(motor, beam, chrono.ChVectorD(1, 0, 0))
+motor_constraint.SetSpeedFunction(chrono.ChFunction_Const(10))
+mysystem.Add(motor_constraint)
+
+
+
+
+
+
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(mysystem)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Jeffcott Rotor Simulation")
+vis.Initialize()
+
+
+fea.ChVisualizationFEA(vis, beam)
+
+
+while vis.Run():
+    mysystem.DoStepDynamics(0.01)
+    vis.Render()

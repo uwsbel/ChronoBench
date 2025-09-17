@@ -63,8 +63,9 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain patch
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactMaterial(3.0, 0.6, 0.01)
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, terrainHeight, terrainLength, terrainWidth)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainLength, terrainWidth)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()

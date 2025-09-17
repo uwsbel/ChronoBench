@@ -1,85 +1,83 @@
 import pychrono.core as chrono
 import pychrono.fea as fea
 import pychrono.irrlicht as chronoirr
+import math
 
 # ----------------------------------------------------------------------------
-# Model1: Multiple chains of beam elements with connected bodies
+# Model1: Multiple chains of ANCF cable elements with connected bodies
 # ----------------------------------------------------------------------------
 
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
-        self.chain_bodies = []  # To store end bodies for position tracking
+        self.chains = []
+        self.end_bodies = []
 
-        # Create a section for the cable beam
-        msection_cable = fea.ChBeamSectionCable()
-        msection_cable.SetDiameter(0.015)  # 15 mm diameter
-        msection_cable.SetYoungModulus(0.01e9)  # 0.01 GPa
-        msection_cable.SetRayleighDamping(0.0001)
-
-        # Create chains with increasing number of elements
+        # Create multiple chains
         for i in range(n_chains):
-            # Create a ChBuilderCableANCF helper object
+            # Create a section for the cable beam
+            msection_cable = fea.ChBeamSectionCable()
+            msection_cable.SetDiameter(0.015)  # 15 mm diameter
+            msection_cable.SetYoungModulus(0.01e9)  # 0.01 GPa
+            msection_cable.SetRayleighDamping(0.0001)
+
+            # Create a builder for the ANCF cable
             builder = fea.ChBuilderCableANCF()
 
             # Calculate positions for each chain to avoid overlap
-            x_pos = i * 0.1  # Spacing between chains
-            start_point = chrono.ChVector3d(x_pos, 0, -0.1)
-            end_point = chrono.ChVector3d(x_pos + 0.5, 0, -0.1)
-
-            # Number of elements increases with each chain
-            n_elements = 5 + i * 2  # 5 to 15 elements
+            x_pos = i * 0.2  # Spread chains along x-axis
+            num_elements = 10 + i * 2  # Increase elements per chain
 
             # Build the beam
             builder.BuildBeam(
                 mesh,
                 msection_cable,
-                n_elements,
-                start_point,
-                end_point
+                num_elements,
+                chrono.ChVector3d(x_pos, 0, -0.1),  # Start point
+                chrono.ChVector3d(x_pos + 0.5, 0, -0.1)  # End point
             )
 
-            # Create a truss body (fixed reference frame)
+            # Create and fix a truss body for the hinge
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)
             system.Add(mtruss)
 
-            # Apply boundary conditions
-            # Fix the first node of the beam
-            constraint_fix = fea.ChLinkNodeFrame()
-            constraint_fix.Initialize(builder.GetLastBeamNodes().front(), mtruss)
-            system.Add(constraint_fix)
+            # Create a hinge constraint at the start of the beam
+            constraint_hinge = fea.ChLinkNodeFrame()
+            constraint_hinge.Initialize(builder.GetLastBeamNodes().front(), mtruss)
+            system.Add(constraint_hinge)
 
-            # Apply force to the last node
-            builder.GetLastBeamNodes().back().SetForce(chrono.ChVector3d(0, -0.7, 0))
+            # Create a box body at the end of the beam
+            end_body = chrono.ChBody()
+            end_body.SetPos(chrono.ChVector3d(x_pos + 0.5, 0, -0.1))
+            end_body.SetMass(0.1)
+            end_body.SetInertiaXX(chrono.ChVector3d(0.001, 0.001, 0.001))
+            end_body.SetCollide(True)
+            end_body.GetCollisionModel().AddBox(0.05, 0.05, 0.05)
+            system.Add(end_body)
 
-            # Create a box body at the end of the chain
-            box_body = chrono.ChBody()
-            box_body.SetPos(end_point)
-            box_body.SetMass(0.1)
-            box_body.SetInertiaXX(chrono.ChVector3d(0.001, 0.001, 0.001))
-            box_body.SetCollide(True)
-            box_body.GetCollisionModel().AddBox(0.05, 0.05, 0.05)
-            system.Add(box_body)
+            # Create visualization for the box
+            box_vis = chrono.ChVisualShapeBox(0.05)
+            box_vis.SetColor(chrono.ChColor(0.5, 0.2 + i*0.1, 0.1 + i*0.15))
+            end_body.AddVisualShape(box_vis)
 
-            # Connect the last node to the box body
-            link_node_body = fea.ChLinkNodeBody()
-            link_node_body.Initialize(builder.GetLastBeamNodes().back(), box_body)
-            system.Add(link_node_body)
+            # Connect the end of the beam to the box
+            link = fea.ChLinkNodeFrame()
+            link.Initialize(builder.GetLastBeamNodes().back(), end_body)
+            system.Add(link)
 
-            # Store the box body for position tracking
-            self.chain_bodies.append(box_body)
+            # Apply force to the end body
+            end_body.SetForce(chrono.ChVector3d(0, -0.5 - i*0.1, 0))
 
-            # Add visualization for the box
-            box_vis = chrono.ChBoxShape()
-            box_vis.GetBoxGeometry().SetLengths(chrono.ChVector3d(0.05, 0.05, 0.05))
-            box_body.AddVisualShape(box_vis)
+            # Store references
+            self.chains.append(builder)
+            self.end_bodies.append(end_body)
 
     def PrintBodyPositions(self):
-        print("\nCurrent positions of end bodies:")
-        for i, body in enumerate(self.chain_bodies):
+        print("\nCurrent end body positions:")
+        for i, body in enumerate(self.end_bodies):
             pos = body.GetPos()
-            print(f"Chain {i+1}: X={pos.x:.3f}, Y={pos.y:.3f}, Z={pos.z:.3f}")
+            print(f"Chain {i+1} end body position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f})")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()
@@ -114,7 +112,7 @@ vis.SetWindowTitle('FEA Multiple Chains')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0.5, 0.6, -1))
+vis.AddCamera(chrono.ChVector3d(1.0, 0.6, -1.5))
 vis.AddTypicalLights()
 
 # Set solver type and settings

@@ -67,7 +67,6 @@ for iz in range(nsections_z):
         melementB.AddLayer(thickness, 0, material)
         mesh.AddElement(melementB)
 
-
 # Create visualizations for shell elements
 mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
 mvisualizeshellA.SetShellResolution(2)

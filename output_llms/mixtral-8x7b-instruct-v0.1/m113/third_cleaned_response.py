@@ -58,13 +58,13 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-box_size = chrono.ChVector3d(10, 0.5, 1)
-box_pos = chrono.ChVector3d(-4, 0, 0)
-box_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-box_body = chrono.ChBodyEasyBox(1, box_size, 1000, True, True)
+box_size = chrono.ChVectorD(10, 1, 0.5)
+box_pos = chrono.ChVectorD(-2, 0, 0)
+box_rot = chrono.Q_from_AngX(chrono.CH_C_PI / 4)
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 500, True, True)
 box_body.SetPos(box_pos)
 box_body.SetRot(box_rot)
-box_body.SetCollide(True)
+box_body.SetCollisionType(chrono.ChCollisionType.BOX)
 vehicle.GetSystem().AddBody(box_body)
 
 
@@ -119,6 +119,7 @@ render_steps = math.ceil(render_step_size / step_size)
 step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
+throttle_value = 0.8
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
     
@@ -131,13 +132,12 @@ while vis.Run() :
     
     driver_inputs = driver.GetInputs()
     
-    driver_inputs.throttle = 0.8
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
     
+    driver.SetThrottle(throttle_value)
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

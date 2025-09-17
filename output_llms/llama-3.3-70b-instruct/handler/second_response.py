@@ -1,6 +1,8 @@
 import pychrono as ch
 import pychrono.ros as chros
+
 import rclpy
+from rclpy.node import Node
 from std_msgs.msg import String
 
 # Define a custom ROS handler for publishing string messages.
@@ -24,16 +26,17 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.message + str(self.ticker)} ...")
-        msg = String()  # Create a message object of type String.
-        msg.data = self.message + str(self.ticker)  # Set the message data to the concatenated string.
-        self.publisher.publish(msg)  # Publish the message to the ROS topic.
-        self.ticker += 1  # Increment the ticker for the next message.
+        if self.publisher is not None:
+            print(f"Publishing {self.ticker} ...")
+            msg = String()  # Create a message object of type String.
+            msg.data = self.message + str(self.ticker)  # Set the message data to the concatenated string.
+            self.publisher.publish(msg)  # Publish the message to the ROS topic.
+            self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
-    sys.SetGravitationalAcceleration(ch.ChVectorD(0, 0, -9.81))  # Set gravitational acceleration.
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
 
     # Define physical material properties for contact.
     phys_mat = ch.ChContactMaterialNSC()
@@ -41,15 +44,15 @@ def main():
 
     # Create a floor object.
     floor = ch.ChBodyEasyBox(10, 10, 1, 1000, True, True, phys_mat)
-    floor.SetPos(ch.ChVectorD(0, 0, -1))  # Position the floor.
+    floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
-    box.SetPos(ch.ChVectorD(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuaternionD(ch.ChVectorD(1, 0, 0), 0.2))  # Rotate the box slightly.
+    box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
+    box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
@@ -81,14 +84,23 @@ def main():
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
-        time = sys.GetChTime()  # Update the simulation time.
+        try:
+            sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
+            time = sys.GetChTime()  # Update the simulation time.
 
-        if not ros_manager.Update(time, time_step):  # Update ROS communication.
-            break  # Exit the loop if the ROS manager indicates a problem.
+            if not ros_manager.Update(time, time_step):  # Update ROS communication.
+                print("ROS manager update failed. Exiting simulation loop.")
+                break  # Exit the loop if the ROS manager indicates a problem.
 
-        realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+            realtime_timer.Spin(time_step)  # Maintain real-time step execution.
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
+
+    print("Simulation loop completed.")
 
 # Entry point of the script.
 if __name__ == "__main__":
+    rclpy.init(args=None)
     main()
+    rclpy.shutdown()

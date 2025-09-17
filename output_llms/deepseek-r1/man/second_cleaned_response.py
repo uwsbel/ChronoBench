@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-20, 0, 1.5)  
+initLoc = chrono.ChVector3d(-20, 0, 1.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
+terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
 
@@ -38,7 +39,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.MAN_5t()  
+vehicle = veh.MAN_5t() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -63,17 +64,18 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-heightfield_file = chrono.GetChronoDataFile("height_maps/bump64.png")  
 patch = terrain.AddHeightfield(
     patch_mat, 
-    heightfield_file, 
-    terrainLength, 
-    terrainWidth, 
-    0,       
-    3.0,     
-    chrono.ChVector3d(0, 0, 0)  
+    veh.GetDataFile("terrain/height_maps/slope.bmp"),  
+    chrono.ChVector3d(0, 0, 0),   
+    terrainLength,                
+    terrainWidth,                 
+    0,                            
+    10.0,                         
 )
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
+
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -102,7 +104,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,14 +114,15 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+    
     
     driver_inputs = driver.GetInputs()
 

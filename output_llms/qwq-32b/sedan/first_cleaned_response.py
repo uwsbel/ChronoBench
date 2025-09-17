@@ -4,50 +4,76 @@ import pychrono.irrlicht as irr
 
 def main():
     
-    system = chrono.ChSystem()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
     
-    terrain = veh.RigidTerrain(system, chrono.ChMaterialSurfaceNSC())
-    terrain.SetHeight(0)
-    terrain.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 200, 200)
+    terrain = veh.RigidTerrain(my_system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch = terrain.AddPatch(chrono.ChCoordsysD(),  
+                            100, 100,  
+                            patch_mat)
+    patch_mat.SetFriction(0.9)
     terrain.Initialize()
+    
+    
+    texture_path = chrono.GetChronoDataFile('textures/concrete.jpg')
+    patch.GetMaterialSurface().GetVisualMaterial().SetTexture(texture_path, 200, 200)
 
     
-    my_vehicle = veh.Sedan(system)
-    my_vehicle.SetTireModelType(veh.TireModelType.TMEASY)
-    my_vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
-    my_vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
-    my_vehicle.SetInitPosition(chrono.ChVectorD(0, 0.2, 0.5), chrono.ChQuaternionD(1,0,0,0))
-    my_vehicle.Initialize()
+    vehicle = veh.Sedan(my_system)
+    vehicle.SetTireModelType(veh.TireModelType.TMEASY)
+    vehicle.SetTireStepSize(0.01)  
+    vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))  
+    vehicle.SetInitFwdVel(10)  
+    
+    
+    vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType.MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType.MESH)
+    
+    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT),
+                      veh.ChContactMethod.NSC,
+                      True)  
 
     
-    for axle in my_vehicle.GetAxles():
-        for wheel in axle.wheels:
-            wheel.tire.SetTireType(veh.TireModelType.TMEASY)
-            
-            
-            
+    driver = veh.ChIrrGuiDriver()
+    vehicle.SetDriver(driver)
 
     
-    driver = veh.ManualDriver()
-    my_vehicle.InitializeDriver(driver)
+    app = irr.ChIrrApp(my_system, 'BMW E90 Sedan Simulation', irr.dimension2du(1024, 768))
+    app.SetCamera( irr.ChIrrChaseCamera(app.GetSceneManager(), vehicle.GetChassis()) )
+    app.GetCamera().SetChaseDirection( irr.VECT_Y, True )  
+    app.GetCamera().SetChasePosition( chrono.ChVectorD(0, 2, 5) )  
+    
+    
+    app.AddTypicalLights()
+    app.AddLightWithShadow(chrono.ChVectorD(0, 30, 0), chrono.ChVectorD(0, 0, 0), 15, 100, 512)
+    app.AddSkyBox()
 
     
-    app = irr.ChIrrApp(system, 'BMW E90 Sedan Simulation', irr.dimension2du(1280, 720))
-    app.AddLightWithShadow(chrono.ChVectorD(0, 30, 50), chrono.ChVectorD(0, 0, 0), 250, 500, 250)
-    app.SetSkyBox()
-    app.SetChaseCamera(my_vehicle.GetChassis(), 6.0, 0.5)  
-    app.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-    app.Add(terrain.GetPlane())  
-    app.Add(my_vehicle.GetVisualization())  
+    app.AssetBindAll()
+    app.AssetUpdateAll()
 
     
-    app.SetTimestep(0.01)
-    app.SetTryRealtime(True)
-
-    
-    app.MainLoop()
+    while app.GetDevice().run():
+        time = my_system.GetChTime()
+        
+        
+        driver.Synchronize(time)
+        
+        
+        vehicle.Synchronize(time)
+        terrain.Synchronize(time)
+        
+        
+        my_system.DoStepDynamics(0.01)  
+        
+        
+        app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        app.DrawAll()
+        app.EndScene()
 
 if __name__ == '__main__':
     main()

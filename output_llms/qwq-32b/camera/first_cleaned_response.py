@@ -1,28 +1,12 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sens
-import math
+import pychrono.sensor as sensors
 
 
-system = chrono.ChSystemNSC()
+system = chrono.ChSystemMulticore()
 system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
-system.SetSolverMaxIterations(100)
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
-
-visualizator = chronoirr.ChVisualizer()
-visualizator.SetSystem(system)
-visualizator.SetWindowTitle('Mesh and Camera Simulation')
-visualizator.SetWindowSize(1280, 1024)
-visualizator.SetSymbolsScale(0.01)
-visualizator.SetShadows(True)
-visualizator.SetLightIntensity(0.8)
-visualizator.SetLightPosition(chrono.ChVectorD(0, 0, 10))
-visualizator.SetBackgroundColor(chrono.ChColor(0.8, 0.8, 0.8))
-
-
-sensor_manager = sens.ChSensorManager()
-sensor_manager.SetSystem(system)
+system.SetMaxItersSolverSpeed(50)
+system.SetTimestep(0.01)
 
 
 mesh_body = chrono.ChBody()
@@ -31,73 +15,64 @@ mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
 system.Add(mesh_body)
 
 
-mesh_shape = chrono.ChTriangleMeshShape()
-if not mesh_shape.LoadWavefrontMesh('path/to/mesh.obj'):
-    raise RuntimeError("Error loading mesh")
-mesh_body.AddAsset(mesh_shape)
-mesh_body.AddAsset(chrono.ChColorAsset(0.7, 0.7, 0.7))
+mesh_asset = chrono.ChTriangleMeshShape()
+mesh_asset.SetMesh(chrono.loadWavefrontMesh('path/to/mesh.obj', 1.0))
+mesh_body.AddAsset(mesh_asset)
 
 
-camera_body = chrono.ChBody()
-camera_body.SetBodyFixed(False)
-system.Add(camera_body)
-radius = 5.0
-angular_velocity = 0.1  
+visualizer = chronoirr.ChVisualizer(system)
+visualizer.SetWindowTitle('Mesh with Camera')
+visualizer.SetWindowSize(1280, 1024)
+visualizer.SetCameraPosition(chrono.ChVectorD(0, 0, 3))
+visualizer.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+visualizer.AddTypicalLights()
 
 
-sensor = sens.ChCameraSensor()
-sensor.SetName('orbit_camera')
-sensor.SetAttachBody(camera_body)
-sensor.SetResolution(640, 480)
-sensor.SetFov(90)  
-sensor.SetNearPlane(0.1)
-sensor.SetFarPlane(100)
-sensor.AddNoiseFilter(sens.ChNoiseFilterGaussian(0.0, 0.1))  
-sensor_manager.AddSensor(sensor)
-sensor_manager.SetVisualization(True)
+renderPlugin = visualizer.GetSystem().GetRenderPlugin()
+sensor_manager = sensors.ChSensorManager(system, renderPlugin)
+sensor_manager.SetRender(True)
 
 
-visualizator.Initialize()
-visualizator.AddTypicalLights()
-visualizator.AddCameraOrbitAndRotation()
+camera = sensors.ChCameraSensor()
+camera.SetName('main_camera')
+camera.SetImageResolution(chrono.ChVectorI(640, 480, 0))
+camera.SetFov(60.0)
+camera.SetPosition(chrono.ChVectorD(3, 0, 2))  
+camera.SetLookAt(chrono.ChVectorD(0, 0, 0))    
 
-step_size = 0.01
-time_step = 0
 
-while visualizator.Run():
+filter = sensors.ChNoiseFilterGaussian()
+filter.SetMean(0.0)
+filter.SetSigma(0.01)
+camera.AddFilter(filter)
+
+sensor_manager.AddSensor(camera)
+
+
+while visualizer.Run():
+    system.DoStepDynamics()
+    
+    
     time = system.GetChTime()
-    
-    
-    angle = angular_velocity * time
-    x = radius * math.cos(angle)
-    y = radius * math.sin(angle)
-    z = 0.0
-    
-    camera_body.SetPos(chrono.ChVectorD(x, y, z))
-    camera_body.SetPos_dt(chrono.ChVectorD(0, 0, 0))  
-    camera_body.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))  
-    
-    
-    look_dir = chrono.ChVectorD(-x, -y, -z)
-    up_dir = chrono.ChVectorD(0, 0, 1)
-    frame = chrono.ChFrameD()
-    frame.SetLookAt(camera_body.GetPos(), chrono.ChVectorD(0, 0, 0), up_dir)
-    camera_body.SetFrame_REF_to_abs(frame)
-    
-    
-    system.DoStepDynamics(step_size)
+    angle = time * 2 * chrono.CH_C_PI  
+    radius = 3.0
+    x = radius * chrono.cos(angle)
+    y = radius * chrono.sin(angle)
+    z = 2.0  
+    camera.SetPosition(chrono.ChVectorD(x, y, z))
+    camera.SetLookAt(chrono.ChVectorD(0, 0, 0))  
     
     
     sensor_manager.Update()
-    image_data = sensor.GetImageData()
-    print(f"Time {time:.2f}s - Resolution: {image_data.width()}x{image_data.height()}")
+    rgb_buffer = camera.GetRgbBuffer()
     
     
-    visualizator.BeginScene()
-    visualizator.DrawAll()
-    visualizator.EndScene()
+    print(f"Frame {system.GetChTime():.2f}s: Buffer {rgb_buffer.GetWidth()}x{rgb_buffer.GetHeight()}")
+    pixel = rgb_buffer.GetPixel(0, 0)
+    print(f"First pixel RGB: ({pixel.r:.2f}, {pixel.g:.2f}, {pixel.b:.2f})")
     
-    if visualizator.GetDevice().getKeyPress(chrono.KEY_ESCAPE):
-        break
-
-visualizator.Close()
+    
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.DrawSensorManager(sensor_manager)
+    visualizer.EndScene()

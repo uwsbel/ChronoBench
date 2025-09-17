@@ -46,7 +46,7 @@ def move(mode):
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
         print("Turning right")
     else:
-        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Supported modes: 'straight', 'left', 'right'")
 
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -68,15 +68,17 @@ time_step = 2e-3
 # Simulation loop
 time = 0
 while vis.Run():
-    if time < 5:
+    if time < 5.0:
         move('straight')
-    elif time < 10:
+    elif time < 10.0:
         move('left')
     else:
         move('right')
     
+    # Increment time counter
     time += time_step
     
+    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()

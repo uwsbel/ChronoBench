@@ -1,59 +1,52 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.vehicle as veh
+from pychrono.vehicle import HMMWV, Terrain
+from pychrono.irrlicht import Irrlicht
 
 
 chrono.ChEngine.Initialize()
 
 
-veh_system = veh.ChHMMWV()
+vehicle = HMMWV()
 
 
-veh_system.SetChassisPos(chrono.ChVector3d(0, 0, 1))
+vehicle.SetPos(chrono.ChVector3d(0, 0, 1))
 
 
-terrain = veh.ChTerrain()
-terrain.SetGridSize(200, 200)
-terrain.SetPlane(chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
-terrain.SetKSoil(1e4)
-terrain.SetDampingSoil(0)
+terrain = Terrain()
+terrain.Initialize(chrono.ChVector3d(100, 100))
 
 
-driver = veh.ChDriver(veh_system.GetVehicle())
-driver.SetSpeed(10)
+driver = chrono.ChVehicleDriver(vehicle)
+driver.Initialize()
 
 
-app = irr.ChIrrApp(veh_system.GetSystem(), "HMMWV Simulation", irr.DIM_800x600)
+vis = Irrlicht(vehicle, terrain)
 
 
-app.SetCameraMoveSpeed(5)
+imu = chrono.ChIMU(vehicle.GetChassisBody())
+gps = chrono.ChGPS(vehicle.GetChassisBody())
 
 
-imu = veh.ChIMU(veh_system.GetChassisBody())
-gps = veh.ChGPS(veh_system.GetChassisBody())
+step_size = 0.01
+t_end = 10
 
 
-def UpdateSensorData(vehicle, imu, gps, time):
-    imu.Update(time)
-    gps.Update(time)
-
-
-while app.Run():
+for t in chrono.ChRange(0, t_end, step_size):
     
-    driver.Advance(0.02)
-    terrain.Advance(0.02)
-    veh_system.Update(0.02)
-
+    vehicle.Advance(step_size)
     
-    time = veh_system.GetSystem().GetChTime()
-    UpdateSensorData(veh_system.GetVehicle(), imu, gps, time)
-
     
-    print("Vehicle Mass: ", veh_system.GetVehicle().GetMass())
-
+    imu.Update(step_size)
+    gps.Update(step_size)
     
-    app.BeginScene()
-    app.SetCameraPosition(chrono.ChVector3d(0, -5, 2))
-    app.EndScene()
+    
+    vis.Synchronize(vehicle, terrain, driver, imu, gps)
+    
+    
+    vis.Render()
+    
+    
+    print(f"Vehicle Mass: {vehicle.GetChassisBody().GetMass()}")
+
 
 chrono.ChEngine.Finalize()

@@ -52,21 +52,23 @@ def main():
     cam.SetName("camera")
     sens_manager.AddSensor(cam)
 
-    # Create and configure a lidar sensor.
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
-    lidar.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
-    lidar.SetName("lidar")
-    sens_manager.AddSensor(lidar)
-
     # Create and configure a 2D Lidar sensor.
     lidar2d = sens.ChLidar2DSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
-    lidar2d.PushFilter(sens.ChFilterVisualize2D(1280, 720, 1, "Lidar2D Scan"))  # Visualize the 2D lidar scan
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1, name="2D Lidar Scan"))  # Visualize the point cloud.
     lidar2d.SetName("lidar2d")
     sens_manager.AddSensor(lidar2d)
+
+    # Create and configure a lidar sensor.
+    lidar3d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar3d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
+    lidar3d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
+    lidar3d.PushFilter(sens.ChFilterXYZIAccess())  # Access point cloud data.
+    lidar3d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
+    lidar3d.SetName("lidar")
+    sens_manager.AddSensor(lidar3d)
 
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
@@ -99,7 +101,4 @@ def main():
 
     # Create the ROS manager and register handlers for the sensors.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
-
-    # Register handlers for each sensor, specifying ROS topics for output.
-    ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output
+    ros_manager.RegisterHandler(

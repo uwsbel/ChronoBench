@@ -71,6 +71,7 @@ manager.AddSensor(cam)
 
 
 time_step = 1e-3  
+
 step_number = 0
 render_step_size = 1.0 / 25  
 render_steps = math.ceil(render_step_size / time_step)
@@ -79,6 +80,7 @@ render_steps = math.ceil(render_step_size / time_step)
 time = 0
 while vis.Run():
     time += time_step  
+    
     steering = 0
     max_steering = math.pi / 6  
 

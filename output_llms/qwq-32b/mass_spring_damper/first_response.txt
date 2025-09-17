@@ -64,305 +64,248 @@ ground.SetIdentifier(-1)
 ground.SetBodyFixed(True)
 ground.SetCollide(False)
 
-Mass body:
+Position the ground at (0,0,0). Since it's fixed, no need to set mass.
 
-mass = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
-mass.SetPos(chrono.ChVectorD(0, 0, 1))  # Position at (0,0,1)
+Create the mass body:
+
+mass = chrono.ChBody()
+mass.SetMass(1.0)  # 1 kg
+mass.SetInertiaXX(chrono.ChVectorD(1,1,1))  # Assuming a box, but need to set dimensions properly.
+
+Wait, actually, the inertia should be calculated based on the mass and dimensions. Since it's a box, perhaps we can set the dimensions and then compute inertia automatically. Alternatively, set inertia manually. To make it simple, maybe set the mass as 1 kg, and set the box dimensions so that inertia is manageable. Alternatively, use SetBodyFixed for the mass? No, it's supposed to move.
+
+Wait, the mass is a dynamic body, so it needs to have mass and inertia. Let's set its dimensions. Let's make it a cube with side length 0.2 m. Then, the moment of inertia for a cube is (mass/6)*(a² + b² + c²). Since it's a cube, a = b = c = 0.2, so each term is (0.2)^2. So, the inertia would be (1/6)*(0.04 + 0.04 + 0.04) = (1/6)*0.12 = 0.02. So each diagonal element is 0.02 kg·m². Alternatively, we can compute it using the helper function.
+
+Alternatively, set the box's dimensions and let ChBody compute inertia automatically. To do that, we can set the body's dimensions and call SetBodyInertia(). Wait, the ChBody has a method to compute inertia based on mass and dimensions. Let's see:
+
 mass.SetBodyFixed(False)
-mass.SetMass(1.0)  # Mass is 1 kg
-my_system.Add(mass)
+mass.SetPos(chrono.ChVectorD(0, 0, 1))  # Position at (0,0,1)
+mass.SetMass(1.0)
+# Define the box geometry
+box_size = chrono.ChVectorD(0.2, 0.2, 0.2)
+mass.SetPos(chrono.ChVectorD(0,0,1))
+mass.SetCollide(True)
+mass.GetCollisionModel().ClearModel()
+mass.GetCollisionModel().AddBox(box_size.x/2, box_size.y/2, box_size.z/2)
+mass.GetCollisionModel().BuildModel()
+mass.SetCollide(True)
+mass.SetMaterialSurface(material)  # Wait, maybe not necessary for visualization.
 
-Wait, ChBodyEasyBox creates a box with given dimensions and material density. The parameters are length, width, height, density (kg/m³), and then the visualization and collision are set. Since the mass is 1 kg, maybe the box dimensions are small. Let me check: volume is 0.2^3 = 0.008 m³. Density 1000 kg/m³ gives mass 8 kg. Hmm, that's conflicting with the user's instruction to set the mass to 1 kg. Alternatively, maybe better to use ChBody and set mass and inertia manually.
+Wait, but for visualization, we need to add a visual shape. So:
 
-Alternatively, perhaps better to use ChBodyEasyMass(1.0, ...). Wait, maybe it's better to create the body as a box with specific dimensions and then set mass. Alternatively, use ChBodyEasyBox but adjust the density so that the mass is 1 kg. Let's see:
+visual_box = chrono.ChVisualShapeBox(box_size.x, box_size.y, box_size.z)
+mass.AddAsset(visual_box)
+mass.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.5,0,0)))  # Red color
 
-Volume of the box: 0.2 * 0.2 * 0.2 = 0.008 m³. To have mass 1 kg, density would be 1 / 0.008 = 125 kg/m³. That's feasible. So:
+Okay, that adds a visual box to the mass.
 
-mass = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 125, True, True)
-Then, the mass is 1 kg. That's better.
+Now, the spring-damper link between ground and mass. The ChLinkTSDA connects two bodies. Since the ground is fixed, it's one end. The other end is the mass.
 
-Alternatively, perhaps the user doesn't care about the exact mass as long as it's set. So proceed with that.
+link = chrono.ChLinkTSDA()
+link.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,1))  # Ground point at (0,0,0), mass point at (0,0,1) ?
 
-Next, the spring-damper link. Create a ChLinkTSDA between ground and mass.
+Wait, the mass's position is (0,0,1), so the point on the mass is (0,0,1) + the mass's position? Wait, the local coordinates are relative to each body. The ground is fixed at (0,0,0), so its local point is (0,0,0). The mass's local point is (0,0,0) because the link is attached at its center. Wait, the mass's position is (0,0,1), so the link's point on the mass is (0,0,0) in its local frame, which would be at (0,0,1) in global coordinates. The ground's point is (0,0,0). So the distance between them is 1 meter, which is the initial length. So the rest length should be set to that.
 
-springdamper = chrono.ChLinkTSDA()
-springdamper.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,1))
+Wait, the parameters for ChLinkTSDA: the linear spring and damper coefficients. The TSDA has properties like:
 
-Wait, the initialization is between the two bodies. The first body is ground, second is mass. The points are in the local frames of each body. Since the ground is fixed, its point is (0,0,0). The mass's point is its center, which is at (0,0,1) initially. So the local point on mass is (0,0,0), but since the mass is at (0,0,1), the global point is (0,0,1). Wait, the Initialize function takes the two bodies, and the two points in their local coordinate systems. So for the ground, the point is (0,0,0) (since it's at the origin). For the mass, the local point is (0,0,0) (its center), so the global point is (0,0,1). So the link connects the ground's origin to the mass's center. That's correct.
+link.SetRestLength(1.0)  # initial length
+link.Set_SpringK(100)    # spring constant
+link.Set_SpringR(10)     # damping coefficient
 
-Then, set the parameters for the TSDA link:
+Wait, the damping is R, which is the viscous damping. So that's correct.
 
-springdamper.SetRestLength(1.0)  # initial length is 1m (distance between points)
-springdamper.Set_SpringK(100)    # spring constant
-springdamper.Set_SpringR(10)    # damping coefficient
+Adding the link to the system:
 
-Add the link to the system:
+my_system.Add(link)
 
-my_system.AddLink(springdamper)
+Now, adding the spring visualization. The ChSpringShape needs to be attached to the link. The parameters for the spring shape: number of coils, radius, etc. Let's say 10 coils, radius 0.02 m, and the thickness (wire diameter) maybe 0.01 m.
 
-Now, the visualization assets.
+spring_shape = chrono.ChSpringShape(link, 10, 0.02, 0.01)
+link.AddAsset(spring_shape)
 
-For the mass, the ChBodyEasyBox already has a visual shape (the box), but maybe we can make it more visible. Alternatively, add a color.
+Alternatively, maybe the parameters are different. Let me check the ChSpringShape constructor. From the documentation, ChSpringShape takes the link, number of coils, radius, and wire diameter. So that's correct.
 
-mass.GetVisualShape(0).SetColor(chrono.ChColor(0.5, 0, 0))  # red color
+Now, setting up Irrlicht:
 
-For the spring, add the ChSpringShape to the link.
+application = irr.ChIrrApp(my_system, 'Mass-Spring-Damper', irr.dimension2du(800,600))
+application.AddTypicalLogo()  # Add logo (can be omitted)
+application.AddTypicalSky()
+application.AddTypicalLights()  # Add default lights
+application.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,0,0))  # Position and look at point
 
-spring_shape = chrono.ChSpringShape(springdamper, 10, 0.02)
-springdamper.AddAsset(spring_shape)
+Wait, the camera position (0,3,3) is in the Y and Z directions. Looking towards the origin. Maybe adjust to get a better view. Alternatively, set the camera to look at the mass's position.
 
-The parameters: 10 coils, radius 0.02 meters. That should look like a spring.
+Alternatively, maybe set the camera to be at (0, 3, 3) and look at (0,0,1). Let me see:
 
-Now, setting up the Irrlicht application.
+camera.SetPos(chrono.ChVectorD(0, 3, 3))
+camera.SetLookAt(chrono.ChVectorD(0,0,1))
 
-myapplication = irr.ChIrrApp(my_system, 'Mass-Spring-Damper Demo', irr.dimension2du(1024,768))
-myapplication.AddTypicalLogo()
-myapplication.AddTypicalSky()
-myapplication.AddTypicalLights()
-myapplication.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,0,0))
+But the application's AddTypicalCamera might handle that. Alternatively, after creating the application, we can set the camera parameters manually.
 
-Wait, the camera position is (0,3,3), looking at (0,0,0). That should give a good view.
+Wait, the code would be:
 
-Wait, maybe the camera should be looking at the mass's position. Since the mass starts at (0,0,1), perhaps the target is (0,0,1). Alternatively, the center of the scene. Let me think. The initial position is (0,0,1). The spring is connecting from ground (0,0,0) to mass (0,0,1). So the scene's center is around there. Maybe set the camera to look at (0,0,0.5), or adjust as needed. Alternatively, the default target (0,0,0) is okay.
+application = irr.ChIrrApp(my_system, 'Mass-Spring-Damper', irr.dimension2du(800,600))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddAllTypicalLights()  # Maybe add more lights for clarity
+application.SetCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,0,1))
 
-Alternatively, the user can adjust the camera, but the code should have a reasonable default.
+Wait, perhaps better to use SetCameraPosition and SetCameraDirection:
 
-Adding the assets to the application:
+camera = application.GetSceneManager().getActiveCamera()
+camera.setPosition(chrono.ChVectorD(0, 3, 3))
+camera.lookAt(chrono.ChVectorD(0,0,1))
 
-myapplication.AssetCollector.AddAsset(spring_shape)  # Wait, no, the spring shape is already added to the link. The Irrlicht app automatically renders the assets attached to the bodies and links. So maybe no need to add manually.
+Alternatively, the AddTypicalCamera might set a reasonable view. Maybe try that first.
 
-Wait, the ChSpringShape is part of the link's assets, so when the application renders the system, it should display it. So that's okay.
+Then, we need to add all the assets to the Irrlicht visualizer. The mass and the spring's visual shapes are already attached, so they should be rendered automatically.
 
-Then, the main loop:
+Finally, the main loop:
 
-myapplication.SetTimestep(0.005)
-myapplication.SetTryRealtime(True)
+application.AssetBind()
+application.AssetUpdate()
+application.AddLogo()
 
-Wait, but in the simulation loop, you need to run while myapplication.GetDevice().run():
+Wait, the typical steps are:
 
-So:
+application.AssetBind()
+application.AssetUpdate()
+application.AddAllTypicalLights()  # Maybe redundant if already added
+application.SetTimestep(0.005)  # Time step for simulation
 
-myapplication.Initialize()
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
-
-Wait, but the exact functions may vary. Let me recall the correct functions for Irrlicht in PyChrono.
-
-Typically, the steps are:
-
-myapplication.Initialize()
-myapplication.GetSystem().SetMaxPenetrationRecoverySpeed(0.001)  # Not sure if needed here.
-
-Then, in the loop:
-
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
-
-Wait, but the DoStep() function is part of the application, which advances the simulation step.
-
-Alternatively, maybe the loop is structured as:
-
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    myapplication.DoStep()
-    myapplication.EndScene()
-
-But I need to check the exact methods. Alternatively, perhaps the DoStep() is called via myapplication.do_step() or similar. Wait, in the PyChrono Irrlicht examples, the loop is:
+Then, the loop:
 
 while application.GetDevice().run():
     application.BeginScene()
     application.DrawAll()
-    application.GetSystem().DoStepDynamics()
+    application.DoStep()
     application.EndScene()
 
-Hmm, perhaps the DoStep() is part of the system. Wait, maybe I should use:
+Wait, but I need to make sure the simulation steps are taken. The DoStep() function is called each frame. The time step should be set before starting.
 
-my_system.DoStepDynamics()
+Putting all together:
 
-But the application's DoStep() might handle that. Alternatively, perhaps the code should be:
+Wait, let me structure the code step by step.
 
-while myapplication.GetDevice().run():
-    myapplication.BeginScene()
-    myapplication.DrawAll()
-    my_system.DoStepDynamics()
-    myapplication.EndScene()
-
-Wait, I think that's correct. Because the application's DrawAll() draws the current state, and then DoStepDynamics() advances the simulation.
-
-Alternatively, the application might have a method to do the step. Let me check the documentation. 
-
-Looking at the PyChrono documentation, in the Irrlicht examples, the loop typically uses:
-
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.GetSystem().DoStepDynamics()
-    application.EndScene()
-
-So that's probably the way to go.
-
-Putting it all together, the code should have that loop.
-
-Now, putting all the code pieces together.
-
-Wait, also, the gravity: the system's gravity is set to (0, -9.81, 0), so the mass will be pulled down. The spring is vertical along Z-axis? Wait, in the code above, the mass is at (0,0,1), and the spring connects to (0,0,0). So the spring is along the Z-axis. But the gravity is in Y direction? Wait, that's a problem. Because the Y axis is the vertical here. Wait, the user might not care, but perhaps it's better to have the spring along the Y axis. Let me re-examine.
-
-Wait, in the code above, the mass is placed at (0,0,1). The ground's point is (0,0,0). The spring is along the Z-axis. But the gravity is set to (0, -9.81, 0), which is along the Y-axis. That means the mass will fall in the Y direction, but the spring is along the Z. That's conflicting. Oops, that's a mistake.
-
-I need to align the spring direction with the gravity direction. Let me adjust the coordinates.
-
-Let me set the spring along the Y-axis. So the ground's point is (0,0,0), and the mass is at (0,1,0). Then the spring is along the Y-axis. Gravity is along the Y-axis (negative direction). That way, the mass will oscillate vertically under gravity.
-
-So let's adjust the positions:
-
-mass.SetPos(chrono.ChVectorD(0, 1, 0))  # Position at (0,1,0), so the spring connects from (0,0,0) to (0,1,0)
-
-Then, the rest length is 1 meter (distance between those points). The gravity is (0, -9.81, 0), so the mass will be pulled downward along Y.
-
-That makes sense. So I need to correct that part.
-
-So the initialization of the mass position and the spring's points need to be along Y.
-
-So the springdamper.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
-
-Wait, the Initialize function's parameters are: first body (ground), second body (mass), then a flag indicating if the first body's point is absolute (False means it's in local coordinates). The points are in local coordinates of each body. Since ground is fixed at (0,0,0), its local point (0,0,0) is global. The mass's local point is (0,0,0), so the global position is (0,1,0). Thus, the link connects (0,0,0) to (0,1,0). So that's correct.
-
-Now, the camera should be positioned to view this setup. Maybe camera at (3, 0, 3), looking at (0,0.5,0). Or another angle.
-
-Alternatively, the camera can be set to look along the Y-axis. Let's adjust the camera position:
-
-myapplication.AddTypicalCamera(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(0,0.5,0))
-
-Wait, the camera's position is (3,3,3), looking towards (0,0.5,0). That should give a good perspective.
-
-Alternatively, maybe (0, 3, 3) looking at (0,1,0). Let me think. Let's choose:
-
-myapplication.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,1,0))
-
-That would position the camera above and behind the mass, looking towards its position.
-
-Putting all corrections into the code.
-
-Now, compiling all steps into code.
-
-Also, ensure that the Irrlicht application is properly initialized and the assets are added.
-
-Another thing: the ChSpringShape's parameters. The number of coils and radius. Let's set coils to 20 and radius 0.02 for a more visible spring.
-
-Wait, the parameters for ChSpringShape are: the link, number of coils, and radius. So:
-
-spring_shape = chrono.ChSpringShape(springdamper, 20, 0.02)
-
-That should make a more visible spring.
-
-Now, putting all together step by step.
-
-Wait, also, the mass's inertia: since I'm using ChBodyEasyBox with density 125 kg/m³ for a 0.2m cube, the mass is correct. The inertia is automatically computed, so that's okay.
-
-Testing for possible errors: Did I forget to add the link to the system? Yes, the code has my_system.AddLink(springdamper). That's correct.
-
-Now, the full code:
+Wait, in code:
 
 import pychrono as chrono
 import pychrono.irrlicht as irr
 
 def main():
-    # Create the Chrono system
+    # Create the physical system
     my_system = chrono.ChSystemNSC()
-    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity along Y-axis
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
     # Create ground body
     ground = chrono.ChBody()
     my_system.Add(ground)
     ground.SetBodyFixed(True)
     ground.SetCollide(False)
+    ground.SetPos(chrono.ChVectorD(0,0,0))  # Position at origin
 
     # Create mass body
-    mass_size = 0.2
-    mass_density = 125  # To get mass 1 kg (volume 0.2^3 * 125 = 1)
-    mass = chrono.ChBodyEasyBox(mass_size, mass_size, mass_size, mass_density, True, True)
-    mass.SetPos(chrono.ChVectorD(0, 1, 0))  # Start at (0,1,0)
-    mass.SetMass(1.0)  # Explicitly set mass (though density already does it)
+    mass = chrono.ChBody()
+    mass.SetMass(1.0)
+    mass.SetPos(chrono.ChVectorD(0, 0, 1))  # Start at (0,0,1)
+    mass.SetMaterialSurface(chrono.ChMaterialSurface())  # Not sure if needed
+
+    # Define visual shape for mass (a box)
+    box_size = chrono.ChVectorD(0.2, 0.2, 0.2)
+    visual_box = chrono.ChVisualShapeBox(box_size.x, box_size.y, box_size.z)
+    mass.AddAsset(visual_box)
+    mass.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8,0,0)))  # Red color
+
+    # Set inertia based on mass and dimensions
+    mass.SetInertiaXX(mass.ComputeInertia(box_size).Get_A())  # Compute inertia as a box
+    # Or maybe use ComputeInertia with mass and dimensions
+    # Alternatively, just set inertia manually. Let's compute it properly.
+    # The ComputeInertia function for a box with given dimensions and mass:
+    inertia = chrono.ChMatrix33D()
+    chrono.ChBoxInertia(inertia, mass.GetMass(), box_size.x, box_size.y, box_size.z)
+    mass.SetInertia(inertia)
+
     my_system.Add(mass)
 
-    # Create spring-damper link between ground and mass
-    springdamper = chrono.ChLinkTSDA()
-    springdamper.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
-    springdamper.SetRestLength(1.0)  # Initial length between points
-    springdamper.Set_SpringK(100)    # Spring constant
-    springdamper.Set_SpringR(10)     # Damping coefficient
-    my_system.AddLink(springdamper)
+    # Create the spring-damper link
+    link = chrono.ChLinkTSDA()
+    link.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,1))
+    # Set spring and damper parameters
+    link.SetRestLength(1.0)  # Initial distance between points
+    link.Set_SpringK(100)    # Spring constant (N/m)
+    link.Set_SpringR(10)     # Damping coefficient (Ns/m)
 
     # Add visual shape for the spring
-    spring_shape = chrono.ChSpringShape(springdamper, 20, 0.02)
-    springdamper.AddAsset(spring_shape)
+    spring_shape = chrono.ChSpringShape(link, 10, 0.02, 0.01)  # 10 coils, radius 0.02, wire 0.01
+    link.AddAsset(spring_shape)
+    my_system.Add(link)
 
-    # Setup visualization
-    myapplication = irr.ChIrrApp(my_system, 'Mass-Spring-Damper Simulation', irr.dimension2du(1024,768))
-    myapplication.AddTypicalLogo()
-    myapplication.AddTypicalSky()
-    myapplication.AddTypicalLights()
-    myapplication.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,1,0))  # Camera position and target
+    # Create Irrlicht application
+    application = irr.ChIrrApp(my_system, 'Mass-Spring-Damper', irr.dimension2du(800,600))
+    application.AddTypicalLogo()
+    application.AddTypicalSky()
+    application.AddTypicalLights()
+    application.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,0,1))
 
-    # Run the simulation
-    myapplication.AssetReset()
-    myapplication.SetTimestep(0.005)
-    myapplication.SetTryRealtime(True)
+    # Update assets and settings
+    application.AssetBind()
+    application.AssetUpdate()
 
-    myapplication.Initialize()
-    while myapplication.GetDevice().run():
-        myapplication.BeginScene()
-        myapplication.DrawAll()
-        my_system.DoStepDynamics()
-        myapplication.EndScene()
+    # Simulation loop
+    application.SetTimestep(0.005)
+    while application.GetDevice().run():
+        application.BeginScene()
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
 if __name__ == '__main__':
     main()
 
-Wait, but in the Irrlicht setup, sometimes you need to call myapplication.AssetCollect() or similar. Also, the order of adding assets might matter. Let me check the code again.
+Hmm, let me check a few points:
 
-Wait, the ChSpringShape is added to the link, so the Irrlicht app should automatically render it as part of the link's assets. The mass's visual shape is already handled by ChBodyEasyBox.
+- The inertia calculation for the mass. The code uses ComputeInertia? Wait, the ChBody has a ComputeInertia function that can take dimensions. Alternatively, using ChBoxInertia function. Let me see. The code above first tried to compute inertia using:
 
-Also, the camera parameters are set correctly now along the Y-axis.
+chrono.ChBoxInertia(inertia, mass.GetMass(), box_size.x, box_size.y, box_size.z)
 
-Testing the parameters:
+That should be correct. Alternatively, using mass.SetInertiaXX(inertia.Get_A()) ?
 
-- The mass is at (0,1,0), connected to ground at (0,0,0). The spring's rest length is 1.0, which matches the distance. The spring constant 100 N/m, damping 10 Ns/m.
+Wait, inertia is a ChMatrix33D, so to get the diagonal elements, maybe the code is okay.
 
-When the simulation runs, the mass should oscillate vertically (along Y-axis) due to gravity and the spring-damper system.
+Alternatively, perhaps the code can be simplified by using mass.SetBodyInertia() with the box dimensions. Let me think. The ChBody has a method SetBodyInertia() which computes inertia based on mass and dimensions. Wait, perhaps I should set the dimensions first.
 
-I think this should work. Let me see if I missed any steps.
+Wait, maybe the correct approach is to set the mass's geometry, then call ComputeInertia.
 
-Another possible addition: coloring the mass for better visibility. Let's add:
+Wait, in the code above, after setting the mass's position and mass, perhaps:
 
-mass.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0, 0))  # Red color
-
-Adding that line after creating the mass would make the mass red, which stands out.
-
-Also, the ground might need a visual shape, but since it's fixed and the mass is the focus, maybe it's okay. Alternatively, add a small box to represent the ground point. But perhaps it's unnecessary.
-
-Final code with color added:
-
-...
-
-mass = chrono.ChBodyEasyBox(mass_size, mass_size, mass_size, mass_density, True, True)
-mass.SetPos(chrono.ChVectorD(0, 1, 0))
+mass.SetBodyFixed(False)
+mass.SetPos(chrono.ChVectorD(0,0,1))
 mass.SetMass(1.0)
-mass.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0, 0))  # Red color
-my_system.Add(mass)
 
-...
+Then, to set the collision model (if needed), but for visualization, the visual shape is already there. The inertia is computed based on the box dimensions. The code using ChBoxInertia is correct.
 
-That should do it.
+Alternatively, using:
 
-I think this should be the correct script.
+mass.SetInertiaXX(chrono.ChVectorD( (mass.GetMass()/12)*(box_size.x**2 + box_size.y**2),
+                                    (mass.GetMass()/12)*(box_size.x**2 + box_size.z**2),
+                                    (mass.GetMass()/12)*(box_size.y**2 + box_size.z**2) )) 
+
+But that's more manual. The ChBoxInertia approach is better.
+
+Another point: the ChSpringShape parameters. The number of coils (10), radius (0.02), and wire diameter (0.01). The radius is the radius of the spring's coils, and the wire diameter is the thickness of the wire. These values might need adjustment for better visualization. Maybe the radius could be 0.05 and wire 0.01, but the user didn't specify, so default is okay.
+
+The camera position and look-at point: (0,3,3) and looking at (0,0,1) should give a good view. The sky and lights added via AddTypicalSky and AddTypicalLights should provide sufficient lighting.
+
+The simulation time step is set to 0.005 seconds, which is reasonable for such a system.
+
+Testing possible errors: maybe the link's initialization points. The link connects the ground's point (0,0,0) to the mass's point (0,0,1). Since the mass is at (0,0,1), its local point is (0,0,0), so the global point is (0,0,1). The ground's point is (0,0,0). The distance between them is 1 meter, so rest length is set to 1.0. That's correct.
+
+The spring's rest length is correctly set. The parameters for the spring and damper are set.
+
+The color of the mass is red, the spring's visual shape is default (maybe gray?), but since it's an asset added to the link, maybe it's visible. The ground doesn't have a visual shape, but since it's fixed, maybe it's okay.
+
+I think this should work. Now, writing the code properly with all these steps.
 </think>
 
 ```python
@@ -370,55 +313,65 @@ import pychrono as chrono
 import pychrono.irrlicht as irr
 
 def main():
-    # Create the Chrono system with gravity along the negative Y-axis
+    # Create the Chrono system
     my_system = chrono.ChSystemNSC()
-    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
 
-    # Create ground body (static)
+    # Create ground body (fixed)
     ground = chrono.ChBody()
     my_system.Add(ground)
     ground.SetBodyFixed(True)
     ground.SetCollide(False)
+    ground.SetPos(chrono.ChVectorD(0, 0, 0))
 
-    # Create mass body with dimensions 0.2m x 0.2m x 0.2m
-    mass_size = 0.2
-    mass_density = 125  # To achieve a mass of 1 kg (volume * density = 0.008 * 125 = 1)
-    mass = chrono.ChBodyEasyBox(mass_size, mass_size, mass_size, mass_density, True, True)
-    mass.SetPos(chrono.ChVectorD(0, 1, 0))  # Start at (0,1,0) along Y-axis
-    mass.SetMass(1.0)
-    mass.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0, 0))  # Red color for visibility
+    # Create mass body
+    mass = chrono.ChBody()
+    mass.SetMass(1.0)  # 1 kg
+    mass.SetPos(chrono.ChVectorD(0, 0, 1))  # Start position
+
+    # Visual shape for mass (red box)
+    box_size = chrono.ChVectorD(0.2, 0.2, 0.2)
+    visual_box = chrono.ChVisualShapeBox(box_size.x, box_size.y, box_size.z)
+    mass.AddAsset(visual_box)
+    mass.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0, 0)))  # Red color
+
+    # Set inertia based on box dimensions
+    inertia = chrono.ChMatrix33D()
+    chrono.ChBoxInertia(inertia, mass.GetMass(), box_size.x, box_size.y, box_size.z)
+    mass.SetInertia(inertia)
+
     my_system.Add(mass)
 
-    # Create spring-damper link between ground and mass
-    springdamper = chrono.ChLinkTSDA()
-    springdamper.Initialize(ground, mass, False, chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))
-    springdamper.SetRestLength(1.0)  # Initial length between points
-    springdamper.Set_SpringK(100)    # Spring constant (N/m)
-    springdamper.Set_SpringR(10)     # Damping coefficient (Ns/m)
-    my_system.AddLink(springdamper)
+    # Create spring-damper link using ChLinkTSDA
+    link = chrono.ChLinkTSDA()
+    link.Initialize(ground, mass, False, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+    link.SetRestLength(1.0)  # Initial length between points
+    link.Set_SpringK(100)    # Spring constant (N/m)
+    link.Set_SpringR(10)     # Damping coefficient (Ns/m)
 
     # Add visual spring shape to the link
-    spring_shape = chrono.ChSpringShape(springdamper, 20, 0.02)  # 20 coils, radius 0.02m
-    springdamper.AddAsset(spring_shape)
+    spring_shape = chrono.ChSpringShape(link, 10, 0.02, 0.01)  # 10 coils, radius 0.02, wire 0.01
+    link.AddAsset(spring_shape)
+    my_system.Add(link)
 
     # Initialize Irrlicht visualization
-    myapplication = irr.ChIrrApp(my_system, 'Mass-Spring-Damper Simulation', irr.dimension2du(1024,768))
-    myapplication.AddTypicalLogo()
-    myapplication.AddTypicalSky()
-    myapplication.AddTypicalLights()
-    myapplication.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0,1,0))  # Camera position and target
+    application = irr.ChIrrApp(my_system, 'Mass-Spring-Damper', irr.dimension2du(800, 600))
+    application.AddTypicalLogo()
+    application.AddTypicalSky()
+    application.AddTypicalLights()
+    application.AddTypicalCamera(chrono.ChVectorD(0, 3, 3), chrono.ChVectorD(0, 0, 1))
 
-    # Simulation settings and run loop
-    myapplication.AssetReset()
-    myapplication.SetTimestep(0.005)
-    myapplication.SetTryRealtime(True)
+    # Update scene assets
+    application.AssetBind()
+    application.AssetUpdate()
 
-    myapplication.Initialize()
-    while myapplication.GetDevice().run():
-        myapplication.BeginScene()
-        myapplication.DrawAll()
-        my_system.DoStepDynamics()
-        myapplication.EndScene()
+    # Simulation settings and loop
+    application.SetTimestep(0.005)
+    while application.GetDevice().run():
+        application.BeginScene()
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
 if __name__ == '__main__':
     main()

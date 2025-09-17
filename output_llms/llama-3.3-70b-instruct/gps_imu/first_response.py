@@ -3,65 +3,65 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# Initialize the PyChrono environment and core components
+# Initialize the PyChrono environment
 sys = chrono.ChSystemNSC()
 
 # Create the terrain
-terrain = veh.ChTerrain(sys)
-terrain.SetPlane(0, 0, 0, 0, 1, 0)  # x, y, z, nx, ny, nz
+terrain = veh.ChTerrain(chrono.ChVectorD(0, 0, 0))
 sys.Add(terrain)
 
 # Create the vehicle
-hmmwv = veh.HMMWV()
-hmmwv.SetChassisFixed(False)
-hmmwv.SetSuspensionEnabled(True)
-hmmwv.SetWheelFrictionEnabled(True)
-hmmwv.SetEngineEnabled(True)
-sys.Add(hmmwv.GetChassisBody())
-sys.Add(hmmwv.GetChassisBody().GetClutch().GetOutput())
-for wheel in hmmwv.GetWheels():
-    sys.Add(wheel.GetBody())
-
-# Add IMU and GPS sensors to the vehicle's chassis
-imu_sensor = veh.ImuSensor(hmmwv.GetChassisBody())
-gps_sensor = veh.GpsSensor(hmmwv.GetChassisBody())
+vehicle = veh.HMMWV()
+vehicle.SetChassisFixed(False)
+sys.Add(vehicle)
 
 # Create the driver
-driver = veh.ChIrrVehicleDriver(hmmwv)
+driver = veh.ChIrrlichtDriver()
+vehicle.AddDriver(driver)
 
-# Create the visual interface using Irrlicht
+# Create the visual system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 100))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
 vis.AddTypicalLights()
 
-# Create the visual assets for the vehicle and terrain
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+# Add IMU and GPS sensors
+imu = veh.ChSensorIMU(chrono.ChVectorD(0, 0, 0))
+gps = veh.ChSensorGPS(chrono.ChVectorD(0, 0, 0))
+vehicle.AddSensor(imu)
+vehicle.AddSensor(gps)
+
+# Set default parameters
+vehicle.SetPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetMass(1500)
 
 # Simulation loop
 time = 0
 dt = 0.01
 while time < 10:
     # Update sensor data
-    imu_sensor.Update()
-    gps_sensor.Update()
+    imu.Update()
+    gps.Update()
 
-    # Update the vehicle, terrain, driver, and visual system modules
-    hmmwv.Update(time, dt)
-    terrain.Update()
-    driver.Update(time, dt)
+    # Update vehicle and terrain
+    vehicle.Update(dt)
+    terrain.Update(dt)
+
+    # Update driver inputs
+    driver.Update(dt)
+
+    # Update visual system
     vis.Update()
 
-    # Output vehicle mass
-    print("Vehicle mass: ", hmmwv.GetChassisBody().GetMass())
-
-    # Render the scene
+    # Render scene
     vis.Render()
 
-    # Advance the simulation time
+    # Output vehicle mass
+    print("Vehicle mass:", vehicle.GetMass())
+
+    # Advance simulation time
     time += dt
 
-# Clean up
-sys.Delete()
+    # Synchronize modules
+    sys.DoStepDynamics(dt)

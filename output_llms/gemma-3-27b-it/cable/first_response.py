@@ -1,6 +1,5 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
 
 # ---
 #  Create the simulation system
@@ -11,8 +10,7 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # ---
-#
-#   Create the beam using ANCF cable elements
+#  Create the beam using ANCF cable elements
 # ---
 
 # Beam parameters
@@ -20,56 +18,69 @@ beam_length = 2.0
 num_segments = 20
 segment_length = beam_length / num_segments
 mass_per_segment = 0.1
-young_modulus = 1e7
-cross_section_area = 1e-4
+stiffness = 1000.0
+damping = 10.0
 
-# Create the beam as a chain of ANCF cable elements
-body = chrono.ChBodyEasy()
-body.SetBodyFixed(False)
-system.Add(body)
+# Create the first node (hinged to the ground)
+node = chrono.ChBodyEasy()
+node.SetBodyFixed(True)
+node.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(node)
 
-prev_pos = chrono.ChVectorD(0, 0, 0)
+# Create the subsequent segments
+prev_node = node
 for i in range(num_segments):
-    # Create an ANCF cable element
-    cable = chrono.ChLinkCableANCF()
-    cable.Initialize(body, body, chrono.ChCoordsys(prev_pos, chrono.ChQuaternionD(1, 0, 0, 0)),
-                     chrono.ChCoordsys(prev_pos + chrono.ChVectorD(0, segment_length, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+    next_node = chrono.ChBodyEasy()
+    next_node.SetMass(mass_per_segment)
+    next_node.SetPos(chrono.ChVectorD(0, segment_length * (i + 1), 0))
 
-    cable.Set_YoungModulus(young_modulus)
-    cable.Set_CrossSectionArea(cross_section_area)
-    cable.Set_RestLength(segment_length)
-    cable.Set_Mass(mass_per_segment)
-
+    # Create an ANCF cable element between the previous and next node
+    cable = chrono.ChLinkANCF()
+    cable.Initialize(prev_node, next_node, False, False)
+    cable.Set_Spring_K(stiffness)
+    cable.Set_Spring_R(damping)
+    cable.Set_Rest_Length(segment_length)
     system.Add(cable)
-    prev_pos += chrono.ChVectorD(0, segment_length, 0)
 
-# Fix one end of the beam (hinge)
-body.SetPos(chrono.ChVectorD(0,0,0))
-body.SetTransform(chrono.ChCoordsys(chrono.ChVectorD(0,0,0), chrono.ChQuaternionD(1,0,0,0)))
-body.Set_Fixed(True)
-
+    prev_node = next_node
 
 # ---
-#
-#   Create the Irrlicht application for visualization
+#  Visualization with Irrlicht
 # ---
 
+# Create an Irrlicht application to visualize the system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('ANCF Beam Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(beam_length/2, beam_length/2, -beam_length))
+vis.AddTypicalCamera(chrono.ChVectorD(0, beam_length / 2, -3))
 vis.AddTypicalLights()
 
 # ---
-#
-#   Simulation loop
+#  Simulation loop
 # ---
 
+# Simulation parameters
+time_step = 0.005
+simulation_time = 10.0
+
 while vis.Run():
-    vis.BeginScene(True, True, chrono.ChColor(0.2, 0.2, 0.3))
+    vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    system.DoStepDynamics(0.001)
+    system.DoStepDynamics(time_step)
+
+    # Optional: Visualize nodal positions (e.g., using debug drawing)
+    # for body in system.Get_BodyList():
+    #     vis.GetSceneManager().drawDebugNode(body.GetPos(), chrono.ChVectorD(0.1, 0.1, 0.1), True)
+
+    if system.GetChTime() > simulation_time:
+        break
+
+# ---
+#  Cleanup
+# ---
+
+vis.Close()

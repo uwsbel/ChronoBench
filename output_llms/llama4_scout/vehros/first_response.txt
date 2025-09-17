@@ -1,4 +1,4 @@
-### PyChrono Simulation Script for HMMWV Vehicle
+### PyChrono Simulation Script
 
 ```python
 import chrono as ch
@@ -7,86 +7,72 @@ import chrono_ros as chr
 import rospy
 
 # Initialize PyChrono environment and core components
-ch.Initialize()
+ch.ChronoEnvironment.set_G_acc(9.81)
 
-# Create the simulation system
-system = ch.ChronoSystemMultibody()
+# Create the simulation
+simulation = ch.ChronoSimulation()
 
-# Set up the HMMWV vehicle
-vehicle_file = "path/to/hmmwv/vehicle_hmmwv.json"
-vehicle = chv.ChronoVehicle(system, vehicle_file)
+# Create the HMMWV vehicle
+vehicle = chv.HMMWV(simulation.GetSystem())
 
-# Set contact method, engine type, and tire model
-vehicle.SetContactMethod(ch.ContactMethod_NSC)
+# Set vehicle parameters
+vehicle.SetContactMethod(ch.ContactMethod_NC)
 vehicle.SetEngineType(ch.EngineType_SHAFTS)
-vehicle.SetTireModel(ch.TireModel_FM)
+vehicle.SetTireModel(ch.TireModel_Pacejka)
 
 # Create the terrain
-terrain_file = "path/to/terrain/terrain_irregular.json"
-terrain = chv.ChronoTerrain(system, terrain_file)
+terrain = chv.GroundPlane(simulation.GetSystem())
 terrain.SetFrictionCoefficient(0.8)
 terrain.SetRestitutionCoefficient(0.7)
 
-# Initialize the driver system
-driver = chv.ChronoDriver(vehicle)
-driver.SetSteeringType(chv.SteeringType_PURE_PURSUIT)
+# Initialize driver system
+driver = chv.DriverInputs(simulation.GetSystem())
 
-# Initialize ROS integration
-chr.ChronoRosManager(system)
+# Initialize ROS manager
+ros_manager = chr.ROSManager(simulation)
 
-# Define ROS handlers
+# Register ROS handlers
 def clock_cb(time):
-    system.Update()
+    ros_manager.Update(time)
 
 def driver_inputs_cb(inputs):
     driver.SetInputs(inputs)
 
 def vehicle_state_cb(state):
-    vehicle.SetState(state)
+    ros_manager.SetVehicleState(state)
 
-# Register ROS handlers
-chr.RegisterClockCallback(clock_cb)
-chr.RegisterDriverInputsCallback(driver_inputs_cb)
-chr.RegisterVehicleStateCallback(vehicle_state_cb)
+ros_manager.RegisterClockCallback(clock_cb)
+ros_manager.RegisterDriverInputsCallback(driver_inputs_cb)
+ros_manager.RegisterVehicleStateCallback(vehicle_state_cb)
 
 # Simulation loop
 def simulate():
     rate = rospy.Rate(100)  # 100 Hz
+
     while not rospy.is_shutdown():
-        # Synchronize and advance systems
-        system.Advance(0.01)  # 10 ms timestep
-        driver.Advance(0.01)
-        terrain.Advance(0.01)
-        
+        # Synchronize and advance vehicle, terrain, and driver systems
+        simulation.Advance(0.01)  # 10 ms timestep
+
         # Update ROS manager
-        chr.UpdateRosManager()
-        
+        ros_manager.Update(simulation.GetChronoTime())
+
         rate.sleep()
 
-if __name__ == "__main__":
-    rospy.init_node("hmmwv_simulation")
+if __name__ == '__main__':
+    rospy.init_node('hmmwv_simulation')
+
     simulate()
 ```
 
 ### Explanation
 
-The provided Python script initializes a PyChrono simulation featuring an HMMWV vehicle with specific parameters. Here's a step-by-step breakdown:
+The provided Python script initializes a PyChrono simulation featuring an HMMWV vehicle with specific parameters, sets up a terrain, and integrates ROS for communication.
 
-1.  **Initialization**: The PyChrono environment and core components are initialized using `ch.Initialize()`.
-2.  **Simulation System**: A multibody simulation system is created using `ch.ChronoSystemMultibody()`.
-3.  **HMMWV Vehicle**: The HMMWV vehicle is created using `chv.ChronoVehicle()` and loaded from a JSON file. The contact method, engine type, and tire model are set using `vehicle.SetContactMethod()`, `vehicle.SetEngineType()`, and `vehicle.SetTireModel()`, respectively.
-4.  **Terrain**: The terrain is created using `chv.ChronoTerrain()` and loaded from a JSON file. Friction and restitution coefficients are set using `terrain.SetFrictionCoefficient()` and `terrain.SetRestitutionCoefficient()`, respectively.
-5.  **Driver System**: A driver system is initialized using `chv.ChronoDriver()` and set to use pure pursuit steering.
-6.  **ROS Integration**: The Chrono ROS manager is initialized using `chr.ChronoRosManager()`.
-7.  **ROS Handlers**: Callbacks for clock synchronization, driver inputs, and vehicle state are defined and registered using `chr.RegisterClockCallback()`, `chr.RegisterDriverInputsCallback()`, and `chr.RegisterVehicleStateCallback()`, respectively.
-8.  **Simulation Loop**: The simulation loop advances the vehicle, terrain, and driver systems at each timestep and updates the ROS manager for data publishing.
+1.  **Initialization**: The PyChrono environment and core components are initialized, and the simulation is created.
+2.  **Vehicle Creation**: An HMMWV vehicle is created with specified parameters such as contact method (`ch.ContactMethod_NC`), engine type (`ch.EngineType_SHAFTS`), and tire model (`ch.TireModel_Pacejka`).
+3.  **Terrain Setup**: A ground plane terrain is created with defined friction (0.8) and restitution (0.7) coefficients.
+4.  **Driver System**: A driver system is initialized for vehicle control.
+5.  **ROS Integration**: A ROS manager is created to handle communication. Handlers are registered for clock synchronization (`clock_cb`), driver inputs (`driver_inputs_cb`), and vehicle state (`vehicle_state_cb`).
+6.  **Simulation Loop**: The simulation loop advances the vehicle, terrain, and driver systems at each timestep (10 ms) and updates the ROS manager for data publishing.
 
-### Usage
-
-To run the simulation:
-
-*   Ensure you have PyChrono, PyChrono-Vehicle, and PyChrono-ROS installed.
-*   Replace `"path/to/hmmwv/vehicle_hmmwv.json"` and `"path/to/terrain/terrain_irregular.json"` with the actual file paths for the HMMWV vehicle and terrain.
-*   Run the script using Python (e.g., `python hmmwv_simulation.py`).
-
-The simulation will run at 100 Hz, and the ROS manager will publish data at each timestep. You can modify the simulation parameters, such as the timestep and friction coefficients, to suit your specific needs.
+This script provides a basic framework for simulating an HMMWV vehicle using PyChrono and ROS. You can modify and extend it according to your specific requirements. Make sure to install the necessary packages and configure your ROS environment before running the script.

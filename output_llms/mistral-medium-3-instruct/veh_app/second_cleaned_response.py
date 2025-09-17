@@ -96,23 +96,21 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 
-
-
 box_body = chrono.ChBody()
 box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
 box_body.SetBodyFixed(True)
 box_body.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  
-box_body.GetVisualModel().AddBox(1, 1, 1, chrono.ChColor(0, 0, 1))  
+box_body.GetVisualModel().AddBox(1, 1, 1, True)  
+box_body.GetVisualModel().GetMaterial(0).SetDiffuseColor(chrono.ChColor(0, 0, 1))  
 gator.GetSystem().Add(box_body)
-
-
 
 
 cylinder_body = chrono.ChBody()
 cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
 cylinder_body.SetBodyFixed(True)
-cylinder_body.GetCollisionModel().AddCylinder(0.5, 0.5)  
-cylinder_body.GetVisualModel().AddCylinder(0.5, 1, chrono.ChColor(0, 0, 1))  
+cylinder_body.GetCollisionModel().AddCylinder(0.5, 0.5, 0.5)  
+cylinder_body.GetVisualModel().AddCylinder(0.5, 1, True)  
+cylinder_body.GetVisualModel().GetMaterial(0).SetDiffuseColor(chrono.ChColor(0, 0, 1))  
 gator.GetSystem().Add(cylinder_body)
 
 
@@ -142,27 +140,28 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 
-lidar_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
+lidar_offset = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2), chrono.ChQuaterniond(1, 0, 0, 0))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    lidar_pose,
+    lidar_offset,
     800,  
     300,  
     2 * chrono.CH_PI,  
     chrono.CH_PI / 12,  
     -chrono.CH_PI / 6,  
     100.0,  
-    sens.ChLidarSensor::Shape::RECTANGULAR,  
+    sens.ChLidarShape_RECTANGULAR,  
     2,  
     0.003,  
-    sens.ChLidarSensor::ReturnMode::STRONGEST  
+    sens.ChLidarMode_STRONGEST_RETURN  
 )
+lidar.SetName("Lidar Sensor")
 
 
-lidar.PushFilter(sens.ChFilterSensorData(sens.ChSensorDataType::DEPTH))
-lidar.PushFilter(sens.ChFilterSensorData(sens.ChSensorDataType::INTENSITY))
-lidar.PushFilter(sens.ChFilterXYZIPointCloud())
+lidar.PushFilter(sens.ChFilterLidarDepthMap())
+lidar.PushFilter(sens.ChFilterLidarIntensityMap())
+lidar.PushFilter(sens.ChFilterLidarPointCloudXYZI())
 lidar.PushFilter(sens.ChFilterVisualizePointCloud())
 
 manager.AddSensor(lidar)
@@ -176,8 +175,8 @@ end_time = 30
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     
-    driver.SetSteering(0.5)
-    driver.SetThrottle(0.2)
+    driver.SetSteering(0.5)  
+    driver.SetThrottle(0.2)  
     
     driver_inputs = driver.GetInputs()
 

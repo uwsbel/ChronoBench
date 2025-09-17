@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-15, 0, 0.5)  
+initLoc = chrono.ChVector3d(-15, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)  
 
 
@@ -25,7 +25,7 @@ terrainLength = 100.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(3, 0, 2.1)  
+trackPoint = chrono.ChVector3d(3, 0, 2.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
@@ -71,7 +71,8 @@ terrain.Initialize()
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Kraz Demo')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 25.0, 10.5)  
+
+vis.SetChaseCamera(trackPoint, 25.0, 10.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
@@ -104,21 +105,28 @@ render_frame = 0
 
 
 lane_change_start_time = 5.0
-lane_change_duration = 3.0
-lane_change_amplitude = 0.5  
+lane_change_duration = 5.0
+lane_change_amplitude = 0.5
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if time > lane_change_start_time and time < lane_change_start_time + lane_change_duration:
+    if time >= lane_change_start_time and time <= lane_change_start_time + lane_change_duration:
         
-        t = (time - lane_change_start_time) / lane_change_duration
-        
-        steering_input = lane_change_amplitude * math.sin(2 * math.pi * t)
-        driver.SetSteering(steering_input)
-    else:
-        driver.SetSteering(0)
+        t = time - lane_change_start_time
+        steering_input = 0.0
+
+        if t < lane_change_duration/2:
+            
+            steering_input = -lane_change_amplitude * (1 - math.cos(2 * math.pi * t / (lane_change_duration/2)))
+        else:
+            
+            steering_input = lane_change_amplitude * (1 - math.cos(2 * math.pi * (t - lane_change_duration/2) / (lane_change_duration/2)))
+
+        driver_inputs = driver.GetInputs()
+        driver_inputs.m_steering = steering_input
+        driver.SetInputs(driver_inputs)
 
     
     if (step_number % render_steps == 0):

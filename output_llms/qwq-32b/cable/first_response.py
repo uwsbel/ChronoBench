@@ -1,63 +1,54 @@
 import pychrono as chrono
-import pychrono.fea as fea
+import pychrono.irrlicht as irr
 
-def main():
-    # Initialize the Chrono system
-    system = chrono.ChSystemNSC()
-    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
-    # Create the ANCF beam parameters
-    num_elements = 20
-    length = 10.0
-    section_width = 0.1
-    section_height = 0.05
-    young_modulus = 2e11
-    poisson_ratio = 0.3
-    shear_modulus = young_modulus / (2 * (1 + poisson_ratio))
-    density = 7800
+# Create ANCF material properties
+material = chrono.ChMaterialANCF()
+material.SetYoungModulus(1e6)  # Young's modulus (Pa)
+material.SetPoissionsRatio(0.3)
+material.SetDensity(7850)  # Density (kg/m³)
 
-    # Create the ANCF beam object
-    beam = fea.ChBeamANCF()
-    beam.SetNodesNumber(num_elements)
-    beam.SetLength(length)
-    beam.SetSectionWidth(section_width)
-    beam.SetSectionHeight(section_height)
-    beam.Set_E(young_modulus)
-    beam.Set_G(shear_modulus)
-    beam.Set_poisson(poisson_ratio)
-    beam.Set_rho(density)
-    beam.SetInitialPosition(chrono.ChVectorD(0, 0, 0))
-    beam.SetInitialOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+# Create the ANCF beam
+beam = chrono.fea.ChBeamANCF()
+beam.SetNodesNumber(21)       # 20 elements, 21 nodes
+beam.SetTotalLength(10.0)     # Length along x-axis (meters)
+beam.SetSectionWidth(0.01)    # Cross-section width (meters)
+beam.SetSectionHeight(0.01)   # Cross-section height (meters)
+beam.SetMaterial(material)
 
-    # Create the FEA object and add to the system
-    fea_object = fea.ChBeamFEAobject(beam)
-    system.Add(fea_object)
+# Add the beam to the system
+system.Add(beam)
 
-    # Fix the first node to the ground
-    first_node = fea_object.GetNodes()[0]
-    link = chrono.ChLinkLockPointFrame()
-    link.Initialize(first_node, system.GetGroundBody(), chrono.ChVectorD(0, 0, 0))
-    system.Add(link)
+# Fix the first node to the ground (origin)
+link = chrono.ChLinkLockPointFrame()
+link.Initialize(beam.GetNodes()[0], system)
+system.Add(link)
 
-    # Visualization setup
-    visualizer = chrono.ChVisualizationFEA()
-    visualizer.SetFEMdataType(chrono.chfemVisualizationDataType.FEM_NODE_SPEED)
-    visualizer.SetColorscale(chrono.ChColorAsset(chrono.ChColor(0, 1, 0)), chrono.ChColorAsset(chrono.ChColor(1, 0, 0)))
-    fea_object.AddAsset(visualizer)
+# Visualization setup
+visualizer = irr.ChIrrApp(system, 'ANCF Beam Simulation', irr.dimension2du(800, 600))
+visualizer.AddTypicalLights()
+visualizer.AddTypicalCamera(chrono.ChVectorD(0, -10, 5), chrono.ChVectorD(0, 0, 0))
+visualizer.AssetSetMargin(0)
 
-    # Initialize Irrlicht application
-    application = chrono.ChIrrApp(system, 'ANCF Beam Simulation', chronoirr.dimension2du(800, 600))
-    application.AddTypicalLights()
-    application.AddAllVisualizationAssets()
-    application.SetCamera(chrono.ChVectorD(0, -10, 10), chrono.ChVectorD(0, 0, 0))
+# Configure beam visualization
+beam.SetVisualization(chrono.fea.ChVisualizationBeam())
+beam.AddAsset(chrono.ChColorAsset(0.8, 0, 0))  # Red color for the beam
 
-    # Simulation loop
-    application.SetTimestep(0.005)
-    while application.GetDevice().run():
-        application.BeginScene()
-        application.DrawAll()
-        application.DoStep()
-        application.EndScene()
+# Add a ground marker at the origin
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  # Small cube for visualization
+ground.SetCollide(False)
+ground.AddAsset(chrono.ChColorAsset(0.3, 0.3, 0.3))  # Gray color
+visualizer.Add(ground)
 
-if __name__ == '__main__':
-    main()
+# Initialize and run the visualization
+visualizer.SetTimestep(0.005)
+visualizer.Initialize()
+visualizer.SetCameraPosition(chrono.ChVectorD(0, -10, 5))
+visualizer.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+visualizer.MainLoop()

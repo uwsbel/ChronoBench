@@ -1,10 +1,8 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor
 import numpy as np
-import math
-import random
+import pychrono.sensor as sensor
 
 """
 !!!! Set this path before running the demo!
@@ -115,32 +113,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # ---------------
-# Obstacle creation
-# ---------------
-obstacles = []
-for i in range(5):
-    x = random.uniform(-terrainLength/2, terrainLength/2)
-    y = random.uniform(-terrainWidth/2, terrainWidth/2)
-    z = random.uniform(0, terrainHeight)
-    obstacles.append(chrono.ChBox(chrono.ChVector3d(x, y, z), 1.0, 1.0, 1.0))
-
-# ---------------
-# Sensor Manager and Lidar
-# ---------------
-sensor_manager = sensor.SensorManager()
-
-# Create a lidar sensor
-lidar = sensor.ChLidar(sensor_manager)
-lidar.SetResolution(10)
-lidar.SetBeamAngle(45)
-lidar.SetDistanceThreshold(0.1)
-lidar.SetFilterType(sensor.LidarFilterType_GAUSSIAN)
-lidar.SetFilterWidth(0.5)
-
-# Add the lidar sensor to the vehicle
-vehicle.AddSensor(lidar)
-
-# ---------------
 # Simulation loop
 # ---------------
 
@@ -185,3 +157,25 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+    # Create 5 box obstacles
+    obstacles = []
+    for i in range(5):
+        x = np.random.rand() * terrainLength
+        y = np.random.rand() * terrainWidth
+        z = 0
+        box = veh.Box(chrono.ChVector3d(x, y, z), 1, 1, 1)
+        obstacles.append(box)
+    
+    # Add obstacles to the simulation
+    terrain.AddObstacles(obstacles)
+
+    # Update sensor manager
+    manager.Update(time)
+
+    # Update the lidar sensor
+    lidar = sensor.LidarSensor(vehicle)
+    lidar.Update(time)
+
+    # Update the vehicle's sensor
+    vehicle.Update(time, driver_inputs, terrain)

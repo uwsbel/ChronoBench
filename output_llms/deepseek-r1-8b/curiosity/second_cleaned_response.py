@@ -14,17 +14,15 @@ chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
 ground_mat = chrono.ChContactMaterialNSC()
-ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground = chrono.ChBodyEasyBox(10, 10, 1, 1000, True, True, ground_mat)
 ground.SetPos(chrono.ChVector3d(0, 0, -0.5))  
 ground.SetFixed(True)  
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(ground)
 
 
-obstacle = chrono.ChBoxNSC(5, 1, 1)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0))
-obstacle.SetFixed(True)
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+obstacle = chrono.ChBodyEasyBox(30, 1, 0.5, 1000, True, True, ground_mat)
+obstacle.SetPos(chrono.ChVector3d(0, 0, -0.5))
 system.Add(obstacle)
 
 
@@ -64,7 +62,12 @@ while vis.Run():
     time += time_step
 
     
-    steering = 0.0
+    steering = 0
+    if time < 1:
+        steering = 0  
+    else:
+        steering = 0  
+    
     driver.SetSteering(steering)
 
     

@@ -89,7 +89,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-driver.SetThrottle(0.8)
+driver.SetThrottle(0.8)  
 
 
 steering_time = 1.0  

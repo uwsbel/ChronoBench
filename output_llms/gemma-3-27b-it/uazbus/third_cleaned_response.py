@@ -17,7 +17,7 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 
-tire_model = veh.TireModelType_RIGID  
+tire_model = veh.TireModelType_RIGID
 
 
 
@@ -122,9 +122,6 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    driver_inputs.throttle = 0.5
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -138,6 +135,9 @@ while vis.Run():
 
     
     step_number += 1
+
+    
+    driver.SetThrottle(0.5)
 
     
     s.Spin(step_size)

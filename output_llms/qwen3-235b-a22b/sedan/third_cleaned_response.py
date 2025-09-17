@@ -3,14 +3,14 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-print(veh)
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.5)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+initLoc = chrono.ChVector3d(0, 0, 0.6)
+initRot = chrono.ChQuaterniond()
+initRot.Q_from_AngAxis(math.pi / 6, chrono.ChVector3d(0, 1, 0))  
 
 
 vis_type = veh.VisualizationType_MESH
@@ -22,9 +22,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0
+terrainLength = 200.0  
+terrainWidth = 100.0
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -36,15 +36,16 @@ contact_vis = False
 
 step_size = 5e-4
 tire_step_size = step_size
-render_step_size = 0.01  
+render_step_size = 1.0 / 100  
 
 
+target_speed = 30.0  
 Kp = 0.5
-Ki = 0.01
+Ki = 0.05
 Kd = 0.01
-ref_speed = 30.0  
 integral = 0.0
 prev_error = 0.0
+
 
 
 
@@ -72,47 +73,55 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+
 patch = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    veh.GetDataFile("terrain/meshes/highway.obj"),  
     terrainLength, terrainWidth)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+
+patch.SetMesh(veh.GetDataFile("terrain/meshes/highway.obj"), 
+              chrono.ChVector3d(1, 1, 1), 
+              chrono.ChVector3d(0, 0, 0), 
+              True, True)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.8))  
 terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan')
+vis.SetWindowTitle('Sedan with PID Control')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle)
+vis.AttachVehicle(vehicle.GetVehicle())
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
-steering_time = 5.0  
-throttle_time = 1.0  
-braking_time = 0.3   
+steering_time = 5.0
+throttle_time = 1.0
+braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
-render_steps = math.ceil(render_step_size / step_size)
+
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
+render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -122,19 +131,21 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
     
     driver_inputs = driver.GetInputs()
 
     
     current_speed = vehicle.GetVehicle().GetSpeed()
-    error = ref_speed - current_speed
-    integral += error * step_size
-    derivative = (error - prev_error) / step_size if step_number > 0 else 0
-    throttle = Kp * error + Ki * integral + Kd * derivative
-    throttle = max(0.0, min(1.0, throttle))
-    driver_inputs.throttle = throttle
-    prev_error = error
+    speed_error = target_speed - current_speed
+    integral += speed_error * step_size
+    integral = max(-1.0, min(1.0, integral))  
+    derivative = (speed_error - prev_error) / step_size if step_size > 0 else 0.0
+    throttle = Kp * speed_error + Ki * integral + Kd * derivative
+    throttle = max(0.0, min(1.0, throttle))  
+    prev_error = speed_error
+    driver_inputs.m_throttle = throttle  
 
     
     driver.Synchronize(time)
@@ -147,6 +158,7 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     step_number += 1
+
+    
     realtime_timer.Spin(step_size)

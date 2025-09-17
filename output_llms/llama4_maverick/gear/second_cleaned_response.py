@@ -81,7 +81,6 @@ link_revolute.Initialize(mbody_gearB, mbody_train,
 sys.AddLink(link_revolute)  
 
 
-
 link_gearAB = chrono.ChLinkLockGear()  
 link_gearAB.Initialize(mbody_gearA, mbody_gearB, chrono.ChFramed())  
 link_gearAB.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))  
@@ -89,7 +88,6 @@ link_gearAB.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-
 link_gearAB.SetTransmissionRatio(radA / radB)  
 link_gearAB.SetEnforcePhase(True)  
 sys.AddLink(link_gearAB)  
-
 
 
 radC = 2 * radB + radA  
@@ -114,31 +112,6 @@ vis.AddTypicalLights()
 
 
 sys.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_PROJECTED)  
-
-
-while vis.Run():  
-    vis.BeginScene()  
-    vis.Render()  
-    vis.EndScene()  
-    sys.DoStepDynamics(1e-3)  
-
-
-
-
-
-import pychrono as chrono  
-import pychrono.irrlicht as chronoirr  
-import math as m  
-
-
-
-
-
-import pychrono as chrono  
-import pychrono.irrlicht as chronoirr  
-import math as m  
-
-
 
 
 while vis.Run():  

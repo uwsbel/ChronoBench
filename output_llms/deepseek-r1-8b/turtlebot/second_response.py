@@ -45,15 +45,16 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 def move(mode):
     """Control the robot's movement with the following modes:
     - 'straight': Move forward straight
-    - 'left': Turn left
-    - 'right': Turn right
-    """
-    if mode not in ['straight', 'left', 'right']:
-        raise ValueError("Invalid mode: must be 'straight', 'left', or 'right'")
+    - 'left': Turn left (clockwise)
+    - 'right': Turn right (counterclockwise)
+    Raises ValueError for invalid mode."""
+    valid_modes = ['straight', 'left', 'right']
+    if mode not in valid_modes:
+        raise ValueError(f"Invalid mode: {mode}. Must be one of {valid_modes}")
     
     if mode == 'straight':
-        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1.0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1.0, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
@@ -61,45 +62,41 @@ def move(mode):
         robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
 
-# Define WheelID enum values for motor control
-LEFT_DRIVE_WHEEL = 0
-RIGHT_DRIVE_WHEEL = 1
-
 # Simulation loop
 time = 0
-current_mode = 'straight'
-last_mode_change = 0
-
 while vis.Run():
-    # Update the mode based on elapsed time
-    elapsed_time = time - last_mode_change
-    if elapsed_time > 5:
-        if current_mode == 'straight':
-            current_mode = 'left'
-        elif current_mode == 'left':
-            current_mode = 'right'
-        else:
-            current_mode = 'straight'
-        last_mode_change = time
+    # Define WheelID enum values for motor control
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+    
+    current_time = time
+    elapsed_time = current_time - 0.0  # Track time since last mode change
+    
+    # Update robot position and orientation
+    robot.Update()
     
     # Print current action
-    print(f"Current action: {current_mode}")
+    print(f"Current action: {mode} for {max(0, 5 - elapsed_time)}s remaining")
     
-    # At time = 1 s, start left turn
-    if abs(time - 1.0) < 1e-4 and current_mode == 'straight':
-        move('left')
+    # Check if elapsed time has passed to switch modes
+    if elapsed_time >= 5.0:
+        if mode == 'straight':
+            print("Switching to left turn mode...")
+            mode = 'left'
+        elif mode == 'left':
+            print("Switching to right turn mode...")
+            mode = 'right'
+        elif mode == 'right':
+            print("Switching to straight forward mode...")
+            mode = 'straight'
+        
+        # Update time to reset the mode change timer
+        time = current_time
     
-    # At time = 2 s, start right turn
-    if abs(time - 2.0) < 1e-4 and current_mode == 'left':
-        move('right')
-    
-    # Increment time counter
-    time += time_step
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)
 
     # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
-    # Advance the simulation by one time step
-    system.DoStepDynamics(time_step)

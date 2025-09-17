@@ -2,53 +2,77 @@ import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
+def main():
+    
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
-my_system = chrono.ChSystemNSC()
-vis = irr.ChIrrApp(my_system, 'FEDA Vehicle Simulation', irr.dimension2du(1024, 768))
-vis.SetCameraPosition(chrono.ChVectorD(0, 3, 5))
-vis.SetCameraRotation(chrono.Q_from_Euler_123(0, 0, 0))
+    
+    application = irr.ChIrrApp(my_system, 'FEDA Vehicle Simulation', irr.dimension2du(1024, 768))
+    application.AddTypicalLights()
+    application.AddTypicalLogo()
+    application.AddTypicalSky()
 
+    
+    terrain = veh.RigidTerrain(my_system)
+    patch_data = veh.ChTerrainPatchData()
+    patch_data.m_length = 100
+    patch_data.m_width = 100
+    patch_data.m_height = 0
+    patch_data.m_texture = chrono.GetChronoDataFile('textures/concrete.jpg')  
+    material = chrono.ChMaterialSurfaceNSC()
+    material.SetFriction(0.9)
+    material.SetRestitution(0.1)
+    patch_data.m_material = material
+    terrain.AddPatch(patch_data)
+    terrain.Initialize()
+    application.Add(terrain.GetAssets())
 
-vehicle = veh.FEDA_vehicle()
-vehicle.SetChassisPos(chrono.ChVectorD(0, 0, 1))
-vehicle.SetChassisRot(chrono.Q_from_Euler_123(0, 0, 0))
-vehicle.Initialize(chrono.ChassisCollisionType_PRIMITIVES,  
-                  veh.TireModelType.RIGID,  
-                  veh.TireBushingType.ROOT,
-                  False)
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    
+    vehicle = veh.FEDAVehicle()
+    init_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT)
+    vehicle.SetInitPosition(init_pos)
+    vehicle.SetTireModel(veh.TireModelType.PACJekaDE)
+    vehicle.SetContactMethod(chrono.ChContactMethod.NTC)
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    vehicle.Initialize(terrain)
 
+    
+    application.Add(vehicle.GetChassis().GetVisualizationAssets())
+    for suspension in vehicle.GetSuspensionSystems().values():
+        application.Add(suspension.GetVisualizationAssets())
+    for wheel in vehicle.GetWheels().values():
+        application.Add(wheel.GetVisualizationAssets())
+    for tire in vehicle.GetTires().values():
+        application.Add(tire.GetVisualizationAssets())
 
-driver = veh.KeyboardDriver()
-vehicle.SetDriver(driver)
+    
+    driver = irr.ChIrrGuiDriver(application)
+    vehicle.SetDriver(driver)
+    application.SetUserEventHandlers(driver)
 
+    
+    camera = application.GetCamera()
+    camera.SetFov(60)
+    camera.SetChaseVehicle(vehicle.GetChassis())
+    camera.SetChaseDistance(10)
+    camera.SetChaseHeight(3)
+    camera.SetChaseVerticalOffset(1.5)
 
-material = chrono.ChMaterialSurface()
-material.SetFriction(0.9)
-terrain = veh.RigidTerrain(my_system, material, True, True, 100, 100)
-texture = chrono.ChTexture()
-texture.SetTextureFilename("custom_terrain.jpg")  
-terrain.GetGroundMesh().AddAsset(texture)
+    
+    my_system.SetTimestep(0.02)
+    application.SetTimestep(0.02)
 
+    
+    while application.GetDevice().run():
+        driver.Synchronize(chrono.GetChTime())
+        application.DoStep()
+        application.BeginScene()
+        application.DrawAll()
+        application.EndScene()
 
-vis.Add(terrain.GetGroundMesh())
-vis.Add(vehicle.GetVisualization())
-
-
-vis.SetChaseCamera(chrono.ChVehicleChassis(vehicle.GetChassis()),
-                   5.0,  
-                   0.5,  
-                   2.0)  
-
-
-vis.SetTimestep(0.02)  
-vis.SetRealTimeFactor(1)  
-
-
-while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    my_system.DoStepDynamics()
-    driver.Synchronize(vehicle.GetSystem().GetChTime())
+if __name__ == '__main__':
+    main()

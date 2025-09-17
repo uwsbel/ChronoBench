@@ -3,51 +3,55 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set this path before running the demo
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-# Initial vehicle positions and orientation
-initLoc1 = chrono.ChVectorD(0, 0, 0.5)
-initLoc2 = chrono.ChVectorD(0, 5, 0.5)
+# Initial vehicle positions and orientations
+initLoc = chrono.ChVectorD(0, 0, 0.5)
 initRot = chrono.ChQuaternionD(1, 0, 0, 0)
 
+initLoc2 = chrono.ChVectorD(0, 5, 0.5)  # Position for second vehicle
+initRot2 = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Visualization and collision settings
 vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
-
-trackPoint = chrono.ChVectorD(-5.0, 0.0, 1.8)
-
-contact_method = chrono.ChContactMethod_NSC
+# Simulation parameters
 step_size = 1e-3
 tire_step_size = step_size
 render_step_size = 1.0 / 50
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
-# Create the first vehicle
-vehicle1 = veh.BMW_E90()
-vehicle1.SetContactMethod(contact_method)
-vehicle1.SetChassisCollisionType(chassis_collision_type)
-vehicle1.SetChassisFixed(False)
-vehicle1.SetInitPosition(chrono.ChCoordsysD(initLoc1, initRot))
-vehicle1.SetTireType(tire_model)
-vehicle1.SetTireStepSize(tire_step_size)
-vehicle1.Initialize()
-vehicle1.SetChassisVisualizationType(vis_type)
-vehicle1.SetSuspensionVisualizationType(vis_type)
-vehicle1.SetSteeringVisualizationType(vis_type)
-vehicle1.SetWheelVisualizationType(vis_type)
-vehicle1.SetTireVisualizationType(vis_type)
+# Create the Chrono system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+my_system.SetCollisionSystemType(chrono.ChCollisionSystemType.BULLET)
 
-# Create the second vehicle
-vehicle2 = veh.BMW_E90()
+# Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Create first vehicle
+vehicle = veh.BMW_E90(my_system)
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# Create second vehicle
+vehicle2 = veh.BMW_E90(my_system)
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
 vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysD(initLoc2, initRot))
+vehicle2.SetInitPosition(chrono.ChCoordsysD(initLoc2, initRot2))
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
 vehicle2.Initialize()
@@ -58,72 +62,234 @@ vehicle2.SetWheelVisualizationType(vis_type)
 vehicle2.SetTireVisualizationType(vis_type)
 
 # Create terrain with concrete texture
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle1.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                        terrainLength, terrainWidth)
+terrain_mat = chrono.ChMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(my_system)
+patch = terrain.AddPatch(terrain_mat,
+                        chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT),
+                        terrainLength=100.0, terrainWidth=100.0)
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Visualization setup
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Dual Sedan Simulation')
+vis = irr.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Sedan Simulation')
 vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.SetChaseCamera(chrono.ChVectorD(-5,0,1.8), 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle1)
-vis.AttachVehicle(vehicle2)
+vis.AttachVehicle(vehicle.GetVehicle())
+vis.AttachVehicle(vehicle2.GetVehicle())
 
-# Simulation parameters
-steering_amplitude = 0.5
-steering_frequency = 0.5  # Hz
+# Create drivers for both vehicles
+driver1 = veh.ChInteractiveDriverIRR(vis)  # Interactive for first vehicle (optional, but if using sinusoidal, replace with ChDriver)
+driver2 = veh.ChDriver()  # Autonomous driver for second vehicle
 
+# Initialize drivers
+driver1.Initialize()
+driver2.Initialize()
+
+# Set driver parameters (for interactive driver)
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver1.SetSteeringDelta(render_step_size / steering_time)
+driver1.SetThrottleDelta(render_step_size / throttle_time)
+driver1.SetBrakingDelta(render_step_size / braking_time)
+
+# Simulation loop variables
+realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-realtime_timer = chrono.ChRealtimeStepTimer()
 
-# Simulation loop
 while vis.Run():
-    time = vehicle1.GetSystem().GetChTime()
-    
-    # Render scene
-    if step_number % math.ceil(render_step_size / step_size) == 0:
+    time = my_system.GetChTime()
+
+    if step_number % int(render_step_size / step_size) == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-    
-    # Compute sinusoidal steering inputs
-    steering1 = steering_amplitude * math.sin(2 * math.pi * steering_frequency * time)
-    steering2 = steering_amplitude * math.sin(2 * math.pi * steering_frequency * time + math.pi)  # Phase shifted
-    
-    # Set driver inputs for both vehicles
-    driver_inputs1 = vehicle1.GetDriverInputs()
-    driver_inputs1.steering = steering1
-    driver_inputs1.throttle = 0.5  # Constant throttle
-    driver_inputs1.braking = 0.0
-    
-    driver_inputs2 = vehicle2.GetDriverInputs()
-    driver_inputs2.steering = steering2
-    driver_inputs2.throttle = 0.5
-    driver_inputs2.braking = 0.0
-    
-    # Synchronize and advance systems
+
+    # Get inputs for first vehicle (interactive)
+    driver1_inputs = driver1.GetInputs()
+
+    # Compute sinusoidal steering for second vehicle
+    steering2 = math.sin(time) * 0.5  # Example: amplitude 0.5
+    driver2.SetSteering(steering2)
+    driver2.SetThrottle(0.3)  # Example throttle
+    driver2.SetBrake(0.0)
+    driver2_inputs = driver2.GetInputs()
+
+    # Update modules for first vehicle
+    driver1.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle1.Synchronize(time, driver_inputs1, terrain)
-    vehicle2.Synchronize(time, driver_inputs2, terrain)
-    
-    vehicle1.Advance(step_size)
-    vehicle2.Advance(step_size)
+    vehicle.Synchronize(time, driver1_inputs, terrain)
+    vis.Synchronize(time, driver1_inputs)
+
+    # Update modules for second vehicle
+    driver2.Synchronize(time)
+    vehicle2.Synchronize(time, driver2_inputs, terrain)
+
+    # Advance all modules
+    driver1.Advance(step_size)
+    driver2.Advance(step_size)
     terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vehicle2.Advance(step_size)
     vis.Advance(step_size)
-    
+
+    step_number += 1
+    realtime_timer.Spin(step_size)
+
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+# Initial vehicle positions and orientations
+initLoc = chrono.ChVectorD(0, 0, 0.5)
+initRot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+initLoc2 = chrono.ChVectorD(0, 5, 0.5)  # Position for second vehicle
+initRot2 = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Visualization and collision settings
+vis_type = veh.VisualizationType_MESH
+chassis_collision_type = veh.CollisionType_NONE
+tire_model = veh.TireModelType_TMEASY
+
+# Simulation parameters
+step_size = 1e-3
+tire_step_size = step_size
+render_step_size = 1.0 / 50
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Create the Chrono system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+my_system.SetCollisionSystemType(chrono.ChCollisionSystemType.BULLET)
+
+# Set data paths
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Create first vehicle
+vehicle = veh.BMW_E90(my_system)
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# Create second vehicle
+vehicle2 = veh.BMW_E90(my_system)
+vehicle2.SetContactMethod(contact_method)
+vehicle2.SetChassisCollisionType(chassis_collision_type)
+vehicle2.SetChassisFixed(False)
+vehicle2.SetInitPosition(chrono.ChCoordsysD(initLoc2, initRot2))
+vehicle2.SetTireType(tire_model)
+vehicle2.SetTireStepSize(tire_step_size)
+vehicle2.Initialize()
+vehicle2.SetChassisVisualizationType(vis_type)
+vehicle2.SetSuspensionVisualizationType(vis_type)
+vehicle2.SetSteeringVisualizationType(vis_type)
+vehicle2.SetWheelVisualizationType(vis_type)
+vehicle2.SetTireVisualizationType(vis_type)
+
+# Create terrain with concrete texture
+terrain_mat = chrono.ChMaterialSurfaceNSC()
+terrain_mat.SetFriction(0.9)
+terrain_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(my_system)
+patch = terrain.AddPatch(terrain_mat,
+                        chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT),
+                        terrainLength=100.0, terrainWidth=100.0)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Visualization setup
+vis = irr.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Sedan Simulation')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(chrono.ChVectorD(-5,0,1.8), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+vis.AttachVehicle(vehicle2.GetVehicle())
+
+# Create drivers for both vehicles
+driver1 = veh.ChInteractiveDriverIRR(vis)  # Interactive for first vehicle
+driver2 = veh.ChDriver()  # Autonomous driver for second vehicle
+
+# Initialize drivers
+driver1.Initialize()
+driver2.Initialize()
+
+# Set driver parameters for interactive driver
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+driver1.SetSteeringDelta(render_step_size / steering_time)
+driver1.SetThrottleDelta(render_step_size / throttle_time)
+driver1.SetBrakingDelta(render_step_size / braking_time)
+
+# Simulation loop variables
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = my_system.GetChTime()
+
+    if step_number % int(render_step_size / step_size) == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get inputs for first vehicle (interactive)
+    driver1_inputs = driver1.GetInputs()
+
+    # Compute sinusoidal steering for second vehicle
+    steering2 = math.sin(time) * 0.5  # Example: amplitude 0.5
+    driver2.SetSteering(steering2)
+    driver2.SetThrottle(0.3)  # Example throttle
+    driver2.SetBrake(0.0)
+    driver2_inputs = driver2.GetInputs()
+
+    # Update modules for first vehicle
+    driver1.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver1_inputs, terrain)
+    vis.Synchronize(time, driver1_inputs)
+
+    # Update modules for second vehicle
+    driver2.Synchronize(time)
+    vehicle2.Synchronize(time, driver2_inputs, terrain)
+
+    # Advance all modules
+    driver1.Advance(step_size)
+    driver2.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vehicle2.Advance(step_size)
+    vis.Advance(step_size)
+
     step_number += 1
     realtime_timer.Spin(step_size)

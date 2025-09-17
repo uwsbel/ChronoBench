@@ -7,83 +7,71 @@ import pychrono.contact_surfaces
 
 
 
-chrono = pychrono.ChLink_NULL
-
-chrono.Init()
+chrono = pychrono.ChLink_denseMotionCreate(pychrono.ChSystemNSC())
 
 
 
 
-artcar = pychrono.ChRigidDynamicVehicle()
+terrain = pychrono.RigidTerrain_btCreateStatic(chrono)
 
-artcar.SetInertia(pychrono.ChVector(1.0, 1.0, 1.0), pychrono.ChVector(0.0, 0.0, 0.0))
+terrain.SetDimensions(100, 100, 10)
 
-artcar.SetMass(1000.0)
+terrain.SetDefaultContactMethod(pychrono.contact_surfaces.RigidSurface_btRigidSurface(pychrono.contact_surfaces.RigidSurface_btRigidSurface.eFLUID_STATIC_DEFOAMATION))
 
-artcar.SetRestitution(0.05)
-
-artcar.SetFriction(0.1)
-
-artcar.SetPosition(pychrono.ChVector(0.0, 0.0, 0.0))
-
-artcar.SetRotation(pychrono.ChQuaternion(0.0, 0.0, 0.0, 1.0))
-
-artcar.SetContactMethod(pychrono.ChContactMethod_kMPCDynamics)
-
-artcar.SetVisualizationType(pychrono.ChVehicleVisualization_kMPC_Forward)
+terrain.SetTexture("artcar_terrain.png")
 
 
 
 
-terrain = pychrono.ChRigidTerrain()
+artcar = pychrono.ChVectorD(0, 0, 0)
 
-terrain.SetDimensions(pychrono.ChVector(10.0, 10.0, 0.0))
+artcar.SetRotationXYZ(0, 0, 0)
 
-terrain.AddCustomTexture("terrain_texture.png")
+artcar.SetName("ARTcar")
 
+artcar.SetContactMethod(pychrono.contact_surfaces.RigidSurface_btRigidSurface(pychrono.contact_surfaces.RigidSurface_btRigidSurface.eFLUID_STATIC_DEFOAMATION))
 
+artcar.SetVisualizationType(pychrono.IrrlichtVisualization.eIRRI_LINE_DISTANCE)
 
+artcar.SetVisualization(pychrono.IrrlichtVisualization())
 
-driver = pychrono.ChDriverInteractive()
+artcar.SetColor(pychrono.IrrlichtVisualization.eIRRI_BLUE)
 
-driver.SetSteering(0.0)
+artcar.SetVisualizationType(pychrono.IrrlichtVisualization.eIRRI_LINE_DISTANCE)
 
-driver.SetThrottle(0.0)
+artcar.SetVisualization(pychrono.IrrlichtVisualization())
 
-driver.SetBraking(0.0)
-
-
-
-
-irr = pychrono.Irrlicht()
-
-irr.SetMainLoop(pychrono.Irrlicht.Irrlicht_MainLoop_Auto)
+artcar.SetColor(pychrono.IrrlichtVisualization.eIRRI_BLUE)
 
 
 
 
-def simulation_loop(timestep=0.02):
+driver = pychrono.ChDriver_btVehicleRoll(chrono)
 
-    while chrono.Ok():
+driver.SetSteeringGain(0.5)
 
-        
+driver.SetThrottleGain(0.5)
 
-        driver.Update(timestep)
-
-
-        
-
-        artcar.Advance(timestep)
+driver.SetBrakingGain(0.5)
 
 
-        
-
-        irr.Update()
 
 
-        
+def simulation_loop():
 
-        chrono.Sleep(1.0 / 50.0 - timestep)
+    while chrono.GetChTime() < 10:
+
+        chrono.DoStepDynamics(0.01)
+
+        driver.Update(chrono.GetChTime())
+
+        artcar.Update(chrono.GetChTime())
+
+        chrono.DoRecomputeDynamicsConstraints(True)
+
+        chrono.DoIntegrate(0.01)
+
+        pychrono.IrrlichtVisualization.Render(chrono)
 
 
 

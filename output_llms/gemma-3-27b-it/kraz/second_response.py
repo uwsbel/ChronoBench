@@ -78,9 +78,9 @@ vis.AttachVehicle(vehicle.GetTractor())
 driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
-steering_time = 1.0
-throttle_time = 1.0
-braking_time = 0.3
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3  # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -127,11 +127,16 @@ while vis.Run():
 
     # Double lane change maneuver
     if 20 < time < 30:
-        driver.SetSteering(0.5)
+        driver.SetSteering(0.5)  # Steer right
     elif 30 < time < 40:
-        driver.SetSteering(-0.5)
+        driver.SetSteering(-0.5)  # Steer left
     else:
-        driver.SetSteering(0)
+        driver.SetSteering(0)  # Straight
+
+    if 10 < time < 20:
+        driver.SetThrottle(1.0)  # Full throttle
+    else:
+        driver.SetThrottle(0.5) # Maintain speed
 
     # Spin in place for real time to catch up
     s.Spin(step_size)

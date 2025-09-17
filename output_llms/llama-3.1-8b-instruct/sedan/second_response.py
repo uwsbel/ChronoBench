@@ -168,12 +168,6 @@ while vis.Run() :
     vehicle2.Synchronize(time, driver_inputs2, terrain)
     vis.Synchronize(time, driver_inputs1, driver_inputs2)
 
-    # Apply sinusoidal steering input
-    steering_angle1 = 0.1 * math.sin(10 * time)
-    steering_angle2 = 0.1 * math.sin(20 * time)
-    driver1.SetSteeringAngle(steering_angle1)
-    driver2.SetSteeringAngle(steering_angle2)
-
     # Advance simulation for one timestep for all modules
     driver1.Advance(step_size)
     driver2.Advance(step_size)
@@ -181,6 +175,14 @@ while vis.Run() :
     vehicle1.Advance(step_size)
     vehicle2.Advance(step_size)
     vis.Advance(step_size)
+
+    # Apply sinusoidal steering input
+    steering_input1 = math.sin(time * 2 * math.pi / steering_time)
+    steering_input2 = math.sin(time * 2 * math.pi / steering_time + math.pi)
+
+    driver1.SetSteering(steering_input1)
+    driver2.SetSteering(steering_input2)
+
     # Increment frame number
     step_number += 1
 

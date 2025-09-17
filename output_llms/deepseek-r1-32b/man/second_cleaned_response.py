@@ -65,14 +65,13 @@ patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
-height_map = veh.GetDataFile('terrain/heightmaps/hm1.csv')
-patch = terrain.AddHeightMap(patch_mat,
-                            height_map,
-                            50.0,  
-                            1.0,   
-                            1.0,   
-                            100.0, 
-                            100.0) 
+height_scale = 5.0
+height_field = lambda x, z: height_scale * (math.sin(x / 10) + math.sin(z / 10) + 2)
+
+patch = terrain.AddPatch(patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+    terrainLength, terrainWidth,
+    height_field)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -80,7 +79,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('MAN 5t Demo')
+vis.SetWindowTitle('MAN 5t Demo on Hills')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 15.0, 0.5)
 vis.Initialize()

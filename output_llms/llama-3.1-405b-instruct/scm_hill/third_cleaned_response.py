@@ -61,7 +61,7 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -117,13 +117,11 @@ while vis.Run() :
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle.Synchronize(time, driver_inputs)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

@@ -27,11 +27,11 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Tracking point for camera
+# Point tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
-# Contact method changed to NSC
-contact_method = chrono.ChContactMethod_NSC
+# Contact method
+contact_method = chrono.ChContactMethod_NSC  # Changed from SMC to NSC
 contact_vis = False
 
 # Simulation step sizes
@@ -59,10 +59,23 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the Rigid Terrain with a single patch using heightmap
+# Create the Rigid Terrain with a single patch and heightmap
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysd(), veh.GetDataFile("terrain/height_maps/bump64.bmp"), -1, 1)
+
+# Add a patch using a heightmap
+patch = terrain.AddPatch(
+    chrono.CSYSNORM,  # Coordinate system
+    veh.RigidTerrain.HEIGHTMAP,  # Patch type
+    veh.GetDataFile("terrain/height_maps/bump64.bmp"),  # Heightmap file
+    terrainLength,  # X size
+    terrainWidth,   # Y size
+    0.02            # Height scaling factor
+)
+
+# Set texture for the terrain patch
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+
+# Initialize the terrain
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -89,32 +102,42 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Simulation loop
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
+# Number of simulation steps between rendering frames
 render_steps = math.ceil(render_step_size / step_size)
+
+# Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
+    # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
+    # Get driver inputs
     driver_inputs = driver.GetInputs()
 
+    # Update modules
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    # Advance simulation
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Increment frame number
     step_number += 1
+
+    # Spin in place for real time
     realtime_timer.Spin(step_size)

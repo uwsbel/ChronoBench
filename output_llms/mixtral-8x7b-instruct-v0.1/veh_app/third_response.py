@@ -138,8 +138,8 @@ manager.AddSensor(cam)
 
 # create lidar sensor
 offset_pose = chrono.ChFramed(
-        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    )
+    chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+)
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),              # Body lidar is attached to
     update_rate,            # Scanning rate in Hz
@@ -148,7 +148,7 @@ lidar = sens.ChLidarSensor(
     300,       # Number of vertical channels
     2 * chrono.CH_PI,         # Horizontal field of view
     chrono.CH_PI / 12,         # Maximum vertical field of view
-    -chrono.CH_PI / 6,         # Minimum vertical field of view
+    -chrono.CH_PI / 12,         # Minimum vertical field of view
     100.0,                  # Maximum lidar range
     sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
     2,          # Sample radius
@@ -165,6 +165,7 @@ lidar.PushFilter(sens.ChFilterDIAccess())
 lidar.PushFilter(sens.ChFilterPCfromDepth())
 # Provides the host access to the XYZI data
 lidar.PushFilter(sens.ChFilterXYZIAccess())
+# Visualize Point Cloud
 lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
 # Add the lidar to the sensor manager
 manager.AddSensor(lidar)
@@ -181,7 +182,7 @@ depth_cam = sens.ChDepthCameraSensor(
     30
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap())
+depth_cam.PushFilter(sens.ChFilterVisualizeDepthMap(image_width, image_height, 1.0, "Depth Camera"))
 manager.AddSensor(depth_cam)
 
 # ---------------
@@ -191,7 +192,7 @@ manager.AddSensor(depth_cam)
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
 end_time = 30
-vehicle_states = []
+vehicle_state_log = []
 while time < end_time:
     time = gator.GetSystem().GetChTime()
     # set driver inputs
@@ -213,14 +214,15 @@ while time < end_time:
     gator.Advance(step_size)
 
     # Log vehicle state
-    pos = gator.GetSystem().GetChBody(gator.GetChassisBody().GetId()).GetPos()
-    rot = gator.GetSystem().GetChBody(gator.GetChassisBody().GetId()).GetRot()
-    heading = rot.Q_to_Euler().Z
-    vehicle_states.append((time, pos.X, pos.Y, pos.Z, heading))
+    vehicle_state_log.append({
+        'time': time,
+        'position': gator.GetChassisBody().GetPos(),
+        'heading': gator.GetChassisBody().GetRot().Q_to_Euler()
+    })
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-print("Vehicle states:")
-for state in vehicle_states:
-    print(f"{state}")
+print("Vehicle state log:")
+for state in vehicle_state_log:
+    print(f"time: {state['time']}, position: {state['position']}, heading: {state['heading']}")

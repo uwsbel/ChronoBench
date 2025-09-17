@@ -82,13 +82,29 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the data-driven driver system
-driver_inputs = [
-    veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0),  # Time: 0.0, Throttle: 0, Steering: 0, Braking: 0
-    veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0),  # Time: 0.1, Throttle: 1, Steering: 0, Braking: 0
-    veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0)   # Time: 0.5, Throttle: 1, Steering: 0.7, Braking: 0
+# Create the driver system
+driver = veh.ChDataDriver()
+
+# Define driver input sequence
+driver_input_sequence = [
+    veh.DataDriverEntry(0.0, veh.ChVehicleInput(
+        throttle=0.0,
+        steering=0.0,
+        braking=0.0
+    )),
+    veh.DataDriverEntry(0.1, veh.ChVehicleInput(
+        throttle=1.0,
+        steering=0.0,
+        braking=0.0
+    )),
+    veh.DataDriverEntry(0.5, veh.ChVehicleInput(
+        throttle=1.0,
+        steering=0.7,
+        braking=0.0
+    )),
 ]
-driver = veh.ChDataDriver(driver_inputs)
+
+driver.Initialize(driver_input_sequence)
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -112,16 +128,15 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    driver.Advance(step_size)
     # Increment frame number
     step_number += 1
     # Spin in place for real time to catch up

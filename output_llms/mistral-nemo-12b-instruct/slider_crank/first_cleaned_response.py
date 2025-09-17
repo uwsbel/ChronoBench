@@ -47,32 +47,24 @@ motor.SetTargetSpeed(chrono.ChVectorD(5))
 simulation.Add(motor)
 
 
-simulation.SetTimestep(0.01)
+simulation.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
 
 irrlicht = irl.CIrrlicht()
 irrlicht.SetWindowSize(800, 600)
 irrlicht.SetWindowTitle("Crank-Slider Mechanism")
-irrlicht.AddEventListener("ESC", "quit")
-
-camera = irrlicht.GetCamera()
-camera.SetPosition(chrono.ChVectorD(3, 3, -5))
-camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-
-light = irrlicht.GetLightManager().AddLight()
-light.SetType(irl.ELT_DIRECTIONAL)
-light.SetPosition(chrono.ChVectorD(5, 5, 5))
-light.SetColor(irl.SColorf(1, 1, 1, 1))
+irrlicht.AddEventListener(chrono.ChIrrApp(simulation, irrlicht.GetVideoDriver(), irrlicht.GetSceneManager(), irrlicht.GetGuiEnvironment()))
 
 
-floor_tex = irrlicht.GetVideoDriver().getTexture("path/to/floor_texture.png")
-floor_mat = irrlicht.GetSceneManager().getMaterial("floor_mat")
-floor_mat.SetTexture(0, floor_tex)
-floor_mat.SetDiffuseColor(irl.SColor(255, 255, 255, 255))
-floor.AddMaterial(floor_mat)
+camera = irrlicht.GetSceneManager().AddCameraSceneNode(0, chrono.ChVectorD(1, 1, -5), chrono.ChVectorD(0, 0, 0))
+camera.SetFOV(60)
 
 
-while not irrlicht.IsQuit():
-    simulation.DoStep()
-    irrlicht.DrawAll()
-    irrlicht.ToggleFullscreen()
+light = irrlicht.GetSceneManager().AddLightSceneNode(0, chrono.ChVectorD(0, 10, 0), chrono.ChVectorD(1, 1, 1), 1000)
+
+
+irrlicht.GetSceneManager().AddLogoTextSceneNode(irrlicht.GetSceneManager().GetLogoTexture(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(10, 10, 10))
+
+
+while irrlicht.Run():
+    simulation.DoStepDynamics(0.01)

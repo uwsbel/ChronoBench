@@ -1,73 +1,90 @@
 import pychrono as pychrono
-from pychrono.vehicles import Vehicle, VehicleController
-from pychrono.gearboxes import DifferentialGearbox
-from pychrono.tires import SoftTire
-from pychrono.contact import Contact
-from pychrono import ROSManager
-from pychrono.input_handlers import KeyboardHandler
+from pychrono.ros import PyChronoROS
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 pychrono.init()
 
 
-vehicle = Vehicle("HMMWV", "ground", contact_method="force", engine_type="differential", tire_model="soft")
-
-vehicle.gearbox = DifferentialGearbox()
-
-vehicle.tires = [SoftTire(), SoftTire()]
-
-vehicle.mass = 1500  
-vehicle.inertia = np.array([100, 100, 100])  
-vehicle.center_of_mass = np.array([0, 0, 0])  
-vehicle.width = 2.5  
-vehicle.length = 5.0  
-vehicle.height = 1.5  
+vehicle_model = pychronoVehicle('HMMWV')
+vehicle_model.set_name('HMMWV')
+vehicle_model.set_contact_method(pychrono.Vehicle.CONTACT_FRICTION)  
+vehicle_model.set_tire_model('HMMWV')  
 
 
-terrain = pychrono.Terrain("ground", friction=0.2, restitution=0.3)
-terrain.size = 100  
-terrain.shape = "rect"  
-terrain.position = np.array([0, 0, 0])  
+terrain = pychrono.Terrain('flat', pychrono.Material.GRASS)
+terrain.set_friction(0.5)  
+terrain.set_restitution(0.3)  
 
 
-driver = pychrono.Driver()
-driver_controller = VehicleController(driver, vehicle)
-driver_controller.input_handler = KeyboardHandler()
-driver_controller.input_handler.set_period(100)  
+driver = pychrono.Driver('driver')
+driver.set_vehicle(vehicle_model)
+driver.set_control_mode(pychrono.Driver.CONTROL_MODE_ACCELERATION)
 
 
-ros_manager = pychrono.ROSManager()
-
-def clock_sync_handler():
-    ros_manager.clock_sync()
-clock_sync_handler = staticmethod(clock_sync_handler)
-ros_manager.register_handler("clock_sync", clock_sync_handler)
-
-def driver_input_handler():
-    driver_controller.input_handler.update()
-driver_input_handler = staticmethod(driver_input_handler)
-ros_manager.register_handler("driver_input", driver_input_handler)
-
-def vehicle_state_handler():
-    state = vehicle.get_state()
-    state publiation
-vehicle_state_handler = staticmethod(vehicle_state_handler)
-ros_manager.register_handler("vehicle_state", vehicle_state_handler)
+ros_manager = PyChronoROS()
+ros_manager.set_vehicle(vehicle_model)
+ros_manager.set_terrain(terrain)
 
 
-timestep = 0.01  
-for _ in range(1000):
+fig, ax = plt.subplots()
+position_plot, = ax.plot([], [], 'b-', linewidth=2)
+plt.title('Vehicle Position over Time')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.show()
+
+
+t = 0
+dt = 0.1  
+last_time = 0
+clock = pychrono.Clock()
+clock.set_dt(dt)
+
+
+ros_manager.register_handler('clock', clock)
+ros_manager.register_handler('driver_input', driver.input_callback)
+ros_manager.register_handler('vehicle_state', vehicle_model.state_callback)
+
+
+while True:
     
-    ros_manager.step()
+    current_time = clock.get_time()
+    dt = current_time - last_time
+    last_time = current_time
+
     
-    driver_controller.input_handler.update()
+    vehicle_model.update()
     
-    pychrono.simulate(timestep)
+    terrain.update()
     
-    terrain.step()
+    driver.update()
     
-    ros_manager.publish()
+    ros_manager.update()
+
+    
+    state = vehicle_model.get_state()
+    state['time'] = current_time
+    ros_manager.publish('vehicle_state', state)
+
+    
+    position_plot.set_ydata([state['y'], state['y']], dt)
+    plt.draw()
+
+    
+    if ros_manager.has_message('driver_input'):
+        input = ros_manager.get_message('driver_input')
+        driver.set_input(input.steering, input.acceleration, input.brakes)
+
+    
+    if vehicle_model.is_colliding():
+        print("Vehicle collision detected!")
+
+    
+    t += dt
+    if t > 10:
+        break
 
 
-pychrono.terminate()
+plt.close()

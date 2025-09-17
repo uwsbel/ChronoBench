@@ -5,7 +5,6 @@ import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
-from pychrono.sensor import *
 
 
 system = chrono.ChSystemNSC()
@@ -42,22 +41,6 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFrame(init_pos, init_rot))
 
 
-manager = sens.ChSensorManager(system)
-
-
-lidar_update_rate = 10  
-lidar = sens.ChLidarSensor(rover.GetChassisBody(), lidar_update_rate, chrono.ChFrame(chrono.ChVector3d(0, 0, 0.3), chrono.Q_from_AngZ(0)),
-                           100, chrono.CH_C_PI / 4,  
-                           100, chrono.CH_C_PI / 8)  
-lidar.SetName("Lidar Sensor")
-lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
-lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_data/"))
-
-
-manager.AddSensor(lidar)
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -71,26 +54,46 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
 
 
+manager = sens.ChSensorManager(system)
+
+
+update_rate = 10
+horizontal_samples = 4500
+vertical_samples = 32
+horizontal_fov = 2 * math.pi
+vertical_fov = math.radians(26.8)
+max_distance = 100
+lidar_pose = chrono.ChFrame(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+
+
+lidar = sens.ChLidarSensor(rover.GetChassisBody(), update_rate, lidar_pose, horizontal_samples, vertical_samples, horizontal_fov, vertical_fov, max_distance)
+lidar.PushFilter(sens.ChFilterDIArea())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1.0))
+
+
+manager.AddSensor(lidar)
+
+
 time_step = 1e-3
 
 
 time = 0
 while vis.Run():
     time += time_step
-
+    
     
     driver.SetSteering(0.0)
-
+    
     
     rover.Update()
-
+    
     
     manager.Update()
-
+    
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-
+    
     
     system.DoStepDynamics(time_step)

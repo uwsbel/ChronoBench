@@ -16,8 +16,10 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PACEJKA89)
-tire_model = veh.TireModelType_PACEJKA89
+# Type of tire model (RIGID, TMEASY, PACEJKA)
+tire_model = veh.TireModelType_PACEJKA
+# Pacejka version
+pacejka_version = 89
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -45,7 +47,7 @@ vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)
+vehicle.SetTireType(tire_model, pacejka_version)
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()

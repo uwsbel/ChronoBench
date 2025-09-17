@@ -1,69 +1,44 @@
 import pychrono
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.simulation import Simulation
+import random
 
-# 1. Initialize PyChrono environment
-try:
-    simulation = Simulation()
-except Exception as e:
-    print(f"Error initializing PyChrono: {e}")
-    exit()
+def simulate_gravity(num_particles, initial_positions, initial_velocities, initial_orientations):
+    """
+    Simulates gravitational attraction between particles.
 
-# 2. Define Physical Systems and Objects
-# Particles
-particles = []
-num_particles = 100
+    Args:
+        num_particles (int): The number of particles to simulate.
+        initial_positions (np.ndarray): A 2D numpy array representing the initial positions of the particles.
+        initial_velocities (np.ndarray): A 2D numpy array representing the initial velocities of the particles.
+        initial_orientations (np.ndarray): A 2D numpy array representing the initial orientations of the particles.
+    """
 
-for i in range(num_particles):
-    position = np.random.rand(3) * 10  # Random position between 0 and 10
-    velocity = np.random.rand(3) * 5  # Random velocity between -5 and 5
-    orientation = np.random.rand(3) * 2 * np.pi  # Random orientation between 0 and 2*pi
-    
-    particles.append({
-        'position': position,
-        'velocity': velocity,
-        'orientation': orientation
-    })
+    # Initialize PyChrono environment
+    env = pychrono.Environment()
 
-# 3. Define Gravitational Forces
-gravity_strength = 10  # Adjust for desired strength
-gravity_radius = 1.0  # Adjust for desired radius
+    # Create the simulation
+    env.create_simulation(num_particles, initial_positions, initial_velocities, initial_orientations)
 
-for particle in particles:
-    # Calculate gravitational force
-    force = np.array([0.0, 0.0, gravity_strength])
-    
-    # Apply force to the particle
-    particle['force'] = force
-    
-    # Update particle position based on force
-    particle['position'] = particle['position'] + particle['force'] * particle['velocity']
-    
-    # Update particle orientation based on force
-    particle['orientation'] = particle['orientation'] + particle['force'] * particle['velocity']
-    
-    # Optional:  Add a small damping term to prevent infinite acceleration
-    particle['acceleration'] = -gravity_strength * particle['position']
-    
-# 4. Visualization (using Irrlicht)
-fig, ax = plt.subplots()
-ax.set_xlim(-10, 10)
-ax.set_ylim(-10, 10)
-ax.set_aspect('equal')
-ax.set_title('Particle Attraction Simulation')
+    # Simulation loop
+    for i in range(num_particles):
+        # Update particle positions and velocities
+        env.update(i)
 
-for particle in particles:
-    particle['color'] = 'blue'
-    ax.plot(particle['position'], particle['orientation'], 'r-', lw=2)  # Plot particle position and orientation
-    
-# Add some visual noise
-for i in range(len(particles)):
-    ax.scatter(particles[i]['position'], particles[i]['orientation'], color='gray', s=50)
+    # Visualize the simulation
+    plt.figure(figsize=(8, 6))
+    plt.imshow(env.get_state(), cmap='viridis')
+    plt.title("Gravitational Simulation")
+    plt.colorbar()
+    plt.show()
 
-plt.show()
 
-# 5. Simulation Execution
-simulation.run(num_particles)
+if __name__ == '__main__':
+    # Simulation parameters
+    num_particles = 100
+    initial_positions = np.random.rand(num_particles, 2) * 10  # Random positions in a 10x10 grid
+    initial_velocities = np.random.rand(num_particles, 2) * 0.1  # Random velocities
+    initial_orientations = np.random.rand(num_particles, 2) * np.pi / 180  # Random initial orientations
 
-print("Simulation complete.")
+    # Run the simulation
+    simulate_gravity(num_particles, initial_positions, initial_velocities, initial_orientations)

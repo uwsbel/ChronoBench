@@ -85,56 +85,41 @@ class PathFollower:
         self.vehicle = vehicle
         self.radius = radius
         self.center = chrono.ChVector3d(0, 0, 0)
-        self.target_point = chrono.ChVector3d(radius, 0, 0)
-        self.sentinel_point = chrono.ChVector3d(radius * math.cos(math.pi / 2), radius * math.sin(math.pi / 2), 0)
+        self.target = chrono.ChVector3d(radius, 0, 0)
+        self.sentinal = chrono.ChVector3d(radius * math.cos(math.pi / 2), radius * math.sin(math.pi / 2), 0)
 
         self.Kp = 0.5  
         self.Ki = 0.1  
         self.Kd = 0.1  
 
         self.error_integral = 0
-        self.previous_error = 0
+        self.error_previous = 0
 
     def update(self, time):
         
         vehicle_pos = self.vehicle.GetVehicle().GetPos()
 
         
-        distance = math.sqrt((vehicle_pos.x() - self.target_point.x()) ** 2 + (vehicle_pos.y() - self.target_point.y()) ** 2)
-
-        
-        error = distance - self.radius
+        error = math.sqrt((vehicle_pos.x() - self.target.x())**2 + (vehicle_pos.y() - self.target.y())**2) - self.radius
 
         
         self.error_integral += error * 0.01
+        error_derivative = (error - self.error_previous) / 0.01
+        self.error_previous = error
 
         
-        derivative = (error - self.previous_error) / 0.01
-
-        
-        self.previous_error = error
-
-        
-        steering_input = self.Kp * error + self.Ki * self.error_integral + self.Kd * derivative
+        steering_input = self.Kp * error + self.Ki * self.error_integral + self.Kd * error_derivative
 
         
         steering_input = max(-1, min(steering_input, 1))
 
         
-        return veh.DriverInputs(steering_input, 0.3, 0)
+        throttle = 0.3
+
+        return chrono.ChDriverInputs(throttle, steering_input, 0)
+
 
 path_follower = PathFollower(vehicle, 20)
-
-
-sentinel_sphere = chrono.ChBodyEasySphere(0.2, 1000, chrono.ChMaterialNSC())
-sentinel_sphere.SetPos(path_follower.sentinel_point)
-sentinel_sphere.SetColor(chrono.ChColor(1, 0, 0))
-vehicle.GetSystem().AddBody(sentinel_sphere)
-
-target_sphere = chrono.ChBodyEasySphere(0.2, 1000, chrono.ChMaterialNSC())
-target_sphere.SetPos(path_follower.target_point)
-target_sphere.SetColor(chrono.ChColor(0, 1, 0))
-vehicle.GetSystem().AddBody(target_sphere)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -146,6 +131,11 @@ while vis.Run():
 
     if step_number % math.ceil(render_step_size / step_size) == 0:
         vis.BeginScene()
+
+        
+        vis.RenderSphere(0.5, path_follower.sentinal, chrono.ChColor(1, 0, 0))
+        vis.RenderSphere(0.5, path_follower.target, chrono.ChColor(0, 1, 0))
+
         vis.Render()
         vis.EndScene()
         render_frame += 1
@@ -154,13 +144,13 @@ while vis.Run():
     driver_inputs = path_follower.update(time)
 
     
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
     vis.Synchronize(time, driver_inputs)
 
     
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
     

@@ -4,7 +4,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens
+import pychrono.sensor as sens  # Added sensor module import
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -40,32 +40,30 @@ init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
-# Create a sensor manager
-manager = sens.ChSensorManager(system)
+# Create sensor manager
+manager = sens.ChSensorManager(system)  # Added sensor manager
 
-# Define lidar parameters
-lidar_update_rate = 10  # Hz
-horizontal_samples = 512
-vertical_samples = 64
-horizontal_fov = math.radians(360)
-vertical_fov = math.radians(26.8)
-max_range = 100  # meters
-lidar_position = chrono.ChVector3d(0, 0, 1.8)
-lidar_rotation = chrono.ChQuaterniond(1, 0, 0, 0)
-
-# Create the lidar sensor
-lidar = sens.ChLidarSensor(rover.GetChassisBody(), lidar_position, lidar_rotation, 
-                           lidar_update_rate, horizontal_samples, vertical_samples, 
-                           horizontal_fov, vertical_fov, max_range)
-
-# Set up filters for the lidar data
-lidar.SetMinDistance(0.1)  # meters
-lidar.SetMaxDistance(max_range)  # meters
-lidar.SetNoiseLevel(0.01)  # meters
-lidar.SetDropProbability(0.05)
-
-# Add the lidar sensor to the sensor manager
-manager.AddSensor(lidar)
+# Create lidar sensor
+lidar_update_rate = 10.0  # Hz
+lidar_horizontal_samples = 512
+lidar_vertical_samples = 64
+lidar_horizontal_fov = math.radians(360.0)
+lidar_vertical_fov = math.radians(26.8)
+lidar_range = 100.0  # meters
+lidar_noise = 0.01  # meters
+lidar = sens.ChLidarSensor(rover.GetChassisBody(),  # Added lidar sensor
+                          lidar_update_rate,
+                          lidar_horizontal_samples,
+                          lidar_vertical_samples,
+                          lidar_horizontal_fov,
+                          lidar_vertical_fov,
+                          lidar_range,
+                          lidar_noise)
+lidar.SetName("Lidar")
+lidar.SetPosition(chrono.ChVector3d(0, 0, 1.5))
+lidar.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.AddFilter(sens.ChFilterPassAll())  # Added filter
+manager.AddSensor(lidar)  # Added lidar sensor to manager
 
 # Create the Irrlicht visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -98,7 +96,7 @@ while vis.Run():
     rover.Update()
 
     # Update sensor manager
-    manager.Update()
+    manager.Update()  # Added sensor manager update
 
     # Render the scene
     vis.BeginScene()

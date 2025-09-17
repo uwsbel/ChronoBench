@@ -1,6 +1,7 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
+import numpy as np
 
 # Initial vehicle location and orientation
 initLoc = chrono.ChVector3d(-20, 0, 1.5)
@@ -16,7 +17,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain with height map
-terrainHeight = 0  # terrain height (not used with height map)
+terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
 
@@ -34,9 +35,7 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the MAN 5t vehicle, set parameters, and initialize
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+# Create the MAN vehicle, set parameters, and initialize
 vehicle = veh.MAN_5t()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -57,9 +56,11 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-mesh_file = veh.GetDataFile("terrain/meshes/test.obj")
-texture_file = veh.GetDataFile("terrain/textures/grass.jpg")
-terrain.AddMesh(patch_mat, mesh_file, 1.0, chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(chrono.QUNIT))
+mesh_file = veh.GetDataFile("terrain/meshes/bump.obj")
+terrain.AddMesh(patch_mat, mesh_file, 1.0, chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0))
+patch = terrain.GetMesh()
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -85,11 +86,11 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# Output vehicle mass
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = round(render_step_size / step_size)
+render_steps = int(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -126,5 +127,3 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-# The modified code is provided above.

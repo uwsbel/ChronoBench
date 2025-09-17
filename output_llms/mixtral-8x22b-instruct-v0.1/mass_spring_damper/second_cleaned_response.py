@@ -67,6 +67,9 @@ body_2.AddVisualShape(box_2)
 
 spring_2 = chrono.ChLinkTSDA()
 spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
+spring_2.SetRestLength(rest_length)
+spring_2.SetSpringCoefficient(0)
+spring_2.SetDampingCoefficient(0)
 spring_2.SetForceFunctor(MySpringForce(spring_coef, damping_coef))
 sys.AddLink(spring_2)
 

@@ -14,22 +14,14 @@ def main():
     
     
     
-    side = 2.0  
+    
+    side = 1.0  
 
     
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))  
     box_body.SetFixed(True)  
     mphysicalSystem.Add(box_body)  
-
-    
-    box_shape = chrono.ChVisualShapeBox()
-    box_shape.SetLengths(chrono.ChVector3d(side, side, side))
-    box_shape.SetName("Box Shape")
-    box_shape.SetMutable(False)  
-
-    
-    box_body.AddVisualShape(box_shape)
 
     
     
@@ -58,7 +50,7 @@ def main():
         offset_pose,           
         image_width,           
         image_height,          
-        fov                    
+        fov                     
     )
     cam.SetName("Camera Sensor")
     cam.SetLag(lag)  

@@ -6,7 +6,6 @@ from std_msgs.msg import Int64
 
 class MyCustomHandler(chros.ChROSHandler):
     
-
     def __init__(self, topic, publish_rate):
         super().__init__(publish_rate)  
         self.topic = topic
@@ -28,7 +27,6 @@ class MyCustomHandler(chros.ChROSHandler):
         self.publisher.publish(msg)  
         self.ticker += 1  
 
-
 def main():
     
     sys = ch.ChSystemNSC()
@@ -43,7 +41,7 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture("textures/concrete.jpg")  
+    floor.SetTexture("textures/concrete.png")  
     sys.Add(floor)  
 
     
@@ -51,7 +49,7 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture("textures/wood.jpg")  
+    box.SetTexture("textures/wood.png")  
     sys.Add(box)  
 
     
@@ -80,9 +78,9 @@ def main():
     vis = ch.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('PyChrono Simulation')
+    vis.SetWindowTitle('PyChrono ROS Example')
     vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, 0, -10), ch.ChVector3d(0, 0, 0))
+    vis.AddCamera(ch.ChVector3d(10, 10, -10))
     vis.AddTypicalLights()
 
     
@@ -109,11 +107,11 @@ def main():
         
         if render_steps >= render_step_size:
             vis.Render()
-            vis.GetScene().GetSkyBox().SetColor(ch.ChColor(0.2, 0.3, 0.4))
+            vis.GetRenderEngine().EndScene()
             render_steps = 0
 
         realtime_timer.Spin(time_step)  
 
     
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()

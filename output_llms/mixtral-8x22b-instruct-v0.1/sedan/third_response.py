@@ -68,14 +68,21 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetDriveline().GetActualGearRatio() * vehicle.GetVehicle().GetDriveline().GetMotorSpeed()
+    current_speed = vehicle.GetVehicle().GetDriveline().GetActualGearRatio() * vehicle.GetVehicle().GetDriveline().GetActualTransmissionRatio() * vehicle.GetVehicle().GetDriveline().GetActualWheelSpeed()
     speed_error = reference_speed - current_speed
 
-    # PID control for throttle
+    # Update integral and derivative terms
     integral += speed_error * step_size
     derivative = (speed_error - last_error) / step_size
+
+    # Calculate PID output
     throttle = Kp * speed_error + Ki * integral + Kd * derivative
-    last_error = speed_error
+
+    # Clamp throttle value between 0 and 1
+    throttle = max(0, min(throttle, 1))
+
+    # Update driver inputs with calculated throttle
+    driver_inputs.m_throttle = throttle
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

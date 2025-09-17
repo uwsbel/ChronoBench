@@ -14,7 +14,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
-        self.message = "Hello, world! At time: "  # Added a message attribute.
+        self.message = "Hello, world! At time: "  # Added message attribute
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         """Initialize the ROS publisher."""
@@ -25,9 +25,9 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         """Publish a string message to the ROS topic."""
-        print(f"Publishing {self.message} {self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  # Create a message object of type String.
-        msg.data = self.message + str(self.ticker)  # Set the message data to the concatenated string.
+        msg.data = self.message + str(self.ticker)  # Set the message data to the current ticker value.
         self.publisher.publish(msg)  # Publish the message to the ROS topic.
         self.ticker += 1  # Increment the ticker for the next message.
 

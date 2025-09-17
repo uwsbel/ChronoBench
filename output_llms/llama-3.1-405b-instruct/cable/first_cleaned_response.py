@@ -10,61 +10,58 @@ mysystem = chrono.ChSystemNSC()
 
 
 ground = chrono.ChBodyEasyBox(mysystem,  
-                              10, 10, 1,  
-                              1000,       
-                              True,       
-                              True)       
-ground.SetBodyFixed(True)
+                              1, 1, 1,  
+                              1000,     
+                              True,     
+                              True,     
+                              ground_material=chrono.ChMaterialSurfaceNSC())
+
+
+num_elements = 10
+num_nodes = num_elements + 1
+beam_nodes = []
+for i in range(num_nodes):
+    node = chrono.ChNodeFEAxyzD(mysystem)
+    node.SetMass(1.0)
+    node.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+    node.SetPos(chrono.ChVectorD(i, 0, 0))
+    beam_nodes.append(node)
+
+
+for i in range(num_elements):
+    element = chrono.ChElementCableANCF(mysystem)
+    element.SetNodes(beam_nodes[i], beam_nodes[i + 1])
+    element.SetYoungModulus(1e6)
+    element.SetArea(0.01)
+    element.SetDamping(0.01)
+
+
+for node in beam_nodes:
+    mysystem.Add(node)
+
+
 mysystem.Add(ground)
 
 
-beam_length = 5.0
-beam_nodes = 10
-beam_elements = beam_nodes - 1
-
-node_mass = 1.0
-node_radius = 0.1
-
-nodes = []
-for i in range(beam_nodes):
-    node = chrono.ChNodeFEAxyzD(mysystem)
-    node.SetMass(node_mass)
-    node.SetPos(chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0))
-    nodes.append(node)
-
-elements = []
-for i in range(beam_elements):
-    element = chrono.ChElementCableANCF(mysystem)
-    element.SetNodes(nodes[i], nodes[i + 1])
-    element.SetEA(10000)  
-    elements.append(element)
-
-
-for node in nodes:
-    mysystem.Add(node)
-for element in elements:
-    mysystem.Add(element)
-
-
-hinge = chrono.ChLinkMateFixPointPoint(mysystem)
-hinge.Initialize(nodes[0], ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+hinge = chrono.ChLinkMateGeneric()
+hinge.Initialize(ground, beam_nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
 mysystem.Add(hinge)
 
 
-gravity = chrono.ChForceGravity(mysystem)
-mysystem.Add(gravity)
+g = chrono.ChVectorD(0, -9.81, 0)
+mysystem.Set_G_acc(g)
 
 
-application = chronoirr.ChIrrApp(mysystem, "PyChrono Simulation", chronoirr.dimension2du(800, 600))
-application.AddTypicalSky()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
-application.AddTypicalLights()
-application.AssetBindAll()
-application.AssetUpdateAll()
+myapplication = chronoirr.ChIrrApp(mysystem, 'PyChrono example', chronoirr.dimension2du(800, 600))
 
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStepDynamics(0.01)
+    myapplication.EndScene()
+
+    
+    for i, node in enumerate(beam_nodes):
+        pos = node.GetPos()
+        print(f"Node {i+1} position: {pos.x}, {pos.y}, {pos.z}")

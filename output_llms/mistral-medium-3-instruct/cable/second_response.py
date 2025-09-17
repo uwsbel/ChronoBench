@@ -14,7 +14,7 @@ class Model1:
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
         msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section (0.01 GPa)
-        msection_cable2.SetRayleighDamping(0.0001)  # Set Rayleigh damping to 0.0001 for this section
+        msection_cable2.SetRayleighDamping(0.0001)  # Changed Rayleigh damping to 0.0001
 
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
@@ -30,7 +30,7 @@ class Model1:
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
-        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Apply forces to the front node
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # Changed applied force to (0, -0.7, 0)
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
@@ -83,8 +83,8 @@ solver = chrono.ChSolverMINRES()  # Changed to MINRES solver
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
-solver.SetMaxIterations(200)  # Set maximum number of iterations
-solver.SetTolerance(1e-10)  # Set solver tolerance
+solver.SetMaxIterations(200)  # Set maximum iterations to 200
+solver.SetTolerance(1e-10)  # Set tolerance to 1e-10
 solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
 solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output

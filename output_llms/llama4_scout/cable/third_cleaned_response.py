@@ -10,7 +10,9 @@ import pychrono.irrlicht as chronoirr
 class Model1:
     def __init__(self, system, mesh, n_chains=6):
         self.n_chains = n_chains
+        self.chains = []
         self.end_bodies = []
+
         for i in range(n_chains):
             
             msection_cable2 = fea.ChBeamSectionCable()
@@ -23,23 +25,26 @@ class Model1:
 
             
             num_elements = 10 + i * 2  
+            start_point = chrono.ChVector3d(-0.5 + i * 0.1, 0, -0.1)  
+            end_point = chrono.ChVector3d(-0.5 + i * 0.1, 0, -0.1 - 0.5)  
+
             builder.BuildBeam(
                 mesh,  
                 msection_cable2,  
                 num_elements,  
-                chrono.ChVector3d(0, -i * 0.2, -0.1),  
-                chrono.ChVector3d(0.5, -i * 0.2, -0.1)  
+                start_point,  
+                end_point  
             )
 
             
             
-            end_node = builder.GetLastBeamNodes().front()
-            end_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  
+            last_node = builder.GetLastBeamNodes().front()
+            last_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  
 
             
             mtruss = chrono.ChBody()
             mtruss.SetFixed(True)  
-            system.Add(mtruss)  
+            system.Add(mtruss)
 
             
             constraint_hinge = fea.ChLinkNodeFrame()
@@ -48,18 +53,20 @@ class Model1:
 
             
             end_body = chrono.ChBody()
-            end_body.SetPos(end_node.GetPos())
+            end_body.SetPos(last_node.GetPos())
             system.Add(end_body)
             self.end_bodies.append(end_body)
 
             
-            constraint = chrono.ChLinkLock()
-            constraint.Initialize(end_node, end_body)
-            system.Add(constraint)
+            constraint_end = chrono.ChLinkLock()
+            constraint_end.Initialize(end_body, builder.GetLastBeamNodes().back())
+            system.Add(constraint_end)
+
+            self.chains.append((mtruss, last_node, end_body))
 
     def PrintBodyPositions(self):
-        for i, body in enumerate(self.end_bodies):
-            print(f"Chain {i+1} end body position: {body.GetPos()}")
+        for i, (_, _, end_body) in enumerate(self.chains):
+            print(f"Chain {i+1} end body position: {end_body.GetPos()}")
 
 
 sys = chrono.ChSystemSMC()

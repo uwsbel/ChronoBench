@@ -48,6 +48,9 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
+
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -67,10 +70,10 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway_mesh.jpg"), 200, 200)  
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -97,7 +100,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-reference_speed = 10.0  
+ref_speed = 10.0  
 
 
 kp = 0.1
@@ -142,8 +145,8 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    error = reference_speed - current_speed
+    speed = vehicle.GetVehicle().GetSpeed()
+    error = ref_speed - speed
 
     
     integral += error * step_size

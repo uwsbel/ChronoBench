@@ -47,21 +47,21 @@ for iz in range(nsections_z + 1):
 # Node Monitoring and Loading Setup
 nodePlotA = mynodes[0]
 nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[i] for i in range(nsections_x + 1)]
+nodesLoad = [nodePlotA, nodePlotB]
 
 def ref_X(t):
     return 0.1 * t
 
 def ref_Y(t):
-    return 0.1 * t
+    return 0.2 * t
 
-load_force = chrono.ChVector3d(1, 0, 0)
+load_force = chrono.ChVectorD(1, 0, 0)
 
 # Create elements
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
-        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
+        boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if ix < nsections_x else None
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
 

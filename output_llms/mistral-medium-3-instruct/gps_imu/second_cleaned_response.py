@@ -169,16 +169,19 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time < 3.0:
+    if time < 2.0:
         driver_inputs.m_throttle = 0.5  
         driver_inputs.m_steering = 0.0  
-    elif time < 6.0:
+    elif time < 4.0:
         driver_inputs.m_throttle = 0.8  
         driver_inputs.m_steering = 0.2  
+    elif time < 6.0:
+        driver_inputs.m_throttle = 0.3  
+        driver_inputs.m_steering = -0.1 
     else:
         driver_inputs.m_throttle = 0.0  
-        driver_inputs.m_braking = 0.5   
         driver_inputs.m_steering = 0.0  
+        driver_inputs.m_braking = 0.5   
 
     
     driver.Synchronize(time)

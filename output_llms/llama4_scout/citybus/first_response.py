@@ -3,79 +3,90 @@ import chrono.irrlicht as irr
 import math
 
 # Initialize PyChrono environment
-ch.CHORKB.Enable(True)
-
-# Create the simulation system
-system = ch.ChSystem()
+ch.CH_INIT()
 
 # Create the Irrlicht application
-app = irr.IrrlichtApplication(system)
+app = irr.IrrlichtApplication()
+app.Init()
 
-# Create a rigid terrain
+# Create the simulation system
+sys = ch.ChSystem()
+
+# Create the rigid terrain
 terrain = ch.ChTerrain()
 terrain.SetGridSize(100, 100)
 terrain.SetPos(ch.ChVector3d(0, 0, 0))
-terrain.SetTexture(ch.ChVector3d(10, 10), "chrono_textures/sand.jpg")
-
-# Add terrain to the system
-system.Add(terrain.GetGroundBody())
+terrain.SetTexture(ch.ChTexture("chrono_textures/sand.jpg"))
+terrain.RegisterTerrainRenderMode(irr.ETerrainRenderMode.SOLID)
+sys.Add(terrain)
 
 # Create the CityBus vehicle
-citybus = ch.ChVehicle()
+vehicle = ch.ChVehicle()
 
-# Define vehicle parameters
-vehicle_mass = 15000  # kg
-vehicle_CG = ch.ChVector3d(0, 0, 1.5)  # m
+# Set vehicle parameters
+vehicle.SetLocation(ch.ChVector3d(0, 0, 1))
+vehicle.SetOrientation(ch.ChQuaterniond(1, 0, 0, 0))
 
-# Create vehicle chassis
-chassis = ch.ChBody()
-chassis.SetMass(vehicle_mass)
-chassis.SetPos(ch.ChVector3d(0, 0, 1.5))
-chassis.SetRot(ch.ChQuaternion(1, 0, 0, 0))
+# Create the vehicle body
+body = ch.ChBody()
+body.SetMass(1000)
+body.SetInertiaXX(ch.ChVector3d(100, 100, 100))
+body.SetPos(ch.ChVector3d(0, 0, 1))
+sys.Add(body)
 
-# Add chassis to the vehicle and system
-citybus.SetChassisBody(chassis)
-system.Add(chassis)
+# Create the tire models
+tire_LF = ch.ChTire()
+tire_LF.SetTireModel(ch.ChTireModel.RIGID)
+tire_LF.SetRadius(0.5)
+tire_LF.SetWidth(0.2)
+vehicle.AddTire(tire_LF, ch.ChVector3d(-1, -0.5, 0), ch.ChQuaterniond(1, 0, 0, 0))
 
-# Create and add wheels and axles
-# Assume 4 wheels for simplicity
-for i in range(4):
-    wheel = ch.ChBody()
-    wheel.SetPos(ch.ChVector3d(2 - i % 2 * 4, 0, 0.5))
-    wheel.SetRot(ch.ChQuaternion(1, 0, 0, 0))
-    system.Add(wheel)
-    citybus.AddWheel(wheel)
+tire_RF = ch.ChTire()
+tire_RF.SetTireModel(ch.ChTireModel.RIGID)
+tire_RF.SetRadius(0.5)
+tire_RF.SetWidth(0.2)
+vehicle.AddTire(tire_RF, ch.ChVector3d(1, -0.5, 0), ch.ChQuaterniond(1, 0, 0, 0))
 
-# Create and add a simple tire model
-tire = ch.ChTire()
-tire.SetTireMass(50)
-tire.SetTireRadius(0.5)
-citybus.SetTire(tire)
+tire_LR = ch.ChTire()
+tire_LR.SetTireModel(ch.ChTireModel.RIGID)
+tire_LR.SetRadius(0.5)
+tire_LR.SetWidth(0.2)
+vehicle.AddTire(tire_LR, ch.ChVector3d(-1, 0.5, 0), ch.ChQuaterniond(1, 0, 0, 0))
 
-# Set vehicle visualization
-chassis_vis = ch.ChVisualShape()
-chassis_vis.SetShapeType(ch.ChVisualShape.eMesh)
-chassis_vis.SetMeshFile("chrono_models/vehicle/citybus/chassis.obj")
-chassis.AddVisualShape(chassis_vis)
+tire_RR = ch.ChTire()
+tire_RR.SetTireModel(ch.ChTireModel.RIGID)
+tire_RR.SetRadius(0.5)
+tire_RR.SetWidth(0.2)
+vehicle.AddTire(tire_RR, ch.ChVector3d(1, 0.5, 0), ch.ChQuaterniond(1, 0, 0, 0))
 
-wheel_vis = ch.ChVisualShape()
-wheel_vis.SetShapeType(ch.ChVisualShape.eCylinder)
-wheel_vis.SetCylinderGeometry(0.5, 0.2)
-for wheel in citybus.GetWheels():
-    wheel.AddVisualShape(wheel_vis)
-
-# Create interactive driver system
+# Create the driver system
 driver = ch.ChDriver()
 driver.SetThrottle(0.5)
 driver.SetSteering(0.2)
-citybus.SetDriver(driver)
+driver.SetBraking(0.1)
+vehicle.SetDriver(driver)
 
-# Set camera
+# Add visualization shapes for vehicle parts
+chassis_vis = ch.ChVisualShape()
+chassis_vis.SetShapeType(ch.ChVisualShapeType.MESH)
+chassis_vis.SetMesh(ch.ChTriangleMeshShape("chrono_models/vehicle/citybus/chassis.obj"))
+body.AddVisualShape(chassis_vis)
+
+wheel_LF_vis = ch.ChVisualShape()
+wheel_LF_vis.SetShapeType(ch.ChVisualShapeType.PRIMITIVE)
+wheel_LF_vis.SetPrimitive(ch.ChCylinderShape(0.5, 0.2))
+tire_LF.GetTireBody().AddVisualShape(wheel_LF_vis)
+
+# Set camera position and orientation
 camera = app.GetCamera()
-camera.SetPosition(ch.ChVector3d(0, -10, 5))
-camera.LookAt(ch.ChVector3d(0, 0, 0))
+camera.SetPosition(ch.ChVector3d(0, -5, 2))
+camera.SetTarget(body.GetPos())
 
 # Simulation loop
 while app.Run():
-    system.Update(1 / 50)
+    sys.Update(1 / 50)
     app.Render()
+    camera.SetPosition(ch.ChVector3d(body.GetPos().x() + 5, body.GetPos().y() - 5, 2))
+    camera.SetTarget(body.GetPos())
+
+app.Exit()

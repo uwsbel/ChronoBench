@@ -28,6 +28,22 @@ init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
 robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
 robot.Initialize()  # Initialize the robot
 
+# Define WheelID enum values for motor control
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+# Function to control Turtlebot movement
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
 # Create run-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
@@ -45,40 +61,28 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 sensor_manager = sens.ChSensorManager(system)
 sensor_manager.scene.Add(ground)
 
-# Configure lidar sensor
+# Configure and add a lidar sensor
 lidar = sens.ChLidarSensor(robot.GetChassisBody(),  # body lidar is attached to
                            10,  # scan rate in Hz
-                           chrono.ChFrame(chrono.ChVector3d(0, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_X)),  # offset pose
+                           chrono.ChFrame(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  # offset pose
                            100,  # number of horizontal samples
-                           1,  # number of vertical channels
+                           10,  # number of vertical channels
                            chrono.CH_C_PI,  # horizontal field of view
-                           chrono.CH_C_PI / 16.)  # vertical field of view
-lidar.SetName("Lidar Sensor")
-# lidar.PushFilter(sens.ChFilterDIAccess())
-lidar.PushFilter(sens.ChFilterVisualize(512, 256, 1))
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePoints(640, 480, 1))
+                           chrono.CH_C_PI / 6,  # vertical field of view
+                           0.1,  # min distance
+                           10)  # max distance
+
+lidar.PushFilter(sens.ChFilterDIArea())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
 sensor_manager.AddSensor(lidar)
 
 # Add randomly placed boxes
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), 1000, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 2)))
+    box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), 0.5))
     system.Add(box)
     sensor_manager.scene.Add(box)
-
-# Define motion control function for Turtlebot
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(1, 0)  # Assuming correct method and parameters
-        robot.SetMotorSpeed(1, 1)
-    elif mode == 'left':
-        robot.SetMotorSpeed(-1, 0)
-        robot.SetMotorSpeed(1, 1)
-    elif mode == 'right':
-        robot.SetMotorSpeed(1, 0)
-        robot.SetMotorSpeed(-1, 1)
 
 # Set the simulation time step
 time_step = 2e-3
@@ -91,9 +95,6 @@ while vis.Run():
     # Update sensor manager
     sensor_manager.Update()
     
-    # Increment time counter
-    time += time_step
-    
     # Render the scene
     vis.BeginScene()
     vis.Render()
@@ -101,4 +102,4 @@ while vis.Run():
     
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
-
+    time += time_step

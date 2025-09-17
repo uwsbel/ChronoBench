@@ -23,7 +23,14 @@ tire_model = veh.TireModelType_TMEASY
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
-terrainHeightMap = veh.GetDataFile("terrain/height_maps/height_map_01.txt")
+
+
+height_map = veh.HeightMapTerrain()
+height_map.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+height_map.SetColor(chrono.ChColor(0.1, 0.8, 0.1))
+height_map.ConstructTriangularMesh(True, 0.5, 8, 8, chrono.ChVector3d(0, 0, terrainHeight), chrono.ChVector3d(terrainLength, terrainWidth, 0))
+height_map.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+height_map.Initialize()
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -49,27 +56,12 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth, terrainHeightMap)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -109,7 +101,7 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -119,13 +111,13 @@ while vis.Run():
 
     
     driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    height_map.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, height_map)
     vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)
-    terrain.Advance(step_size)
+    height_map.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 

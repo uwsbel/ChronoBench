@@ -15,18 +15,17 @@ def main():
     
     
     
-    side = 2.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, True, True)
+    side = 1.0  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000, chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
     box_body.SetPos(chrono.ChVectorD(0, 0, 0))
-    box_body.SetTexture(chrono.GetChronoDataFile("textures/texture_metal_02.png"))
+    box_body.SetCollide(True)
+    box_body.SetMaterialSurface(chrono.ChMaterialSurface.MakeDielectric(1.0, 0.1))
     mphysicalSystem.Add(box_body)
 
     
-    box_shape = chrono.ChBox(side, side, side)
-    box_shape.SetPos(chrono.ChVectorD(0, 0, 0))
-    box_shape.SetName("Box Mesh")
-    box_shape.SetMutable(False)
-
+    box_shape = chrono.ChBoxShape()
+    box_shape.SetSize(chrono.ChVectorD(side, side, side))
+    box_shape.SetTexture(chrono.GetChronoDataFile("textures/checker.png"))
     box_body.AddVisualShape(box_shape)
 
     
@@ -38,53 +37,36 @@ def main():
     
     
     offset_pose = chrono.ChFramed(
-        chrono.ChVectorD(-side / 2 + 0.1, 0, side / 2 + 0.1), chrono.Q_from_AngZ(0)
+        chrono.ChVectorD(-side / 2 - 0.1, 0, side / 2 + 0.1), chrono.QUNIT
     )
-
     lidar = sens.ChLidarSensor(
-        box_body,
-        update_rate,
-        offset_pose,
-        800,
-        1,
-        2 * math.pi,
-        max_vert_angle,
-        min_vert_angle,
-        100.0,
-        sens.LidarBeamShape_RECTANGULAR,
-        0.01,
-        0.003,
-        0.003,
-        return_mode,
+        box_body,              
+        5.0,                   
+        offset_pose,            
+        800,                  
+        1,                     
+        2 * math.pi,          
+        0,                     
+        0,                     
+        100.0,                 
+        sens.LidarBeamShape_RECTANGULAR,  
+        0.05,                 
+        0.01,                 
+        0.01,                 
+        sens.LidarReturnMode_STRONGEST_RETURN
     )
     lidar.SetName("Lidar Sensor")
-    lidar.SetLag(lag)
-    lidar.SetCollectionWindow(collection_time)
+    lidar.SetLag(0)
+    lidar.SetCollectionWindow(1. / 5)
 
     
     
     
-    if noise_model == "CONST_NORMAL_XYZI":
-        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    elif noise_model == "NONE":
-        
-        pass
-
-    if vis:
-        
-        lidar.PushFilter(sens.ChFilterVisualize(800, 1, "Raw Lidar Depth Data"))
-
-    
+    lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar.PushFilter(sens.ChFilterVisualize(800, 1, "Raw Lidar Depth Data"))
     lidar.PushFilter(sens.ChFilterDIAccess())
-
-    
     lidar.PushFilter(sens.ChFilterPCfromDepth())
-
-    if vis:
-        
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
-    
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
     
@@ -94,53 +76,36 @@ def main():
     
     
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVectorD(-side / 2 + 0.1, 0, side / 2 + 0.1), chrono.Q_from_AngZ(math.pi / 2)
+        chrono.ChVectorD(side / 2 + 0.1, 0, side / 2 + 0.1), chrono.QUNIT
     )
-
     lidar_2d = sens.ChLidarSensor2D(
-        box_body,
-        update_rate,
-        offset_pose_2d,
-        800,
-        1,
-        2 * math.pi,
-        0.0,
-        0.0,
-        100.0,
-        sens.LidarBeamShape_RECTANGULAR,
-        0.01,
-        0.003,
-        0.003,
-        return_mode,
+        box_body,              
+        5.0,                   
+        offset_pose_2d,        
+        800,                  
+        1,                     
+        2 * math.pi,          
+        0,                     
+        0,                     
+        100.0,                 
+        sens.LidarBeamShape_RECTANGULAR,  
+        0.05,                 
+        0.01,                 
+        0.01,                 
+        sens.LidarReturnMode_STRONGEST_RETURN
     )
     lidar_2d.SetName("Lidar Sensor 2D")
-    lidar_2d.SetLag(lag)
-    lidar_2d.SetCollectionWindow(collection_time)
+    lidar_2d.SetLag(0)
+    lidar_2d.SetCollectionWindow(1. / 5)
 
     
     
     
-    if noise_model == "CONST_NORMAL_XYZI":
-        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
-    elif noise_model == "NONE":
-        
-        pass
-
-    if vis:
-        
-        lidar_2d.PushFilter(sens.ChFilterVisualize(800, 1, "Raw Lidar Depth Data 2D"))
-
-    
+    lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar_2d.PushFilter(sens.ChFilterVisualize(800, 1, "Raw Lidar Depth Data 2D"))
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
-
-    
-    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
-
-    if vis:
-        
-        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud 2D"))
-
-    
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth2D())
+    lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud2D(640, 480, 1.0, "Lidar Point Cloud 2D"))
     lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
 
     
@@ -200,7 +165,6 @@ def main():
 
 
 
-
 noise_model = "NONE"  
 
 
@@ -210,8 +174,13 @@ return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 update_rate = 5.0
 
 
+horizontal_samples = 800
+vertical_samples = 1
 
 
+horizontal_fov = 2 * math.pi  
+max_vert_angle = 0
+min_vert_angle = 0
 
 
 lag = 0

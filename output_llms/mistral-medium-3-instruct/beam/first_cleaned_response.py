@@ -3,68 +3,71 @@ import pychrono.irrlicht as chronoirr
 import numpy as np
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  
+sys = chrono.ChSystemNSC()  
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+num_elements = 5
+beam_length = 0.5  
+beam_width = 0.05  
+beam_height = 0.05  
+density = 7800     
 
 
-mesh = chrono.fea.ChMesh()
-
-
-material = chrono.ChMaterialShellANCF()
-material.SetYoungModulus(2.1e11)  
-material.SetPoissonRatio(0.3)
-material.SetDensity(7850)         
-
-
-num_nodes = 10
 nodes = []
-for i in range(num_nodes):
-    node = chrono.fea.ChNodeFEAxyzD(chrono.ChVectorD(i * 0.1, 0, 0))
-    mesh.AddNode(node)
+for i in range(num_elements + 1):
+    x_pos = i * beam_length / num_elements
+    node = chrono.ChNodeFEAxyzrot()
+    node.SetPos(chrono.ChVectorD(x_pos, 0, 0))
+    node.SetMass(beam_width * beam_height * beam_length/num_elements * density / (num_elements + 1))
+    node.SetInertiaXX(chrono.ChVectorD(
+        (beam_width**2 + beam_height**2) * beam_length/num_elements * density / 12,
+        beam_width**2 * beam_length/num_elements * density / 12,
+        beam_height**2 * beam_length/num_elements * density / 12
+    ))
+    sys.Add(node)
     nodes.append(node)
 
 
-nodes[0].SetFixed(True)
-
-
-for i in range(num_nodes - 1):
-    beam = chrono.fea.ChElementBeamANCF()
+for i in range(num_elements):
+    beam = chrono.ChElementBeamEuler()
     beam.SetNodes(nodes[i], nodes[i+1])
-    beam.SetMaterial(material)
-    beam.SetDimensions(0.01, 0.01)  
-    mesh.AddElement(beam)
+
+    
+    beam.SetBeamSection(chrono.ChBeamSectionAdvanced())
+    beam.GetBeamSection().SetAsRectangularSection(beam_width, beam_height)
+    beam.GetBeamSection().SetYoungModulus(2.1e11)  
+    beam.GetBeamSection().SetShearModulus(7.9e10)  
+    beam.GetBeamSection().SetPoissonRatio(0.3)     
+    beam.GetBeamSection().SetDensity(density)
+
+    sys.Add(beam)
 
 
-system.Add(mesh)
+fix_constraint = chrono.ChLinkLockLock()
+fix_constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+sys.Add(fix_constraint)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
+vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Beam FEA Simulation')
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 1))
+vis.AddCamera(chrono.ChVectorD(1, 0.5, 1), chrono.ChVectorD(0, 0, 0))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
-
-
-for beam in mesh.GetElementsBeam():
-    vis_asset = chrono.fea.ChVisualizationFEAmesh(mesh)
-    vis_asset.SetFEMdataType(chrono.fea.ChVisualizationFEAmesh.E_PLOT_NODES)
-    vis_asset.SetFEMglyphType(chrono.fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
-    vis_asset.SetFEMcolorscaleMinMax(-0.1, 0.1)
-    vis_asset.SetSmoothFaces(True)
-    beam.AddAsset(vis_asset)
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, 5, 1.5), chrono.ChVectorD(0, 0, 0), 3, 0.5, 5, 30, 512)
 
 
 time_step = 0.001
+vis.SetStep(0.01)  
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    system.DoStepDynamics(time_step)
+
+    sys.DoStepDynamics(time_step)

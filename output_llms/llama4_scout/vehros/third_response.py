@@ -47,7 +47,7 @@ def main():
     vis.Initialize()
     vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Updated camera position
+    vis.AddCamera(ch.ChVector3d(-5, 2.5, 1.5), ch.ChVector3d(0, 0, 1))  # Changed camera position
     vis.AddTypicalLights()
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 
@@ -75,7 +75,7 @@ def main():
     box_body = ch.ChBodyEasyBox(1, 1, 1, ch.ChVector3d(5, 0, 1), ch.ChQuaterniond(1, 0, 0, 0), False, False)
     hmmwv.GetSystem().AddBody(box_body)
 
-    # Add and configure a Lidar sensor
+    # Create and configure a Lidar sensor
     lidar_sensor = sens.ChLidarSensor(box_body)
     lidar_sensor.SetName("Lidar Sensor")
     lidar_sensor.SetUpdateRate(10)
@@ -83,11 +83,11 @@ def main():
     lidar_sensor.SetVerticalResolution(10)
     lidar_sensor.SetMinRange(0.1)
     lidar_sensor.SetMaxRange(100)
-    lidar_sensor.EnableFilters(True, True, True)  # Enable filters: radial, horizontal, and vertical
-
+    lidar_sensor.EnableFilter(sens.ChLidarFilterType_NEAR)
+    lidar_sensor.EnableFilter(sens.ChLidarFilterType_FAR)
     sens_manager.AddSensor(lidar_sensor)
 
-    # Register the Lidar handler to publish lidar data to ROS topic '~/output/hmmwv/lidar'
+    # Register the Lidar handler to publish Lidar data to ROS topic '~/output/hmmwv/lidar'
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar_sensor, "~/output/hmmwv/lidar"))
 
     # Start the simulation loop.
@@ -96,10 +96,9 @@ def main():
     time_end = 30  # Set the total duration of the simulation.
 
     # Setup render related variables
-    # Time interval between two render frames
     render_step_size = 1.0 / 25  # FPS = 25
-    render_steps = math.ceil(render_step_size / time_step)
     step_number = 0
+    render_steps = math.ceil(render_step_size / time_step)
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
 

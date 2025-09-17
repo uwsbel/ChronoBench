@@ -28,46 +28,40 @@ terrain.SetSoilParameters(soil_params)
 
 
 height_map = np.random.rand(1024, 1024) * 2 - 1
-terrain.InitializeHeightMap(height_map)
+terrain.SetHeightMap(height_map)
 
 
 driver = veh.ChDriver(vehicle)
 
 
-driver.SetTargetSpeed(10)
+driver.SetDesiredSpeed(10)
+driver.SetSteering(0)
 
 
 vis = irr.ChVisualSystemIrrlicht()
 
 
-vis.SetCameraPosition(chrono.ChVectorD(-5, 2, 0))
-vis.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vis.GetCamera().SetPosition(chrono.ChVectorD(-10, 5, 0))
+vis.GetCamera().SetAimPoint(chrono.ChVectorD(0, 0.5, 0))
 
 
-vis.AddVehicle(vehicle)
-vis.AddTerrain(terrain)
-
-
-vis.SetLightingMode(irr.Visualization_LightingMode::ARTIFICIAL)
-vis.SetLightPosition(chrono.ChVectorD(0, 10, 0))
+vis.AddLogo(chrono.ChVectorD(0.5, 0.5, 0.5))
+vis.AddSkyBox()
+vis.AddCamera()
+vis.AddTypicalLights()
+vis.AddMesh(vehicle, 'vehicle_mesh')
+vis.AddMesh(terrain, 'terrain_mesh')
 
 
 while vis.Run():
     
-    vehicle.Synchronize(time)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time=vis.GetTime())
+    terrain.Synchronize(time=vis.GetTime())
+    driver.Synchronize(time=vis.GetTime())
+    vis.Synchronize(time=vis.GetTime())
 
     
-    vehicle.Advance(chrono.ChVectorD(0, 0, 0))
-    terrain.Advance(chrono.ChVectorD(0, 0, 0))
-    driver.Advance(chrono.ChVectorD(0, 0, 0))
-    vis.Advance(chrono.ChVectorD(0, 0, 0))
-
-    
-    time += 1e-3
-
-    
-    while chrono.ChClock.GetTime() < time:
-        pass
+    vehicle.DoStepDynamics(vis.GetTimeStep())
+    terrain.DoStepDynamics(vis.GetTimeStep())
+    driver.DoStepDynamics(vis.GetTimeStep())
+    vis.DoStepDynamics(vis.GetTimeStep())

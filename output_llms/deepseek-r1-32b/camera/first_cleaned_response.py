@@ -1,93 +1,76 @@
-importchrono
-import math
+importchrono as chrono
+import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 
-chrono.SetChronoDataPath()
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-mesh_filename = "your_mesh.obj"  
-if not os.path.exists(mesh_filename):
-    raise FileNotFoundError(f"Mesh file {mesh_filename} not found")
+mesh_body = chrono.ChBody()
+mesh_body.SetMass(0)  
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+
 
 mesh = chrono.ChTriangleMesh()
-mesh.SetFilename(mesh_filename)
-mesh.SetName("mesh_body")
-mesh.SetPos(chrono.ChVectorD(0, 0, 0))
-mesh.SetBodyFixed(True)
-system.Add(mesh)
+mesh.LoadWavefrontFile("your_mesh.obj")
 
 
-camera_body = chrono.ChBody()
-camera_body.SetBodyFixed(True)
-camera_body.SetPos(chrono.ChVectorD(5, 0, 0))  
-camera_body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.SetMesh(mesh)
+mesh_body.AddCollisionShape(mesh_shape)
 
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AttachTo(camera_body)
+system.AddBody(mesh_body)
+
+
+sensor_manager = chrono.ChSensorManager(system)
 
 
 camera = chrono.ChCameraSensor()
-camera.SetName("main_camera")
-camera.SetResolution(640, 480)
-camera.SetPosition(chrono.ChVectorD(0, 0, 0))  
-camera.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))  
-camera.SetFOV(60)
-camera.SetNearPlane(0.1)
-camera.SetFarPlane(100)
+camera.SetName("Main Camera")
+camera.SetPos(chrono.ChFrameD(chrono.ChVectorD(2, 2, 2), chrono.ChQuaternionD(1, 0, 0, 0)))
+camera.SetImSize(640, 480)
+camera.SetImResolution(0.001)
+camera.SetFov(60)
 sensor_manager.AddSensor(camera)
 
 
-def apply_noise(buffer):
-    noise = np.random.normal(0, 0.02, buffer.shape)
-    return np.clip(buffer + noise, 0, 1)
+camera.Enable(True)
+camera.SetUpdateInterval(1)
 
 
-viewer = chrono.ChVisualizationWindow()
-viewer.SetWindowTitle("Mesh with Camera Sensor")
-viewer.AttachSystem(system)
-viewer.AddVisualization(mesh)
-viewer.AddVisualization(camera_body)
+def update_camera(time):
+    angle = time * 0.1  
+    radius = 5  
+    x = radius * np.cos(angle)
+    y = radius * np.sin(angle)
+    z = 2
+    camera.GetPos().SetPos(chrono.ChVectorD(x, y, z))
+    camera.GetPos().SetRot(chrono.ChQuaternionD(chrono.Q_from_AngZ(angle)))
 
 
-fov_shape = chrono.ChVisualShape()
-fov_shape.SetPosition(camera_body.GetPos())
-fov_shape.SetRotation(camera_body.GetRot())
-fov_shape.SetScale(chrono.ChVectorD(1, 1, 1))
-fov_shape.SetType(chrono.ChVisualShapeType.SPHERES)
-camera_body.AddVisualShape(fov_shape)
+def visualize_camera_output(sender, data):
+    image = data.GetImage()
+    plt.imshow(image)
+    plt.axis('off')
+    plt.show()
 
 
-simulation_time = 10.0
+camera GetDataSignal().Connect(visualize_camera_output)
+
+
 step_size = 0.001
-num_steps = int(simulation_time / step_size)
+num_steps = 1000
 
 
 for step in range(num_steps):
     
-    angle = step * 0.02  
-    camera_body.SetPos(chrono.ChVectorD(5 * math.cos(angle), 0, 5 * math.sin(angle)))
-    
-    
-    sensor_manager.Update()
-    
-    
-    buffer = camera.GetBuffer()
-    noisy_buffer = apply_noise(buffer)
-    
-    
-    print(f"Time: {step * step_size:.3f}s")
-    for row in noisy_buffer:
-        print(' '.join(map(str, row)))
-    print("\n")
+    update_camera(step * step_size)
     
     
     system.DoStepDynamics(step_size)
-    viewer.Render()
-
-
-viewer.Close()
-chrono.ChExit()
+    
+    
+    if camera.HasNewData():
+        data = camera.GetOutput()
+        print("Camera buffer data:", data.GetImage().shape)

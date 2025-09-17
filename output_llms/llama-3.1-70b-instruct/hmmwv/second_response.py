@@ -79,32 +79,38 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create a path follower driver system
-path = chrono.ChBezierCurve()
-path.AddCubicBezier(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(50, 0, 0), chrono.ChVectorD(100, 0, 0), chrono.ChVectorD(150, 0, 0))
-path.AddCubicBezier(chrono.ChVectorD(150, 0, 0), chrono.ChVectorD(150, 50, 0), chrono.ChVectorD(100, 50, 0), chrono.ChVectorD(50, 50, 0))
-path.AddCubicBezier(chrono.ChVectorD(50, 50, 0), chrono.ChVectorD(0, 50, 0), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
-driver = veh.ChPathFollowerDriverIRR(vis, path)
-driver.SetThrottle(0.3)
-driver.SetPIDGains(0.1, 0.01, 0.0)
-driver.Initialize()
+path = veh.WheeledVehiclePathFollowerDriver()
+path.SetPathType(veh.PathType_CIRCULAR)
+path.SetRadius(20.0)
+path.SetCenter(chrono.ChVector3d(0, 0, 0))
+path.SetLookAheadDistance(5.0)
+path.SetGain(0.5)
+path.SetMass(1500.0)
+path.SetThrottle(0.3)
+path.SetBrakingDistance(10.0)
+path.SetTolerance(0.5)
+path.SetMaxRecoveryTime(10.0)
+path.SetSynchronizationMode(veh.PathFollowerSynchronizationMode_SLIP velocity)
+path.SetWheelbase(vehicle.GetWheelbase())
+path.SetTrackwidth(vehicle.GetTrackwidth())
+path.SetCGtoWheelbase(vehicle.GetCGtoWheelbase())
+path.SetSteeringHardpointsToWheelcenterDistance(vehicle.GetSteeringHardpointsToWheelcenterDistance())
+path.SetWheelRadius(vehicle.GetWheelRadius())
+path.SetMass(vehicle.GetVehicle().GetMass())
+path.Initialize()
 
-# Add visualization for the path
-path_vis = veh.ChPathVisualizationIrrlicht(vis)
-path_vis.SetPath(path)
-path_vis.SetColor(chrono.ChColor(1, 0, 0))
-path_vis.SetRadius(0.1)
-path_vis.Initialize()
-
-# Add visualization for the sentinel and target points
-sentinel_vis = veh.ChPointVisualizationIrrlicht(vis)
-sentinel_vis.SetColor(chrono.ChColor(0, 1, 0))
-sentinel_vis.SetRadius(0.1)
-sentinel_vis.Initialize()
-
-target_vis = veh.ChPointVisualizationIrrlicht(vis)
-target_vis.SetColor(chrono.ChColor(0, 0, 1))
-target_vis.SetRadius(0.1)
-target_vis.Initialize()
+# Create a PID controller for steering
+pid_controller = veh.ChSteeringPIDController()
+pid_controller.SetGains(2.0, 0.5, 0.1)
+pid_controller.SetLookAheadDistance(5.0)
+pid_controller.SetMass(1500.0)
+pid_controller.SetWheelbase(vehicle.GetWheelbase())
+pid_controller.SetTrackwidth(vehicle.GetTrackwidth())
+pid_controller.SetCGtoWheelbase(vehicle.GetCGtoWheelbase())
+pid_controller.SetSteeringHardpointsToWheelcenterDistance(vehicle.GetSteeringHardpointsToWheelcenterDistance())
+pid_controller.SetWheelRadius(vehicle.GetWheelRadius())
+pid_controller.SetMass(vehicle.GetVehicle().GetMass())
+pid_controller.Initialize()
 
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -128,23 +134,24 @@ while vis.Run():
         render_frame += 1
 
     # Update modules (process inputs from other modules)
-    driver.Synchronize(time)
+    path.Synchronize(time)
+    pid_controller.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, pid_controller.GetSteering(), terrain)
+    vis.Synchronize(time, pid_controller.GetSteering())
 
     # Advance simulation for one timestep for all modules
-    driver.Advance(step_size)
+    path.Advance(step_size)
+    pid_controller.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
-    # Update visualization for the path
-    path_vis.Update()
-
-    # Update visualization for the sentinel and target points
-    sentinel_vis.SetPoint(driver.GetSentinelPoint())
-    target_vis.SetPoint(driver.GetTargetPoint())
+    # Visualize the path
+    sentinel_point = path.GetSentinelPoint()
+    target_point = path.GetTargetPoint()
+    vis.AddSphereMarker(sentinel_point, 0.5, chrono.ChColor(1, 0, 0))
+    vis.AddSphereMarker(target_point, 0.5, chrono.ChColor(0, 1, 0))
 
     # Increment frame number
     step_number += 1

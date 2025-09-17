@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -64,12 +63,13 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
@@ -84,50 +84,61 @@ vis.AttachVehicle(vehicle.GetVehicle())
 class MyDriver(veh.ChDriver):
     def __init__(self, delay=0.5):
         super().__init__()
+        self.delay_timer = chrono.ChRealtimeStepTimer()
         self.delay = delay
         self.throttle = 0.0
         self.steering = 0.0
         self.braking = 0.0
-        self.throttle_time = 0.0
-        self.steering_time = 0.0
+        self.throttle_timer = chrono.ChRealtimeStepTimer()
+        self.steering_timer = chrono.ChRealtimeStepTimer()
+        self.braking_timer = chrono.ChRealtimeStepTimer()
+        self.throttle_max = 0.7
+        self.steering_amplitude = 1.0
+        self.steering_frequency = 1.0 / 1.0  # Adjust frequency
+        self.steering_phase = 0.0
+        self.throttle_phase = 0.0
+        self.braking_phase = 0.0
 
     def Synchronize(self, time, driver_inputs):
-        # Apply delay to driver inputs
-        if time - self.last_time >= self.delay:
-            self.last_time = time
-
-            # Update control inputs
-            self.throttle = min(1.0, max(0.0, self.throttle + (time - self.last_time) / 2.0))
+        # Apply input delay
+        self.delay_timer.Spin(self.delay * self.step_size)
+        
+        # Update control values based on time
+        if time >= 2.0:
+            self.steering = math.sin(time - 2.0) * self.steering_amplitude
+        else:
+            self.steering = 0.0
             
-            # Sinusoidal steering pattern starting at 2 seconds
-            if time >= 2.0:
-                self.steering = math.sin((time - 2.0) * 2.0) * 0.5
-            else:
-                self.steering = 0.0
+        # Gradually increase throttle over time
+        if time >= 0.2:
+            self.throttle = min(1.0, time - 0.2) * 0.7
+        else:
+            self.throttle = 0.0
             
-            # Braking at 3 seconds
-            if time >= 3.0:
-                self.braking = 1.0
-            else:
-                self.braking = 0.0
+        # Braking response
+        if time >= 3.0:
+            self.braking = 1.0
+        else:
+            self.braking = 0.0
+            
+        # Update driver inputs
+        self.driver_inputs.throttle = self.throttle
+        self.driver_inputs.steering = self.steering
+        self.driver_inputs.braking = self.braking
 
-        # Apply controls
-        self.driverInputs.Throttle = self.throttle
-        self.driverInputs.Steering = self.steering
-        self.driverInputs.Braking = self.braking
+    def Initialize(self):
+        pass
+
+    def Advance(self, step_size):
+        self.delay_timer.Spin(self.delay * self.step_size)
+        self.throttle_timer.Spin(0.1)
+        self.steering_timer.Spin(0.1)
+        self.braking_timer.Spin(0.1)
 
 driver = MyDriver(delay=0.5)
 driver.Initialize()
 
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # time to go from 0 to +1
-braking_time = 0.3   # time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
-
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -137,11 +148,12 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
-simulation_end_time = 4.0  # seconds to stop simulation
+simulation_time = 0.0
 
 while vis.Run():
-    time = vehicle.GetSystem().GetChTime()
+    simulation_time += step_size
+    if simulation_time >= 4.0:
+        break
 
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
@@ -154,13 +166,16 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Update modules (process inputs from other modules)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    driver.Synchronize(simulation_time)
+    terrain.Synchronize(simulation_time)
+    vehicle.Synchronize(simulation_time, driver_inputs, terrain)
+    vis.Synchronize(simulation_time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
     # Increment frame number
     step_number += 1
@@ -168,6 +183,6 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-    # End simulation when time reaches 4 seconds
-    if time >= simulation_end_time:
+    # End simulation at 4 seconds
+    if simulation_time >= 4.0:
         break

@@ -83,19 +83,17 @@ patch3 = terrain.AddPatch(patch_mat,
 patch3.SetTexture(veh.GetDataFile("terrain/textures/muddy.jpg"), 200, 200)
 patch3.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# Add a patch of terrain with a height map
+# Add a patch with a height map
 patch4 = terrain.AddPatch(patch_mat, 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 25, 0), chrono.QUNIT), 
     50, 50)
-patch4.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump.jpg"), 200, 200, 0.1, 0.0)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+patch4.SetHeightfield(veh.GetDataFile("terrain/heightfields/bump.jpg"), 200, 200, 0, 2)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/grassy.jpg"), 200, 200)
 patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 # Add a bump to the patches of terrain
-patch1.AddBump(chrono.ChVector3d(0, 0, 0.1), 5, 5)
-patch2.AddBump(chrono.ChVector3d(0, 0, 0.1), 5, 5)
-patch3.AddBump(chrono.ChVector3d(0, 0, 0.1), 5, 5)
-patch4.AddBump(chrono.ChVector3d(0, 0, 0.1), 5, 5)
+for patch in [patch1, patch2, patch3, patch4]:
+    patch.AddBump(chrono.ChVector3d(0, 0, 0.1), 5, 5)
 
 terrain.Initialize()
 

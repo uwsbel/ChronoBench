@@ -22,7 +22,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -50,16 +49,15 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-
 vehicle.Initialize()
 
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
 
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5)
-    box.SetBodyFixed(True)
-    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0.5))
-    box.SetMass(1.0)
-    vehicle.GetSystem().Add(body=box)
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
@@ -94,21 +92,31 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-sensor_manager = veh.ChSensorManager()
+sensor_manager = veh.ChSensorManagerIrrlicht(vis)
 
 
-camera_sensor = veh.ChCameraSensor()
-camera_sensor.SetResolution(640, 480)
-camera_sensor.SetFOV(math.radians(60))
-camera_sensor.SetPosition(trackPoint)
-camera_sensor.SetLookAt(trackPoint + chrono.ChVector3d(0, 0, 1))
+camera_sensor = veh.ChCameraSensorIrrlicht()
+camera_sensor.SetResolution(1024, 768)
+camera_sensor.SetFieldOfView(math.radians(60))
+camera_sensor.SetPosition(vehicle.GetChassisBody().GetPos())
+camera_sensor.SetLookAt(vehicle.GetChassisBody().GetPos() + chrono.ChVector3d(0, 0, 1))
 sensor_manager.AddSensor(camera_sensor)
 
 
-filter = veh.ChImageFilter()
-filter.SetSize(640, 480)
-filter.SetFPS(50)
-sensor_manager.AddFilter(filter)
+light1 = irr.PyRenderableLight()
+light1.SetPosition(chrono.ChVector3d(-10, 10, 10))
+light1.SetIntensity(10)
+vis.AddLight(light1)
+
+light2 = irr.PyRenderableLight()
+light2.SetPosition(chrono.ChVector3d(10, -10, 10))
+light2.SetIntensity(10)
+vis.AddLight(light2)
+
+
+filter = irr.PyRenderableTextureFilter()
+filter.SetTexture(camera_sensor.GetTexture())
+vis.AddFilter(filter)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -121,11 +129,14 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-
-sensor_manager.Initialize()
-
-
 driver.Initialize()
+
+
+for _ in range(10):
+    box = veh.ChBodyEasyBox(1, 1, 1, 1, 1, 1)
+    box.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 0))
+    box.SetColor(chrono.ChColor(1, 0, 0))
+    vehicle.GetSystem().AddBody(box)
 
 
 
@@ -172,14 +183,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    for i in range(10):
-        light = chrono.ChPointLight()
-        light.SetPosition(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), 5))
-        light.SetIntensity(1)
-        vis.AddLight(light)
-
-    
-    sensor_manager.Advance(step_size)
-    sensor_manager.Synchronize(time)

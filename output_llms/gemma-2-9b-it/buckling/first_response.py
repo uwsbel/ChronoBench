@@ -1,37 +1,57 @@
-from pychrono import ChSystem, ChBody, ChLink, ChMaterialSurface, ChQuaterniond, ChVectorD
-from pychrono.irrlicht import ChIrrApp
-import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as vis
 
-# Initialize PyChrono environment
-system = ChSystem()
+# 1. Initialize PyChrono Environment
+app = chrono.ChSystemNSC()  
+vis.ChVisualSystemIrrlicht.Create()
 
-# Define material properties
-beam_material = ChMaterialSurface()
-beam_material.SetDamping(0.1)
-beam_material.SetFriction(0.5)
+# 2. Define Beam Elements (FEA)
+beam_material = chrono.ChMaterialSurfaceNSC()
+beam_material.SetFriction(0.5, 0.5)
 beam_material.SetRestitution(0.0)
 
-# Create beam elements using FEA
-# (This part requires defining the beam geometry and FEA mesh)
-# ...
+beam_element = chrono.ChBeamElement()
+beam_element.SetMaterial(beam_material)
+beam_element.SetCrossSection(chrono.ChBeamSection.FromRectangular(0.1, 0.05))
 
-# Define motor functions (example)
-def motor_torque(t):
-    return np.sin(2*np.pi*t)
+# 3. Create Beam Bodies
+beam_body = chrono.ChBodyEasyCylinder(1.0, 0.1, 100.0)
+beam_body.SetMaterial(beam_material)
+beam_body.SetPos(chrono.ChVectorD(0, 0, 0))
+beam_body.SetBodyFixed(True)
 
-# Create beam joints and constraints
-# (This part requires defining the beam connections and constraints)
-# ...
+# 4. Define Constraints
+# Example: Point constraint between beam body and ground
+constraint = chrono.ChPointPointConstraint()
+constraint.Initialize(beam_body, beam_body.GetPos(), beam_body.GetPos())
+app.AddBody(beam_body)
+app.AddConstraint(constraint)
 
-# Create visualization app
-app = ChIrrApp(system, 'Beam Buckling Simulation')
-app.SetCustomCallback(lambda t: print(f"Time: {t}"))
-app.AddLight(ChVectorD(1, 1, 1))
+# 5. Define Custom Motor Function (Example)
+def motor_function(time, motor_body):
+    # Implement your motor control logic here
+    # For example, apply a constant torque
+    torque = 10.0 * chrono.ChVectorD(0, 0, 1)
+    return torque
 
-# Set solver and timestepper
-system.SetSolverType(ChSystem.SolverType.EULER)
-system.SetTimestep(0.01)
+# 6. Add Motor to System
+motor = chrono.ChMotorRotation(
+    chrono.ChCoordsysD(0, 0, 0, chrono.ChVectorD(0, 0, 1)),
+    chrono.ChVectorD(0, 0, 1),
+    motor_function
+)
+motor.SetMotorType(chrono.ChMotorType.MOTOR_ROT_SERVO)
+motor.SetMotorSpeed(100.0)
+motor.SetMotorTorque(100.0)
+app.AddBody(motor_body)
+app.AddMotor(motor)
 
-# Run simulation
-app.SetCamera(ChVectorD(5, 5, 5))
-app.Run()
+# 7. Solver and Timestepper
+app.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+app.SetTimestepper(chrono.ChTimestepperRK4())
+app.SetSolverType(chrono.ChSolverType.SOLVER_MIN_POSITION)
+
+# 8. Visualization
+vis.Add(beam_body)
+vis.Add(motor_body)
+vis.Run()

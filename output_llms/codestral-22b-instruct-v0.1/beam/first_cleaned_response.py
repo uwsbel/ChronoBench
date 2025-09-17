@@ -1,47 +1,44 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
 
 
+chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
 my_system = chrono.ChSystemNSC()
 
 
-mesh = chrono.ChMesh()
+mesh = fea.ChMesh()
 
 
-node1 = mesh.AddNode(chrono.ChVectorD(0, 0, 0))
-node2 = mesh.AddNode(chrono.ChVectorD(1, 0, 0))
+node1 = fea.ChNodeFEAxyz(chrono.ChVectorD(0, 0, 0))
+node2 = fea.ChNodeFEAxyz(chrono.ChVectorD(1, 0, 0))
+mesh.AddNode(node1)
+mesh.AddNode(node2)
 
 
-node1.SetMass(1)
-node2.SetMass(1)
+beam = fea.ChElementBeamIGA()
+beam.SetNodes(node1, node2)
+beam.SetYoungModulus(73e9)
+beam.SetGwithPoissonRatio(0.3)
+beam.SetBeamRaleyghDamping(0.005)
+mesh.AddElement(beam)
 
 
-beam = mesh.AddElementBeam(node1, node2)
+my_system.Add(mesh)
 
 
-beam.SetDiameter(0.01)
-beam.SetYoungModulus(2e5)
-beam.SetSectionCircular(0.005)
 
 
-beam_body = chrono.ChBeamEulerStatic()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-beam_body.Initialize(mesh)
+application = irr.ChIrrApp(my_system, 'Beam FEA simulation', irr.dimension2du(1024, 768))
 
 
-my_system.Add(beam_body)
-
-
-node2.SetForce(chrono.ChVectorD(0, -10, 0))
-
-
-application = chronoirr.ChIrrApp(my_system, 'Beam Finite Elements', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0.5, 0.5, -1.0))
 application.AssetBindAll()
 application.AssetUpdateAll()
-
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
 
 while application.GetDevice().run():
     application.BeginScene()

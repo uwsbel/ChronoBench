@@ -30,20 +30,21 @@ robot.Initialize()
 
 sensor_manager = sens.ChSensorManager(system)
 lidar = sens.ChLidarSensor()
-lidar.SetCollisionEnvelope(0.05)
-lidar.SetRays(64)
-lidar.SetAngle(chrono.ChRadToDeg(math.pi / 2))
-lidar.SetRange(5)
-lidar.SetFrequency(10)
-lidar.SetYawFilter(sens.ChLidarSensor.FILTER_NONE)
-lidar.SetPitchFilter(sens.ChLidarSensor.FILTER_NONE)
-lidar.AttachToBody(robot.GetChassisBody())
+lidar.SetName("Lidar")
+lidar.SetRobot(robot)
+lidar.SetPos(chrono.ChVector3d(0.15, 0.1, 0.2))
+lidar.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.SetVerticalAngle(chrono.ChRadians(math.pi / 4))
+lidar.SetHorizontalAngle(chrono.ChRadians(math.pi))
+lidar.SetMaxDistance(10)
+lidar.SetAccuracy(0.01)
+lidar.AddFilter(sens.ChFilterGaussian(0.05))
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(5):
-    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 100, True, True)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0.1))
+    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 10, True, True)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), 0))
     system.Add(box)
 
 

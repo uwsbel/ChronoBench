@@ -23,7 +23,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-terrain_model = veh.RigidTerrain.Box
+terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -62,18 +62,26 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain
-terrain = veh.RigidTerrain.Box(vehicle.GetSystem())
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainHeight, terrainLength, terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), terrainLength, terrainWidth)
+# Create the single patch rigid terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6,   # Bekker Kphi
+                        0,     # Bekker Kc
+                        1.1,   # Bekker n exponent
+                        0,     # Mohr cohesive limit (Pa)
+                        30,    # Mohr friction limit (degrees)
+                        0.01,  # Janosi shear coefficient (m)
+                        2e8,   # Elastic stiffness (Pa/m), before plastic yield
+                        3e4    # Damping (Pa s/m), proportional to negative vertical speed (optional)
+)
 
-# Remove moving patch feature
-terrain.AddMovingPatch = False
+# Set texture for the terrain
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Initialize the rigid terrain
-terrain.Initialize()
+# Initialize the terrain with height map
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), terrainLength, terrainWidth, terrainModel, terrainHeight, terrainHeight, 0.02)
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)

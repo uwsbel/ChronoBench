@@ -28,7 +28,7 @@ step_size = 1e-3
 tire_step_size = step_size
 
 # Simulation end time
-tend = 1000
+tend = 30
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -52,9 +52,6 @@ lag = 0
 # Exposure time (in seconds) for each image
 exposure_time = 0
 
-# View camera images
-vis = True
-
 # Create the vehicle, set parameters, and initialize
 gator = veh.Gator()
 gator.SetContactMethod(chrono.ChContactMethod_NSC)
@@ -65,6 +62,7 @@ gator.SetTireType(veh.TireModelType_TMEASY)
 gator.SetTireStepSize(tire_step_size)
 gator.SetInitFwdVel(0.0)
 gator.Initialize()
+
 gator.SetChassisVisualizationType(chassis_vis_type)
 gator.SetSuspensionVisualizationType(suspension_vis_type)
 gator.SetSteeringVisualizationType(steering_vis_type)
@@ -129,17 +127,18 @@ cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera")
 manager.AddSensor(cam)
 
 # Create a Depth Camera
-offset_pose_depth = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5.0, 0, 2), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
 depth_cam = sens.ChCameraSensor(
     gator.GetChassisBody(),
     update_rate,
-    offset_pose_depth,
+    offset_pose,
     image_width,
     image_height,
     fov
 )
 depth_cam.SetName("Depth Camera")
-depth_cam.PushFilter(sens.ChFilterDepthVisualize(image_width, image_height, "Depth Map"))
+depth_cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Depth Camera"))
+depth_cam.PushFilter(sens.ChFilterDepthRange(0, 30))  # Set the maximum depth to 30
 manager.AddSensor(depth_cam)
 
 # create lidar sensor
@@ -172,14 +171,16 @@ manager.AddSensor(lidar)
 # Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
 time = 0
-end_time = 30
-while time < end_time:
+while time < tend:
     time = gator.GetSystem().GetChTime()
+
     # set driver inputs
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
+
     # Collect output data from modules (for inter-module communication)
     driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -189,7 +190,7 @@ while time < end_time:
     # Log vehicle state
     vehicle_pos = gator.GetVehicle().GetPos()
     vehicle_heading = gator.GetVehicle().GetRot().Q_to_Euler123().z
-    print(f"Time: {time}, Position: ({vehicle_pos.x}, {vehicle_pos.y}, {vehicle_pos.z}), Heading: {vehicle_heading}")
+    print(f"Time: {time:.2f}, X: {vehicle_pos.x:.2f}, Y: {vehicle_pos.y:.2f}, Z: {vehicle_pos.z:.2f}, Heading: {vehicle_heading:.2f}")
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -198,3 +199,5 @@ while time < end_time:
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+
+# No modifications needed in the last part as it was already inside the code.

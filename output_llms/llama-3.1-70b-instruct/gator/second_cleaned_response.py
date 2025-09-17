@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -67,39 +66,42 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 patch1 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-20, -20, 0), chrono.QUNIT), 
-    20, 20)
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
 patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 patch2 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(20, -20, 0), chrono.QUNIT), 
-    20, 20)
-patch2.SetTexture(veh.GetDataFile("terrain/textures/tile5.jpg"), 200, 200)
-patch2.SetColor(chrono.ChColor(0.7, 0.7, 0.4))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
+patch2.SetTexture(veh.GetDataFile("terrain/textures/tile3.jpg"), 200, 200)
+patch2.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
 
 patch3 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(-20, 20, 0), chrono.QUNIT), 
-    20, 20)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/tile6.jpg"), 200, 200)
-patch3.SetColor(chrono.ChColor(0.6, 0.6, 0.3))
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0), chrono.QUNIT), 
+    50, terrainWidth)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/tile2.jpg"), 200, 200)
+patch3.SetColor(chrono.ChColor(0.2, 0.2, 0.2))
 
 
 patch4 = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(20, 20, 0), chrono.QUNIT), 
-    20, 20)
-patch4.SetHeight(chrono.GetChronoDataFile("terrain/heightmaps/heightmap_1.png"))
-patch4.SetTexture(veh.GetDataFile("terrain/textures/tile7.jpg"), 200, 200)
-patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
+    chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 
+    terrainLength, 50)
+patch4.SetHeight(chrono.ChVector3d(0, 0, 10))  
+patch4.SetTexture(veh.GetDataFile("terrain/textures/tile1.jpg"), 200, 200)
+patch4.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
 
 
-bump = chrono.ChVector3d(0, 0, 0.1)
-patch1.AddBump(bump)
-patch2.AddBump(bump)
-patch3.AddBump(bump)
-patch4.AddBump(bump)
+bump1 = terrain.AddBump(patch1, chrono.ChVector3d(-25, 0, 0), 10, 5)
+bump2 = terrain.AddBump(patch2, chrono.ChVector3d(0, 0, 0), 10, 5)
+bump3 = terrain.AddBump(patch3, chrono.ChVector3d(25, 0, 0), 10, 5)
+bump4 = terrain.AddBump(patch4, chrono.ChVector3d(0, -25, 0), 10, 5)
 
 terrain.Initialize()
+
+
+
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -126,9 +128,16 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
+
+
+
+
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
+
 render_steps = math.ceil(render_step_size / step_size)
+
+
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -136,24 +145,30 @@ render_frame = 0
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
+    
     if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    
     driver_inputs = driver.GetInputs()
 
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
+    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    
     step_number += 1
 
+    
     realtime_timer.Spin(step_size)

@@ -1,8 +1,8 @@
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
 import math
 
 def main():
@@ -37,8 +37,8 @@ def main():
     terrain.Initialize()
 
     
-    box_body = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box_body.SetPos(ch.ChVector3d(10, 0, 0.5))
+    box_body = ch.ChBodyEasyBox(2, 2, 2, 1000, True, True)
+    box_body.SetPos(ch.ChVector3d(10, 0, 0))
     hmmwv.GetSystem().Add(box_body)
 
     
@@ -63,27 +63,20 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-
-    
-    if not ros_manager.Initialize():
-        return
+    ros_manager.Initialize()
 
     
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
-
-    
-    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 10, ch.ChFrame(ch.ChVector3d(0, 0, 1), ch.Q_from_AngZ(0)), 900, 30, ch.ChVector3d(0.5, 0, 0.2), ch.ChVector3d(3, 3, 0.1))
-    lidar.SetName("Lidar")
+    lidar = sens.ChLidarSensor(hmmwv.GetChassisBody(), 100, ch.ChFrame(ch.ChVector3d(0, 0, 1), ch.Q_from_AngZ(0)), 100, 0.1, -ch.CH_C_PI / 2, ch.CH_C_PI / 2, 0.1)
     lidar.PushFilter(sens.ChFilterDIArea())
     lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
-    lidar.PushFilter(sens.ChFilterLidarReduce(4))
-    lidar.PushFilter(sens.ChFilterLidarIntensityNormalize(100))
-    lidar.PushFilter(sens.ChFilterLidarRangeClip(10, 50))
-    lidar.PushFilter(sens.ChFilterXYZReturn(0))
+    lidar.PushFilter(sens.ChFilterLidarMinMax(0.1, 100))
+    lidar.PushFilter(sens.ChFilterLidarNoise(0.01, 0, .01))
+    lidar.PushFilter(sens.ChFilterAccess())
     sens_manager.AddSensor(lidar)
 
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/lidar"))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
 
     
     time = 0
@@ -96,20 +89,16 @@ def main():
 
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
-
-        
         if (step_number % render_steps == 0):
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
 
-        
         driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
 
-        
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
@@ -117,11 +106,14 @@ def main():
         
         sens_manager.Update()
 
-        
         if not ros_manager.Update(time, time_step):
             break
 
         step_number += 1
+
+if __name__ == "__main__":
+    main()
+
 
 if __name__ == "__main__":
     main()

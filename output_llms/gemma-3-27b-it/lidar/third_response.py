@@ -3,6 +3,7 @@ import pychrono.sensor as sens
 import numpy as np
 import time
 import math
+from pychrono.vehicle import Vehicle, Powertrain, Controller, ChWheeledVehicle
 
 def main():
     # -----------------
@@ -13,12 +14,13 @@ def main():
     # ----------------------------------
     # Create an ARTcar vehicle
     # ----------------------------------
-    artcar = chrono.ARTcar(mphysicalSystem)
-    artcar.SetVehicleModel("ARTCAR_SIMPLE")
-    artcar.SetTireModel("RIGID")
-    artcar.SetEngineType(chrono.ARTcar.EngineType.ELECTRIC)
-    artcar.SetInitialPosition(chrono.ChVector3d(0, 0, 0.5))
-    artcar.SetInitialVelocity(chrono.ChVector3d(0, 0, 0))
+    vehicle = ChWheeledVehicle(mphysicalSystem)
+    vehicle.SetVehicleModel("ARTCAR")
+    vehicle.SetTireModel("RIGID")
+    vehicle.SetEngineModel("SIMPLE")
+    vehicle.SetTransmissionModel("SIMPLE")
+    vehicle.SetDifferentialModel("SIMPLE")
+    vehicle.Initialize()
 
     # -----------------------
     # Create a sensor manager
@@ -33,7 +35,7 @@ def main():
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        artcar.GetChassis(),  # Body lidar is attached to
+        vehicle.GetChassis(),  # Body lidar is attached to
         update_rate,  # Scanning rate in Hz
         offset_pose,  # Offset pose
         horizontal_samples,  # Number of horizontal samples
@@ -74,7 +76,7 @@ def main():
 
     # Create 2D lidar sensor
     lidar_2d = sens.ChLidarSensor(
-        artcar.GetChassis(),  # Body lidar is attached to
+        vehicle.GetChassis(),  # Body lidar is attached to
         update_rate,  # Scanning rate in Hz
         offset_pose,  # Offset pose
         horizontal_samples,  # Number of horizontal samples
@@ -108,21 +110,13 @@ def main():
     manager.AddSensor(lidar_2d)
 
     # ---------------
-    # Create terrain
+    # Add a third person camera
     # ---------------
-    terrain = chrono.ChTerrain()
-    terrain.Create(mphysicalSystem, "terrain", chrono.ChVector3d(0, 0, -1), chrono.ChVector3d(50, 50, 0), 5, 5)
-    terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 20, 20)
-    terrain.SetMaterialProperties(0.5, 0.8, 1.0)
-
-    # ---------------
-    # Create a third-person camera
-    # ---------------
-    camera = sens.ChThirdPersonCamera()
-    camera.Attach(artcar.GetChassis())
-    camera.SetOffset(chrono.ChVector3d(0, 0, 2))
-    camera.SetAimPoint(chrono.ChVector3d(0, 0, 0.5))
-    camera.SetVerticalAngle(0.3)
+    camera = sens.ChCameraSensor(vehicle.GetChassis(), 0.01, 640, 480)
+    camera.SetOffsetPose(chrono.ChFramed(chrono.ChVector3d(0, 0, 2), chrono.Quat()))
+    camera.SetFOV(0.5)
+    camera.SetResolution(640, 480)
+    camera.PushFilter(sens.ChFilterVisualize())
     manager.AddSensor(camera)
 
     # ---------------
@@ -134,8 +128,16 @@ def main():
     render_time = 0
     t1 = time.time()
 
-    driver = chrono.ARTcarDriver(artcar)
+    driver = Controller(vehicle)
+    driver.SetSteering(0.5)
     driver.SetThrottle(0.5)
+
+    # Create a rigid terrain
+    terrain = chrono.ChTerrain()
+    terrain.Create(mphysicalSystem, "terrain", 200, 200, 0, 10)
+    terrain.SetMaterialProperties(0.5, 0.8, 1.2)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 20, 20)
+    terrain.SetColor(chrono.ChColor(0.6, 0.8, 0.4))
 
     while ch_time < end_time:
         # Set lidar to orbit around the mesh body
@@ -161,10 +163,10 @@ def main():
         manager.Update()
 
         # Perform step of dynamics
-        mphysicalSystem.DoStepDynamics(step_size)
-        artcar.Synchronize()
+        vehicle.Synchronize()
         driver.Synchronize()
         terrain.Synchronize()
+        mphysicalSystem.DoStepDynamics(step_size)
 
         # Get the current time of the simulation
         ch_time = mphysicalSystem.GetChTime()

@@ -28,19 +28,32 @@ body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 box_1 = chrono.ChVisualShapeBox(1, 1, 1)
 body_1.AddVisualShape(box_1)
 
-# Create the spring between body_1 and ground. The spring end points are
-# specified in the body relative frames.
+# Create the custom force functor
+class MySpringForce(chrono.ForceFunctor):
+    def __init__(self, spring_coef, damping_coef):
+        self.spring_coef = spring_coef
+        self.damping_coef = damping_coef
+
+    def computeForce(self, body1, body2, relative_pos):
+        # Calculate force based on spring and damping coefficients
+        force = self.spring_coef * (relative_pos - chrono.ChVector3d(0, 0, 0))
+        force *= self.damping_coef
+        return force
+
+# Attach the custom force functor to the spring
 spring_1 = chrono.ChLinkTSDA()
 spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
 spring_1.SetRestLength(rest_length)
 spring_1.SetSpringCoefficient(spring_coef)
 spring_1.SetDampingCoefficient(damping_coef)
+spring_1.SetForceFunctor(MySpringForce(spring_coef, damping_coef))  # Apply custom force functor
 sys.AddLink(spring_1)
 
-# Attach a visualization asset.
-spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+# Add visual elements to ground
+sph_2 = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
 
-# Create additional body and visual elements
+# Create additional body
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
 body_2.SetPos(chrono.ChVector3d(1, -3, 0))
@@ -53,24 +66,9 @@ body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 box_2 = chrono.ChVisualShapeBox(1, 1, 1)
 body_2.AddVisualShape(box_2)
 
-# Create a new visual sphere shape for the ground
-sph_2 = chrono.ChVisualShapeSphere(0.1)
-ground.AddVisualShape(sph_2, chrono.ChFramed(chrono.ChVector3d(1, 0, 0)))
-
-# Create a custom force functor
-class MySpringForce(chrono.ForceFunctor):
-    def __init__(self, spring_coef, damping_coef):
-        self.spring_coef = spring_coef
-        self.damping_coef = damping_coef
-
-    def calculate_force(self, body1, body2, relative_position):
-        # Calculate the force based on the spring and damping parameters
-        # ... (Your implementation here)
-        return chrono.ChVector3d(0, 0, 0)
-
-# Create a new spring with the custom force functor
+# Create the second spring using the custom force functor
 spring_2 = chrono.ChLinkTSDA()
-spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
 spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)

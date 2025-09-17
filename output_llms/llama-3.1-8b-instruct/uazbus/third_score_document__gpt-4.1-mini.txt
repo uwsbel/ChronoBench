@@ -4,178 +4,157 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization**:  
-  The script uses `veh.UAZBUS()` which internally creates and manages its own system (`vehicle.GetSystem()`). This is acceptable and common in vehicle simulations. No explicit `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` is created by the user, but this is standard practice with vehicle models.  
-  **No deduction.**
+- **System Initialization:**  
+  The script creates a vehicle object (`veh.UAZBUS()`) which internally creates and manages its own system. However, the script never explicitly creates or references a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object. According to the API documentation and best practices, the system should be explicitly created and managed, especially when adding custom bodies or obstacles.  
+  **Deduction: 15 points** (missing explicit system initialization)
 
-- **Body Creation**:  
-  The vehicle is created properly and initialized. The terrain is created using `veh.RigidTerrain` and initialized. An obstacle body is created manually (`chrono.ChBody()`), set fixed, collision shape added, positioned, and added to the system.  
-  However, **the obstacle is added incorrectly**:  
-  ```python
-  vehicle.GetSystem().Add(chrono.ChLinkBaseCFrame(obstacle, vehicle.GetVehicle()))
-  ```  
-  `chrono.ChLinkBaseCFrame` is a joint/link class, not a body. The correct way to add a body to the system is `vehicle.GetSystem().Add(obstacle)`. This is a **significant error** (see correctness).  
-  **No deduction here yet, but note for correctness.**
+- **Body Creation:**  
+  The script attempts to create an obstacle body and add it to the system. However, the way it adds the obstacle is incorrect (see correctness below). The obstacle is created with `chrono.ChBody()`, but some properties are incorrectly set (mass, inertia, size). Also, the obstacle is not properly added to the system.  
+  **Deduction: 10 points** (body creation present but incorrectly configured and added)
 
-- **Visualization**:  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, window size, title, camera, logo, lighting, skybox, and vehicle attachment are all done properly.  
-  **No deduction.**
+- **Visualization:**  
+  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, with window size, title, camera, logo, lighting, and skybox added. This is mostly complete and appropriate.  
+  **No deduction**
 
-- **Driver Setup**:  
-  The interactive driver is created and initialized with proper delta settings.  
-  **No deduction.**
+- **Driver and Terrain:**  
+  The interactive driver and rigid terrain are created and initialized properly.  
+  **No deduction**
 
-- **Simulation Loop**:  
-  The loop uses `vis.Run()`, rendering every `render_steps` steps, synchronizes all modules, advances them, and uses a realtime timer.  
-  **No deduction.**
+- **Simulation Loop:**  
+  The simulation loop is implemented correctly with synchronization and advancement of all components.  
+  **No deduction**
 
-- **Contact Material and Terrain Patch**:  
-  Contact material is created with friction and restitution, patch added with texture and color, terrain initialized.  
-  **No deduction.**
-
-- **Missing Components**:  
-  - No explicit setting of collision envelope or margin (minor, optional).  
-  - No comments in code (minor, but relates to code quality).  
-  - No error handling or checks for initialization success (see error handling).  
-
-**Completeness deductions:**  
-- The obstacle body is created but added incorrectly (this is more correctness).  
-- No missing essential components.  
-- Minor omissions (lack of comments, no collision envelope/margin settings).  
-
-**Deduction: 5 points** (minor omissions in comments and collision settings).
+- **Summary Completeness Deduction:** 15 + 10 = 25 points
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect use of PyChrono API:**  
+- **Adding Obstacle to System:**  
   The line:  
   ```python
-  vehicle.GetSystem().Add(chrono.ChLinkBaseCFrame(obstacle, vehicle.GetVehicle()))
+  vehicle.GetSystem().Add(vehicle.GetSystem().GetBodyList().Append(obstacle))
   ```  
-  is incorrect. `ChLinkBaseCFrame` is a link/joint class and cannot be added directly to the system like this. The correct approach is:  
+  is incorrect. `GetBodyList()` returns a container, and `Append()` returns `None` (or does not return the body). The correct way is simply:  
   ```python
   vehicle.GetSystem().Add(obstacle)
   ```  
-  or if a joint is intended, it must be properly initialized and added. This will cause a runtime error or incorrect simulation behavior.  
-  **Deduct 15 points for this significant API misuse.**
+  This is a significant API misuse that will cause the obstacle not to be added properly.  
+  **Deduction: 15 points**
 
-- **Logical errors:**  
-  - The obstacle is fixed and has collision shape, which is correct.  
-  - Vehicle and terrain synchronization and advancement are done properly.  
-  - Visualization synchronization is correct.  
-  - Driver input retrieval and synchronization are correct.  
-  - Step sizes and rendering steps are consistent.  
-  - Setting the system collision type after vehicle initialization is acceptable but ideally should be done before initialization for consistency. Minor issue.  
-  **Deduct 5 points for minor logical inconsistency in setting collision system type after vehicle initialization.**
+- **Obstacle Properties:**  
+  - `obstacle.SetMass(1)` is okay but very low for a fixed obstacle (usually mass is irrelevant if fixed).  
+  - `obstacle.SetInertia(1,1,1)` is invalid; the API expects `SetInertiaXX(chrono.ChVector3d(...))` or `SetInertia(chrono.ChVector3d(...))`. The method `SetInertia()` with three floats is not documented.  
+  - `obstacle.SetSize(0.5, 5, 0.2)` is not a valid method of `ChBody`. The size should be set via collision or visual shapes, not directly.  
+  - Collision shape is added via `SetCollisionShape()`, but this method does not exist in the documented API. Instead, collision shapes are added via `collision_model` or helper functions like `AddCollisionShape()`.  
+  These are multiple logical and API errors.  
+  **Deduction: 15 points**
 
-- **Other minor inaccuracies:**  
-  - `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant (setting path to itself). Minor inefficiency.  
-  - `veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')` is correct.  
-  - The use of `chrono.QUNIT` is correct for identity quaternion.  
-  - The use of `veh.VisualizationType_MESH` and `veh.CollisionType_NONE` is consistent with vehicle API.  
-  - The use of `veh.TireModelType_RIGID` is correct.  
-  - The `driver.SetSteeringDelta`, etc., use `render_step_size / steering_time` which is reasonable.  
-  **Deduct 5 points for minor inaccuracies and redundant API calls.**
+- **Collision System Type:**  
+  The collision system type is set after vehicle initialization:  
+  ```python
+  vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+  ```  
+  This is acceptable but ideally should be set before initialization to ensure proper setup. Minor issue.  
+  **Deduction: 5 points**
+
+- **Chrono Data Path Setting:**  
+  The code calls:  
+  ```python
+  chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+  ```  
+  This is redundant and unnecessary, but not harmful.  
+  **No deduction**
+
+- **Tire Step Size:**  
+  Tire step size is set equal to the main step size, which is acceptable.  
+  **No deduction**
+
+- **Summary Correctness Deduction:** 15 + 15 + 5 = 35 points (capped at 30 max, so 30 points deducted)
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability and structure:**  
-  - Variable names are meaningful (e.g., `initLoc`, `vis_type`, `terrainLength`).  
-  - Code is logically structured: imports, parameters, vehicle setup, terrain, obstacle, visualization, driver, loop.  
-  - However, **no comments at all** to explain sections or rationale.  
-  - Some blank lines are present, but could be improved for clarity.  
-  - The print statement is minimal but acceptable.  
-  **Deduct 5 points for lack of comments/documentation.**
+- **Readability:**  
+  The code is mostly readable with meaningful variable names. However, some lines are long and could be broken up for clarity.  
+  - The obstacle creation block lacks comments and is somewhat confusing due to incorrect API usage.  
+  - The code lacks inline comments explaining key steps, especially for less obvious parts like driver deltas or rendering steps.  
+  **Deduction: 5 points** (for lack of comments and minor readability issues)
 
 - **Formatting:**  
-  - Indentation and spacing are consistent.  
-  - No PEP8 violations visible.  
-  **No deduction here.**
+  Generally consistent, but some blank lines could improve separation of logical blocks.  
+  **No further deduction**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Unnecessary calculations or redundant code:**  
-  - `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` is redundant and unnecessary.  
-  - The calculation of `render_steps = math.ceil(render_step_size / step_size)` is good practice.  
-  - The simulation loop is efficient, with rendering only every `render_steps`.  
-  - No obvious redundant API calls or calculations.  
-  **Deduct 5 points for the redundant `SetChronoDataPath` call.**
+- **Unnecessary Calculations:**  
+  - The line:  
+    ```python
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    ```  
+    is redundant and unnecessary.  
+  - The calculation of `render_steps` is correct and efficient.  
+  - The loop and synchronization calls are appropriate.  
+  **Deduction: 5 points** (for redundant data path setting)
 
-- **Missing optimization opportunities:**  
-  - Could cache `vehicle.GetSystem()` in a variable to avoid repeated calls. Minor.  
-  - Could add comments or modularize code into functions for clarity and reuse. Minor.  
-  **Deduct 3 points for missing minor optimizations.**
+- **Optimization Opportunities:**  
+  No major missed optimizations.  
+  **No deduction**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Basic error handling:**  
-  - No try-except blocks or checks for initialization success.  
-  - No validation of file paths or resource loading.  
-  - No checks on driver or visualization initialization.  
-  **Deduct 5 points for lack of basic error handling.**
-
-- **Edge cases:**  
-  - No handling of simulation end conditions other than `vis.Run()`.  
-  - No checks for NaNs or invalid states.  
-  **Deduct 3 points for inadequate edge case handling.**
+- The script lacks any error handling or checks (e.g., verifying that the vehicle or terrain initialized correctly).  
+- No try-except blocks or validation of inputs.  
+- While not always required in simple scripts, best practice is to include minimal error handling or at least assertions.  
+**Deduction: 5 points**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Setup correctness:**  
-  - Visualization system is created and initialized properly.  
-  - Window size and title are set.  
-  - Chase camera is set with a good offset.  
-  - Logo, directional light, and skybox are added.  
-  - Vehicle is attached properly.  
-  - Driver is linked to visualization.  
-  **No major issues.**
-
-- **Minor visualization issues:**  
-  - Instead of `vis.AddLightDirectional()`, the API doc suggests `vis.AddTypicalLights()` for standard lighting. Using only directional light may be less optimal.  
-  - No camera added explicitly besides chase camera; this is acceptable but could be improved.  
-  **Deduct 2 points for minor visualization setup suboptimality.**
+- Visualization setup is mostly complete: window size, title, chase camera, logo, directional light, skybox.  
+- However, the script uses `vis.AddLightDirectional()` instead of the recommended `vis.AddTypicalLights()` from the documentation, which adds multiple lights for better scene illumination.  
+- No camera addition beyond chase camera; adding a fixed camera could improve visualization.  
+**Deduction: 3 points** (minor visualization suboptimal setup)
 
 ---
 
-### **Summary of deductions:**
+### Summary of Deductions
 
-| Criterion                     | Deduction | Reason                                                                                 |
-|-------------------------------|-----------|----------------------------------------------------------------------------------------|
-| Completeness                  | 5         | Minor omissions: lack of comments, no collision envelope/margin settings               |
-| Correctness                  | 25        | 15 points: incorrect use of `ChLinkBaseCFrame` to add obstacle body                   |
-|                               | 5         | minor logical issue: setting collision system type after vehicle initialization        |
-|                               | 5         | minor inaccuracies and redundant API calls                                            |
-| Code Quality                 | 5         | lack of comments/documentation                                                        |
-| Efficiency                  | 8         | 5 points redundant `SetChronoDataPath` call, 3 points missing minor optimizations      |
-| Error Handling and Robustness | 8         | 5 points no error handling, 3 points inadequate edge case handling                     |
-| Visualization Tools          | 2         | minor suboptimal lighting setup                                                       |
-| **Total deductions**           | **58**    |                                                                                        |
+| Criterion                  | Points | Deduction | Notes                                      |
+|----------------------------|--------|-----------|--------------------------------------------|
+| Completeness               | 40     | 25        | Missing explicit system; obstacle setup    |
+| Correctness               | 30     | 30        | Incorrect obstacle addition and properties |
+| Code Quality              | 10     | 5         | Lack of comments, minor readability issues |
+| Efficiency                | 10     | 5         | Redundant data path setting                 |
+| Error Handling & Robustness| 5      | 5         | No error handling                           |
+| Visualization             | 5      | 3         | Suboptimal lighting setup                    |
+| **Total Deductions**       |        | 73        |                                            |
 
 ---
 
-### Final score:
+### Final Score Calculation
 
 Starting from 100 points:  
-100 - 58 = **42**
+100 - 73 = 27 points
+
+---
+
+### Final Score:
+
+[[27]]
 
 ---
 
 ### Explanation:
 
-The script is mostly complete and structured well for a vehicle simulation in PyChrono. However, the critical error in adding the obstacle body to the system using a joint class instead of adding the body itself is a major correctness flaw that would prevent the simulation from running correctly or cause runtime errors. Minor issues such as redundant API calls, lack of comments, and missing error handling further reduce the score. Visualization setup is mostly correct but could be improved slightly.
+The script demonstrates a reasonable structure and includes most components expected in a vehicle simulation with terrain and visualization. However, it misses explicit system initialization, misuses the API when adding a custom obstacle (which is a critical error), and incorrectly sets obstacle properties. These issues severely impact correctness and completeness.
 
----
+Additionally, minor inefficiencies, lack of error handling, and suboptimal visualization setup further reduce the score. The code quality is acceptable but could benefit from more comments and clearer structure.
 
-**Final score:**
-
-[[42]]
+Overall, the script requires significant corrections to be fully functional and aligned with PyChrono best practices.

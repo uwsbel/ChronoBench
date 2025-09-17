@@ -1,50 +1,45 @@
 import chrono as ch
-import chrono.vehicle as veh
 import chrono.irrlicht as irr
+import chrono.vehicle as veh
 
 
-ch.ChEngine.Initialize()
+ch.set_default_data_file_path("./data")
 
 
-system = ch.ChSystem_EulerImplicit()
+system = ch.ChSystemSMC()
 
 
 vehicle = veh.ChHMMWV(system)
 
 
-vehicle.SetPos(ch.ChVector3d(0, 0, 1.0))
-vehicle.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+vehicle.SetChassisPos({0, 0, 1})
 
 
-terrain = veh.ChSCMTerrain(system)
+terrain = veh.ChTerrainSCM(system)
 
 
 soil = terrain.GetSoilModel()
-soil.SetFriction(0.8)
-soil.SetRestitution(0.2)
-soil.SetDamping(0.5)
+soil.SetType(veh.ChSoilModel.Type.ROTHBERG)
+soil.SetParameters(100, 0.3, 1e6, 1e4)
 
 
-height_map = []
-for x in range(-100, 101):
+heightMap = []
+for i in range(20):
     row = []
-    for y in range(-100, 101):
-        row.append(0.5)  
-    height_map.append(row)
-terrain.Initialize(height_map)
+    for j in range(20):
+        row.append(0.1 * math.sin(i / 5.0) * math.cos(j / 5.0))
+    heightMap.append(row)
+terrain.Initialize(heightMap)
 
 
-driver = veh.ChDriver(system, vehicle.GetChassisBody())
-driver.SetThrottle(0.5)
-driver.SetSteering(0.2)
+driver = veh.ChDriver(system, vehicle.GetChassisBody(), vehicle.GetEngine(), vehicle.GetTransmission())
 
 
-vis = irr.ChIrrApp(system, 'HMMWV SCM Terrain Simulation', 800, 600)
-
-
-vis.SetCameraPosition(ch.ChVector3d(0, -5, 1))
-vis.SetCameraTarget(ch.ChVector3d(0, 0, 0))
-vis.EnableSun()
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVerticalAxis(-ch.Vector(0, 0, 1))
+vis.SetCameraPosition(ch.Vector(0, -10, 5))
+vis.SetLightDirection(ch.Vector(1, 1, 1))
 
 
 while vis.Run():
@@ -53,8 +48,9 @@ while vis.Run():
     vis.EndScene()
 
     
-    system.DoStepDynamics(0.01)  
-    driver.Update(0.01)
-    vis.Synchronize(0.01)
+    system.DoStepDynamics(1 / 60)
 
-vis.Exit()
+    
+    driver.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())
+    terrain.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())
+    vis.Synchronize(vehicle.GetChassisBody().GetPos(), vehicle.GetChassisBody().GetRot())

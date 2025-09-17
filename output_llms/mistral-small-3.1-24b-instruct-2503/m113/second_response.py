@@ -20,6 +20,22 @@ chassis_collision_type = veh.CollisionType_NONE
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
+heightMap = veh.GetDataFile("terrain/height_maps/test_height_map.txt")
+
+# SCM soil parameters
+soil_params = veh.SCMDeformableTerrain.SCMMaterialProperties()
+soil_params.density = 1500
+soil_params.cohesion = 1000
+soil_params.internal_friction_angle = 30
+soil_params.lateral_friction = 0.1
+soil_params.adhesion = 0.0
+soil_params.damping_ratio = 0.0
+soil_params.plastic_hardening = 0.1
+soil_params.flow_stress_ratio = 0.5
+soil_params.max_plastic_strain = 0.1
+soil_params.elastic_modulus = 2e5
+soil_params.poissons_ratio = 0.3
+soil_params.thickness = 0.1
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -58,18 +74,12 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM deformable terrain
-soil_mat = chrono.ChMaterialSurfaceSCM()
-soil_mat.SetDensity(1500)  # soil density
-soil_mat.SetShearModulus(15000)  # shear modulus
-soil_mat.SetPlasticHardening(30)  # plastic hardening
-soil_mat.SetFrictionCoeff(30)  # friction coefficient
-soil_mat.SetDampingCoeff(0.05)  # damping coefficient
-soil_mat.SetRollingResistanceCoeff(0.02)  # rolling resistance coefficient
-
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.Initialize(terrainLength, terrainWidth, 2.0, 2.0, soil_mat)
+terrain.SetSize(terrainLength, terrainWidth)
+terrain.SetHeightMap(heightMap, terrainHeight)
+terrain.SetMaterialProperties(soil_params)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -96,7 +106,6 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # Solver and integrator settings
-# ------------------------------
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
 # Output vehicle mass
@@ -124,19 +133,15 @@ while vis.Run():
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle_value  # Set hard-coded throttle value
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver_inputs, throttle_value)
     vis.Synchronize(time, driver_inputs)
-
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     # Increment frame number
     step_number += 1

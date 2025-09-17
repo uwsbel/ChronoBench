@@ -6,14 +6,16 @@ import errno
 import os  
 
 
-out_dir = chrono.GetChronoOutputPath() + "/FEA_SHELLS_BST"  
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  
 
 
 try:
     os.mkdir(out_dir)  
 except OSError as exc:
     if exc.errno != errno.EEXIST:  
-        print("Error creating output directory")
+        raise  
+    else:
+        print(f"Directory {out_dir} already exists.")
 
 
 sys = chrono.ChSystemSMC()  
@@ -23,7 +25,6 @@ mesh = fea.ChMesh()
 
 
 sys.Add(mesh)
-
 
 
 mesh.SetAutomaticGravity(False)
@@ -154,7 +155,6 @@ vis.AddTypicalLights()
 
 
 mkl_solver = mkl.ChSolverPardisoMKL()  
-mkl_solver.SetVerbose(False)  
 mkl_solver.LockSparsityPattern(True)  
 sys.SetSolver(mkl_solver)  
 

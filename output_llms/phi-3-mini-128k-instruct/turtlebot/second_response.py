@@ -2,8 +2,8 @@ import os
 import math
 import numpy as np
 import chrono
-import chrono.robot as turtlebot
-from chrono import irrlicht as chronoirr
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -37,7 +37,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+# vis.EnableShadows()  # Removed the commented-out line for enabling shadows
 
 # Set the simulation time step
 time_step = 2e-3
@@ -46,38 +46,34 @@ time_step = 2e-3
 LEFT_DRIVE_WHEEL = 0
 RIGHT_DRIVE_WHEEL = 1
 
-# Function to move the robot based on the mode
+# Function to control robot movement
 def move(mode):
     if mode == 'straight':
         robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
     elif mode == 'right':
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid mode. Mode must be 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 # Simulation loop
 time = 0
 while vis.Run():
-    # Move the robot in straight mode for the first 5 seconds
-    if time < 5:
-        move('straight')
-        print("Robot is moving straight.")
-    # Turn the robot left for the next 5 seconds
-    elif time < 10:
-        move('left')
-        print("Robot is turning left.")
-    # Turn the robot right thereafter
-    else:
-        move('right')
-        print("Robot is turning right.")
-
-    # Increment time counter
+    move('straight')  # Move straight for the first 5 seconds
     time += time_step
+    print("Moving straight")
+    if time > 5:
+        move('left')  # Turn left for the next 5 seconds
+        time += time_step
+        print("Turning left")
+        if time > 10:
+            move('right')  # Turn right after the left turn
+            time += time_step
+            print("Turning right")
 
     # Render the scene
     vis.BeginScene()

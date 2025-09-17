@@ -82,7 +82,7 @@ test_model_list = [
     # Qwen Models (2)
     "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
     "qwq-32b",
-    "qwen3-7b-instuct",
+    "qwen2-7b-instruct",
 ]
 
 

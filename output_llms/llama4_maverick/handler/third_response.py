@@ -1,6 +1,7 @@
 import pychrono as ch
 import pychrono.ros as chros
 import pychrono.irrlicht as chirr
+import rclpy
 from rclpy.publisher import Publisher
 from std_msgs.msg import Int64
 
@@ -42,10 +43,8 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor_asset = floor.GetAssets()[0]
-    floor_visual_material = ch.ChVisualMaterial()
-    floor_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/concrete.jpg"))
-    floor_asset.material_list.append(floor_visual_material)
+    floor_asset = ch.ChTexture().CreateFromFile("path/to/floor_texture.png")  # Load texture for the floor.
+    floor.AddAsset(floor_asset)  # Add the texture to the floor.
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,15 +52,13 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box_asset = box.GetAssets()[0]
-    box_visual_material = ch.ChVisualMaterial()
-    box_visual_material.SetKdTexture(ch.GetChronoDataFile("textures/blue.png"))
-    box_asset.material_list.append(box_visual_material)
+    box_asset = ch.ChTexture().CreateFromFile("path/to/box_texture.png")  # Load texture for the box.
+    box.AddAsset(box_asset)  # Add the texture to the box.
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
-    publish_rate = 10  # Hz
     ros_manager = chros.ChROSPythonManager()
+    publish_rate = 10  # Hz
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     # Register a body handler to communicate the box's state.
@@ -74,22 +71,24 @@ def main():
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
     # Initialize the ROS manager.
-    ros_manager.Initialize()
+    if not ros_manager.Initialize():
+        print("Failed to initialize ROS manager.")
+        return
 
-    # Create the Irrlicht visualization system
+    # Initialize the Irrlicht visualization.
     vis = chirr.ChVisualSystemIrrlicht()
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('Chrono::Irrlicht ROS Demo')
+    vis.SetWindowTitle('Chrono Simulation')
     vis.Initialize()
-    vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(5, 5, 5))
-    vis.AddLight(ch.ChVector3d(10, 10, 10), 10)
+    vis.AddCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
+    vis.AddLight(ch.ChVector3d(10, 10, 10), 100)
+    vis.AddLightWithShadow(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0), 10, 1, 10, 40)
     vis.AttachSystem(sys)
 
-    # Variables for controlling rendering frame rate
+    # Variables for controlling rendering frame rate.
     step_number = 0
-    render_step_size = 1e-3  # Render every 1 ms
-    render_steps = int(render_step_size / (1 / 60))  # Assuming 60 FPS for rendering
+    render_step_size = 1e-3  # Time step for rendering.
+    render_steps = int(render_step_size / 1e-3)  # Number of simulation steps between rendering.
 
     # Run the simulation loop.
     time = 0
@@ -100,11 +99,10 @@ def main():
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
 
-        # Update ROS communication.
-        if not ros_manager.Update(time, time_step):
+        if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        # Conditional rendering
+        # Conditional rendering.
         step_number += 1
         if step_number % render_steps == 0:
             vis.Run()
@@ -112,6 +110,9 @@ def main():
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
-    # Entry point of the script.
+    vis.Destroy()
+
 if __name__ == "__main__":
     main()
+
+# Make sure to replace "path/to/floor_texture.png" and "path/to/box_texture.png" with actual paths to your texture files.

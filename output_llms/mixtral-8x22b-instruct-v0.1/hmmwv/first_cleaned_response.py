@@ -8,41 +8,49 @@ physics_engine.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
 terrain = chrono.ChBoxGround(chrono.ChVectorD(100, 100, 0), 0.1)
-terrain.SetContactMaterial(3e7, 0.3)
-terrain.SetTexture(chrono.GetChronoDataFile('terrain/textures/concrete.jpg'))
+terrain.SetTexture(chrono.GetChronoDataFile('terrain/grass.jpg'), 200, 200)
 physics_engine.Add(terrain)
 
 
 vehicle = chrono.ChHMMWV()
-vehicle.SetChassisFixed(False)
-vehicle.SetFrame_COG_to_chassis(chrono.ChVectorD(0.0, 0.0, 0.75))
-vehicle.SetMass(3300)
-vehicle.SetInertiaXX(chrono.ChVectorD(500, 500, 500))
-vehicle.SetContactMaterial(3e7, 0.4)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
 vehicle.SetTireType(chrono.ChHMMWV::TMEASY)
 vehicle.SetTireStep(0.01)
-vehicle.SetInitCondition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.75), chrono.QUNIT))
+vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1.5))
+vehicle.SetInitQuaternion(chrono.ChQuaternionD(1, 0, 0, 0))
+vehicle.SetTireForce(chrono.ChVectorD(0, 0, 0))
+vehicle.SetSteeringValue(0)
+vehicle.SetBrakingValue(0)
+vehicle.SetThrottleValue(0)
+
+
 physics_engine.Add(vehicle)
 
 
-driver = chrono.ChIrrGuiDriver()
-driver.SetSleepInterval(1 / 50)
-driver.SetTimestep(0.01)
+driver = chrono.ChIrrGuiDriver(physics_engine)
+driver.SetSleep(False)
+
+
+driver.SetWindowTitle("HMMWV Simulation")
+driver.SetWindowSize(800, 600)
 driver.Initialize()
+driver.AddTypicalSky()
+driver.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+driver.AddTypicalLights()
+driver.AddTypicalCamera(chrono.ChVectorD(0, 0, 10))
 
 
-visualization = chronoirr.ChIrrApp(physics_engine, 'HMMWV Simulation', chronoirr.dimension2du(1024, 768))
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-visualization.AddTypicalCamera(chrono.ChVectorD(0, 0, 1.5))
-visualization.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 1, 5, 50, 512, 2048)
+vehicle.SetChassisColors(chrono.ChColor(0.5, 0.5, 0.5))
+vehicle.SetWheelColor(chrono.ChColor(0.1, 0.1, 0.1))
+vehicle.SetSteeringLinkColor(chrono.ChColor(0.8, 0.8, 0.8))
+vehicle.SetSuspensionColor(chrono.ChColor(0.8, 0.8, 0.8))
 
 
-while visualization.Run():
-    physics_engine.DoStepDynamics(driver.GetTimestep())
-    visualization.BeginScene()
-    visualization.DrawAll()
-    visualization.EndScene()
+while driver.Run():
+    physics_engine.DoStepDynamics(0.02)
+    driver.BeginScene()
+    driver.DrawAll()
+    driver.EndScene()
 
 
-visualization.Close()
+driver.Close()

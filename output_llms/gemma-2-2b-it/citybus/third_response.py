@@ -16,9 +16,10 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, or PAGECKA)
-tire_model = veh.TireModelType_PAGECKA
-tire_model_version = 89
+# Type of tire model (RIGID, TMEASY, or PACEJKA)
+tire_model = veh.TireModelType_PACEJKA  # 89 version
+# Tire step size
+tire_step_size = 5e-4
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
@@ -68,7 +69,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("dirt.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 # Create the vehicle Irrlicht interface

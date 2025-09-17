@@ -49,11 +49,17 @@ def main():
     ros_manager.Initialize()  
 
     
-    device = chronoirr.ChVisualSystemIrrlicht()
+    device = chronoirr.ChDeviceIrrlicht()
+    device.SetWindowSize(1280, 720)
     device.Initialize()
-    device.AddLogo()
-    device.AddCamera(chronoirr.vector3df(0, 5, 5))
-    device.SetTimestep(hmmwv.GetSystem().GetTimestep())
+    device.getSceneManager().setAmbientLight(chronoirr.vector3df(0.3, 0.3, 0.3))
+    device.getSceneManager().addCameraSceneNode(0, chronoirr.vector3df(50, 50, 50))
+
+    
+    hmmwv_node = chronoirr.ChVisualSystemIrrlicht.AddVisualNode(device, hmmwv)
+
+    
+    terrain_node = chronoirr.ChVisualSystemIrrlicht.AddVisualNode(device, terrain)
 
     
     time = 0
@@ -61,6 +67,12 @@ def main():
     time_end = 30  
 
     hmmwv.GetVehicle().EnableRealtime(True)  
+
+    
+    num_rendering_steps = 5
+    rendering_step_size = time_step * num_rendering_steps
+    frame_count = 0
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  
 
@@ -76,15 +88,18 @@ def main():
         hmmwv.Advance(time_step)
 
         
-        device.BeginScene()
-        device.Render(hmmwv.GetVehicle(), time)
-        device.Render(terrain, time)
-        device.Render(driver, time)
-        device.EndScene()
-
-        
         if not ros_manager.Update(time, time_step):
             break  
+
+        
+        if (time + time_step) > time:
+            frame_count += 1
+            if frame_count % num_rendering_steps == 0:
+                device.BeginScene(True, True, chronoirr.SColor(255, 150, 150, 150))
+                device.getVideoDriver().setTextureCreationFlag(chronoirr.ETCF_CREATE_MIP_MAPS, False)
+                terrain_node.draw(device.getVideoDriver())
+                hmmwv_node.draw(device.getVideoDriver())
+                device.EndScene()
 
 if __name__ == "__main__":
     main()

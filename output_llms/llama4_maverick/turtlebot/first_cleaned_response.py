@@ -1,6 +1,5 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
 
 
 chrono.SetChronoDataPath("/path/to/chrono/data/")
@@ -23,34 +22,35 @@ turtlebot.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 sys.Add(turtlebot)
 
 
-wheel1 = chrono.ChBody()
-wheel1.SetMass(1)
-wheel1.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-wheel1.SetPos(chrono.ChVectorD(-0.2, 0.25, 0))
-sys.Add(wheel1)
+wheel_L = chrono.ChBody()
+wheel_L.SetMass(1)
+wheel_L.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+wheel_L.SetPos(chrono.ChVectorD(-0.5, 0.25, 0))
+sys.Add(wheel_L)
 
-wheel2 = chrono.ChBody()
-wheel2.SetMass(1)
-wheel2.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
-wheel2.SetPos(chrono.ChVectorD(0.2, 0.25, 0))
-sys.Add(wheel2)
+wheel_R = chrono.ChBody()
+wheel_R.SetMass(1)
+wheel_R.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+wheel_R.SetPos(chrono.ChVectorD(0.5, 0.25, 0))
+sys.Add(wheel_R)
 
-motor1 = chrono.ChLinkMotorRotation()
-motor1.Initialize(wheel1, turtlebot, chrono.ChFrameD(chrono.ChVectorD(-0.2, 0.25, 0)))
-sys.AddLink(motor1)
 
-motor2 = chrono.ChLinkMotorRotation()
-motor2.Initialize(wheel2, turtlebot, chrono.ChFrameD(chrono.ChVectorD(0.2, 0.25, 0)))
-sys.AddLink(motor2)
+motor_L = chrono.ChLinkMotorRotationSpeed()
+motor_L.Initialize(turtlebot, wheel_L, chrono.ChFrameD(chrono.ChVectorD(-0.5, 0.25, 0)))
+sys.Add(motor_L)
+
+motor_R = chrono.ChLinkMotorRotationSpeed()
+motor_R.Initialize(turtlebot, wheel_R, chrono.ChFrameD(chrono.ChVectorD(0.5, 0.25, 0)))
+sys.Add(motor_R)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
+vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Turtlebot Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 2, -3))
+vis.AddCamera(chrono.ChVectorD(0, 2, -4))
 vis.AddTypicalLights()
 vis.AttachSystem(sys)
 
@@ -59,18 +59,18 @@ time = 0
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    vis.EndScene()
-
-    
-    if time < 2:
-        motor1.SetTorque(1)
-        motor2.SetTorque(1)
-    elif time < 4:
-        motor1.SetTorque(-1)
-        motor2.SetTorque(1)
-    else:
-        motor1.SetTorque(1)
-        motor2.SetTorque(-1)
-
     sys.DoStepDynamics(0.01)
     time += 0.01
+    
+    
+    if time < 2:
+        motor_L.SetSpeed(1)
+        motor_R.SetSpeed(1)
+    elif time < 4:
+        motor_L.SetSpeed(-1)
+        motor_R.SetSpeed(1)
+    else:
+        motor_L.SetSpeed(1)
+        motor_R.SetSpeed(-1)
+        
+    vis.EndScene()

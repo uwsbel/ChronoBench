@@ -11,11 +11,11 @@ sys.Add(mesh)
 
 mesh.SetAutomaticGravity(True,
                          2)  # for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Updated gravity
 
-beam_L = 10
-beam_ro = 0.060
-beam_ri = 0.055
+beam_L = 10  # Changed beam length
+beam_ro = 0.060  # Changed outer radius
+beam_ri = 0.055  # Changed inner radius
 CH_PI = 3.1456
 
 # Create a section, i.e. thickness and material properties
@@ -55,7 +55,7 @@ node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() 
 
 # Create the flywheel and attach it to the center of the beam
 
-mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # R, h, density
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Updated flywheel dimensions
 mbodyflywheel.SetCoordsys(
     chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  # flywheel initial center (plus Y offset)
                        chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
@@ -92,7 +92,7 @@ rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  # body A (slave)
                      )
 sys.Add(rotmotor1)
 
-f_ramp = chrono.ChFunctionSine(60, 0.1)
+f_ramp = chrono.ChFunctionSine(60, 0.1)  # Updated motor function
 rotmotor1.SetMotorFunction(f_ramp)
 
 # Attach a visualization of the FEM mesh.
@@ -118,7 +118,7 @@ vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Updated camera position
 vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()

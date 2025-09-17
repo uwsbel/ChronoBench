@@ -2,71 +2,67 @@ import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
-# Create the simulation system and add a contact material
-sys = chrono.ChSystemNSC()
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.9)
-contact_material.SetDampingF(0.000)
-contact_material.SetCompliance(0.0001)
-contact_material.SetComplianceT(0.0001)
-sys.SetContactMaterial(contact_material)
+# Create the simulation system and set the solver
+mysystem = chrono.ChSystemNSC()
+mysystem.SetSolverType(chrono.ChSolver.Type_PSSOR)
+mysystem.SetMaxItersSolverSpeed(100)
 
 # Create the vehicle and set its parameters
 veh_hmmwv = veh.HMMWV()
-veh_hmmwv.SetContactMaterial(contact_material)
-veh_hmmwv.SetChassisCollisionModel(chrono.ChBox(1.2, 0.8, 1.8))
-veh_hmmwv.SetChassisVisualization(chrono.ChVisualizationBOX())
-veh_hmmwv.SetChassisMass(1500)
-veh_hmmwv.SetChassisInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
-veh_hmmwv.SetChassisPosition(chrono.ChVectorD(0, 0.8, 0))
-veh_hmmwv.SetChassisOrientation(chrono.ChQuaternionD(chrono.ChVectorD(0, 1, 0), chrono.ChAngleD(chrono.CH_C_PI_2)))
-veh_hmmwv.SetTireType(veh.TireModelType.TMEASY)
-veh_hmmwv.SetTireStepSize(0.01)
-veh_hmmwv.SetTireForceEnabled(True)
-veh_hmmwv.SetSteeringType(veh.SteeringType.STEERING_SINGLE_TRACK)
-veh_hmmwv.SetBrakeType(veh.BrakeType.BRAKE_SIMPLE)
-veh_hmmwv.SetDrivetrainType(veh.DrivetrainType.DRIVETRAIN_TWO_WHEELS_DIFFERENTIAL)
+veh_hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+veh_hmmwv.SetChassisFixed(False)
+veh_hmmwv.SetInitPosition(chrono.ChVectorD(0, 0.4, 0))
+veh_hmmwv.SetInitOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+veh_hmmwv.Initialize(mysystem)
 
-# Create the terrain and add it to the system
-terrain = chrono.ChBodyEasyMesh()
-terrain.SetMesh(chrono.ChMesh(chrono.GetChronoDataFile("Highway_col.obj")))
-terrain.SetCollide(True)
+# Add the TMEASY tire model
+veh_hmmwv.AddTiresTMEASY()
+
+# Add visualization for all vehicle components
+veh_hmmwv.AddVisualizationMeshes()
+
+# Create the terrain and set its parameters
+terrain = veh.RigidTerrain(mysystem)
+terrain.SetName("terrain")
 terrain.SetBodyFixed(True)
-terrain.SetPos(chrono.ChVectorD(0, -0.5, 0))
-terrain.SetMaterial(contact_material)
-sys.Add(terrain)
+terrain.SetContactFriction(0.9)
+terrain.SetContactRestitution(0.01)
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
 
-# Create the visual terrain and add it to the system
-terrain_vis = chrono.ChBodyEasyMesh()
-terrain_vis.SetMesh(chrono.ChMesh(chrono.GetChronoDataFile("Highway_vis.obj")))
-terrain_vis.SetCollide(False)
-terrain_vis.SetBodyFixed(True)
-terrain_vis.SetPos(chrono.ChVectorD(0, -0.5, 0))
-sys.Add(terrain_vis)
+# Add collision and visual meshes for the terrain
+terrain.AddCollisionMesh(chrono.GetChronoDataFile("Highway_col.obj"))
+terrain.AddVisualizationMesh(chrono.GetChronoDataFile("Highway_vis.obj"))
 
-# Create the driver system and add it to the vehicle
-driver = veh.ChIrrGuiDriver()
-driver.SetSteeringMode(veh.SteeringMode.STEERING_MODE_ANGLE)
-driver.SetThrottleMode(veh.ThrottleMode.THROTTLE_MODE_PERCENT)
-driver.SetBrakingMode(veh.BrakingMode.BRAKING_MODE_PERCENT)
-driver.SetVehicle(veh_hmmwv)
-veh_hmmwv.AddDriver(driver)
+# Create the interactive driver system
+driver = veh.ChIrrVehicleDriverHMMWV(veh_hmmwv)
+driver.SetSteeringMode(veh.ChIrrVehicleDriverHMMWV.SteeringMode_TYPE_2)
 
-# Create the Irrlicht application and add the vehicle and terrain to the scene
+# Create the Irrlicht application
 app = chronoirr.ChVisualSystemIrrlicht()
-app.SetWindowSize(800, 600)
-app.SetWindowTitle("HMMWV Simulation")
-app.AddCamera(chrono.ChVectorD(0, 1.5, -3), chrono.ChVectorD(0, 1, 0))
-app.AddLightWithShadow(chrono.ChVectorD(1, 2, 2), chrono.ChVectorD(0, 0, 0), 10, 10, 10, 100, 100, 100)
+app.SetWindowSize(1024, 768)
+app.SetWindowTitle("HMMWV on custom mesh terrain")
+app.AddTypicalLights()
 app.AddSkyBox()
-app.AddTypicalLigthing()
-app.AddVehicle(veh_hmmwv)
-app.AddTerrain(terrain_vis)
+app.AddCamera(chrono.ChVectorD(0, 1.5, -3), chrono.ChVectorD(0, 1, 0))
+app.SetSymbolicCameraSpeed(0.5)
+app.SetCameraUp(chrono.ChVectorD(0, 0, 1))
+app.SetCameraSpeed(0.5)
+app.SetTimestep(0.02)
+app.SetTryRealtime(True)
 
-# Run the simulation loop
+# Simulation loop
 while app.Run():
+    mysystem.DoStepDynamics(0.02)
     app.BeginScene()
     app.DrawAll()
-    sys.DoStepDynamics(0.02)
     app.EndScene()
-    chrono.ChUtils::Sleep(0.02)
+
+    # Update vehicle dynamics
+    driver.Synchronize(0.02)
+    veh_hmmwv.Synchronize(0.02, mysystem)
+
+    # Render the scene
+    app.Render()
+
+    # Cap the frame rate
+    app.SetTimestep(0.02)

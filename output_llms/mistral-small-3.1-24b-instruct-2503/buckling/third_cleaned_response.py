@@ -1,8 +1,8 @@
 import math as m  
-import pychrono as chrono  
-import pychrono.fea as fea  
-import pychrono.pardisomkl as mklsolver  
-import pychrono.irrlicht as chronicls  
+import chrono  
+import chrono.fea as fea  
+import chrono.pardisomkl as mklsolver  
+import chrono.irrlicht as chronicls  
 import os  
 
 
@@ -34,16 +34,16 @@ vd = chrono.ChVector3d(0, 0, 0.0001)
 
 body_trss = chrono.ChBody()
 body_trss.SetFixed(True)
-sys.Add(body_trss)
+sys.AddBody(body_trss)
 
 
 boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
-body_trss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+body_trss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
 
 
 body_crank = chrono.ChBody()
 body_crank.SetPos((vC + vG) * 0.5)
-sys.Add(body_crank)
+sys.AddBody(body_crank)
 
 
 boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
@@ -51,7 +51,7 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrono.ChFrame(chrono.ChVector3d(vG)))
+motor.Initialize(body_trss, body_crank, chrono.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)
@@ -176,6 +176,7 @@ vis.AddTypicalLights()
 
 custom_solver = mklsolver.ChSolverPardisoMKL()
 sys.SetSolver(custom_solver)
+
 
 ts = chrono.ChTimestepperHHT(sys)
 ts.SetStepControl(True)

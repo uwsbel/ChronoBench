@@ -81,6 +81,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
 
+
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -134,8 +135,3 @@ while vis.Run() :
 
     
     realtime_timer.Spin(step_size)
-
-    
-    if time > 1.0:
-        
-        pass

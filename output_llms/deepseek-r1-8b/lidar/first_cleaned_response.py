@@ -1,7 +1,4 @@
 import pychrono as pychrono
-from pychrono.objects import *
-from pychrono.sensors import *
-from pychrono.render import *
 import numpy as np
 
 
@@ -9,92 +6,83 @@ pychrono.init()
 
 
 scene = pychrono.Scene()
+scene.set_ground_plane("horizontal", 0, 0, 0)
 
 
-obj = pychrono.objects.MeshObject("triangular_mesh.obj")
-scene.add_object(obj)
+mesh = pychrono.SceneMesh("sphere.obj")
+
+scene.add_mesh(mesh)
+
+body = pychrono.Body("body")
+body.set_mass(1)
+body.set_position([0, 0, 5])
+body.set_constraints(pychrono.BodyConstraintsfixed_position())
 
 
-obj.set_body_type("fixed")
+lidar_sensor = pychrono.SensorLidar(body, "lidar")
+lidar_sensor.set_update_frequency(10)
+lidar_sensor.set_noise_level(0.1)
+lidar_sensor.add_visualization("lidar_points", color=(0, 0, 1), size=0.1)
 
 
-lidar_sensor = pychrono.sensors.LidarSensor()
-lidar_sensor.set_noise_level(0.1)  
-lidar_sensor.set_parent(obj)  
+orbit_radius = 5  
+orbit_speed = 1  
+lidar_height = 1  
 
 
-orbit_radius = 5.0  
-orbit_vertical = 5.0  
-orbit_speed = 1.0  
-orbit_period = 10.0  
-
-lidar = pychrono.objects.Body()
-lidar.set_body_type("dynamic")
-lidar.set_mass(0.0)  
-lidar.set_size(0.1, 0.1, 0.1)  
-lidar.set_position(obj.get_position() + pychrono.Vec3(orbit_radius, 0, orbit_vertical))
-lidar.set_velocity(pychrono.Vec3(orbit_speed, 0, 0))
+lidar_position = np.array([orbit_radius, 0, lidar_height])
 
 
-orbit_constraint = pychrono.constraints.OrbitConstraint(lidar, obj)
-scene.add_constraint(orbit_constraint)
+def update_lidar_position():
+    global step, lidar_position
+    step += 1
+    angle = step * 2 * np.pi / 360  
+    lidar_position = np.array([
+        orbit_radius * np.cos(angle),
+        orbit_radius * np.sin(angle),
+        lidar_height
+    ])
 
 
-camera = pychrono.objects.Camera()
-camera.set_position(pychrono.Vec3(10, 10, 10))
-camera.set_look_at(pychrono.Vec3(0, 0, 0))
-camera.set_up(pychrono.Vec3(0, 1, 0))
-renderer = pychrono.render.Renderer(camera)
-renderer.setClearColor(0.5, 0.5, 0.5)
+mesh_visualization = pychrono.VisualizationMesh(
+    mesh,
+    color=(1, 0, 0),
+    wireframe=True
+)
+scene.add_visualization(mesh_visualization)
 
 
-lidar_visual = pychrono.render.PointCloudVisualizer()
-lidar_visual.set_source(lidar.get_source())
-renderer.add(lidar_visual)
+scene.add_sensor(lidar_sensor)
 
 
-mesh_visual = pychrono.render.MeshVisualizer()
-mesh_visual.set_source(obj.get_source())
-renderer.add(mesh_visual)
+simulation = pychrono.Simulation(scene)
+simulation.set_ground_friction(0.5)
+simulation.set_gravity([0, 0, -9.81])
 
 
-simulation_time = pychrono.SimTime(0, 1.0)  
-final_time = pychrono.SimTime(10, 1.0)    
-dt = pychrono.SimTime(0.01, 1.0)        
+lidar_buffer = pychrono.Buffer()
+lidar_sensor.set_save_to_file(lidar_buffer, "lidar_data", step=5)
 
 
-lidar_buffer = []
-current_time = 0.0
+lidar_visualization = pychrono.VisualizationPlot(
+    lidar_buffer,
+    x_axis="distance",
+    y_axis="intensity",
+    z_axis="height",
+    show_legend=True
+)
+simulation.add_visualization(lidar_visualization)
 
 
-while simulation_time < final_time:
-    
-    scene.update()
-    
-    
-    current_time += dt.get_value()
-    angle = (current_time / orbit_period) * 360.0
-    lidar.set_position(obj.get_position() + pychrono.Vec3(
-        orbit_radius * np.cos(angle * np.pi / 180),
-        0,
-        orbit_vertical + orbit_radius * np.sin(angle * np.pi / 180)
-    ))
-
-    
-    lidar_data = lidar.get_source().get_point_cloud()
-    lidar_buffer.append(lidar_data.copy())
-    
-    
-    print(f"Lidar Data at time {current_time:.3f}:")
-    print("PointCloud Shape:", lidar_data.shape)
-    print("First few points:", lidar_data[:3, :])
-    
-    
-    simulation_time += dt
+simulation.start()
 
 
-with open("lidar_data.npy", "wb") as f:
-    np.save(f, np.array(lidar_buffer))
-
-
-renderer.close()
+while True:
+    simulation.step()
+    update_lidar_position()
+    data = lidar_buffer.get_data()
+    print(f"Step {step}: Lidar Data - Distance: {data[0]} | Intensity: {data[1]} | Height: {data[2]}")
+    if step % 5 == 0:
+        lidar_buffer.save_to_file()
+    if step % 1000 == 0:
+        break

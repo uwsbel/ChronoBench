@@ -16,24 +16,25 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PACEJKA89)
-tire_model = veh.TireModelType_PACEJKA89  # Changed to Pacejka89
+# Type of tire model (RIGID, TMEASY, PACEJKA)
+tire_model = veh.TireModelType_PACEJKA
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-15.0, 10.0, 5.8)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
-# Simulation step sizes - reduced from 1e-3 to 5e-4
-step_size = 5e-4
-tire_step_size = step_size
+# Simulation step sizes
+step_size = 5e-4  # Changed from 1e-3 to 5e-4
+tire_step_size = step_size  # Changed from 1e-3 to 5e-4
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
@@ -46,6 +47,9 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
+# Set Pacejka tire parameters (version 89)
+vehicle.SetPacejkaMagicFormulaParameters(89)  # Using Pacejka 89 version
 
 vehicle.Initialize()
 
@@ -66,7 +70,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
     terrainLength, terrainWidth)
 
-# Changed terrain texture to "dirt.jpg"
+# Changed terrain texture from "tile4.jpg" to "dirt.jpg"
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()

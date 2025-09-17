@@ -3,8 +3,8 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-from pychrono import irrlicht as chronoirr
 import pychrono.sensor as sens
+from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
 system = chrono.ChSystemNSC()
@@ -22,7 +22,6 @@ ground.SetFixed(True)  # Fix the ground in place
 
 # Set ground texture for visualization
 ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-
 system.Add(ground)
 
 # Create Viper rover
@@ -70,7 +69,7 @@ manager.AddSensor(cam)
 # Set the simulation time step
 time_step = 1e-3
 
-# Variables for simulation step and render step size
+# Define variables for simulation step and render step size
 step_number = 0
 render_step_size = 1.0 / 25  # FPS = 25
 render_steps = math.ceil(render_step_size / time_step)
@@ -96,7 +95,7 @@ while vis.Run():
     manager.Update()
 
     # Render the scene at specific intervals
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -105,3 +104,5 @@ while vis.Run():
 
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
+
+# No code needs to be inside the triple backticks in this case, the code is already provided above.

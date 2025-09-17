@@ -1,54 +1,39 @@
 import chrono as ch
-import chrono.vehicle as chv
-import chrono.vehicles as cv
-import chrono.utils as cu
-import chrono.irrlicht as ir
+import chronoIRR as irr
 
 
-ch.init()
+ch.InitChronic(0)
 
 
-terrain = ch.RigidBodyDynamics()
-terrain.SetGravity(ch.Vec3(0, 0, -9.81))
+terrain = ch.RigidBody()
+terrain.SetPos(ch.Vec3D(0, 0, 0))
+terrain.SetMass(1000)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
 
 
-terrain.AddBody(ch.BoxBody(ch.Vec3(100, 100, 1), ch.Mass(0), ch.Vec3(0, 0, 0)))
-terrain.AddForce(ch.Vec3(0, 0, 0), ch.Vec3(0, 0, 0), 1000)
+vehicle = ch.RigidBody()
+vehicle.SetPos(ch.Vec3D(10, 0, 0))
+vehicle.SetMass(1500)
+vehicle.SetInertiaTensor(ch.Mat33D(1000, 1000, 1000, 0, 0, 0))
+vehicle.SetForce(ch.Vec3D(0, 0, 0))
+vehicle.SetTorque(ch.Vec3D(0, 0, 0))
 
 
-kraz = chv.Kraz()
-kraz.SetMass(2500)
-kraz.SetInertiaTensor(ch.Mat33(1000, 0, 0, 0, 1000, 0, 0, 0, 1000))
-kraz.SetPosition(ch.Vec3(0, 0, 0))
-kraz.SetOrientation(ch.Q(ch.Vec3(0, 0, 0)))
+driver = ch.Driver()
+driver.SetVehicle(vehicle)
 
 
-driver = chv.Driver()
-driver.SetVehicle(kraz)
-
-
-ir.init()
-
-
-ir.addCamera(ch.Vec3(0, 0, 5), ch.Vec3(0, 0, 0), ch.Vec3(0, 1, 0))
-ir.addLight(ch.Vec3(10, 10, 10), ch.Color(1, 1, 1), 100)
-
-
-def simulate():
-    
-    terrain.Simulate(0.01)
-    driver.Simulate(0.01)
-    ir.Simulate(0.01)
-    kraz.Simulate(0.01)
-
-    
-    ir.beginScene()
-    ir.draw(kraz)
-    ir.endScene()
+visual = irr.Visual()
+visual.SetCamera(ch.Vec3D(10, 10, 10), ch.Vec3D(0, 0, 0), ch.Vec3D(0, 1, 0))
+visual.SetLighting(irr.LightingSettings())
+visual.SetTerrain(terrain)
 
 
 while True:
-    simulate()
-    ch.CheckAndPerformCollision(terrain)
-    ch.CheckAndPerformContact(terrain)
-    ir.pollEvents()
+    
+    ch.StepSimulation(0.01)
+    visual.Update()
+    driver.Update()
+    if visual.GetFrameNumber() % 100 == 0:
+        print(f"Frame {visual.GetFrameNumber()}: Vehicle velocity = {vehicle.GetVelocity().Length()} m/s")

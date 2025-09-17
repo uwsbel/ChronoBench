@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 200.0  # size in X direction (increased to fit the double lane change maneuver)
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -74,28 +74,39 @@ terrain.Initialize()
 # Create the path-follower driver system
 path = veh.ChPath(vehicle.GetSystem())
 path.AddPoint(chrono.ChVector3d(-50, 0, 0))
+path.AddPoint(chrono.ChVector3d(-45, 10, 0))
 path.AddPoint(chrono.ChVector3d(-40, 0, 0))
-path.AddPoint(chrono.ChVector3d(-30, 1, 0))
-path.AddPoint(chrono.ChVector3d(-20, 1, 0))
-path.AddPoint(chrono.ChVector3d(-10, 1, 0))
+path.AddPoint(chrono.ChVector3d(-35, 10, 0))
+path.AddPoint(chrono.ChVector3d(-30, 0, 0))
+path.AddPoint(chrono.ChVector3d(-25, 10, 0))
+path.AddPoint(chrono.ChVector3d(-20, 0, 0))
+path.AddPoint(chrono.ChVector3d(-15, 10, 0))
+path.AddPoint(chrono.ChVector3d(-10, 0, 0))
+path.AddPoint(chrono.ChVector3d(-5, 10, 0))
 path.AddPoint(chrono.ChVector3d(0, 0, 0))
+path.AddPoint(chrono.ChVector3d(5, 10, 0))
 path.AddPoint(chrono.ChVector3d(10, 0, 0))
-path.AddPoint(chrono.ChVector3d(20, 1, 0))
-path.AddPoint(chrono.ChVector3d(30, 1, 0))
-path.AddPoint(chrono.ChVector3d(40, 1, 0))
+path.AddPoint(chrono.ChVector3d(15, 10, 0))
+path.AddPoint(chrono.ChVector3d(20, 0, 0))
+path.AddPoint(chrono.ChVector3d(25, 10, 0))
+path.AddPoint(chrono.ChVector3d(30, 0, 0))
+path.AddPoint(chrono.ChVector3d(35, 10, 0))
+path.AddPoint(chrono.ChVector3d(40, 0, 0))
+path.AddPoint(chrono.ChVector3d(45, 10, 0))
 path.AddPoint(chrono.ChVector3d(50, 0, 0))
 path.Initialize()
 
 driver = veh.ChPathFollowerDriver(vehicle, path)
 driver.SetTargetSpeed(10.0)
+
 steering_controller = driver.GetSteeringController()
-steering_controller.SetLookAheadDistance(5)
-steering_controller.SetGains(10, 0.5, 0.1)
+steering_controller.SetLookAheadDistance(5.0)
+steering_controller.SetGains(0.5, 0.2, 0.1)
+
 speed_controller = driver.GetSpeedController()
-speed_controller.SetGains(0.1, 0.05, 0.02)
+speed_controller.SetGains(0.5, 0.2, 0.1)
 
 # Create the vehicle Irrlicht interface
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('FEDA vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -105,7 +116,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Initialize simulation frame counter s
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -122,14 +132,11 @@ while vis.Run() :
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs
-    driver_inputs = driver.GetInputs()
-
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

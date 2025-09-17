@@ -12,16 +12,10 @@ crank_rad = 0.4  # Radius of the crankshaft (in meters)
 crank_thick = 0.1  # Thickness of the crankshaft (in meters)
 rod_length = 1.5  # Length of the connecting rod (in meters)
 
-# Initialize arrays for plotting
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
 # Create the floor (truss) body, which is a box
 mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)  # Create a box with dimensions 3x1x3 meters and density 1000 kg/m^3
 mfloor.SetPos(chrono.ChVector3d(0, -0.5, 0))  # Position the floor at (x=0, y=-0.5, z=0)
-mfloor.SetFixed(True)  # Fix the floor so it doesn't move
+mfloor.SetFixed(True)  # Fix the floor so it doesn’t move
 sys.Add(mfloor)  # Add the floor to the simulation system
 
 # Create the crank body, which is a cylinder
@@ -63,7 +57,13 @@ mjointC = chrono.ChLinkLockPrismatic()  # Create a prismatic (slider) joint
 mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0), chrono.Q_ROTATE_Z_TO_X))  # Initialize the joint at (x=0.9, y=0.5, z=0) with rotation aligning the Z-axis to the X-axis
 sys.Add(mjointC)  # Add the joint to the simulation system
 
-# Create a visualization system
+# Initialize arrays for storing values to be plotted
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+# Set up the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()  # Create the Irrlicht visualization system
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization (1024x768 pixels)
@@ -75,42 +75,44 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a c
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Run the interactive simulation loop
-sim_time = 0
-stop_time = 20
-while sim_time < stop_time and vis.Run():
+t_end = 20  # Set the simulation end time to 20 seconds
+t = 0  # Initialize the current time
+dt = 1e-3  # Set the time step size
+while vis.Run() and t < t_end:
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
-    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
+    sys.DoStepDynamics(dt)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
 
     # Collect data during simulation
-    array_time.append(sim_time)
-    array_angle.append(mcrank.GetRot().Q_angle())
-    array_pos.append(mpiston.GetPos().x)
-    array_speed.append(mpiston.GetPos_dt().x)
+    angle = mcrank.GetRotAngle_X()  # Get the crank angle
+    pos = mjointC.GetPos().x  # Get the piston position
+    speed = mjointC.GetPos_dt().x  # Get the piston speed
 
-    sim_time += sys.GetTimestep()
+    array_time.append(t)
+    array_angle.append(angle)
+    array_pos.append(pos)
+    array_speed.append(speed)
 
-# Plot the results
-fig, axs = plt.subplots(2)
-fig.suptitle('Crankshaft Simulation Results')
+    t += dt  # Update the current time
 
-# Subplot 1: Position vs. Angle
+# Matplotlib plotting
+fig, axs = plt.subplots(2)  # Create a figure with two subplots
+
+# First subplot: plot position [m] versus the crank angle [rad]
 axs[0].plot(array_angle, array_pos)
-axs[0].set_xlabel('Crank Angle [rad]')
+axs[0].set_xlabel('Crank angle [rad]')
 axs[0].set_ylabel('Position [m]')
-axs[0].grid()
 
-# Subplot 2: Speed vs. Angle
+# Second subplot: plot speed [m/s] versus the crank angle [rad]
 axs[1].plot(array_angle, array_speed)
-axs[1].set_xlabel('Crank Angle [rad]')
+axs[1].set_xlabel('Crank angle [rad]')
 axs[1].set_ylabel('Speed [m/s]')
-axs[1].grid()
 
-# Adjust x-axis ticks
-x_ticks = np.array([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+# Use numpy to adjust the x-axis ticks to display π-based intervals
+x_ticks = np.linspace(0, np.max(array_angle), 6)
 axs[0].set_xticks(x_ticks)
 axs[1].set_xticks(x_ticks)
 
-plt.show()
+plt.show()  # Display the plots

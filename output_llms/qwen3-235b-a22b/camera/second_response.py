@@ -4,6 +4,46 @@ import pychrono.sensor as sens
 import math
 import time
 
+# -----------------
+# Camera parameters
+# -----------------
+# Noise model attached to the sensor
+noise_model = "CONST_NORMAL"  # Constant normal noise model
+
+# Update rate in Hz
+update_rate = 30
+
+# Image width and height
+image_width = 960
+image_height = 480
+
+# Camera's horizontal field of view
+fov = 1.408  # Horizontal field of view in radians
+
+# Lag (in seconds) between sensing and when data becomes accessible
+lag = 0
+
+# Exposure (in seconds) of each image
+exposure_time = 0
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 20.0
+
+# Save camera images
+save = True
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
 def main():
     # -----------------
     # Create the system
@@ -34,7 +74,7 @@ def main():
     mphysicalSystem.Add(mesh_body)  # Add the body to the physical system
 
     # -----------------------
-    # Create a sensor manager
+    # Create sensor manager
     # -----------------------
     # Initialize the sensor manager to manage all sensors in the simulation
     manager = sens.ChSensorManager(mphysicalSystem)
@@ -138,48 +178,6 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
-
-# -----------------
-# Camera parameters
-# -----------------
-
-# Noise model attached to the sensor
-noise_model = "CONST_NORMAL"  # Constant normal noise model
-
-# Update rate in Hz
-update_rate = 30
-
-# Image width and height
-image_width = 960
-image_height = 480
-
-# Camera's horizontal field of view
-fov = 1.408  # Horizontal field of view in radians
-
-# Lag (in seconds) between sensing and when data becomes accessible
-lag = 0
-
-# Exposure (in seconds) of each image
-exposure_time = 0
-
-# ---------------------
-# Simulation parameters
-# ---------------------
-
-# Simulation step size
-step_size = 1e-3
-
-# Simulation end time
-end_time = 20.0
-
-# Save camera images
-save = True
-
-# Render camera images
-vis = True
-
-# Output directory
-out_dir = "SENSOR_OUTPUT/"
 
 # Main function entry point
 main()

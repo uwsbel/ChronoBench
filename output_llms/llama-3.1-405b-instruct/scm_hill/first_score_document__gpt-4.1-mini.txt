@@ -4,143 +4,159 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization Missing (Deduct 15 points):**  
-  The script does not create or initialize a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system explicitly. The vehicle object internally creates a system, but best practice and the API documentation require explicit system initialization and management. This is essential for simulation control and adding bodies or other elements.
+- **Missing system initialization**:  
+  The script creates a vehicle (`veh.HMMWV()`) but does not explicitly create or reference a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. According to the documentation and best practices, the physical system must be explicitly created and passed to vehicle and terrain constructors or at least referenced. The vehicle internally creates a system, but the script never calls `vehicle.Initialize()` or explicitly manages the system. This is a major omission.  
+  **Deduct 15 points**
 
-- **Vehicle Initialization Incomplete (Deduct 10 points):**  
-  The vehicle is created with `veh.HMMWV()`, but it is missing the call to `vehicle.Initialize()` which is required to properly initialize the vehicle in the simulation system. Without this, the vehicle may not be fully ready for simulation.
+- **Missing vehicle initialization**:  
+  The vehicle is created but never initialized via `vehicle.Initialize()`. The documentation and examples show that after setting initial position and rotation, `Initialize()` must be called to properly set up the vehicle in the system.  
+  **Deduct 15 points**
 
-- **Terrain Initialization Incomplete (Deduct 10 points):**  
-  The terrain is created and configured, but the call to `terrain.Initialize()` is missing. According to the API, terrain initialization is necessary after setting parameters and before simulation.
+- **Missing terrain initialization**:  
+  The terrain is created and configured but never initialized via `terrain.Initialize()`. The documentation states that after setting parameters and height map, `Initialize()` must be called to finalize the terrain setup.  
+  **Deduct 15 points**
 
-- **Driver Initialization Incomplete (Deduct 5 points):**  
-  The driver is created with `veh.ChDriver(vehicle)`, but it is missing initialization or synchronization steps that typically involve setting the initial time or input states.
+- **Missing driver initialization**:  
+  The driver is created but never initialized or connected to the vehicle. The documentation shows drivers usually require initialization or at least a call to `Initialize()` or `SetVehicle()` to link them properly. Here, the driver is created with `veh.ChDriver(vehicle)`, which is acceptable, but no further setup is done. This is borderline but acceptable as `ChDriver` is a simple driver class.  
+  **No deduction**
 
-- **Visualization Initialization Missing (Deduct 10 points):**  
-  The visualization system is created but never attached to the system (`vis.AttachSystem()` is missing), nor is `vis.Initialize()` called. Also, the visualization window size, title, and typical lights or skybox are not set up, which are standard for a complete visualization setup.
+- **Visualization system setup incomplete**:  
+  The visualization system is created but never attached to the physical system (`vis.AttachSystem(vehicle.GetSystem())` missing). Also, `vis.Initialize()` is never called before the simulation loop. These are essential steps for visualization to work properly.  
+  **Deduct 15 points**
 
-- **Time Variable Initialization Missing (Deduct 5 points):**  
-  The variable `time` is used in the loop but never initialized before the loop starts.
+- **Missing simulation loop rendering calls**:  
+  The simulation loop calls `vis.Run()`, but does not call `vis.BeginScene()`, `vis.Render()`, or `vis.EndScene()`. These calls are necessary to properly render each frame.  
+  **Deduct 15 points**
 
-**Total Completeness Deduction: 15 + 10 + 10 + 5 + 10 + 5 = 55 points**  
-Since the maximum is 40, the score for completeness is **0/40** (cannot be negative).
+- **Adding meshes to visualization incorrectly**:  
+  The calls `vis.AddMesh(vehicle, 'vehicle_mesh')` and `vis.AddMesh(terrain, 'terrain_mesh')` are not part of the documented API. The documentation shows adding visual elements via `vis.AddVisualModel()` or simply relying on the vehicle and terrain to add their own visuals. This is an incorrect or unsupported usage.  
+  **Deduct 10 points**
+
+- **Minor omission: setting window size and title for visualization**:  
+  The visualization window size and title are not set, which is recommended for better user experience.  
+  **Deduct 5 points**
+
+**Total completeness deduction: 15 + 15 + 15 + 0 + 15 + 15 + 10 + 5 = 90 points**  
+Since completeness max is 40, the deduction is capped at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect Visualization Enum Syntax (Deduct 15 points):**  
-  The line  
-  ```python
-  vis.SetLightingMode(irr.Visualization_LightingMode::ARTIFICIAL)
-  ```  
-  uses C++-style scope resolution `::` which is invalid in Python. The correct usage should be `irr.Visualization_LightingMode.ARTIFICIAL`.
+- **Incorrect use of terrain height map**:  
+  The terrain height map is set using a NumPy array of random values between -1 and 1, scaled by 2. The documentation does not mention `SetHeightMap()` accepting a NumPy array directly. Usually, terrain height maps are loaded from image files or set via terrain patches. This usage is questionable and may not work as intended.  
+  **Deduct 10 points**
 
-- **Incorrect Advance Calls (Deduct 10 points):**  
-  The calls to `Advance()` methods are incorrectly passing `chrono.ChVectorD(0, 0, 0)` as an argument. According to the API, `Advance()` should be called with a time step (float), e.g., `vehicle.Advance(time_step)`. Passing a vector is incorrect and will cause runtime errors or unexpected behavior.
+- **Incorrect synchronization and stepping order**:  
+  The simulation loop calls `vehicle.Synchronize()`, `terrain.Synchronize()`, `driver.Synchronize()`, and `vis.Synchronize()` all with `time=vis.GetTime()`. However, `vis.GetTime()` is not a documented method. The correct approach is to maintain a simulation time variable and increment it by the time step each iteration.  
+  Also, the order of `DoStepDynamics()` calls is incorrect: the driver should be updated before the vehicle and terrain to apply inputs before dynamics step.  
+  **Deduct 10 points**
 
-- **Missing `sys.DoStepDynamics()` (Deduct 10 points):**  
-  The simulation loop does not advance the physics system via `sys.DoStepDynamics(time_step)`. This is essential to update the system state each time step.
+- **Calling `driver.DoStepDynamics()` is unnecessary**:  
+  The driver is typically a controller and does not have dynamics to step. Usually, only the physical system and visualization need stepping.  
+  **Deduct 5 points**
 
-- **Incorrect Synchronize Order and Missing Parameters (Deduct 5 points):**  
-  The synchronization calls lack proper time step management and do not include driver inputs or other necessary parameters. Also, `driver.Synchronize()` typically requires input from the driver (e.g., steering, throttle), which is missing.
+- **Incorrect use of `SetInitPosition` and `SetInitRotation`**:  
+  The vehicle's initial position and rotation are set using `chrono.ChVectorD` and `chrono.ChQuaternionD`, but the documentation shows `SetInitPosition()` and `SetInitRotation()` expect `chrono.ChCoordsysD` or `chrono.ChVector3d` and `chrono.ChQuaternionD`. The use of `ChVectorD` is acceptable as an alias, but the rotation quaternion is set as `(1,0,0,0)` which is identity, so no issue here.  
+  **No deduction**
 
-- **Use of `chrono.ChVectorD` instead of `chrono.ChVector3d` (Deduct 5 points):**  
-  The API uses `ChVector3d` (double precision 3D vector). `ChVectorD` is not a valid class in PyChrono.
-
-**Total Correctness Deduction: 15 + 10 + 10 + 5 + 5 = 45 points**  
-Maximum is 30, so score is **0/30**.
+**Total correctness deduction: 10 + 10 + 5 = 25 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Poor Readability and Lack of Comments (Deduct 7 points):**  
-  The code lacks comments explaining the purpose of each block or step, which is important for maintainability and clarity.
+- **Lack of comments**:  
+  The code has no comments explaining the steps, which reduces readability and maintainability.  
+  **Deduct 5 points**
 
-- **Variable Naming and Formatting (Deduct 3 points):**  
-  Variable names like `vehicle`, `terrain`, `driver`, and `vis` are acceptable, but the code formatting is inconsistent (e.g., no blank lines between logical blocks, inconsistent indentation in the loop). Also, the `while chrono.ChClock.GetTime() < time:` busy-wait loop is not explained or justified.
+- **Variable naming and structure**:  
+  Variable names are clear and meaningful (`vehicle`, `terrain`, `driver`, `vis`). The structure is linear and straightforward.  
+  **No deduction**
 
-**Total Code Quality Deduction: 10 points**  
-Score: **0/10**
+- **Formatting**:  
+  The code is formatted well with proper indentation and spacing.  
+  **No deduction**
+
+**Total code quality deduction: 5 points**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Busy-Wait Loop for Timing (Deduct 5 points):**  
-  The loop  
-  ```python
-  while chrono.ChClock.GetTime() < time:
-      pass
-  ```  
-  is a CPU-intensive busy wait, which is inefficient. A better approach would be to use a sleep function or proper timing synchronization.
+- **Unnecessary calls to `driver.DoStepDynamics()`**:  
+  The driver does not require stepping dynamics; this is inefficient.  
+  **Deduct 5 points**
 
-- **Redundant Calls to Advance with Zero Vector (Deduct 5 points):**  
-  Passing zero vectors to `Advance()` is unnecessary and incorrect, as explained above.
+- **Repeated calls to `vis.GetTime()`**:  
+  Calling `vis.GetTime()` multiple times per loop is inefficient and possibly incorrect since `vis.GetTime()` is not a documented method. Better to store time in a variable.  
+  **Deduct 3 points**
 
-**Total Efficiency Deduction: 10 points**  
-Score: **0/10**
+- **Random height map generation every run**:  
+  Generating a large 1024x1024 random height map each run is expensive and may not be meaningful for the simulation. Better to load a predefined height map or generate once and reuse.  
+  **Deduct 3 points**
+
+**Total efficiency deduction: 5 + 3 + 3 = 11 points**  
+Capped at 10 points.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No Error Handling (Deduct 5 points):**  
-  The script does not include any error handling or checks for initialization success, file paths, or runtime exceptions.
+- **No error handling**:  
+  The code does not check for file paths, initialization success, or exceptions.  
+  **Deduct 5 points**
 
-- **No Edge Case Handling (Deduct 0 points):**  
-  No explicit edge case handling is expected here, so no deduction.
-
-**Total Deduction: 5 points**  
-Score: **0/5**
+- **No handling of edge cases**:  
+  For example, no check on terrain parameters or vehicle initialization status.  
+  **No additional deduction (already deducted max)**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Incomplete Visualization Setup (Deduct 5 points):**  
-  The visualization system is not properly initialized (`vis.Initialize()` missing), not attached to the system (`vis.AttachSystem()` missing), and lacks window size, title, skybox, or typical lights setup. Also, the incorrect enum usage for lighting mode is a critical error.
+- **Visualization system not attached to system**:  
+  Missing `vis.AttachSystem(vehicle.GetSystem())` means visualization won't reflect simulation state.  
+  **Deduct 5 points**
 
-- **Camera Setup Issues (Deduct 2 points):**  
-  The camera rotation is set to a quaternion `(1, 0, 0, 0)` which is identity, but no explanation or adjustment is made. Also, the camera position is behind the vehicle, which might be intentional but is not justified.
+- **No call to `vis.Initialize()`**:  
+  Visualization system is not initialized before use.  
+  **Deduct 3 points**
 
-**Total Visualization Deduction: 7 points**  
-Maximum is 5, so score is **0/5**
+- **Missing rendering calls in loop (`BeginScene()`, `Render()`, `EndScene()`)**:  
+  Without these, the visualization window will not update properly.  
+  **Deduct 5 points**
 
----
+- **Incorrect use of `AddMesh()`**:  
+  Not a documented method; likely ineffective or erroneous.  
+  **Deduct 3 points**
 
-### Summary of Scores:
+- **Minor: no window size or title set**:  
+  **Deduct 2 points**
 
-| Criterion                     | Max Points | Deductions | Score |
-|-------------------------------|------------|------------|-------|
-| Completeness                  | 40         | 55 (capped at 40) | 0     |
-| Correctness                  | 30         | 45 (capped at 30) | 0     |
-| Code Quality                 | 10         | 10         | 0     |
-| Efficiency                   | 10         | 10         | 0     |
-| Error Handling and Robustness| 5          | 5          | 0     |
-| Visualization Tools          | 5          | 7 (capped at 5) | 0     |
-| **Total**                   | **100**    | **87+**    | **0** |
+Total deductions here: 5 + 3 + 5 + 3 + 2 = 18 points, capped at 5 points.
 
 ---
 
-### Final Comments:
+### Summary of deductions:
 
-The script misses critical components required for a working PyChrono vehicle simulation:
+| Criterion                  | Max Points | Deduction | Notes                          |
+|----------------------------|------------|-----------|--------------------------------|
+| Completeness               | 40         | 40        | Missing system init, init calls, visualization setup, etc. |
+| Correctness                | 30         | 25        | Incorrect API usage, sync order, etc. |
+| Code Quality               | 10         | 5         | Lack of comments               |
+| Efficiency                 | 10         | 10        | Unnecessary calls, inefficient time handling |
+| Error Handling & Robustness| 5          | 5         | No error handling              |
+| Visualization Tools        | 5          | 5         | Missing attach, initialize, render calls |
 
-- No explicit system initialization or management.
-- Missing vehicle and terrain initialization calls.
-- Incorrect usage of API methods (`Advance()` with vectors, wrong enum syntax).
-- No physics stepping (`DoStepDynamics`).
-- Visualization setup is incomplete and incorrect.
-- No time variable initialization.
-- Busy-wait loop for timing is inefficient.
-- No comments or error handling.
+**Total deductions: 40 + 25 + 5 + 10 + 5 + 5 = 90**
 
-These issues would prevent the script from running correctly or producing meaningful simulation results.
+**Final score: 100 - 90 = 10**
 
 ---
 
-**Final Score:**
+### Final score and explanation:
 
-[[0]]
+[[10]]
+
+The script misses several essential components required for a proper PyChrono vehicle simulation, including explicit system initialization, vehicle and terrain initialization, and proper visualization setup. It also misuses some API calls (e.g., `AddMesh`), lacks rendering calls in the simulation loop, and does not handle simulation time correctly. The code quality suffers from lack of comments, and efficiency is reduced by unnecessary calls and inefficient time management. No error handling is present, and visualization setup is incomplete, which would prevent the simulation from running and displaying correctly.

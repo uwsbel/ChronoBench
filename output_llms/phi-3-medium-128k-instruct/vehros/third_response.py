@@ -30,8 +30,9 @@ def main():
     patch_mat.SetFriction(0.9)  # Set friction for the terrain.
     patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
     patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Add a texture to the patch.
     terrain.Initialize()  # Initialize the terrain.
+
     # Create run-time visualization
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
@@ -54,14 +55,22 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, hmmwv.GetSystem()))  # Register the lidar handler to publish lidar data
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, hmmwv.GetVehicle()))  # Register the lidar handler to publish lidar data to ROS
     ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Create and initialize the sensor manager.
     sens_manager = sens.ChSensorManager()
-    sens_manager.RegisterSensor(ch.ChLidarSensor(hmmwv.GetSystem()))
-    sens_manager.RegisterFilter(ch.ChFilterSensorFilter(hmmwv.GetSystem(), ch.ChFilterSensorFilterType_LIDAR_FILTER))
-    sens_manager.Initialize()  # Initialize the sensor manager.
+    lidar = sens.ChLidarSensor(hmmwv.GetVehicle())  # Create a lidar sensor.
+    # Configure the lidar sensor with various filters.
+    lidar.SetMinRange(0.1)  # Set the minimum range.
+    lidar.SetMaxRange(100)  # Set the maximum range.
+    lidar.SetSensorType(sens.ChSensorType_LIDAR)  # Set the sensor type to LIDAR.
+    lidar.SetSensorStepSize(1e-3)  # Set the sensor step size.
+    lidar.SetSensorVisualizationType(sens.VisualizationType_MESH)
+    sens_manager.AddSensor(lidar)  # Add the lidar sensor to the sensor manager.
+
+    # Create and initialize the driver system.
+    driver.Initialize()  # Initialize the driver system.
 
     # Start the simulation loop.
     time = 0
@@ -93,9 +102,8 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
         step_number += 1
-
-        # Update the sensor manager within the simulation loop using sens_manager.Update().
-        sens_manager.Update(time, time_step)
+        # Update the sensor manager.
+        sens_manager.Update(time, time_step)  # Update the sensor manager.
 
 if __name__ == "__main__":
     main()

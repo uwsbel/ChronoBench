@@ -4,168 +4,138 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemSMC()` used). No deduction.
-- **Mesh and FEA Setup:** Mesh created and added to system. Nodes and elements created for shell BST elements. This is appropriate.
-- **Material Definition:** Elasticity and shell material defined with density, E, nu, thickness. Correct.
-- **Node Creation:** Nodes created on a grid, added to mesh. Correct.
-- **Element Creation:** Elements created in a double loop, but the way boundary nodes are assigned looks suspicious (see correctness).
-- **Boundary Conditions:** Nodes fixed in a 30x30 block. Present.
-- **Visualization:** Visualization system created and attached, window size and title set, initialized, logo, skybox, camera, and lights added. Visual shapes for mesh added.
-- **Solver:** Pardiso MKL solver created, sparsity locked, and set to system.
-- **Simulation Loop:** Present and correct.
-- **Output Directory Creation:** Present with basic error handling.
+- **System Initialization:** Present and correctly done with `chrono.ChSystemSMC()`. No deduction.
+- **Mesh Creation and Addition:** `fea.ChMesh()` created and added to system. Correct. No deduction.
+- **Material Definition:** Uses `fea.ChElasticityKirchhoffIsothropic` and `fea.ChMaterialShellKirchhoff` with density set. Correct. No deduction.
+- **Node Creation:** Nodes created in a grid pattern, stored in a list. Correct approach. No deduction.
+- **Element Creation:** Two BST shell elements per grid cell created and added to mesh. However, the boundary nodes for the elements are set with some questionable indexing and conditional `None` values:
+  - The use of `None` for boundary nodes in `SetNodes` is suspicious because the API expects valid nodes for boundary nodes or at least consistent handling. The documentation does not specify that boundary nodes can be `None`.
+  - This could cause issues or undefined behavior.
+- **Visualization:** Two visual shapes added to the mesh:
+  - One with shell resolution set.
+  - One with glyphs for node dots.
+  - Proper use of `chrono.ChVisualShapeFEA`.
+- **Visualization System:** Properly initialized with Irrlicht, window size, title, logo, skybox, camera, and lights. No deduction.
+- **Solver Setup:** Uses MKL Pardiso solver with sparsity pattern locked. Correct usage.
+- **Simulation Loop:** Proper loop with `vis.Run()`, scene begin/render/end, and `sys.DoStepDynamics(timestep)`. No deduction.
+- **Output Directory Creation:** Attempts to create output directory with error handling for existing directory. Good practice.
 
-**Minor omissions or deviations:**
+**Deductions:**
 
-- The output directory path is constructed by concatenation without a path separator (`+ "FEA_SHELLS_BST"`), which may cause issues on some OSes. Using `os.path.join()` would be better. (Minor omission)
-- No bodies other than the mesh are created, which is acceptable for an FEA shell simulation.
-- No explicit application of loads or forces to nodes or elements, despite defining a `load_force` vector. This is a missing essential component if the simulation is meant to apply loads. (Deduct 15 points)
-- No time integration parameters or solver tolerances set explicitly, but defaults may be acceptable.
-- No comments or documentation in the code (deduct under code quality).
+- The questionable handling of boundary nodes with `None` in `SetNodes` is a significant omission or misconfiguration because it may cause simulation errors or incorrect element definitions.
 
-**Deduction:**
-
-- Missing application of loads or boundary conditions beyond fixing nodes (essential for a meaningful simulation): **-15 points**
-- Minor omission in output directory path construction: **-5 points**
-
-**Subtotal Completeness:** 40 - 15 - 5 = **20 points**
+**Deduction:** 10 points (component present but lacks important details or is incorrectly configured).
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **System:** `ChSystemSMC` is appropriate.
-- **Mesh and Nodes:** Nodes created correctly.
-- **Elements:** The `SetNodes` calls for `ChElementShellBST` are suspicious:
+- **Use of `ChSystemSMC`:** Correct for smooth contact.
+- **Material and Elasticity:** Correct classes used.
+- **Node and Element Creation:** The indexing for nodes is mostly correct, but the boundary nodes passed as `None` when out of bounds is problematic. The API likely expects valid nodes or a different approach to boundary conditions.
+- **Element Node Ordering:** The order of nodes in `SetNodes` is critical for element orientation and correctness. The code uses a pattern but the boundary nodes' indexing is inconsistent and may cause logical errors.
+- **Visualization API:** Correct usage.
+- **Solver API:** Correct usage.
+- **Simulation Loop:** Correct usage.
 
-  - The `SetNodes` method expects 6 nodes: 3 main nodes and 3 boundary nodes.
-  - The boundary nodes are assigned as:
+**Deductions:**
 
-    ```python
-    boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
-    boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
-    boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
-    ```
+- The incorrect or questionable use of `None` for boundary nodes in `SetNodes` is a logical error that could significantly affect simulation behavior.
 
-  - For `melementA`, `boundary_1` is the node diagonally down-right, which is correct, but `boundary_2` and `boundary_3` may be `None` at edges, which is allowed.
-  - For `melementB`, the nodes and boundaries are assigned differently, but the indexing for `boundary_2` and `boundary_3` seems off:
-
-    ```python
-    boundary_2 = mynodes[iz * (nsections_x + 1) + ix + 2] if ix < nsections_x - 1 else None
-    boundary_3 = mynodes[(iz + 2) * (nsections_x + 1) + ix] if iz < nsections_z - 1 else None
-    ```
-
-  - The `ix + 2` and `iz + 2` indexing may go out of bounds or skip nodes, especially near boundaries.
-
-- **Node Fixing:** Fixing nodes in a 30x30 block is done, but the mesh is 40x40, so only part of the mesh is fixed. This is acceptable but should be intentional.
-
-- **Load Application:** The `load_force` vector is defined but never applied to any node or element. This is a logical error if the simulation expects loading.
-
-- **Visualization:** Two visual shapes added for the mesh, but the second one sets `DataType_NONE`, which effectively disables visualization data for that shape. This seems redundant or unnecessary.
-
-- **Solver:** Pardiso MKL solver is correctly set and sparsity pattern locked.
-
-- **Simulation Loop:** Correct usage of `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `sys.DoStepDynamics()`.
-
-**Deduction:**
-
-- Logical error: Load force defined but never applied: **-10 points**
-- Potential indexing errors in element boundary nodes that could cause incorrect element definitions or runtime errors: **-15 points**
-- Minor redundancy in adding two visual shapes for the same mesh, one with no data: **-5 points**
-
-**Subtotal Correctness:** 30 - 10 - 15 - 5 = **0 points**
+**Deduction:** 15 points (incorrect use of API leading to significant simulation behavior changes).
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- **Readability:** Variable names like `mynodes`, `melementA`, `melementB` are somewhat descriptive but could be improved (e.g., `nodes`, `elementA`, `elementB`).
-- **Structure:** The code is mostly linear without functions or modularization.
-- **Comments:** No comments explaining the purpose of code blocks or variables.
-- **Formatting:** Mostly consistent indentation and spacing.
-- **Use of lambdas:** `ref_X` and `ref_Y` are defined but never used.
+- **Readability:** Variable names like `mynodes`, `melementA`, `melementB` are acceptable but could be more descriptive (e.g., `nodes`, `elementA`, `elementB`).
+- **Formatting:** Generally consistent and readable.
+- **Comments:** No comments explaining the purpose of code blocks, especially the complex element creation and boundary node logic.
+- **Imports:** Imports `errno` and `os` for directory creation, which is good, but no comments explaining this.
 
-**Deduction:**
+**Deductions:**
 
-- Lack of comments/documentation: **-5 points**
-- Minor readability issues and lack of modular structure: **-5 points**
+- Lack of comments explaining the mesh and element construction logic is a notable omission.
+- Variable naming is acceptable but not exemplary.
 
-**Subtotal Code Quality:** 10 - 5 - 5 = **0 points**
+**Deduction:** 5 points for insufficient comments.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant code:** Two visual shapes added for the same mesh, one with `DataType_NONE`, which is unnecessary.
-- **Unused variables:** `ref_X`, `ref_Y`, `nodePlotA`, `nodePlotB`, `nodesLoad`, `mnodemonitor`, `ementmonitor` are defined but unused.
-- **Output directory creation:** Uses `os.mkdir` without checking if the directory exists before, but exception handling covers this.
-- **Loops:** Node fixing loops are hardcoded to 30x30, which is smaller than mesh size (40x40), but this is a design choice.
+- **Node Creation:** Efficient double loop.
+- **Element Creation:** Double loop with two elements per cell is standard.
+- **Boundary Node Checks:** The conditional checks for boundary nodes are done inline but repeated multiple times; could be optimized or encapsulated in a helper function.
+- **Visualization:** Two visual shapes added separately; could be combined or clarified.
 
-**Deduction:**
+**Deductions:**
 
-- Unnecessary visual shape addition: **-5 points**
-- Unused variables and lambdas: **-5 points**
+- Minor inefficiency in repeated boundary node index calculations and conditional checks.
+- No major redundant or unnecessary calculations.
 
-**Subtotal Efficiency:** 10 - 5 - 5 = **0 points**
+**Deduction:** 3 points for missing obvious optimization opportunities.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **Output directory creation:** Exception handling present, but only prints error, does not stop or handle further.
-- **Boundary node assignment:** No checks for out-of-bounds indexing beyond conditional `if` statements; could be more robust.
-- **No checks for mesh or element creation failures.**
-- **No handling for visualization initialization failures.**
+- **Output Directory Creation:** Good error handling for directory existence.
+- **Boundary Nodes:** No error handling or warnings if boundary nodes are `None` or invalid.
+- **General Robustness:** No checks for mesh validity or element consistency.
 
-**Deduction:**
+**Deductions:**
 
-- Basic error handling present but minimal: **-3 points**
-- Lack of robustness in boundary node indexing and no validation: **-3 points**
+- Lack of handling or warnings for potentially invalid boundary nodes.
+- No try-except or validation around element creation.
 
-**Subtotal Error Handling:** 5 - 3 - 3 = **-1 point** (minimum 0, so 0 points)
+**Deduction:** 3 points for inadequate handling of edge cases.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system correctly created and attached.
-- Window size and title set.
-- Logo, skybox, camera, and typical lights added.
-- Two visual shapes added to mesh, but second one disables visualization data, which is redundant.
-- Camera position is reasonable.
-- No color or other visual customization.
+- **Visualization System:** Properly initialized with window size, title, logo, skybox, camera, and lights.
+- **Visual Shapes:** Two visual shapes added, one for shell resolution and one for glyphs.
+- **Camera Positioning:** Reasonable camera position.
+- **Lighting:** Typical lights added.
 
-**Deduction:**
+No major issues.
 
-- Redundant visual shape addition with no data: **-3 points**
-
-**Subtotal Visualization:** 5 - 3 = **2 points**
+**No deduction.**
 
 ---
 
-### **Final Score Calculation**
+### Summary of Deductions
 
-| Category                  | Points | Deduction | Score |
-|---------------------------|--------|-----------|-------|
-| Completeness              | 40     | 20        | 20    |
-| Correctness               | 30     | 30        | 0     |
-| Code Quality              | 10     | 10        | 0     |
-| Efficiency                | 10     | 10        | 0     |
-| Error Handling & Robustness | 5      | 5         | 0     |
-| Visualization             | 5      | 3         | 2     |
-| **Total**                 | 100    | 78        | **22**|
-
----
-
-### **Summary of Major Issues:**
-
-- No application of defined load forces to nodes or elements.
-- Potential indexing errors in element boundary node assignment.
-- Redundant and unused code (visual shapes, variables).
-- Lack of comments and modularization.
-- Minimal error handling and robustness.
-- Minor issues with output directory path construction.
+| Criterion                     | Deduction |
+|-------------------------------|-----------|
+| Completeness                  | 10        |
+| Correctness                  | 15        |
+| Code Quality                 | 5         |
+| Efficiency                  | 3         |
+| Error Handling and Robustness | 3         |
+| Visualization Tools          | 0         |
+| **Total Deduction**           | **36**    |
 
 ---
 
-[[22]]
+### Final Score
+
+Starting from 100 points:
+
+100 - 36 = **64**
+
+---
+
+### Explanation
+
+The script is mostly complete and correctly structured, with proper system initialization, mesh and material setup, visualization, solver configuration, and simulation loop. However, the handling of boundary nodes in the shell BST elements is problematic and likely incorrect, which could cause simulation errors or unexpected behavior. This is a significant correctness and completeness issue.
+
+The code lacks comments explaining complex parts, reducing readability and maintainability. Minor inefficiencies and insufficient edge case handling also reduce robustness.
+
+Visualization is well done and follows best practices.
+
+---
+
+[[64]]

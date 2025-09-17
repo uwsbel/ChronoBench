@@ -95,7 +95,7 @@ sys.Add(rotmotor1)
 
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self, A1, A2, T1, T2, T3, w):
-        super().__init__()
+        super(ChFunctionMyFun, self).__init__()
         self.A1 = A1
         self.A2 = A2
         self.T1 = T1
@@ -114,8 +114,8 @@ class ChFunctionMyFun(chrono.ChFunction):
             return self.w
 
 
-f_ramp = ChFunctionMyFun(A1=0.1, A2=10, T1=1, T2=3, T3=5, w=15)
-rotmotor1.SetMotorFunction(f_ramp)
+my_motor_function = ChFunctionMyFun(A1=1, A2=2, T1=1, T2=2, T3=3, w=4)
+rotmotor1.SetMotorFunction(my_motor_function)
 
 
 
@@ -145,6 +145,9 @@ vis.AddTypicalLights()
 
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
+
+
+
 
 sys.DoStaticLinear()
 

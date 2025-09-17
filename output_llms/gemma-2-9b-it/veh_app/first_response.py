@@ -1,69 +1,71 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
 
-# Initialize Chrono
-chrono.SetChronoDataPath("..")  # Set the path to your Chrono data
+# Initialize PyChrono
+chrono.SetChronoDataPath("path/to/chrono/data")  # Replace with your Chrono data path
 system = chrono.ChSystemNSC()
 
-# --- Terrain ---
-terrain = chrono.ChBodyEasyBox(10, 10, 1, 1000)  # Create a rigid terrain
-terrain.SetPos(chrono.ChVectorD(0, 0, 0))
+# Create rigid terrain
+terrain = chrono.ChBodyEasyBox(10, 10, 0.5)
+terrain.SetPos(chrono.ChVectorD(0, 0, -0.5))
 terrain.SetBodyFixed(True)
-system.AddBody(terrain)
+system.Add(terrain)
 
-# --- Gator Vehicle ---
-gator = chrono.ChBodyEasyCylinder(0.5, 1, 1000)  # Create a cylindrical chassis
-gator.SetPos(chrono.ChVectorD(0, 0, 1))
-system.AddBody(gator)
+# Create Gator vehicle
+gator = chrono.ChBodyEasyCylinder(0.5, 1.5, 10)
+gator.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(gator)
 
-# Add vehicle parts (adjust positions, types, and visualization as needed)
-wheel_front_left = chrono.ChBodyEasyCylinder(0.2, 0.1, 100)
-wheel_front_left.SetPos(chrono.ChVectorD(-0.8, 0.5, 0))
+# Add vehicle parts with different visualization types
+# Example:
+wheel_front_left = chrono.ChBodyEasyCylinder(0.2, 0.1, 10)
+wheel_front_left.SetPos(chrono.ChVectorD(-0.7, 0.3, -0.2))
 wheel_front_left.SetBodyFixed(True)
-gator.AddChild(wheel_front_left)
+gator.Add(wheel_front_left)
+wheel_front_left.SetVisualizationType(chrono.VisualizationType.VT_WIREFRAME)
 
-# ... add other wheels, engine, etc. ...
+# ... Add other vehicle parts with different visualization types
 
-# --- Visualization ---
-# Set visualization types for different parts
-gator.SetCollideShape(chrono.ChCollisionShapeSphere(0.5))  # Example: sphere collision shape
-gator.SetBodyFixed(True)  # Example: fix the chassis
-wheel_front_left.SetVisShape(chrono.ChVisualShapeSphere(0.2, chrono.ChColor(1, 0, 0)))  # Example: red sphere visualization
+# Interactive driver system (placeholder)
+driver = chrono.ChDriver()  # Implement your driver logic here
 
-# --- Driver System ---
-# ... Implement your interactive driver logic here ...
-
-# --- Sensor Manager ---
+# Sensor manager
 sensor_manager = chrono.ChSensorManager()
 
 # Add point lights
-point_light1 = chrono.ChPointLight()
-point_light1.SetPos(chrono.ChVectorD(5, 5, 5))
-sensor_manager.AddSensor(point_light1)
+point_light = chrono.ChPointLight()
+point_light.SetPos(chrono.ChVectorD(5, 5, 5))
+sensor_manager.Add(point_light)
 
-# Add camera
+# Add camera attached to vehicle's chassis
 camera = chrono.ChCamera()
-camera.SetPos(chrono.ChVectorD(0, 1, 2))
+camera.SetPos(chrono.ChVectorD(0, 0, 1))
 camera.SetTarget(chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(camera)
+sensor_manager.Add(camera)
 
-# --- Simulation Loop ---
-step_size = 0.01
-for i in range(1000):
+# Simulation loop
+while True:
     # Update driver
-    # ...
+    driver.Update()
 
     # Update terrain
     # ...
 
     # Update vehicle
-    # ...
+    gator.SetBodyFixed(False)  # Allow vehicle to move
+    gator.AddTorque(chrono.ChVectorD(0, 1, 0))  # Apply torque for demonstration
+    gator.SetBodyFixed(True)
 
     # Update sensor manager
     sensor_manager.Update()
 
-    # Synchronize and advance simulation
-    system.DoStepDynamics(step_size)
+    # Synchronize and advance simulation modules
+    system.DoStepDynamics(0.01)  # Adjust timestep as needed
+    system.Render()  # Render the simulation
 
-# Post-processing (optional)
-postprocess.ChPostprocessGLVisualizer(system, sensor_manager.GetCamera())
+    # Process camera images
+    camera_image = sensor_manager.GetCameraImage()
+    # ... (Process and display camera image)
+
+    # Break the loop if needed (e.g., on user input)
+    # ...

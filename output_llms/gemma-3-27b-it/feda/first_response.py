@@ -2,72 +2,110 @@ import chrono
 import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
 
-# --- Initialize the PyChrono environment ---
+# ---
+# Initialize the PyChrono environment and core components
+# ---
+
+# Create a Chrono system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the RigidTerrain ---
-terrain = chrono.ChRigidBody()
-terrain.SetBodyFixed(True)
-terrain.SetMass(0)
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
-terrain.SetShapeType(chrono.ChShapeType.BOX)
-terrain.SetBox(100, 0.1, 100)
+# ---
+# Create the RigidTerrain
+# ---
+
+terrain = chrono.ChTerrain()
+terrain.Create(system, "rigid_terrain", chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 1, 100), 10, 10)
+terrain.SetTexture("textures/grass.jpg", chrono.ChVectorD(10, 10))
+terrain.SetContactMethod(chrono.ChContactMethod.SICONTACT)
 system.Add(terrain)
 
-# Load a custom terrain texture
-try:
-    texture = chronoirr.ChTexture("terrain.png")  # Replace with your texture file
-except:
-    print("Error: Could not load terrain texture. Using default color.")
-    texture = None
+# ---
+# Create the FEDA vehicle
+# ---
 
-# --- Create the FEDA vehicle ---
-vehicle = veh.FEDA_Vehicle(system)
+feda = veh.FEDA(system)
 
-# Set vehicle parameters
-vehicle.SetVehiclePos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetVehicleRot(chrono.ChQuaternionD(0, 0, 0))
-vehicle.SetContactMethod(veh.ChContactMethod.NSC)
-vehicle.SetTireModel(veh.ChTireModel.RADIAL)
-vehicle.SetEngineType(veh.ChEngineModelType.SIMPLE)
+# Set initial vehicle location and orientation
+feda.SetPos(chrono.ChVectorD(50, 2, 50))
+feda.SetTransform(chrono.ChQuaternionD(0, 0, 0))
 
-# Set mesh visualization type for all vehicle parts
-vehicle.SetVisualizationType(veh.ChVehicleVisualizationType.MESH)
+# Set contact method for the vehicle
+feda.SetContactMethod(chrono.ChContactMethod.SICONTACT)
 
-# --- Create the interactive driver ---
-driver = veh.ChInteractiveDriver(vehicle)
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.01)
-driver.SetBrakingDelta(0.01)
+# Set tire model (example: simplified tire model)
+feda.SetTireModel(veh.FEDA.TireModel.SIMPLIFIED)
 
-# --- Create the Irrlicht application ---
+# Set visualization type to mesh for all parts
+for body in feda.GetBodies():
+    body.SetCollide(True)
+    body.SetVisualizationType(chrono.ChVisualizationType.MESH)
+
+system.Add(feda)
+
+# ---
+# Create the interactive driver system
+# ---
+
+driver = veh.FEDA.Driver()
+driver.SetSteering(0.0)
+driver.SetThrottle(0.0)
+driver.SetBraking(0.0)
+feda.SetDriver(driver)
+
+# ---
+# Create the Irrlicht application for visualization
+# ---
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEDA Vehicle Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 1, 0))
+vis.AddCamera(chrono.ChVectorD(50, 10, 50))
 vis.AddTypicalLights()
 
-# --- Set camera to follow the vehicle ---
-camera_offset = chrono.ChVectorD(0, 2, -5)
-camera_up = chrono.ChVectorD(0, 1, 0)
+# ---
+# Camera follow vehicle
+# ---
 
-# --- Simulation loop ---
-time_step = 1.0 / 50.0  # 50 frames per second
+def update_camera(vehicle, camera):
+    camera_pos = vehicle.GetPos() + chrono.ChVectorD(0, 5, -10)
+    camera.SetPos(camera_pos)
+    camera.LookAt(vehicle.GetPos())
+
+# ---
+# Simulation loop
+# ---
+
+timestep = 1.0 / 50.0  # 50 frames per second
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Update the driver input
-    driver.Synchronize(time_step)
+    # Update the vehicle dynamics
+    system.DoStepDynamics(timestep)
 
-    # Update the system
-    system.DoStepDynamics(time_step)
+    # Update the camera to follow the vehicle
+    update_camera(feda, vis.GetCamera())
 
-    # Update camera position
-    camera_pos = vehicle.GetPos() + camera_offset
-    vis.GetVisualSystem().GetIrrlichtDevice().camera->setPosition(camera_pos)
-    vis.GetVisualSystem().GetIrrlichtDevice().camera->setUpVector(camera_up)
+    # Get driver input (example: keyboard input)
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.W):
+        driver.SetThrottle(1.0)
+    elif vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.S):
+        driver.SetThrottle(-1.0)
+    else:
+        driver.SetThrottle(0.0)
+
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.A):
+        driver.SetSteering(0.5)
+    elif vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.D):
+        driver.SetSteering(-0.5)
+    else:
+        driver.SetSteering(0.0)
+
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.SPACE):
+        driver.SetBraking(1.0)
+    else:
+        driver.SetBraking(0.0)

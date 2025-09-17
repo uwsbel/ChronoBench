@@ -1,90 +1,106 @@
 ```python
 import pychrono as chrono
+import pychrono.irrlicht as chronoirr
 import pychrono.fea as fea
-import pychrono.irrlicht as irr
 
-# 1. Initialize PyChrono environment
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+# ---------------------------------------------------------------------
+#
+#  Create the physical system
+#
+# ---------------------------------------------------------------------
 
-# 2. Create IGA beam
+mysystem = chrono.ChSystemNSC()
+mysystem.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+mysystem.Add(ground)
+
+# ---------------------------------------------------------------------
+#
+#  Create the IGA beam
+#
+# ---------------------------------------------------------------------
+
+# Define the beam geometry and material properties
 beam_length = 1.0
 beam_radius = 0.05
-beam_nodes = 10  # Number of nodes for IGA
+beam_material = fea.ChMaterialFEA(rho=7850, E=200e9, nu=0.3)
 
-# Define NURBS curve for the beam
-knots = [0.0, 0.0, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.0, 1.0]
-control_points = [chrono.ChVectorD(i * beam_length / (beam_nodes - 1), 0, 0) for i in range(beam_nodes)]
-nurbs_curve = fea.ChBSplineCurve(knots, control_points, 3)  # Cubic NURBS
+# Define the knot vector and control points for the IGA beam
+knots = [0, 0, 0.25, 0.5, 0.75, 1, 1, 1]
+control_points = [
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(beam_length / 4, 0, 0),
+    chrono.ChVectorD(beam_length / 2, 0, 0),
+    chrono.ChVectorD(3 * beam_length / 4, 0, 0),
+    chrono.ChVectorD(beam_length, 0, 0),
+]
 
-# Create IGA beam element
-beam_section = fea.ChBeamSectionIGA(nurbs_curve, beam_radius)
-beam_element = fea.ChElementBeamIGA(beam_section)
+# Create the IGA beam object
+beam = fea.ChBeamIGA(beam_material, knots, control_points, beam_radius)
+beam.SetNumElements(10)
 
-# 3. Attach flywheel at center
+# Add the beam to the system
+mysystem.Add(beam)
+
+# ---------------------------------------------------------------------
+#
+#  Create the flywheel
+#
+# ---------------------------------------------------------------------
+
+# Define the flywheel geometry and mass properties
 flywheel_radius = 0.2
-flywheel_mass = 10.0
-flywheel_inertia = 0.5 * flywheel_mass * flywheel_radius**2
+flywheel_mass = 10
 
-flywheel = chrono.ChBodyEasyBox(flywheel_radius * 2, flywheel_radius * 2, 0.1, 1000)
+# Create the flywheel body
+flywheel = chrono.ChBodyEasyCylinder(flywheel_radius, flywheel_radius, flywheel_mass)
+
+# Attach the flywheel to the center of the beam
 flywheel.SetPos(chrono.ChVectorD(beam_length / 2, 0, 0))
-flywheel.SetMass(flywheel_mass)
-flywheel.SetInertiaXX(chrono.ChVectorD(flywheel_inertia, flywheel_inertia, flywheel_inertia))
+chrono.ChLinkMateFix(flywheel, beam, chrono.ChCoordsysD(chrono.ChVectorD(beam_length / 2, 0, 0)))
+mysystem.Add(flywheel)
 
-# Connect flywheel to beam
-constraint = chrono.ChLinkLockRevolute(beam_element.GetNode(beam_nodes // 2), flywheel)
-my_system.Add(constraint)
+# ---------------------------------------------------------------------
+#
+#  Create the rotational motor
+#
+# ---------------------------------------------------------------------
 
-# 4. Add rotational motor
-motor_speed = 100.0  # rad/s
+# Create the motor body
+motor = chrono.ChBody()
+motor.SetBodyFixed(True)
+motor.SetPos(chrono.ChVectorD(0, 0, 0))
+mysystem.Add(motor)
 
-motor = chrono.ChLinkMotorRotationSpeed(beam_element.GetNode(0))
-motor.SetTargetSpeed(motor_speed)
-my_system.Add(motor)
+# Create the motor constraint
+motor_constraint = chrono.ChLinkMotorRotationSpeed(motor, beam, chrono.ChVectorD(1, 0, 0))
+motor_constraint.SetSpeedFunction(chrono.ChFunction_Const(10))
+mysystem.Add(motor_constraint)
 
-# 5. Visual setup
-viz = irr.ChIrrApp(my_system, "Jeffcott Rotor IGA Simulation", irr.dimension2du(800, 600))
-viz.AddTypicalSky()
-viz.AddTypicalLights()
-viz.AddCamera(chrono.ChVectorD(2, 1, 1))
+# ---------------------------------------------------------------------
+#
+#  Visualization setup
+#
+# ---------------------------------------------------------------------
 
-# FEM visualization
-fea.ChVisualizationFEA(my_system)
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(mysystem)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Jeffcott Rotor Simulation")
+vis.Initialize()
 
-# Run simulation
-viz.SetTimestep(0.001)
-while viz.GetDevice().run():
-    viz.BeginScene()
-    viz.Render()
-    viz.DoStep()
-    viz.EndScene()
+# Set up FEM visualization
+fea.ChVisualizationFEA(vis, beam)
+
+# Run the simulation
+while vis.Run():
+    mysystem.DoStepDynamics(0.01)
+    vis.Render()
 
 ```
 
-**Explanation:**
-
-1. **Initialization:**
-   - Creates a `ChSystemNSC` object for the simulation.
-   - Sets the gravitational acceleration.
-
-2. **IGA Beam Creation:**
-   - Defines parameters for the beam (length, radius, number of nodes).
-   - Creates a NURBS curve using `ChBSplineCurve` to represent the beam's geometry.
-   - Constructs an IGA beam element using `ChElementBeamIGA` with the NURBS curve and beam radius.
-
-3. **Flywheel Attachment:**
-   - Creates a simple box-shaped flywheel using `ChBodyEasyBox`.
-   - Sets the flywheel's position, mass, and inertia.
-   - Connects the flywheel to the beam's center node using a revolute joint (`ChLinkLockRevolute`).
-
-4. **Rotational Motor:**
-   - Adds a rotational motor (`ChLinkMotorRotationSpeed`) to the beam's first node.
-   - Sets the target rotational speed for the motor.
-
-5. **Visualization:**
-   - Initializes an Irrlicht visualization window (`ChIrrApp`).
-   - Adds sky, lights, and a camera for viewing.
-   - Enables FEM visualization using `ChVisualizationFEA`.
-
-6. **Simulation Loop:**
-   - Runs the simulation in a loop, updating the visualization and performing simulation steps.
+This script defines a Jeffcott rotor system with an IGA beam, a flywheel, and a rotational motor. It utilizes PyChrono's features for IGA beam modeling, rigid body dynamics, and Irrlicht visualization. Remember to install the necessary PyChrono and Irrlicht libraries before running this script.

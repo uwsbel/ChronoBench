@@ -3,7 +3,7 @@ Here's the corrected and modified PyChrono script based on your instructions:
 ```python
 import pychrono.core as chrono
 import pychrono.sensor as sens
-import pychrono.irrl as irrl
+import pychrono.irrlicht as irr
 
 import numpy as np
 import time
@@ -15,18 +15,18 @@ def main():
     # -----------------
     mphysicalSystem = chrono.ChSystemNSC()
 
-    # -----------------------------
-    # Create a box instead of mesh
-    # -----------------------------
-    side = 5.0  # size of the box
+    # --------------------------
+    # Add a box to be sensed
+    # --------------------------
+    side = 2.0  # side length of the box
     box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVector3d(0, 0, 0))
     box_body.SetBodyFixed(True)
 
-    # Add a texture to the box for better visualization
-    box_texture = chrono.ChVisualMaterial()
-    box_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    box_body.GetVisualModel().GetMaterialList().append(box_texture)
+    # Add a texture to the box
+    box_visual = chrono.ChVisualShapeBox(side, side, side)
+    box_visual.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    box_body.AddVisualShape(box_visual)
 
     mphysicalSystem.Add(box_body)
 
@@ -42,7 +42,7 @@ def main():
         chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,              # Body lidar is attached to (changed from mesh_body to box_body)
+        box_body,              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose,            # Offset pose
         horizontal_samples,     # Number of horizontal samples
@@ -62,7 +62,7 @@ def main():
     lidar.SetCollectionWindow(collection_time)
 
     # -----------------------------------------------------------------
-    # Create a filter graph for post-processing the data from the 3D lidar
+    # Create a filter graph for post-processing the data from the lidar
     # -----------------------------------------------------------------
     if noise_model == "CONST_NORMAL_XYZI":
         lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
@@ -72,7 +72,7 @@ def main():
 
     if vis:
         # Visualize the raw lidar data
-        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 3D Lidar Depth Data"))
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar.PushFilter(sens.ChFilterDIAccess())
@@ -87,24 +87,24 @@ def main():
     # Provides the host access to the XYZI data
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
-    # Add the 3D lidar to the sensor manager
+    # Add the lidar to the sensor manager
     manager.AddSensor(lidar)
 
     # ------------------------------------------------
     # Create a 2D lidar and add it to the sensor manager
     # ------------------------------------------------
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(-12, 0, 2), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
         box_body,              # Body lidar is attached to
         update_rate,            # Scanning rate in Hz
         offset_pose_2d,         # Offset pose
         horizontal_samples,     # Number of horizontal samples
-        1,                      # Only 1 vertical channel for 2D lidar
+        1,                      # Single vertical channel for 2D lidar
         horizontal_fov,         # Horizontal field of view
-        0,                      # No vertical angle for 2D lidar
-        0,                      # No vertical angle for 2D lidar
+        0,                      # Maximum vertical angle (0 for 2D)
+        0,                      # Minimum vertical angle (0 for 2D)
         100.0,                  # Maximum lidar range
         sens.LidarBeamShape_RECTANGULAR,  # Shape of the lidar beam
         sample_radius,          # Sample radius
@@ -116,7 +116,7 @@ def main():
     lidar_2d.SetLag(lag)
     lidar_2d.SetCollectionWindow(collection_time)
 
-    # Create a filter graph for post-processing the data from the 2D lidar
+    # Create a filter graph for the 2D lidar
     if noise_model == "CONST_NORMAL_XYZI":
         lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
     elif noise_model == "NONE":
@@ -124,8 +124,8 @@ def main():
         pass
 
     if vis:
-        # Visualize the raw 2D lidar data
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+        # Visualize the raw lidar data
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
 
     # Provides the host access to the Depth, Intensity data
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
@@ -153,20 +153,17 @@ def main():
     render_time = 0
     t1 = time.time()
 
-    # Create visualization system
-    vis_system = irrl.ChVisualSystemIrrlicht()
-    vis_system.AttachSystem(mphysicalSystem)
-    vis_system.SetWindowSize(1024, 768)
-    vis_system.SetWindowTitle("Lidar Simulation")
-    vis_system.Initialize()
-    vis_system.AddCamera(chrono.ChVector3d(20, 0, 5), chrono.ChVector3d(0, 0, 0))
-    vis_system.AddTypicalLights()
-    vis_system.AddSkyBox()
-    vis_system.AddLogo()
-    vis_system.AddUserEventReceiver(manager)
+    # Create Irrlicht application for visualization
+    app = irr.ChIrrApp(mphysicalSystem, 'Lidar Simulation', irr.dimension2du(800, 600))
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(irr.vector3df(0, -10, 2))
+    app.AssetBindAll()
+    app.AssetUpdateAll()
 
     while ch_time < end_time:
-        # Set lidars to orbit around the box body
+        # Set lidar to orbit around the box body
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
@@ -178,12 +175,13 @@ def main():
             )
         )
 
+        # Set 2D lidar to orbit as well
         lidar_2d.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(
-                    -orbit_radius * math.cos(ch_time * orbit_rate + math.pi/2),
-                    -orbit_radius * math.sin(ch_time * orbit_rate + math.pi/2),
-                    1
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    2
                 ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
@@ -193,14 +191,14 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('3D XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('3D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
         # Access the XYZI buffer from 2D lidar
         xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
         if xyzi_buffer_2d.HasData():
             xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
-            print('2D XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('2D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         # Update sensor manager (will render/save/filter automatically)
@@ -210,9 +208,10 @@ def main():
         mphysicalSystem.DoStepDynamics(step_size)
 
         # Update visualization
-        vis_system.BeginScene()
-        vis_system.Render()
-        vis_system.EndScene()
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
+        app.EndScene()
 
         # Get the current time of the simulation
         ch_time = mphysicalSystem.GetChTime()
@@ -289,12 +288,12 @@ Key changes made:
 1. Replaced the triangular mesh with a box (ChBodyEasyBox)
 2. Removed mesh loading and scaling code
 3. Added texture to the box for better visualization
-4. Changed lidar attachment from mesh_body to box_body
-5. Added a second 2D lidar sensor with one vertical channel
-6. Added proper visualization system setup
-7. Fixed potential issues with undefined variables by ensuring all parameters are properly defined
-8. Added proper visualization updates in the simulation loop
-9. Improved the output messages to distinguish between 2D and 3D lidar data
-10. Added proper orbiting behavior for both lidars (positioned at 90-degree offset)
+4. Changed lidar attachment to the box body
+5. Added a 2D lidar sensor with one vertical channel
+6. Added visualization for both lidars
+7. Added Irrlicht visualization system
+8. Fixed potential issues with undefined variables
+9. Improved the simulation loop to handle both lidars
+10. Added proper visualization updates
 
-The script should now run correctly with both a 3D and 2D lidar scanning a box object.
+The script should now run correctly with both 3D and 2D lidars scanning a box object.

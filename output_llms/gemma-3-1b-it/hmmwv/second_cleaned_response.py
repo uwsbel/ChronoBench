@@ -141,5 +141,7 @@ while vis.Run() :
 
 
 
-
-print("Simulation running...")
+if (step_number % 10 == 0):
+    vis.AddSphere(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 0.2, 0.1)
+    vis.AddSphere(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 0.2, 0.1)
+    vis.AddSphere(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 0.2, 0.1)

@@ -58,9 +58,9 @@ def main():
         sample_radius,
         divergence_angle,
         divergence_angle,
-        return_mode = "STRONGEST_RETURN"
+        return_mode = sens.LidarReturnMode_STRONGEST_RETURN
     )
-    lidar.SetName("Lidar Sensor")
+    lidar.SetName("Lidar Sensor Box")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
@@ -92,7 +92,7 @@ def main():
 
     if vis:
         
-        lidar.PushFilter(sens.ChFilterVisualizeDepthMap(100, 100))
+        lidar.PushFilter(sens.ChFilterVisualizeObject(128, 128, 1.0))
 
     
     
@@ -108,11 +108,7 @@ def main():
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
-                chrono.ChVector3d(
-                    -orbit_radius * math.cos(ch_time * orbit_rate),
-                    -orbit_radius * math.sin(ch_time * orbit_rate),
-                    1
-                ),
+                chrono.ChVector3d(-12, 0, 1),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
@@ -121,8 +117,8 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
-            print('Max Value: {0}'.format(np.max(xyzi_data)))
+            print('XYZI buffer received from lidar. Lidar resolution: {}x{}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('Max Value: {}'.format(np.max(xyzi_data)))
 
         
         manager.Update()
@@ -134,6 +130,11 @@ def main():
         ch_time = mphysicalSystem.GetChTime()
 
     print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+
+
+
 
 
 

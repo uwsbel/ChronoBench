@@ -1,85 +1,95 @@
-import chrono as chrono
-from chrono import irrlicht as irrlicht
-from chrono import irrlicht import c_visual_material
+import chrono as ch
+import chrono.irrlicht as irr
 
-# Initialize the PyChrono environment
-chrono.Initialize()
-
-# Create a world
-world = chrono.ChWorld()
-
-# Create a terrain
-terrain = chrono.ChTerrain()
-terrain.SetName("terrain")
-terrain.SetDensity(1000)
-terrain.SetFriction(0.9)
-terrain.SetRestitution(0.5)
-world.Add(terrain)
-
-# Create a vehicle (BMW E90 Sedan)
-vehicle = chrono.ChBody()
-vehicle.SetName("vehicle")
-vehicle.SetMass(1500)
-vehicle.SetInertiaXX([1000, 1000, 1000])
-vehicle.SetCollide(True)
-vehicle.SetBodyFixed(False)
-world.Add(vehicle)
-
-# Create a driver system
-driver = chrono.ChDriver()
-driver.SetName("driver")
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakeGain(0.1)
-vehicle.Add(driver)
-
-# Create a TMEASY tire model
-tire = chrono.ChTire()
-tire.SetName("tire")
-tire.SetRadius(0.25)
-tire.SetDiameter(0.5)
-tire.SetWidth(0.2)
-tire.SetTreadDepth(0.01)
-tire.SetInflationPressure(250)
-vehicle.Add(tire)
+# Initialize PyChrono environment and core components
+ch.init()
 
 # Create a rigid terrain
-rigid_terrain = chrono.ChBody()
-rigid_terrain.SetName("rigid_terrain")
-rigid_terrain.SetMass(10000)
-rigid_terrain.SetInertiaXX([10000, 10000, 10000])
-rigid_terrain.SetCollide(True)
-rigid_terrain.SetBodyFixed(True)
-world.Add(rigid_terrain)
+terrain = ch.Terrain()
+terrain.set_dimensions(100, 100, 0.1)
+terrain.set_position(0, 0, 0)
+terrain.set_color(0.5, 0.5, 0.5)
 
-# Set up the visual components
-vehicle_visual = chrono.ChVisual()
-vehicle_visual.SetName("vehicle_visual")
-vehicle_visual.SetMaterial(c_visual_material(chrono.CH_COLOR_WHITE))
-vehicle_visual.SetShape(chrono.ChShapeBox([0.5, 0.2, 0.2]))
-vehicle.AddVisual(vehicle_visual)
+# Create a BMW E90 Sedan
+vehicle = ch.Body()
+vehicle.set_name("BMW E90 Sedan")
+vehicle.set_mass(1500)
+vehicle.set_position(0, 0, 0)
+vehicle.set_rotation(0, 0, 0)
 
-tire_visual = chrono.ChVisual()
-tire_visual.SetName("tire_visual")
-tire_visual.SetMaterial(c_visual_material(chrono.CH_COLOR_WHITE))
-tire_visual.SetShape(chrono.ChShapeSphere([0.1, 0.1, 0.1]))
-tire.AddVisual(tire_visual)
+# Add a chassis body
+chassis = ch.Body()
+chassis.set_name("Chassis")
+chassis.set_mass(1000)
+chassis.set_position(0, 0, 0)
+chassis.set_rotation(0, 0, 0)
+vehicle.add_child(chassis)
 
-# Set up the Irrlicht visualization
-irrlicht.Initialize()
-irrlicht.SetTargetWindow(irrlicht.IrrlichtWindow.Create(800, 600, "BMW E90 Sedan Simulation"))
-irrlicht.SetCamera(irrlicht.IrrlichtCamera.Create(irrlicht.IrrlichtCamera.CHASE_CAMERA))
-irrlicht.SetLighting(irrlicht.IrrlichtLighting.Create(irrlicht.IrrlichtLighting.DIRECTIONAL_LIGHT))
-irrlicht.SetSkybox(irrlicht.IrrlichtSkybox.Create(irrlicht.IrrlichtSkybox.SKYBOX_CLOUDS))
-irrlicht.SetTexture(irrlicht.IrrlichtTexture.Create("path/to/texture.png"))
+# Add wheels
+wheel_front_left = ch.Body()
+wheel_front_left.set_name("Front Left Wheel")
+wheel_front_left.set_mass(100)
+wheel_front_left.set_position(-1.5, -1, 0)
+wheel_front_left.set_rotation(0, 0, 0)
+chassis.add_child(wheel_front_left)
 
-# Set up the driver system
-driver.SetSteeringGain(0.1)
-driver.SetThrottleGain(0.1)
-driver.SetBrakeGain(0.1)
+wheel_front_right = ch.Body()
+wheel_front_right.set_name("Front Right Wheel")
+wheel_front_right.set_mass(100)
+wheel_front_right.set_position(1.5, -1, 0)
+wheel_front_right.set_rotation(0, 0, 0)
+chassis.add_child(wheel_front_right)
+
+wheel_rear_left = ch.Body()
+wheel_rear_left.set_name("Rear Left Wheel")
+wheel_rear_left.set_mass(100)
+wheel_rear_left.set_position(-1.5, 1, 0)
+wheel_rear_left.set_rotation(0, 0, 0)
+chassis.add_child(wheel_rear_left)
+
+wheel_rear_right = ch.Body()
+wheel_rear_right.set_name("Rear Right Wheel")
+wheel_rear_right.set_mass(100)
+wheel_rear_right.set_position(1.5, 1, 0)
+wheel_rear_right.set_rotation(0, 0, 0)
+chassis.add_child(wheel_rear_right)
+
+# Add TMEASY tire model
+tire = ch.Tire()
+tire.set_name("TMEASY Tire")
+tire.set_mass(50)
+tire.set_position(0, 0, 0)
+tire.set_rotation(0, 0, 0)
+wheel_front_left.add_child(tire)
+wheel_front_right.add_child(tire)
+wheel_rear_left.add_child(tire)
+wheel_rear_right.add_child(tire)
+
+# Set collision settings
+vehicle.set_collision_shape(ch.Box(4, 2, 1))
+vehicle.set_collision_margin(0.1)
+
+# Set default parameters
+vehicle.set_default_force(0, 0, 0)
+vehicle.set_default_torque(0, 0, 0)
+
+# Create an interactive driver system
+driver = ch.Driver()
+driver.set_steering_gain(0.1)
+driver.set_throttle_gain(0.1)
+driver.set_braking_gain(0.1)
+
+# Create an Irrlicht system
+irr.init()
+irr.set_chase_camera(True)
+irr.set_directional_lighting(True)
+irr.set_skybox("skybox.png")
+irr.set_texture("terrain_texture.png")
+irr.set_logo("logo.png")
+
+# Set up visualization
+irr.add_object(vehicle, "vehicle")
+irr.add_object(terrain, "terrain")
 
 # Run the simulation
-while True:
-    world.DoStep()
-    irrlicht.Draw()
-    irrlicht.Update()
+ch.run()

@@ -43,13 +43,8 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Logging step size and GPS data list
-log_step_size = 1e-2  # Log every 0.01 seconds
-log_steps = math.ceil(log_step_size / step_size)
-gps_data = []
-
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced() could be another choice
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -73,8 +68,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
                          terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
@@ -91,17 +86,14 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system
-driver = veh.ChInteractiveDriverIRR(vis)
-
-# Set the time response for steering and throttle keyboard inputs
-steering_time = 1.0  # Time to go from 0 to +1 (or from 0 to -1)
-throttle_time = 1.0  # Time to go from 0 to +1
-braking_time = 0.3   # Time to go from 0 to +1
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / throttle_time)
-driver.SetBrakingDelta(render_step_size / braking_time)
+# Create the driver system (non-interactive)
+driver = veh.ChDriver(vehicle.GetVehicle())
 driver.Initialize()
+
+# Initialize logging parameters
+log_step_size = 0.1  # Logging every 0.1 seconds
+log_steps = math.ceil(log_step_size / step_size)
+gps_data = []
 
 # Initialize sensor manager
 manager = sens.ChSensorManager(vehicle.GetSystem())
@@ -134,10 +126,6 @@ gps.PushFilter(sens.ChFilterGPSAccess())
 # Add the GPS to the sensor manager
 manager.AddSensor(gps)
 
-# ---------------
-# Simulation loop
-# ---------------
-
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
@@ -147,7 +135,6 @@ render_steps = math.ceil(render_step_size / step_size)
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
-render_frame = 0
 
 # Simulation loop
 while vis.Run():
@@ -158,20 +145,17 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
-        render_frame += 1
 
-    # Get driver inputs
+    # Set driver inputs based on simulation time
+    throttle = 0.8 if time < 6 else 0.0
+    steering = 0.1  # Constant steering for demonstration
+    braking = 0.0 if time < 6 else 0.5
+
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
+
     driver_inputs = driver.GetInputs()
-
-    # Override driver inputs with scripted values
-    if time < 6:
-        driver_inputs.m_throttle = 0.8
-        driver_inputs.m_steering = 0.5
-        driver_inputs.m_braking = 0.0
-    else:
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_braking = 1.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
@@ -187,13 +171,10 @@ while vis.Run():
 
     # Update sensor manager in each step
     manager.Update()
-    
+
     # Log GPS data at specified intervals
     if step_number % log_steps == 0:
-        gps_buffer = gps.GetMostRecentGPSBuffer()
-        if gps_buffer:
-            gps_info = gps_buffer.GetGPSData()
-            gps_data.append((time, gps_info.x(), gps_info.y(), gps_info.z()))
+        gps_data.append(gps.GetGPSData())
 
     # Increment frame number
     step_number += 1

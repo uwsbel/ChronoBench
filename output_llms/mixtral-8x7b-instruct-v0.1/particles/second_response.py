@@ -77,11 +77,7 @@ sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
 
 # Simulation loop
-G_constant = 6.674e-3  # Gravitational constant
 stepsize = 1e-2
-kinetic_energy = 0
-potential_energy = 0
-total_energy = 0
 
 while vis.Run():
     vis.BeginScene()
@@ -94,12 +90,15 @@ while vis.Run():
         body.EmptyAccumulators()
 
     mlist = list(combinations(sys.GetBodies(), 2))
-
-    kinetic_energy = 0
-    potential_energy = 0
+    G_constant = 6.674e-3  # Gravitational constant
+    total_kinetic_energy = 0
+    total_potential_energy = 0
 
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+        velocity = body.GetPos_dt()
+        mass = body.GetMass()
+        kinetic_energy = 0.5 * mass * velocity.Length2()
+        total_kinetic_energy += kinetic_energy
 
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -108,10 +107,12 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        potential_energy = -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        total_potential_energy += potential_energy
 
-    total_energy = kinetic_energy + potential_energy
-
-    print(f"Kinetic Energy: {kinetic_energy:.4f}, Potential Energy: {potential_energy:.4f}, Total Energy: {total_energy:.4f}")
+    total_energy = total_kinetic_energy + total_potential_energy
+    print("Kinetic Energy: ", total_kinetic_energy)
+    print("Potential Energy: ", total_potential_energy)
+    print("Total Energy: ", total_energy, "\n")
 
     sys.DoStepDynamics(stepsize)

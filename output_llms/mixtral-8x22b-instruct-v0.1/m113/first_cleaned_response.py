@@ -25,22 +25,33 @@ terrain.AddLayer(veh.TerrainLayer(30, 0.5, 2000))
 
 
 
-driver = veh.ChIrrGuiDriver(vehicle.GetSystem(), chronoirr.ChIrrApp(vehicle.GetSystem(), "M113 Vehicle", chronoirr.Dimensions(800, 600)))
-driver.SetChaseCamera(chrono.ChVectorD(0, -30, 1), chrono.ChVectorD(0, 0, 1), 5)
-driver.SetLight(chrono.ChVectorD(-30, 30, 100), chrono.ChVectorD(1, -1, -1), chrono.ChColor(0.7, 0.7, 0.7))
+driver = veh.VehicleDriver(vehicle)
 
 
+visual_system = chronoirr.ChIrrApp(vehicle.GetSystem(), "M113 Vehicle Simulation", chronoirr.Dim(800, 600))
 
-while chrono.GetSystem()->GetChTime() < 10:  
-    driver.BeginScene()
-    driver.DrawAll()
-    driver.EndScene()
+visual_system.AddTypicalLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
+visual_system.AddTypicalSky(chronoirr.GetChronoDataFile("skybox/sky.jpg"))
+visual_system.AddTypicalLights(chronoirr.GetChronoDataFile("bluetexture.jpg"), 8, 20, 1.2, 3)
+visual_system.AddTypicalCamera(chrono.ChVectorD(0, -30, 1.5), chrono.ChVectorD(0, 0, 0))
+visual_system.SetChaseCamera(chrono.ChVectorD(0, -30, 1.5), chrono.ChVectorD(0, 0, 0), 10)
 
-    vehicle.Synchronize(chrono.GetSystem()->GetChTime())
-    terrain.Synchronize(chrono.GetSystem()->GetChTime())
-    driver.Synchronize(chrono.GetSystem()->GetChTime())
 
-    chrono.GetSystem()->DoStepDynamics(0.01)
+while visual_system.Run():
+    visual_system.BeginScene()
+    visual_system.DrawAll()
+    visual_system.EndScene()
 
-chrono.GetSystem()->Clear()
-chrono.Finalize_ChronoEngine()
+    
+    vehicle.Synchronize(0)
+    terrain.Synchronize(0)
+    driver.Synchronize(0)
+    visual_system.SynchronizeVisualization()
+
+    
+    vehicle.Advance(0.01)
+    terrain.Advance(0.01)
+    driver.Advance(0.01)
+    visual_system.AdvanceVisualization()
+
+chrono.End_ChronoEngine()

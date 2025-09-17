@@ -6,14 +6,16 @@ import errno  # Import standard error numbers
 import os  # Import system operations for file handling
 
 # Output directory
-out_dir = chrono.GetChronoOutputPath() + "/FEA_SHELLS_BST"  # Define the output directory path
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"  # Define the output directory path
 
 # Create (if needed) the output directory
 try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print("Error creating output directory")
+        raise  # Re-raise the exception if it's not due to the directory already existing
+    else:
+        print(f"Directory {out_dir} already exists.")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
@@ -25,7 +27,6 @@ mesh = fea.ChMesh()  # Instantiate the mesh
 sys.Add(mesh)
 
 # Disable gravity for the system (options)
-# sys.SetGravitationalAcceleration(VNULL) or
 mesh.SetAutomaticGravity(False)
 
 # Define nodes to plot or load
@@ -154,7 +155,6 @@ vis.AddTypicalLights()  # Add typical lights to the scene
 
 # Change solver to PardisoMKL
 mkl_solver = mkl.ChSolverPardisoMKL()  # Instantiate PardisoMKL solver
-mkl_solver.SetVerbose(False)  # Disable verbose output for PardisoMKL solver
 mkl_solver.LockSparsityPattern(True)  # Locks sparsity pattern of the matrix for optimization
 sys.SetSolver(mkl_solver)  # Set the solver in the system
 

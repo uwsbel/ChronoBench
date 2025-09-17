@@ -7,7 +7,7 @@ def main():
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  # Update initial position
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))  
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -23,13 +23,15 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single mesh
+    # Create the terrain with a single mesh patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    terrain.SetMesh(chrono.GetDataFile('vehicle/terrain/meshes/Highway_col.obj'))
     terrain.SetCollisionEnabled(True)
-    terrain.SetCollisionMaterial(chrono.ChContactMaterialNSC(
-        friction=0.9, restitution=0.01, thickness=0.01))
-    terrain.AddVisualShape(chrono.ChVisualShapeTriangleMesh(
-        chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_vis.obj')))
+    terrain.SetContactMaterialThickness(0.01)
+
+    # Create a visual mesh for the terrain
+    visual_mesh = veh.ChVisualShapeTriangleMesh(chrono.GetDataFile('terrain/meshes/Highway_vis.obj'))
+    terrain.AddVisualShape(visual_mesh)
 
     # Initialize the terrain
     terrain.Initialize()

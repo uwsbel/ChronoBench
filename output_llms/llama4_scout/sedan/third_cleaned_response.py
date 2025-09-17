@@ -3,12 +3,14 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+print(veh)
+
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(0, 0, 0.2)
+initLoc = chrono.ChVector3d(0, 0, 0.2)  
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -63,8 +65,6 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/highway.jpg"), 200, 200)  
@@ -99,12 +99,12 @@ driver.Initialize()
 reference_speed = 10  
 
 
-pid_Kp = 0.1
-pid_Ki = 0.01
-pid_Kd = 0.001
-pid_error = 0
-pid_prev_error = 0
-pid_integral = 0
+Kp = 0.1
+Ki = 0.01
+Kd = 0.001
+
+
+pid_controller = veh.ChPidController(Kp, Ki, Kd, reference_speed)
 
 
 
@@ -135,18 +135,15 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    speed_error = reference_speed - vehicle.GetVehicle().GetSpeed()
-    pid_integral += speed_error * step_size
-    pid_derivative = (speed_error - pid_prev_error) / step_size
-    pid_output = pid_Kp * speed_error + pid_Ki * pid_integral + pid_Kd * pid_derivative
-    driver_inputs.throttle = max(0, min(pid_output, 1))  
-    pid_prev_error = speed_error
-
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+
+    
+    speed_error = reference_speed - vehicle.GetVehicle().GetSpeed()
+    throttle_input = pid_controller.ComputeThrottle(speed_error, step_size)
+    driver_inputs.throttle = throttle_input
 
     
     driver.Advance(step_size)

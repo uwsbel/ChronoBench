@@ -71,12 +71,11 @@ cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
 manager.AddSensor(cam)
 
 
+time = 0
 step_number = 0
 render_step_size = 1.0 / 25  
 render_steps = math.ceil(render_step_size / time_step)
 
-
-time = 0
 while vis.Run():
     time += time_step  
     steering = 0
@@ -90,9 +89,9 @@ while vis.Run():
 
     driver.SetSteering(steering)  
     rover.Update()  
+
     manager.Update()
 
-    
     if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()

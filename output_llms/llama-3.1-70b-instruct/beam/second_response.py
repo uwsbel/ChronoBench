@@ -67,13 +67,15 @@ sys.Add(mtruss)
 constr_bc = chrono.ChLinkMateGeneric()
 constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
 sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, True)
+constr_bc.SetConstrainedCoords(True, True, True, 
+                                True, True, True)
 
 # Create and initialize a constraint that connects node 1 to the fixed truss.
 constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
-constr_d.SetConstrainedCoords(False, True, True, False, False, False)
+constr_d.SetConstrainedCoords(False, True, True, 
+                              False, False, False)
 
 # Disable the automatic gravity for FEA elements in this demonstration.
 mesh.SetAutomaticGravity(False)
@@ -113,20 +115,22 @@ vis.AddTypicalLights()
 msolver = mkl.ChSolverPardisoMKL()
 sys.SetSolver(msolver)
 
-# Create a new beam section using the ChBuilderBeamEuler helper object.
+# Create a builder helper object for Euler-Bernoulli beams.
 builder = fea.ChBuilderBeamEuler()
-builder.SetSpans(5)
-builder.SetSection(msection)
-builder.SetYup(chrono.ChVector3d(0, 1, 0))
-builder.SetStartPoint(chrono.ChVector3d(0, 0, -0.1))
-builder.SetEndPoint(chrono.ChVector3d(0.2, 0, -0.1))
-builder.BuildBeam(sys, mesh)
 
-# Fix the last node of the created beam.
-builder.GetLastBeamNodes().back().SetFixed(True)
+# Create a beam from point A to point B using BuildBeam.
+builder.BuildBeam(msection, 5, chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), chrono.ChVector3d(0, 1, 0))
+
+# Get the last node of the created beam and fix it.
+last_node = builder.GetLastBeamNodes().back()
+last_node.SetFixed(True)
 
 # Apply a force to the first node of the created beam section.
-builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+first_node = builder.GetFirstBeamNodes().front()
+first_node.SetForce(chrono.ChVector3d(0, -1, 0))
+
+# Add the created beam to the mesh.
+mesh.AddElements(builder.GetBeamElements())
 
 # Simulation loop.
 while vis.Run():

@@ -1,55 +1,73 @@
 importchrono
-import ChronoEngine as chrono
-import ChronoPostprocess as postprocess
+importchrono.vehicle as vehicle
+importchrono.visual as vis
+importchrono.io as io
+importchrono irrlicht as irre
 
-# Initialize the simulation
-system = chrono.ChSystemDFS()
-application = chrono.ChIrrApp(system, "Gator Vehicle Simulation", chrono.CIrrlicht::.dimension2du(1024, 768))
-application.SetCameraVerticalSpeed(5)
-application.SetCameraVerticalDistance(5)
-application.SetCameraHorizontalDistance(5)
-application.SetCameraHeight(5)
-application.SetFullScreen(False)
-application.Initialize()
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolverType.CH_SOLVER_PGS)
+system.SetSolverMaxIterations(100)
+system.Set timestep(0.001)
 
-# Create the Gator vehicle
-vehicle = chrono.vehicle.Gator()
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 1))
-vehicle.SetInitRotation(chrono.ChQuaternionD(chrono.CH_C_PI / 2, 0, 0))
-vehicle.SetContactMethod("chrono")
-vehicle.SetTireModel("tmeasy")
-vehicle.SetRenderMesh(True)
-system.Add(vehicle.GetChassis())
+# Initialize Irrlicht application
+application = irre.ChIrrApp(system, "Gator Vehicle Simulation", chronojournal.GetChronoDataPath() + " irrlicht/data")
+application.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
+application.SetCameraRotation(chrono.ChVectorD(0, -45, 0))
+application.AddTypicalLights()
 
-# Create the terrain
-terrain = chrono.ChRigidTerrain()
-terrain.SetDimensions(chrono.ChVectorD(100, 100, 0.1))
-terrain.SetTexture("path/to/terrain_texture.jpg", 5, 5)
-system.Add(terrain)
+# Create terrain
+terrain = vehicle.ChRigidTerrain(system)
+terrain.SetDimensions(chrono.ChVectorD(100, 100, 1))
+terrain.SetTexture(io.GetChronoDataFile("textures/grass.jpg"))
+terrain.SetHeightMap(io.GetChronoDataFile("terrain/height_map.txt"))
+application.AddBody(terrain.GetBody())
 
-# Set up the driver
-driver = chrono.ChIrrGuiDriver(application)
-driver.SetVehicle(vehicle)
+# Create Gator vehicle
+gator = vehicle.ChGator()
+gator.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+gator.SetContactMethod(chrono.ChContactMethod.NODE)
+gator.SetTireType(vehicle.ChTireType.TMEASY)
+gator.SetUse_mesh(True)
+
+# Add vehicle to system and application
+system.Add(gator.GetChassis())
+for wheel in gator.GetWheelSet().GetWheelList():
+    system.Add(wheel.GetBody())
+    application.AddBody(wheel.GetBody())
+
+# Create driver
+driver = vehicle.ChDriver(gator.GetDriver())
+driver.SetThrottle(0)
+driver.SetSteering(0)
+driver.SetBraking(0)
+
+# Set up interactive controls
+def key_press(key, mod):
+    if key == 'a':
+        driver.SetSteering(-0.5)
+    elif key == 'd':
+        driver.SetSteering(0.5)
+    elif key == 'w':
+        driver.SetThrottle(0.5)
+    elif key == 's':
+        driver.SetBraking(0.5)
+
+application.keyboard().RegisterCallback(key_press)
 
 # Simulation loop
-step_size = 1 / 50.0
-real_time_factor = 1.0
-
-while application.GetDevice().run():
-    # Update vehicle and driver
-    vehicle.Update(chrono.GetChTime())
+while application.GetDevice().Run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    
+    # Update driver inputs
     driver.Update()
     
-    # Update terrain
-    terrain.Update()
+    # Step the simulation
+    system.DoStepDynamics(0.001)
     
-    # Advance simulation
-    system.DoStepDynamics(step_size)
-    application.GetDevice().setTimeStep(step_size * real_time_factor)
-    
-    # Check for exit
-    if application.GetDevice().isKeyDown(chrono.CH_KEY_ESCAPE):
-        break
+    # Limit simulation speed to 50 FPS
+    application.GetDevice().Sleep(1/50)
 
-# Close the application
-application.GetDevice().closeDevice()
+print("Simulation stopped")

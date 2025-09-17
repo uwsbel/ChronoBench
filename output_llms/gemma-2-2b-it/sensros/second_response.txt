@@ -88,7 +88,6 @@ def main():
     sens_manager.AddSensor(mag)
 
     # Create and configure a 2D lidar sensor.
-    # Create a 2D lidar sensor
     lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data.
     lidar2d.PushFilter(sens.ChFilterPCfromDepth())  # Convert depth data to point cloud.
@@ -102,4 +101,6 @@ def main():
 
     # Create the ROS manager and register handlers for the sensors.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
+
+    # Register handlers for each sensor,

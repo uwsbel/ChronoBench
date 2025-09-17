@@ -48,9 +48,9 @@ vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
 
-vehicle.SetMaxMotorVoltageRatio(0.26)  
-vehicle.SetStallTorque(0.4)            
-vehicle.SetTireRollingResistance(0.03) 
+vehicle.SetMaxMotorVoltageRatio(0.26)      
+vehicle.SetStallTorque(0.4)                
+vehicle.SetTireRollingResistance(0.03)     
 
 vehicle.Initialize()
 
@@ -92,7 +92,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 steering_time = 1.0  
 throttle_time = 1.0  
-braking_time = 0.3    
+braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -102,30 +102,27 @@ driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
-
 render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
+render_frame = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+        render_frame += 1
 
-    
     driver_inputs = driver.GetInputs()
 
-    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)

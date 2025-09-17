@@ -1,61 +1,60 @@
 import chrono
-from chrono import ChSystem, ChBody, ChShape, ChVisualizationAspect
-from chrono.collision import ChCollisionModel
-from chrono.sensor import ChCameraSensor, ChLiDARSensor, ChGPS, ChAccelerometer, ChGyroscope, ChMagnetometer
-from chrono.vehicle import ChChassis, ChTire
-from chrono.sensors import ChSensorManager
-from chrono.ros_utils import ChRosManager
+from chrono.collision import collision as col
+from chrono.sensor import sensor as sens
+from chrono.vehicle import vehicle as veh
+from chrono.sensor.ros_utils import ROSManager
 
 
-chrono_run = chrono.ChRunner()
-system = ChSystem()
+chrono.ChronoPy_SetFlag_Verbose(False)
+my_chrono = chrono.ChronoEngine()
 
 
-visualization_assets = ChVisualizationAspect(system)
-visualization_assets.AddMesh(chrono.GetDataFile('path/to/your/mesh/file.obj'))
+
+ground = my_chrono.AddBody(my_chrono.GetSystem().NewGround())
 
 
-ground = ChBody(system, mass=0)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground.SetBodyFixed(False)
-system.AddBody(ground)
+mesh = my_chrono.AddXAsset(chrono.GetDataFile('meshes/block.obj'))
 
 
-sensor_manager = ChSensorManager()
-ros_manager = ChRosManager()
+vehicle_body = my_chrono.AddBody(veh.ChVehicleBody(my_chrono, 'vehicle_body'))
+vehicle_body.SetCollisionAsset(col.ChCollisionModelAsset())
+vehicle_body.AddAsset(mesh)
+vehicle_body.SetPos(chrono.ChVectorD(0, 0, 0))
 
 
-camera_sensor = ChCameraSensor('camera_sensor', system, chrono.ChVectorD(0, 0, 10))
-sensor_manager.AddSensor(camera_sensor)
 
-lidar_sensor = ChLiDARSensor('lidar_sensor', system, chrono.ChVectorD(0, 0, 5))
-sensor_manager.AddSensor(lidar_sensor)
-
-gps = ChGPS('gps', system, chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(gps)
-
-accelerometer = ChAccelerometer('accelerometer', system, chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(accelerometer)
-
-gyroscope = ChGyroscope('gyroscope', system, chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(gyroscope)
-
-magnetometer = ChMagnetometer('magnetometer', system, chrono.ChVectorD(0, 0, 0))
-sensor_manager.AddSensor(magnetometer)
+ground.AddForce(chrono.ChForce())
 
 
-ros_manager.Initialize(system, sensor_manager)
+sensor_manager = sens.ChSensorManager(my_chrono)
 
 
-step = 0.001  
-real_time_factor = 1.0  
-sim_time = 0.0
-while sim_time < 10.0:
-    sensor_manager.UpdateSensors()
-    ros_manager.PublishSensors()
-    system.DoStepDynamics(step, system.Get_substep_scheme())
-    sim_time += step
-    chrono_run.DoStep(step * real_time_factor)
+camera = sens.ChCameraSensor(my_chrono, 'camera')
+lidar = sens.ChLiDARSensor(my_chrono, 'lidar')
+gps = sens.ChGPSensor(my_chrono, 'gps')
+accelerometer = sens.ChAccelerometerSensor(my_chrono, 'accelerometer')
+gyroscope = sens.ChGyroscopeSensor(my_chrono, 'gyroscope')
+magnetometer = sens.ChMagnetometerSensor(my_chrono, 'magnetometer')
 
 
-ros_manager.Finalize()
+ros_manager = ROSManager(my_chrono)
+ros_manager.AddSensor(camera, 'camera_topic')
+ros_manager.AddSensor(lidar, 'lidar_topic')
+ros_manager.AddSensor(gps, 'gps_topic')
+ros_manager.AddSensor(accelerometer, 'accelerometer_topic')
+ros_manager.AddSensor(gyroscope, 'gyroscope_topic')
+ros_manager.AddSensor(magnetometer, 'magnetometer_topic')
+
+
+while my_chrono.GetChTime() < 10.0:
+    
+    sensor_manager.Update()
+
+    
+    my_chrono.DoStepDynamics(my_chrono.GetSubStepNumber(), my_chrono.GetTimeStep())
+
+    
+    my_chrono.WaitUntilNextStep()
+
+
+my_chrono.DumpChrono(my_chrono.GetChTime(), 'simulation_state.yml')

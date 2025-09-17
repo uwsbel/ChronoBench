@@ -76,35 +76,41 @@ magnetometer = csensor.ChMagnetometerSensor(chrono, 3)
 
 
 
-ros.register_sensor(camera, "camera_data")
+ros.ROS_init()
 
-ros.register_sensor(lidar, "lidar_data")
+ros.ROS_advertise(sensor_manager, "camera_data", camera)
 
-ros.register_sensor(gps, "gps_data")
+ros.ROS_advertise(sensor_manager, "lidar_data", lidar)
 
-ros.register_sensor(accelerometer, "accelerometer_data")
+ros.ROS_advertise(sensor_manager, "gps_data", gps)
 
-ros.register_sensor(gyroscope, "gyroscope_data")
+ros.ROS_advertise(sensor_manager, "accelerometer_data", accelerometer)
 
-ros.register_sensor(magnetometer, "magnetometer_data")
+ros.ROS_advertise(sensor_manager, "gyroscope_data", gyroscope)
 
-
-
-
-sensor_manager.AddSensor(camera)
-
-sensor_manager.AddSensor(lidar)
-
-sensor_manager.AddSensor(gps)
-
-sensor_manager.AddSensor(accelerometer)
-
-sensor_manager.AddSensor(gyroscope)
-
-sensor_manager.AddSensor(magnetometer)
+ros.ROS_advertise(sensor_manager, "magnetometer_data", magnetometer)
 
 
 
+
+sensor_manager.RegisterSensor(camera)
+
+sensor_manager.RegisterSensor(lidar)
+
+sensor_manager.RegisterSensor(gps)
+
+sensor_manager.RegisterSensor(accelerometer)
+
+sensor_manager.RegisterSensor(gyroscope)
+
+sensor_manager.RegisterSensor(magnetometer)
+
+
+
+
+sim_time = 0.0
+
+sim_time_step = 0.01
 
 while True:
 
@@ -115,22 +121,18 @@ while True:
 
     
 
-    chrono.ChSystemNSC.DoStepDynamics(chrono, 1.0 / 60.0)
+    chrono.ChSystemNSC.DoStepDynamics(chrono, sim_time_step)
 
-    chrono.ChSystemNSC.DoStep(chrono, 1.0 / 60.0)
-
-
-    
-
-    ros.publish_sensor_data(sensor_manager)
+    sim_time += sim_time_step
 
 
     
 
-    if chrono.ChSystemNSC.GetChTime() % 1.0 < 1.0 / 60.0:
+    ros.ROS_publish_data(sensor_manager)
 
-        continue
 
     
 
-    break
+    chrono.ChSystemNSC.DoStep(chrono, sim_time_step)
+
+    chrono.sleep(sim_time_step)

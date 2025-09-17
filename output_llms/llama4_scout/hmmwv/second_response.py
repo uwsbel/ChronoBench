@@ -22,7 +22,7 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 terrainHeight = 0  # terrain height
-terrainLength = 200.0  # size in X direction
+terrainLength = 200.0  # size in X direction (increased to 200.0)
 terrainWidth = 100.0  # size in Y direction
 
 # Poon chassis tracked by the camera
@@ -79,62 +79,47 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Path follower
+# Path and controller implementation
 class PathFollower:
     def __init__(self, vehicle, radius):
         self.vehicle = vehicle
         self.radius = radius
         self.center = chrono.ChVector3d(0, 0, 0)
-        self.target_point = chrono.ChVector3d(radius, 0, 0)
-        self.sentinel_point = chrono.ChVector3d(radius * math.cos(math.pi / 2), radius * math.sin(math.pi / 2), 0)
+        self.target = chrono.ChVector3d(radius, 0, 0)
+        self.sentinal = chrono.ChVector3d(radius * math.cos(math.pi / 2), radius * math.sin(math.pi / 2), 0)
 
         self.Kp = 0.5  # Proportional gain
         self.Ki = 0.1  # Integral gain
         self.Kd = 0.1  # Derivative gain
 
         self.error_integral = 0
-        self.previous_error = 0
+        self.error_previous = 0
 
     def update(self, time):
-        # Calculate the vehicle's position
+        # Calculate vehicle position
         vehicle_pos = self.vehicle.GetVehicle().GetPos()
 
-        # Calculate the distance from the vehicle to the target point
-        distance = math.sqrt((vehicle_pos.x() - self.target_point.x()) ** 2 + (vehicle_pos.y() - self.target_point.y()) ** 2)
+        # Calculate error
+        error = math.sqrt((vehicle_pos.x() - self.target.x())**2 + (vehicle_pos.y() - self.target.y())**2) - self.radius
 
-        # Calculate the error
-        error = distance - self.radius
-
-        # Update the integral term
+        # Update integral and derivative terms
         self.error_integral += error * 0.01
+        error_derivative = (error - self.error_previous) / 0.01
+        self.error_previous = error
 
-        # Calculate the derivative term
-        derivative = (error - self.previous_error) / 0.01
+        # Calculate steering input
+        steering_input = self.Kp * error + self.Ki * self.error_integral + self.Kd * error_derivative
 
-        # Update the previous error
-        self.previous_error = error
-
-        # Calculate the steering input using PID control
-        steering_input = self.Kp * error + self.Ki * self.error_integral + self.Kd * derivative
-
-        # Limit the steering input to -1 to 1
+        # Limit steering input to -1 to 1 range
         steering_input = max(-1, min(steering_input, 1))
 
-        # Return the driver inputs
-        return veh.DriverInputs(steering_input, 0.3, 0)
+        # Set throttle
+        throttle = 0.3
 
+        return chrono.ChDriverInputs(throttle, steering_input, 0)
+
+# Create path follower
 path_follower = PathFollower(vehicle, 20)
-
-# Create spheres for visualization of sentinel and target points
-sentinel_sphere = chrono.ChBodyEasySphere(0.2, 1000, chrono.ChMaterialNSC())
-sentinel_sphere.SetPos(path_follower.sentinel_point)
-sentinel_sphere.SetColor(chrono.ChColor(1, 0, 0))
-vehicle.GetSystem().AddBody(sentinel_sphere)
-
-target_sphere = chrono.ChBodyEasySphere(0.2, 1000, chrono.ChMaterialNSC())
-target_sphere.SetPos(path_follower.target_point)
-target_sphere.SetColor(chrono.ChColor(0, 1, 0))
-vehicle.GetSystem().AddBody(target_sphere)
 
 # Simulation loop
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -146,21 +131,26 @@ while vis.Run():
 
     if step_number % math.ceil(render_step_size / step_size) == 0:
         vis.BeginScene()
+
+        # Visualize path
+        vis.RenderSphere(0.5, path_follower.sentinal, chrono.ChColor(1, 0, 0))
+        vis.RenderSphere(0.5, path_follower.target, chrono.ChColor(0, 1, 0))
+
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
-    # Get driver inputs from path follower
+    # Get driver inputs
     driver_inputs = path_follower.update(time)
 
     # Update modules (process inputs from other modules)
-    terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
     vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
-    terrain.Advance(step_size)
     vehicle.Advance(step_size)
+    terrain.Advance(step_size)
     vis.Advance(step_size)
 
     # Increment frame number

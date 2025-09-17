@@ -40,7 +40,8 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-vehicle = veh.HMMWV_Full()
+
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -55,6 +56,13 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
+
+
+terrain = veh.ChTerrain()
+patch = terrain.AddPatch(veh.ChTerrainPatch())
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+patch.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 64, 64, 40, 40, -1, 1, 0.02)
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -81,15 +89,11 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetDimensions(terrainLength, terrainWidth, terrainHeight)
-terrain.SetPosition(chrono.ChVector3d(0, 0, terrainHeight))
-terrain.SetMaterial(veh.MaterialType_DIRT)
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -99,11 +103,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

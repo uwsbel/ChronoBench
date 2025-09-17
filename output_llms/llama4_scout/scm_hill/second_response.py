@@ -5,9 +5,7 @@ import pychrono.sensor as sens
 import numpy as np
 import math
 
-""" 
-!!! Set this path before running the demo! 
-"""
+# Set this path before running the demo!
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -25,7 +23,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
@@ -45,7 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
+vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -83,16 +80,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Create obstacles
-obstacle_list = []
-for _ in range(5):
-    obstacle_body = chrono.ChBodyEasyBox(chrono.ChVector3d(1, 1, 0.5), 1000)
-    obstacle_body.SetPos(chrono.ChVector3d(np.random.uniform(-20, 20), np.random.uniform(-20, 20), 0.5))
-    obstacle_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-    obstacle_body.SetFixed(True)
-    vehicle.GetSystem().AddBody(obstacle_body)
-    obstacle_list.append(obstacle_body)
-
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
@@ -103,28 +90,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-# Create the sensor manager
-sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
-
-# Create a lidar sensor
-lidar_sensor = sens.ChLidarSensor(vehicle.GetChassisBody(), 
-                                  chrono.ChVector3d(0, 0, 1.71), 
-                                  chrono.ChQuaterniond(1, 0, 0, 0), 
-                                  10, 
-                                  20, 
-                                  0.1, 
-                                  0.1)
-
-lidar_sensor.SetName("Lidar Sensor")
-lidar_sensor.SetVisualization(vis_type)
-
-# Add filters for visualization
-point_cloud_filter = sens.ChLidarPointCloudFilter()
-lidar_sensor.AddFilter(point_cloud_filter)
-
-# Add the lidar sensor to the sensor manager
-sensor_manager.AddSensor(lidar_sensor)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -138,8 +103,37 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
-# ---------------
-# Simulation loop
+# Create sensor manager
+sensor_manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create a lidar sensor
+lidar_sensor = sens.ChLidarSensor(vehicle.GetChassisBody(), 
+                                  chrono.ChVector3d(0, 0, 1.5), 
+                                  chrono.ChQuaterniond(1, 0, 0, 0), 
+                                  10, 
+                                  0.1, 
+                                  0.05, 
+                                  100, 
+                                  20)
+
+# Add filters for visualization
+point_cloud_filter = sens.ChPointCloudFilter()
+lidar_sensor.AddFilter(point_cloud_filter)
+
+# Add the lidar sensor to the sensor manager
+sensor_manager.AddSensor(lidar_sensor)
+
+# Create obstacles
+obstacles = []
+for _ in range(5):
+    obstacle_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, True)
+    obstacle_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    obstacle_body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    vehicle.GetSystem().AddBody(obstacle_body)
+    obstacles.append(obstacle_body)
+
+# --------------- 
+# Simulation loop 
 # ---------------
 # output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -170,15 +164,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    # Update sensor manager
-    sensor_manager.Update()
+    sensor_manager.Update()  # Update sensor manager
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

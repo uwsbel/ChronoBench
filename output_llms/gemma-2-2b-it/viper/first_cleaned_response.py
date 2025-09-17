@@ -1,40 +1,90 @@
-import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.irrlicht.irrlicht as irrlicht
+from pychrono import Chrono, ChronoSystem, Body, RigidBody, Point3D, Vector3D, Contact
+from pychrono.irrlicht import IrrlichtScene, IrrlichtCamera, IrrlichtLight
+from pychrono.irrlicht import IrrlichtEngine, IrrlichtDriver
+from pychrono.irrlicht import IrrlichtMaterial, IrrlichtMesh, IrrlichtSceneNode
+from pychrono.irrlicht import IrrlichtSceneNode, IrrlichtMaterial
+import time
+import numpy as np
 
 
-chrono.Init()
+chrono = Chrono()
 
 
-chrono.SetGravity(chrono.Vector3D(0, -9.81, 0))
-chrono.SetGroundBody(chrono.GroundBody(chrono.Vector3D(0, 0, 0), chrono.Vector3D(0, 1, 0), 1.0))
+system = ChronoSystem(chrono)
 
 
-rover = chrono.Vehicle(chrono.Vector3D(0, 0, 0), chrono.Vector3D(0, 0, 1))
-rover.AddWheel(chrono.Wheel(chrono.Vector3D(0, 0, 0), chrono.Vector3D(0, 1, 0), 0.5))
-rover.AddWheel(chrono.Wheel(chrono.Vector3D(0, 0, 0), chrono.Vector3D(0, 1, 0), 0.5))
+ground = Body(system, "ground")
+ground.setMass(1000)
+ground.setInertia(1000)
+ground.setShape("sphere")
+ground.setFriction(0.5)
+ground.setPosition(Point3D(0, 0, 0))
+ground.setVelocity(Vector3D(0, 0, 0))
 
 
-driver = chrono.Character(chrono.Vector3D(0, 0, 0), chrono.Vector3D(0, 0, 1))
+rover = Body(system, "rover")
+rover.setMass(10)
+rover.setInertia(100)
+rover.setShape("box")
+rover.setPosition(Point3D(1, 0, 0))
+rover.setVelocity(Vector3D(0, 0, 0))
 
 
-rover.SetPosition(chrono.Vector3D(0, 0, 0))
-rover.SetVelocity(chrono.Vector3D(0, 0, 0))
+driver = Body(system, "driver")
+driver.setMass(1)
+driver.setInertia(1)
+driver.setShape("box")
+driver.setPosition(Point3D(1.5, 0, 0))
+driver.setVelocity(Vector3D(0, 0, 0))
 
 
-irrlicht_app = irrlicht.IrrlichtApplication(chrono.GetIrrlichtContext())
-irrlicht_app.CreateWindow("Viper Rover Simulation", 800, 600)
-irrlicht_app.SetCamera(chrono.Vector3D(0, 0, 100), chrono.Vector3D(0, 0, 0))
-irrlicht_app.SetLighting(chrono.Vector3D(0.5, 0.5, 0.5))
+chrono.setTime(0)
+chrono.setTimeStep(0.1)
+
+
+system.setGravity(Vector3D(0, -9.81, 0))
+
+
+engine = IrrlichtEngine()
+scene = IrrlichtScene(engine)
+camera = IrrlichtCamera(scene)
+camera.setPosition(Point3D(0, 0, 10))
+camera.setLookAt(Point3D(0, 0, 0))
+light = IrrlichtLight(scene)
+light.setPosition(Point3D(0, 10, 0))
+light.setColor(Vector3D(1, 1, 1))
+
+
+rover_node = IrrlichtSceneNode(scene, "rover")
+rover_node.setPosition(Point3D(1, 0, 0))
+rover_node.setOrientation(Vector3D(0, 0, 0))
+
+
+driver_node = IrrlichtSceneNode(scene, "driver")
+driver_node.setPosition(Point3D(1.5, 0, 0))
+driver_node.setOrientation(Vector3D(0, 0, 0))
+
+
+scene.addNode(rover_node)
+scene.addNode(driver_node)
+
+
+scene.setCamera(camera)
+scene.setLight(light)
 
 
 while True:
     
-    steering_angle = (chrono.GetTime() / 10) * 360
-    rover.SetSteeringAngle(steering_angle)
+    chrono.step()
 
     
-    chrono.Update(1/60)
+    
 
     
-    irrlicht_app.Render()
+    scene.render()
+
+    
+    engine.run()
+
+    
+    time.sleep(0.1)

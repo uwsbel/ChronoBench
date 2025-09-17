@@ -36,6 +36,12 @@ L_x, L_z = 1, 1
 nsections_x, nsections_z = 40, 40
 
 
+nodePlotA = None
+nodePlotB = None
+nodesLoad = []
+load_force = chrono.ChVector3d(0, -10, 0)  
+
+
 mynodes = []
 for iz in range(nsections_z + 1):
     for ix in range(nsections_x + 1):
@@ -44,24 +50,23 @@ for iz in range(nsections_z + 1):
         mesh.AddNode(mnode)
         mynodes.append(mnode)
 
+        
+        if iz == 0 and ix == 0:
+            nodePlotA = mnode
+        if iz == nsections_z and ix == nsections_x:
+            nodePlotB = mnode
 
-nodePlotA = mynodes[0]
-nodePlotB = mynodes[-1]
-nodesLoad = [mynodes[int((nsections_x + 1) * nsections_z / 2)]]
-
-def ref_X(t):
-    return 0.1 * chrono.ChFunction_Const(1.0)
-
-def ref_Y(t):
-    return 0.1 * chrono.ChFunction_Const(1.0)
-
-load_force = chrono.ChVector3d(0, -100, 0)
+        
+        if iz == 0:
+            nodesLoad.append(mnode)
 
 
 melementmonitor = None
 for iz in range(nsections_z):
     for ix in range(nsections_x):
         melementA = fea.ChElementShellBST()
+
+        
         boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1]
         boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1] if ix > 0 else None
         boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1] if iz > 0 else None
@@ -71,6 +76,7 @@ for iz in range(nsections_z):
         melementA.AddLayer(thickness, 0, material)
         mesh.AddElement(melementA)
 
+        
         if iz == 0 and ix == 1:
             melementmonitor = melementA
 

@@ -25,29 +25,63 @@ terrainLength = 200.0
 terrainWidth = 100.0   
 
 
-trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+path_radius = 50.0     
+path_center = chrono.ChVector3d(0, 0, 0.5)  
+current_path_angle = 0.0
+target_path_angle = 0.0
 
 
-contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
-
-
-step_size = 1e-3
-tire_step_size = step_size
-
-
-render_step_size = 1.0 / 50  
+class PathFollower:
+    def __init__(self, vehicle, path_radius, path_center):
+        self.vehicle = vehicle
+        self.path_radius = path_radius
+        self.path_center = path_center
+        self.current_angle = 0.0
+        self.target_angle = 0.0
+        self.max_speed = 5.0  
+        self.p_gain = 3.0    
+        self.d_gain = 0.1   
+        self.i_gain = 0.0   
+        
+    def Update(self, time, current_pos, current_rot):
+        
+        target_pos = self.path_center + chrono.ChVector3d(
+            self.path_radius * math.cos(self.target_path_angle),
+            self.path_radius * math.sin(self.target_path_angle),
+            0.5
+        )
+        
+        
+        error_pos = target_pos - current_pos
+        error_rot = current_rot.Inverse() * (self.path_center.Inverse() * target_pos).GetRot()
+        
+        
+        current_rot_angle = math.atan2(error_pos.y, error_pos.x)
+        target_rot_angle = 0.0  
+        
+        
+        steering_error = current_rot_angle - target_rot_angle
+        
+        
+        steering_force = self.p_gain * steering_error + self.d_gain * math.degrees(steering_error) + self.i_gain * (steering_error)
+        self.vehicle.SetSteeringForce(steering_force)
+        
+        
+        current_speed = self.vehicle.GetVehicle().GetSpeed()
+        if current_speed < self.max_speed:
+            throttle_force = self.max_speed - current_speed
+            self.vehicle.SetThrottleForce(throttle_force)
 
 
 vehicle = veh.HMMWV_Full()
-vehicle.SetContactMethod(contact_method)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
-vehicle.SetTireStepSize(tire_step_size)
-vehicle.Initialize()
+vehicle.SetTireStepSize(step_size)
 
+vehicle.Initialize()
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
@@ -68,7 +102,7 @@ terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Path Follower Demo')
+vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -78,26 +112,29 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-path_radius = 50.0  
-path = veh.ChPath()
-path.SetRadius(path_radius)
-path.SetFrequency(1)  
-path.Initialize()
-path_follower = veh.ChPathFollower(path, vehicle.GetVehicle())
-path_follower.Initialize()
+path_follower = PathFollower(vehicle, path_radius, path_center)
+path_follower.current_path_angle = current_path_angle
+path_follower.target_path_angle = target_path_angle
 
 
-start_point = chrono.ChVector3d(path_radius, 0, 0)
-end_point = chrono.ChVector3d(-path_radius, 0, 0)
-start_sphere = chrono.ChSphere(start_point, 0.5, 1, 1, 1, 1.0)
-end_sphere = chrono.ChSphere(end_point, 0.5, 1, 1, 1, 1.0)
+sentinel_sphere = vis.AddSphere(chrono.ChColor(1.0, 0.0, 0.0), 0.5, 128, 128, 128)
+target_sphere = vis.AddSphere(chrono.ChColor(0.0, 1.0, 0.0), 0.5, 128, 128, 128)
 
 
-driver = None  
+driver = veh.ChInteractiveDriverIRR(vis)
 
 
-vis.AddSphere(start_sphere)
-vis.AddSphere(end_sphere)
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -118,21 +155,30 @@ while vis.Run():
         render_frame += 1
 
     
-    vehicle.Synchronize(time)
+    driver_inputs = driver.GetInputs()
+
+    
+    driver.Synchronize(time)
     terrain.Synchronize(time)
-    path_follower.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
-    vehicle.Advance(step_size)
+    driver.Advance(step_size)
     terrain.Advance(step_size)
-    path_follower.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
 
     
-    current_pos = path_follower.GetVehiclePosition()
-    current_pos_x = current_pos[0]
-    current_pos_y = current_pos[1]
-    vis.SetSpherePosition(start_sphere, current_pos_x, current_pos_y)
-    vis.SetSpherePosition(end_sphere, current_pos_x, current_pos_y)
+    current_pos = vehicle.GetVehicle().GetPosition()
+    current_rot = vehicle.GetVehicle().GetRotation().Inverse()
+    path_follower.Update(time, current_pos, current_rot)
+
+    
+    sentinel_pos = current_pos
+    target_pos = path_follower.target_pos
+    sentinel_sphere.SetPosition(sentinel_pos)
+    target_sphere.SetPosition(target_pos)
 
     
     step_number += 1

@@ -15,11 +15,15 @@ def main():
     
     
     
-    side = 1.0  
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
     box_body.SetPos(chrono.ChVectorD(0, 0, 0))
     box_body.SetBodyFixed(True)
     mphysicalSystem.Add(box_body)
+
+    
+    box_shape = chrono.ChVisualShapeBox()
+    box_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  
+    box_body.AddVisualShape(box_shape)
 
     
     
@@ -49,7 +53,7 @@ def main():
         divergence_angle,      
         return_mode            
     )
-    lidar.SetName("Lidar Sensor")
+    lidar.SetName("3D Lidar Sensor")
     lidar.SetLag(lag)
     lidar.SetCollectionWindow(collection_time)
 
@@ -65,7 +69,7 @@ def main():
     lidar.PushFilter(sens.ChFilterDIAccess())
     lidar.PushFilter(sens.ChFilterPCfromDepth())
     if vis:
-        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
     lidar.PushFilter(sens.ChFilterXYZIAccess())
 
     manager.AddSensor(lidar)
@@ -75,18 +79,18 @@ def main():
     
     offset_pose_2d = chrono.ChFrameD(
         chrono.ChVectorD(0, 0, 1),  
-        chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1))  
+        chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
-        box_body,               
-        update_rate,            
-        offset_pose_2d,         
-        horizontal_samples,     
-        1,                     
-        horizontal_fov,        
-        0.0,                   
-        0.0,                   
-        100.0,                 
+        box_body,                
+        update_rate,             
+        offset_pose_2d,          
+        horizontal_samples=800,  
+        vertical_samples=1,      
+        horizontal_fov=chrono.CH_PI * 0.5,  
+        max_vert_angle=0.0,      
+        min_vert_angle=0.0,      
+        100.0,                   
         sens.LidarBeamShape_RECTANGULAR,
         sample_radius,
         divergence_angle,
@@ -104,7 +108,7 @@ def main():
         pass
 
     if vis:
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw 2D Lidar Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(800, 1, "Raw 2D Lidar Depth Data"))
 
     lidar_2d.PushFilter(sens.ChFilterDIAccess())
     lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
@@ -141,7 +145,7 @@ def main():
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('3D Lidar XYZI buffer received. Resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
 
         
@@ -157,16 +161,16 @@ def main():
 
 
 
-noise_model = "NONE"  
+noise_model = "NONE"
 return_mode = sens.LidarReturnMode_STRONGEST_RETURN
 update_rate = 5.0
 horizontal_samples = 800
 vertical_samples = 300
-horizontal_fov = 2 * chrono.CH_PI  
+horizontal_fov = 2 * chrono.CH_PI
 max_vert_angle = chrono.CH_PI / 12
 min_vert_angle = -chrono.CH_PI / 6
 lag = 0
-collection_time = 1.0 / update_rate
+collection_time = 1. / update_rate
 sample_radius = 2
 divergence_angle = 0.003
 
@@ -175,8 +179,12 @@ divergence_angle = 0.003
 
 step_size = 1e-3
 end_time = 40.0
+side = 1.0  
+save = False
 vis = True
 out_dir = "SENSOR_OUTPUT/"
-side = 1.0  
+
+
+
 
 main()

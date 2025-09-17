@@ -1,62 +1,48 @@
 import chrono as chrono
-import chrono_irrlicht as chronoirr
-import irr
+import chrono.vehicle as vehicle
+import chrono.terrain as terrain
+import chrono.irrlicht as irrlicht
+import numpy as np
 
 
 chrono.Initialize()
-core = chrono.Core()
 
 
-terrain = chrono.CreateRigidBody(core, "terrain")
-terrain.SetName("Terrain")
-terrain.SetPos(chrono.Vec3(0, 0, 0))
-terrain.SetRot(chrono.QfromEuler(0, 0, 0))
-terrain.SetMass(1000)
-terrain.SetMaterial(chrono.Material(0.5, 0.5, 0.5, 0.1))
-terrain.SetTexture(chrono.Texture("path/to/terrain_texture.jpg"))
+terrain_obj = terrain.RigidTerrain()
+terrain_obj.SetTexture("path_to_your_texture.png")
+terrain_obj.SetDimensions(100, 100, 1)
+terrain_obj.SetPosition(0, 0, 0)
 
 
-bus = chrono.CreateRigidBody(core, "bus")
-bus.SetName("CityBus")
-bus.SetPos(chrono.Vec3(0, 0, 0))
-bus.SetRot(chrono.QfromEuler(0, 0, 0))
-bus.SetMass(500)
-bus.SetMaterial(chrono.Material(0.8, 0.2, 0.2, 0.1))
+vehicle_obj = vehicle.CityBus()
+vehicle_obj.SetPosition(0, 0, 1)
+vehicle_obj.SetOrientation(0, 0, 0)
+vehicle_obj.SetTireModel("tire_model")
 
 
-tire = chrono.CreateTire(bus, "tire")
-tire.SetName("Tire")
-tire.SetPos(chrono.Vec3(0, 0, 0))
-tire.SetRot(chrono.QfromEuler(0, 0, 0))
-tire.SetRadius(0.5)
-tire.SetStiffness(1000)
-tire.SetDamping(100)
-tire.SetFriction(0.5)
+vehicle_obj.SetMeshVisualization("path_to_vehicle_mesh.obj")
+vehicle_obj.SetPrimitiveVisualization("path_to_tire_mesh.obj")
 
 
-driver = chrono.CreateDriver(core, "driver")
-driver.SetName("Driver")
-driver.SetPos(chrono.Vec3(0, 0, 0))
-driver.SetRot(chrono.QfromEuler(0, 0, 0))
-driver.SetSteering(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+app = irrlicht.IrrlichtApp()
+app.SetWindowSize(800, 600)
+app.SetWindowTitle("CityBus Simulation")
+app.SetCameraPosition(0, 10, 10)
+app.SetCameraTarget(0, 0, 0)
 
 
-viewer = chronoirr.IrrlichtViewer(core, "CityBus Simulation")
-viewer.SetCameraPosition(chrono.Vec3(0, 10, 10))
-viewer.SetCameraTarget(chrono.Vec3(0, 0, 0))
-viewer.SetDrawWireframe(True)
-viewer.SetDrawNormals(False)
+driver = vehicle.InteractiveDriver()
+driver.SetVehicle(vehicle_obj)
+driver.SetSteeringSpeed(1.0)
+driver.SetThrottleSpeed(1.0)
+driver.SetBrakingSpeed(1.0)
 
 
-dt = 1/50.0  
-t = 0
-while t < 10:  
-    core.Step(dt)
-    viewer.UpdateScene()
-    viewer.Render()
-    t += dt
+app.SetFPS(50)
+app.SetUpdateFunction(lambda: driver.Update())
 
 
-chrono.Finalize()
+app.Run()
+
+
+chrono.Destroy()

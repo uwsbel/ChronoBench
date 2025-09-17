@@ -1,72 +1,68 @@
-import pychrono as chrono
+import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 import pychrono.terrain as ter
+import pychrono.solver as solver
 
 # Initialize the Chrono::Engine
-chrono.SetChronoDataPath('path_to_chrono_data')
+chrono.SetChronoDataPath('../../data/')
 
-# Create the simulation system
+# Create the simulation system and add a gravity field
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the vehicle
+# Create the HMMWV vehicle
 vehicle = veh.HMMWV()
-vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType_MESH)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0.5, 0))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
+vehicle.InitSystem(system, veh.ChVehicleModelType.VEHICLE_3D)
+vehicle.SetChassisVisualizationType(veh.ChVehicleVisualizationType.MESH)
 
-# Initialize the rigid tire model
-for wheel in vehicle.GetVehicle().GetWheels():
-    wheel.SetTireVisualizationType(veh.ChVisualizationType_MESH)
-    wheel.SetRigidTireModel()
+# Set the initial position and orientation of the HMMWV
+vehicle.SetInitPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetInitOrientation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 0, 1)))
 
-# Create the Irrlicht visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV on SCM Terrain')
-vis.Initialize()
-vis.AddTypicalSky()
-vis.AddTypicalLogo()
-vis.AddLightWithShadow(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.ChVectorD(1, -1, 1), 100, 100, 100, 400, 400)
+# Set up the terrain
+terrain = ter.ChTerrain()
+terrain.Initialize(system, "terrain/scmtest")
+terrain.SetContactMaterialProperties(0.3, 0.01, 0.01, 0.01, 0.0, 0.0, 0.0)
 
-# Create the SCM terrain
-terrain = ter.SCMTerrain(system)
-terrain.Initialize(100, 100, 0.1, 0.1, chrono.ChVectorD(0, -1, 0))
-terrain.SetContactMaterial(0.01, 0.01, 0.001, 0.001, 0.01, 1e6, 1.5, 1.5, 0.01)
-terrain.SetPlotType(ter.SCMTerrain.PLOT_SINKAGE)
-terrain.EnablePatchFollowsChassis(vehicle.GetVehicle().GetChassisBody(), 2, 2)
+# Enable moving patch feature
+terrain.EnableMovingPatch(vehicle.GetChassisBody(), 3, 3, 0.2, 0.2)
 
-# Add the vehicle and terrain to the system
-system.Add(vehicle.GetVehicle())
-system.Add(terrain.GetGroundBody())
+# Enable false color plotting for sinkage visualization
+terrain.EnableSinkagePlotting()
 
-# Set up the interactive driver system
+# Set up the interactive driver
 driver = veh.ChDriver()
-driver.Initialize(vehicle.GetVehicle())
-driver.SetSteeringDelta(0)
-driver.SetThrottle(0)
-driver.SetBraking(0)
+driver.Initialize(vehicle.GetVehicle(), system)
+driver.SetSteeringController(veh.ChDriver::STEERING_CONTROLLER_SIMPLE)
+driver.SetThrottleController(veh.ChDriver::THROTTLE_CONTROLLER_SIMPLE)
+driver.SetBrakingController(veh.ChDriver::BRAKING_CONTROLLER_SIMPLE)
 
-# Set up the real-time simulation
-simulation_time = 10.0  # seconds
-time_step = 1.0 / 50.0  # 50 frames per second
+# Set up the visualization
+visualization = chronoirr.ChVisualSystemIrrlicht()
+visualization.AttachSystem(system)
+visualization.SetWindowSize(1280, 720)
+visualization.SetWindowTitle('HMMWV on SCM Terrain')
+visualization.Initialize()
+visualization.AddTypicalSky()
+visualization.AddTypicalLights()
+visualization.AddLogo()
+visualization.AddLightWithShadow(chrono.ChVectorD(1.0, -1.0, 1.0), chrono.ChVectorD(0, 0, 0), 1, 1.5, 30)
 
-# Run the simulation
-while vis.Run():
-    time = system.GetChronoDataTime()
-    if time >= simulation_time:
-        break
+# Set the simulation step size and real-time factor
+system.SetTimestepperType(chrono.ChTimestepperType.HYBRID)
+system.SetSolverType(solver.ChSolverType.BARZILAIBORWEIN)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-10)
+system.SetStep(0.01)
 
-    # Update the driver inputs
-    driver.SynchronizeForces(time_step)
-
-    # Integrate the system
-    system.DoStepDynamics(time_step)
-
-    # Render the scene
-    vis.Render()
+# Run the simulation in real-time at 50 frames per second
+run_time = 10  # seconds
+current_time = 0
+while current_time < run_time:
+    visualization.Render()
+    system.DoStepDynamics(0.01)
+    current_time += 0.01
 
 # Clean up
-vis.Close()
+visualization.Close()

@@ -2,81 +2,92 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.terrain as terr
 
-# --- Create the simulation system ---
+# --- Initialize the PyChrono environment and core components ---
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# --- Create the terrain ---
-terrain = terr.ChTerrainSCM()
-terrain.Create(system, 100, 100, 1, 1)  # x_size, y_size, x_resolution, y_resolution
-terrain.SetLiquidDepth(0.1)
-terrain.SetMu(0.5)
-terrain.SetCohesion(1000)
-terrain.SetFriction(0.8)
+# --- Create the SCM deformable terrain ---
+terrain = chrono.ChTerrainSCM()
+terrain.Create(system, 100, 100, 10, 1)  # x size, y size, max height, resolution
+terrain.Set_Soil_Parameters(0.5, 0.2, 0.3, 0.1, 0.8)  # Stiffness, damping, cohesion, friction, yield stress
+terrain.Set_Sinkage_Visualization(True)
+terrain.Set_FalseColor_Mapping(0, 0.2, 0.4, 0.6, 0.8, 1.0) # Set false color mapping for sinkage
 
-# Customize soil parameters
-terrain.Set_K_arr(1000000)
-terrain.Set_K_dem(1000000)
-terrain.Set_K_tan(100000)
-terrain.Set_K_visc(1000)
-terrain.Set_damping(0.1)
+# --- Add the HMMWV vehicle ---
+hmmwv = veh.HMMWV()
+hmmwv.Set_Vehicle_Mass(2700)
+hmmwv.Set_Tire_Rolling_Radius(0.45)
+hmmwv.Set_Tire_Width(0.3)
+hmmwv.Set_Tire_Gap(0.02)
+hmmwv.Set_Engine_Max_Torque(300)
+hmmwv.Set_Brake_Max_Torque(200)
+hmmwv.Set_Max_Steering_Angle(0.4)
 
-# Enable moving patch
-terrain.SetMovingPatch(True)
-terrain.SetPatchRadius(1.5)
+# Set initial vehicle position and orientation
+initial_x = 0
+initial_y = 0
+initial_z = 0.5
+initial_yaw = 0
+hmmwv.Set_Pos(chrono.ChVectorD(initial_x, initial_y, initial_z))
+hmmwv.Set_Transform(chrono.ChQuaternionD(chrono.ChVectorD(0, 0, 1), initial_yaw))
 
-# Visualize sinkage with false color
-terrain.SetVisualizeSinkage(True)
+hmmwv.Initialize(system)
 
-system.Add(terrain)
+# --- Configure the moving patch for the terrain ---
+patch = chrono.ChTerrainSCM.Patch()
+patch.Initialize(terrain, 2, 2)  # x size, y size
+patch.Set_Follow_Shape(True)
+patch.Set_Shape_Follow_Offset(chrono.ChVectorD(0, 0, 0.1))
+patch.Set_Shape_Follow_Speed(0.5)
 
-# --- Create the HMMWV vehicle ---
-hmmwv = veh.ChHMMWV()
-hmmwv.SetVehicleModel(veh.VehicleModel.HMMWV)
-hmmwv.SetTireType(veh.TireModelType.RIGID)
-hmmwv.SetTireRadius(0.4)
-hmmwv.SetTireWidth(0.3)
+# Attach the moving patch to the vehicle chassis
+hmmwv.Get_Chassis().Add_Contact_Patch(patch)
 
-# Initial position and orientation
-hmmwv.SetPos(chrono.ChVectorD(0, 1, 0))
-hmmwv.SetTransform(chrono.ChQuaternionD(chrono.ChVectorD(0, 1, 0), chrono.CH_C_DEG * 0))
+# --- Set up the interactive driver system ---
+driver = veh.ChSimpleDriver()
+driver.Set_Vehicle(hmmwv)
+driver.Set_Steering_Range(-1, 1)
+driver.Set_Throttle_Range(0, 1)
+driver.Set_Braking_Range(0, 1)
 
-# Mesh visualization for all components
-hmmwv.SetBodyVisualization(True)
-hmmwv.SetWheelVisualization(True)
-
-system.Add(hmmwv)
-
-# --- Create the interactive driver ---
-driver = veh.ChIrrVehicleDriver(hmmwv)
-driver.SetSteeringDelta(10)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-
-# --- Create the Irrlicht application ---
+# --- Create the Irrlicht visualization ---
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('HMMWV on SCM Terrain')
 vis.Initialize()
-vis.AddTypicalCamera(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
 vis.AddTypicalLights()
 
 # --- Simulation loop ---
 time_step = 0.005
-vis.SetUpdateInterval(time_step)
-vis.SetRenderMode(chronoirr.ChVisualSystemIrrlicht.RenderMode.RENDER_MODE_SOLID)
+vis.SetTimestep(time_step)
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Update the system
-    system.DoStepDynamics(time_step)
+    # Get driver inputs
+    steering = 0.0
+    throttle = 0.0
+    braking = 0.0
 
-    # Update the driver input
+    if vis.GetKeyboard().GetKeyDown(chrono.KEY_LEFT):
+        steering = -1.0
+    if vis.GetKeyboard().GetKeyDown(chrono.KEY_RIGHT):
+        steering = 1.0
+    if vis.GetKeyboard().GetKeyDown(chrono.KEY_UP):
+        throttle = 1.0
+    if vis.GetKeyboard().GetKeyDown(chrono.KEY_DOWN):
+        braking = 1.0
+
+    # Update driver and vehicle
+    driver.Set_Steering(steering)
+    driver.Set_Throttle(throttle)
+    driver.Set_Braking(braking)
     driver.Synchronize(time_step)
+
+    system.DoStepDynamics(time_step)
 ```

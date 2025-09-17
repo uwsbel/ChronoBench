@@ -1,87 +1,79 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sensors
 import numpy as np
 import os
 
 
-chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), '../../data/'))
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Mesh with Orbiting Camera')
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Orbiting Camera Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 2))
+vis.AddCamera(chrono.ChVectorD(0, 0, 6))
 vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(1.5, 1.5, 5), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.SetCameraVertical(chrono.ChVectorD(0, 0, 0))
 
 
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('models/obj/torus.obj'), False, True)
+mesh.LoadWavefrontMesh("path_to_your_mesh.obj")  
 
 
 body = chrono.ChBody()
-body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.SetBodyFixed(True)  
-body.GetVisualModel().AddTriangleMesh(mesh, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33<>(1), True)
+body.SetBodyFixed(True)
+body.GetVisualModel().AddTriangleMesh(mesh)
 system.Add(body)
 
 
-camera = chrono.ChCameraSensor()
-camera.SetName("orbiting_camera")
-camera.SetCameraUp(chrono.ChVectorD(0, 0, 1))
-camera.SetCameraLocation(chrono.ChVectorD(2, 0, 0))
-camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-camera.SetFocalLength(0.035)  
-camera.SetResolution(640, 480)
-camera.SetFPS(30)
-camera.SetAntiAliasing(chrono.ChCameraSensor::ANTIALIASING_4X)
+sensor_manager = sensors.ChSensorManager(system)
 
 
-camera.AddNoise(chrono.ChNoiseWhite(0.01))  
-camera.AddNoise(chrono.ChNoiseGaussian(0.005))  
-
-
-sensor_manager = chrono.ChSensorManager(system)
+camera = sensors.ChCameraSensor(
+    body,                     
+    10,                       
+    chrono.ChFrameD(chrono.ChVectorD(2, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))),  
+    640,                      
+    480,                      
+    1.4,                      
+    1.4                       
+)
+camera.SetName("camera_sensor")
+camera.SetLag(0.1)            
+camera.SetNoise(sensors.ChNoiseWhite(0.05))  
 sensor_manager.AddSensor(camera)
 
 
-vis.AddSensor(camera)
-vis.EnableSensor(camera, True)
+filter = sensors.ChFilterRGBD()
+camera.PushFilter(filter)
+
+
+visualizer = sensors.ChVisualizerSensor("camera_visualizer", 800, 600)
+visualizer.AddSensor(camera)
+visualizer.SetActiveCamera(camera)
+sensor_manager.AddVisualizer(visualizer)
 
 
 time_step = 0.01
-end_time = 10.0
-output_step = 0.1
+simulation_time = 10.0
+current_time = 0.0
 
 
-current_time = 0
-while vis.Run() and current_time < end_time:
+while current_time < simulation_time:
     
-    angle = current_time * 0.5  
-    radius = 2.0
-    camera_x = radius * np.cos(angle)
-    camera_y = radius * np.sin(angle)
-    camera.SetCameraLocation(chrono.ChVectorD(camera_x, camera_y, 0.5))
-
-    
-    camera.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
-
-    
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    
-    if current_time % output_step < time_step:
-        print(f"Time: {current_time:.2f}s - Camera position: ({camera_x:.2f}, {camera_y:.2f}, 0.5)")
+    angle = 2 * np.pi * current_time / simulation_time
+    radius = 3.0
+    camera_pos = chrono.ChVectorD(radius * np.cos(angle), 0, radius * np.sin(angle))
+    camera_frame = chrono.ChFrameD(camera_pos, chrono.Q_from_AngAxis(angle, chrono.ChVectorD(0, 1, 0)))
+    camera.SetOffsetPose(camera_frame)
 
     
     system.DoStepDynamics(time_step)
@@ -89,3 +81,19 @@ while vis.Run() and current_time < end_time:
 
     
     sensor_manager.Update()
+
+    
+    if camera.HasData():
+        data = camera.GetMostRecentBuffer()
+        print(f"Time: {current_time:.2f}s - Camera buffer size: {len(data)} bytes")
+
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    
+    visualizer.Update()
+
+
+vis.Run()

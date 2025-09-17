@@ -45,8 +45,11 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  
     floor.SetFixed(True)  
     floor.SetName("base_link")  
-    floor.SetTexture(ch.ChTexture())
-    floor.GetTexture().SetFilename("floor_texture.jpg")
+    floor.SetTexture(ch.ChTexture(
+        filename='path/to/floor_texture.jpg',  
+        type=ch.ChTexture.Type_2D,
+        mode=ch.ChTexture.Mode_RGB
+    ))
     sys.Add(floor)  
 
     
@@ -54,34 +57,35 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
-    box.SetTexture(ch.ChTexture())
-    box.GetTexture().SetFilename("box_texture.jpg")
+    box.SetTexture(ch.ChTexture(
+        filename='path/to/box_texture.jpg',  
+        type=ch.ChTexture.Type_2D,
+        mode=ch.ChTexture.Mode_RGB
+    ))
     sys.Add(box)  
 
     
     vis = chronoirr.ChIrrlichtApplication()
-    vis.SetWindowSize(1280, 720)
+    vis.SetWindowSize(800, 600)
     vis.SetStep(1e-3)
-    vis.AddTypicalCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(1, 1, 1), 255)
-    vis.AddSkyBox()
+    vis.AddTypicalLights()
+    vis.AddCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
     vis.Initialize()
 
     
     ros_manager = chros.ChROSPythonManager()
     publish_rate = 10
-
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
-
+    
     
     tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-
+    
     
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
@@ -95,7 +99,7 @@ def main():
     time_end = 30  
 
     step_number = 0
-    render_step_size = 10
+    render_step_size = 10  
     render_steps = render_step_size
 
     realtime_timer = ch.ChRealtimeStepTimer()  
@@ -106,12 +110,16 @@ def main():
         if not ros_manager.Update(time, time_step):  
             break  
 
-        step_number += 1
-        if step_number >= render_steps:
+        
+        if step_number % render_steps == 0:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-            render_steps += render_step_size
+
+        step_number += 1
+        render_steps -= 1
+        if render_steps == 0:
+            render_steps = render_step_size
 
         realtime_timer.Spin(time_step)  
 

@@ -6,59 +6,70 @@ import numpy as np
 ch.ChEngine.Initialize()
 
 
-system = ch.ChSystem_EulerImplicit()
+system = ch.ChSystemEulerImplicit()
 
 
-system.SetSolverType(ch.ChSolver.PARDISO_MKL)
-system.SetSolverVerbose(True)
-
-
-mat = ch.ChMaterialShellKirchhoff()
-mat.SetThickness(0.001)  
-mat.SetYoungModulus(100e3)  
-mat.SetPoissonRatio(0.3)  
-mat.SetDensity(1000)  
+system.SetSolver(ch.ChSolverPardisoMKL())
 
 
 
-nx, ny = 20, 20
-Lx, Ly = 1.0, 1.0  
+mesh_length = 2.0  
+mesh_width = 1.5  
+num_length_elements = 20  
+num_width_elements = 15  
+thickness = 0.001  
 
 
 mesh = ch.ChMesh()
 
 
-for i in range(nx + 1):
-    x = Lx * i / nx
-    for j in range(ny + 1):
-        y = Ly * j / ny
-        node = ch.ChNodeFEAxyzP(x, y, 0)
-        node.SetMass(0)  
+nodes = []
+for i in range(num_length_elements + 1):
+    for j in range(num_width_elements + 1):
+        x = i / num_length_elements * mesh_length
+        y = j / num_width_elements * mesh_width
+        z = 0.0
+        node = ch.ChNodexyz(x, y, z)
+        nodes.append(node)
         mesh.AddNode(node)
 
 
-for i in range(nx):
-    for j in range(ny):
-        n1 = mesh.GetNodeByIndex(i * (ny + 1) + j)
-        n2 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + j)
-        n3 = mesh.GetNodeByIndex((i + 1) * (ny + 1) + (j + 1))
-        n4 = mesh.GetNodeByIndex(i * (ny + 1) + (j + 1))
-        
-        
-        elem = ch.ChElementShellQuadrilateral()
-        elem.SetNodes(n1, n2, n3, n4)
-        elem.SetMaterial(mat)
+for i in range(num_length_elements):
+    for j in range(num_width_elements):
+        n1 = nodes[i * (num_width_elements + 1) + j]
+        n2 = nodes[(i + 1) * (num_width_elements + 1) + j]
+        n3 = nodes[(i + 1) * (num_width_elements + 1) + (j + 1)]
+        n4 = nodes[i * (num_width_elements + 1) + (j + 1)]
+        elem = ch.ChElementShellReissner4(0, thickness, n1, n2, n3, n4)
         mesh.AddElement(elem)
 
 
 system.Add(mesh)
 
 
-viz = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
-viz.AttachSystem()
+
+material = ch.ChMaterialShellKirchhoff()
+material.SetYoungModulus(100000.0)  
+material.SetPoissonRatio(0.3)
+material.SetDensity(1000.0)  
+mesh.SetMaterial(material)
 
 
-viz.Run()
+
+app = irr.ChIrrApp(system, 'Folding Tablecloth Simulation', 800, 600)
 
 
-ch.ChEngine.Finalize()
+app.AddTypicalSky()
+app.AddTypicalCamera('Camera', irr.vector3df(0, -3, 1.5), irr.vector3df(0, 0, 0))
+app.AddTypicalLights()
+
+
+
+system.SetGravitationalAcceleration(irr.vector3df(0, 0, -9.81))
+
+
+app.SetTimestep(0.01)
+app.SetVerbose(True)
+
+
+app.Run()

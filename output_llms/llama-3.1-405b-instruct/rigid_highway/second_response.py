@@ -90,7 +90,7 @@ tri_mesh_shape2 = chrono.ChVisualShapeTriangleMesh()
 tri_mesh_shape2.SetMesh(vis_mesh2)
 tri_mesh_shape2.SetMutable(False)
 tri_mesh_shape2.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-tri_mesh_shape2.AddTexture(chrono.GetChronoDataFile("vehicle/terrain/textures/dirt.jpg"), 6.0, 6.0)
+tri_mesh_shape2.SetTexture(chrono.GetChronoDataFile('vehicle/terrain/textures/dirt.jpg'), 6.0, 6.0)
 patch2.GetGroundBody().AddVisualShape(tri_mesh_shape2)
 
 terrain.Initialize()

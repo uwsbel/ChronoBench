@@ -5,35 +5,43 @@ import numpy as np
 import time
 import math
 
-# --- System Initialization ---
-# ARTcar Vehicle
+# -----------------
+# System Initialization
+# -----------------
+
+# Create ARTcar vehicle system
 mphysicalSystem = chrono.ChSystemNSC()
-vehicle = chrono.ChARTCar(mphysicalSystem)
-vehicle.SetPos(chrono.ChVector3d(0, 0, 0))
-vehicle.SetFixed(True)
-mphysicalSystem.Add(vehicle)
 
-# Driver
-driver = chrono.ChDriver(mphysicalSystem)
-driver.SetMaxSpeed(10.0)  # Set maximum speed
-driver.SetAcceleration(1.0)  # Set acceleration
+# Create ARTcar vehicle
+artcar = chrono.ChARTCar(mphysicalSystem)
+artcar.SetPos(chrono.ChVector3d(0, 0, 0))
+artcar.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+artcar.SetFixed(True)
+mphysicalSystem.Add(artcar)
 
-# Terrain
-terrain = chrono.ChTerrain(mphysicalSystem)
-terrain.SetHeight(10.0)
-terrain.SetMaterial("Grass")  # Set material properties
-terrain.SetTexture("textures/grass.png")  # Set texture
-terrain.SetColor(chrono.ChVector3d(0.2, 0.2, 0.2))  # Set color
+# Create a driver
+driver = chrono.ChDriver()
+driver.SetVehicle(artcar)
+driver.SetVehicleControlMode(chrono.ChVehicleControlMode_AUTOMATIC)
+mphysicalSystem.Add(driver)
 
-# --- Lidar Attachment ---
+# Create a terrain
+terrain = chrono.ChTerrain(chrono.ChVector3d(0, 0, 0), 10, 10, 10)
+terrain.SetMaterial(chrono.ChMaterial(chrono.ChMaterialType_GRASS, 0.2, 0.2, 0.2))
+terrain.SetTexture(chrono.GetChronoDataFile("textures/grass.png"))
+mphysicalSystem.Add(terrain)
+
+# ----------------------------------
+# Add Lidar Sensors
+# ----------------------------------
 # 3D Lidar
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+)
 lidar_3d = sens.ChLidarSensor(
-    vehicle.GetChassis(),
+    artcar,
     update_rate,
-    chrono.ChFramed(
-        chrono.ChVector3d(1.0, 0, 1),
-        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    ),
+    offset_pose,
     horizontal_samples,
     vertical_samples,
     horizontal_fov,
@@ -44,22 +52,22 @@ lidar_3d = sens.ChLidarSensor(
     sample_radius,
     divergence_angle,
     divergence_angle,
-    sens.LidarReturnMode_STRONGEST_RETURN
+    sens.LidarReturnMode_STRONGEST_RETURN,
 )
 lidar_3d.SetName("3D Lidar Sensor")
 lidar_3d.SetLag(lag)
 lidar_3d.SetCollectionWindow(collection_time)
 
 # 2D Lidar
+offset_pose_2d = chrono.ChFramed(
+    chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+)
 lidar_2d = sens.ChLidarSensor(
-    vehicle.GetChassis(),
+    artcar,
     update_rate,
-    chrono.ChFramed(
-        chrono.ChVector3d(1.0, 0, 1),
-        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
-    ),
+    offset_pose_2d,
     horizontal_samples,
-    1,  # Only 1 vertical channel
+    1,
     horizontal_fov,
     max_vert_angle,
     min_vert_angle,
@@ -68,18 +76,24 @@ lidar_2d = sens.ChLidarSensor(
     sample_radius,
     divergence_angle,
     divergence_angle,
-    sens.LidarReturnMode_STRONGEST_RETURN
+    sens.LidarReturnMode_STRONGEST_RETURN,
 )
 lidar_2d.SetName("2D Lidar Sensor")
 lidar_2d.SetLag(lag)
 lidar_2d.SetCollectionWindow(collection_time)
 
-# --- Sensor Manager ---
+# -----------------------------------------------------------------
+# Create a sensor manager
+# -----------------------------------------------------------------
 manager = sens.ChSensorManager(mphysicalSystem)
+
+# Add the lidar sensors to the sensor manager
 manager.AddSensor(lidar_3d)
 manager.AddSensor(lidar_2d)
 
-# --- Simulation Loop ---
+# -----------------------------------------------------------------
+# Simulate system
+# -----------------------------------------------------------------
 orbit_radius = 10
 orbit_rate = 0.1
 ch_time = 0.0
@@ -116,27 +130,24 @@ while ch_time < end_time:
     # Get the current time of the simulation
     ch_time = mphysicalSystem.GetChTime()
 
-    # Update the driver based on the vehicle's current position
-    driver.Update(mphysicalSystem.GetChTime())
-
-    # Render the camera view
+    # -----------------------------------------------------------------
+    # Render the scene
+    # -----------------------------------------------------------------
     if vis:
-        # TODO: Implement camera rendering here
-        pass
+        # Render the scene
+        manager.Render()
 
-    # Update the terrain based on the vehicle's position
-    terrain.Update(mphysicalSystem.GetChTime())
-
-    # Update the vehicle's position and orientation
-    vehicle.Update(mphysicalSystem.GetChTime())
-
-    # Update the third person camera's position
-    camera.Update(mphysicalSystem.GetChTime())
-
-    # Save camera images if needed
+    # -----------------------------------------------------------------
+    # Save the scene
+    # -----------------------------------------------------------------
     if save:
-        # TODO: Implement camera image saving here
-        pass
+        # Save the scene
+        manager.Save()
 
-# Print simulation time
+    # -----------------------------------------------------------------
+    # Update the time
+    # -----------------------------------------------------------------
+    render_time = time.time()
+
+
 print("Sim time:", end_time, "Wall time:", time.time() - t1)

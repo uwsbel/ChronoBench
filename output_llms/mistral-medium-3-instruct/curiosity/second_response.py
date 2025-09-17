@@ -22,10 +22,10 @@ system.Add(ground)
 
 # Create a long box obstacle
 obstacle_mat = chrono.ChContactMaterialNSC()
-obstacle = chrono.ChBodyEasyBox(10, 1, 0.5, 1000, True, True, obstacle_mat)
+obstacle = chrono.ChBodyEasyBox(2, 0.5, 0.5, 1000, True, True, obstacle_mat)
 obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  # Position the obstacle above ground
 obstacle.SetFixed(True)  # Fix the obstacle in place
-obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/wood.jpg"))
 system.Add(obstacle)
 
 # Create Curiosity rover and add it to the system
@@ -35,8 +35,8 @@ rover = robot.Curiosity(system)
 driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
-# Initialize rover position and orientation (changed from (0, 0.2, 0) to (-5, 0.0, 0))
-init_pos = chrono.ChVector3d(-5, 0.0, 0)
+# Initialize rover position and orientation
+init_pos = chrono.ChVector3d(-5, 0.0, 0)  # Changed initial position
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
 rover.Initialize(chrono.ChFramed(init_pos, init_rot))
 
@@ -59,17 +59,17 @@ vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0
 # Set the simulation time step
 time_step = 1e-3
 
-# Set forward speed for the rover (0.5 m/s)
-forward_speed = 0.5
-
 # Simulation loop
 time = 0
 while vis.Run():
     time += time_step
 
-    # Set forward speed and zero steering input
-    driver.SetForwardSpeed(forward_speed)
-    driver.SetSteering(0)  # Zero steering input as per instructions
+    # Set steering input to zero (forward movement only)
+    steering = 0
+    driver.SetSteering(steering)
+
+    # Set forward speed (constant value)
+    driver.SetThrottle(0.5)  # Positive value for forward movement
 
     # Update rover dynamics
     rover.Update()

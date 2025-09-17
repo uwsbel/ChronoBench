@@ -60,4 +60,10 @@ app.AssetUpdateAll()
 app.Simulate()
 
 # Run the Irrlicht application
-app.Run()
+app.BeginScene()
+app.DrawAll()
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.DoStep()
+    app.EndScene()

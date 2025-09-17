@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_RIGID  # Changed tire model
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -90,7 +91,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 1.0  
-throttle_time = 1.0  
+throttle_time = 1.0 
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
@@ -110,11 +111,10 @@ step_number = 0
 render_frame = 0
 
 # Add box obstacle
-obstacle = chrono.ChBoxShape(chrono.ChVector3d(0.5, 5, 0.2))
-obstacle_body = chrono.ChBodyEasy(obstacle)
-obstacle_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-obstacle_body.SetBodyFixed(True)
-vehicle.GetSystem().Add(obstacle_body)
+obstacle = chrono.ChBodyEasyBox(0.5, 5, 0.2)
+obstacle.SetPos(chrono.ChVector3d(5, 0, 0.1))
+obstacle.SetBodyFixed(True)
+vehicle.GetSystem().Add(obstacle)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -140,10 +140,10 @@ while vis.Run() :
     vehicle.Advance(step_size)
     vis.Advance(step_size)
 
+    # Set constant throttle
+    driver_inputs.throttle = 0.5 
+
     # Increment frame number
     step_number += 1
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-
-    # Set constant throttle for forward movement
-    driver_inputs.throttle = 0.5

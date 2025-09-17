@@ -27,7 +27,7 @@ vis_mat = chrono.ChVisualMaterial()
 vis_mat.SetKdTexture(chrono.GetChronoDataFile('textures/pinkwhite.png'))  
 
 
-mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0,  
+mbody_train = chrono.ChBodyEasyBox(8, 1.5, 1.0, 
                                    1000,          
                                    True,          
                                    False,         

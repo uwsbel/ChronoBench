@@ -14,7 +14,9 @@ sys.AddBody(ground)
 ground.SetFixed(True)
 ground.EnableCollision(False)
 
-# Create body_1
+sph_1 = chrono.ChVisualShapeSphere(0.1)
+ground.AddVisualShape(sph_1, chrono.ChFramed(chrono.ChVector3d(-1, 0, 0)))
+
 body_1 = chrono.ChBody()
 sys.AddBody(body_1)
 body_1.SetPos(chrono.ChVector3d(-1, -3, 0))
@@ -23,23 +25,39 @@ body_1.EnableCollision(False)
 body_1.SetMass(1)
 body_1.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# Create body_2
+# Attach a visualization asset.
+box_1 = chrono.ChVisualShapeBox(1, 1, 1)
+box_1.SetColor(chrono.ChColor(0.6, 0, 0))
+body_1.AddVisualShape(box_1)
+
+# Create the spring between body_1 and ground. The spring end points are
+# specified in the body relative frames.
+spring_1 = chrono.ChLinkTSDA()
+spring_1.Initialize(body_1, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_1.SetRestLength(rest_length)
+spring_1.SetSpringCoefficient(spring_coef)
+spring_1.SetDampingCoefficient(damping_coef)
+sys.AddLink(spring_1)
+
+# Attach a visualization asset.
+spring_1.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
+# Add new bodies and springs
 body_2 = chrono.ChBody()
 sys.AddBody(body_2)
-body_2.SetPos(chrono.ChVector3d(-1, 1, 0))
+body_2.SetPos(chrono.ChVector3d(-1, -1, 0))
 body_2.SetMass(1)
 body_2.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
-# Create body_3
 body_3 = chrono.ChBody()
 sys.AddBody(body_3)
-body_3.SetPos(chrono.ChVector3d(-1, 2, 0))
+body_3.SetPos(chrono.ChVector3d(-1, -4, 0))
 body_3.SetMass(1)
 body_3.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
 
 # Create spring between body_1 and body_2
 spring_2 = chrono.ChLinkTSDA()
-spring_2.Initialize(body_1, body_2, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_2.Initialize(body_1, body_2, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_2.SetRestLength(rest_length)
 spring_2.SetSpringCoefficient(spring_coef)
 spring_2.SetDampingCoefficient(damping_coef)
@@ -47,42 +65,33 @@ sys.AddLink(spring_2)
 
 # Create spring between body_2 and body_3
 spring_3 = chrono.ChLinkTSDA()
-spring_3.Initialize(body_2, body_3, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(-1, 0, 0))
+spring_3.Initialize(body_2, body_3, True, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(1, 0, 0))
 spring_3.SetRestLength(rest_length)
 spring_3.SetSpringCoefficient(spring_coef)
 spring_3.SetDampingCoefficient(damping_coef)
 sys.AddLink(spring_3)
 
-# Visualization setup
+# Add visual shapes for new bodies and springs
+box_2 = chrono.ChVisualShapeBox(1, 1, 1)
+box_2.SetColor(chrono.ChColor(0, 0.6, 0))
+body_2.AddVisualShape(box_2)
+
+box_3 = chrono.ChVisualShapeBox(1, 1, 1)
+box_3.SetColor(chrono.ChColor(0, 0.6, 0))
+body_3.AddVisualShape(box_3)
+
+spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('ChLinkTSDA demo with Multiple Springs')
+vis.SetWindowTitle('ChLinkTSDA demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 0, 6))
 vis.AddTypicalLights()
-
-# Add visualization shapes
-# Body 1 visualization
-box_1 = chrono.ChVisualShapeBox(1, 1, 1)
-box_1.SetColor(chrono.ChColor(0.6, 0, 0))
-body_1.AddVisualShape(box_1)
-
-# Body 2 visualization
-box_2 = chrono.ChVisualShapeBox(1, 1, 1)
-box_2.SetColor(chrono.ChColor(0, 0.6, 0))
-body_2.AddVisualShape(box_2)
-
-# Body 3 visualization
-box_3 = chrono.ChVisualShapeBox(1, 1, 1)
-box_3.SetColor(chrono.ChColor(0.6, 0, 0))
-body_3.AddVisualShape(box_3)
-
-# Spring visualization
-spring_2.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
-spring_3.AddVisualShape(chrono.ChVisualShapeSpring(0.05, 80, 15))
 
 while vis.Run():
     vis.BeginScene()

@@ -186,13 +186,12 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-print("GPS Data: ", gps_data)
-
-# Plot GPS trajectory
-latitude = [data[0] for data in gps_data]
-longitude = [data[1] for data in gps_data]
-plt.plot(longitude, latitude)
+# Plot GPS data
+latitudes = [data[0] for data in gps_data]
+longitudes = [data[1] for data in gps_data]
+plt.plot(longitudes, latitudes)
 plt.xlabel('Longitude')
 plt.ylabel('Latitude')
 plt.title('GPS Trajectory')
+plt.grid(True)
 plt.show()

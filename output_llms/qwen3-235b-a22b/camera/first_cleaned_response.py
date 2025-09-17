@@ -7,80 +7,74 @@ system = chrono.ChSystemNSC()
 
 
 mesh = chrono.ChTriangleMeshConnected()
-
-mesh.LoadWavefrontMesh('path/to/mesh.obj', True, True)
-
-
-body = chrono.ChBody()
-body.SetBodyFixed(True)
-body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.GetCollisionModel().ClearModel()
-body.GetCollisionModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
-body.GetCollisionModel().BuildModel()
-system.Add(body)
+mesh.LoadWavefrontMesh('mesh.obj', True, True)  
+mesh_body = chrono.ChBody()
+mesh_body.SetMesh(mesh)
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
 
 
-vis_shape = chrono.ChVisualShapeTriangleMesh()
-vis_shape.SetMesh(mesh)
-body.AddVisualShape(vis_shape)
-
-
-vis = chrono.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('PyChrono Mesh Visualization')
-vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+camera_body = chrono.ChBody()
+camera_body.SetPos(chrono.ChVectorD(2, 0, 1))  
+system.Add(camera_body)
 
 
 manager = sens.ChSensorManager(system)
 
 
 camera = sens.ChCameraSensor(
-    body,                    
-    60,                    
-    640,                   
-    480,                   
-    chrono.ChFrameD(chrono.ChVectorD(1, 0, 0), chrono.QUNIT)  
+    camera_body,
+    30,  
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
+    1280,  
+    720,   
+    chrono.CH_C_PI / 3  
 )
-camera.SetName("Camera")
-camera.SetLag(0)  
-camera.SetCollectionWindow(0.01)  
-
-
-camera.PushFilter(sens.ChFilterNoiseGaussian(0.0, 0.02))  
-camera.PushFilter(sens.ChFilterVisualize(640, 480, "Camera Feed"))  
-
-
+camera.SetName("Camera Sensor")
+camera.SetLag(0)
+camera.SetCollectionWindow(0)
 manager.AddSensor(camera)
 
 
+noise_filter = sens.ChFilterNoiseModelGaussian(camera, 0.1)
+manager.AddFilter(noise_filter)
+
+
+vis_filter = sens.ChFilterVisualize(camera, 1280, 720, "Camera Feed")
+manager.AddFilter(vis_filter)
+
+
+time_step = 0.01
+end_time = 10.0
 orbit_radius = 2.0
 omega = 0.5  
-step_size = 1e-3
-end_time = 10.0
+height = 1.0
 
-while vis.Run():
+
+while system.GetChTime() < end_time:
+    
     current_time = system.GetChTime()
+    angle = omega * current_time
+    new_x = orbit_radius * math.cos(angle)
+    new_y = orbit_radius * math.sin(angle)
+    new_z = height
+    new_pos = chrono.ChVectorD(new_x, new_y, new_z)
+    camera_body.SetPos(new_pos)
     
     
-    theta = omega * current_time
-    cam_pos = chrono.ChVectorD(orbit_radius * math.cos(theta), 0, orbit_radius * math.sin(theta))
+    dir_to_origin = chrono.ChVectorD(0, 0, 0) - new_pos
+    dir_to_origin.Normalize()
+    rot_quat = chrono.ChQuaternionD()
+    rot_quat.SetFromTwoVectors(chrono.ChVectorD(0, 0, -1), dir_to_origin)
+    camera_body.SetRot(rot_quat)
     
     
-    look_dir = chrono.ChVectorD(0, 0, 0) - cam_pos
-    rot = chrono.Q_from_2vectors(chrono.ChVectorD(0, 0, -1), look_dir)
-    
-    
-    camera.SetOffsetPose(chrono.ChFrameD(cam_pos, rot))
-    
-    
-    system.DoStepDynamics(step_size)
+    system.DoStepDynamics(time_step)
     
     
     manager.Update()
     
     
     buffer = camera.GetMostRecentBuffer()
-    if buffer is not None:
-        print(f"Time: {current_time:.3f}, Buffer data sample: {buffer[0, 0]}")
+    if buffer:
+        print(f"Time: {current_time:.2f}s, Buffer timestamp: {buffer.GetTimestamp():.2f}, Data available: {buffer.GetData() is not None}")

@@ -81,22 +81,24 @@ kinetic_energy = 0
 potential_energy = 0
 total_energy = 0
 
-G_constant = 6.674e-3  
-
 
 stepsize = 1e-2
+G_constant = 6.674e-3  
+
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    
     emitter.EmitParticles(sys, stepsize)
 
+    
     for body in sys.GetBodies():
         body.EmptyAccumulators()
 
-    mlist = list(combinations(sys.GetBodies(), 2))
-    for abodyA, abodyB in mlist:
+    
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
@@ -105,14 +107,13 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     
+    kinetic_energy = 0
+    potential_energy = 0
     for body in sys.GetBodies():
         kinetic_energy += 0.5 * body.GetMass() * body.GetVelocity().Length2()
-    for bodyA, bodyB in combinations(sys.GetBodies(), 2):
-        potential_energy += -G_constant * (bodyA.GetMass() * bodyB.GetMass()) / bodyA.GetPos().Distance(bodyB.GetPos())
-    total_energy = kinetic_energy + potential_energy
+        potential_energy += -G_constant * (body.GetMass() * msphereBody.GetMass()) / msphereBody.GetPos().Distance(body.GetPos())
 
-    print("Kinetic energy: {:.2f}".format(kinetic_energy))
-    print("Potential energy: {:.2f}".format(potential_energy))
-    print("Total energy: {:.2f}".format(total_energy))
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic energy: {kinetic_energy:.2f}, Potential energy: {potential_energy:.2f}, Total energy: {total_energy:.2f}")
 
     sys.DoStepDynamics(stepsize)

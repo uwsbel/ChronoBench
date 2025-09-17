@@ -84,24 +84,24 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, vehicle, delay=0.0):
-        super().__init__(vehicle)
+    def __init__(self, system, delay=0.0):
+        super().__init__(system)
         self.delay = delay
-        self.start_time = 0
+        self.start_time = system.GetChTime()
 
     def Synchronize(self, time):
-        self.start_time = time
+        if time - self.start_time >= self.delay:
+            if time - self.start_time >= 0.2:
+                self.SetThrottle(0.7)
+            else:
+                self.SetThrottle(0.0)
+            if time - self.start_time >= 2:
+                self.SetSteering(math.sin(time - self.start_time))
+            else:
+                self.SetSteering(0.0)
 
-        if time > self.delay:
-            throttle = 0.7 * (time - self.delay) / (2 - self.delay)
-            if throttle > 0.7:
-                throttle = 0.7
-            steering = 0.5 * math.sin(2 * math.pi * (time - 2))
-            self.SetThrottle(throttle)
-            self.SetSteering(steering)
 
-
-driver = MyDriver(vehicle.GetVehicle(), delay=0.5)
+driver = MyDriver(vehicle.GetSystem(), delay=0.5)
 
 
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
@@ -129,10 +129,13 @@ while vis.Run() :
         render_frame += 1
 
     
+    driver_inputs = driver.GetInputs()
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

@@ -1,54 +1,83 @@
 import pychrono
 import pychrono.core as pc
-import pychrono.visual as cv
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.animation as animation
 
-def simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0)):
-    
 
-    
-    env = pc.Environment()
+beam_length = 1.0  
+cable_radius = 0.05  
+gravity = 9.81  
+cable_strength = 1000.0  
+num_elements = 10  
+initial_position = [0.0, 0.0]  
+initial_velocity = 0.0  
 
+env = pc.Environment()
+
+
+beam = env.create_beam(beam_length, cable_radius, cable_strength)
+
+
+for i in range(num_elements):
+    beam[i].position = initial_position[i]
+
+
+for i in range(num_elements):
+    beam[i].velocity = initial_velocity[i]
+
+
+env.set_time_step(0.001)  
+env.set_simulation_time(0, 100)  
+env.set_physics_parameters(
+    physics_type="static",
+    gravity=gravity,
+    cable_strength=cable_strength,
+    beam_length=beam_length
+)
+
+
+def update(dt):
     
-    
-    elements = []
     for i in range(num_elements):
         
-        x, y, z = initial_position
-        elements.append(pc.Point(x, y, z))
+        force = np.array([0.0, 0.0, 0.0])
+        moment = np.array([0.0, 0.0, 0.0])
 
+        
+        for j in range(num_elements):
+            if i != j:
+                force[i] += beam[i].velocity[j] * cable_strength * (beam[i].position[j] - beam[i].position[j])
+                moment[i] += beam[i].velocity[j] * cable_strength * (beam[i].position[j] - beam[i].position[j])
+
+        
+        beam[i].velocity[i] += force[i] * dt
+        beam[i].moment[i] += force[i] * dt
+
+        
+        beam[i].position[i] += beam[i].velocity[i] * dt
+
+    return beam
+
+
+fig, ax = plt.subplots()
+ax.set_xlim(0, beam_length)
+ax.set_ylim(0, beam_length)
+ax.set_aspect('equal')
+ax.set_title("Beam Simulation")
+ax.set_xlabel("X")
+ax.set_ylabel("Y")
+
+
+beam_obj = pc.Beam(beam, cable_strength)
+
+
+def animate(i):
     
-    env.set_physics_system(pc.System(elements))
-    env.set_gravity(gravity)
-    env.set_time(pc.Time(0)) 
+    beam_obj.update(dt)
+    return beam_obj
 
-    
-    for t in range(pc.Time(0), pc.Time(pc.Time(0) + 10)):  
-        
-        env.update_physics()
 
-        
-        
-        fig = cv.figure()
-        ax = fig.add_subplot(111, projection='3d')
+ani = animation.FuncAnimation(fig, animate, frames=100, blit=True, interval=dt*1000/1000)  
 
-        
-        for element in elements:
-            
-            deformation = np.array([element.x, element.y, element.z])
-            ax.plot(deformation, color='blue')  
-        
-        
-        ax.set_xlim([-1.5, 1.5])
-        ax.set_ylim([-1.5, 1.5])
-        ax.set_zlim([-1.5, 1.5])
-        
-        
-        cv.show()
-
-    env.close()
-
-if __name__ == '__main__':
-    simulate_beam(num_elements=100, gravity=9.81, initial_position=(0, 0, 0))
+plt.show()

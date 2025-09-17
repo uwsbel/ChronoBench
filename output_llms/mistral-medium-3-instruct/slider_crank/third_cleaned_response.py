@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
 sys = chrono.ChSystemNSC()
 
 
@@ -42,7 +43,7 @@ sys.Add(mpiston)
 my_motor = chrono.ChLinkMotorRotationSpeed()
 my_motor.Initialize(mcrank,  
                     mfloor,  
-                    chrono.ChFrameD(crank_center))  
+                    chrono.ChFramed(crank_center))  
 my_angularspeed = chrono.ChFunctionConst(chrono.CH_PI)  
 my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
@@ -51,25 +52,23 @@ sys.Add(my_motor)
 mjointA = chrono.ChLinkLockSpherical()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 
 mjointB = chrono.ChLinkLockSpherical()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 
 mjointC = chrono.ChLinkLockPlanePlane()
 mjointC.Initialize(mpiston,
                    mfloor,
-                   chrono.ChFrameD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
-                                   chrono.Q_ROTATE_Z_TO_X)
-                   )
+                   chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                   chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 sys.Add(mjointC)
-
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)

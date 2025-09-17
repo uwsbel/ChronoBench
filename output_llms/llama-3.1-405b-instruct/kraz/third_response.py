@@ -48,7 +48,6 @@ vehicle_truck.SetContactMethod(contact_method)
 vehicle_truck.SetChassisCollisionType(chassis_collision_type)
 vehicle_truck.SetChassisFixed(False)
 vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
-vehicle_truck.SetTireType(tire_model_truck)
 vehicle_truck.Initialize()
 
 vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
@@ -65,7 +64,6 @@ vehicle_sedan.SetContactMethod(contact_method)
 vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
 vehicle_sedan.SetChassisFixed(False)
 vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
-vehicle_sedan.SetTireType(tire_model_sedan)
 vehicle_sedan.Initialize()
 
 vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
@@ -85,7 +83,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/highway.obj"), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -116,10 +114,6 @@ driver_truck.SetBrakingDelta(render_step_size / braking_time)
 driver_truck.Initialize()
 driver_sedan.Initialize()
 
-# Set fixed throttle and steering for sedan
-driver_sedan.SetThrottle(0.5)
-driver_sedan.SetSteering(0.0)
-
 # output vehicle mass
 print( "VEHICLE MASS (TRUCK): ",  vehicle_truck.GetTractor().GetMass())
 print( "VEHICLE MASS (SEDAN): ",  vehicle_sedan.GetChassis().GetMass())
@@ -132,8 +126,9 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-states_truck = []
-states_sedan = []
+# Lists to store the state of the truck's tractor and trailer
+truck_tractor_states = []
+truck_trailer_states = []
 
 while vis.Run() :
     time = vehicle_truck.GetSystem().GetChTime()
@@ -166,8 +161,12 @@ while vis.Run() :
     vis.Advance(step_size)
 
     # Store the state of the truck's tractor and trailer
-    states_truck.append(vehicle_truck.GetTractor().GetPos())
-    states_sedan.append(vehicle_sedan.GetChassis().GetPos())
+    truck_tractor_states.append(vehicle_truck.GetTractor().GetPos())
+    truck_trailer_states.append(vehicle_truck.GetTrailer().GetPos())
+
+    # Set fixed throttle and steering for the sedan
+    driver_sedan.SetThrottle(0.5)
+    driver_sedan.SetSteering(0.0)
 
     # Increment frame number
     step_number += 1

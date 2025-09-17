@@ -7,7 +7,7 @@ def main():
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    hmmwv.SetInitPosition(chrono.ChVectorD(6, -70, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVectorD(6, -70, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
     hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
@@ -23,31 +23,26 @@ def main():
 
     hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-    # Create the terrain with a single mesh-based patch
+    # Create the terrain with a single patch
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
 
-    # Create contact material
+    # Define contact material
     material = chrono.ChContactMaterialNSC()
     material.SetFriction(0.9)
     material.SetRestitution(0.01)
 
-    # Add the mesh-based terrain patch
-    terrain.AddMeshPatch(
-        material,
-        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)),  # Position and rotation
-        veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-        0.01  # Thickness
-    )
-
-    # Initialize terrain
-    terrain.Initialize()
+    # Create a single terrain patch using the specified mesh
+    coordsys = chrono.ChCoordsysd(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
+    patch = terrain.AddPatch(material, coordsys, veh.GetDataFile("vehicle/terrain/meshes/Highway_col.obj"), 0.01)
 
     # Add visual mesh to the terrain's ground body
     ground_body = terrain.GetGroundBody()
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetFilename(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape.SetFuzzyInside(True)
-    ground_body.AddAsset(visual_shape)
+    visual_mesh = chrono.ChTriangleMeshShape()
+    visual_mesh.SetMesh(chrono.importMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj")))
+    visual_mesh.SetName("terrain_visual")
+    ground_body.AddAsset(visual_mesh)
+
+    terrain.Initialize()
 
     # Create the vehicle Irrlicht interface
     vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -80,13 +75,13 @@ def main():
         # Get driver inputs
         driver_inputs = driver.GetInputs()
 
-        # Update modules
+        # Update modules (process inputs from other modules)
         driver.Synchronize(time)
         terrain.Synchronize(time)
         hmmwv.Synchronize(time, driver_inputs, terrain)
         vis.Synchronize(time, driver_inputs)
 
-        # Advance simulation
+        # Advance simulation for one timestep for all modules
         driver.Advance(step_size)
         terrain.Advance(step_size)
         hmmwv.Advance(step_size)

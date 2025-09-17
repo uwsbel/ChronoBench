@@ -1,60 +1,72 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
-# Initialize the PyChrono environment
-chrono.SetChronoDataPath('path_to_chrono_data')  # Set the path to the Chrono::Engine data directory
+# Initialize the Chrono::Engine system
+chrono.SetChronoDataPath('path/to/chrono/data')
 
-# Create a simulation system
+# Create a Chrono system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the ground
-ground = chrono.ChBodyEasyBox(50, 0.5, 50, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
-ground.SetBodyFixed(True)
-ground.GetMaterialSurface().SetFriction(0.9)
-system.Add(ground)
+# Create a vehicle system
+vehicle = veh.ChVehicleSystem()
+vehicle.Initialize(system, veh.ChVehicleSystemType.CH_VEHICLESEDAN)
 
-# Create the BMW E90 Sedan vehicle
-vehicle = chrono.vehicle.BMW_E90()
-vehicle.InitSystem(system, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0), False)
+# Set the vehicle type to BMW E90 Sedan
+vehicle.SetChassisBodyType(veh.ChChassisBody.E90)
 
-# Set the tire model to TMEASY
-vehicle.SetTireModelType(chrono.vehicle.TireModelType.TMEASY)
+# Set up the tire model (TMEASY)
+tire_model = veh.ChTireHandler_TMEASY()
+vehicle.AddTireModel(tire_model)
 
 # Set up the driver system
-driver = chrono.vehicle.ChDriver()
-driver.Initialize(vehicle.GetVehicle())
-driver.SetSteeringController(chrono.vehicle.ChSteeringControllerDriver(vehicle.GetVehicle()))
-driver.SetThrottleController(chrono.vehicle.ChThrottleControllerDriver(vehicle.GetVehicle()))
-driver.SetBrakingController(chrono.vehicle.ChBrakingControllerDriver(vehicle.GetVehicle()))
+driver = veh.ChDriver()
+driver.Initialize(vehicle)
+driver.SetSteeringController(veh.ChDriverSteeringControllerType.CH_DRIVER_STEERING_CONTROLLER_PI)
+driver.SetThrottleController(veh.ChDriverThrottleControllerType.CH_DRIVER_THROTTLE_CONTROLLER_PI)
+driver.SetBrakingController(veh.ChDriverBrakingControllerType.CH_DRIVER_BRAKING_CONTROLLER_PI)
+
+# Create the terrain
+terrain = veh.ChTerrain()
+terrain.Initialize(system, "terrain/flat_terrain.xml")
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceBase())
+
+# Add the terrain to the vehicle system
+vehicle.AddTerrain(terrain)
 
 # Create the Irrlicht visualization system
-visualization = chronoirr.ChIrrApp()
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
-visualization.AddTypicalUnitSystems()
-visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 0.0, 1.0), chrono.ChVectorD(0.5, 0.5, 0.5), 150, 150, 10, 40, 512)
-visualization.SetChaseCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0.0), 0.5)
+vis = irr.ChIrrApp()
+vis.AddTypicalSky()
+vis.AddTypicalLogo()
+vis.AddTypicalCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10, 5, 50)
 
-# Add the vehicle and ground to the visualization
-visualization.AddVisualSystem(system)
-visualization.AddVisualSystem(vehicle.GetVehicle())
-visualization.AddVisualSystem(ground)
+# Add the vehicle to the Irrlicht visualization
+vis.AddVisualSystem(vehicle.GetVehicleVisualizationSystem())
+vis.AddVisualSystem(terrain.GetTerrainVisualizationSystem())
 
-# Set up the simulation parameters
-simulation_time = 10  # seconds
-time_step = 1e-3  # seconds
-visualization_step = 10  # steps
+# Set up the chase camera
+camera = vis.GetSceneManager().createCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(0, 5, -10))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
+camera.setFarValue(1000)
+vis.AddCamera(camera)
+
+# Set up the simulation step size
+system.SetTimestepperType(chrono.ChTimestepperType.CH_TIMSTEPER_HEUN)
+system.SetMaxPenetrationRecoverySpeed(2.0)
+system.SetMaxIterationsSolverIP(100)
+system.SetIterLCP(i_max_iterations=100)
 
 # Run the simulation
-for t in range(int(simulation_time / time_step)):
-    system.DoStepDynamics(time_step)
-    if t % visualization_step == 0:
-        visualization.BeginScene()
-        visualization.Render()
-        visualization.EndScene()
+vis.SetTimestep(0.01)
+vis.SetTryRealTime(True)
 
-# Clean up
-visualization.Close()
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(vis.GetTimestep())

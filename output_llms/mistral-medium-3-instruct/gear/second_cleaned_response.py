@@ -52,7 +52,7 @@ mbody_gearA.SetRot(chrono.QuatFromAngleX(m.pi / 2))
 mbody_gearA.GetVisualShape(0).SetMaterial(0, vis_mat)               
 
 
-mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)         
+mshaft_shape = chrono.ChVisualShapeCylinder(radA * 0.3, 10)                                
 mbody_gearA.AddVisualShape(mshaft_shape, chrono.ChFramed(chrono.ChVector3d(0, 3.5, 0),     
                                                           chrono.QuatFromAngleX(chrono.CH_PI_2)))  
 
@@ -70,7 +70,7 @@ mbody_gearB = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y,
                                         radB, 0.4,                  
                                         1000, True, False, mat)     
 sys.Add(mbody_gearB)                                                
-mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))          
+mbody_gearB.SetPos(chrono.ChVector3d(interaxis12, 0, -2))           
 mbody_gearB.SetRot(chrono.QuatFromAngleX(m.pi / 2))                 
 mbody_gearB.GetVisualShape(0).SetMaterial(0, vis_mat)               
 

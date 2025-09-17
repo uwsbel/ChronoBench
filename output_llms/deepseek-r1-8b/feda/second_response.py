@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction (increased for maneuver)
 terrainWidth = 100.0   # size in Y direction
@@ -62,8 +63,8 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -81,33 +82,42 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the path-follower driver system
-driver = veh.ChDriver(vehicle.GetVehicle())
-driver.SetDriverType(veh.ChDriverType_CRUISECONTROL)
-driver.SetTargetSpeed(10.0)  # Set target speed for path-follower
-
-# Create path for double lane change maneuver
-waypoints = [
-    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(-50, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, -1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, -1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 0, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(50, 1.5, 0.5), chrono.QUNIT),
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 1.5, 0.5), chrono.QUNIT)
+# Create the driver system (path-follower with cruise control)
+path_points = [
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0.5), chrono.QUNIT),  # Start position
+    chrono.ChCoordsysd(chrono.ChVector3d(-50, 50, 0.5), chrono.QUNIT),  # First straight segment
+    chrono.ChCoordsysd(chrono.ChVector3d(-25, 50, 0.5), chrono.QUNIT),  # Second straight segment
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 50, 0.5), chrono.QUNIT),  # Curve start
+    chrono.ChCoordsysd(chrono.ChVector3d(25, 50, 0.5), chrono.QUNIT),  # Curve end
+    chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0.5), chrono.QUNIT)   # End position
 ]
-driver.GetPath().AddPathWaypoints(waypoints)
-driver.GetPath().SetLookaheadDistance(5.0)  # Set look-ahead distance
-driver.GetPath().SetPathWidth(1.5)  # Set path width for double lane change
 
-# Configure steering and speed controllers
-steering_gain = 0.1
-speed_gain = 0.5
-driver.GetSteeringController().SetGain(steering_gain)
-driver.GetSpeedController().SetGain(speed_gain)
+path_follower = veh.ChPathFollowerDriver(vehicle.GetVehicle())
+cruise_control = veh.ChCruiseControlDriver(path_follower, vehicle.GetVehicle().GetSystem())
+
+# Path-follower configuration
+path_follower.SetPath(path_points)
+path_follower.SetTargetSpeed(10.0)  # Target speed for path following
+path_follower.SetLookaheadDistance(5.0)  # Lookahead distance for steering
+path_follower.SetSteeringGain(0.1)  # Steering gain for smooth transitions
+path_follower.SetSpeedGain(1.0)  # Speed gain for proportional speed control
+
+# Cruise control configuration
+cruise_control.SetMaxSpeed(10.0)
+cruise_control.SetAccelerationGain(5.0)
+cruise_control.SetDecelerationGain(5.0)
+
+driver = veh.ChInteractiveDriverIRR(vis)  # Remove this line in final code
+
+# Set the time response for steering and throttle keyboard inputs (commented out)
+# driver.SetSteeringDelta(render_step_size / steering_time)
+# driver.SetThrottleDelta(render_step_size / throttle_time)
+# driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -127,11 +137,14 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
-    # Update modules
+    # Get driver inputs (no longer used in path-follower system)
+    driver_inputs = driver.GetInputs()
+
+    # Update modules with current time
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time)
-    vis.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep
     driver.Advance(step_size)

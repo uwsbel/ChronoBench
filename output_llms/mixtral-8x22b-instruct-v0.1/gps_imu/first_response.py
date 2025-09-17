@@ -47,36 +47,31 @@ driver.SetMaxSpeed(30)
 driver.SetMaxAcceleration(10)
 driver.SetMaxBraking(10)
 
-# Set the driver inputs
-driver.SetSteering(0)
-driver.SetThrottle(0.5)
-driver.SetBraking(0)
+# Create the visual interface using Irrlicht
+visual_system = chronoirr.ChIrrApp(physics_system, "HMMWV Simulation", chronoirr.Dimensions(800, 600))
+visual_system.AddTypicalSky()
+visual_system.AddTypicalLights()
+visual_system.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+visual_system.AddCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
+visual_system.AddShadowAll()
 
 # 4. Run a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system modules while outputting vehicle mass and rendering scenes
 
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
-application.AddCamera(chrono.ChVectorD(0, -30, 1.5))
-application.AddShadowAll()
-
 vehicle_mass = vehicle.GetChassis().GetMass()
-print("Vehicle mass:", vehicle_mass)
+print(f"Vehicle mass: {vehicle_mass}")
 
-while application.GetDevice().run():
-    # Update the driver inputs
-    driver.Update(0.01)
+while visual_system.Run():
+    physics_system.DoStepDynamics(0.01)
 
-    # Update the sensors
+    # Update and process sensor data
     imu.Update()
     gps.Update()
 
-    # Synchronize the vehicle, terrain, driver, and visual system modules
-    physics_system.DoStepDynamics(0.01)
-    application.DoStep()
+    # Output sensor data
+    print(f"IMU: {imu.GetW()}")
+    print(f"GPS: {gps.GetPos()}")
 
-    # Output the vehicle mass
-    print("Vehicle mass:", vehicle.GetChassis().GetMass())
-
-# Close the Irrlicht application
-application.Close()
+    # Render the scene
+    visual_system.BeginScene()
+    visual_system.DrawAll()
+    visual_system.EndScene()

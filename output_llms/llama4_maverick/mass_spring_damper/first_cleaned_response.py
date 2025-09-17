@@ -2,56 +2,47 @@ import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
 
-chrono.SetChronoDataPath("/path/to/chrono/data/")
-
-
-sys = chrono.ChSystemNSC()
+system = chrono.ChSystemNSC()
 
 
 ground = chrono.ChBody()
 ground.SetBodyFixed(True)
-sys.Add(ground)
+system.Add(ground)
 
 
 mass = chrono.ChBody()
-mass.SetMass(1.0)
-mass.SetInertiaXX(chrono.ChVectorD(1.0, 1.0, 1.0))
-mass.SetPos(chrono.ChVectorD(0, 1, 0))
-sys.Add(mass)
+mass.SetMass(1.0)  
+mass.SetInertiaXX(chrono.ChVector3(1.0, 1.0, 1.0))  
+mass.SetPos(chrono.ChVector3(0, 1, 0))  
+system.Add(mass)
 
 
-tsda = chrono.ChLinkTSDA()
-tsda.Initialize(ground, mass, True, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
-tsda.SetSpringCoefficient(100.0)  
-tsda.SetDampingCoefficient(5.0)   
-sys.Add(tsda)
-
-
-mass_sphere = chrono.ChSphereShape()
-mass_sphere.GetSphereGeometry().rad = 0.2
-mass.AddVisualShape(mass_sphere)
-
-spring_asset = chrono.ChSpringShape()
-spring_asset.SetSpringLength(1.0)
-spring_asset.SetSpringCoiling(10.0)
-spring_asset.SetSpringRadius(0.02)
-tsda.AddVisualShape(spring_asset)
+spring_damper = chrono.ChLinkTSDA()
+spring_damper.Initialize(ground, mass, False, chrono.ChVector3(0, 0, 0), chrono.ChVector3(0, 1, 0))
+spring_damper.SetSpringCoefficient(100.0)  
+spring_damper.SetDampingCoefficient(5.0)  
+system.Add(spring_damper)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
-vis.SetWindowSize(1024, 768)
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Mass-Spring-Damper System')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 1, -3))
+vis.AddCamera(chrono.ChVector3(0, 2, -4))
 vis.AddTypicalLights()
+
+
+sphere = chrono.ChVisualShapeSphere(0.2)
+mass.AddVisualShape(sphere)
+
+spring_damper.AddVisualShape(chrono.ChVisualShapeSpring(0.1, 80, 15))
 
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
-    chronoirr.ChIrrTools.DrawGrid(vis, 1, 1, 12, 12, ground.GetCoordSys().GetIdentity(), 255, 255, 255, True)
     vis.EndScene()
-    sys.DoStepDynamics(0.01)
+    system.DoStepDynamics(0.01)

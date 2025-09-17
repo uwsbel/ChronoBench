@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0  # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0  # size in Y direction
@@ -50,7 +49,7 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
-# Update vehicle parameters for better performance
+# Adjust vehicle parameters to make it faster
 vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16 to 0.26
 vehicle.SetStallTorque(0.4)  # Updated from 0.3 to 0.4
 vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06 to 0.03

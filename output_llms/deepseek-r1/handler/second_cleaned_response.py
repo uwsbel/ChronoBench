@@ -10,6 +10,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def __init__(self, topic):
         super().__init__(1)  
+
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
@@ -24,9 +25,10 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
+        msg_text = self.message + str(self.ticker)  
+        print(f"Publishing: {msg_text}")
         msg = String()  
-        msg.data = self.message + str(self.ticker)  
-        print(f"Publishing '{msg.data}' ...")
+        msg.data = msg_text  
         self.publisher.publish(msg)  
         self.ticker += 1  
 

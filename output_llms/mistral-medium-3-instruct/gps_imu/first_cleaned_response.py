@@ -1,108 +1,142 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import pychrono.sensor as sensor
+import pychrono.irrlicht as chronoirr
 import numpy as np
-
-
-chrono.SetChronoOutputMode(chrono.ChOutputMode.CONSOLE)
-chrono.SetVerboseMode(False)
-
-
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+import time
 
 
 
 
-terrain = veh.Terrain(my_system)
-terrain.SetContactFrictionCoefficient(0.9)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(2e7, 0.3)
-terrain.SetContactForceModel(chrono.ChSystemNSC.ContactForceModel::Hertz)
-terrain.Initialize(100, 100, 0.5, -2)
 
 
-vehicle = veh.HMMWV(my_system)
-vehicle.Initialize(chrono.ChCoordinator::Static, chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+step_size = 1e-3
+
+
+render_step_size = 1.0 / 50  
+
+
+imu_location = chrono.ChVectorD(0.5, 0, 1.0)
+gps_location = chrono.ChVectorD(0.5, 0, 1.0)
+
+
+
+
+
+
+vehicle = veh.ChVehicle()
 vehicle.SetChassisFixed(False)
-vehicle.SetTireType(veh.Tire::TMeasy)
-vehicle.SetTireStepSize(1e-3)
-vehicle.SetEngineType(veh.EngineModelType::SHARED)
-vehicle.SetDriveType(veh.DrivelineType::AWD)
-vehicle.SetTransmissionType(veh.TransmissionModelType::AUTOMATIC)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType.NONE)
 
 
-driver = veh.ChDriverHMMWV(my_system)
-driver.Initialize(vehicle)
-driver.SetSteeringControllerType(veh.ChSteeringController::Type::STEERING_CONTROLLER_PATH)
-driver.SetThrottleControllerType(veh.ChThrottleController::Type::THROTTLE_CONTROLLER_CONSTANT_SPEED)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+
+driver = veh.ChDriver()
 driver.SetSteeringDelta(0.1)
-driver.SetTargetSpeed(10)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
 
 
+hmmwv = veh.HMMWV()
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetChassisCollisionType(veh.ChassisCollisionType.PRIMITIVES)
+hmmwv.SetChassisVisualizationType(veh.ChassisVisualizationType.PRIMITIVES)
+hmmwv.SetTireType(veh.TireModelType.TMEASY)
+hmmwv.SetTireStepSize(step_size)
 
-imu_sensor = sensor.ChIMUSensor(vehicle.GetChassisBody())
-imu_sensor.SetName("IMU_Sensor")
-imu_sensor.SetUpdateRate(100)  
-imu_sensor.SetNoise(0.01)  
-imu_sensor.SetDrift(0.001)  
-vehicle.GetChassisBody().AddSensor(imu_sensor)
+hmmwv.Initialize(chrono.ChCoordinateSystemD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT),
+                chrono.ChCoordinateSystemD(chrono.ChVectorD(0, 0, -1)))
 
-
-gps_sensor = sensor.ChGPSSensor(vehicle.GetChassisBody())
-gps_sensor.SetName("GPS_Sensor")
-gps_sensor.SetUpdateRate(10)  
-gps_sensor.SetNoise(0.1)  
-vehicle.GetChassisBody().AddSensor(gps_sensor)
+hmmwv.GetSystem().Add(vehicle.GetSystem())
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachVehicle(hmmwv.GetVehicle())
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('HMMWV Simulation')
+vis.SetWindowTitle("HMMWV Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 3, 2))
-vis.AddTypicalLights()
-vis.SetCameraTracking(vehicle.GetChassisBody(), chrono.ChVectorD(0, 1.5, 0), 5)
-vis.SetSymbolScale(0.01)
+vis.AddCamera(chrono.ChVectorD(8, 0.5, 1.5), chrono.ChVectorD(0, 0, 0.5))
+vis.SetCameraMoveScale(0.002)
 
 
-time_step = 1e-3
-sim_time = 0
-output_step = 10  
 
-while sim_time < 10:  
+
+
+
+imu = veh.ChIMUSensor(hmmwv.GetVehicle().GetChassisBody(),
+                     chrono.ChVectorD(imu_location),
+                     chrono.ChQuaternionD(1, 0, 0, 0),
+                     step_size)
+hmmwv.GetVehicle().AddSensor(imu)
+
+
+gps = veh.ChGPSSensor(hmmwv.GetVehicle().GetChassisBody(),
+                     chrono.ChVectorD(gps_location),
+                     chrono.ChQuaternionD(1, 0, 0, 0),
+                     step_size)
+hmmwv.GetVehicle().AddSensor(gps)
+
+
+
+
+
+
+render_steps = int(np.ceil(render_step_size / step_size))
+
+
+step_number = 0
+
+
+output = []
+
+
+while vis.Run():
+    time_start = time.time()
+
     
-    imu_sensor.Update()
-    gps_sensor.Update()
+    vehicle_state = hmmwv.GetVehicle().GetVehicleState()
 
     
-    if my_system.GetChTime() % 0.1 < time_step:  
-        print(f"Time: {my_system.GetChTime():.2f}s")
-        print(f"Vehicle mass: {vehicle.GetVehicleMass():.2f} kg")
-        print(f"IMU - Acceleration: {imu_sensor.GetAcceleration().Length()}")
-        print(f"GPS - Position: {gps_sensor.GetPosition()}")
+    driver_inputs = driver.GetInputs()
+    driver.Synchronize(time_start)
 
     
-    driver.Synchronize(sim_time)
+    hmmwv.Synchronize(time_start, driver_inputs, terrain)
+    hmmwv.Advance(step_size)
 
     
-    vehicle.Synchronize(sim_time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
+    hmmwv.GetVehicle().UpdateSensors(step_size)
 
     
-    terrain.Synchronize(sim_time)
+    imu_data = imu.GetData()
+    gps_data = gps.GetData()
 
     
-    my_system.DoStepDynamics(time_step)
+    if step_number % render_steps == 0:
+        mass = hmmwv.GetVehicle().GetChassisBody().GetMass()
+        print(f"Time: {time_start:.2f} s")
+        print(f"Vehicle mass: {mass:.2f} kg")
+        print(f"IMU data - Acceleration: {imu_data.m_acceleration}")
+        print(f"IMU data - Angular velocity: {imu_data.m_ang_velocity}")
+        print(f"GPS data - Position: {gps_data.m_position}")
+        print("----------------------------------")
+
+        
+        output.append({
+            'time': time_start,
+            'mass': mass,
+            'imu_accel': imu_data.m_acceleration,
+            'imu_ang_vel': imu_data.m_ang_velocity,
+            'gps_pos': gps_data.m_position
+        })
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    sim_time += time_step
-
-print("Simulation completed.")
+    
+    step_number += 1

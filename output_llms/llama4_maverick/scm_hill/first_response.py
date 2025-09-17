@@ -4,54 +4,56 @@ import pychrono.irrlicht as irr
 import numpy as np
 
 # Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("/path/to/chrono/data/")
+chrono.SetChronoDataPath('/path/to/chrono/data/')
 
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1.0), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle.SetInitFwdVel(5.0)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+vehicle.SetInitFwdVel(5)
 vehicle.SetTireType(veh.TireType_TMEasy)
 vehicle.SetTireStepSize(1e-3)
 vehicle.Initialize()
 
-# Set up the SCM deformable terrain
+# Create the SCM deformable terrain
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(2e6, 0, 1.0, 0, 30, 1000, 2e5, 0.9, 0.1, 0.9, 0)
-terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
+terrain.SetSoilParameters(2e6, 0, 1.7e5, 0, 30e3, 0, 0.9, 0.3, 0.1, 0, 1)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 20000)
 
 # Initialize the terrain with a height map
-terrain.Initialize("terrain_heightmap.bmp", 0.1, 0, 0.1, 100, 100)
+terrain.Initialize('terrain_height_map.bmp', 0.1, 0, 0.1, 0.1)
 
-# Create a driver system
-driver = veh.ChDriver(vehicle.GetVehicle())
+# Create the driver system for vehicle control
+driver = veh.ChDriver(vehicle, 'steering.dat', 'throttle.dat')
 driver.Initialize()
 
 # Create the Irrlicht visualization
 vis = irr.ChVisualSystemIrrlicht()
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("HMMWV on SCM Deformable Terrain")
-vis.SetCameraProperties(chrono.ChVector3d(10, 10, 5), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.EnableShadows(True)
-vis.AttachVehicle(vehicle.GetVehicle())
+vis.SetWindowTitle('HMMWV Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 5, 5), vehicle.GetChassis().GetPos())
+vis.AttachVehicle(vehicle)
 
-# Add lighting
-light = irr.ChLight(irr.ChLight_Type(0))
-light.SetLightType(irr.LIGHT_DIRECTIONAL)
-light.SetDirection(chrono.ChVector3d(-1, -1, -1))
+# Set lighting
+light = irr.ChLight(irr.ChLight.Type_POINT, chrono.ChVectorD(0, 0, 10), chrono.ChColor(1, 1, 1), 100)
 vis.AddLight(light)
 
 # Simulation loop
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     driver_inputs = driver.GetInputs()
-    vehicle.Synchronize(time, driver_inputs, terrain)
+    vehicle.Advance(time, driver_inputs)
+    terrain.Advance(time)
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    vis.Render()
+    vis.EndScene()
+    driver.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs)
     terrain.Synchronize(time)
-    vis.Synchronize("HMMWV on SCM Deformable Terrain", driver_inputs)
-    vehicle.Advance(1e-3)
-    terrain.Advance(1e-3)
-    vis.Advance(1e-3)
-    vis.Run()
+    vis.Synchronize('', driver_inputs)
+    vehicle.GetSystem().DoStepDynamics(1e-3)
+

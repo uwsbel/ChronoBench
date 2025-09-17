@@ -1,7 +1,7 @@
-import pychrono.core as chrono
-import pychrono.irrlicht as chronoirr
-import matplotlib.pyplot as plt
-import numpy as np
+import pychrono.core as chrono  
+import pychrono.irrlicht as chronoirr  
+import matplotlib.pyplot as plt  
+import numpy as np  
 
 
 sys = chrono.ChSystemNSC()
@@ -58,12 +58,6 @@ mjointC.Initialize(mpiston, mfloor, chrono.ChFramed(crank_center + chrono.ChVect
 sys.Add(mjointC)  
 
 
-array_time = []
-array_angle = []
-array_pos = []
-array_speed = []
-
-
 vis = chronoirr.ChVisualSystemIrrlicht()  
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
@@ -75,28 +69,14 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))
 vis.AddTypicalLights()  
 
 
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+
 sim_time = 0
-max_sim_time = 20  
-while vis.Run() and sim_time < max_sim_time:
-    
-    current_time = sys.GetChTime()
-
-    
-    crank_rot = mcrank.GetRot()
-    angle = crank_rot.Q_to_Euler123().z  
-
-    
-    piston_pos = mpiston.GetPos().x
-
-    
-    piston_speed = mpiston.GetPos_dt().x
-
-    
-    array_time.append(current_time)
-    array_angle.append(angle)
-    array_pos.append(piston_pos)
-    array_speed.append(piston_speed)
-
+while vis.Run() and sim_time < 20:  
     
     vis.BeginScene()  
     vis.Render()  
@@ -104,7 +84,20 @@ while vis.Run() and sim_time < max_sim_time:
     sys.DoStepDynamics(1e-3)  
 
     
+    current_time = sys.GetChTime()
+    current_angle = mcrank.GetRot().Q_to_Euler123().x  
+    current_pos = mpiston.GetPos().x  
+    current_speed = mpiston.GetPos_dt().x  
+
+    array_time.append(current_time)
+    array_angle.append(current_angle)
+    array_pos.append(current_pos)
+    array_speed.append(current_speed)
+
     sim_time = current_time
+
+
+vis.Close()
 
 
 plt.figure(figsize=(12, 6))
@@ -118,6 +111,11 @@ plt.ylabel('Position [m]')
 plt.grid(True)
 
 
+xticks = np.arange(0, 2 * np.pi + np.pi/2, np.pi/2)
+xtick_labels = ['0', 'π/2', 'π', '3π/2', '2π']
+plt.xticks(xticks, xtick_labels)
+
+
 plt.subplot(1, 2, 2)
 plt.plot(array_angle, array_speed)
 plt.title('Speed vs Crank Angle')
@@ -126,11 +124,7 @@ plt.ylabel('Speed [m/s]')
 plt.grid(True)
 
 
-xticks = np.arange(0, 2*np.pi + np.pi/2, np.pi/2)
-xtick_labels = [f'{tick/np.pi}π' if tick != 0 else '0' for tick in xticks]
-for ax in plt.gcf().axes:
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xtick_labels)
+plt.xticks(xticks, xtick_labels)
 
 plt.tight_layout()
 plt.show()

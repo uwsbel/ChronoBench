@@ -3,7 +3,7 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-sys = chrono.ChSystem()
+sys = chrono.ChSystemNSC()
 
 
 vehicle = veh.HMMWV()
@@ -12,7 +12,7 @@ sys.Add(vehicle)
 
 
 terrain = veh.SCMDeformableTerrain()
-terrain.SetSoilParameters(0.01, 0.1, 0.5, 1000)
+terrain.SetSoilParameters(0.01, 0.1, 0.001, 0.01, 1000)
 height_map = chrono.ChHeightField()
 height_map.LoadFromFile("terrain_height_map.txt")
 terrain.Initialize(height_map)
@@ -20,34 +20,39 @@ sys.Add(terrain)
 
 
 driver = veh.ChIrrlichtDriver()
-driver.Initialize(vehicle, terrain)
-sys.Add(driver)
+driver.Initialize(vehicle, terrain, sys)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 100))
-vis.SetWindowSize(1024, 768)
-vis.SetTitle("HMMWV Simulation")
-vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.SetCameraDistance(10)
+vis.SetCameraAzimuth(chrono.CH_C_PI_2)
+vis.SetCameraElevation(chrono.CH_C_PI_4)
+vis.SetLogo("")
 
 
-time_step = 0.01
-while vis.Run():
+time = 0
+dt = 0.01
+while time < 10:
     
-    vehicle.Synchronize(time_step)
-    terrain.Synchronize(time_step)
-    driver.Synchronize(time_step)
-    vis.Synchronize(time_step)
+    vehicle.Synchronize(dt)
+    terrain.Synchronize(dt)
+    driver.Synchronize(dt)
+    vis.Synchronize(dt)
+
     
-    
-    sys.DoStepDynamics(time_step)
-    
+    sys.DoStepDynamics(dt)
+
     
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
+
     
+    time += dt
+
     
-    chrono.ChRealtimeStep(sys)
+    chrono.ChUtilities().Sleep(0.001)

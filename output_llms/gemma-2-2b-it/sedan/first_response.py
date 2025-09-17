@@ -1,66 +1,84 @@
-from pychrono import *
-from pychrono.core import *
-from pychrono.collision import *
-from pychrono.physics import *
-from pychrono.visual import *
-from pychrono.irrlicht import *
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.tmeasy as tmeasy
 
 # Initialize PyChrono
-chrono::init();
+chrono.init()
 
-# Set the simulation time step
-chrono::timeStep = 0.01;
+# Create a new Chrono simulation
+scene = chrono.Scene()
 
-# Create the world
-world = chrono::World();
+# Create a new Irrlicht engine
+irr = irrlicht.IrrlichtEngine()
 
-# Create the terrain
-terrain = chrono::Terrain(chrono::Vector3D(0, 0, 0), chrono::Vector3D(100, 100, 100));
-terrain.setMaterial(chrono::Material(chrono::Color(1, 0, 0)));
+# Set the Irrlicht view settings
+view = irr.createView()
 
-# Create the BMW E90 Sedan
-car = chrono::Car();
-car.setVisual(chrono::Visual(chrono::Texture("bmw.png"), chrono::Logo("bmw.png")));
-car.setPosition(chrono::Vector3D(0, 0, 0));
-car.setMass(1000);
+# Set the Irrlicht scene settings
+scene.setIrrlichtEngine(irr)
 
-# Create the TMEASY tire model
-tire = chrono::Tire(chrono::TMEASY());
-tire.setPressure(10);
+# Create a rigid terrain object
+terrain = chrono.RigidBody()
+terrain.setMass(1000)
+terrain.setFriction(0.8)
+terrain.setCollisionEnabled(chrono.CollisionEnabled.ENABLED)
 
-# Add the tire to the car
-car.addTire(tire);
+# Create a BMW E90 Sedan object
+car = chrono.RigidBody()
+car.setMass(1500)
+car.setFriction(0.6)
+car.setCollisionEnabled(chrono.CollisionEnabled.ENABLED)
+car.setVisual(chrono.Visual(
+    chrono.Material(
+        chrono.Color(1.0, 0.0, 0.0),  # Red
+        chrono.Texture(
+            "car_texture.png",  # Replace with your texture file
+            chrono.TextureFormat.PNG
+        )
+    ),
+    chrono.Model(
+        "car_model.obj",  # Replace with your model file
+        chrono.ModelFormat.OBJ
+    )
+))
 
-# Create the driver system
-driver = chrono::Driver();
-driver.setSteering(chrono::Steering(chrono::Vector3D(0, 0, 0)));
-driver.setThrottle(chrono::Throttle(chrono::Vector3D(0, 0, 0)));
-driver.setBraking(chrono::Braking(chrono::Vector3D(0, 0, 0)));
+# Set the car's initial position and orientation
+car.setPosition(chrono.Vec3(0, 0, 0))
+car.setOrientation(chrono.Quat(chrono.Vec3(0, 0, 0), 0))
 
-# Connect the driver system to the car
-car.connectDriver(driver);
+# Define the TMEASY tire model
+tire = tmeasy.Tire(
+    chrono.TireType.TMEASY,
+    chrono.TireModelParameter(
+        chrono.TireModelParameter.TIRE_MODEL_TYPE_TMEASY,
+        chrono.TireModelParameter.TIRE_MODEL_PARAMETER_NONE
+    )
+)
 
-# Set the initial state of the car
-car.setPosition(chrono::Vector3D(0, 0, 0));
-car.setVelocity(chrono::Vector3D(0, 0, 0));
+# Set the tire model on the car
+car.setTireModel(tire)
 
-# Set the simulation time
-chrono::time = 0;
+# Create a driver system
+driver = chrono.DriverSystem()
+driver.setSteeringControl(chrono.SteeringControl.Manual)
+driver.setThrottleControl(chrono.ThrottleControl.Manual)
+driver.setBrakeControl(chrono.BrakeControl.Manual)
 
-# Create the Irrlicht engine
-irrlicht = chrono::IrrlichtEngine();
-irrlicht.setCamera(chrono::Camera(chrono::Vector3D(0, 0, 100)));
+# Add the driver system to the car
+car.addDriverSystem(driver)
 
-# Create the Irrlicht scene
-scene = chrono::IrrlichtScene();
-scene.setCamera(irrlicht.getCamera());
+# Set the car's initial velocity
+car.setVelocity(chrono.Vec3(0, 0, 0))
 
-# Add the terrain to the scene
-scene.addTerrain(terrain);
-scene.addCar(car);
+# Add the terrain and car to the scene
+scene.addBody(terrain)
+scene.addBody(car)
 
-# Set the Irrlicht lighting
-scene.setLighting(chrono::DirectionalLight(chrono::Vector3D(0, 1, 0)));
+# Set the simulation parameters
+scene.setDeltaTime(0.01)
 
 # Start the simulation
-chrono::run();
+scene.run()
+
+# Render the simulation
+irr.run()

@@ -29,6 +29,22 @@ robot = turtlebot.TurtleBot(system, init_pos, init_rot)
 robot.Initialize()  
 
 
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(1, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(1, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
@@ -48,37 +64,25 @@ sensor_manager.scene.Add(ground)
 
 lidar = sens.ChLidarSensor(robot.GetChassisBody(),  
                            10,  
-                           chrono.ChFrame(chrono.ChVector3d(0, 0, .5), chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.VECT_X)),  
+                           chrono.ChFrame(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  
                            100,  
-                           1,  
+                           10,  
                            chrono.CH_C_PI,  
-                           chrono.CH_C_PI / 16.)  
-lidar.SetName("Lidar Sensor")
+                           chrono.CH_C_PI / 6,  
+                           0.1,  
+                           10)  
 
-lidar.PushFilter(sens.ChFilterVisualize(512, 256, 1))
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePoints(640, 480, 1))
+lidar.PushFilter(sens.ChFilterDIArea())
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))
 sensor_manager.AddSensor(lidar)
 
 
 for _ in range(5):
     box_mat = chrono.ChContactMaterialNSC()
-    box = chrono.ChBodyEasyBox(np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), np.random.uniform(0.1, 0.5), 1000, True, True, box_mat)
-    box.SetPos(chrono.ChVector3d(np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(0, 2)))
+    box = chrono.ChBodyEasyBox(0.1, 0.1, 0.1, 1000, True, True, box_mat)
+    box.SetPos(chrono.ChVector3d(np.random.uniform(-1, 1), np.random.uniform(-1, 1), 0.5))
     system.Add(box)
     sensor_manager.scene.Add(box)
-
-
-def move(mode):
-    if mode == 'straight':
-        robot.SetMotorSpeed(1, 0)  
-        robot.SetMotorSpeed(1, 1)
-    elif mode == 'left':
-        robot.SetMotorSpeed(-1, 0)
-        robot.SetMotorSpeed(1, 1)
-    elif mode == 'right':
-        robot.SetMotorSpeed(1, 0)
-        robot.SetMotorSpeed(-1, 1)
 
 
 time_step = 2e-3
@@ -92,12 +96,10 @@ while vis.Run():
     sensor_manager.Update()
     
     
-    time += time_step
-    
-    
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
     
     
     system.DoStepDynamics(time_step)
+    time += time_step

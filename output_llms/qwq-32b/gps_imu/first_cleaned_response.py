@@ -8,7 +8,7 @@ def main():
     my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
     
-    app = chronoirr.ChIrrApp(my_system, 'HMMWV Simulation', chronoirr.dimension2du(1024,768))
+    app = chronoirr.ChIrrApp(my_system, 'HMMWV Simulation', chronoirr.dimension2du(1024, 768))
     app.SetSymbolscale(0.01)
     app.Initialize()
     app.AddTypicalSky()
@@ -17,22 +17,22 @@ def main():
     app.AddTypicalLights()
 
     
+    terrain = vehicle.RigidTerrain(my_system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    terrain.Initialize('', patch_mat, False, 0.1)  
+    app.Add(terrain.GetGroundBody())
+
+    
     hmmwv = vehicle.HMMWV()
-    hmmwv.Initialize(my_system)
+    hmmwv.Initialize(my_system, terrain)
     hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
     app.Add(hmmwv.GetVehicle())
 
     
-    terrain = vehicle.RigidTerrain(my_system)
-    patch_mat = chrono.ChMaterialSurfaceNSC()
-    patch_mat.SetFriction(0.9)
-    terrain.Initialize(vehicle.GetDataFile("prowheel/soil.dat"), patch_mat, True, 0.1)
-    app.Add(terrain.GetGroundBody())
-
-    
     driver = vehicle.HMMWVDriver()
     driver.Initialize(hmmwv.GetVehicle())
-    driver.SetThrottle(0.5)
+    driver.SetThrottle(0.5)  
 
     
     imu = chrono.ChIMU()
@@ -42,14 +42,19 @@ def main():
     
     step_size = 0.01
     time = 0.0
+
+    
     print(f"Vehicle mass: {hmmwv.GetVehicleMass():.2f} kg")
 
     
     while app.GetDevice().run():
-        time = my_system.GetChTime()
+        app.BeginScene()
+        app.DrawAll()
 
         
         driver.Synchronize(time)
+
+        
         hmmwv.Synchronize(time, driver)
         hmmwv.Advance(time + step_size)
 
@@ -58,14 +63,12 @@ def main():
         chassis_pos = hmmwv.GetChassis().GetPos()
 
         
-        app.BeginScene()
-        app.DrawAll()
-        app.EndScene()
+        print(f"Time: {time:.2f}s | IMU Position: {imu_data.pos} | GPS Position: {chassis_pos}")
 
         
-        my_system.DoStepDynamics(step_size)
+        time += step_size
 
-    app.GetDevice().closeGraphicalWindow()
+        app.EndScene()
 
 if __name__ == '__main__':
     main()

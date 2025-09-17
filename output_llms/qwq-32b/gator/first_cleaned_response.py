@@ -1,94 +1,79 @@
 import pychrono as chrono
-import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
+from pychrono import vehicle as veh
 
 
 sys = chrono.ChSystemNSC()
 sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-visualiz = irr.ChVisualSystemIrrlicht()
-visualiz.SetWindowSize(1024, 768)
-visualiz.SetWindowTitle('Gator Simulation')
-visualiz.Initialize()
-visualiz.AddLogo()
-visualiz.AddSky()
-visualiz.AddGrid()
-visualiz.SetCameraPosition(chrono.ChVectorD(0, 2, 10))
-visualiz.SetCameraRotation(chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0)))
-sys.SetVisualSystem(visualiz)
-
-
-vehicle = veh.Gator(sys)
-vehicle.SetChassisVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType.MESH)
-vehicle.SetTireModel(veh.TireModelType.TMEASY)
-
-
-init_pos = chrono.ChVectorD(0, 0, 1)  
-init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
-vehicle.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Gator on Rigid Terrain')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.SetCamera(chrono.ChVectorD(0, 2, 15), chrono.ChVectorD(0, 0, 0))
+vis.SetTumble(True)
 
 
 terrain = veh.RigidTerrain(sys)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-terrain.SetClamping(True)
-terrain.SetPatch(veh.RigidTerrain.PatchData(100, 100, 1, patch_mat))
-terrain.Initialize()
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0), 200, 200)
+patch.SetTexture(chrono.GetChronoDataFile('textures/concrete.jpg'), 200, 200)
+sys.Add(terrain.GetGroundBody())
+vis.Add(terrain.GetGroundBody())
 
 
-texture_path = 'textures/concrete.jpg'  
-terrain.GetPlane().AddAsset(chrono.ChTexture(texture_path))
+vehicle = veh.Gator(sys)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+vehicle.SetChassisFixed(False)
+vehicle.SetContactMethod(chrono.ChContactMethod.NTCI)  
+vehicle.SetVisualizationType(veh.VisualizationType.MESH)  
+vehicle.Initialize()
 
 
-sys.Add(vehicle.GetSystem())
-sys.Add(terrain.GetSystem())
+for axle in vehicle.GetAxles():
+    for wheel in axle.wheels:
+        tire = veh.TMeasyTire(vehicle.GetSystem(), wheel)
+        tire.SetType(veh.TMeasyTire.TMeasyType.METRIC)  
+        wheel.SetTire(tire)
 
 
-driver = veh.UserDriver()
+driver = veh.ChDriver()
 vehicle.SetDriver(driver)
 
 
-time_step = 0.02  
-time = 0
+step_size = 1.0 / 50.0  
 
 
-while visualiz.Run():
-    key = visualiz.GetKeyboard()
-    
+while vis.Run():
+    key = vis.GetKeyboard()
+
     
     steering = 0
     throttle = 0
-    brake = 0
-    
-    if key.KeyIsPressed(chronoirr.EDK_LEFT):
-        steering -= 1
-    if key.KeyIsPressed(chronoirr.EDK_RIGHT):
-        steering += 1
-    if key.KeyIsPressed(chronoirr.EDK_UP):
+    braking = 0
+
+    if key.IsKeyDown(irr.KEY_KEY_LEFT):
+        steering = -1
+    elif key.IsKeyDown(irr.KEY_KEY_RIGHT):
+        steering = 1
+
+    if key.IsKeyDown(irr.KEY_KEY_UP):
         throttle = 1
-    if key.KeyIsPressed(chronoirr.EDK_DOWN):
-        brake = 1
-    
-    driver.SetSteering(steering * 0.5)  
+    elif key.IsKeyDown(irr.KEY_KEY_DOWN):
+        braking = 1
+
+    driver.SetSteering(steering)
     driver.SetThrottle(throttle)
-    driver.SetBraking(brake)
-    
-    
-    vehicle.Synchronize(driver, time)
-    vehicle.Update(time)
-    sys.DoStepDynamics(time_step)
-    
-    
-    visualiz.BeginScene()
-    visualiz.DrawAll()
-    visualiz.EndScene()
-    
-    time += time_step
-    
-    
-    if key.KeyIsPressed(chronoirr.EDK_ESCAPE):
-        break
+    driver.SetBraking(braking)
 
+    
+    vehicle.Synchronize(driver)
+    vehicle.Update(step_size)
+    sys.DoStepDynamics(step_size)
 
-visualiz.Close()
+    
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

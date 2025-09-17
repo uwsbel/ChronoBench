@@ -3,43 +3,58 @@ import chrono.irrlicht as chronoirr
 import chrono.vehicle as veh
 
 
+
+
+
+
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-terrain = chrono.ChRigidBody()
-terrain.SetBodyFixed(True)
-terrain.SetMass(0)
-terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
-terrain.SetShapeType(chrono.ChShapeType.BOX)
-terrain.SetBox(100, 0.1, 100)
+
+
+
+terrain = chrono.ChTerrain()
+terrain.Create(system, "rigid_terrain", chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 1, 100), 10, 10)
+terrain.SetTexture("textures/grass.jpg", chrono.ChVectorD(10, 10))
+terrain.SetContactMethod(chrono.ChContactMethod.SICONTACT)
 system.Add(terrain)
 
 
-try:
-    texture = chronoirr.ChTexture("terrain.png")  
-except:
-    print("Error: Could not load terrain texture. Using default color.")
-    texture = None
 
 
-vehicle = veh.FEDA_Vehicle(system)
+
+feda = veh.FEDA(system)
 
 
-vehicle.SetVehiclePos(chrono.ChVectorD(0, 1, 0))
-vehicle.SetVehicleRot(chrono.ChQuaternionD(0, 0, 0))
-vehicle.SetContactMethod(veh.ChContactMethod.NSC)
-vehicle.SetTireModel(veh.ChTireModel.RADIAL)
-vehicle.SetEngineType(veh.ChEngineModelType.SIMPLE)
+feda.SetPos(chrono.ChVectorD(50, 2, 50))
+feda.SetTransform(chrono.ChQuaternionD(0, 0, 0))
 
 
-vehicle.SetVisualizationType(veh.ChVehicleVisualizationType.MESH)
+feda.SetContactMethod(chrono.ChContactMethod.SICONTACT)
 
 
-driver = veh.ChInteractiveDriver(vehicle)
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.01)
-driver.SetBrakingDelta(0.01)
+feda.SetTireModel(veh.FEDA.TireModel.SIMPLIFIED)
+
+
+for body in feda.GetBodies():
+    body.SetCollide(True)
+    body.SetVisualizationType(chrono.ChVisualizationType.MESH)
+
+system.Add(feda)
+
+
+
+
+
+driver = veh.FEDA.Driver()
+driver.SetSteering(0.0)
+driver.SetThrottle(0.0)
+driver.SetBraking(0.0)
+feda.SetDriver(driver)
+
+
+
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -47,27 +62,50 @@ vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('FEDA Vehicle Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 2, -5), chrono.ChVectorD(0, 1, 0))
+vis.AddCamera(chrono.ChVectorD(50, 10, 50))
 vis.AddTypicalLights()
 
 
-camera_offset = chrono.ChVectorD(0, 2, -5)
-camera_up = chrono.ChVectorD(0, 1, 0)
 
 
-time_step = 1.0 / 50.0  
+
+def update_camera(vehicle, camera):
+    camera_pos = vehicle.GetPos() + chrono.ChVectorD(0, 5, -10)
+    camera.SetPos(camera_pos)
+    camera.LookAt(vehicle.GetPos())
+
+
+
+
+
+timestep = 1.0 / 50.0  
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
     
-    driver.Synchronize(time_step)
+    system.DoStepDynamics(timestep)
 
     
-    system.DoStepDynamics(time_step)
+    update_camera(feda, vis.GetCamera())
 
     
-    camera_pos = vehicle.GetPos() + camera_offset
-    vis.GetVisualSystem().GetIrrlichtDevice().camera->setPosition(camera_pos)
-    vis.GetVisualSystem().GetIrrlichtDevice().camera->setUpVector(camera_up)
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.W):
+        driver.SetThrottle(1.0)
+    elif vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.S):
+        driver.SetThrottle(-1.0)
+    else:
+        driver.SetThrottle(0.0)
+
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.A):
+        driver.SetSteering(0.5)
+    elif vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.D):
+        driver.SetSteering(-0.5)
+    else:
+        driver.SetSteering(0.0)
+
+    if vis.GetSystem().IsKeyPressed(chrono.ChVirtualKeys.SPACE):
+        driver.SetBraking(1.0)
+    else:
+        driver.SetBraking(0.0)

@@ -1,15 +1,13 @@
 import math as m
 import pychrono as chrono
 import pychrono.fea as fea
-from pychrono import pychrono
-from pychrono import pychrono.pardisomkl as mklsolver
-from pychrono import pychrono.irrlicht as chronicls
+from pychrono import pardisomkl as mklsolver
+from pychrono import irrlicht as chronicls
 
 
 class ChFunctionMyFun(chrono.ChFunction):
     def __init__(self):
-        chrono.ChFunction.__init__(self)
-
+        super().__init__()
     def GetVal(self, x):
         if x > 0.5:
             return chrono.CH_PI
@@ -54,7 +52,7 @@ body_crank.AddVisualShape(boxcrank)
 motor = chrono.ChLinkMotorRotationSpeed()
 motor.Initialize(body_trss, body_crank, chrono.ChFrame(vG))
 myfun = ChFunctionMyFun()
-motor.SetTorqueFunction(myfun)
+motor.SetSpeedFunction(myfun)
 sys.Add(motor)
 
 
@@ -80,10 +78,8 @@ builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
 
 
 builder_iga.GetLastBeamNodes().front().SetFixed(True)
-
-
-node_tip = builder_iga.GetLastBeamNodes()[15]  
-node_mid = builder_iga.GetLastBeamNodes()[15]
+node_tip = builder_iga.GetLastBeamNodes()[15] 
+node_mid = builder_iga.GetLastBeamNodes()[15] 
 
 
 section2 = fea.ChBeamSectionEulerAdvanced()
@@ -99,12 +95,12 @@ builderA = fea.ChBuilderBeamEuler()
 builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
 
 
-node_top = builderA.GetLastBeamNodes()[0]  
+node_top = builderA.GetLastBeamNodes()[0] 
 node_down = builderA.GetLastBeamNodes()[-1]
 
 
 constr_bb = chrono.ChLinkMateParallel()
-constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())  
+constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame()) 
 sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
 
@@ -146,7 +142,7 @@ sphereconstr3 = chrono.ChVisualShapeSphere(0.01)
 constr_bc.AddVisualShape(sphereconstr3)
 
 
-mesh.SetAutomaticGravity(True)
+mesh.SetAutomaticGravity(False) 
 sys.Add(mesh)
 
 
@@ -171,7 +167,7 @@ vis.AttachSystem(sys)
 vis.SetWindowSize(800, 600)
 vis.SetWindowTitle('Failed Beam Simulation')
 vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0.0, 1.0, -1.5))
 vis.AddTypicalLights()

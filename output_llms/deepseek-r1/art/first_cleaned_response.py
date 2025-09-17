@@ -1,89 +1,84 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-import os
+import pychrono.irrlicht as irr
 
+def main():
+    
+    chrono.SetChronoDataPath("C:/path/to/chrono/data/")  
+    veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+    
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-chrono.SetChronoDataPath("C:/path/to/chrono/data/")  
-veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
-
-
-step_size = 0.005
-render_fps = 50  
-render_step_size = 1.0 / render_fps
-
-
-system = chrono.ChSystemSMC()
-system.SetSolverMaxIterations(100)
-
-
-car = veh.ARTcar()
-car.SetContactMethod(chrono.ChContactMethod_SMC)
-car.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
-car.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-car.SetWheelVisualizationType(veh.VisualizationType_MESH)
-car.Initialize()
-
-
-car.SetChassisFixed(False)
-car.SetTireType(veh.TireModelType_RIGID)
-car.SetTireStepSize(step_size)
-
-
-terrain = veh.RigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceSMC()
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                         100, 100)  
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
-terrain.Initialize()
-
-
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("ARTcar Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(6, 3, 6), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-
-
-car.InitializeVisualization(vis)
-
-
-driver = veh.ChInteractiveDriverIRR(vis)
-steering_time = 1.0  
-driver.SetSteeringDelta(render_step_size / steering_time)
-driver.SetThrottleDelta(render_step_size / 1.0)
-driver.SetBrakingDelta(render_step_size / 0.3)
-driver.Initialize()
-
-
-time = 0
-real_time_timer = chrono.ChRealtimeStepTimer()
-
-while vis.Run():
-    time = system.GetChTime()
+    
+    init_loc = chrono.ChVectorD(0, 0.5, 0)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    artcar = veh.ARTcar()
+    artcar.SetContactMethod(chrono.ChContactMethod_SMC)
+    artcar.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    artcar.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    artcar.Initialize(chrono.ChCoordsysD(init_loc, init_rot))
+    artcar.SetChassisFixed(False)
+    artcar.SetTireStepSize(1e-3)
     
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-    
-    
-    driver_inputs = driver.GetInputs()
-    
-    
-    car.Synchronize(time, driver_inputs, terrain)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
-    
-    
-    system.DoStepDynamics(step_size)
-    
-    
-    real_time_timer.Spin(step_size)
+    terrain = veh.RigidTerrain(system)
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+    patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 100, 100)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
 
-print("Simulation completed.")
+    
+    driver = veh.ChInteractiveDriverIRR(artcar.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowTitle('ARTcar Simulation')
+    vis.SetWindowSize(1280, 720)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(0, 2, -5))
+    vis.AddTypicalLights()
+    artcar.GetVehicle().AddVisualSystemAssets(vis)
+
+    
+    step_size = 0.002
+    frame_interval = 0.02  
+    time = 0
+    frame_number = 0
+    
+    while vis.Run():
+        time = system.GetChTime()
+        
+        
+        driver.Synchronize(time)
+        artcar.Synchronize(time, driver.GetInputs(), terrain)
+        
+        
+        artcar.Advance(step_size)
+        terrain.Advance(step_size)
+        system.DoStepDynamics(step_size)
+        
+        
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        
+        
+        frame_number += 1
+        next_frame_time = frame_number * frame_interval
+        if time > next_frame_time:
+            
+            frame_number = int(time / frame_interval)
+    
+    return 0
+
+if __name__ == "__main__":
+    main()

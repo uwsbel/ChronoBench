@@ -20,6 +20,22 @@ chassis_collision_type = veh.CollisionType_NONE
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
+heightMap = veh.GetDataFile("terrain/height_maps/test_height_map.txt")
+
+
+soil_params = veh.SCMDeformableTerrain.SCMMaterialProperties()
+soil_params.density = 1500
+soil_params.cohesion = 1000
+soil_params.internal_friction_angle = 30
+soil_params.lateral_friction = 0.1
+soil_params.adhesion = 0.0
+soil_params.damping_ratio = 0.0
+soil_params.plastic_hardening = 0.1
+soil_params.flow_stress_ratio = 0.5
+soil_params.max_plastic_strain = 0.1
+soil_params.elastic_modulus = 2e5
+soil_params.poissons_ratio = 0.3
+soil_params.thickness = 0.1
 
 
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -58,18 +74,12 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-soil_mat = chrono.ChMaterialSurfaceSCM()
-soil_mat.SetDensity(1500)  
-soil_mat.SetShearModulus(15000)  
-soil_mat.SetPlasticHardening(30)  
-soil_mat.SetFrictionCoeff(30)  
-soil_mat.SetDampingCoeff(0.05)  
-soil_mat.SetRollingResistanceCoeff(0.02)  
-
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
-terrain.Initialize(terrainLength, terrainWidth, 2.0, 2.0, soil_mat)
+terrain.SetSize(terrainLength, terrainWidth)
+terrain.SetHeightMap(heightMap, terrainHeight)
+terrain.SetMaterialProperties(soil_params)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
-terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -94,7 +104,6 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
-
 
 
 vehicle.GetSystem().SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
@@ -124,19 +133,15 @@ while vis.Run():
 
     
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle_value  
-
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver_inputs, throttle_value)
     vis.Synchronize(time, driver_inputs)
-
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1

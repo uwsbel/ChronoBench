@@ -5,166 +5,158 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization**:  
-  The script does not explicitly create a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` system object. Instead, it relies on the vehicle models (`veh.Kraz()`) to internally create or manage their own systems. According to the PyChrono vehicle API and best practices, vehicle models internally create their own systems, so this is acceptable.  
+  The script uses `veh.Kraz()` which internally creates and manages the system. However, the script never explicitly creates or manages a `chrono.ChSystemNSC()` or `chrono.ChSystemSMC()` object directly. This is acceptable for vehicle module usage, as `veh.Kraz()` internally manages the system.  
   **No deduction.**
 
-- **Body Creation and Initialization**:  
-  Two vehicles (`truck` and `sedan`) are created using `veh.Kraz()`. Both are initialized with positions, rotations, collision types, and visualization types. This is complete and consistent with the API.  
-  **No deduction.**
+- **Body Creation**:  
+  Two vehicles (`truck` and `sedan`) are created using `veh.Kraz()`. However, the "sedan" is also created as a `veh.Kraz()`, which is a truck model, not a sedan. This is a semantic error (the variable name suggests a sedan but the model is a truck). This is a minor completeness issue because the vehicle type does not match the variable name, which could confuse users or cause incorrect simulation expectations.  
+  **Deduct 5 points** for minor omission/slight deviation.
 
 - **Terrain Setup**:  
-  A rigid terrain is created and initialized with a patch, friction, restitution, texture, and color. This is complete and appropriate.  
+  Terrain is created with `veh.RigidTerrain` and a patch is added with appropriate material and texture. This is complete and correctly configured.  
   **No deduction.**
 
 - **Visualization Setup**:  
-  Two separate Irrlicht visualization systems are created for the two vehicles, with window titles, sizes, cameras, logos, skyboxes, and lights added. However, `vis_sedan` calls `AddLightDirectional()` but `vis_truck` does not add any lights explicitly (only `AddLogo` and `AddSkyBox`). According to the documentation, typical lighting is essential for visibility. The truck visualization lacks explicit lighting setup.  
-  **Deduct 2 points for minor visualization omission.**
+  Two separate visualization systems are created for the two vehicles, with window titles, sizes, cameras, logos, skyboxes, and lighting added. However, for `vis_sedan`, the code calls `AddLightDirectional()` but does not call `AddLogo()`. For `vis_truck`, it adds a logo but no directional light. This is inconsistent and may affect visualization quality. Also, `AddTypicalLights()` is recommended in the documentation for standard lighting but is not used.  
+  **Deduct 2 points** for minor visualization issues.
 
 - **Driver Setup**:  
-  Interactive drivers are created and initialized for both vehicles with appropriate delta settings. This is complete.  
+  Interactive drivers are created and initialized for both vehicles with appropriate delta settings.  
   **No deduction.**
 
 - **Simulation Loop**:  
-  The loop runs while `vis_truck.Run()` is true, but the sedan visualization is updated inside the same loop. This is unusual because each visualization system typically requires its own run loop or synchronization. Also, the loop calls `terrain.Advance(step_size)` twice per iteration (once before truck advance and once before sedan advance). This is redundant and may cause issues.  
-  **Deduct 5 points for minor inefficiency and potential logical issue in simulation loop.**
+  The loop runs while `vis_truck.Run()` is true, but the `vis_sedan.Run()` is never checked. This means if the sedan visualization window is closed, the loop will continue running as long as the truck window is open, which is a logical issue for managing two visualization windows.  
+  **Deduct 10 points** for incomplete simulation loop control.
 
-**Total Completeness deduction: 7 points**
+- **Collision System**:  
+  Both vehicles set the collision system type to `Type_BULLET` on their systems. This is correct and consistent.  
+  **No deduction.**
+
+- **Tire Models**:  
+  Tire models are defined but never actually set or applied to the vehicles. This is a missing step if the intention was to differentiate tire models between truck and sedan.  
+  **Deduct 15 points** for missing essential component (tire model application).
+
+- **Chassis Collision Types**:  
+  Both vehicles have chassis collision type set to `CollisionType_NONE`. This is acceptable if collision is not desired for chassis, but it should be explicitly justified or noted. No direct deduction but could be considered a minor omission.  
+  **No deduction.**
+
+**Total Completeness Deduction: 5 + 2 + 10 + 15 = 32 points**
+
+Remaining: 40 - 32 = 8 points
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **Vehicle Initialization**:  
-  Both vehicles are instantiated as `veh.Kraz()`. The second vehicle is named `sedan` but is also a `Kraz` (a truck). This is a semantic error: the variable name suggests a sedan, but the model is a truck. This can lead to confusion or incorrect simulation expectations.  
-  **Deduct 10 points for logical error (incorrect vehicle model for sedan).**
-
-- **Collision System Setup**:  
-  Both vehicles set their system collision type to `chrono.ChCollisionSystem.Type_BULLET`, which is correct and consistent with the API.  
+  Both vehicles are initialized correctly with `SetInitPosition`, `Initialize()`, and visualization types.  
   **No deduction.**
 
 - **Visualization Attachment**:  
-  The vehicles are attached to the visualization systems using `AttachVehicle(truck.GetTractor())` and `AttachVehicle(sedan.GetTractor())`. According to the API, `AttachVehicle()` expects a `ChWheeledVehicle` or similar vehicle object. `GetTractor()` returns the tractor vehicle subsystem, which is correct for a `Kraz` vehicle (which is a tractor-trailer). This is correct usage.  
+  The vehicles are attached to visualization systems using `AttachVehicle(truck.GetTractor())` and `AttachVehicle(sedan.GetTractor())`. This is suspicious because `veh.Kraz()` returns a vehicle object, and `GetTractor()` is not a documented method for `veh.Kraz()`. The typical method is `GetVehicle()` or just passing the vehicle object. This likely causes an AttributeError or incorrect attachment.  
+  **Deduct 15 points** for incorrect API usage that could break simulation behavior.
+
+- **Simulation Loop Synchronization and Advancement**:  
+  The order of synchronization and advancement calls is correct and follows best practices. However, `terrain.Synchronize()` and `terrain.Advance()` are called twice per loop iteration (once for truck and once for sedan). This is redundant and could cause issues or inefficiency.  
+  **Deduct 5 points** for minor inefficiency and unnecessary API calls.
+
+- **Real-time Timer Usage**:  
+  `realtime_timer.Spin(step_size)` is called twice per loop iteration, which is redundant.  
+  **Deduct 5 points** for unnecessary repeated calls.
+
+- **Time Variable Usage**:  
+  The time variable is obtained from `truck.GetSystem().GetChTime()` and used for both vehicles. This is acceptable since both vehicles share the same system internally (?), but since two vehicles are created separately, they likely have separate systems. Using the truck system time for the sedan may cause synchronization issues.  
+  **Deduct 10 points** for logical error in time synchronization.
+
+- **Driver Inputs**:  
+  Driver inputs are fetched and used correctly.  
   **No deduction.**
 
-- **Driver Inputs and Synchronization**:  
-  The driver inputs are fetched and used correctly to synchronize the vehicle and visualization.  
-  **No deduction.**
+**Total Correctness Deduction: 15 + 5 + 5 + 10 = 35 points**
 
-- **Advancing Terrain Twice**:  
-  The terrain is advanced twice per loop iteration, which is unnecessary and could cause inconsistent behavior.  
-  **Deduct 5 points for incorrect simulation step logic.**
+Since maximum is 30 points, cap deduction at 30 points.
 
-- **Use of `chrono.SetChronoDataPath(chrono.GetChronoDataPath())`**:  
-  This line is redundant since it sets the data path to itself. It is harmless but unnecessary.  
-  **Deduct 3 points for minor unnecessary API call.**
-
-**Total Correctness deduction: 18 points**
+Remaining: 0 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability and Structure**:  
-  The code is mostly readable with meaningful variable names, but the naming of `sedan` as a `Kraz` truck is misleading.  
-  The code lacks comments explaining key steps, which would improve clarity.  
-  **Deduct 5 points for misleading variable naming and lack of comments.**
+  Variable names are mostly meaningful, but the use of `sedan` for a truck model is confusing. The code is mostly well structured but lacks blank lines between logical blocks in some places.  
+  **Deduct 3 points** for minor readability issues.
 
-- **Formatting**:  
-  The code is well formatted with consistent indentation and spacing.  
-  **No deduction.**
+- **Comments**:  
+  The code has no comments explaining the purpose of blocks or variables. This is a significant omission for clarity and maintainability.  
+  **Deduct 5 points** for insufficient comments.
 
-**Total Code Quality deduction: 5 points**
+Remaining: 10 - 3 - 5 = 2 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **Redundant Terrain Advance**:  
-  Advancing terrain twice per loop is inefficient.  
-  **Deduct 5 points.**
+- **Redundant Calls**:  
+  As noted, `terrain.Synchronize()` and `terrain.Advance()` are called twice per loop iteration unnecessarily. Also, `realtime_timer.Spin(step_size)` is called twice.  
+  **Deduct 5 points** for redundant calls.
 
-- **Redundant `chrono.SetChronoDataPath(chrono.GetChronoDataPath())` call**:  
-  Minor inefficiency.  
-  **Deduct 3 points.**
+- **Render Frame Counting**:  
+  `render_frame` is incremented twice per render step, but the variable is never used. This is minor inefficiency.  
+  **Deduct 3 points** for minor inefficiency.
 
-- **Separate visualization systems for two vehicles running in the same loop**:  
-  This approach is unusual and may cause inefficiencies or synchronization issues. Typically, one visualization system is used per simulation or the simulations are run separately.  
-  **Deduct 3 points for missing optimization opportunity.**
-
-**Total Efficiency deduction: 11 points (cap at 10 points max)**
+Remaining: 10 - 5 - 3 = 2 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- **No error handling**:  
-  The script does not include any try-except blocks or checks for resource loading failures (e.g., textures, meshes).  
-  **Deduct 5 points for lack of basic error handling.**
+- There is no error handling or try-except blocks to catch potential runtime errors (e.g., failed initialization, missing files).  
+- No checks for the validity of the visualization windows or driver initialization.  
+- No handling for the case when one visualization window closes but the other remains open.  
+**Deduct 5 points** for lack of basic error handling and robustness.
 
-- **No handling of edge cases**:  
-  No checks for simulation stability or input validation.  
-  **No additional deduction (already deducted max).**
+Remaining: 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- **Missing lighting in truck visualization**:  
-  `vis_truck` does not add any lights explicitly, which may cause poor visualization quality.  
-  **Deduct 3 points.**
+- Visualization systems are created and initialized correctly.  
+- Missing `AddTypicalLights()` which is recommended for proper lighting.  
+- Inconsistent use of lighting: `vis_truck` adds logo but no directional light; `vis_sedan` adds directional light but no logo.  
+- Cameras are set with `SetChaseCamera()` but no additional cameras or controls are added.  
+**Deduct 3 points** for minor visualization issues.
 
-- **`vis_sedan` adds directional light, but `vis_truck` does not**:  
-  Inconsistent visualization setup.  
-  **No additional deduction (covered above).**
-
----
-
-### Summary of Deductions
-
-| Criterion                  | Points | Deduction Reason                                                                 |
-|----------------------------|--------|----------------------------------------------------------------------------------|
-| Completeness               | 40     | -2 (missing lighting in truck visualization), -5 (redundant terrain advance)    |
-| Correctness               | 30     | -10 (sedan is actually a truck), -5 (terrain advance twice), -3 (redundant path)|
-| Code Quality              | 10     | -5 (misleading variable name, lack of comments)                                 |
-| Efficiency                | 10     | -5 (terrain advance twice), -3 (redundant path), -3 (two visualizations in one loop) capped at -10 |
-| Error Handling & Robustness| 5      | -5 (no error handling)                                                           |
-| Visualization Tools       | 5      | -3 (missing lighting in truck visualization)                                    |
-
-**Total deductions:**
-
-- Completeness: 7  
-- Correctness: 18  
-- Code Quality: 5  
-- Efficiency: 10 (max)  
-- Error Handling: 5  
-- Visualization: 3  
-
-Sum = 7 + 18 + 5 + 10 + 5 + 3 = 48 points deducted.
+Remaining: 2 points
 
 ---
 
-### Final Score
+### **Summary of Deductions**
 
-100 - 48 = 52 points
-
----
-
-### Explanation
-
-The script is mostly complete and uses the PyChrono API correctly for vehicle and terrain setup. However, the major issues are:
-
-- The second vehicle is named `sedan` but is actually a `Kraz` truck, which is misleading and logically incorrect.
-
-- The simulation loop advances the terrain twice per iteration, which is inefficient and potentially problematic.
-
-- The visualization setup for the truck lacks lighting, which can degrade the visual quality.
-
-- There is no error handling or comments to improve robustness and readability.
-
-- Minor inefficiencies and redundant API calls are present.
-
-Addressing these issues would significantly improve the quality and correctness of the simulation script.
+| Criterion                     | Max Points | Deduction | Remaining |
+|-------------------------------|------------|-----------|-----------|
+| Completeness                  | 40         | 32        | 8         |
+| Correctness                  | 30         | 30 (capped) | 0         |
+| Code Quality                 | 10         | 8         | 2         |
+| Efficiency                  | 10         | 8         | 2         |
+| Error Handling and Robustness | 5          | 5         | 0         |
+| Visualization Tools          | 5          | 3         | 2         |
+| **Total**                    | **100**    | **86**    | **14**    |
 
 ---
 
-[[52]]
+### **Final Score: [[14]]**
+
+---
+
+### **Explanation**
+
+- The script misses applying tire models to vehicles, which is essential for vehicle simulation completeness.  
+- The "sedan" vehicle is actually a truck model, which is misleading.  
+- The simulation loop only checks one visualization window, ignoring the other, which can cause the simulation to continue running unexpectedly.  
+- Incorrect use of `GetTractor()` method on vehicle objects, which is not part of the documented API, likely causing runtime errors.  
+- Redundant calls to terrain synchronization and real-time timer spinning reduce efficiency.  
+- Lack of comments and inconsistent visualization setup reduce code quality and visualization effectiveness.  
+- No error handling or robustness measures are implemented.  
+
+Overall, the script shows a basic understanding of PyChrono vehicle simulation but contains significant correctness and completeness issues that would prevent it from running correctly or producing the intended simulation results.

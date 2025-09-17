@@ -11,10 +11,10 @@ initLoc = chrono.ChVector3d(0, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
-vis_type = veh.VisualizationType_PRIMITIVES  
+vis_type = veh.VisualizationType_PRIMITIVES
 
 
-chassis_collision_type = veh.CollisionType_PRIMITIVES  
+chassis_collision_type = veh.CollisionType_PRIMITIVES
 
 
 tire_model = veh.TireModelType_TMEASY
@@ -76,6 +76,7 @@ terrain.Initialize()
 
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -85,6 +86,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 
 driver = veh.ChInteractiveDriverIRR(vis)

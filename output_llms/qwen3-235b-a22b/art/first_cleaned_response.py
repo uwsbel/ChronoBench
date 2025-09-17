@@ -1,54 +1,52 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht as irr
+import pychrono.driver as driver
 
 
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-application = irrlicht.ChIrrApp(my_system, 'ARTcar Simulation', irrlicht.dimension2du(800, 600))
-application.AddTypicalLights()
-application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
-application.AssetBindAll()
-application.AssetUpdateAll()
-
-
-terrain = veh.RigidTerrain(my_system)
-patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(), 
-                         chrono.ChVectorD(0, 0, 0), 
-                         chrono.ChVectorD(200, 200, 1), 
-                         True)
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChMaterialSurfaceNSC(), chrono.ChCoordsysD(), 200, 200)
 patch.SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 terrain.Initialize()
 
 
-artcar = veh.ARTcar(my_system)
-artcar.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), 
-                                    chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-artcar.SetContactMethod(chrono.ChMaterialSurfaceNSC())
-artcar.SetChassisVisualizationType(veh.VisualizationType_MESH)
-artcar.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle = veh.ChWheeledVehicle(system, "ARTcar")
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0), chrono.Q_from_AngZ(0)))
+vehicle.SetTireType(veh.TireModelType_TMeasy)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.Initialize()
 
 
-driver = veh.ChInteractiveDriverIRR(application.GetDevice(), artcar, "Driver Controls")
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.05)
+application = irr.ChIrrApp(system, "ARTcar Simulation", irr.dimension2du(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+
+
+driver = driver.InteractiveDriverIRR(application)
 driver.Initialize()
 
 
+step_size = 1.0 / 50.0  
+sim_time = 0.0
+
+
 while application.GetDevice().run():
-    time = my_system.GetChTime()
+    
+    driver.Synchronize(sim_time)
     
     
-    driver.Synchronize(time)
+    vehicle.Synchronize(sim_time, driver.GetInputs(), terrain.GetContactForces())
     
     
-    artcar.Synchronize(time, driver.GetInputs(), terrain)
-    
-    
-    my_system.DoStepDynamics(0.02)
+    system.DoStepDynamics(step_size)
+    sim_time += step_size
     
     
     application.BeginScene()

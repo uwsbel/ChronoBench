@@ -1,16 +1,15 @@
+import rclpy
+from std_msgs.msg import String
 import pychrono as ch
 import pychrono.ros as chros
-from rclpy.publisher import Publisher
-from std_msgs.msg import String
 
 # Define a custom ROS handler for publishing string messages.
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish string messages to a specified ROS topic."""
-    
     def __init__(self, topic):
         super().__init__(1)  # Initialize the handler with a 1 Hz publishing rate.
         self.topic = topic
-        self.publisher: Publisher = None
+        self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
         self.message = "Hello, world! At time: "
 
@@ -30,6 +29,9 @@ class MyCustomHandler(chros.ChROSHandler):
         self.ticker += 1  # Increment the ticker for the next message.
 
 def main():
+    # Initialize rclpy
+    rclpy.init()
+
     # Create the Chrono simulation system.
     sys = ch.ChSystemNSC()
     sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravitational acceleration.
@@ -67,16 +69,13 @@ def main():
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
-    if not ros_manager.Initialize():
-        print("Failed to initialize ROS manager.")
-        return
+    ros_manager.Initialize()
 
     # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
-
     while time < time_end:
         sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
         time = sys.GetChTime()  # Update the simulation time.
@@ -84,9 +83,11 @@ def main():
             break  # Exit the loop if the ROS manager indicates a problem.
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 
-    # Clean up
-    ros_manager.Shutdown()
+    # Shutdown rclpy
+    rclpy.shutdown()
 
 # Entry point of the script.
 if __name__ == "__main__":
     main()
+
+# ... (the above code)

@@ -19,27 +19,35 @@ sys.Add(body)
 
 
 sensor_manager = chrono.ChSensorManager()
-lidar = sensor_manager.AddLidar(body, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
-lidar.SetSensorZRange(1, 10)
-lidar.SetSensorFov(0.5)
-lidar.SetSensorNumBeams(360)
-lidar.SetSensorNoise(0.01)
+lidar = sensor_manager.AddLidarSensor(body, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))
+lidar.SetMaxRange(10)
+lidar.SetBeamSpacing(np.deg2rad(0.5))
+lidar.SetBeamAngle(np.deg2rad(10))
+lidar.SetNoiseFilter(chrono.ChNoiseFilterLidar())
+lidar.SetVisualization(True)
+lidar.SetSaveData(True)
+lidar.SetSaveFilename("lidar_data.csv")
 
 
-lidar.SetSensorNoiseFilter(True)
-lidar.SetSensorVisualization(True)
-lidar.SetSensorSaveData(True)
-lidar.SetSensorSaveFilename("lidar_data.txt")
 
-
+orbit_radius = 5
+orbit_angle = 0
+dt = 0.01
 t = 0
+
 while t < 10:
-    sys.Update(t)
     
-    lidar.SetPos(chrono.ChVectorD(np.cos(t), np.sin(t), 0))
+    lidar.SetPos(chrono.ChVectorD(orbit_radius * np.cos(orbit_angle), 0, orbit_radius * np.sin(orbit_angle)))
+    orbit_angle += dt
+
     
-    print("Lidar buffer data at time", t, ":", lidar.GetBufferData())
-    t += 0.01
+    sys.DoStepDt(dt)
+
+    
+    print("Lidar buffer data:")
+    print(lidar.GetBuffer())
+
+    t += dt
 
 
-sim.SaveToFile("path/to/your/simulation.cht")
+lidar.SaveData()

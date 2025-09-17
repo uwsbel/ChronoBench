@@ -71,6 +71,9 @@ mcreation_callback = MyCreatorForAll(vis, coll)
 emitter.RegisterAddBodyCallback(mcreation_callback)
 
 
+sys.Add(emitter)
+
+
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
 sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
@@ -83,20 +86,19 @@ while vis.Run():
     vis.Render()
     vis.EndScene()
 
-    
     emitter.EmitParticles(sys, stepsize)
 
-    
-    G_constant = 6.674e-3  
-
-    
-    kinetic_energy = 0
     for body in sys.GetBodies():
-        kinetic_energy += 0.5 * body.GetMass() * body.GetSpeed()**2
         body.EmptyAccumulators()
 
     
+    G_constant = 6.674e-3  
+    kinetic_energy = 0
     potential_energy = 0
+
+    for body in sys.GetBodies():
+        kinetic_energy += 0.5 * body.GetMass() * body.GetPos_dt().Length2()
+
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
@@ -105,10 +107,9 @@ while vis.Run():
         F_attract = (D_attract / r_attract) * f_attract
         abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
-        potential_energy -= G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
 
-    
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {kinetic_energy + potential_energy}")
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
 
-    
     sys.DoStepDynamics(stepsize)

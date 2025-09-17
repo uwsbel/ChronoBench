@@ -146,7 +146,7 @@ def main():
 noise_model = "CONST_NORMAL"  
 
 
-lens_model = sens.PINHOLE  
+
 
 
 update_rate = 30
@@ -182,3 +182,6 @@ vis = True
 
 
 out_dir = "SENSOR_OUTPUT/"
+
+
+main()

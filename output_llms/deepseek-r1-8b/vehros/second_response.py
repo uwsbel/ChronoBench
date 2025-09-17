@@ -16,6 +16,12 @@ def main():
     hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
     hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
     hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
+    hmmwv.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set the data path for vehicle data.
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_VEHICLE_CHASSIS)  # Set visualization for chassis
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_VEHICLE_SUSPENSION)  # Set visualization for suspension
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_VEHICLE_STEERING)  # Set visualization for steering
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_VEHICLE_WHEEL)  # Set visualization for wheels
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_VEHICLE_TIRE)  # Set visualization for tires
     hmmwv.Initialize()  # Initialize the vehicle.
 
     # Create the terrain for the vehicle to interact with.
@@ -40,19 +46,19 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
     ros_manager.Initialize()  # Initialize the ROS manager.
 
+    # Set up visualization
+    vis_system = chronoirr.ChVisualSystemIrrlicht()  # Initialize Irrlicht visualization system
+    renderer = vis_system.GetRenderer()  # Get the renderer
+    renderer.SetWindowSize(1024, 768)  # Set window size
+    renderer.SetFullscreen(ch.ChBool_T)  # Enable fullscreen mode
+
     # Start the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the total duration of the simulation.
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
-    vis_system = chronoirr.ChVisualSystemIrrlicht()  # Create Irrlicht visualization system.
-    renderer = vis_system.GetRenderer()  # Get the renderer from the visualization system.
-    renderer.SetWindow("PyChrono Visualization", 800, 600)  # Set up the visualization window.
-    renderer.SetCamera(ch.ChCameraPerspective(45.0, 0.0, 1000.0))  # Set up the camera.
-    renderer.SetLight(0, ch.ChLightDirection(0, 0, 1))  # Set up the lighting.
-
-    while True:
+    while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
         # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
@@ -70,9 +76,10 @@ def main():
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
 
-        # Render the scene with the updated vehicle and terrain.
-        renderer.Update()
-        vis_system.RenderFrame()
+        # Render the scene
+        vis_system.Render()
+        renderer.DrawFrame()
+        ch.Render.Update()
 
 if __name__ == "__main__":
     main()

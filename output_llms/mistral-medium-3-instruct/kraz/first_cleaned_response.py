@@ -1,6 +1,6 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
 
 
 
@@ -10,41 +10,37 @@ import pychrono.vehicle as veh
 chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
 
 
-sys = chrono.ChSystemNSC()
-sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+vehicle_system = veh.ChVehicleSystem()
+vehicle_system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
 
 
 
 
 
 
-terrain_length = 100.0
-terrain_width = 100.0
-terrain_height = 0.5
+kraz = veh.Kraz()
+kraz.SetContactMethod(chrono.ChContactMethod_NSC)
+kraz.SetChassisFixed(False)
+kraz.SetInitPosition(chrono.ChCoorD(0, 0, 0.5))
+kraz.SetInitFwdVel(5)  
 
 
-terrain = chrono.ChBodyEasyBox(terrain_length, terrain_height, terrain_width, 1000)
-terrain.SetPos(chrono.ChVectorD(0, -terrain_height/2, 0))
-terrain.SetBodyFixed(True)  
-terrain.GetMaterialSurfaceNSC().SetFriction(0.8)
-terrain.GetMaterialSurfaceNSC().SetRestitution(0.1)
-sys.Add(terrain)
+kraz.Initialize(chrono.ChCoorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-
+vehicle_system.Add(kraz)
 
 
 
-vehicle_type = 'kraz'
-steering_type = 'rack_pinion'
-drive_type = '4WD'
-tire_type = 'Rigid'
 
 
-vehicle = veh.WheeledVehicle.Create(sys, vehicle_type, steering_type, drive_type, tire_type)
 
-
-vehicle.Initialize(chrono.ChCoordinator(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain = veh.RigidTerrain(vehicle_system)
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.SetContactForceModel(chrono.ChSystem::SMC)
+terrain.Initialize(0, 0, 0)
 
 
 
@@ -52,8 +48,10 @@ vehicle.Initialize(chrono.ChCoordinator(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0
 
 
 driver = veh.ChDriver()
-driver.SetSteeringDelta(0.0)  
-driver.SetThrottle(0.2)       
+driver.SetSteeringDelta(0.1)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+driver.Initialize()
 
 
 
@@ -61,44 +59,52 @@ driver.SetThrottle(0.2)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(sys)
+vis.AttachSystem(vehicle_system)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Kraz Vehicle Simulation')
+vis.SetWindowTitle("Kraz Vehicle Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0, 0))
-vis.AddTypicalLights()
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(5, 5, 10), chrono.ChVectorD(1, 1, 1), 10)
 
 
 
 
 
 
-time_step = 0.01
-max_time = 10.0
+step_size = 0.01
+sim_time = 10.0
+real_time = True
 
 
 while vis.Run():
-    time = sys.GetChTime()
+    time = vehicle_system.GetChTime()
 
     
-    if time > max_time:
+    if time > sim_time:
         break
 
     
-    vehicle.Synchronize(time)
+    vehicle_system.Synchronize(time)
+
+    
+    driver.SetSteering(0.0)
+    driver.SetThrottle(0.5)
+    driver.SetBraking(0.0)
+
+    
     driver.Synchronize(time)
+    kraz.Synchronize(time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
 
     
-    if time > 2.0:
-        driver.SetSteeringDelta(0.3 * chrono.Sin(0.5 * time))
-
-    
-    sys.DoStepDynamics(time_step)
+    vehicle_system.DoStepDynamics(step_size)
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
+
+    
+    if real_time:
+        vis.Spin(1.0 / 60.0)

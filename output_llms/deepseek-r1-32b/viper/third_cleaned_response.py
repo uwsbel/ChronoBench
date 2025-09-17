@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as viper
-import pychrono.vehicle as veh
+import pychrono.vehicle as veh  
 from pychrono import irrlicht as chronoirr
 
 
@@ -14,20 +14,29 @@ chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
 chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
 
 
-soil_mat = veh.ChSoilMaterialNSC()
-soil_mat.SetYoungModulus(1e7)
-soil_mat.SetPoissonRatio(0.3)
-soil_mat.SetFriction(0.5)
-soil_mat.SetRestitution(0.1)
+
+soil = veh.ChSoil()
+soil.SetProperties(1000,  
+                   1e6,   
+                   0.3,   
+                   1e4,   
+                   0.001) 
+
 
 terrain = veh.ChDeformableTerrain()
+terrain.SetSoil(soil)
 terrain.SetPlane(chrono.ChVector3d(0, 0, -1),  
-                100,  
-                100,  
-                0.1,  
-                soil_mat)
-terrain.Initialize()
+                chrono.ChVector3d(0, 0, 0))    
+terrain.SetLength(20)  
+terrain.SetWidth(20)   
+terrain.SetHeight(1)   
+terrain.SetMeshSize(0.2)  
+
+
 system.Add(terrain)
+
+
+rover.Get WheeLs().SetContactMaterial(soil.GetMaterial())
 
 
 rover = viper.Viper(system)  

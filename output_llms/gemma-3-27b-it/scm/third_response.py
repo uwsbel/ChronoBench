@@ -104,53 +104,50 @@ driver.Initialize()
 # ---------------
 num_boxes = 10
 for i in range(num_boxes):
-    # Generate random positions
-    x = random.uniform(-20, 20)
-    y = random.uniform(-20, 20)
-    z = random.uniform(0, 2)
+    box_size = chrono.ChVector3d(random.uniform(0.5, 2), random.uniform(0.5, 2),
+                                 random.uniform(0.5, 2))
+    box_pos = chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20),
+                                random.uniform(0.5, 5))
 
     # Ensure the box is not initialized within the vehicle
-    while (x > -3 and x < 3 and y > -3 and y < 3 and z < 2):
-        x = random.uniform(-20, 20)
-        y = random.uniform(-20, 20)
-        z = random.uniform(0, 2)
+    while (box_pos.x > initLoc.x - 5 and box_pos.x < initLoc.x + 5 and
+           box_pos.y > initLoc.y - 5 and box_pos.y < initLoc.y + 5 and
+           box_pos.z > 0 and box_pos.z < 2):
+        box_pos = chrono.ChVector3d(random.uniform(-20, 20), random.uniform(-20, 20),
+                                     random.uniform(0.5, 5))
 
-    # Create a box
-    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-    box.SetPos(chrono.ChVector3d(x, y, z))
-    box.SetBodyFixed(True)
+    box = chrono.ChBodyEasyBox(box_size.x, box_size.y, box_size.z, 1000, True, True)
+    box.SetPos(box_pos)
+    box.SetMass(10)
     vehicle.GetSystem().Add(box)
-    vis.AddBox(x, y, z, 1, 1, 1, chrono.ChColor(random.random(), random.random(), random.random()))
+    box.SetBodyFixed(False)
 
 # ---------------
 # Integrate a Sensor System
 # ---------------
-
 # Create a sensor manager
 sensor_manager = chrono.ChSensorManager()
-vehicle.GetSystem().Add(sensor_manager)
 
-# Add point lights
-num_lights = 3
-for i in range(num_lights):
-    light = chrono.ChPointLight()
-    light.SetPos(chrono.ChVector3d(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(2, 5)))
-    light.SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
-    light.SetIntensity(1.0)
-    vis.AddLight(light)
+# Create a point light
+light = chrono.ChPointLight()
+light.SetPos(chrono.ChVector3d(10, 10, 5))
+light.SetIntensity(1.0)
+vis.AddLight(light)
 
 # Create a camera sensor
 camera = chrono.ChCameraSensor()
 camera.SetResolution(640, 480)
 camera.SetFieldOfView(60)
-camera.AttachToBody(vehicle.GetChassisBody())
-camera.SetOffset(chrono.ChVector3d(0, 0, 1.5))
+camera.SetPos(chrono.ChVector3d(0, 0, 1.71))
+camera.SetAimPoint(chrono.ChVector3d(0, 0, 0))
+camera.SetUpDirection(chrono.ChVector3d(0, 1, 0))
+camera.Attach(vehicle.GetChassisBody())
 sensor_manager.AddSensor(camera)
 
 # Add a filter to visualize the camera feed
-camera_filter = chrono.ChFilterCamera()
-camera_filter.SetSensor(camera)
-vis.AddFilter(camera_filter)
+filter = chrono.ChFilterVisualizeCamera()
+filter.SetSensor(camera)
+vis.AddFilter(filter)
 
 # ---------------
 # Simulation loop
@@ -166,7 +163,6 @@ render_steps = math.ceil(render_step_size / step_size)
 s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -185,12 +181,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     # Increment frame number
     step_number += 1

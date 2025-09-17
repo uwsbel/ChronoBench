@@ -1,12 +1,12 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
 import math
+import numpy as np
+import pychrono.sensor as sens
 
-# Set path to Chrono data files
-chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
+# Set path to the Chrono data
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Replace with actual path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -32,7 +32,6 @@ trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
 contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
@@ -81,12 +80,6 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
-# Create obstacles
-for _ in range(5):
-    box_body = chrono.ChBodyEasyBox(np.random.uniform(1, 3), np.random.uniform(1, 3), np.random.uniform(1, 3), 1000)
-    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(1, 5)))
-    vehicle.GetSystem().Add(box_body)
-
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('HMMWV Demo')
@@ -98,27 +91,15 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a sensor manager
-manager = sens.ChSensorManager(vehicle.GetSystem())
-
-# Create a lidar sensor
-lidar = sens.ChLidarSensor(vehicle.GetChassisBody(),  # body lidar is attached to
-                           10,  # scan frequency
-                           chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  # offset pose
-                           100,  # number of horizontal samples
-                           10,  # number of vertical channels
-                           chrono.CH_C_PI,  # horizontal field of view
-                           chrono.CH_C_PI / 8  # vertical field of view
-                           )
-lidar.SetName("Lidar Sensor")
-lidar.SetLag(0)
-lidar.SetCollectionWindow(0)
-
-# Visualize the lidar
-lidar.PushFilter(sens.ChFilterVisualize(1280, 720, 1))
-
-# Add the lidar to the sensor manager
-manager.AddSensor(lidar)
+# Create obstacles
+for _ in range(5):
+    size = np.random.uniform(0.5, 2.0, size=3)
+    pos = np.random.uniform(-10, 10, size=3)
+    pos[2] = size[2] / 2
+    box = chrono.ChBodyEasyBox(size[0], size[1], size[2], 1000)
+    box.SetPos(chrono.ChVector3d(pos[0], pos[1], pos[2]))
+    box.SetBodyFixed(True)
+    vehicle.GetSystem().Add(box)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -132,13 +113,33 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
+# Create a sensor manager
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+# Create a lidar sensor
+lidar = sens.ChLidarSensor(vehicle.GetChassisBody(),  # body lidar is attached to
+                           10,  # scan frequency
+                           chrono.ChFrame(chrono.ChVector3d(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0))),  # offset pose
+                           100,  # number of horizontal samples
+                           10,  # number of vertical channels
+                           chrono.CH_C_PI,  # horizontal fov
+                           chrono.CH_C_PI / 4)  # vertical fov
+
+# Add a noise model and visualization filter to the lidar
+lidar.PushFilter(sens.ChFilterLidarNoiseXYZ(0.01, 0.01, 0.01))
+lidar.PushFilter(sens.ChFilterVisualize(100, 100, 1, "Lidar Point Cloud"))
+
+# Add the lidar to the sensor manager
+manager.AddSensor(lidar)
+
 # ---------------
 # Simulation loop
 # ---------------
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
-render_steps = np.ceil(render_step_size / step_size)
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -149,7 +150,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if step_number % render_steps == 0:
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -179,24 +180,3 @@ while vis.Run():
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
 
-### Explanation of Changes
-
-The provided code has been modified based on the instructions. The changes include:
-
-1.  Added imports for `numpy` and `pychrono.sensor` modules.
-2.  Created 5 box obstacles with random positions in the simulation space.
-3.  Created a sensor manager and added a lidar sensor to the vehicle with specified parameters.
-4.  Added a filter to visualize the lidar data.
-5.  Updated the sensor manager during the simulation loop using `manager.Update()`.
-6.  Corrected the initialization of `realtime_timer`.
-7.  Replaced `math.ceil` with `np.ceil` for consistency.
-
-These changes enhance the simulation by adding obstacles and a lidar sensor, and updating the sensor manager during the simulation loop.
-
-### Tests and Example Uses
-
-To test this code, ensure that you have PyChrono installed and that the Chrono data path is correctly set. You can run the script to visualize the simulation. The lidar data will be visualized in a separate window.
-
-You can modify the parameters of the lidar sensor, such as the scan frequency, number of horizontal samples, and vertical field of view, to suit your specific requirements.
-
-Additionally, you can use the lidar data for various applications such as obstacle detection, mapping, or navigation.

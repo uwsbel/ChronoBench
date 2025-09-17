@@ -17,10 +17,10 @@ vis_type = veh.VisualizationType_MESH
 chassis_collision_type = veh.CollisionType_NONE
 
 # SCM deformable terrain
-terrain_model = veh.SoilTerrain.STANDARD
-terrainHeight = 0  # terrain height
+terrain_model = veh.SCMDeformableTerrain.SURFACE
+terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
-terrainWidth = 100.0  # size in Y direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 0.1)
@@ -59,19 +59,18 @@ vehicle.SetTrackShoeVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the SCM terrain
-patch_mat = chrono.ChContactMaterialSMC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.SoilTerrain(vehicle.GetSystem())  # Changed to SoilTerrain
+soil_params = chrono.ChSoilParameters()
+soil_params.SetFriction(0.9)
+soil_params.SetRestitution(0.01)
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())  # Changed to SCM terrain
+terrain.SetSoilParameters(soil_params)
 
-# Initialize SCM terrain using a height map
-terrainHeightMap = [0.0] * (terrainLength * terrainWidth)  # Hard-coded height map (example: flat terrain)
-for i in range(len(terrainHeightMap)):
-    terrainHeightMap[i] = 0.0  # Example height map values
-terrain.SetHeightMap(terrainHeightMap)
+# Initialize the terrain using a height map
+height_map = [0.0, 0.0, 1.0]  # Example height map data
+terrain.Initialize(height_map, 100, 100)
 
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)  # Set SCM terrain texture to dirt
-terrain.Initialize()
+# Set the SCM terrain texture to dirt
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()
@@ -95,6 +94,8 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
+# Hard-coded the throttle value to 0.8 during the simulation loop
+driver.SetThrottle(0.8)  # Hard-coded throttle value
 driver.Initialize()
 
 # Solver and integrator settings
@@ -131,9 +132,6 @@ while vis.Run() :
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
-    vis.Advance(step_size)
-    # Hard-coded throttle value to 0.8
-    driver.SetThrottle(0.8)  # Hard-coded throttle value to 0.8
     vis.Advance(step_size)
     # Increment frame number
     step_number += 1

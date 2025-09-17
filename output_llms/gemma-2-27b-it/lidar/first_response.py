@@ -1,54 +1,60 @@
 import pychrono as chrono
 import pychrono.postprocess as postprocess
-import pychrono.irrlicht as irr
+import pychrono.irrlicht as chronoirr
+import chrono.utils.ChVector as ChVector
 
-# 1. Initialize the PyChrono environment and core components
+# 1. Initialize the PyChrono environment and core components.
 my_system = chrono.ChSystemNSC()
 my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
 
-# 2. Add the triangular mesh as a fixed body
-mesh_path = "your_mesh.obj"  # Replace with your .obj file path
+# 2. Add the required physical systems and objects.
+# Load the triangular mesh from the .obj file
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_path)
+mesh.LoadWavefrontMesh("your_mesh.obj")
+
+# Create a fixed body and attach the mesh to it
 body = chrono.ChBody()
-body.SetMesh(mesh)
 body.SetBodyFixed(True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.AddAsset(chrono.ChTriangleMeshShape(mesh))
 my_system.Add(body)
 
-# 3. Add lidar sensor
-sensor_manager = chrono.ChSensorManager(my_system)
+# Create a lidar sensor
 lidar = chrono.ChLidarSensor()
-lidar.SetCollisionEnvelope(0.1)
-lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetCollisionEnvelope(0.05)
+lidar.SetRays(128)
 lidar.SetHorizontalFOV(chrono.CH_C_PI / 2)
-lidar.SetScanFrequency(20)
-lidar.SetMaxDistance(50)
+lidar.SetVerticalFOV(chrono.CH_C_PI / 4)
+lidar.SetMaxDistance(10)
 
-# Add noise filters
-lidar.AddNoiseFilter(chrono.ChLidarSensor.FilterType_GAUSSIAN, 0.05)
+# Add noise filter and visualization to the lidar
+lidar.AddNoise(chrono.ChLidarSensor.NoiseType_GAUSSIAN, 0.01)
+lidar.SetVisualization(True)
 
-# Add visualization
-lidar.SetVisualizationType(chrono.ChLidarSensor.VisualizationType_POINTS)
-
-# Add saving options
-lidar.SetSaveData(True)
-lidar.SetSaveFilename("lidar_data.txt")
-
+# Create a sensor manager and add the lidar
+sensor_manager = chrono.ChSensorManager(my_system)
 sensor_manager.AddSensor(lidar)
-lidar.AttachToBody(body)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+# Define the orbit parameters
+radius = 5
+speed = 1
+
+# Set the initial lidar position
+lidar.SetPos(chrono.ChVectorD(radius, 0, 0))
+lidar.SetBody(body)
 
 # Simulation loop
-time_step = 0.01
-simulation_time = 10
+while my_system.GetChTime() < 10:
+    # Update lidar position in the orbit
+    angle = my_system.GetChTime() * speed
+    lidar.SetPos(chrono.ChVectorD(radius * chrono.ChCos(angle), radius * chrono.ChSin(angle), 0))
 
-for i in range(int(simulation_time / time_step)):
-    # Dynamically update lidar position in an orbit
-    radius = 5
-    angle = i * time_step * 2  # Orbit speed
-    lidar.SetPos(chrono.ChVectorD(radius * chrono.ChCos(angle), 0, radius * chrono.ChSin(angle)))
+    # Run the simulation step
+    my_system.DoStepDynamics(0.01)
 
     # Print lidar buffer data
-    print(lidar.GetLidarData())
+    print(lidar.GetBuffer())
 
-    my_system.DoStepDynamics(time_step)
+# Save lidar data to a file
+postprocess.ChPostProcessSensorData(sensor_manager, "lidar_data.csv")

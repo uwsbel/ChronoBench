@@ -1,45 +1,55 @@
-from pychrono import *
-from pychrono.irrlicht import IrrlichtEngine
-from pychrono.irrlicht.irrlicht import IrrlichtScene
-from pychrono.irrlicht.irrlicht import IrrlichtDevice
-from pychrono.irrlicht.irrlicht import IrrlichtMaterial
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.IrrlichtEngine as IrrlichtEngine
 
 
-initPyChrono()
+chrono.init()
 
 
-engine = IrrlichtEngine()
-scene = IrrlichtScene()
-device = IrrlichtDevice(engine)
+irr_engine = IrrlichtEngine.IrrlichtEngine()
 
 
 terrain_width = 100
 terrain_height = 50
-terrain = RigidTerrain(
+terrain_material = irr.irrlicht.Material(irr.irrlicht.Color(1, 1, 1, 1))  
+terrain = chrono.RigidTerrain(
     width=terrain_width,
     height=terrain_height,
-    material=IrrlichtMaterial(color=(0.5, 0.5, 0.5)),
-    texture=device.getTexture("path.png"),
+    material=terrain_material,
+    texture=irr_engine.getTexture("terrain.png"),  
 )
 
 
-vehicle = Vehicle(
-    name="Gator",
-    position=Vec3(0, 0, 0),
-    orientation=Vec3(0, 0, 0),
-    contactMethod=ContactMethod.CONTACT_POINT,
-    tireModel=TMEASY,
-)
+vehicle_model = chrono.Vehicle("gator", "vehicle.obj")  
+vehicle_model.setContactMethod(chrono.ContactMethod.NONE)  
+vehicle_model.setTMEASYTireModel(chrono.TMEASY)  
 
 
-vehicle.mesh.setVisualizationType(VisualizationType.MESH)
+vehicle_position = chrono.Vec3(0, 0, 0)
+vehicle_orientation = chrono.Vec3(0, 0, 0)
+vehicle_contact_point = chrono.Vec3(0, 0, 0)
+vehicle_mass = 1000  
+vehicle_inertia = chrono.Vec3(0, 0, 0)  
 
 
-scene.add(vehicle)
-scene.add(terrain)
+chrono.add(vehicle_model)
+chrono.add(terrain)
 
 
-driver = Driver(vehicle)
+chrono.setSimulationTimeStep(0.01)
+chrono.setSimulationFrameRate(50)
 
 
-engine.run(50)
+class DriverSystem:
+    def __init__(self, vehicle):
+        self.vehicle = vehicle
+
+    def update(self):
+        
+        pass
+
+
+driver_system = DriverSystem(vehicle_model)
+
+
+chrono.run()

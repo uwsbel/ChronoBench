@@ -161,9 +161,9 @@ while vis.Run():
 
     
     if time < 6:
-        driver_inputs = veh.ChDriverInputs(throttle=1, steering=0)
+        driver_inputs = veh.ChDriverInputs(throttle=1, steering=0.5)
     else:
-        driver_inputs = veh.ChDriverInputs(throttle=0, steering=0, braking=1)
+        driver_inputs = veh.ChDriverInputs(throttle=0, braking=1, steering=0)
 
     
     driver.Synchronize(time)

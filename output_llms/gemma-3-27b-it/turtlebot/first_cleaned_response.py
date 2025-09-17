@@ -1,14 +1,13 @@
 import chrono
 import chrono.irrlicht as chronoirr
-import chrono.vehicle as chronoveh
+import chrono.robotics as chronorobotics
 
 
 
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
-
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
 
@@ -16,31 +15,26 @@ system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 body_ground = chrono.ChBodyEasy()
 body_ground.SetBodyFixed(True)
+body_ground.SetMass(1000)
+body_ground.SetShape(chrono.ChBoxShape())
 body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-body_ground.SetShapeBoxes(0.5, 0.1, 1)
-body_ground.SetCollide(True)
+body_ground.SetVisualizationType(chrono.ChVisualizationType.BOX)
 system.Add(body_ground)
 
 
 
-turtlebot = chronoveh.ChTurtlebot()
-turtlebot.SetVehicleModel(chronoveh.ChTurtlebot.Model.WHEEL_DIFF)  
+
+
+
+turtlebot = chronorobotics.ChTurtlebot()
+turtlebot.SetWorkingMemoryName("Turtlebot")
+
+
 turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))
-turtlebot.SetYaw(chrono.ChVectorD(0, 0, 0))  
-system.Add(turtlebot)
+turtlebot.SetTransform(chrono.ChQuaternionD(0, 0, 0))
 
 
-
-
-
-
-time_step = 0.01
-simulation_time = 10
-
-
-turn_left_time = 3
-turn_right_time = 7
-turn_speed = 0.5  
+system.Add(turtlebot.GetSystem())
 
 
 
@@ -58,28 +52,35 @@ vis.AddTypicalLights()
 
 
 
-current_time = 0
-while current_time < simulation_time:
-    
-    system.DoStepDynamics(time_step)
+time_left_turn = 5.0  
+time_right_turn = 10.0  
+turn_speed = 0.5  
 
-    
-    if current_time > turn_left_time:
-        turtlebot.Steer(turn_speed)
-    elif current_time > turn_right_time:
-        turtlebot.Steer(-turn_speed)
-    else:
-        turtlebot.Steer(0)
+simulation_time = 20.0
+time_step = 0.01
 
-    
+while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    current_time += time_step
+    system.DoStepDynamics(time_step)
 
+    current_time = system.GetChTime()
 
+    
+    if current_time >= time_left_turn and current_time < time_right_turn:
+        
+        turtlebot.SetLeftWheelSpeed(turn_speed)
+        turtlebot.SetRightWheelSpeed(-turn_speed)
+    elif current_time >= time_right_turn:
+        
+        turtlebot.SetLeftWheelSpeed(-turn_speed)
+        turtlebot.SetRightWheelSpeed(turn_speed)
+    else:
+        
+        turtlebot.SetLeftWheelSpeed(0.2)
+        turtlebot.SetRightWheelSpeed(0.2)
 
-
-
-vis.Close()
+    if current_time > simulation_time:
+        break

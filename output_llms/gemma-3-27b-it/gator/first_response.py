@@ -1,15 +1,17 @@
 import chrono
 import chrono.irrlicht as chronoirr
-import chrono.vehicle as chronoveh
-import math
+import chrono.vehicle as veh
 
 # ---
-# Initialization
+#  Create the simulation system and add items
 # ---
 
-# Create the Chrono system
+# Create a Chrono physical system
 system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Set the collision system
+system.SetCollisionSystemType(chrono.ChCollisionSystemType.BULLET)
 
 # ---
 # Create the terrain
@@ -20,81 +22,45 @@ terrain.SetBodyFixed(True)
 terrain.SetMass(0)
 terrain.SetPos(chrono.ChVectorD(0, -0.1, 0))
 terrain.SetShapeType(chrono.ChShapeType.BOX)
-terrain.SetShapeDimensions(chrono.ChVectorD(100, 0.2, 100))
+terrain.SetBoxSize(chrono.ChVectorD(100, 0.1, 100))
 system.Add(terrain)
 
 # Create a texture for the terrain
 terrain_texture = chrono.ChTexture()
-terrain_texture.SetFilename("textures/terrain.png")  # Replace with your terrain texture
+terrain_texture.SetFilename("terrain.jpg")  # Replace with your terrain texture file
 terrain.SetTexture(terrain_texture)
+
 
 # ---
 # Create the Gator vehicle
 # ---
 
-# Define vehicle parameters
-vehicle_length = 2.5
-vehicle_width = 1.5
-vehicle_height = 1.0
-vehicle_mass = 500.0
+# Load the vehicle mesh
+vehicle_mesh = chrono.ChMesh()
+vehicle_mesh.LoadFromFile("gator.obj")  # Replace with your Gator vehicle mesh file
+vehicle_mesh.SetMass(1500)
+vehicle_mesh.SetPos(chrono.ChVectorD(0, 1, 0))
+vehicle_mesh.SetCollisionShape(chrono.ChCollisionShape.MESH)
+system.Add(vehicle_mesh)
 
-# Create the vehicle body
-body = chrono.ChRigidBody()
-body.SetBodyFixed(False)
-body.SetMass(vehicle_mass)
-body.SetPos(chrono.ChVectorD(0, vehicle_height, 0))
-body.SetShapeType(chrono.ChShapeType.BOX)
-body.SetShapeDimensions(chrono.ChVectorD(vehicle_length, vehicle_height, vehicle_width))
-system.Add(body)
+# Create the vehicle controller
+vehicle = veh.ChGator()
+vehicle.SetVehicleMesh(vehicle_mesh)
+vehicle.SetEngineType(veh.ChGator.EngineType.FOUR_STROKE)
+vehicle.SetTireType(veh.ChGator.TireType.TMEASY)
+vehicle.SetTireRadius(0.3)
+vehicle.SetTireWidth(0.2)
+vehicle.SetMaxSteeringAngle(0.5)
+vehicle.SetMaxBrakeTorque(500)
+vehicle.SetMaxThrottle(1.0)
+vehicle.SetChassisHeight(0.5)
+vehicle.Initialize()
 
-# Create the wheels
-wheel_radius = 0.3
-wheel_width = 0.2
-wheel_y = vehicle_height / 2
-wheel_front_x = vehicle_length / 2 - wheel_radius
-wheel_rear_x = -vehicle_length / 2 + wheel_radius
-wheel_side_x = vehicle_width / 2 - wheel_width / 2
-
-# Front left wheel
-wheel_fl = chronoveh.ChWheel()
-wheel_fl.Initialize(wheel_radius, wheel_width, True, False)
-wheel_fl.SetPos(chrono.ChVectorD(wheel_front_x, wheel_y, wheel_side_x))
-wheel_fl.SetBody(body)
-system.Add(wheel_fl)
-
-# Front right wheel
-wheel_fr = chronoveh.ChWheel()
-wheel_fr.Initialize(wheel_radius, wheel_width, True, False)
-wheel_fr.SetPos(chrono.ChVectorD(wheel_front_x, wheel_y, -wheel_side_x))
-wheel_fr.SetBody(body)
-system.Add(wheel_fr)
-
-# Rear left wheel
-wheel_rl = chronoveh.ChWheel()
-wheel_rl.Initialize(wheel_radius, wheel_width, True, False)
-wheel_rl.SetPos(chrono.ChVectorD(wheel_rear_x, wheel_y, wheel_side_x))
-wheel_rl.SetBody(body)
-system.Add(wheel_rl)
-
-# Rear right wheel
-wheel_rr = chronoveh.ChWheel()
-wheel_rr.Initialize(wheel_radius, wheel_width, True, False)
-wheel_rr.SetPos(chrono.ChVectorD(wheel_rear_x, wheel_y, -wheel_side_x))
-wheel_rr.SetBody(body)
-system.Add(wheel_rr)
+# Add the vehicle to the system
+system.Add(vehicle)
 
 # ---
-# Create the driver system
-# ---
-
-driver = chronoveh.ChSimpleDriver()
-driver.SetSteeringDelta(10.0)
-driver.SetThrottleDelta(0.1)
-driver.SetBrakingDelta(0.1)
-driver.ConnectToVehicle(body, wheel_fl, wheel_fr, wheel_rl, wheel_rr)
-
-# ---
-# Visualization
+#  Create the Irrlicht application and visualization
 # ---
 
 vis = chronoirr.ChVisualSystemIrrlicht()
@@ -102,39 +68,30 @@ vis.AttachSystem(system)
 vis.SetWindowSize(1024, 768)
 vis.SetWindowTitle('Gator Vehicle Simulation')
 vis.Initialize()
-vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddCamera(chrono.ChVectorD(0, 2, -5))
 vis.AddTypicalLights()
 
+
 # ---
-# Simulation loop
+#  Create an interactive driver system
 # ---
 
-time_step = 0.005
-vis.SetFPS(50)
+driver = veh.ChIrrAppDriver()
+driver.SetVehicle(vehicle)
+driver.SetCamera(vis.GetCamera())
+driver.Initialize()
+
+# ---
+#  Simulation loop
+# ---
+
+timestep = 0.002
+vis.SetTimestep(timestep)
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Update the driver input
-    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_W):
-        driver.SetThrottle(1.0)
-    elif vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_S):
-        driver.SetThrottle(-1.0)
-    else:
-        driver.SetThrottle(0.0)
-
-    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_A):
-        driver.SetSteering(1.0)
-    elif vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_D):
-        driver.SetSteering(-1.0)
-    else:
-        driver.SetSteering(0.0)
-
-    if vis.GetKeyboard().GetKeyDown(chronoirr.irr::KEY_KEY_SPACE):
-        driver.SetBraking(1.0)
-    else:
-        driver.SetBraking(0.0)
-
-    system.DoStepDynamics(time_step)
+    driver.Synchronize(timestep)
+    system.DoStepDynamics(timestep)

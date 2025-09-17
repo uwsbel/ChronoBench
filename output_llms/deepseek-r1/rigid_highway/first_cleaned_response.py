@@ -4,25 +4,30 @@ import pychrono.irrlicht as irr
 
 def main():
     
-    chrono.SetChronoDataPath("path/to/chrono/data/")  
-    veh.SetDataPath("path/to/vehicle/data/")  
+    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+    veh.SetDataPath(veh.GetDataPath() + "vehicle/")
 
     
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+    system = chrono.ChSystemNSC()
+    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
     system.SetSolverMaxIterations(150)
 
     
     terrain = veh.RigidTerrain(system)
-    patch_mat = chrono.ChMaterialSurfaceSMC()
-    mesh_patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysD())
-    mesh_patch.SetMeshFilename("path/to/Highway_col.obj")  
-    mesh_patch.SetVisualizationMesh("path/to/Highway_vis.obj")  
-    mesh_patch.SetTexture("path/to/texture.jpg")  
+    mesh_patch = terrain.AddPatch(
+        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+        veh.GetDataFile("terrain/Highway_col.obj"),
+        veh.GetDataFile("terrain/Highway_vis.obj"),
+        0.01,  
+        True   
+    )
+    mesh_patch.SetColor(chrono.ChColor(0.5, 0.6, 0.5))
+    mesh_patch.SetTexture(veh.GetDataFile("terrain/texture_tile.jpg"), 20, 20)
     terrain.Initialize()
 
     
-    init_pos = chrono.ChVectorD(0, 0, 0.5)
+    init_pos = chrono.ChVectorD(0, 0.5, 0)
     init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
     
     hmmwv = veh.HMMWV_Full(system)
@@ -32,39 +37,48 @@ def main():
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
     hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     hmmwv.Initialize()
 
     
-    driver = veh.ChIrrGuiDriver(hmmwv.GetVehicle())
+    tire_lf = hmmwv.GetTire(veh.LEFT_FRONT)
+    tire_rf = hmmwv.GetTire(veh.RIGHT_FRONT)
+    tire_lr = hmmwv.GetTire(veh.LEFT_REAR)
+    tire_rr = hmmwv.GetTire(veh.RIGHT_REAR)
+    for tire in [tire_lf, tire_rf, tire_lr, tire_rr]:
+        tire.SetTireMaximumLoad(8000)
+        tire.Initialize()
+
+    
+    driver = veh.ChInteractiveDriverIRR(hmmwv.GetVehicle())
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
 
     
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
+    vis.SetWindowTitle('HMMWV on Mesh Terrain')
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle("HMMWV on Custom Terrain")
     vis.Initialize()
     vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(8, 8, 1.5))
+    vis.AddCamera(chrono.ChVectorD(0, 4, -8), chrono.ChVectorD(0, 0, 0))
     vis.AddTypicalLights()
-    vis.AddLightWithShadow(chrono.ChVectorD(-5, 0, 8), chrono.ChVectorD(0, 0, 0), 50, 2, 30, 50, 512)
-    vis.EnableShadows()
 
     
     step_size = 0.002
-    render_step = 1.0 / 50  
-    realtime_timer = chrono.ChRealtimeStepTimer()
-    step_number = 0
+    frame_interval = 0.02  
+    time = 0
+    frame_number = 0
 
     while vis.Run():
         time = system.GetChTime()
         
         
-        driver_inputs = driver.GetInputs()
         driver.Synchronize(time)
-        
-        
-        hmmwv.Synchronize(time, driver_inputs, terrain)
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
         terrain.Synchronize(time)
         
         
@@ -73,16 +87,14 @@ def main():
         
         vis.BeginScene()
         vis.Render()
+        vis.RenderFrame(chrono.ChFrameD(), 2)  
         vis.EndScene()
         
         
-        realtime_timer.Spin(step_size)
-        
-        
-        if step_number % int(render_step / step_size) == 0:
-            vis.SetWindowTitle(f"HMMWV Simulation - Time: {time:.2f}s")
-        
-        step_number += 1
+        frame_number += 1
+        target_time = frame_number * frame_interval
+        while time < target_time:
+            time = system.GetChTime()
 
 if __name__ == "__main__":
     main()

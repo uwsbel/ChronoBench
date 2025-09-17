@@ -62,7 +62,7 @@ def main():
     sens_manager.AddSensor(lidar)
 
     
-    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI/2, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
+    lidar2d = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
     lidar2d.PushFilter(sens.ChFilterScanFromDepth())  
     lidar2d.PushFilter(sens.ChFilterVisualizeScan(1280, 720, 1, "2D Lidar"))  
@@ -103,4 +103,4 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())  
 
     
-    ros_manager.Register
+    ros_manager.RegisterHandler(

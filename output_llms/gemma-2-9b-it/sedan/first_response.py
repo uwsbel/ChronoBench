@@ -1,57 +1,98 @@
 from pychrono import *
-from pychrono.irrlicht import *
 
 # Initialize PyChrono
-chrono = ChSystemNSC()
+chrono.ChSystemNSC()
 
-# --- Vehicle ---
-# Load the BMW E90 3D model (replace with your actual model path)
-vehicle = chrono.ChBodyEasy(
-    filename="path/to/bmw_e90_model.obj",
+# Create the terrain
+terrain = ChBodyEasy.CreateTerrain(
+    size=ChVectorD(10, 10, 1),
+    material=ChMaterialSurfaceNSC(),
+    density=1000,
+    texture_path="path/to/terrain_texture.jpg"
+)
+
+# Add the BMW E90 Sedan
+vehicle = chrono.ChBodyEasy.Create("BMW_E90", 
     mass=1500,
-    pos=ChVectorD(0, 0, 0.5),  # Adjust initial position
-    rgbaColor=ChColor(0.8, 0.2, 0.1, 1),  # Reddish color
-)
+    pos=ChVectorD(0, 0, 0.5),
+    col_shape=chrono.ChBoxShape(ChVectorD(4, 1.8, 2)),
+    col_material=chrono.ChMaterialSurfaceNSC(),
+    )
 
-# Add wheels (replace with your wheel model path)
-wheel_front_left = chrono.ChBodyEasy(
-    filename="path/to/wheel_model.obj",
+# Add wheels
+wheel_front_left = chrono.ChWheelEasy.Create(vehicle, 
+    radius=0.3,
+    width=0.1,
     mass=10,
-    pos=ChVectorD(-1.2, -0.6, 0.1),
-    rgbaColor=ChColor(0.2, 0.2, 0.2, 1),  # Dark gray
+    pos=ChVectorD(-1.5, -0.8, 0),
+    axis=ChVectorD(0, 1, 0),
+    tire_model=chrono.ChTireModelTMEasy()
 )
-vehicle.AddChild(wheel_front_left)
-# Add other wheels similarly
-
-# Apply TMEASY tire model to wheels
-# ... (configure tire parameters)
-
-# --- Terrain ---
-terrain = chrono.ChBodyEasy(
-    filename="path/to/terrain_model.obj",
-    mass=10000,
-    pos=ChVectorD(0, 0, 0),
-    rgbaColor=ChColor(0.5, 0.5, 0.5, 1),  # Gray
+wheel_front_right = chrono.ChWheelEasy.Create(vehicle, 
+    radius=0.3,
+    width=0.1,
+    mass=10,
+    pos=ChVectorD(1.5, -0.8, 0),
+    axis=ChVectorD(0, 1, 0),
+    tire_model=chrono.ChTireModelTMEasy()
 )
-chrono.AddBody(terrain)
+wheel_rear_left = chrono.ChWheelEasy.Create(vehicle, 
+    radius=0.3,
+    width=0.1,
+    mass=10,
+    pos=ChVectorD(-1.5, 0.8, 0),
+    axis=ChVectorD(0, 1, 0),
+    tire_model=chrono.ChTireModelTMEasy()
+)
+wheel_rear_right = chrono.ChWheelEasy.Create(vehicle, 
+    radius=0.3,
+    width=0.1,
+    mass=10,
+    pos=ChVectorD(1.5, 0.8, 0),
+    axis=ChVectorD(0, 1, 0),
+    tire_model=chrono.ChTireModelTMEasy()
+)
 
-# --- Driver System ---
-# Implement interactive driver system using PyChrono's input handling
-# ...
+# Add the vehicle and wheels to the system
+system.Add(terrain)
+system.Add(vehicle)
+system.Add(wheel_front_left)
+system.Add(wheel_front_right)
+system.Add(wheel_rear_left)
+system.Add(wheel_rear_right)
 
-# --- Visualization ---
-app = IrrlichtApp(chrono)
+# Set up visualization
+vis = chrono.ChVisualSystemIrrlicht(
+    width=800,
+    height=600,
+    vSync=True,
+    background_color=chrono.ChColor(0.8, 0.8, 0.8),
+)
 
-# Set up Irrlicht scene
-app.SetCamera(ChIrrlichtCamera(app.GetDevice(), chrono.GetFrame()))
-app.SetChaseCamera(vehicle)
-app.AddSkybox("path/to/skybox_texture.jpg")
-app.AddDirectionalLight(ChVectorD(1, 1, 1))
+# Add a chase camera
+camera = vis.AddCamera(
+    pos=ChVectorD(10, 5, 5),
+    target=vehicle.GetPos(),
+)
 
-# Customize terrain textures and logos
-# ...
+# Add directional lighting
+vis.AddLight(
+    chrono.ChLightDirectional(
+        color=chrono.ChColor(1, 1, 1),
+        direction=chrono.ChVectorD(-1, -1, -1)
+    )
+)
 
-# --- Simulation Loop ---
-while app.Run():
-    chrono.DoStepDynamics(0.01)
-    app.Render()
+# Add a skybox
+vis.AddSkybox(
+    texture_path="path/to/skybox_texture.jpg"
+)
+
+# ... (Add interactive driver system logic here) ...
+
+
+
+# Run the simulation
+while vis.Run():
+    system.DoStepDynamics(0.01)
+    vis.Render()

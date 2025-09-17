@@ -14,7 +14,7 @@ def main():
     
     
     side = 2  
-    mbody = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mbody = chrono.ChBodyEasyBox(side, side, side, 1000)  
     mbody.SetPos(chrono.ChVector3d(0, 0, 0))
     mbody.SetMass(100)
     mbody.SetFixed(True)
@@ -97,22 +97,19 @@ def main():
     
     
     offset_pose_2d = chrono.ChFramed(
-        chrono.ChVector3d(-1.5, 0, 0.5),
-        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+        chrono.ChVector3d(0, 0, 1.5),
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(1, 0, 0))
     )
-    horizontal_samples_2d = 360
-    vertical_samples_2d = 1
-    update_rate_2d = 5.0
 
     lidar_2d = sens.ChLidarSensor(
         mbody,  
-        update_rate_2d,  
+        update_rate,  
         offset_pose_2d,  
-        horizontal_samples_2d,  
-        vertical_samples_2d,  
+        horizontal_samples,  
+        1,  
         horizontal_fov,  
-        max_vert_angle,  
-        min_vert_angle,  
+        0.1,  
+        -0.1,  
         max_range,  
         sens.LidarBeamShape_RECTANGULAR,  
         sample_radius,  
@@ -127,10 +124,15 @@ def main():
     
     
     
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        
+        pass
 
     if vis:
         
-        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples_2d, vertical_samples_2d, "Raw Lidar 2D Depth Data"))
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "Raw Lidar 2D Depth Data"))
         
         lidar_2d.PushFilter(sens.ChFilterDIAccess())
         
@@ -159,23 +161,29 @@ def main():
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
-                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )
-        lidar_2d.SetOffsetPose(
-            chrono.ChFramed(
-                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 0.5),
-                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
-            )
-        )
-
         
         xyzi_buffer = lidar.GetMostRecentXYZIBuffer()
         if xyzi_buffer.HasData():
             xyzi_data = xyzi_buffer.GetXYZIData()
-            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width, xyzi_buffer.Height))
+            print('XYZI buffer received from lidar. Lidar resolution: {0}x{1}'.format(xyzi_buffer.Width,
+                                                                                       xyzi_buffer.Height))
             print('Max Value: {0}'.format(np.max(xyzi_data)))
+
+        
+        xyzi_buffer_2d = lidar_2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('XYZI buffer received from lidar_2d. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width,
+                                                                                       xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
 
         
         manager.Update()
@@ -185,7 +193,7 @@ def main():
 
         
         ch_time = mphysicalSystem.GetChTime()
-        print("Sim time:", ch_time, "Wall time:", time.time() - t1)
+        print("Sim time:", end_time, "Wall time:", time.time() - t1)
 
     
     
@@ -201,5 +209,4 @@ def main():
     
     
 
-if __name__ == "__main__":
-    main()
+main()

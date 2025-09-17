@@ -61,7 +61,7 @@ def move(mode):
         robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
         robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid mode. Choose 'straight', 'left', or 'right'.")
+        raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
 
 time = 0
@@ -69,15 +69,15 @@ while vis.Run():
     
     if time < 5:
         move('straight')
-        print("Robot moving straight")
+        print("Moving straight")
     
-    elif time < 10:
+    elif 5 <= time < 10:
         move('left')
-        print("Robot turning left")
+        print("Turning left")
     
     else:
         move('right')
-        print("Robot turning right")
+        print("Turning right")
 
     
     time += time_step

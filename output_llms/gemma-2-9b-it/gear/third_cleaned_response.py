@@ -12,8 +12,8 @@ mat = chrono.ChContactMaterialNSC()
 
 radA = 1.5                                        
 radB = 3.5                                        
-radD = 5                
-radE = 2
+radD = 5.0                                       
+radE = 2.0                                        
 
 
 mbody_truss = chrono.ChBodyEasyBox(15, 8, 2,      
@@ -65,7 +65,4 @@ link_motor.Initialize(mbody_gearA, mbody_truss,
                       chrono.ChFramed(chrono.ChVector3d(0, 0, 0),   
                                       chrono.QUNIT))                
 link_motor.SetSpeedFunction(chrono.ChFunctionConst(3))              
-sys.AddLink(link_motor)                                             
-
-
-interaxis12 = radA + radB
+sys.AddLink(link_motor)

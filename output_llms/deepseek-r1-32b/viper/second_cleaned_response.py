@@ -54,7 +54,10 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.ChQuatD(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0))))
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(1.0, 0, 1.45),
+    chrono.ChQuaterniond(chrono.Q_from_AngAxis(0.2, chrono.ChVector3d(0, 1, 0)))
+)
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
     15,  

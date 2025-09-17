@@ -45,8 +45,11 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
-    floor.SetTexture(ch.ChTexture())
-    floor.GetTexture().SetFilename("floor_texture.jpg")
+    floor.SetTexture(ch.ChTexture(
+        filename='path/to/floor_texture.jpg',  # Replace with the actual path to your texture file
+        type=ch.ChTexture.Type_2D,
+        mode=ch.ChTexture.Mode_RGB
+    ))
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -54,34 +57,35 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
-    box.SetTexture(ch.ChTexture())
-    box.GetTexture().SetFilename("box_texture.jpg")
+    box.SetTexture(ch.ChTexture(
+        filename='path/to/box_texture.jpg',  # Replace with the actual path to your texture file
+        type=ch.ChTexture.Type_2D,
+        mode=ch.ChTexture.Mode_RGB
+    ))
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create the Irrlicht visualization system.
     vis = chronoirr.ChIrrlichtApplication()
-    vis.SetWindowSize(1280, 720)
+    vis.SetWindowSize(800, 600)
     vis.SetStep(1e-3)
-    vis.AddTypicalCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
-    vis.AddLight(ch.ChVector3d(5, 5, 5), ch.ChVector3d(1, 1, 1), 255)
-    vis.AddSkyBox()
+    vis.AddTypicalLights()
+    vis.AddCamera(ch.ChVector3d(5, 5, 5), ch.ChVector3d(0, 0, 0))
     vis.Initialize()
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     publish_rate = 10
-
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
-
+    
     # Register a body handler to communicate the box's state.
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
-
+    
     # Create and register a transform handler for coordinate transformations.
     tf_handler = chros.ChROSTFHandler(publish_rate)
     tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
     ros_manager.RegisterHandler(tf_handler)
-
+    
     # Register the custom handler to publish messages.
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
     ros_manager.RegisterPythonHandler(custom_handler)
@@ -89,13 +93,13 @@ def main():
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # Simulation parameters
+    # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
 
     step_number = 0
-    render_step_size = 10
+    render_step_size = 10  # Render every 10 simulation steps
     render_steps = render_step_size
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
@@ -106,12 +110,16 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        step_number += 1
-        if step_number >= render_steps:
+        # Conditional rendering
+        if step_number % render_steps == 0:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-            render_steps += render_step_size
+
+        step_number += 1
+        render_steps -= 1
+        if render_steps == 0:
+            render_steps = render_step_size
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 

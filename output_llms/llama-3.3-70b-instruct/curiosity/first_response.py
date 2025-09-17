@@ -1,60 +1,54 @@
 # Import necessary modules
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.mkl as chronomkl
-import numpy as np
+import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment and core components
 sys = chrono.ChSystemNSC()
 
-# Set the default contact material properties
-contact_material = chrono.ChMaterialSurfaceNSC()
-contact_material.SetFriction(0.5)
-contact_material.SetDampingF(0.5)
-contact_material.SetCompliance(1e-6)
-contact_material.SetComplianceT(1e-6)
-
 # Create the ground body
-ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True, contact_material)
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
 ground.SetPos(chrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
-
-# Create the rover model
-rover = chrono.ChBodyEasyBox(sys, 1, 1, 2, 100, True, True, contact_material)
-rover.SetPos(chrono.ChVectorD(0, 1, 0))
-rover.SetMass(100)
-
-# Add a motor control driver to the rover
-motor = chrono.ChLinkMotorRotationSpeed()
-motor.Initialize(rover, sys.GetGroundBody(), chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.Q_from_AngX(0)))
-motor.SetSpeed(1)
-
-# Add the physical systems and objects to the simulation
 sys.Add(ground)
-sys.Add(rover)
-sys.Add(motor)
 
-# Set up the Irrlicht visualization system
+# Create the Curiosity rover
+rover = veh.ChWheeledVehicle(sys)
+rover.AddChassis(chrono.ChBodyEasyBox(sys, 1, 0.5, 1, 100, True, True))
+rover.AddWheel(chrono.ChWheel(sys, chrono.ChVectorD(0.5, 0, 0.5), chrono.ChVectorD(0, 1, 0), 0.2, 0.1))
+rover.AddWheel(chrono.ChWheel(sys, chrono.ChVectorD(-0.5, 0, 0.5), chrono.ChVectorD(0, 1, 0), 0.2, 0.1))
+rover.AddWheel(chrono.ChWheel(sys, chrono.ChVectorD(0.5, 0, -0.5), chrono.ChVectorD(0, 1, 0), 0.2, 0.1))
+rover.AddWheel(chrono.ChWheel(sys, chrono.ChVectorD(-0.5, 0, -0.5), chrono.ChVectorD(0, 1, 0), 0.2, 0.1))
+rover.SetMotorType(veh.ChVehicleMotorType.MOTOR_TYPE_TORQUE)
+rover.SetMotorForce(100)
+sys.Add(rover.GetChassis())
+
+# Set necessary default parameters
+rover.GetChassis().SetPos(chrono.ChVectorD(0, 1, 0))
+rover.GetChassis().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AddSkyBox()
 vis.AddTypicalLights()
 vis.AddCamera(chrono.ChVectorD(0, 5, -10))
-vis.AddCamera(chrono.ChVectorD(0, 5, 10))
+vis.AddCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0), 30)
+
+# Set visualization parameters
 vis.SetWindowSize(1024, 768)
-vis.SetLogo("")
+vis.SetWindowTitle("Curiosity Rover Simulation")
 
-# Set up the visualization for the ground and rover
-vis.AddTypicalGround(chrono.ChVectorD(0, -1, 0))
-vis.AddTypicalGroundLogo()
+# Set camera settings
+vis.GetCamera().SetPosition(chrono.ChVectorD(0, 5, -10))
+vis.GetCamera().SetLookAt(chrono.ChVectorD(0, 0, 0))
 
-# Set up the simulation loop
-time_step = 0.01
-while sys.GetChTime() < 10:
-    sys.DoStepDynamics(time_step)
+# Add textures and logos
+vis.AddTexture(ground, "ground_texture.png")
+vis.AddLogo("NASA_logo.png", chrono.ChVectorD(0.5, 0.5, 0))
+
+# Run the simulation
+while vis.Run():
+    sys.DoStepDynamics(0.01)
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    vis.DoStep()
-
-# Clean up
-vis.CloseWindow()

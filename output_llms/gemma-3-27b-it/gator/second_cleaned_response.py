@@ -83,14 +83,15 @@ patch4.SetTexture(veh.GetDataFile("terrain/textures/tile7.jpg"), 200, 200)
 patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.2))
 
 
-heightmap_data = chrono.ChVector3d[256][256]
-for i in range(256):
-    for j in range(256):
-        heightmap_data[i][j] = 0.0
-        if 100 < i < 150 and 100 < j < 150:
-            heightmap_data[i][j].z = 2.0  
+heightmap_file = veh.GetDataFile("terrain/heightmaps/bump.png")
+patch4.SetHeightmap(heightmap_file)
 
-patch4.SetHeightmap(heightmap_data)
+
+bump_x = terrainLength / 4
+bump_y = terrainWidth / 4
+bump_radius = 5.0
+bump_height = 2.0
+terrain.AddBump(chrono.ChVector3d(bump_x, bump_y, 0), bump_radius, bump_height)
 
 terrain.Initialize()
 

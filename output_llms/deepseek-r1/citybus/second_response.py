@@ -70,8 +70,8 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-# Create the vehicle Irrlicht interface
 
+# Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('City Bus Demo')
 vis.SetWindowSize(1280, 1024)
@@ -82,13 +82,14 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create the driver system (data-driven)
-driver_data = []
-driver_data.append(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))   # time, steering, throttle, braking
-driver_data.append(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
-driver_data.append(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
+# Create driver data for data-driven driver
+driver_data = veh.vector_Entry()
+driver_data.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))  # time, steering, throttle, braking
+driver_data.push_back(veh.DataDriverEntry(0.1, 0.0, 1.0, 0.0))
+driver_data.push_back(veh.DataDriverEntry(0.5, 0.7, 1.0, 0.0))
 
-driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data)
+# Create the data-driven driver system
+driver = veh.ChDataDriver(vehicle.GetVehicle(), driver_data, False, True)
 
 # output vehicle mass
 print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

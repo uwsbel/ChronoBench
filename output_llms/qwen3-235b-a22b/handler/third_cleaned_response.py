@@ -1,15 +1,16 @@
 import pychrono as ch
 import pychrono.ros as chros
-import pychrono.irrlicht as chirr  
-
+import pychrono.irrlicht as chirr
 import rclpy.publisher
 from std_msgs.msg import Int64
 
 
 class MyCustomHandler(chros.ChROSHandler):
     
+
     def __init__(self, topic, publish_rate):
         super().__init__(publish_rate)  
+
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
@@ -44,11 +45,9 @@ def main():
     floor.SetFixed(True)  
     floor.SetName("base_link")  
     
-    
-    floor_texture = ch.ChTexture()
-    floor_texture.SetTextureFilename(ch.GetChronoDataFile("textures/concrete.jpg"))
-    floor.GetVisualModel().AddTexture(floor_texture)
-    
+    floor_texture = floor.GetVisualShape(0)
+    if floor_texture:
+        floor_texture.SetTextureFilename("path/to/floor_texture.png")  
     sys.Add(floor)  
 
     
@@ -57,26 +56,28 @@ def main():
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  
     box.SetName("box")  
     
-    
-    box_texture = ch.ChTexture()
-    box_texture.SetTextureFilename(ch.GetChronoDataFile("textures/cubetexture_bluewhite.jpg"))
-    box.GetVisualModel().AddTexture(box_texture)
-    
+    box_texture = box.GetVisualShape(0)
+    if box_texture:
+        box_texture.SetTextureFilename("path/to/box_texture.png")  
     sys.Add(box)  
 
     
-    application = chirr.ChIrrApp(sys, 'PyChrono ROS Simulation', ch.ChVector2i(1024, 768))
-    application.AddLogo(ch.GetChronoDataFile("logo_pychrono_alpha.png"))
-    application.AddSkyBox()
-    application.AddCamera(ch.ChVector3d(0, 6, 8), ch.ChVector3d(0, 0, 0))  
+    application = chirr.ChIrrApp(sys, 'PyChrono Simulation', chirr.dimension2du(1024, 768))
     application.AddTypicalLights()
+    application.AddTypicalCamera(chirr.vector3df(0, 14, -20), chirr.vector3df(0, 0, 0))
     application.AssetBindAll()
     application.AssetUpdateAll()
+    application.SetStepManage(True)
+    application.SetStep(1e-3)  
+
+    
+    publish_rate = 10  
+    render_step_size = 1.0 / 60.0  
+    render_steps = int(render_step_size / 1e-3)  
+    step_number = 0
 
     
     ros_manager = chros.ChROSPythonManager()
-    
-    publish_rate = 10  
     
     
     ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
@@ -91,7 +92,7 @@ def main():
     
     
     custom_handler = MyCustomHandler("~/my_topic", publish_rate)
-    ros_manager.RegisterPythonHandler(custom_handler)
+    ros_manager.RegisterHandler(custom_handler)  
 
     
     ros_manager.Initialize()
@@ -100,25 +101,23 @@ def main():
     time = 0
     time_step = 1e-3  
     time_end = 30  
-    realtime_timer = ch.ChRealtimeStepTimer()  
-    
-    
-    render_step_size = 1.0 / 50  
-    render_steps = max(1, int(render_step_size / time_step))
-    step_number = 0
 
-    
+    realtime_timer = ch.ChRealtimeStepTimer()  
     while time < time_end:
         sys.DoStepDynamics(time_step)  
         time = sys.GetChTime()  
+
         step_number += 1
 
+        
         if not ros_manager.Update(time, time_step):  
             break  
 
         
         if step_number % render_steps == 0:
-            application.DrawAll()  
+            application.BeginScene()
+            application.DrawAll()
+            application.EndScene()
 
         realtime_timer.Spin(time_step)  
 

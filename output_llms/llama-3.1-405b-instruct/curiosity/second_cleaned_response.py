@@ -23,7 +23,7 @@ system.Add(ground)
 
 obstacle_mat = chrono.ChContactMaterialNSC()
 obstacle = chrono.ChBodyEasyBox(2, 0.5, 0.5, 1000, True, True, obstacle_mat)
-obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))  
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0))  
 obstacle.SetFixed(True)  
 obstacle.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
 system.Add(obstacle)

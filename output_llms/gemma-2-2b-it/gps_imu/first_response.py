@@ -1,58 +1,64 @@
 import pychrono as chrono
 import pychrono.irrlicht as irrlicht
-import pychrono.imu as imu
-import pychrono.gps as gps
-import pychrono.vehicle as vehicle
+import pychrono.gui as gui
 
 # Initialize PyChrono
 chrono.init()
 
-# Create the Irrlicht window
-irr_win = irrlicht.IrrlichtEngine()
-irr_win.createWindow("HMMWV Simulation")
+# Create Irrlicht engine
+engine = irrlicht.IrrlichtEngine()
 
-# Create the vehicle
-vehicle_model = vehicle.Vehicle()
-vehicle_model.setMass(1000)  # Example mass
-vehicle_model.setDimensions(1.5, 3, 1)  # Example dimensions
+# Create a new scene
+scene = engine.createScene()
 
-# Add a driver
-driver_model = vehicle.Driver()
-driver_model.setVehicle(vehicle_model)
+# Create a HMMWV vehicle
+vehicle = chrono.Vehicle(
+    chrono.VehicleType.HMMWV,
+    chrono.Position(0, 0, 0),
+    chrono.Orientation(0, 0, 0, 0),
+    chrono.Mass(1000),  # Vehicle mass
+    chrono.Dimensions(4, 2, 1.5),  # Vehicle dimensions
+)
 
-# Add an IMU sensor
-imu_sensor = imu.IMU()
-imu_sensor.setVehicle(vehicle_model)
+# Add terrain to the scene
+terrain = chrono.Terrain(chrono.TerrainType.GRASS, chrono.Position(0, 0, 0))
 
-# Add a GPS sensor
-gps_sensor = gps.GPS()
-gps_sensor.setVehicle(vehicle_model)
+# Add driver to the vehicle
+driver = chrono.Driver(vehicle)
 
-# Set initial positions and velocities
-vehicle_model.setPosition(chrono.Vector3(0, 0, 0))
-vehicle_model.setVelocity(chrono.Vector3(0, 0, 0))
+# Add IMU and GPS sensors to the vehicle
+imu = chrono.IMU(vehicle)
+gps = chrono.GPS(vehicle)
 
-# Set initial terrain
-terrain = chrono.Terrain()
-terrain.setDimensions(10, 10)
+# Set initial positions, forces, and interactions
+vehicle.set_position(chrono.Position(0, 0, 0))
+vehicle.set_orientation(chrono.Orientation(0, 0, 0, 0))
 
-# Initialize the simulation
-chrono.run()
+# Define simulation parameters
+dt = 0.01  # Time step
+num_steps = 1000  # Number of simulation steps
 
-# Define simulation steps
-while True:
+# Initialize Irrlicht scene
+engine.initIrrlichtScene(scene)
+
+# Start the simulation loop
+for step in range(num_steps):
     # Update sensor data
-    imu_sensor.update()
-    gps_sensor.update()
+    imu.update(chrono.SensorData(vehicle.get_position(), vehicle.get_orientation()))
+    gps.update(chrono.SensorData(vehicle.get_position()))
 
-    # Process driver inputs
-    driver_model.update()
+    # Update vehicle state
+    vehicle.update(dt)
 
-    # Update vehicle position, velocity, and orientation
-    vehicle_model.update()
+    # Update terrain and other objects
+    terrain.update()
 
-    # Update the Irrlicht scene
-    irr_win.render()
+    # Render the scene
+    engine.render()
 
-    # Output vehicle mass
-    print("Vehicle mass:", vehicle_model.getMass())
+    # Output vehicle mass and other relevant data
+    print("Vehicle mass:", vehicle.get_mass())
+
+# Clean up
+engine.shutdown()
+chrono.shutdown()

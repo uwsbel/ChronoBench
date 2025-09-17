@@ -3,6 +3,72 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+class SCM_Terrain_Params:
+    def __init__(self, 
+                 bekker_kphi, 
+                 bekker_kc, 
+                 janosi_n_exponent, 
+                 mohr_cohesive_limit, 
+                 mohr_friction_limit, 
+                 janosi_shear_coefficient, 
+                 elastic_stiffness, 
+                 damping):
+        self.bekker_kphi = bekker_kphi
+        self.bekker_kc = bekker_kc
+        self.janosi_n_exponent = janosi_n_exponent
+        self.mohr_cohesive_limit = mohr_cohesive_limit
+        self.mohr_friction_limit = mohr_friction_limit
+        self.janosi_shear_coefficient = janosi_shear_coefficient
+        self.elastic_stiffness = elastic_stiffness
+        self.damping = damping
+
+class SCM_Terrain:
+    def __init__(self, system):
+        self.system = system
+        self.params = None
+
+    def SetParams(self, params_name):
+        if params_name == "soft":
+            self.params = SCM_Terrain_Params(
+                bekker_kphi=2e6, 
+                bekker_kc=0, 
+                janosi_n_exponent=1.1, 
+                mohr_cohesive_limit=0, 
+                mohr_friction_limit=30, 
+                janosi_shear_coefficient=0.01, 
+                elastic_stiffness=2e8, 
+                damping=3e4
+            )
+        elif params_name == "mid":
+            self.params = SCM_Terrain_Params(
+                bekker_kphi=2e6, 
+                bekker_kc=0, 
+                janosi_n_exponent=1.1, 
+                mohr_cohesive_limit=0, 
+                mohr_friction_limit=30, 
+                janosi_shear_coefficient=0.01, 
+                elastic_stiffness=2e8, 
+                damping=3e4
+            )
+        elif params_name == "hard":
+            self.params = SCM_Terrain_Params(
+                bekker_kphi=2e6, 
+                bekker_kc=0, 
+                janosi_n_exponent=1.1, 
+                mohr_cohesive_limit=0, 
+                mohr_friction_limit=30, 
+                janosi_shear_coefficient=0.01, 
+                elastic_stiffness=2e8, 
+                damping=3e4
+            )
+        else:
+            raise ValueError("Invalid params name")
+
+    def Initialize(self, length, width, mesh_resolution):
+        self.system.SetTerrainParams(self.params)
+        self.system.InitializeTerrain(length, width, mesh_resolution)
+
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -60,27 +126,9 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the SCM terrain class
-class SCM_Terrain_Params:
-    def __init__(self, kphi, kc, n, c, f, janosi, k, damping):
-        self.kphi = kphi
-        self.kc = kc
-        self.n = n
-        self.c = c
-        self.f = f
-        self.janosi = janosi
-        self.k = k
-        self.damping = damping
-
-    def get_params(self):
-        return self.kphi, self.kc, self.n, self.c, self.f, self.janosi, self.k, self.damping
-
-# Initialize SCM terrain parameters
-terrain_params = SCM_Terrain_Params(2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)
-
 # Create the SCM terrain patch
-terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(*terrain_params.get_params())
+terrain = SCM_Terrain(vehicle.GetSystem())
+terrain.SetParams("soft") # or "mid", "hard"
 
 # Optionally, enable moving patch feature (single patch around vehicle chassis)
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -102,6 +150,7 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)

@@ -5,136 +5,175 @@
 ### 1. Completeness (40 points)
 
 - **System Initialization:**  
-  The script creates a vehicle object (`veh.HMMWV_Full()`) which internally creates and manages its own system. However, the script does **not explicitly create or expose the system object** (e.g., `chrono.ChSystemSMC()` or `chrono.ChSystemNSC()`) as recommended in the documentation. This is acceptable because the vehicle internally manages the system, but it is best practice to explicitly create and manage the system for clarity and control.  
-  **Deduction:** 5 points (minor omission/slight deviation)
+  The script creates a vehicle object (`veh.HMMWV_Full()`), which internally creates and manages its own system. However, the script never explicitly creates or references a `chrono.ChSystemSMC()` or `chrono.ChSystemNSC()` object. According to the API documentation, the system should be explicitly created or at least referenced. The vehicle internally creates a system, but this is implicit and not shown or controlled by the user. This is a minor omission but important for clarity and control.  
+  **Deduction: 5 points**
 
 - **Body Creation:**  
-  The vehicle and terrain bodies are properly created and initialized. The terrain patch is added with appropriate friction, restitution, and material properties.  
-  **No deduction**
+  The vehicle and terrain bodies are created via the vehicle and terrain classes. This is acceptable and standard practice in vehicle simulations. No missing components here.
 
 - **Visualization:**  
-  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is appropriate for vehicle simulations. The window size, title, camera, logo, and lighting are configured. However, the script uses `vis.AddLightDirectional()` instead of the recommended `vis.AddTypicalLights()` or adding a skybox (`vis.AddSkyBox()`) for better scene lighting and environment.  
-  **Deduction:** 2 points (minor visualization issue)
+  Visualization is set up using `veh.ChWheeledVehicleVisualSystemIrrlicht()`, which is appropriate for vehicle simulations. The visualization is initialized, window size and title are set, and the vehicle is attached. However, the script does not add a skybox or typical lights, only a directional light. According to the documentation, adding typical lights or a skybox is recommended for better visualization.  
+  **Deduction: 2 points (minor visualization omission)**
 
 - **Driver Setup:**  
-  The driver is created and configured with steering, throttle, and braking deltas. This is consistent with best practices.  
-  **No deduction**
+  The driver is created and initialized properly.
 
 - **Simulation Loop:**  
-  The loop runs while the visualization window is active and the vehicle's chassis x-position is less than 100, which is a reasonable termination condition.  
-  **No deduction**
+  The loop runs while `vis.Run()` is true, which is correct. However, the simulation advances the vehicle and visualization by passing the current simulation time (`time`), which is not the typical usage. Usually, the simulation advances by a fixed time step, not by the absolute time. This is a correctness issue but also relates to completeness of the simulation loop design.
 
-- **Initialization Calls:**  
-  The vehicle and terrain are properly initialized before the simulation loop.  
-  **No deduction**
+- **Terrain Setup:**  
+  The terrain patch is created and initialized properly with friction, restitution, and material properties set.
 
-**Total Completeness Deduction:** 5 + 2 = 7 points
+**Total Completeness deduction: 5 + 2 = 7 points**
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Contact Method:**  
-  The vehicle contact method is set to `chrono.ChContactMethod_SMC`, which is consistent with the vehicle's initialization.  
-  **No deduction**
+- **System Usage:**  
+  The vehicle internally creates a system, but the script never explicitly creates or references a system object. This is not necessarily incorrect but reduces clarity and control. No direct API misuse here.
 
-- **Initialization of Vehicle Position:**  
-  The initial position is set with `chrono.ChCoordsysD(chrono.ChVectorD(-5, -5, 1), chrono.Q_from_AngZ(0))`. The use of `chrono.Q_from_AngZ(0)` is correct for no rotation.  
-  **No deduction**
+- **Advancing Simulation:**  
+  The main correctness issue is in the simulation loop:
 
-- **Advancing the Vehicle:**  
-  The call `vehicle.Advance(time, driver_inputs)` is incorrect. According to the PyChrono Vehicle API, `Advance()` expects a time step (delta time), not the absolute simulation time. Passing the absolute time will cause incorrect integration steps.  
-  The correct call should be something like `vehicle.Advance(step_size)` where `step_size` is the simulation time step (e.g., 0.002).  
-  **Deduction:** 15 points (significant API misuse affecting simulation behavior)
+  ```python
+  time = vehicle.GetSystem().GetChTime()
+  driver_inputs = driver.GetInputs()
+  vehicle.Advance(time, driver_inputs)
+  vis.Advance(time)
+  vis.Render()
+  ```
 
-- **Visualization Advance:**  
-  Similarly, `vis.Advance(time)` is called with absolute time, but the Irrlicht visualization system expects a time step or no argument. The documentation shows no `Advance()` method for `ChWheeledVehicleVisualSystemIrrlicht()`. Instead, the typical pattern is to call `vis.BeginScene()`, `vis.Render()`, and `vis.EndScene()`.  
-  This is a misuse of the visualization API.  
-  **Deduction:** 15 points (incorrect visualization API usage)
+  According to best practices and the API, `Advance()` methods expect a time step (delta time), not the absolute simulation time. Passing the absolute time will cause the vehicle and visualization to advance by an increasing amount each frame, which is incorrect and will lead to unstable or unrealistic simulation behavior.
 
-- **Simulation Step:**  
-  The system step is called with `vehicle.GetSystem().DoStepDynamics(2e-3)`, which is correct.  
-  **No deduction**
+  The correct approach is to define a fixed time step (e.g., 1e-3 or 1e-2 seconds) and advance the vehicle and visualization by that fixed step each iteration.
 
-- **Sleep Call:**  
-  The call `vis.GetDevice().sleep(20)` is a blocking call to slow down the loop, which is acceptable but not ideal for precise timing control.  
-  **No deduction**
+  **Deduction: 15 points (significant incorrect API usage affecting simulation behavior)**
 
-**Total Correctness Deduction:** 15 + 15 = 30 points
+- **Visualization Calls:**  
+  The visualization loop is missing the standard calls to `BeginScene()` and `EndScene()`. According to the documentation, the rendering loop should be:
+
+  ```python
+  vis.BeginScene()
+  vis.Render()
+  vis.EndScene()
+  ```
+
+  Omitting these can cause rendering issues or incomplete frames.
+
+  **Deduction: 10 points (logical error in visualization loop)**
+
+- **Material Properties:**  
+  The terrain patch uses `SetContactMaterialProperties(2e7, 0.3)`. The documentation does not specify this method explicitly, but it is consistent with vehicle examples. No issue here.
+
+- **Chassis Fixed:**  
+  `vehicle.SetChassisFixed(False)` is correct to allow chassis movement.
+
+- **Tire Step Size:**  
+  `vehicle.SetTireStepSize(1e-3)` is reasonable.
+
+- **Visualization Types:**  
+  Visualization types are set appropriately.
+
+- **Driver Inputs:**  
+  `driver.GetInputs()` is used correctly.
+
+**Total Correctness deduction: 15 + 10 = 25 points**
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability and Structure:**  
-  The code is mostly readable with meaningful variable names (`vehicle`, `terrain`, `vis`, `driver`).  
-  However, the code lacks comments explaining the purpose of key steps, which is important for maintainability and clarity.  
-  **Deduction:** 5 points (lack of comments/documentation)
+  The code is mostly readable with meaningful variable names (`vehicle`, `terrain`, `patch`, `vis`, `driver`). However, there are no comments explaining the purpose of each block or key steps, which is a best practice especially in simulation scripts.
 
 - **Formatting:**  
-  The code is well formatted with consistent indentation and spacing.  
-  **No deduction**
+  The code is formatted well, with consistent indentation and spacing.
 
-**Total Code Quality Deduction:** 5 points
+- **Comments:**  
+  No comments are present anywhere in the code.
+
+**Deduction: 5 points for lack of comments/documentation**  
+No deduction for readability or structure.
 
 ---
 
 ### 4. Efficiency (10 points)
 
 - **Unnecessary Calculations or Redundancies:**  
-  The code calls `vehicle.Advance(time, driver_inputs)` and `vis.Advance(time)` incorrectly, which could cause inefficiencies or incorrect behavior.  
-  Also, the loop calls `vehicle.GetSystem().DoStepDynamics(2e-3)` after advancing the vehicle and visualization, which may cause redundant or out-of-order stepping. The typical pattern is to advance the driver, vehicle, and system in a consistent order with the same time step.  
-  **Deduction:** 5 points (inefficient and incorrect stepping calls)
+  No obvious redundant code or unnecessary calculations.
 
 - **Optimization Opportunities:**  
-  The sleep call is a simple delay but could be replaced with a more precise timing mechanism to sync simulation and rendering.  
-  **Deduction:** 3 points (missing obvious optimization)
+  The main inefficiency is the use of `vehicle.Advance(time, driver_inputs)` with absolute time instead of a fixed time step, which can cause performance and stability issues.
 
-**Total Efficiency Deduction:** 5 + 3 = 8 points
+- **Visualization:**  
+  The visualization loop could be optimized by adding `BeginScene()` and `EndScene()` calls to properly batch rendering.
+
+**Deduction: 3 points for missing fixed time step usage and visualization inefficiency**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- The script does not include any error handling (try-except blocks) or checks for resource loading failures (e.g., texture or logo files).  
-- No handling for edge cases such as driver input limits or vehicle going out of bounds beyond the x=100 condition.  
-- While minimal error handling is common in example scripts, best practices recommend at least basic checks or exception handling.  
-**Deduction:** 5 points (lack of basic error handling)
+- **Error Handling:**  
+  There is no error handling or checks for initialization success, file loading, or driver inputs.
+
+- **Edge Cases:**  
+  The code assumes everything initializes correctly and runs without exceptions.
+
+**Deduction: 5 points for lack of any error handling or robustness measures**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- The visualization setup is mostly correct but lacks some recommended features: no skybox, no typical lights (only directional light), and the logo path is constructed manually instead of using `chrono.GetChronoDataFile()`.  
-- The rendering loop does not use `vis.BeginScene()` and `vis.EndScene()`, which are standard for Irrlicht visualization.  
-**Deduction:** 4 points (incorrect/incomplete visualization setup)
+- **Visualization Setup:**  
+  The visualization system is initialized and attached to the vehicle.
+
+- **Lighting:**  
+  Only a directional light is added. The documentation recommends adding typical lights or a skybox for better visualization.
+
+- **Rendering Loop:**  
+  Missing `BeginScene()` and `EndScene()` calls, which are important for proper rendering.
+
+**Deduction: 5 points for incomplete visualization setup and rendering loop**
 
 ---
 
-### Summary of Deductions:
+### Summary of Deductions
 
-| Criterion                      | Points | Deduction | Notes                                  |
-|-------------------------------|--------|-----------|----------------------------------------|
-| Completeness                  | 40     | 7         | Minor omission in system explicitness; minor visualization issue |
-| Correctness                  | 30     | 30        | Incorrect use of `Advance()` methods for vehicle and visualization |
-| Code Quality                 | 10     | 5         | Lack of comments/documentation          |
-| Efficiency                  | 10     | 8         | Inefficient stepping and sleep usage    |
-| Error Handling and Robustness | 5      | 5         | No error handling                       |
-| Visualization Tools          | 5      | 4         | Incomplete visualization setup          |
-| **Total Deductions**          |        | **59**    |                                        |
+| Category                  | Points Deducted | Reason                                                                                   |
+|---------------------------|-----------------|------------------------------------------------------------------------------------------|
+| Completeness              | 7               | Implicit system creation, minor visualization omissions                                 |
+| Correctness               | 25              | Incorrect use of Advance() with absolute time, missing BeginScene/EndScene calls         |
+| Code Quality              | 5               | No comments/documentation                                                                |
+| Efficiency                | 3               | Missing fixed time step, inefficient visualization loop                                 |
+| Error Handling & Robustness| 5               | No error handling or robustness                                                         |
+| Visualization Tools       | 5               | Incomplete visualization setup, missing typical lights/skybox, missing rendering calls  |
 
----
-
-### Final Score:
-
-40 + 30 + 10 + 10 + 5 + 5 = 100 total points  
-100 - 59 = **41**
+**Total deductions: 7 + 25 + 5 + 3 + 5 + 5 = 50 points**
 
 ---
 
-**Final score:** [[41]]
+### Final Score
+
+Starting from 100 points, deduct 50 points:
+
+**Score: 50**
 
 ---
 
-**Explanation:**  
-The script includes most essential components and generally follows the vehicle simulation setup pattern. However, it misuses critical API calls (`Advance()` with absolute time instead of time step), which can significantly alter simulation behavior. The visualization setup is incomplete and incorrectly used in the loop. The code lacks comments and error handling, and the simulation stepping is inefficient and potentially incorrect. These issues lead to substantial deductions, resulting in a moderate score.
+### Additional Notes / Recommendations
+
+- Explicitly create or retrieve the system object for clarity and control.
+- Use a fixed time step (e.g., `step_size = 1e-3`) and advance the vehicle and visualization by that step each iteration.
+- Add `vis.BeginScene()` before rendering and `vis.EndScene()` after rendering.
+- Add comments explaining each major step.
+- Add error handling for initialization and file loading.
+- Enhance visualization by adding typical lights and a skybox for better scene realism.
+
+---
+
+**Final output:**
+
+[[50]]

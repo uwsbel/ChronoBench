@@ -28,38 +28,45 @@ manager = sens.ChSensorManager(my_system)
 lidar = sens.ChLidarSensor(
     my_system,              
     100,                    
-    chrono.ChVectorD(0, 0, 0),  
-    chrono.ChVectorD(0, 0, 1),  
-    100.0,                  
-    0.05,                   
-    0.05                    
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  
+    360,                    
+    0.02,                   
+    100,                    
+    2,                      
+    100                     
 )
 lidar.SetName("Lidar")
-lidar.SetNoise(sens.ChNoiseNone())
-lidar.SetVisualization(sens.ChVisualizationMode::SENSOR_POINT_CLOUD, 1.0, 1000)
-lidar.SetSaveOptions(sens.ChSaveOptions::SENSOR_DATA, True)
+
+
+noise = sens.ChNoiseNormal(0, 0.1)
+lidar.PushFilter(noise)
+
+
+vis = sens.ChLidarVisualizePoints(chrono.ChVectorD(0, 0, 0), 1, 0)
+lidar.PushFilter(vis)
+
+
+save = sens.ChLidarSavePoints('/path/to/output/', 'lidar_data', 1, 0)
+lidar.PushFilter(save)
+
+
 manager.AddSensor(lidar)
 
 
-body.AddAsset(lidar)
+theta = 0
+dtheta = chrono.CH_C_PI / 180
 
 
-t_step = 0.01
-t_end = 10.0
-chrono.ChTimestepperChange(my_system, chrono.ChTimestepperType::EULER_IMPLICIT_LINEARIZED)
-while my_system.GetChTime() < t_end:
+while my_system.GetChTime() < 10:
     
-    lidar.SetOffsetPose(chrono.ChVectorD(2 * chrono.CH_C_PI * my_system.GetChTime(), 0, 0))
-    lidar.SetDirection(chrono.ChVectorD(0, 0, 1).RotateY(chrono.CH_C_PI * my_system.GetChTime()))
+    theta += dtheta
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(5 * chrono.CH_C_COS(theta), 0, 5 * chrono.CH_C_SIN(theta)), chrono.QUNIT))
 
     
-    my_system.DoStepDynamics(t_step)
+    my_system.DoStepDynamics(chrono.ChTimeStepD(0.01))
 
     
     buffer = lidar.GetMostRecentBuffer()
     print("Lidar Buffer Data:")
     for point in buffer:
         print(point)
-
-
-del my_system

@@ -50,14 +50,14 @@ def main():
     # Create a box object.
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVectorD(0, 0, 5))  # Position the box above the floor.
-    box.SetRot(ch.QuaternionD(.2, ch.ChVectorD(1, 0, 0)))  # Rotate the box slightly.
+    box.SetRot(ch.QuaternionD(.2, 1, 0, 0))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
     sys.Add(box)  # Add the box to the simulation system.
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
     
-    publish_rate = 10  # Set the publishing rate for ROS handlers.
+    publish_rate = 10  # Define the publishing rate for ROS handlers.
     # Register a clock handler for the simulation time.
     ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))
     
@@ -94,13 +94,21 @@ def main():
     vis.AddSkyBox()
     vis.AddTypicalLights()
 
-    # Set up the simulation loop.
+    # Create a camera and add it to the visualization.
+    cam = chirr.ChCamera()
+    cam.SetPosition(ch.ChVectorD(0, 0, 10))
+    cam.SetLookAt(ch.ChVectorD(0, 0, 0))
+    vis.AddCamera(cam)
+
+    # Rendering setup
+    step_number = 0
+    render_step_size = 1e-3  # Time step for rendering
+    render_steps = 10  # Number of simulation steps between rendering
+
+    # Run the simulation loop.
     time = 0
     time_step = 1e-3  # Define the simulation time step.
     time_end = 30  # Set the duration for the simulation.
-    step_number = 0
-    render_step_size = 10
-    render_steps = 0
 
     realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
     while time < time_end:
@@ -110,14 +118,13 @@ def main():
         if not ros_manager.Update(time, time_step):  # Update ROS communication.
             break  # Exit the loop if the ROS manager indicates a problem.
 
-        step_number += 1
-        render_steps += 1
-
-        if render_steps >= render_step_size:
+        # Conditional rendering
+        if step_number % render_steps == 0:
             vis.BeginScene()
             vis.DrawAll()
             vis.EndScene()
-            render_steps = 0
+
+        step_number += 1
 
         realtime_timer.Spin(time_step)  # Maintain real-time step execution.
 

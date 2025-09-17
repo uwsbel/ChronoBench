@@ -81,22 +81,5 @@ while vis.Run():
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
 
-    # Update the sensor manager
+    # Update sensor manager
     sensor_manager.Update()
-
-    # Create 5 boxes with random positions
-    for i in range(5):
-        box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 100, True, True, ground_mat)
-        box.SetPos(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-1, 1)))
-        system.Add(box)
-
-    # Create and configure a lidar sensor
-    lidar = sens.ChLidarSensor()
-    lidar.SetName('Lidar Sensor')
-    lidar.SetSensorType(sens.ChSensorType.LIDAR)
-    lidar.SetSensorRadius(0.1)
-    lidar.SetSensorRange(10)
-    lidar.SetSensorResolution(0.01)
-    lidar.SetSensorNoise(0.001)
-    lidar.SetSensorFilters(0.1, 0.5, 1)
-    sensor_manager.AddSensor(lidar)

@@ -1,70 +1,51 @@
 import pychrono as chrono
-import pychrono.irrlicht as irr
-import pychrono.irrlicht.core as core
-import pychrono.irrlicht.physics as physics
-import pychrono.irrlicht.scene as scene
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht as irr
 
 # Initialize PyChrono
 chrono.init()
 
-# Create Irrlicht environment
-env = chrono.Environment(irr.IrrlichtEnvironment())
+# Create Irrlicht engine
+engine = irrlicht.IrrlichtEngine()
+engine.initialize()
 
-# Create RigidTerrain
-terrain = chrono.RigidTerrain(
-    name="Terrain",
-    pos=chrono.Vec3(0, 0, 0),
-    size=chrono.Vec3(10, 10, 10),
-    texture=irr.IrrlichtTexture("terrain.png"),
+# Create the scene
+scene = engine.createScene()
+
+# Create the RigidTerrain
+terrain = irrlicht.IrrTerrain(
+    "terrain.jpg",  # Texture path
+    100,  # Terrain height
+    100,  # Terrain width
+    chrono.Vector3(0, 0, 0),  # Position
 )
+scene.addTerrain(terrain)
 
-# Add terrain to environment
-env.add(terrain)
+# Create the FEDA vehicle
+vehicle = chrono.Vehicle()
+vehicle.position = chrono.Vector3(0, 0, 0)
+vehicle.orientation = chrono.Quaternion(0, 0, 0, 1)
+vehicle.contactMethod = chrono.ContactMethod.STATIC
+vehicle.tireModel = chrono.TireModel.CONTINENTAL
 
-# Create FEDA vehicle
-vehicle = chrono.Vehicle(
-    name="FEDA Vehicle",
-    pos=chrono.Vec3(5, 0, 0),
-    orientation=chrono.Vec3(0, 0, 0),
-    contactMethod=chrono.ContactMethod.STATIC,
-    tireModel=chrono.TireModel.RUBBER,
-)
+# Add the vehicle to the scene
+scene.addVehicle(vehicle)
 
-# Add vehicle to environment
-env.add(vehicle)
+# Set the camera
+camera = irrlicht.IrrCamera()
+camera.position = chrono.Vector3(0, 10, 10)
+camera.lookAt(vehicle.position)
+scene.addCamera(camera)
 
-# Create camera
-camera = chrono.Camera(
-    name="Camera",
-    pos=chrono.Vec3(0, 5, 5),
-    lookAt=chrono.Vec3(0, 0, 0),
-)
-
-# Add camera to environment
-env.add(camera)
-
-# Set up interactive driver system
+# Create a driver system
 driver = chrono.Driver()
-driver.add_input_method("keyboard")
-driver.add_input_method("mouse")
+driver.setSteering(chrono.SteeringType.ROTATION)
+driver.setThrottle(chrono.ThrottleType.POSITION)
+driver.setBraking(chrono.BrakingType.POSITION)
 
-# Set simulation parameters
-dt = 0.01
-fps = 50
+# Set the simulation parameters
+simulation_time = 10.0
+simulation_frames = 50
 
-# Simulation loop
-while True:
-    # Update driver system
-    driver.update()
-
-    # Update vehicle dynamics
-    vehicle.update(dt)
-
-    # Render scene
-    env.render()
-
-    # Update Irrlicht environment
-    env.update()
-
-    # Sleep for 1/fps seconds
-    core.sleep(1 / fps)
+# Start the simulation
+engine.run(simulation_time, simulation_frames)

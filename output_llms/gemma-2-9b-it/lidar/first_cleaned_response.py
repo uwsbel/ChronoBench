@@ -1,5 +1,4 @@
 import pychrono as chrono
-import pychrono.postprocess as postprocess
 import numpy as np
 
 
@@ -9,54 +8,43 @@ system = chrono.ChSystemNSC()
 
 mesh_file = "path/to/your/mesh.obj"  
 mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefront(mesh_file)
-
-
+if not mesh.LoadWavefront(mesh_file):
+    raise RuntimeError(f"Failed to load mesh from {mesh_file}")
 body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0)  
-body.SetBodyFixed(True)
-body.SetMaterialSurface(chrono.ChMaterialSurface())
-body.SetCollide(True)
-body.GetCollisionModel().AddChildShape(chrono.ChTriangleMeshShape(mesh))
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetBodyFixed(True)  
+body.AddAsset(chrono.ChMeshConnectedAsset(mesh))
 system.Add(body)
 
 
 lidar = chrono.ChLidarSensor()
-lidar.SetSensorSize(0.1)  
-lidar.SetMaxRange(10.0)  
+lidar.SetSensorType(chrono.ChLidarSensor.SENSOR_TYPE_LASER)
+lidar.SetNumRays(100)
+lidar.SetMaxRange(10.0)
+lidar.SetNoise(0.1)  
 lidar.SetScanAngle(np.pi)  
-lidar.SetScanFrequency(100)  
-lidar.SetNoiseSigma(0.1)  
-
-
-lidar_body = chrono.ChBodyEasySphere(0.1)  
-lidar_body.SetPos(chrono.ChVectorD(0, 0, 0.5))  
-system.Add(lidar_body)
-lidar_body.AddChild(lidar)
+lidar.SetUpdateFrequency(100)  
 
 
 sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(lidar)
-sensor_manager.SetVisualization(True)
+body.AddSensor(sensor_manager)
 
 
-orbit_radius = 1.0
-orbit_speed = 0.5
+orbit_radius = 2.0
+orbit_period = 1.0
 
 
-time_step = 0.01
+dt = 1.0/100  
 for i in range(1000):
     
-    angle = i * orbit_speed
-    lidar_body.SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), orbit_radius * np.sin(angle), 0.5))
+    angle = 2*np.pi * i / orbit_period
+    lidar.SetPos(chrono.ChVectorD(orbit_radius * np.cos(angle), 
+                                   orbit_radius * np.sin(angle), 0))
 
     
-    system.DoStepDynamics(time_step)
+    system.DoStepDynamics(dt)
 
     
-    lidar_data = sensor_manager.GetSensorData(lidar)
-
-    
-    print(f"Lidar Buffer Data: {lidar_data}")
-
-
-postprocess.SaveSensorData(sensor_manager, "lidar_data.txt")
+    lidar_data = lidar.GetLidarBuffer()
+    print(f"Lidar Buffer Data (Step {i}): {lidar_data}")

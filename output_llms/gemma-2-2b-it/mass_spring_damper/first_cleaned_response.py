@@ -1,50 +1,48 @@
-from pychrono import *
-from pychrono.irrlicht import *
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.irrlicht.irrlicht_utils as irrutils
 
 
-init_chrono()
+chrono.init()
 
 
-scene = Scene()
+engine = irrlicht.IrrlichtEngine()
 
 
-ground = ChBody(ChBodyType.GROUND)
-ground.setPosition(0, 0, 0)
-ground.setInertiaTensor(ChVector3(0.0, 0.0, 0.0))
-scene.addBody(ground)
+world = chrono.World()
+world.setCamera(chrono.Camera(chrono.Vector3(0, 0, 10), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 1, 0)))
 
 
-mass = ChBody(ChBodyType.SOLID)
-mass.setPosition(0, 1, 0)
-mass.setInertiaTensor(ChVector3(1.0, 1.0, 1.0))
-mass.setMass(1.0)
+ground = chrono.Body(chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0))
+ground.setMass(1000)
+ground.setCollisionShape(chrono.SphereShape(1))
+world.addBody(ground)
 
 
-spring = ChLinkTSDA(mass, ground, ChLinkTSDA.LINEAR, 10.0, 10.0)
+mass = chrono.Body(chrono.Vector3(1, 0, 0), chrono.Vector3(0, 0, 0), chrono.Vector3(0, 0, 0))
+mass.setMass(1)
+mass.setCollisionShape(chrono.SphereShape(0.1))
+world.addBody(mass)
 
 
-mass.setPosition(0, 1, 0)
-ground.setPosition(0, 0, 0)
-spring.setPosition(0, 0, 0)
+link = chrono.LinkTSDA(mass, ground, chrono.Vector3(0, 0, 0))
+link.setLinearDamping(0.01)
+link.setStiffness(1000)
+world.addLink(link)
 
 
-spring.setLinearStiffness(1000.0)
-spring.setDamping(0.1)
+mass_shape = irrlicht.IrrlichtShape(irrlicht.IrrlichtShape.Sphere)
+mass_shape.setColor(chrono.Color(1, 0, 0, 1))
+mass.addVisualShape(mass_shape)
+
+spring_shape = irrlicht.IrrlichtShape(irrlicht.IrrlichtShape.Cylinder)
+spring_shape.setColor(chrono.Color(0, 1, 0, 1))
+world.addVisualShape(spring_shape)
 
 
-irrlicht_scene = IrrlichtScene()
-irrlicht_scene.setCameraPosition(ChVector3(0, 0, 5))
-irrlicht_scene.setCameraRotation(ChVector3(0, 0, 0))
-irrlicht_scene.setAmbientLight(ChVector3(0.2, 0.2, 0.2))
-irrlicht_scene.setDirectionalLight(ChVector3(1, 1, 1), ChVector3(0, 0, 1))
+engine.setCameraPosition(chrono.Vector3(0, 0, 10))
+engine.setCameraTarget(chrono.Vector3(0, 0, 0))
+engine.setCameraLookAt(chrono.Vector3(0, 0, 0))
 
 
-irrlicht_scene.addBody(ground)
-irrlicht_scene.addBody(mass)
-irrlicht_scene.addBody(spring)
-
-
-irrlicht_scene.render()
-
-
-run_chrono()
+engine.run()

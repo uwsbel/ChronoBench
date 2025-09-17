@@ -27,7 +27,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on the chassis tracked by the camera
 trackPoint = chrono.ChVectorD(0.0, 0.0, 1.71)
 
 # Contact method
@@ -42,7 +42,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full() # veh.HMMWV_Reduced()  could be another choice here
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -62,11 +62,12 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain
 terrain = veh.RigidTerrain()
-terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, -terrainHeight, 0), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
-terrain.SetBox(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(terrainLength, terrainWidth, 1), chrono.ChMaterialSurfaceNSC())
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, terrainHeight), chrono.ChQuaternionD(1, 0, 0, 0)))
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
 
-# Initialize the terrain
-terrain.Initialize()
+# Initialize the terrain (length, width, mesh resolution), specifying the initial mesh grid
+terrain.Initialize(terrainLength, terrainWidth, 40, 40, 0.02)
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -96,22 +97,22 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-# output vehicle mass
-print("VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
 
-# Initialize simulation frame counter s
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

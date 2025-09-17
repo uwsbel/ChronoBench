@@ -28,46 +28,40 @@ terrain.SetSoilParameters(soil_params)
 
 # Initialize the terrain with a height map
 height_map = np.random.rand(1024, 1024) * 2 - 1
-terrain.InitializeHeightMap(height_map)
+terrain.SetHeightMap(height_map)
 
 # Create the driver system
 driver = veh.ChDriver(vehicle)
 
-# Set the driver's target speed
-driver.SetTargetSpeed(10)
+# Set the driver's desired speed and steering
+driver.SetDesiredSpeed(10)
+driver.SetSteering(0)
 
 # Create the Irrlicht visualization system
 vis = irr.ChVisualSystemIrrlicht()
 
 # Set the camera position and orientation
-vis.SetCameraPosition(chrono.ChVectorD(-5, 2, 0))
-vis.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+vis.GetCamera().SetPosition(chrono.ChVectorD(-10, 5, 0))
+vis.GetCamera().SetAimPoint(chrono.ChVectorD(0, 0.5, 0))
 
 # Add the vehicle and terrain to the visualization system
-vis.AddVehicle(vehicle)
-vis.AddTerrain(terrain)
+vis.AddLogo(chrono.ChVectorD(0.5, 0.5, 0.5))
+vis.AddSkyBox()
+vis.AddCamera()
+vis.AddTypicalLights()
+vis.AddMesh(vehicle, 'vehicle_mesh')
+vis.AddMesh(terrain, 'terrain_mesh')
 
-# Set the lighting parameters
-vis.SetLightingMode(irr.Visualization_LightingMode::ARTIFICIAL)
-vis.SetLightPosition(chrono.ChVectorD(0, 10, 0))
-
-# Create the simulation loop
+# Simulation loop
 while vis.Run():
-    # Synchronize the vehicle, terrain, driver, and visual system
-    vehicle.Synchronize(time)
-    terrain.Synchronize(time)
-    driver.Synchronize(time)
-    vis.Synchronize(time)
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
+    vehicle.Synchronize(time=vis.GetTime())
+    terrain.Synchronize(time=vis.GetTime())
+    driver.Synchronize(time=vis.GetTime())
+    vis.Synchronize(time=vis.GetTime())
 
-    # Advance the vehicle, terrain, driver, and visual system
-    vehicle.Advance(chrono.ChVectorD(0, 0, 0))
-    terrain.Advance(chrono.ChVectorD(0, 0, 0))
-    driver.Advance(chrono.ChVectorD(0, 0, 0))
-    vis.Advance(chrono.ChVectorD(0, 0, 0))
-
-    # Update the simulation time
-    time += 1e-3
-
-    # Maintain real-time execution
-    while chrono.ChClock.GetTime() < time:
-        pass
+    # Advance the simulation by one timestep
+    vehicle.DoStepDynamics(vis.GetTimeStep())
+    terrain.DoStepDynamics(vis.GetTimeStep())
+    driver.DoStepDynamics(vis.GetTimeStep())
+    vis.DoStepDynamics(vis.GetTimeStep())

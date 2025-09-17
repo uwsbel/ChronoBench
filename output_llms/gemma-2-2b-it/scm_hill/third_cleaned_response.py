@@ -73,7 +73,10 @@ terrain.SetSoilParameters(2e6,
 )
 
 
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+terrain.SetHeightMap(chrono.GetChronoDataFile("terrain/height_maps/bump64.bmp"))
+
+
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
 

@@ -87,12 +87,11 @@ node_mid = builder_iga.GetLastBeamNodes()[17]
 
 # Define vertical beam parameters using Euler beams
 section2 = fea.ChBeamSectionEulerAdvanced()
-hbeam_d = 0.03  # Diameter of circular section
 section2.SetDensity(2700)
 section2.SetYoungModulus(73.0e9)
 section2.SetShearModulusFromPoisson(0.3)
 section2.SetRayleighDamping(0.000)
-section2.SetAsCircularSection(hbeam_d)
+section2.SetAsCircularSection(0.03)
 
 # Build the vertical beam with Euler elements
 builderA = fea.ChBuilderBeamEuler()
@@ -109,6 +108,14 @@ sys.Add(constr_bb)
 constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
 sphereconstr2 = chrono.ChVisualShapeSphere(0.012)
 constr_bb.AddVisualShape(sphereconstr2)
+
+# Create a constraint between the crank beam and the vertical beam
+constr_bc = chrono.ChLinkMateGeneric()
+constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
+sys.Add(constr_bc)
+constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
+sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
+constr_bc.AddVisualShape(sphereconstr3)
 
 # Create a crank beam
 section3 = fea.ChBeamSectionEulerAdvanced()
@@ -132,16 +139,6 @@ constr_cbd = chrono.ChLinkMateGeneric()
 constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
 sys.Add(constr_cbd)
 constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
-
-# Create a constraint between the vertical beam and the crank beam
-constr_bc = chrono.ChLinkMateGeneric()
-constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())
-sys.Add(constr_bc)
-constr_bc.SetConstrainedCoords(True, True, True, True, True, False)
-
-# Attach a visualization shape for the constraint
-sphereconstr3 = chrono.ChVisualShapeSphere(0.014)
-constr_bc.AddVisualShape(sphereconstr3)
 
 # Final touches:
 mesh.SetAutomaticGravity(False)

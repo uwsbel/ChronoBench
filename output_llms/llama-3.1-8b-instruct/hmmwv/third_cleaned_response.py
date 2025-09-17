@@ -85,7 +85,20 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 delay = 0.5
-driver = MyDriver(vis, delay)
+driver = MyDriver(delay)
+
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -94,9 +107,11 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+sim_time = 0
 
-while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
+while vis.Run() and sim_time < 4:
     time = vehicle.GetSystem().GetChTime()
+    sim_time = time
 
     
     if (step_number % render_steps == 0) :
@@ -127,34 +142,20 @@ while vis.Run() and vehicle.GetSystem().GetChTime() < 4:
     realtime_timer.Spin(step_size)
 
 
+
 class MyDriver(veh.ChDriver):
-    def __init__(self, vis, delay):
-        super().__init__(vis)
+    def __init__(self, delay):
+        super().__init__()
         self.delay = delay
-        self.throttle_target = 0.0
-        self.steering_target = 0.0
-        self.braking_target = 0.0
-        self.steering_time = 2.0
+        self.throttle = 0
+        self.steering = 0
+        self.braking = 0
 
     def Synchronize(self, time):
-        if time < self.delay:
-            self.throttle_target = 0.0
-            self.steering_target = 0.0
-            self.braking_target = 0.0
-        elif time < 2.0:
-            self.throttle_target = time / 2.0
-            self.steering_target = 0.0
-            self.braking_target = 0.0
-        elif time < 4.0:
-            self.throttle_target = 0.7
-            self.steering_target = math.sin((time - 2.0) * math.pi / 2.0)
-            self.braking_target = 0.0
-        else:
-            self.throttle_target = 0.0
-            self.steering_target = 0.0
-            self.braking_target = 0.0
-
+        if time > self.delay:
+            if time > 0.2:
+                self.throttle = 0.7
+            if time > 2:
+                self.steering = math.sin(time - 2) * 2
+            self.braking = 0
         super().Synchronize(time)
-
-    def GetInputs(self):
-        return {'throttle': self.throttle_target, 'steering': self.steering_target, 'braking': self.braking_target}

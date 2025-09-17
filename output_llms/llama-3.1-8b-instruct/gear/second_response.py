@@ -29,7 +29,7 @@ mbody_train.SetPos(chrono.ChVector3d(3, 0, 0))
 
 # Create a revolute joint between truss and rotating bar, allowing rotation along the Z-axis
 link_revoluteTT = chrono.ChLinkLockRevolute()
-link_revoluteTT.Initialize(mbody_truss, mbody_train, chrono.ChFramed(chrono.ChVector3d(0,0,0), chrono.QUNIT))
+link_revoluteTT.Initialize(mbody_truss, mbody_train, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
 sys.AddLink(link_revoluteTT)
 
 # Create the first gear

@@ -3,51 +3,56 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 # Initialize the PyChrono environment and core components
-sys = chrono.ChSystem()
+sys = chrono.ChSystemNSC()
 
 # Create the HMMWV vehicle
 vehicle = veh.HMMWV()
 vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_AngX(chrono.CH_C_PI_2)))
 sys.Add(vehicle)
 
-# Create the SCM deformable terrain
+# Set up the SCM deformable terrain
 terrain = veh.SCMDeformableTerrain()
-terrain.SetSoilParameters(0.01, 0.1, 0.5, 1000)
+terrain.SetSoilParameters(0.01, 0.1, 0.001, 0.01, 1000)
 height_map = chrono.ChHeightField()
 height_map.LoadFromFile("terrain_height_map.txt")
 terrain.Initialize(height_map)
 sys.Add(terrain)
 
-# Create the driver system
+# Initialize the driver system for vehicle control
 driver = veh.ChIrrlichtDriver()
-driver.Initialize(vehicle, terrain)
-sys.Add(driver)
+driver.Initialize(vehicle, terrain, sys)
 
-# Create the Irrlicht visualization
+# Create a real-time visualization using Irrlicht
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
 vis.AddSkyBox()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(0, 0, 100))
-vis.SetWindowSize(1024, 768)
-vis.SetTitle("HMMWV Simulation")
-vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.SetCameraDistance(10)
+vis.SetCameraAzimuth(chrono.CH_C_PI_2)
+vis.SetCameraElevation(chrono.CH_C_PI_4)
+vis.SetLogo("")
 
-# Set up the simulation loop
-time_step = 0.01
-while vis.Run():
-    # Synchronize and advance the vehicle, terrain, driver, and visual system
-    vehicle.Synchronize(time_step)
-    terrain.Synchronize(time_step)
-    driver.Synchronize(time_step)
-    vis.Synchronize(time_step)
-    
+# Implement a simulation loop that synchronizes and advances the vehicle, terrain, driver, and visual system
+time = 0
+dt = 0.01
+while time < 10:
+    # Synchronize the vehicle, terrain, driver, and visual system
+    vehicle.Synchronize(dt)
+    terrain.Synchronize(dt)
+    driver.Synchronize(dt)
+    vis.Synchronize(dt)
+
     # Advance the simulation
-    sys.DoStepDynamics(time_step)
-    
-    # Render the scene
+    sys.DoStepDynamics(dt)
+
+    # Update the visualization
     vis.BeginScene()
     vis.DrawAll()
     vis.EndScene()
-    
+
+    # Increment the simulation time
+    time += dt
+
     # Maintain real-time execution
-    chrono.ChRealtimeStep(sys)
+    chrono.ChUtilities().Sleep(0.001)

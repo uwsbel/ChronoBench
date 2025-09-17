@@ -76,11 +76,11 @@ terrain.Initialize()
 box_mat = chrono.ChContactMaterialSMC()
 box_mat.SetFriction(0.9)
 box_mat.SetRestitution(0.01)
-box = veh.RigidBox(vehicle.GetSystem())
-box_mat.AddBox(box, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(10, 10, 10))
-box_mat.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-box_mat.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-box_mat.Initialize()
+box = veh.RigidBody(vehicle.GetSystem())
+box.AddBox(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 10, 10, 10)
+box.SetMass(100)
+box.SetCollisionMaterial(box_mat)
+vehicle.GetSystem().Add(body=box)
 
 
 
@@ -95,6 +95,7 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
+
 driver = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -104,7 +105,6 @@ braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-driver.SetThrottle(0.8)  
 
 driver.Initialize()
 
@@ -133,6 +133,7 @@ while vis.Run() :
 
     
     driver_inputs = driver.GetInputs()
+    driver_inputs.throttle = 0.8  
     
     driver.Synchronize(time)
     terrain.Synchronize(time)

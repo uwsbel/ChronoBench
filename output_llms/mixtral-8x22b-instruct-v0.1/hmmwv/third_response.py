@@ -87,17 +87,16 @@ class MyDriver(veh.ChDriver):
 
     def Synchronize(self, time):
         if time < self.delay:
-            self.SetThrottle(0)
-            self.SetSteering(0)
-            self.SetBraking(0)
+            self.m_steer = 0
+            self.m_throttle = 0
+            self.m_braking = 0
         elif time < 0.2 + self.delay:
-            self.SetThrottle(0.7 * (time - self.delay) / 0.2)
-            self.SetSteering(0)
-            self.SetBraking(0)
+            self.m_throttle = (time - self.delay) / 0.2
+        elif time < 2 + self.delay:
+            self.m_throttle = 0.7
         else:
-            self.SetThrottle(0.7)
-            self.SetSteering(0.5 * math.sin(time - 2))
-            self.SetBraking(0)
+            self.m_throttle = 0.7
+            self.m_steer = math.sin(time - 2 - self.delay)
 
 driver = MyDriver(0.5)
 

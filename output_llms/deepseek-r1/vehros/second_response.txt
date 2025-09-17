@@ -1,111 +1,123 @@
 
-Based on the provided instructions and code review, here's the corrected and enhanced simulation script. Key changes include:
-1. Added Irrlicht visualization imports and setup
-2. Set vehicle data path
-3. Enhanced visualization settings for all vehicle components
-4. Added terrain texture
-5. Implemented Irrlicht visualization loop
-6. Fixed ROS timing to use current time after advancement
-7. Improved camera positioning
+I've reviewed the script and identified several issues that needed correction, along with implementing the requested modifications:
+
+1. **Missing Imports**: Added the required Irrlicht import
+2. **Data Path Configuration**: Added `veh.SetDataPath()` early in the script
+3. **Visualization Settings**: Added missing visualization type configurations for the vehicle
+4. **Terrain Texture**: Added texture loading for the terrain patch
+5. **Irrlicht Visualization**: Added full visualization system setup and rendering loop
+6. **Camera Positioning**: Fixed camera position to properly view the vehicle
+7. **Event Handling**: Added proper visualization system event handling
+
+Here's the corrected and enhanced script:
 
 ```python
 import pychrono as ch
 import pychrono.vehicle as veh
 import pychrono.ros as chros
-import pychrono.irrlicht as chronoirr  # Added for visualization
+import pychrono.irrlicht as chronoirr  # Added Irrlicht import
 
 def main():
-    # Set the vehicle data path
-    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set Chrono data path
+    # Set vehicle data path
+    veh.SetDataPath(ch.GetChronoDataPath() + 'vehicle/')  # Set data path early
     
     # Create the HMMWV vehicle and set its parameters.
     hmmwv = veh.HMMWV_Full()
-    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)  # Set the contact method for physics.
-    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)  # Disable collision for the chassis.
-    hmmwv.SetChassisFixed(False)  # Make the chassis movable.
-    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))  # Initialize vehicle position and orientation.
-    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)  # Use shaft-based engine model.
-    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)  # Use automatic transmission with shafts.
-    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)  # Set all-wheel drive.
-    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)  # Use pitman arm steering.
-    hmmwv.SetTireType(veh.TireModelType_TMEASY)  # Set tire model.
-    hmmwv.SetTireStepSize(1e-3)  # Set the tire simulation step size.
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(ch.ChCoordsysd(ch.ChVector3d(0, 0, 1.6), ch.ChQuaterniond(1, 0, 0, 0)))
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1e-3)
     
-    # Set visualization modes for vehicle components
+    # Enhanced visualization settings
     hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
     hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
-    hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_NONE)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
     
-    hmmwv.Initialize()  # Initialize the vehicle.
+    hmmwv.Initialize()
 
-    # Create the terrain for the vehicle to interact with.
+    # Create the terrain
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
-    patch_mat = ch.ChContactMaterialNSC()  # Create a contact material for the terrain.
-    patch_mat.SetFriction(0.9)  # Set friction for the terrain.
-    patch_mat.SetRestitution(0.01)  # Set restitution (bounciness) for the terrain.
-    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)  # Add a patch to the terrain.
-    patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100)  # Set terrain texture
-    terrain.Initialize()  # Initialize the terrain.
+    patch_mat = ch.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(patch_mat, ch.CSYSNORM, 100.0, 100.0)
+    
+    # Set terrain texture
+    patch.GetGroundBody().GetVisualModel().GetShapes()[0].SetTexture(
+        veh.GetDataFile("terrain/textures/tile4.jpg"), 100, 100
+    )
+    
+    terrain.Initialize()
 
-    # Create and initialize the driver system.
-    driver = veh.ChDriver(hmmwv.GetVehicle())
-    driver.Initialize()  # Initialize the driver system.
-
-    # Create the ROS manager and register handlers for communication.
-    ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler to synchronize ROS with the simulation.
-    # Register the driver inputs handler for ROS topic '~/input/driver_inputs'.
-    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
-    # Register the vehicle state handler to publish vehicle state to ROS topic '~/output/hmmwv/state'.
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
-    ros_manager.Initialize()  # Initialize the ROS manager.
-
-    # Set up Irrlicht visualization
+    # Create Irrlicht visualization system
     vis = chronoirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(hmmwv.GetSystem())
-    hmmwv.GetVehicle().SetVisualSystem(vis)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('HMMWV with ROS and Irrlicht')
+    vis.SetWindowTitle("HMMWV Simulation")
     vis.Initialize()
     vis.AddLogo()
     vis.AddSkyBox()
-    vis.AddCamera(ch.ChVector3d(0, -8, 2), ch.ChVector3d(0, 0, 0))  # Position camera
+    vis.AddCamera(ch.ChVector3d(8, 8, 1.5), ch.ChVector3d(0, 0, 1.5))  # Fixed camera position
     vis.AddTypicalLights()
 
-    # Start the simulation loop.
+    # Create and initialize the driver system
+    driver = veh.ChDriver(hmmwv.GetVehicle())
+    driver.Initialize()
+
+    # Create ROS manager
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()
+
+    # Simulation loop
     time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 30  # Set the total duration of the simulation.
+    time_step = 1e-3
+    time_end = 30
 
-    hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+    hmmwv.GetVehicle().EnableRealtime(True)
     while time < time_end:
-        time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
+        time = hmmwv.GetSystem().GetChTime()
 
-        # Handle visualization
+        # Process visualization events
         if not vis.Run():
             break
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
 
-        # Get driver inputs and synchronize the vehicle, terrain, and driver systems.
+        # Get inputs and synchronize systems
         driver_inputs = driver.GetInputs()
-        driver.Synchronize(time)  # Synchronize the driver system.
-        terrain.Synchronize(time)  # Synchronize the terrain.
-        hmmwv.Synchronize(time, driver_inputs, terrain)  # Synchronize the vehicle with inputs and terrain.
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        hmmwv.Synchronize(time, driver_inputs, terrain)
 
-        # Advance the simulation for all modules by one timestep.
+        # Advance systems
         driver.Advance(time_step)
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Update ROS with current time after advancement
-        current_time = hmmwv.GetSystem().GetChTime()
-        if not ros_manager.Update(current_time, time_step):
-            break  # Exit loop if ROS manager update fails.
+        # Update ROS
+        if not ros_manager.Update(time, time_step):
+            break
 
 if __name__ == "__main__":
     main()
 ```
+
+Key improvements made:
+1. Added Irrlicht visualization system with proper camera positioning
+2. Configured all vehicle visualization types as requested
+3. Added terrain texture with proper scaling
+4. Fixed the visualization rendering loop with proper event handling
+5. Ensured all systems are synchronized correctly in the simulation loop
+6. Maintained ROS integration while adding visualization capabilities

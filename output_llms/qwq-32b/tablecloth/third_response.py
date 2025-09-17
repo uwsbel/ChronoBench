@@ -13,7 +13,7 @@ try:
     os.mkdir(out_dir)  # Try to create the directory
 except OSError as exc:
     if exc.errno != errno.EEXIST:  # If directory exists, no error; otherwise, print error message
-        print("Error creating output directory")
+        print("Error creating output directory ")
 
 # Create a Chrono::Engine physical system
 sys = chrono.ChSystemSMC()  # Instantiate the physical system
@@ -25,6 +25,7 @@ mesh = fea.ChMesh()  # Instantiate the mesh
 sys.Add(mesh)
 
 # Disable gravity for the system (options)
+# sys.SetGravitationalAcceleration(VNULL) or
 mesh.SetAutomaticGravity(False)
 
 # Define nodes to plot or load
@@ -84,14 +85,11 @@ if (True):  # Block to execute the following setup
             if (iz == 0 and ix == 1):
                 melementmonitor = melementA  # Assign element to monitor
 
-            # Define boundary nodes for element A
-            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix + 1] if (iz < nsections_z and ix < nsections_x) else None
-            # Set nodes to the element (only four nodes needed)
+            # Set nodes to the element (corrected parameters)
             melementA.SetNodes(
                 mynodes[iz * (nsections_x + 1) + ix],
                 mynodes[iz * (nsections_x + 1) + ix + 1],
-                mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                boundary_1
+                mynodes[(iz + 1) * (nsections_x + 1) + ix]
             )
 
             # Add layer to the element
@@ -101,14 +99,11 @@ if (True):  # Block to execute the following setup
             melementB = fea.ChElementShellBST()
             mesh.AddElement(melementB)
 
-            # Define boundary nodes for element B
-            boundary_1B = mynodes[iz * (nsections_x + 1) + ix] if (iz >= 0 and ix >= 0) else None
-            # Set nodes to the element (only four nodes needed)
+            # Set nodes to the element (corrected parameters)
             melementB.SetNodes(
                 mynodes[(iz + 1) * (nsections_x + 1) + ix + 1],
                 mynodes[(iz + 1) * (nsections_x + 1) + ix],
-                mynodes[iz * (nsections_x + 1) + ix + 1],
-                boundary_1B
+                mynodes[iz * (nsections_x + 1) + ix + 1]
             )
 
             # Add layer to the element
@@ -123,8 +118,8 @@ if (True):  # Block to execute the following setup
     mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
     mvisualizeshellA.SetSmoothFaces(True)  # Enable smooth faces
     mvisualizeshellA.SetWireframe(True)  # Enable wireframe mode
-    mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mvisualizeshellA.SetBackfaceCull(True)  # Enable backface culling
+    mvisualizeshellA.SetShellResolution(2)  # Set resolution for shell visualization
     mesh.AddVisualShapeFEA(mvisualizeshellA)  # Add visual shape to mesh
 
     # Create visualization of FEM data

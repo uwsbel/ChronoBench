@@ -123,7 +123,8 @@ def main():
         640,  
         480,  
         1.0,  
-        10.0,  
+        0.1,  
+        1000.0,  
         chrono.ChVectorD(0, 0, 1),  
         chrono.ChQuaternionD(1, 0, 0, 0)  
     )
@@ -140,13 +141,12 @@ def main():
 
     while ch_time < end_time:
         
-        vehicle.Synchronize(driver, terrain, ch_time)
+        vehicle.Synchronize()
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
 
         
         manager.Update()
-
-        
-        vehicle.Advance(driver, terrain, step_size)
 
         
         vehicle.GetSystem().DoStepDynamics(step_size)

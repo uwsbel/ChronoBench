@@ -1,18 +1,5 @@
 
-To address the requirements, I've modified the script to include a lidar sensor on the Curiosity rover. Key changes include:
-
-1. Added the sensor module import
-2. Created a sensor manager
-3. Added a rotating lidar sensor to the rover's chassis with:
-   - 10 Hz update rate
-   - 360° horizontal FOV with 3600 samples
-   - 20° vertical FOV with 32 samples
-   - 100m maximum range
-   - Gaussian noise model
-   - Point cloud visualization filter
-4. Updated the simulation loop to refresh sensors
-
-The corrected and enhanced script:
+Based on the instructions, I've identified and corrected several issues in the script while adding the requested sensor functionality. Here's the modified code:
 
 ```python
 import os
@@ -20,7 +7,7 @@ import math
 import numpy as np
 import pychrono as chrono
 import pychrono.robot as robot
-import pychrono.sensor as sens  # Added sensor module
+import pychrono.sensor as sens  # Added sensor module import
 from pychrono import irrlicht as chronoirr
 
 # Create Chrono system
@@ -52,40 +39,40 @@ rover = robot.Curiosity(system)
 driver = robot.CuriosityDCMotorControl()
 rover.SetDriver(driver)
 
-# Initialize rover position and orientation
+# Initialize rover position and orientation - FIXED initialization frame
 init_pos = chrono.ChVector3d(-5, 0.0, 0)
 init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
-rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))  # Fixed ChFrameD initialization
 
-# Create sensor manager
+# Create sensor manager - ADDED as per instructions
 manager = sens.ChSensorManager(system)
-manager.scene.AddPointLight(chrono.ChVector3f(0, 0, 100), chrono.ChVector3f(2, 2, 2), 5000)
+manager.scene.AddPointLight(chrono.ChVector3d(2, 2.5, 5), chrono.ChColor(1, 1, 1), 500.0)
 
-# Add lidar to rover chassis
-chassis = rover.GetChassis().GetBody()
-lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.2, 0, 0.4), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 1, 0)))
+# Create and configure lidar sensor - ADDED as per instructions
+lidar_offset_pose = chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.Q_from_AngAxis(0, chrono.ChVector3d(0, 0, 1)))
 lidar = sens.ChLidarSensor(
-    chassis,
-    10,  # Update rate (Hz)
-    lidar_offset_pose,
-    3600,  # Horizontal samples
-    32,    # Vertical samples
-    chrono.CH_PI,  # Horizontal FOV (360°)
-    chrono.CH_PI / 9,  # Vertical FOV (20°)
-    100.0  # Max range
+    rover.GetChassisBody(),  # Parent body
+    10,                      # Update rate (Hz)
+    lidar_offset_pose,       # Offset pose
+    1000,                    # Horizontal samples
+    64,                      # Vertical samples
+    chrono.CH_PI,            # Horizontal field of view (180°)
+    chrono.CH_PI / 9,        # Vertical field of view (20°)
+    100.0,                   # Max distance
 )
-lidar.SetName("Lidar")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.01)
+lidar.SetName("Rover Lidar")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(0.0)
 
-# Add noise model
+# Add noise model - ADDED as per instructions
 noise_model = sens.ChNoiseNormalDist(0.0, 0.01)
 lidar.SetNoiseModel(noise_model)
 
-# Add point cloud visualization filter
-pc_filter = sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud")
-lidar.PushFilter(pc_filter)
+# Add filters - ADDED as per instructions
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualize(1000, 64, "Lidar Point Cloud"))
 
+# Add sensor to manager - ADDED as per instructions
 manager.AddSensor(lidar)
 
 # Create the Irrlicht visualization
@@ -93,7 +80,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Curiosity rover with Lidar')
+vis.SetWindowTitle('Curiosity Rover with Lidar Sensor')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -114,8 +101,8 @@ while vis.Run():
 
     # Update rover dynamics
     rover.Update()
-    
-    # Update sensor manager
+
+    # Update sensor manager - ADDED as per instructions
     manager.Update()
 
     # Render the scene
@@ -127,12 +114,19 @@ while vis.Run():
     system.DoStepDynamics(time_step)
 ```
 
-Key improvements:
-1. Added `pychrono.sensor` import
-2. Created sensor manager with supplemental lighting
-3. Mounted lidar on rover chassis with realistic parameters
-4. Implemented noise model and point cloud visualization
-5. Added sensor manager update in simulation loop
-6. Updated window title to reflect lidar addition
+Key changes made:
+1. **Sensor Module Import**: Added `import pychrono.sensor as sens`
+2. **Fixed Rover Initialization**: Changed `ChFramed` to correct `ChFrameD`
+3. **Sensor Manager**: Created `sens.ChSensorManager`
+4. **Lidar Configuration**:
+   - Added to rover's chassis body at height 0.5m
+   - Configured with 10Hz update rate
+   - 1000 horizontal samples and 64 vertical samples
+   - 180° horizontal FOV and 20° vertical FOV
+   - 100m max distance
+5. **Noise Model**: Added Gaussian noise with σ=0.01
+6. **Filters**: Added point cloud generation and visualization
+7. **Sensor Update**: Added `manager.Update()` in simulation loop
+8. **Visualization**: Updated window title to reflect lidar addition
 
-The script now simulates the rover with a rotating lidar sensor that generates and visualizes point cloud data in real-time.
+The lidar will now generate and visualize a point cloud from the rover's perspective as it moves across the terrain.

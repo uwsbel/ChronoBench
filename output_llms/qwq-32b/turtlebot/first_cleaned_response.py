@@ -1,57 +1,124 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.turtlebot as turtlebot
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
 
 
 my_system = chrono.ChSystemNSC()
-my_system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetTimestep(0.01)
 
 
-ground = chrono.ChBody()
+ground = chrono.ChBodyEasyBox(20, 0.1, 20, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
 ground.SetBodyFixed(True)
-ground.SetPos(chrono.ChVectorD(0, 0, 0))
-ground_shape = chrono.ChBox(chrono.ChVectorD(10, 0.1, 10))
-ground.AddAsset(ground_shape)
-ground.AddAsset(chrono.ChColorAsset(0.2, 0.3, 0.5))
 my_system.Add(ground)
 
 
-my_turtlebot = turtlebot.Turtlebot()
-my_turtlebot.Initialize(my_system)
-my_turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))  
-my_turtlebot.SetRot(chrono.Q_from_Euler_123(0, 0, 0))  
+turtlebot = vehicle.Turtlebot()
+turtlebot.Initialize(my_system, True, "Pirelli")  
+turtlebot.GetChassis().SetPos(chrono.ChVectorD(0, 0.1, 0))
+turtlebot.GetChassis().SetRot(chrono.Q_from_Euler_123(0, 0, 0))
+turtlebot.SetupVisualization()
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Turtlebot Simulation')
-vis.SetCameraPosition(chrono.ChVectorD(2, 2, 5))  
-vis.SetCameraLookat(chrono.ChVectorD(0, 0, 0))
-vis.SetLightIntensity(0.8)
-my_system.SetVisualSystem(vis)
+vis = irr.ChIrrApp(my_system, 'Turtlebot Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalLights()
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.AddAsset(turtlebot.GetVisualizationAssets())
+vis.AddAsset(ground.GetAssetContainer())
+
+vis.SetTimestep(my_system.GetSettings().timestep())
+vis.SetRealtimeFactor(1)
 
 
-step_size = 1e-3  
-time = 0.0
-
+vis.Initialize()
+vis.AddCamera()
 
 while vis.Run():
-    time = my_system.GetChTime()
+    current_time = my_system.GetChTime()
     
     
-    if time < 2.0:
-        my_turtlebot.SetMotorSpeeds(5, 5)  
-    elif time < 4.0:
-        my_turtlebot.SetMotorSpeeds(-5, 5)  
-    elif time < 6.0:
-        my_turtlebot.SetMotorSpeeds(5, -5)  
+    if current_time < 2:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(5)
+        turtlebot.GetDriveline().SetRightDriveVelocity(5)
+    elif 2 <= current_time <5:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(0)
+        turtlebot.GetDriveline().SetRightDriveVelocity(5)
+    elif 5 <= current_time <8:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(5)
+        turtlebot.GetDriveline().SetRightDriveVelocity(0)
     else:
-        my_turtlebot.SetMotorSpeeds(0, 0)  
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(0)
+        turtlebot.GetDriveline().SetRightDriveVelocity(0)
     
     
-    my_system.DoStepDynamics(step_size)
+    turtlebot.Synchronize(my_system)
+    turtlebot.Update(0, 0)  
+    vis.DoStep()
+
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
+
+
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetTimestep(0.01)
+
+
+ground = chrono.ChBodyEasyBox(20, 0.1, 20, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+my_system.Add(ground)
+
+
+turtlebot = vehicle.Turtlebot()
+turtlebot.Initialize(my_system, True, "Pirelli")  
+turtlebot.GetChassis().SetPos(chrono.ChVectorD(0, 0.1, 0))  
+turtlebot.SetupVisualization()
+
+
+vis = irr.ChIrrApp(my_system, 'Turtlebot Simulation', irr.dimension2du(1024, 768))
+vis.AddTypicalLights()
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))
+vis.SetCameraLookAt(chrono.ChVectorD(0, 0, 0))
+vis.AddAsset(turtlebot.GetVisualizationAssets())
+vis.AddAsset(ground.GetAssetContainer())
+
+vis.SetTimestep(my_system.GetSettings().timestep())
+vis.SetRealtimeFactor(1)
+
+
+vis.Initialize()
+vis.AddCamera()
+
+while vis.Run():
+    current_time = my_system.GetChTime()
     
     
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
+    if current_time < 2:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(5)
+        turtlebot.GetDriveline().SetRightDriveVelocity(5)
+    elif 2 <= current_time < 5:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(0)
+        turtlebot.GetDriveline().SetRightDriveVelocity(5)
+    elif 5 <= current_time < 8:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(5)
+        turtlebot.GetDriveline().SetRightDriveVelocity(0)
+    else:
+        
+        turtlebot.GetDriveline().SetLeftDriveVelocity(0)
+        turtlebot.GetDriveline().SetRightDriveVelocity(0)
+    
+    
+    turtlebot.Synchronize(my_system)
+    turtlebot.Update(0, 0)  
+    vis.DoStep()

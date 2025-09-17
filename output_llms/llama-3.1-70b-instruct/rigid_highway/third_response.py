@@ -69,7 +69,7 @@ patch_mat.SetFriction(0.4)  # updated friction value
 patch_mat.SetRestitution(0.05)  # updated restitution value
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.QFromAxisAngle(chrono.VECT_Z, -math.pi/2)),  # updated position and orientation
+    chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0), chrono.Q_from_AngZ(-math.pi/2)),  # updated position and orientation
     chrono.GetChronoDataFile('vehicle/terrain/meshes/Highway_col.obj'),
     True, 0.01, False)
 vis_mesh = chrono.ChTriangleMeshConnected().CreateFromWavefrontFile(veh.GetDataFile("terrain/meshes/Highway_vis.obj"), True, True)

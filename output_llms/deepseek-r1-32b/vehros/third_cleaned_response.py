@@ -50,12 +50,6 @@ def main():
     vis.AddLightWithShadow(ch.ChVector3d(1.5, -2.5, 5.5), ch.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
     
     
-    box = sens.ChBodyEasyBox(1, 1, 1)
-    box.SetPos(ch.ChVector3d(5, 0, 1.6))
-    box.GetVisualShape(0).SetMaterialColor(ch.ChColor(0.5, 0.5, 0.5))
-    vis.GetSystem().AddBody(box)
-    
-    
     driver = veh.ChDriver(hmmwv.GetVehicle())
     driver.Initialize()
     
@@ -64,47 +58,45 @@ def main():
     ros_manager.RegisterHandler(chros.ChROSClockHandler())
     ros_manager.RegisterHandler(chros.ChROSDriverInputsHandler(25, driver, "~/input/driver_inputs"))
     ros_manager.RegisterHandler(chros.ChROSBodyHandler(25, hmmwv.GetChassisBody(), "~/output/hmmwv/state"))
+    ros_manager.Initialize()
+    
+    
+    box = ch.ChBodyEasyBox(1, 1, 1)
+    box.SetPos(ch.ChVector3d(5, 0, 1.6))
+    box.SetColor(ch.ChColor(0.5, 0, 0))
+    box.SetCollide(False)
+    hmmwv.GetSystem().AddBody(box)
     
     
     sens_manager = sens.ChSensorManager(hmmwv.GetSystem())
+    sens_manager.SetUpdateInterval(0.1)
     
     
     lidar = sens.ChLidarSensor()
-    lidar.SetName("lidar")
+    lidar.SetRange(10.0)
+    lidar.SetHorizontalAngleRange(math.radians(180))
+    lidar.SetVerticalAngleRange(math.radians(30))
+    lidar.SetResolutionHorizontal(math.radians(0.1))
+    lidar.SetResolutionVertical(math.radians(1))
     lidar.SetPosition(ch.ChVector3d(0, 0, 1.6))
     lidar.SetRotation(ch.ChQuaterniond(1, 0, 0, 0))
-    lidar.SetRange(50.0)
-    lidar.SetHorizontalAngleRange(-1.5708, 1.5708)
-    lidar.SetVerticalAngleRange(-0.7854, 0.7854)
-    lidar.SetNumberOfBeams(360)
-    lidar.SetBeamSpacing(0.01)
     
     
-    distance_filter = sens.ChLidarDistanceFilter()
-    distance_filter.SetMinDistance(0.1)
-    distance_filter.SetMaxDistance(50.0)
-    lidar.AddFilter(distance_filter)
+    range_filter = sens.ChFilterRange()
+    range_filter.SetMinDistance(0.1)
+    range_filter.SetMaxDistance(10.0)
+    lidar.AddFilter(range_filter)
     
-    intensity_filter = sens.ChLidarIntensityFilter()
-    intensity_filter.SetMinIntensity(0.1)
-    intensity_filter.SetMaxIntensity(1.0)
-    lidar.AddFilter(intensity_filter)
-    
-    coordinate_filter = sens.ChLidarCoordinateFilter()
-    coordinate_filter.SetMinX(-10)
-    coordinate_filter.SetMaxX(10)
-    coordinate_filter.SetMinY(-10)
-    coordinate_filter.SetMaxY(10)
-    coordinate_filter.SetMinZ(0)
-    coordinate_filter.SetMaxZ(20)
-    lidar.AddFilter(coordinate_filter)
+    box_filter = sens.ChFilterBox()
+    box_filter.SetMin(ch.ChVector3d(-5, -5, -5))
+    box_filter.SetMax(ch.ChVector3d(5, 5, 5))
+    lidar.AddFilter(box_filter)
     
     sens_manager.AddSensor(lidar)
     
     
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(25, lidar, "~/output/hmmwv/lidar"))
-    
-    ros_manager.Initialize()
+    ros_lidar_handler = chros.ChROSLidarHandler(25, lidar, "~/output/lidar")
+    ros_manager.RegisterHandler(ros_lidar_handler)
     
     
     time = 0
@@ -118,7 +110,7 @@ def main():
     while vis.Run():
         time = hmmwv.GetSystem().GetChTime()
         
-        if (step_number % render_steps == 0):
+        if step_number % render_steps == 0:
             vis.BeginScene()
             vis.Render()
             vis.EndScene()

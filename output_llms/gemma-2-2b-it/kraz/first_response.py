@@ -1,95 +1,50 @@
-from pychrono import *
-from pychrono.irrlicht import IrrlichtRenderer
+import pychrono as pch
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.irrlicht as irr
+import numpy as np
 
 # Initialize PyChrono
-chrono.init()
+p = pch.PyChrono()
 
-# Create the scene
-world = chrono.createWorld()
-scene = chrono.createScene(world)
+# Create a new world
+world = pch.World()
 
-# Define terrain properties
-terrain_height = 0.5
-terrain_friction = 0.5
-terrain_restitution = 0.2
+# Create a terrain
+terrain = pch.Terrain(p, "terrain.obj")
+terrain.setFriction(0.2)
+terrain.setRestitution(0.8)
 
-# Create terrain
-terrain = chrono.createTerrain(
-    world,
-    chrono.createBox(
-        chrono.Vec3(0, 0, 0),
-        chrono.Vec3(10, 10, 1),
-        chrono.Vec3(terrain_height, terrain_height, terrain_height),
-    ),
-    chrono.Vec3(0, 0, 0),
-    chrono.Vec3(10, 10, 1),
-    chrono.Vec3(terrain_height, terrain_height, terrain_height),
-    terrain_friction,
-    terrain_restitution,
-)
+# Create a Kraz vehicle
+vehicle = pch.Vehicle(p, "kraz.obj")
+vehicle.setMass(1000)
+vehicle.setEnginePower(1000)
 
-# Create Kraz vehicle
-vehicle = chrono.createVehicle(
-    world,
-    chrono.createBox(
-        chrono.Vec3(0, 0, 0),
-        chrono.Vec3(5, 5, 1),
-        chrono.Vec3(terrain_height, terrain_height, 0.5),
-    ),
-    chrono.Vec3(0, 0, 0),
-    chrono.Vec3(5, 5, 1),
-    chrono.Vec3(terrain_height, terrain_height, 0.5),
-)
+# Define vehicle initial conditions
+vehicle.setPosition(p.Vec3(0, 0, 0))
+vehicle.setVelocity(p.Vec3(0, 10, 0))
 
-# Define vehicle parameters
-vehicle_mass = 1000
-vehicle_length = 5
-vehicle_width = 2
-vehicle_height = 1
-vehicle_speed = 5
+# Create a driver system
+driver = pch.Driver(p, vehicle)
+driver.setSteeringAngle(0)
 
-# Initialize driver system
-driver = chrono.createDriver(
-    vehicle,
-    chrono.Vec3(0, 0, 0),
-    chrono.Vec3(vehicle_length, vehicle_width, vehicle_height),
-    chrono.Vec3(vehicle_mass, vehicle_mass, vehicle_mass),
-)
+# Initialize Irrlicht visualization
+irr_world = irr.IrrlichtWorld(p.Vec2(800, 600))
+irr_world.setCamera(p.Vec3(0, 0, 0), p.Vec3(0, 1, 0))
+irr_world.setAmbientLight(p.Vec3(0.2, 0.2, 0.2))
 
-# Set camera settings
-camera = chrono.createCamera(
-    scene,
-    chrono.Vec3(0, 0, 10),
-    chrono.Vec3(0, 0, 0),
-    chrono.Vec3(0, 0, 0),
-)
+# Create a simulation loop
+def simulation_loop():
+    # Update vehicle position, velocity, and steering angle
+    driver.update()
 
-# Set lighting
-light = chrono.createLight(
-    scene,
-    chrono.Vec3(0, 0, 1),
-    chrono.Vec3(0.5, 0.5, 0.5),
-)
+    # Update terrain and physics
+    terrain.update()
 
-# Initialize Irrlicht renderer
-renderer = IrrlichtRenderer()
-renderer.init(scene)
+    # Update visual system
+    irr_world.update()
 
-# Set camera position and look at
-camera.setPosition(chrono.Vec3(0, 0, 10))
-camera.setLookAt(chrono.Vec3(0, 0, 0))
-
-# Set rendering parameters
-renderer.setCamera(camera)
-renderer.setLighting(light)
-
-# Simulation loop
-while True:
-    # Update the simulation
-    chrono.update(1.0 / 60.0)
-    
     # Render the scene
-    renderer.render()
+    irr_world.render()
 
-    # Update the Irrlicht renderer
-    renderer.update()
+# Run the simulation loop
+simulation_loop()

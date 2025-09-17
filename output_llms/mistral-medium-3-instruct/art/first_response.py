@@ -1,93 +1,91 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
-from pychrono.vehicle.wheeled_vehicle import WheeledVehicleVisualizationType
-from pychrono.vehicle.wheeled_vehicle import ChWheeledVehicleVisualizationType
+import pychrono.vehicle.artcar as artcar
 
 # 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path here
+chrono.SetChronoDataPath("path_to_chrono_data")  # Update this path
+sys_path = "path_to_vehicle_data"  # Update this path
 
 # Create the vehicle system
-vehicle_system = chrono.ChSystemNSC()
-vehicle_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-# 2. Add the required physical systems and objects
-
-# Create the vehicle
-vehicle = veh.ARTcar(vehicle_system)
-vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle = veh.Vehicle(sys_path)
 vehicle.SetChassisFixed(False)
-vehicle.SetChassisVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetSuspensionVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetSteeringVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
-vehicle.SetWheelVisualizationType(WheeledVehicleVisualizationType.PRIMITIVES)
+vehicle.SetChassisCollide(True)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetChassisVisualizationFile("path_to_chassis_mesh.obj")  # Update this path
 
-# Set initial vehicle location and orientation
-vehicle.Initialize(chrono.ChCoordinatorys(chrono.ChVectorD(0, 0, 0.5),
-                                         chrono.ChQuaternionD(1, 0, 0, 0)))
+# Set initial position and orientation
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+vehicle.Initialize(init_pos, init_rot)
+
+# Set contact method
+vehicle.SetTireContactMethod(veh.TireContactMethod_DEM)
 
 # Create the terrain
-terrain = veh.RigidTerrain(vehicle_system)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetContactMaterialProperties(2e5, 0.8)
 terrain.SetContactFrictionCoefficient(0.9)
-terrain.SetContactRestitutionCoefficient(0.01)
-terrain.SetContactMaterialProperties(2e7, 0.3)
-terrain.SetContactForceModel(chrono.ChSystemNSC::ContactForceModel::Hertz)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactYoungModulus(2e5)
+terrain.SetContactPoissonRatio(0.3)
 
-# Create a patch of the terrain
-patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
-                         chrono.ChVectorD(20, 20, 0),
-                         20, 20)
-patch.SetTexture(veh.RigidTerrain::Texture("PATH_TO_TEXTURE.png"))  # Set your texture path
+# Create the terrain geometry
+terrain_patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
+                                chrono.ChVectorD(20, 20, 0),
+                                0, 0, 200, 200)
+terrain_patch.SetTexture("path_to_texture.png")  # Update this path
 
-# Create the driver system
-driver = veh.ChInteractiveDriverIRR(vehicle)
-driver.SetSteeringDelta(0.02)
-driver.SetThrottleDelta(0.02)
-driver.SetBrakingDelta(0.02)
+# 2. Add the ARTcar vehicle system
+artcar.Create(vehicle)
 
-# 3. Set up visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle("ARTcar Simulation")
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
-vis.AddSkyBox()
+# 3. Set up visualization with Irrlicht
+vis = chronoirr.ChIrrApp(vehicle.GetSystem(), "ARTcar Simulation", chrono.ChVectorD(1280, 720))
+vis.AddTypicalLogo()
+vis.AddTypicalSky()
 vis.AddTypicalLights()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))
-vis.AttachSystem(vehicle_system)
+vis.AddTypicalCamera(chrono.ChVectorD(0, 0, 1), chrono.ChVectorD(0, 0, 0))
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
-# Set up the visualization for the vehicle
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.GetChassisBody().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
-vehicle.GetChassisBody().SetBodyFixed(False)
+# Set up interactive driver
+driver = veh.ChDriver(vehicle)
+vehicle.SetDriver(driver)
 
-# Add visualization assets for the vehicle
-veh.ChWheeledVehicleVisualSystemIRR(vis).AddVehicle(vehicle)
+# Simulation parameters
+step_size = 1e-3
+time_end = 100
+output_freq = 50  # 50 FPS
 
-# 4. Simulation loop
-time_step = 0.01
-sim_time = 0
-target_fps = 50
-frame_time = 1.0 / target_fps
-
+# Simulation loop
 while vis.Run():
-    vis.BeginScene()
-    vis.Render()
+    time = vehicle.GetSystem().GetChTime()
 
-    # Update the driver inputs
-    driver_inputs = driver.GetInputs()
+    # Update driver inputs (example - implement your own input handling)
+    throttle = 0.5
+    steering = 0.0
+    braking = 0.0
 
-    # Update the vehicle state
-    vehicle.Update(sim_time, driver_inputs)
+    # Get user input (example for keyboard control)
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_W):
+        throttle = 1.0
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_S):
+        braking = 1.0
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_A):
+        steering = -0.5
+    if vis.GetDevice().getKeyState(irrlicht.KEY_KEY_D):
+        steering = 0.5
 
-    # Advance simulation for one timestep
-    vehicle_system.DoStepDynamics(time_step)
+    driver.SetThrottle(throttle)
+    driver.SetSteering(steering)
+    driver.SetBraking(braking)
 
     # Update visualization
-    veh.ChWheeledVehicleVisualSystemIRR(vis).Update()
-
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.DoStepDynamics(step_size)
     vis.EndScene()
 
-    # Control the simulation speed
-    sim_time += time_step
-    chrono.ChTime.sleep(frame_time)
+    # Exit condition
+    if time > time_end:
+        break

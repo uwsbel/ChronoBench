@@ -1,58 +1,72 @@
 import pychrono as chrono
 import pychrono.vehicle as veh
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irrlicht
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-terrain = veh.ChRigidTerrain(system)
-patch_mat = chrono.ChMaterialSurfaceNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(200, 100, 1))
-terrain.Initialize()
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-vehicle = veh.M113(system)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0)))
-vehicle.Initialize()
+terrain_length = 100
+terrain_width = 100
+terrain_height = 1
+terrain_material = chrono.ChMaterialSurfaceNSC()
+terrain_material.SetFriction(0.9)
+terrain_material.SetRestitution(0.01)
+
+terrain_body = chrono.ChBodyEasyBox(terrain_length, terrain_height, terrain_width, 1000, True, True)
+terrain_body.SetPos(chrono.ChVectorD(0, -terrain_height/2, 0))
+terrain_body.SetBodyFixed(True)
+terrain_body.GetMaterialSurfaceNSC().SetFriction(0.9)
+terrain_body.GetMaterialSurfaceNSC().SetRestitution(0.01)
+system.Add(terrain_body)
 
 
-driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
-driver.SetSteeringDelta(0.05)
-driver.SetThrottleDelta(0.05)
-driver.SetBrakingDelta(0.05)
+m113 = veh.ChM113()
+m113.Initialize(system, chrono.ChCoordsysD(chrono.ChVectorD(0, 1, 0), chrono.QUNIT))
+m113.SetChassisVisualizationType(veh.VisualizationType_MESH)
+m113.SetTrackShoeVisualizationType(veh.VisualizationType_MESH)
+m113.SetSprocketVisualizationType(veh.VisualizationType_MESH)
+m113.SetIdlerVisualizationType(veh.VisualizationType_MESH)
+m113.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
 
 
-application = chronoirr.ChIrrApp(system, "M113 Simulation", chronoirr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, -5, 0.5), chronoirr.vector3df(0, 0, 0))
+driver = veh.ChDriver(m113.GetVehicle())
+driver.Initialize()
 
 
-step_size = 1e-3
-step_timer = chrono.ChRealtimeStepTimer()
+app = irrlicht.ChIrrApp(system, 'M113 Simulation', irrlicht.dimension2du(800, 600))
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 
-while application.GetDevice().run():
+step_size = 0.005
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+
+while app.GetDevice().run():
     time = system.GetChTime()
-    driver_inputs = driver.GetInputs()
-    
+
     
     driver.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs)
-    terrain.Synchronize(time)
+    m113.Synchronize(time)
     
     
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    
+    driver.Advance(step_size)
+    m113.Advance(step_size)
+
     
     system.DoStepDynamics(step_size)
+
     
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
     
-    step_timer.Spin(step_size)
+    realtime_timer.Spin(step_size)

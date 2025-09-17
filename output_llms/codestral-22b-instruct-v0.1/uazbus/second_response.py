@@ -105,10 +105,10 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Define the double lane change maneuver
-lane_change_times = [5, 10, 15]  # Time intervals for lane changes
-steering_inputs = [0, 1, -1, 0]   # Corresponding steering inputs
-throttle_inputs = [1, 1, 1, 0]   # Corresponding throttle inputs
+# Define the time intervals and corresponding steering and throttle adjustments for lane changes and braking
+lane_change_times = [5.0, 10.0, 15.0]  # time intervals for lane changes
+steering_adjustments = [0.5, -0.5, 0.5]  # steering adjustments for lane changes
+throttle_adjustment = -0.5  # throttle adjustment for braking
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -122,20 +122,11 @@ while vis.Run():
     # Get driver inputs
     driver_inputs = driver.GetInputs()
 
-    # Update driver inputs based on the double lane change maneuver
-    if time < lane_change_times[0]:
-        driver_inputs.m_steering = steering_inputs[0]
-        driver_inputs.m_throttle = throttle_inputs[0]
-    elif time < lane_change_times[1]:
-        driver_inputs.m_steering = steering_inputs[1]
-        driver_inputs.m_throttle = throttle_inputs[1]
-    elif time < lane_change_times[2]:
-        driver_inputs.m_steering = steering_inputs[2]
-        driver_inputs.m_throttle = throttle_inputs[2]
-    else:
-        driver_inputs.m_steering = steering_inputs[3]
-        driver_inputs.m_throttle = throttle_inputs[3]
-        driver_inputs.m_braking = 1  # Apply braking after the maneuver
+    # Adjust steering and throttle inputs for lane changes and braking
+    if time in lane_change_times:
+        driver_inputs.m_steering = steering_adjustments[lane_change_times.index(time)]
+    if time > lane_change_times[-1]:
+        driver_inputs.m_throttle = throttle_adjustment
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

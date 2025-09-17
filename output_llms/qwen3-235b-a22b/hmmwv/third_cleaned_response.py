@@ -3,7 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -21,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
 
@@ -30,6 +28,7 @@ trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 
 step_size = 1e-3
@@ -61,9 +60,7 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                         terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -81,34 +78,34 @@ vis.AttachVehicle(vehicle.GetVehicle())
 
 
 class MyDriver(veh.ChDriver):
-    def __init__(self, delay):
-        super().__init__()
+    def __init__(self, vehicle, delay=0.5):
+        veh.ChDriver.__init__(self, vehicle)
         self.delay = delay
 
     def Synchronize(self, time):
-        effective_time = max(time - self.delay, 0)
-
+        effective_time = max(0.0, time - self.delay)
+        
         
         if effective_time < 0.2:
             throttle = 0.0
         else:
-            throttle = min(0.7, (effective_time - 0.2) * 0.7)
-
+            throttle = min(0.7, (effective_time - 0.2) * 1.4)  
+            
         
         if effective_time < 2.0:
             steering = 0.0
         else:
-            steering = 0.5 * math.sin(2 * math.pi * 0.5 * (effective_time - 2.0))
-
+            steering = 0.5 * math.sin(2 * math.pi * 0.25 * (effective_time - 2.0))
+            
         
         braking = 0.0
-
+        
         self.SetThrottle(throttle)
         self.SetSteering(steering)
         self.SetBraking(braking)
 
 
-driver = MyDriver(0.5)
+driver = MyDriver(vehicle)
 driver.Initialize()
 
 
@@ -124,7 +121,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
     
-    if time >= 4:
+    if time >= 4.0:
         break
 
     
@@ -134,8 +131,10 @@ while vis.Run():
         vis.EndScene()
 
     
-    driver.Synchronize(time)
     driver_inputs = driver.GetInputs()
+    
+    
+    driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)

@@ -83,28 +83,21 @@ mesh.SetAutomaticGravity(False)
 # Add the mesh to the physical system.
 sys.Add(mesh)
 
-# Create a builder object to create a beam.
+# Create a builder object to create a beam section.
 builder = fea.ChBuilderBeamEuler()
-# Set the beam section properties.
-builder.SetBeamSection(msection)
-# Set the beam nodes.
-builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0, 0, -0.1)))
-builder.AddNode(chrono.ChFramed(chrono.ChVector3d(0.2, 0, -0.1)))
-# Set the beam direction (Y up).
-builder.SetBeamDirection(chrono.ChVector3d(0, 1, 0))
-# Set the number of elements.
-builder.SetBeamNElements(5)
-# Build the beam.
-builder.BuildBeam()
+# Create a beam from point A to point B using the builder.
+builder.BuildBeam(chrono.ChVector3d(0, 0, -0.1), chrono.ChVector3d(0.2, 0, -0.1), 5, 'Y')
 
-# Get the last beam nodes.
+# Get the last node of the created beam.
 last_node = builder.GetLastBeamNodes().back()
-
 # Fix the last node of the created beam.
 last_node.SetFixed(True)
 
 # Apply a force to the first node of the created beam section.
-builder.GetFirstBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
+builder.GetFirstBeamNodes().back().SetForce(chrono.ChVector3d(0, -1, 0))
+
+# Add the created beam to the mesh.
+mesh.AddElement(builder.GetBeam())
 
 # Add visualization for the beams in the mesh.
 visualizebeamA = chrono.ChVisualShapeFEA(mesh)

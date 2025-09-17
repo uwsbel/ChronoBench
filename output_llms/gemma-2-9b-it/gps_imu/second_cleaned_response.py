@@ -41,7 +41,10 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-log_step_size = 1.0  
+log_step_size = 1.0 
+
+
+gps_data = []
 
 
 vehicle = veh.HMMWV_Full() 
@@ -91,7 +94,7 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
-throttle_time = 1.0  
+throttle_time = 1.0 
 braking_time = 0.3   
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
@@ -104,9 +107,9 @@ manager = sens.ChSensorManager(vehicle.GetSystem())
 
 offset_pose = chrono.ChFramed(chrono.ChVector3d(-8, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0)))
 imu = sens.ChAccelerometerSensor(vehicle.GetChassisBody(),                     
-                                 10,        
-                                 offset_pose,          
-                                 sens.ChNoiseNone())   
+                10,        
+                offset_pose,          
+                sens.ChNoiseNone())   
 imu.SetName("IMU Sensor")
 imu.SetLag(0)
 imu.SetCollectionWindow(0)
@@ -143,7 +146,6 @@ render_steps = math.ceil(render_step_size / step_size)
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
-gps_data = []  
 
 
 while vis.Run():
@@ -157,11 +159,18 @@ while vis.Run():
         render_frame += 1
 
     
-    
-    throttle = math.sin(time)  
-    steering = time * 0.1
-    brake = 1.0 if time > 6.0 else 0.0
-    driver_inputs = {'throttle': throttle, 'steering': steering, 'brake': brake}
+    if time < 6:
+        driver_inputs = {
+            'throttle': time / 6,
+            'steering': 0,
+            'brake': 0
+        }
+    else:
+        driver_inputs = {
+            'throttle': 0,
+            'steering': 0,
+            'brake': (time - 6) / 3
+        }
 
     
     driver.Synchronize(time)

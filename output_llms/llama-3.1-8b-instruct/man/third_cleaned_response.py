@@ -75,25 +75,19 @@ terrain.Initialize()
 
 
 sensor_manager = sens.ChSensorManager()
-sensor_manager.SetTimeStep(step_size)
-sensor_manager.SetTime(0.0)
-sensor_manager.Initialize()
+sensor_manager.Initialize(vehicle.GetSystem())
 
 
 lidar = sens.ChLidarSensor()
-lidar.SetName("Lidar Sensor")
-lidar.SetSensorType(sens.SensorType_LIDAR)
+lidar.SetName("Lidar")
 lidar.SetPosition(chrono.ChVector3d(0, 0, 2))
-lidar.SetDirection(chrono.ChVector3d(0, 0, 1))
-lidar.SetSensorRadius(1)
-lidar.SetSensorHeight(1)
-lidar.SetSensorResolution(0.1)
-lidar.SetSensorRange(10)
-lidar.SetSensorType(sens.SensorType_LIDAR)
-lidar.SetSensorDataPath(chrono.GetChronoDataPath() + "lidar_data/")
-
-
-sensor_manager.AddSensor(lidar)
+lidar.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+lidar.SetRange(100)
+lidar.SetResolution(0.01)
+lidar.SetAngularResolution(0.01)
+lidar.SetSamplingPeriod(0.1)
+lidar.SetSensorManager(sensor_manager)
+lidar.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -134,15 +128,11 @@ render_frame = 0
 num_boxes = 10
 boxes = []
 for i in range(num_boxes):
-    box = veh.ChBox()
-    box.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0))
-    box.SetSize(chrono.ChVector3d(1, 1, 1))
-    box.SetColor(chrono.ChColor(np.random.uniform(0, 1), np.random.uniform(0, 1), np.random.uniform(0, 1)))
-    boxes.append(box)
-
-
-for box in boxes:
+    box = chrono.ChBoxShape()
+    box.SetBoxSize(chrono.ChVector3d(1, 1, 1))
+    box.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10)))
     vehicle.GetSystem().AddAsset(box)
+    boxes.append(box)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -161,6 +151,7 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
     sensor_manager.Synchronize(time)
+    lidar.Synchronize(time)
 
     
     driver.Advance(step_size)
@@ -168,6 +159,7 @@ while vis.Run() :
     vehicle.Advance(step_size)
     vis.Advance(step_size)
     sensor_manager.Advance(step_size)
+    lidar.Advance(step_size)
 
     
     step_number += 1
@@ -176,5 +168,5 @@ while vis.Run() :
     realtime_timer.Spin(step_size)
 
     
-    lidar.Update(time)
-    sensor_manager.Update(time)
+    for box in boxes:
+        box.SetPosition(chrono.ChVector3d(np.random.uniform(-10, 10), np.random.uniform(-10, 10), np.random.uniform(-10, 10)))

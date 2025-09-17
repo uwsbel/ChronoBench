@@ -2,12 +2,11 @@ import pychrono as ch
 import pychrono.ros as chros
 
 import rclpy.publisher
-from std_msgs.msg import String  
+from std_msgs.msg import String
 
 
 class MyCustomHandler(chros.ChROSHandler):
     
-    message = "Hello, world! At time: "  
 
     def __init__(self, topic):
         super().__init__(1)  
@@ -15,6 +14,7 @@ class MyCustomHandler(chros.ChROSHandler):
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  
+        self.message = "Hello, world! At time: "  
 
     def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
         

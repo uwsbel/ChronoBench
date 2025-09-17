@@ -1,59 +1,65 @@
 import pychrono as chrono
-import pychrono.irrlicht as irrlicht
-import pychrono.irrlicht.irrlicht_types as irrtypes
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.irrlicht_driver as irr_driver
 
 
 chrono.init()
 
 
-engine = irrlicht.IrrlichtEngine()
-engine.createWindow("ARTcar Simulation", 800, 600)
+irr_env = irr.IrrlichtEnvironment()
+irr_env.setWindowTitle("ARTcar Simulation")
+irr_env.setVideoCapture(0)
 
 
-terrain_width = 100
-terrain_height = 50
-terrain = chrono.RigidTerrain(chrono.Vector3(0, 0, 0),
-                             chrono.Vector3(terrain_width, terrain_height, 0),
-                             chrono.Vector3(0, 0, 0),
-                             chrono.Vector3(0, 0, 0))
+terrain_width = 10.0
+terrain_height = 5.0
+terrain = chrono.RigidTerrain(
+    width=terrain_width,
+    height=terrain_height,
+    material=chrono.Material(
+        diffuse_color=(0.5, 0.5, 0.5, 1.0),
+        specular_color=(0.5, 0.5, 0.5, 1.0)
+    )
+)
 
 
-terrain.setMaterialTexture("terrain_texture.png")
+terrain.setTexture("path/to/terrain_texture.png")
 
 
-car = chrono.Vehicle(chrono.Vector3(0, 0, 0),
-                    chrono.Vector3(0, 0, 0),
-                    chrono.Vector3(0, 0, 0),
-                    chrono.VehicleType.ARTCAR)
+car = chrono.Vehicle(
+    model_name="artcar",  
+    position=chrono.Vector3(0.0, 0.0, 0.0),  
+    orientation=chrono.Quaternion(0.0, 0.0, 0.0, 1.0),  
+    contact_method=chrono.ContactMethod.CONTACT_METHOD_NONE,  
+    visualization_type=chrono.VisualizationType.VISUALIZATION_TYPE_RENDER,  
+)
 
 
-car.setContactMethod(chrono.ContactMethod.CONTACT)
+driver = irr_driver.IrrlichtDriver(irr_env)
 
 
-car.setVisualizationType(chrono.VisualizationType.VISUALIZE_WITH_TEXTURES)
+irr_env.addEntity(car)
 
 
-car.setSteeringAngle(0)
-car.setThrottle(0)
-car.setBrake(0)
+time_step = 0.01  
+frame_rate = 50
 
 
-engine.run()
-
-
-driver = chrono.Driver(car)
-
-
-while engine.isRunning():
+while True:
     
-    driver.update()
-
-    
-    engine.update()
-    engine.render()
+    car.update(time_step)
 
     
-    engine.updateFrameRate(50)
+    irr_env.update()
 
+    
+    irr_env.render()
 
-engine.shutdown()
+    
+    
+    driver.apply_steering(car, 1.0)  
+    driver.apply_throttle(car, 0.5)  
+    driver.apply_braking(car, 0.2)  
+
+    
+    chrono.sleep(1.0 / frame_rate)

@@ -161,7 +161,8 @@ while vis.Run():
     
     driver.SetThrottle(0.5)  
     driver.SetSteering(0.6)  
-
+    driver_inputs = driver.GetInputs()
+    
     
     driver.Synchronize(time)
     terrain.Synchronize(time)
@@ -184,9 +185,8 @@ while vis.Run():
     realtime_timer.Spin(step_size)
 
 
-plt.plot([data[0] for data in gps_data], [data[1] for data in gps_data])
-plt.xlabel('Latitude')
-plt.ylabel('Longitude')
-plt.title('GPS Data')
+plt.plot(gps_data[:, 0], gps_data[:, 1])
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.title('GPS Trajectory')
 plt.show()
-print("GPS Data: ", gps_data)

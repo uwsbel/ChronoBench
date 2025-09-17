@@ -161,9 +161,9 @@ while vis.Run():
 
     
     if time < 6:
-        driver_inputs = chrono.ChVectorD(0.5, 0, 0)  
+        driver_inputs = chrono.ChVectorD(0.5, 0, 0) 
     else:
-        driver_inputs = chrono.ChVectorD(-0.5, 0, 1)  
+        driver_inputs = chrono.ChVectorD(-0.5, 0, 1) 
 
     
     driver.Synchronize(time)
@@ -179,7 +179,7 @@ while vis.Run():
 
     
     manager.Update()
-
+    
     
     if step_number % log_steps == 0:
         gps_data.append(gps.GetMostRecentGPSBuffer().GetGPSData())

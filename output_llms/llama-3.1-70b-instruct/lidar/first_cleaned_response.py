@@ -1,59 +1,57 @@
 import pychrono.core as chrono
-import pychrono.sensor as sens
+import pychrono.sensor as sensor
 import pychrono.irrlicht as chronoirr
 import os
 
 
 chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), "data"))
 system = chrono.ChSystemNSC()
+system.SetSolverType(chrono.ChSolver.Type_PSSOR)
+system.SetMaxItersSolverSpeed(100)
+system.SetMinBounceSpeed(1e-5)
 
 
-visualize = True
-if visualize:
-    app = chronoirr.ChVisualSystemIrrlicht()
-    app.SetWindowSize(800, 600)
-    app.SetWindowTitle("Lidar simulation")
-    app.SetCameraDistance(2.5)
-    app.SetCameraAzimuth(1.57)
-    app.SetCameraElevation(0.5)
+scene = chronoirr.ChVisualSystemIrrlicht()
+scene.SetWindowSize(800, 600)
+scene.SetWindowTitle("Lidar Simulation")
+scene.AddTypicalLights()
+camera = chronoirr.ChCamera(chronoirr.ChVectorD(0, 0, 1), chronoirr.ChVectorD(0, 0, 0))
+camera.SetElevation(90)
+scene.AddCamera(camera)
 
 
 mesh = chrono.ChTriangleMesh()
 mesh.LoadWavefrontMesh("mesh.obj")
 
 
-body = chrono.ChBodyEasyMesh(mesh, 1000, True, False)
+body = chrono.ChBodyEasyMesh(system, mesh, True, True)
+body.SetMass(1)
+body.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
 body.SetPos(chrono.ChVectorD(0, 0, 0))
-body.SetBodyFixed(True)
+body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 system.Add(body)
 
 
-lidar = sens.ChLidarSensor(body, 10, 0.1, 10, 0.1, 100, 100)
-lidar.SetName("LidarSensor")
-lidar.SetNoiseType(sens.ChLidarSensor.NOISE_GAUSSIAN)
-lidar.SetNoiseParams(0.01, 0.01)
-lidar.SetVisualizationMode(sens.ChLidarSensor.VISUALIZATION_WIREFRAME)
-lidar.SetVisualizationColor(chrono.ChVectorD(1, 0, 0))
-lidar.SetSaveDataMode(sens.ChLidarSensor.SAVE_DATA_BUFFER)
-lidar.SetSaveDataFilename("lidar_data.csv")
-body.AddSensor(lidar)
+lidar_manager = sensor.ChSensorManager(system)
+lidar_manager.SetNoiseFilter(sensor.ChNoiseFilter.GAUSSIAN)
+lidar_manager.SetVisualization(True)
+lidar_manager.SetSaveData(True)
 
 
-sensor_manager = sens.ChSensorManager(system)
-sensor_manager.AddSensor(lidar)
+lidar = sensor.ChLidarSensor(system, body, chrono.ChVectorD(0, 0, 1), 10, 100, 10)
+lidar_manager.AddSensor(lidar)
 
 
-time_step = 0.01
-while system.GetChTime() < 10:
-    system.DoStepDynamics(time_step)
-    sensor_manager.UpdateSensors()
-    lidar_buffer = lidar.GetBuffer()
-    print(lidar_buffer)
-    if visualize:
-        app.BeginScene()
-        app.DrawAll()
-        app.EndScene()
-        app.Step()
+step_size = 0.01
+sim_time = 10
+for i in range(int(sim_time / step_size)):
+    
+    lidar.SetPos(chrono.ChVectorD(1 * chrono.cos(i * step_size), 1 * chrono.sin(i * step_size), 1))
+    system.DoStepDynamics(step_size)
+    
+    print(lidar_manager.GetBufferData())
 
 
-system.GetCollisionSystem().Clear()
+scene.SetSystem(system)
+scene.SetCamera(camera)
+scene.Run()

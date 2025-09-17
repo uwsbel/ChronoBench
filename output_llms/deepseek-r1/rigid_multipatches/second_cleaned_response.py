@@ -4,10 +4,13 @@ import pychrono.irrlicht as irr
 
 def main():
     
+    step_size = 2e-3
+    tire_step_size = 1e-3
+
+    
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
-    
     hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
     hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
     hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
@@ -26,31 +29,22 @@ def main():
 
     
     terrain = veh.RigidTerrain(hmmwv.GetSystem())
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
     
     
-    contact_mat = chrono.ChContactMaterialNSC()
-    contact_mat.SetFriction(0.9)
-    contact_mat.SetRestitution(0.01)
-    contact_mat.SetThickness(0.01)  
-    
-    
-    
-    
-    patch = terrain.AddPatch(contact_mat, 
-                            chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), 
-                            chrono.QUNIT),
-                            veh.GetDataFile("terrain/meshes/Highway_col.obj"),
-                            "",  
-                            True, 
-                            False) 
+    patch = terrain.AddMesh(patch_mat, 
+                           veh.GetDataFile("terrain/meshes/Highway_col.obj"), 
+                           "", 0.01, False)
     
     
     vis_mesh = chrono.ChTriangleMeshConnected()
     vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    visual_shape = chrono.ChVisualShapeTriangleMesh()
-    visual_shape.SetMesh(vis_mesh)
-    patch.GetGroundBody().AddVisualShape(visual_shape)
-
+    vis_shape = chrono.ChVisualShapeTriangleMesh()
+    vis_shape.SetMesh(vis_mesh)
+    patch.GetGroundBody().AddVisualShape(vis_shape)
+    
     terrain.Initialize()
 
     
@@ -98,11 +92,5 @@ def main():
 
     return 0
 
-
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
-
-step_size = 2e-3
-tire_step_size = 1e-3
-
 main()

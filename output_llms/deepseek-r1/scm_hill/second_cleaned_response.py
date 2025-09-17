@@ -1,13 +1,14 @@
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
-import pychrono.sensor as sens
-import numpy as np
+import pychrono.sensor as sens  
+import numpy as np  
 import math
 
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+sens.SetSensorDataPath(chrono.GetChronoDataPath() + 'sensor/')  
 
 
 initLoc = chrono.ChVector3d(-15, 0, 1.2)
@@ -43,8 +44,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-
-vehicle = veh.HMMWV_Full() 
+vehicle = veh.HMMWV_Full()  
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
@@ -65,14 +65,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   
-                            0,     
-                            1.1,   
-                            0,     
-                            30,    
-                            0.01,  
-                            2e8,   
-                            3e4    
-)
+                          0,     
+                          1.1,   
+                          0,     
+                          30,    
+                          0.01,  
+                          2e8,   
+                          3e4    
+                          )
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -81,25 +81,29 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
 
-for i in range(5):
-    x = np.random.uniform(-10, 10)
-    y = np.random.uniform(-10, 10)
-    z = 0.5  
+for _ in range(5):
     
-    box_body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0, 1000)  
-    box_body.SetPos(chrono.ChVector3d(x, y, z))
-    box_body.SetFixed(True)  
-    box_body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
-    vehicle.GetSystem().Add(box_body)
+    pos = chrono.ChVector3d(
+        np.random.uniform(-10, 20),
+        np.random.uniform(-10, 10),
+        0.5  
+    )
+    box = chrono.ChBodyEasyBox(1.0, 1.0, 1.0,  
+                               2000,            
+                               True,            
+                               True)            
+    box.SetPos(pos)
+    box.SetFixed(True)
+    vehicle.GetSystem().Add(box)
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo')
+vis.SetWindowTitle('HMMWV Demo with Sensors')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -107,6 +111,33 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
+
+
+manager = sens.ChSensorManager(vehicle.GetSystem())
+
+
+lidar_offset = chrono.ChVector3d(0, 0, 2.0)  
+lidar_pose = chrono.ChFrameD(lidar_offset)
+lidar = sens.ChLidarSensor(
+    vehicle.GetChassisBody(),  
+    10,                        
+    lidar_pose,                
+    1000,                      
+    20,                        
+    2 * chrono.CH_PI,          
+    chrono.CH_PI / 6,          
+    100.0,                     
+    sens.LidarModel_RayCast    
+)
+
+
+lidar.SetName("Vehicle Lidar")
+lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Point Cloud"))
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterXYZIAccess())
+
+
+manager.AddSensor(lidar)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -122,42 +153,11 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-manager = sens.ChSensorManager(vehicle.GetSystem())
-manager.scene.AddPointLight(chrono.ChVector3d(0, 0, 100), chrono.ChColor(1,1,1), 5000)
-
-
-lidar_offset = chrono.ChVector3d(0, 0, 1.5)  
-lidar_rot = chrono.ChQuaterniond(1, 0, 0, 0)  
-
-lidar = sens.ChLidarSensor(
-    vehicle.GetChassisBody(),  
-    10,                        
-    chrono.ChFrameD(lidar_offset, lidar_rot),  
-    900,                       
-    30,                        
-    chrono.CH_PI,              
-    chrono.CH_PI/6,            
-    100.0,                     
-    sens.LidarModel_VELODYNE   
-)
-
-lidar.SetName("Lidar")
-lidar.SetLag(0.1)
-lidar.SetCollectionWindow(0.1)
-
-
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-lidar.PushFilter(sens.ChFilterAccess())
-
-manager.AddSensor(lidar)
 
 
 
 
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -167,11 +167,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -191,7 +191,7 @@ while vis.Run() :
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    
+
     
     manager.Update()
 
@@ -203,5 +203,7 @@ while vis.Run() :
 
 import pychrono.sensor as sens
    import numpy as np
+
+sens.SetSensorDataPath(chrono.GetChronoDataPath() + 'sensor/')
 
 manager.Update()

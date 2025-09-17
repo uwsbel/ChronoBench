@@ -52,9 +52,6 @@ vehicle.SetTireStepSize(tire_step_size)
 vehicle.SetMaxMotorVoltageRatio(0.26)  # Updated from 0.16
 vehicle.SetStallTorque(0.4)  # Updated from 0.3
 vehicle.SetTireRollingResistance(0.03)  # Updated from 0.06
-vehicle.SetMaxMotorVoltageRatio(0.16)
-vehicle.SetStallTorque(0.3)
-vehicle.SetTireRollingResistance(0.06)
 
 vehicle.Initialize()
 
@@ -109,7 +106,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
@@ -119,11 +116,11 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()

@@ -7,217 +7,141 @@ def create_epicyclic_gears_simulation():
 
     
 
-    sim = ChSystemNSC()
 
 
-    
+chrono = Chrono("EpicyclicGears")
 
-    truss = ChBody()
 
-    truss.SetBodyFixed(True)
 
-    truss.SetMass(1000.0)
 
+body = chrono.ChBody_MoonShape()
 
-    
+body.SetMass(1.0)
 
-    bar = ChBody()
+body.SetPosition(Vec3(0, 0, 0))
 
-    
 
-    ground = ChBody()
 
-    ground.SetPos(ChVectorD(0, 0, 0)
 
-    ground.SetBodyFixed(True)
+truss = Chrono.ChBody_MoonShape()
 
+truss.SetMass(10.0)
 
-    
+truss.SetPosition(Vec3(0, 0, 0))
 
-    bar = ChBody()
+truss.SetFixed(True)
 
-    bar.SetMass(1000.0)
 
-    bar.SetPos(ChVectorD(0, 0, 0)
 
-    bar.SetMass(10.0)
 
-    bar.SetPos(ChVectorD(0, 0, 0)
+bar = Chrono.ChBody_MoonShape()
 
-    bar.SetInertiaXX(ChVectorD(1, 1, 1)
+bar.SetMass(2.0)
 
-    bar.SetPos(ChVectorD(0, 0, 0)
+bar.SetPosition(Vec3(2, 0, 0))
 
-    bar.SetInertiaXX(ChVectorD(1, 1, 1)
 
 
-    
 
-    gear1 = ChBody()
+gear1 = Chrono.ChLink_RevoluteJoint()
 
-    gear1.SetMass(10.0)
+gear2 = Chrono.ChLink_RevoluteJoint()
 
-    gear1.SetPos(ChVectorD(0, 0, 0)
 
-    gear1.SetPos(ChVectorD(0, 0, 0)
 
-    gear1.SetMass(10.0)
 
-    gear1.SetPos(ChVectorD(0, 0, 0)
+motor = Chrono.ChBody_RevoluteJoint()
 
-    gear1.SetInertiaXX(ChVectorD(1, 1, 1))
 
 
-    
 
-    gear1.SetPos(ChVectorD(0, 0, 0))
+motor.SetTargetSpeed(10.0)
 
-    gear1.SetInertiaXX(ChVectorD(1, 1, 1))
 
 
-    
 
-    gear2 = ChBody()
+gear1_body = Chrono.ChBody_MoonShape()
 
-    gear2.SetPos(ChVectorD(0, 0, 0))
+gear2_body = Chrono.ChBody_MoonShape()
 
-    gear2.SetMass(10.0)
 
-    gear2.SetPos(ChVectorD(0, 0, 0))
 
-    gear2.SetInertiaXX(ChVectorD(1, 1, 1))
 
+gear1.Attach(body, gear1_body)
 
-    
+gear2.Attach(gear1_body, gear2_body)
 
-    motor = ChBody()
 
-    motor.SetPos(ChVectorD(0, 0, 0))
 
-    motor.SetInertiaXX(ChVectorD(1, 1, 1))
 
-    motor.SetMass(10.0)
+motor.Attach(gear2_body, gear1_body)
 
-    motor.SetPos(ChVectorD(0, 0, 0))
+motor.SetTargetSpeed(10.0)
 
-    motor.SetInertiaXX(ChVectorD(1, 1, 1))
 
-    motor.SetMass(10.0)
 
-    motor.SetPos(ChVectorD(0, 0, 0))
 
+irr = Irrlicht()
 
-    
+irr.SetName("EpicyclicGears")
 
-    gear_motor = ChGear(gear1, gear2)
 
-    gear_motor.SetGearRatio(1.0)
 
-    gear_motor.SetPower(10.0)
 
-    motor.SetPos(ChVectorD(0, 0, 0))
+irr.SetColor(0.8, 0.2, 0.2)
 
 
-    
 
-    sim.AddBody(ground)
 
-    sim.AddBody(bar)
+irr.AddBody(body)
 
-    sim.AddBody(gear1)
+irr.AddBody(truss)
 
-    sim.AddBody(gear2)
+irr.AddBody(bar)
 
-    sim.AddBody(motor)
+irr.AddBody(gear1_body)
 
+irr.AddBody(gear2_body)
 
-    
 
-    gear1.SetGear(gear2, 1.0)
 
 
-    
+irr.SetColor(0.8, 0.2, 0.2)
 
-    motor.SetAngularVel(ChVectorD(0, 10, 0))
+irr.SetColor(0.2, 0.8, 0.2)
 
 
-    
 
-    sim.SetVisualization(ChSystemNSCVisualization(IrrlichtVisualization(sim)))
 
-    sim.SetColor(ChColor(1, 0, 0))
+irr.SetMaterial("Irrlicht/Stone")
 
-    gear1.SetColor(ChColor(1, 0, 0))
 
-    gear2.SetColor(ChColor(0, 1, 0))
 
-    motor.SetColor(ChColor(0, 0, 1))
 
-    ground.SetColor(ChColor(0, 0, 0))
+motor.SetMotorForce(100.0)
 
 
-    
 
-    sim.AddToIrrlichtVisualization(ground)
 
-    sim.AddToIrrlichtVisualization(bar)
+chrono.SetChContactAlgorithm(ChContactAlgorithm.IF_NO_CONTACT)
 
-    sim.AddToIrrlichtVisualization(gear1)
+chrono.SetChSolver(ChSolverType.SOLVER_IDENTITY)
 
-    sim.AddToIrrlichtVisualization(gear2)
 
-    sim.AddToIrrlichtVisualization(motor)
 
 
-    
+while chrono.IsTimeStepAvailable():
 
-    irr = IrrlichtVisualSystem()
+    chrono.DoTimeStep()
 
-    irr.SetCamera(ChVectorD(0, 0, 10), ChVectorD(0, 0, 0), ChVectorD(0, 0, 0))
+    irr.Update(chrono.GetChTime())
 
-    irr.SetAmbientLight(ChColor(0.3, 0.3, 0.3))
 
-    irr.SetBackground(ChColor(0.0, 0.0, 0.0))
 
-    irr.SetLight(ChColor(1, 1, 1))
 
-    irr.SetLightPos(ChVectorD(0, 0, 10))
+chrono.ShutDown()
 
 
-    
+if __name__ == "__main__":
 
-    sim.SetGravity(ChVectorD(0, -9.81, 0))
-
-
-    
-
-    sim.SetSolverIterations(10)
-
-    sim.SetSolverIterationsForConvergence(100)
-
-    sim.SetSolverTolerance(1e-6)
-
-    sim.SetSolverToleranceForConvergence(1e-6)
-
-    sim.SetSolverIterationTime(0.001)
-
-    sim.SetSolverErrorTolerance(1e-6)
-
-    sim.SetSolverErrorToleranceForConvergence(1e-6)
-
-    sim.SetSolverMethod(ChSolverIterative)
-
-
-    
-
-    sim.DoStep(10.0)
-
-
-    
-
-    irr.Render()
-
-
-
-
-create_epicyclic_gears_simulation()
+    create_epicyclic_gears_simulation()

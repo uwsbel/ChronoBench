@@ -24,14 +24,14 @@ class Model1:
             mesh,  # The mesh to which the created nodes and elements will be added
             msection_cable2,  # The beam section properties to use
             10,  # Number of ANCF elements to create along the beam
-            chrono.ChVectorD(0, 0, -0.1),  # Starting point ('A' point) of the beam
-            chrono.ChVectorD(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+            chrono.ChVector3d(0, 0, -0.1),  # Starting point ('A' point) of the beam
+            chrono.ChVector3d(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
         )
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
         front_node = builder.GetLastBeamNodes().front()
-        front_node.SetForce(chrono.ChVectorD(0, -0.7, 0))  # Modified applied force
+        front_node.SetForce(chrono.ChVector3d(0, -0.7, 0))  # Modified applied force value
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
@@ -77,19 +77,18 @@ vis.SetWindowTitle('FEA cables')  # Set the title of the rendering window
 vis.Initialize()  # Initialize the visualization
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the window
 vis.AddSkyBox()  # Add a skybox for better aesthetics
-vis.AddCamera(chrono.ChVectorD(0, 0.6, -1))  # Add a camera with specific position
+vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific position
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
-# Change Solver Type to MINRES with specified parameters
-solver = chrono.ChSolverMINRES()
+# Set solver type and settings
+solver = chrono.ChSolverMINRES()  # Changed solver type to MINRES
 if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
-solver.SetMaxIterations(200)
-solver.SetTolerance(1e-10)
-solver.EnableDiagonalPreconditioner(True)
-solver.EnableWarmStart(True)
-solver.SetVerbose(False)
-
+solver.SetMaxIterations(200)  # Set maximum iterations
+solver.SetTolerance(1e-10)  # Set solver tolerance
+solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
+solver.EnableWarmStart(True)  # Enable warm start
+solver.SetVerbose(False)  # Disable verbose output
 sys.SetSolver(solver)
 
 # Set the timestepper for the simulation

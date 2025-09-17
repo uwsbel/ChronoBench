@@ -40,6 +40,17 @@ class Model1:
         constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
         system.Add(constraint_hinge)  
 
+        
+        
+        
+
+        
+        
+        system.Add(mesh)  
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+
 
 sys = chrono.ChSystemSMC()
 mesh = fea.ChMesh()
@@ -67,7 +78,6 @@ visualizebeamB.SetZbufferHide(False)
 mesh.AddVisualShapeFEA(visualizebeamB)  
 
 
-vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  
 vis.SetWindowSize(1024, 768)  
 vis.SetWindowTitle('FEA cables')  

@@ -80,10 +80,8 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 
 
-vis.AddPointLight(chrono.ChVector3d(-5, 5, 5), chrono.ChColor(1, 1, 1), 20)
-vis.AddPointLight(chrono.ChVector3d(5, 5, 5), chrono.ChColor(1, 1, 1), 20)
-vis.AddPointLight(chrono.ChVector3d(5, -5, 5), chrono.ChColor(1, 1, 1), 20)
-vis.AddPointLight(chrono.ChVector3d(-5, -5, 5), chrono.ChColor(1, 1, 1), 20)
+vis.AddPointLight(chrono.ChVector3d(10, 10, 10), chrono.ChColor(1, 1, 1), 100)
+vis.AddPointLight(chrono.ChVector3d(-10, -10, 10), chrono.ChColor(1, 1, 1), 100)
 
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
@@ -111,22 +109,16 @@ render_steps = math.ceil(render_step_size / step_size)
 sensor_manager = veh.ChSensorManager(vehicle.GetSystem())
 
 
-camera_location = chrono.ChFrameD(chrono.ChVector3d(0, 0, 1.5))
-camera_direction = chrono.ChVector3d(0, 0, -1)
 camera_sensor = veh.ChCameraSensor(
-    vehicle.GetChassisBody(),  
-    camera_location,  
-    camera_direction,  
-    40.0,  
-    1280,  
-    720,  
-    irr.ChColor(1, 1, 1)  
+    vehicle.GetChassisBody(),
+    1024,  
+    768,   
+    chrono.ChFrameD(chrono.ChVector3d(0.5, 0, 1.5), chrono.QUNIT),
+    120,   
+    step_size,
+    sensor_manager
 )
-sensor_manager.AddSensor(camera_sensor)
-
-
-camera_filter = veh.ChFilterVisualize(camera_sensor)
-sensor_manager.AddFilter(camera_filter)
+camera_sensor.PushFilter(veh.ChFilterVisualize())
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()

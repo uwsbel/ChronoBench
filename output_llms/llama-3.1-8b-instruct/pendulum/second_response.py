@@ -39,7 +39,7 @@ pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 pend_1.SetAngVel(chrono.ChVector3d(0, 0, 1))  # Set an initial angular velocity of 1 rad/s around the Z-axis
 
 # Create a spherical joint to connect the pendulum to the ground
-# The spherical joint allows rotation around all axes
+# The spherical joint allows rotation around three axes (X, Y, Z)
 sph_1 = chrono.ChLinkLockSpherical()
 sph_1.Initialize(ground, pend_1, chrono.ChFramed(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
 sys.AddLink(sph_1)
@@ -48,7 +48,7 @@ sys.AddLink(sph_1)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)  # Attach the Chrono system to the visualization
 vis.SetWindowSize(1024, 768)  # Set the window size for the visualization
-vis.SetWindowTitle('Spherical Joint demo')  # Set the window title
+vis.SetWindowTitle('Spherical Pendulum demo')  # Set the window title
 vis.Initialize()  # Initialize the visualization system
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization
 vis.AddSkyBox()  # Add a skybox for better visual appearance

@@ -49,11 +49,17 @@ def main():
     ros_manager.Initialize()  # Initialize the ROS manager.
 
     # Set up the Irrlicht visualization.
-    device = chronoirr.ChVisualSystemIrrlicht()
+    device = chronoirr.ChDeviceIrrlicht()
+    device.SetWindowSize(1280, 720)
     device.Initialize()
-    device.AddLogo()
-    device.AddCamera(chronoirr.vector3df(0, 5, 5))
-    device.SetTimestep(hmmwv.GetSystem().GetTimestep())
+    device.getSceneManager().setAmbientLight(chronoirr.vector3df(0.3, 0.3, 0.3))
+    device.getSceneManager().addCameraSceneNode(0, chronoirr.vector3df(50, 50, 50))
+
+    # Add the HMMWV vehicle to the Irrlicht visualization.
+    hmmwv_node = chronoirr.ChVisualSystemIrrlicht.AddVisualNode(device, hmmwv)
+
+    # Add the terrain to the Irrlicht visualization.
+    terrain_node = chronoirr.ChVisualSystemIrrlicht.AddVisualNode(device, terrain)
 
     # Start the simulation loop.
     time = 0
@@ -61,6 +67,12 @@ def main():
     time_end = 30  # Set the total duration of the simulation.
 
     hmmwv.GetVehicle().EnableRealtime(True)  # Enable real-time simulation for the vehicle.
+
+    # Render loop setup.
+    num_rendering_steps = 5
+    rendering_step_size = time_step * num_rendering_steps
+    frame_count = 0
+
     while time < time_end:
         time = hmmwv.GetSystem().GetChTime()  # Update simulation time.
 
@@ -75,16 +87,19 @@ def main():
         terrain.Advance(time_step)
         hmmwv.Advance(time_step)
 
-        # Render the scene.
-        device.BeginScene()
-        device.Render(hmmwv.GetVehicle(), time)
-        device.Render(terrain, time)
-        device.Render(driver, time)
-        device.EndScene()
-
         # Update the ROS manager to handle data publishing.
         if not ros_manager.Update(time, time_step):
             break  # Exit loop if ROS manager update fails.
+
+        # Render loop setup.
+        if (time + time_step) > time:
+            frame_count += 1
+            if frame_count % num_rendering_steps == 0:
+                device.BeginScene(True, True, chronoirr.SColor(255, 150, 150, 150))
+                device.getVideoDriver().setTextureCreationFlag(chronoirr.ETCF_CREATE_MIP_MAPS, False)
+                terrain_node.draw(device.getVideoDriver())
+                hmmwv_node.draw(device.getVideoDriver())
+                device.EndScene()
 
 if __name__ == "__main__":
     main()

@@ -79,41 +79,16 @@ vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-
-
 vis.AddLightDirectional()
-vis.AddLightWithShadow(chrono.ChVector3d(50, 50, 50), chrono.ChVector3d(0, 0, 0), 100, 1, 10, 40, chrono.ChColor(1, 1, 1))
-vis.AddLightWithShadow(chrono.ChVector3d(-50, 50, 50), chrono.ChVector3d(0, 0, 0), 100, 1, 10, 40, chrono.ChColor(1, 1, 1))
+
+
+vis.AddLightWithShadow(chrono.ChVector3d(50, 50, 100), chrono.ChVector3d(0, 0, 0), 100,  
+                       chrono.ChColor(1, 1, 1), 2.0, 30)  
+vis.AddLightWithShadow(chrono.ChVector3d(-50, -50, 100), chrono.ChVector3d(0, 0, 0), 100,
+                       chrono.ChColor(1, 1, 1), 2.0, 30)
+
 vis.AddSkyBox()
-
 vis.AttachVehicle(vehicle.GetVehicle())
-
-
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
-
-
-camera = sensor.ChCameraSensor(
-    vehicle.GetChassisBody(),               
-    10,                                     
-    True,                                   
-    "camera_view"                           
-)
-
-
-camera.SetName("FEDA Camera")
-camera.SetLensFocalLength(0.035)           
-camera.SetImageWidth(1280)                 
-camera.SetImageHeight(720)                 
-camera.SetFov(60)                          
-camera.SetOffsetPos(chrono.ChVector3d(0, 0, 1.5))  
-camera.SetOffsetRot(chrono.ChQuaterniond(1, 0, 0, 0))  
-
-
-camera_filter = sensor.ChFilterVisualizeCamera(1280, 720, "Camera View")
-camera.AddFilter(camera_filter)
-
-
-sensor_manager.AddSensor(camera)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -127,6 +102,27 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
+
+
+sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+
+
+camera = sensor.ChCameraSensor(
+    vehicle.GetChassisBody(),  
+    10,                        
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1.5), chrono.Q_from_AngX(chrono.DEG2RAD(10))),  
+    1280,                      
+    720,                       
+    chrono.DEG2RAD(60)         
+)
+
+
+camera_filter = sensor.ChFilterVisualize(1280, 720, "Camera View")
+camera.AddFilter(camera_filter)
+camera.PushFilter(camera_filter)
+
+
+sensor_manager.AddSensor(camera)
 
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
@@ -159,12 +155,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Update()  
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)  
 
     
     step_number += 1

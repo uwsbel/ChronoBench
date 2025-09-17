@@ -1,42 +1,51 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
+import time
 
 
-chrono.SetChronoThread(chrono.CHRONO_THREAD_MULTITHREADED)
+chrono.SetChronoMode(chrono.CHRONO_MODE_SIMULATION)
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasySphere(10, 1000)
-ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
-system.Add(ground)
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
 
 
-viper_path = "path/to/viper_model.urdf"  
-viper = chrono.ChBodyEasyLoadURDF(viper_path)
-viper.SetPos(chrono.ChVectorD(0, 0.1, 0))
-system.Add(viper)
+ground = chrono.ChBodyEasySphere(10, 10000)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+system.AddBody(ground)
 
 
+viper_path = "models/viper/"  
+viper = chrono.ChBodyEasyCylinder(0.5, 1, 1000)
+viper.SetPos(chrono.ChVectorD(0, 0, 0.5))
+viper.SetBodyFixed(True)  
+system.AddBody(viper)
 
 
-
-vis = chronoirr.ChIrrApp(system, 'Viper Rover Simulation')
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
-vis.SetCamera(vis.GetActiveCamera())
-vis.SetSunPosition(chrono.ChVectorD(10, 10, 10))
-vis.SetAmbientLight(chrono.ChColor(0.2, 0.2, 0.2))
-vis.SetDirectionalLight(chrono.ChColor(0.8, 0.8, 0.8))
+viper_model = chrono.ChModelFile(viper_path + "viper.obj")
+viper.AddModel(viper_model)
 
 
+driver = chrono.ChDriverIrrlicht(
+    system, chronoirr.IrrlichtApplication(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 0))
+)
+
+
+driver.GetCam().SetPos(chrono.ChVectorD(5, 5, 5))
+driver.GetCam().SetTarget(chrono.ChVectorD(0, 0, 0))
+
+
+driver.GetIrrlichtDevice().getSceneManager().addLight(chrono.ChLight(chrono.ChLight.LIGHT_DIRECTIONAL))
+
+
+steering_angle = 0
+steering_rate = 0.1
 dt = 0.01
-steering_target = 0  
-steering_change_rate = 0.1  
 
-for i in range(1000):
+while True:
     
-    steering = steering_target - steering_change_rate * i
-
+    steering_angle += steering_rate * dt
+    
     
     
 
@@ -44,6 +53,7 @@ for i in range(1000):
     system.DoStepDynamics(dt)
 
     
-    vis.Render()
+    driver.Render()
 
-vis.Close()
+    
+    time.sleep(dt)

@@ -3,104 +3,127 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 
+print("Copyright (c) 2023 Project Chrono")
 
 
+vehicle = veh.ChVehicle(chrono.GetSystem())
 
 
-vehicle = veh.ChVehicle("BMW_E90")
-vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
-vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
 vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0.5, 1.0), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle.SetInitFwdVel(0)
-vehicle.SetInitWheelAngVel(chrono.ChVector3d(0, 0, 0))
-vehicle.SetTireStepSize(1e-3)
+vehicle.SetChassisCollide(False)
+vehicle.SetTireCollide(True)
 
 
-powertrain = veh.ChSimplePowertrain("Powertrain")
-vehicle.InitializePowertrain(powertrain)
-
-driveline = veh.ChShaftsDriveline2WD("Driveline")
-vehicle.InitializeDriveline(driveline)
-
-
-tire_front_left = veh.ChTMeasyTire("TireFL")
-tire_front_right = veh.ChTMeasyTire("TireFR")
-tire_rear_left = veh.ChTMeasyTire("TireRL")
-tire_rear_right = veh.ChTMeasyTire("TireRR")
-
-vehicle.InitializeTire(tire_front_left, vehicle.GetChassisBody(), veh.LEFT, veh.FRONT)
-vehicle.InitializeTire(tire_front_right, vehicle.GetChassisBody(), veh.RIGHT, veh.FRONT)
-vehicle.InitializeTire(tire_rear_left, vehicle.GetChassisBody(), veh.LEFT, veh.REAR)
-vehicle.InitializeTire(tire_rear_right, vehicle.GetChassisBody(), veh.RIGHT, veh.REAR)
+vehicle.Init(
+    veh.Chassis::Location(0, 0, 1),
+    veh.Chassis::Rotation(chrono.ChQuaterniond(1, 0, 0, 0)),
+    "BMW_E90_sedan"
+)
 
 
+tire_model = veh.ChTMeasyTire::Create("TMeasy", vehicle.GetChassis().GetBody())
 
 
+terrain = veh.ChTerrain::Create(vehicle.GetSystem())
+terrain.Initialize(100, 100, 0.5)
 
 
-terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)), 100, 100)
-patch.SetContactFrictionCoefficient(0.9)
-patch.SetContactRestitutionCoefficient(0.01)
-patch.SetContactMaterial(chrono.ChMaterialSurfaceSMC())
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetNormalMap(veh.GetDataFile("terrain/textures/normal_map.jpg"), 200, 200)
-
-terrain.Initialize()
-
-
-
-
-
-
-vis = irr.ChVisualSystemIrrlicht()
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle('BMW E90 Sedan Simulation')
+vis = veh.ChWheeledVehicleVisualSystemIrr(vehicle)
+vis.SetWindowTitle("BMW E90 Sedan Simulation")
 vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVector3d(0, 4, 4), chrono.ChVector3d(0, 0, 0))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVector3d(2, 5, 2), chrono.ChVector3d(0, 0, 0), 10, 2, 10, 120)
+vis.SetChaseCameraState(irr.ChChaseCamera::State::FOLLOW)
+vis.SetChaseCameraPosition(chrono.ChVector3d(-10, 0, 2))
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.Attach()
 
 
-
-
-
-
-driver = veh.ChIrrGuiDriver(vis, vehicle)
-
-
-driver.SetSteering(0)
-driver.SetThrottle(0.3)
-driver.SetBraking(0)
-
-
-
-
+driver = veh.ChIrrGuiDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
 
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
-
+    driver_inputs = driver.GetInputs()
+    vehicle.SetDriverInputs(driver_inputs)
     
-    steering = driver.GetSteering()
-    throttle = driver.GetThrottle()
-    braking = driver.GetBraking()
-
     
-    driver_inputs = veh.Inputs(steering, throttle, braking)
-    vehicle.Advance(driver_inputs)
-
+    vehicle.Update(time, driver_inputs)
+    terrain.Update(time)
     
-    terrain.Advance(time)
-
     
+    vis.Update()
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+def main():
     
-    vis.Synchronize("BMW E90 Sedan Simulation", driver_inputs)
+    print("Copyright (c) 2023 Project Chrono")
+
+    
+    system = chrono.ChSystemNSC()
+
+    
+    vehicle = veh.ChWheeledVehicle("BMW_E90_sedan", system)
+
+    
+    vehicle.SetChassisFixed(False)
+    vehicle.SetChassisCollide(False)
+    vehicle.SetTireCollide(True)
+
+    
+    init_file = chrono.GetChronoDataFile("vehicle/BMW_E90_sedan/BMW_E90_sedan.json")
+    vehicle.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+
+    
+    tire_left_front = veh.ChTMeasyTire::Create("TMeasy", vehicle.GetChassis().GetBody())
+    tire_right_front = veh.ChTMeasyTire::Create("TMeasy", vehicle.GetChassis().GetBody())
+    tire_left_rear = veh.ChTMeasyTire::Create("TMeasy", vehicle.GetChassis().GetBody())
+    tire_right_rear = veh.ChTMeasyTire::Create("TMeasy", vehicle.GetChassis().GetBody())
+
+    
+    terrain = veh.RigidTerrain(system)
+    terrain.SetContactFrictionCoefficient(0.9)
+    terrain.SetContactRestitutionCoefficient(0.01)
+    terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+    patch = veh.RigidTerrain::Patch(chrono.ChVector3d(0, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0), 100, 100, 0.01)
+    terrain.AddPatch(patch)
+
+    
+    vis = veh.ChWheeledVehicleVisualSystemIrr(vehicle)
+    vis.SetWindowTitle("BMW E90 Sedan Simulation")
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+    vis.SetChaseCameraState(irr.ChChaseCamera::State::FOLLOW)
+    vis.SetChaseCameraPosition(chrono.ChVector3d(-10, 0, 2))
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    vis.Attach()
+
+    
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+
+    
+    while vis.Run():
+        time = system.GetChTime()
+        driver_inputs = driver.GetInputs()
+        
+        
+        vehicle.Update(time, driver_inputs)
+        terrain.Update(time)
+        
+        
+        vis.Update()
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+if __name__ == "__main__":
+    main()

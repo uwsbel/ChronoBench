@@ -1,7 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
 import pychrono.irrlicht as chrirr  # Added for visualization
-import os  # For path handling
 
 import rclpy.publisher
 from std_msgs.msg import Int64
@@ -10,9 +9,8 @@ from std_msgs.msg import Int64
 class MyCustomHandler(chros.ChROSHandler):
     """This custom handler will publish integer messages to a specified ROS topic."""
 
-    def __init__(self, topic, publish_rate):
-        super().__init__(publish_rate)  # Use provided publish rate
-
+    def __init__(self, topic, rate):  # Added rate parameter
+        super().__init__(rate)  # Use provided rate
         self.topic = topic
         self.publisher: rclpy.publisher.Publisher = None
         self.ticker = 0  # Initialize a counter for published messages.
@@ -46,6 +44,11 @@ def main():
     floor.SetPos(ch.ChVector3d(0, 0, -1))  # Position the floor.
     floor.SetFixed(True)  # Fix the floor in place.
     floor.SetName("base_link")  # Set the name for ROS communication.
+    
+    # Set floor texture
+    floor_asset = floor.GetVisualShape(0)
+    floor_asset.SetTexture(ch.GetChronoDataFile("textures/concrete.jpg"))  # Added texture
+    
     sys.Add(floor)  # Add the floor to the simulation system.
 
     # Create a box object.
@@ -53,77 +56,73 @@ def main():
     box.SetPos(ch.ChVector3d(0, 0, 5))  # Position the box above the floor.
     box.SetRot(ch.QuatFromAngleAxis(.2, ch.ChVector3d(1, 0, 0)))  # Rotate the box slightly.
     box.SetName("box")  # Set the name for ROS communication.
+    
+    # Set box texture
+    box_asset = box.GetVisualShape(0)
+    box_asset.SetTexture(ch.GetChronoDataFile("textures/blue.png"))  # Added texture
+    
     sys.Add(box)  # Add the box to the simulation system.
 
-    # ===== Added visualization setup =====
-    # Create Irrlicht visualization system
+    # Create and configure Irrlicht visualization
     vis = chrirr.ChVisualSystemIrrlicht()
     vis.AttachSystem(sys)
     vis.SetWindowSize(1024, 768)
-    vis.SetWindowTitle('PyChrono and ROS Integration')
+    vis.SetWindowTitle('PyChrono ROS Example')
     vis.Initialize()
-    vis.AddCamera(ch.ChVector3d(0, 6, 2), ch.ChVector3d(0, 0, 0))  # Position, target
-    vis.AddTypicalLights()
-    vis.AddSkyBox()
-    
-    # Set textures for objects
-    floor_tex = os.path.join(ch.GetChronoDataPath(), 'textures', 'concrete.jpg')
-    box_tex = os.path.join(ch.GetChronoDataPath(), 'textures', 'cubetexture.png')
-    floor.GetVisualShape(0).SetTexture(floor_tex)
-    box.GetVisualShape(0).SetTexture(box_tex)
+    vis.AddCamera(ch.ChVector3d(3, 3, 3), ch.ChVector3d(0, 0, 0))  # Camera position and target
+    vis.AddTypicalLights()  # Add default lights
 
     # Create and configure the ROS manager.
     ros_manager = chros.ChROSPythonManager()
+    publish_rate = 10  # Added publish rate variable (10 Hz)
     
-    # Set publish rate variable (10 Hz)
-    publish_rate = 10  # Hz
-    
-    # Register handlers with specified rates
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())
-    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
+    # Register handlers with new publish rate
+    ros_manager.RegisterHandler(chros.ChROSClockHandler(publish_rate))  # Added rate
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))  # Added rate
     
     # Create and register a transform handler
-    tf_handler = chros.ChROSTFHandler(publish_rate)
-    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
+    tf_handler = chros.ChROSTFHandler(publish_rate)  # Added rate
+    tf_handler.AddTransform(floor, box, floor.GetName(), box.GetName())  # Fixed parameter order
     ros_manager.RegisterHandler(tf_handler)
     
-    # Register the custom handler with publish rate
-    custom_handler = MyCustomHandler("~/my_topic", publish_rate)
+    # Register the custom handler
+    custom_handler = MyCustomHandler("~/my_topic", publish_rate)  # Added rate
     ros_manager.RegisterPythonHandler(custom_handler)
 
     # Initialize the ROS manager.
     ros_manager.Initialize()
 
-    # ===== Added rendering control variables =====
+    # Simulation parameters
+    time = 0
     time_step = 1e-3  # Simulation time step
-    time_end = 30     # Simulation duration
-    step_number = 0   # Simulation step counter
-    render_step_size = 1.0 / 60  # Render at ~60 FPS
+    time_end = 30  # Simulation duration
+    
+    # Rendering control variables (Added per instructions)
+    step_number = 0
+    render_step_size = 1.0 / 60  # Target 60 FPS
     render_steps = int(render_step_size / time_step)  # Steps between renders
 
-    realtime_timer = ch.ChRealtimeStepTimer()  # Create a real-time step timer.
-    while sys.GetChTime() < time_end:
-        time = sys.GetChTime()
-        
+    realtime_timer = ch.ChRealtimeStepTimer()  # Realtime step timer
+    while time < time_end:
         # Advance simulation
         sys.DoStepDynamics(time_step)
-        
+        time = sys.GetChTime()
+        step_number += 1
+
         # Update ROS
         if not ros_manager.Update(time, time_step):
             break
 
-        # Maintain real-time execution
-        realtime_timer.Spin(time_step)
-        
-        # ===== Conditional rendering =====
+        # Conditional rendering (Added per instructions)
         if step_number % render_steps == 0:
             if not vis.Run():
-                break  # Stop if window closed
+                break
             vis.BeginScene()
             vis.Render()
             vis.EndScene()
-        
-        step_number += 1
+
+        # Maintain realtime pacing
+        realtime_timer.Spin(time_step)
 
 # Entry point of the script.
 if __name__ == "__main__":

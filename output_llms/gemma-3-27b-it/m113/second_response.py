@@ -59,9 +59,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 # Create the SCM terrain
 terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
 terrain.SetTerrainSize(terrain_length, terrain_width)
-terrain.SetHeightMap(veh.GetDataFile("terrain/height_map.png"))  # Replace with your height map
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump_heightmap.png"))
 terrain.SetQuadResolution(64, 64)
-terrain.SetSoilProperties(chrono.ChMaterialSurfaceSMC(), 0.9, 0.01, 1000, 100, 0.5)
+terrain.SetHeightMinMax(0, 2)
+terrain.SetSoilProperties(chrono.ChSoilProperties())
+terrain.GetSoilProperties().SetCrushability(0.5)
+terrain.GetSoilProperties().SetCohesion(1000)
+terrain.GetSoilProperties().SetFriction(0.9)
+terrain.GetSoilProperties().SetRestitution(0.01)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
@@ -98,7 +103,7 @@ print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
-step_number = 0
+s step_number = 0
 render_frame = 0
 vehicle.GetVehicle().EnableRealtime(True)
 
@@ -106,11 +111,18 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Hard-coded throttle value
-    throttle_input = 0.8
+    throttle_value = 0.8
+    driver.SetThrottle(throttle_value)
+
+    # Render scene and output POV-Ray data
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
 
     # Get driver inputs
     driver_inputs = driver.GetInputs()
-    driver_inputs.throttle = throttle_input
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

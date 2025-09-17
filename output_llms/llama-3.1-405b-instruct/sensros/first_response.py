@@ -18,101 +18,80 @@ sys.Add(mesh)
 ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
 sys.Add(ground)
 
-# Create a ChPart to move the ground body
+# Create a ChPart for the ground body
 part = chrono.ChPart(ground)
 sys.Add(part)
 
-# Set up sensors
-sensor_manager = sens.ChSensorManager(sys)
+# Create a sensor manager
+manager = sens.ChSensorManager(sys)
 
-# Camera sensor
+# Create a camera sensor
 camera = sens.ChCameraSensor(
-    sensor_manager,
-    640,  # width
-    480,  # height
-    60,   # FOV
-    0.1,  # range
-    0.01  # accuracy
+    width=640, height=480, fov=60,
+    update_rate=30, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(1.5, 0, 0.5))
 )
-camera.SetName("camera")
-camera.SetOffset(chrono.ChVector(0, 1, 0))
-camera.SetRotation(chrono.Q_from_AngZ(chrono.CH_C_PI / 2))
-sensor_manager.AddSensor(camera)
+manager.AddSensor(camera)
 
-# Lidar sensor
+# Create a lidar sensor
 lidar = sens.ChLidarSensor(
-    sensor_manager,
-    100,  # number of rays
-    10,   # max distance
-    0.1,  # accuracy
-    0.01  # resolution
+    horizontal_samples=100, vertical_samples=32,
+    horizontal_fov=360, vertical_fov=20, max_distance=100,
+    update_rate=10, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 1.5))
 )
-lidar.SetName("lidar")
-lidar.SetOffset(chrono.ChVector(0, 1, 0))
-lidar.SetRotation(chrono.Q_from_AngZ(chrono.CH_C_PI / 2))
-sensor_manager.AddSensor(lidar)
+manager.AddSensor(lidar)
 
-# GPS sensor
+# Create a GPS sensor
 gps = sens.ChGPSSensor(
-    sensor_manager,
-    1,  # update rate
-    0.1  # accuracy
+    reference_frame=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=10, lag=0, offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0))
 )
-gps.SetName("gps")
-gps.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(gps)
+manager.AddSensor(gps)
 
-# Accelerometer sensor
+# Create an accelerometer sensor
 accelerometer = sens.ChAccelerometerSensor(
-    sensor_manager,
-    100,  # frequency
-    0.1   # accuracy
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-accelerometer.SetName("accelerometer")
-accelerometer.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(accelerometer)
+manager.AddSensor(accelerometer)
 
-# Gyroscope sensor
+# Create a gyroscope sensor
 gyroscope = sens.ChGyroscopeSensor(
-    sensor_manager,
-    100,  # frequency
-    0.1   # accuracy
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-gyroscope.SetName("gyroscope")
-gyroscope.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(gyroscope)
+manager.AddSensor(gyroscope)
 
-# Magnetometer sensor
+# Create a magnetometer sensor
 magnetometer = sens.ChMagnetometerSensor(
-    sensor_manager,
-    100,  # frequency
-    0.1   # accuracy
+    offset_pose=chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)),
+    update_rate=100, lag=0
 )
-magnetometer.SetName("magnetometer")
-magnetometer.SetOffset(chrono.ChVector(0, 1, 0))
-sensor_manager.AddSensor(magnetometer)
-
-# Create a ROS manager
-ros_manager = sens.ChROSManager()
+manager.AddSensor(magnetometer)
 
 # Register sensors with ROS manager
-ros_manager.RegisterSensor(camera, "camera/image_raw", Image)
-ros_manager.RegisterSensor(lidar, "lidar/scan", LaserScan)
-ros_manager.RegisterSensor(gps, "gps/fix", NavSatFix)
-ros_manager.RegisterSensor(accelerometer, "accelerometer/data", Imu)
-ros_manager.RegisterSensor(gyroscope, "gyroscope/data", Imu)
-ros_manager.RegisterSensor(magnetometer, "magnetometer/data", MagneticField)
+rospy.init_node('pychrono_sensors')
+camera_pub = rospy.Publisher('/camera/image', Image, queue_size=10)
+lidar_pub = rospy.Publisher('/lidar/scan', LaserScan, queue_size=10)
+gps_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=10)
+accelerometer_pub = rospy.Publisher('/accelerometer/data', Imu, queue_size=10)
+gyroscope_pub = rospy.Publisher('/gyroscope/data', Imu, queue_size=10)
+magnetometer_pub = rospy.Publisher('/magnetometer/data', MagneticField, queue_size=10)
 
 # Simulation loop
 while True:
     # Update sensors
-    sensor_manager.Update()
+    manager.Update()
+
+    # Publish sensor data to ROS topics
+    camera_pub.publish(Image(camera.GetMostRecentImage()))
+    lidar_pub.publish(LaserScan(lidar.GetMostRecentScan()))
+    gps_pub.publish(NavSatFix(gps.GetMostRecentFix()))
+    accelerometer_pub.publish(Imu(accelerometer.GetMostRecentData()))
+    gyroscope_pub.publish(Imu(gyroscope.GetMostRecentData()))
+    magnetometer_pub.publish(MagneticField(magnetometer.GetMostRecentData()))
 
     # Advance simulation
-    sys.DoStepDynamics(chrono.GetSystemStep())
-
-    # Publish data to ROS topics
-    ros_manager.PublishData()
+    sys.DoStepDynamics(chrono.ChTime(0.01))
 
     # Maintain real-time execution
-    rospy.sleep(chrono.GetSystemStep())
+    rospy.sleep(0.01)

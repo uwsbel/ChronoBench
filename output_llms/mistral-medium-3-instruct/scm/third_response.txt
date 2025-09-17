@@ -1,4 +1,4 @@
-I'll analyze the given script, identify potential issues, and modify it according to the instructions. Here's the corrected and enhanced version:
+I'll review the script, identify any potential issues, and then modify it according to the instructions. Here's the corrected and enhanced version:
 
 ```python
 import pychrono.core as chrono
@@ -82,41 +82,9 @@ terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 # Initialize the SCM terrain (length, width, mesh resolution), specifying the initial mesh grid
 terrain.Initialize(20, 20, 0.02)
 
-# Add random boxes to the scene
-def add_random_boxes(system, num_boxes=10, vehicle_pos=initLoc, vehicle_size=chrono.ChVector3d(4, 2, 2)):
-    for i in range(num_boxes):
-        # Generate random position avoiding vehicle area
-        while True:
-            x = random.uniform(-40, 40)
-            y = random.uniform(-40, 40)
-            z = random.uniform(0.5, 2.0)
-
-            # Check if box is too close to vehicle
-            if (abs(x - vehicle_pos.x) > vehicle_size.x + 1 and
-                abs(y - vehicle_pos.y) > vehicle_size.y + 1):
-                break
-
-        # Create box
-        box = chrono.ChBodyEasyBox(1, 1, 1, 1000)  # size and density
-        box.SetPos(chrono.ChVector3d(x, y, z))
-        box.SetBodyFixed(False)
-        box.SetCollisionModel(chrono.ChCollisionModel())
-        box.GetCollisionModel().AddBox(0.5, 0.5, 0.5)  # half sizes
-        box.GetCollisionModel().SetFamily(1)
-        box.GetCollisionModel().SetFamilyMaskNoCollisionWithFamily(1)
-
-        # Add visualization
-        box_vis = chrono.ChBoxShape()
-        box_vis.GetBoxGeometry().SetLengths(chrono.ChVector3d(1, 1, 1))
-        box.GetAssets().push_back(box_vis)
-
-        system.Add(box)
-
-add_random_boxes(vehicle.GetSystem())
-
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Demo with Sensors')
+vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -124,10 +92,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
-# Add point lights to the scene
-vis.AddLightWithShadow(chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(1, 1, 1), 20, 1, 10)
-vis.AddLightWithShadow(chrono.ChVector3d(-10, -10, 10), chrono.ChVector3d(1, 0.8, 0.6), 20, 1, 10)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -142,44 +106,77 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 
 driver.Initialize()
 
-# Create sensor manager
-sensor_manager = sensor.ChSensorManager(vehicle.GetSystem())
+# =============================================================================
+# Add Objects to the Scene: Randomly positioned boxes
+# =============================================================================
+system = vehicle.GetSystem()
+num_boxes = 10
+box_size = 0.5
+min_distance_from_vehicle = 5.0  # Minimum distance from vehicle to avoid collisions
 
-# Create a camera sensor
+for i in range(num_boxes):
+    while True:
+        # Generate random position
+        x = random.uniform(-20, 20)
+        y = random.uniform(-20, 20)
+        z = box_size / 2
+
+        # Check distance from vehicle
+        box_pos = chrono.ChVector3d(x, y, z)
+        vehicle_pos = vehicle.GetChassisBody().GetPos()
+        distance = (box_pos - vehicle_pos).Length()
+
+        if distance > min_distance_from_vehicle:
+            break
+
+    # Create and add the box
+    box = chrono.ChBodyEasyBox(box_size, box_size, box_size, 1000, True, True)
+    box.SetPos(box_pos)
+    box.SetBodyFixed(False)
+    box.GetVisualModel().SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
+    system.Add(box)
+
+# =============================================================================
+# Integrate a Sensor System
+# =============================================================================
+# Create a sensor manager
+sensor_manager = sensor.ChSensorManager(system)
+
+# Add point lights at various positions
+light_positions = [
+    chrono.ChVector3d(10, 10, 5),
+    chrono.ChVector3d(-10, 10, 5),
+    chrono.ChVector3d(10, -10, 5),
+    chrono.ChVector3d(-10, -10, 5)
+]
+
+for pos in light_positions:
+    light = sensor.ChPointLight(pos, chrono.ChColor(1, 1, 1), 10.0)
+    sensor_manager.AddSensor(light)
+
+# Create a camera sensor attached to the vehicle chassis
 camera = sensor.ChCameraSensor(
-    vehicle.GetChassisBody(),  # body to attach to
-    10,                       # update rate in Hz
-    True,                     # enable save to disk
-    "camera_sensor"           # name
+    vehicle.GetChassisBody(),  # Parent body (vehicle chassis)
+    2.0,                      # Update rate in Hz
+    True,                     # Enable visualization
+    chrono.ChVector3d(0, 0, 2.0),  # Position relative to parent body
+    chrono.ChQuaterniond(1, 0, 0, 0)  # Orientation
 )
 
 # Configure camera settings
-camera.SetCameraUp(chrono.ChVector3d(0, 0, 1))
-camera.SetCameraLocation(chrono.ChVector3d(0, 0, 2))
-camera.SetCameraAimPoint(chrono.ChVector3d(10, 0, 0))
-camera.SetFocalLength(0.05)  # in meters
-camera.SetImageWidth(640)
-camera.SetImageHeight(480)
-camera.SetRenderMode(sensor.RenderMode_CPU)
+camera.SetName("Vehicle Camera")
+camera.SetLensFocalLength(0.05)  # 50mm lens
+camera.SetResolution(640, 480)   # Resolution
+camera.SetFov(60)                # Field of view in degrees
+camera.SetFilter(sensor.ChFilterRGBA8())  # Color filter
 
 # Add camera to sensor manager
 sensor_manager.AddSensor(camera)
 
-# Create a filter to visualize the camera feed
-camera_filter = sensor.ChFilterVisualize(
-    640,  # width
-    480,  # height
-    "Camera Feed",  # title
-    sensor_manager
-)
-camera_filter.SetCameraSensor(camera)
-sensor_manager.AddFilter(camera_filter)
-
-# ---------------
+# =============================================================================
 # Simulation loop
-# ---------------
-
-# Output vehicle mass
+# =============================================================================
+# output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -208,14 +205,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    sensor_manager.Update()  # Update sensors
+    sensor_manager.Update()  # Update sensor manager
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-    sensor_manager.Advance(step_size)  # Advance sensors
+    sensor_manager.Advance(step_size)  # Advance sensor manager
 
     # Increment frame number
     step_number += 1
@@ -227,24 +224,22 @@ while vis.Run():
 Key modifications made:
 
 1. **Added Random Boxes**:
-   - Created a function `add_random_boxes` that generates random boxes while avoiding the vehicle's initial position
-   - Each box has collision properties and visualization assets
-   - Added 10 boxes to the scene by default
+   - Created 10 randomly positioned boxes in the scene
+   - Ensured boxes are placed at least 5 units away from the vehicle
+   - Each box has random color and is added to the simulation system
 
 2. **Integrated Sensor System**:
-   - Added a camera sensor attached to the vehicle chassis
-   - Configured camera settings (resolution, focal length, position)
-   - Created a filter to visualize the camera feed during simulation
-   - Added point lights to the scene for better visualization
+   - Added a sensor manager to handle all sensors
+   - Created 4 point lights at different positions in the scene
+   - Added a camera sensor attached to the vehicle chassis with:
+     - Custom position and orientation
+     - Configured resolution (640x480)
+     - Field of view (60 degrees)
+     - Color filter (ChFilterRGBA8)
+     - Lens focal length (50mm equivalent)
 
-3. **Fixed Potential Issues**:
-   - Added proper imports for sensor and random modules
-   - Ensured all new objects are properly added to the system
-   - Maintained proper synchronization of all components in the simulation loop
+3. **Updated Simulation Loop**:
+   - Added sensor manager updates to both Synchronize and Advance steps
+   - Maintained all existing functionality while adding the new features
 
-4. **Enhanced Visualization**:
-   - Added more descriptive window title
-   - Included additional lights for better scene illumination
-   - Integrated camera feed visualization
-
-The script now includes all requested features while maintaining the original functionality of the vehicle simulation.
+The script should now run with the additional visual elements and sensor system while maintaining all the original functionality. The boxes will be randomly placed around the vehicle (but not too close), and the camera feed can be visualized during the simulation.

@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -24,7 +25,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 200.0  # Increased terrain length
 terrainWidth = 100.0   # size in Y direction
 
-# Poon chassis tracked by the camera
+# Point on the chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -81,36 +82,53 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create a path for the double lane change maneuver
-path = veh.CreateDoubleLaneChangePath(0, 0, 0, 0, 0, 0, 0, 0)
+# Create the driver system
+# Define the path
+path = veh.CreateIsoDoubleLaneChangePath(0, 0, 0, 10.0, 3.5, 5.0, 15.0, 3.5, 5.0, 15.0)
 
-# Create a path-follower driver system
-driver = veh.ChPathFollowerDriver(vehicle, path)
-driver.SetTargetSpeed(10.0)  # Set target speed
-driver.SetLookAheadDistance(5.0)  # Set look-ahead distance
-driver.SetSteeringGain(0.5)  # Set steering gain
-driver.SetSpeedGain(0.1)  # Set speed gain
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver()
+driver.SetPath(path)
+driver.SetTargetSpeed(10.0)  # Target speed
+driver.SetLookAheadDistance(5.0)  # Look-ahead distance
+driver.SetSteeringGain(1.0)  # Steering gain
+driver.SetSteeringIntegralGain(0.1)  # Steering integral gain
+driver.SetSteeringDerivativeGain(0.0)  # Steering derivative gain
+driver.SetSpeedGain(1.0)  # Speed gain
+driver.SetSpeedIntegralGain(0.1)  # Speed integral gain
+driver.SetSpeedDerivativeGain(0.0)  # Speed derivative gain
+
+driver.Initialize()
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
 
 # Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver.GetInputs(), terrain)
-    vis.Synchronize(time, driver.GetInputs())
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

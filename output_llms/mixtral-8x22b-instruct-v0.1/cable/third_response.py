@@ -25,8 +25,8 @@ class Model1:
                 mesh,  # The mesh to which the created nodes and elements will be added
                 msection_cable2,  # The beam section properties to use
                 i+10,  # Number of ANCF elements to create along the beam
-                chrono.ChVector3d(0, 0, -0.1),  # Starting point ('A' point) of the beam
-                chrono.ChVector3d(0.5, 0, -0.1)  # Ending point ('B' point) of the beam
+                chrono.ChVector3d(0, 0, -0.1 + i*0.1),  # Starting point ('A' point) of the beam
+                chrono.ChVector3d(0.5, 0, -0.1 + i*0.1)  # Ending point ('B' point) of the beam
             )
 
             # Apply boundary conditions and loads:
@@ -42,24 +42,23 @@ class Model1:
             constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
             system.Add(constraint_hinge)  # Add the constraint to the system
 
-            # Create a chrono body (box)
+            # Create a new body (box) and add it to the system
             body = chrono.ChBody()
             body.SetBodyFixed(False)
-            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1))
+            body.SetPos(chrono.ChVector3d(0.5, 0, -0.1 + i*0.1))
             body.SetMass(1)
-            body.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+            body.SetInertiaXX(chrono.ChVector3d(1, 1, 1))
             system.Add(body)
-
-            # Create and initialize a hinge constraint to connect the beam's end point to the box
-            constraint_hinge_box = fea.ChLinkLockPrismatic()
-            constraint_hinge_box.Initialize(builder.GetLastBeamNodes().back(), body)
-            system.Add(constraint_hinge_box)  # Add the constraint to the system
-
             self.bodies.append(body)
+
+            # Create and initialize a ball constraint between the beam's end point and the body
+            constraint_ball = chrono.ChLinkLockBall()
+            constraint_ball.Initialize(builder.GetLastBeamNodes().back(), body)
+            system.Add(constraint_ball)
 
     def PrintBodyPositions(self):
         for i, body in enumerate(self.bodies):
-            print(f"Position of body {i}: {body.GetPos()}")
+            print(f"Chain {i+1} body position: {body.GetPos()}")
 
 # Initialize the physical system and mesh container:
 sys = chrono.ChSystemSMC()

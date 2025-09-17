@@ -46,11 +46,11 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.Initialize()
 
-vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetChassisVisualizationType(vis_type, vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type, vis_type)
+vehicle.SetWheelVisualizationType(vis_type, vis_type)
+vehicle.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
@@ -103,10 +103,9 @@ step_number = 0
 render_frame = 0
 
 
-lane_change_start = 10
-lane_change_duration = 5
-lane_change_amplitude = 2.0
-lane_change_frequency = 0.5
+lane_change_start_time = 5.0
+lane_change_duration = 4.0
+lane_change_steering = 0.5
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
@@ -119,18 +118,16 @@ while vis.Run():
         render_frame += 1
 
     
-    if lane_change_start < time < lane_change_start + lane_change_duration:
-        steering_input = lane_change_amplitude * math.sin(2 * math.pi * lane_change_frequency * (time - lane_change_start))
-    else:
-        steering_input = 0
-
-    
-    driver.SetSteering(steering_input)
-    driver.SetThrottle(1.0)  
-    driver.SetBraking(0.0)   
-
-    
     driver_inputs = driver.GetInputs()
+
+    
+    if lane_change_start_time <= time <= lane_change_start_time + lane_change_duration:
+        if time < lane_change_start_time + lane_change_duration / 2:
+            driver_inputs.steering = lane_change_steering
+        else:
+            driver_inputs.steering = -lane_change_steering
+    else:
+        driver_inputs.steering = 0
 
     
     driver.Synchronize(time)

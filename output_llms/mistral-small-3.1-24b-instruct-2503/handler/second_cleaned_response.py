@@ -1,5 +1,6 @@
 import pychrono as ch
 import pychrono.ros as chros
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -25,7 +26,7 @@ class MyCustomHandler(chros.ChROSHandler):
 
     def Tick(self, time: float):
         
-        print(f"Publishing {self.message}{self.ticker} ...")
+        print(f"Publishing {self.message + str(self.ticker)} ...")
         msg = String()  
         msg.data = self.message + str(self.ticker)  
         self.publisher.publish(msg)  
@@ -50,7 +51,7 @@ def main():
     
     box = ch.ChBodyEasyBox(1, 1, 1, 1000, True, True, phys_mat)
     box.SetPos(ch.ChVector3d(0, 0, 5))  
-    box.SetRot(ch.QuatFromAngleAxis(0.2, ch.ChVector3d(1, 0, 0)))  
+    box.SetRot(ch.Quaternion(ch.Vector3d(1, 0, 0), 0.2))  
     box.SetName("box")  
     sys.Add(box)  
 
@@ -92,6 +93,4 @@ def main():
 
 
 if __name__ == "__main__":
-    rclpy.init()
     main()
-    rclpy.shutdown()

@@ -3,74 +3,91 @@ import pychrono.irrlicht as chronoirr
 import pychrono.vehicle as veh
 
 
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  
 
 
-vehicle = veh.UAZBUS()
-vehicle.Initialize()
-
-
-vehicle.GetChassisBody().SetPos(chrono.ChVectorD(0, 0, 0.5))
-vehicle.GetChassisBody().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+time_step = 0.01          
+tend = 30.0               
+output_freq = 10          
 
 
 
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  
 
 
-vehicle.GetSystem().AddToSystem(system)
 
 
-terrain = veh.Terrain(system)
-terrain.SetContactMaterialProperties(0.8, 0.4)  
-terrain.SetHeightField(chrono.GetChronoDataFile("terrain/height_maps/test.heigh"), 10, 10, 0, 3)
+terrain = veh.RigidTerrain(sys)
+terrain.SetContactFrictionCoefficient(0.9)  
+terrain.SetContactRestitutionCoefficient(0.1)  
+terrain.SetContactMaterialProperties(1e7, 0.3)  
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 100, 0))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 terrain.Initialize()
 
 
 
+
+vehicle = veh.UAZBus(sys)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+vehicle.Initialize()
+
+
+
+
 driver = veh.ChDriver()
+driver.SetSteeringDelta(0.1)  
+driver.SetThrottleDelta(0.1)  
+driver.SetBrakingDelta(0.1)   
 driver.Initialize()
 
 
 
+
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("UAZBUS Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0.5))
-vis.AddTypicalLights()
-vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 10), chrono.ChVectorD(0, 0, 0), 10, 1, 10, 40, chrono.ChColor(0.8f, 0.8f, 0.8f))
+vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))
+vis.AddLight(chrono.ChVectorD(5, 5, 10), chrono.ChVectorD(0, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.AddLight(chrono.ChVectorD(-5, -5, 10), chrono.ChVectorD(0, 0, 0), 10, chrono.ChColor(1, 1, 1))
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.EnableShadows()
 
 
-vis.SetChaseCamera(vehicle.GetChassisBody(), 6.0, 0.5)
-vis.AttachSystem(system)
 
 
-
-time_step = 0.01
-sim_time = 0
-max_time = 30
-
-while vis.Run() and sim_time < max_time:
-    
-    vehicle.Synchronize(sim_time)
-    terrain.Synchronize(sim_time)
-    driver.Synchronize(sim_time)
+while vis.Run():
+    time = sys.GetChTime()
 
     
-    driver.SetThrottle(0.5)
-    driver.SetSteering(0.0)
+    driver_inputs = driver.GetInputs()
+    vehicle.SetDriverInputs(driver_inputs)
+
+    
+    vehicle.Synchronize(time)
+
+    
+    sys.DoStepDynamics(time_step)
 
     
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    system.DoStepDynamics(time_step)
-    sim_time += time_step
+    
+    if int(time % output_freq) == 0:
+        print("Time: ", time)
+
+    
+    if time >= tend:
+        break
 
 
-vis.AsynchronousRemoveAll()
+
+
+vis.Close()

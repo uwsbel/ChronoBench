@@ -1,100 +1,82 @@
 import pychrono as pychrono
-import pychrono.gui
-import pychrono(irrlicht)
+import pychrono.vehicles as vehicles
+import pychrono.visualization.irr as irr
 
-# Initialize PyChrono
-pychrono.init PyChrono()
-pychrono.set_default_physics_settings()
-pychrono.set_default_visualization_settings()
+# Initialize PyChrono core
+pychrono.init()
 
-# Create vehicle
-vehicle = pychrono.RigidBody2D()
-vehicle.set_name("HMMWV")
-vehicle.set_position([0, 0])
-vehicle.set_orientation(pychrono.math.Rotation2D())
-vehicle.set_contact_method(pychrono.Contact)
+# Create a vehicle body
+vehicle_body = pychrono.VehicleBody()
+vehicle_body.set_mass(1000)  # mass in kg
+vehicle_body.set_com(0, 0, 0)  # center of mass position
+vehicle_body.set_dim(2, 1.5, 1.5)  # dimensions (length, width, height)
+vehicle_body.set_inertia(100, 0, 0, 0, 0, 0)  # moment of inertia
 
-# Create tires
-tire1 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
-tire2 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
-tire3 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
-tire4 = pychrono.Tire2D(name="TMEASY", radius=0.5, friction=1.0, contact_damping=0.3)
+# Create wheels with suspension
+wheel = pychrono.Wheel()
+wheel.set_position(0, 0, 0)
+wheel.set_radius(0.3)
+wheel.set_spring(1000, 0.5)
+wheel.set_damping(10)
+vehicle_body.add_component(wheel)
 
-# Attach tires to vehicle
-vehicle.add(tire1, pychrono.Vehicle.WheelLocation.FRONT_LEFT)
-vehicle.add(tire2, pychrono.Vehicle.WheelLocation.FRONT_RIGHT)
-vehicle.add(tire3, pychrono.Vehicle.WheelLocation.BACK_LEFT)
-vehicle.add(tire4, pychrono.Vehicle.WheelLocation.BACK_RIGHT)
+# Create another wheel for the opposite side
+wheel_right = pychrono.Wheel()
+wheel_right.set_position(1, 0, 0)
+wheel_right.set_radius(0.3)
+wheel_right.set_spring(1000, 0.5)
+wheel_right.set_damping(10)
+vehicle_body.add_component(wheel_right)
 
-# Create engine
-engine = pychrono.Engine2D(name="Engine", power=100, torque=100, max_rpm=3000)
-engine.set_control_input(pychrono.Vehicle.Steer, 0)
-engine.set_control_input(pychrono.Vehicle.Throttle, 0)
-engine.set_control_input(pychrono.Vehicle.Brake, 0)
+# Define contact points
+contact_point = pychrono.ContactPoint()
+contact_point.set_position(0, 0, 0)
+contact_point.set_normal(0, 0, 1)
+vehicle_body.add_contact_point(contact_point)
 
-# Create suspension
-suspension = pychrono.Suspension2D(name="Suspension", spring_rate=1000, damping_rate=10)
-suspension.set_control_input(pychrono.Vehicle.Height, 0)
+# Create a rigid terrain
+terrain = pychrono.RigidTerrain()
+terrain.set_size(50, 50, 0.1)
+terrain.set_texture("data/textures/flat_terrain.png")  # Replace with your terrain texture
+terrain.set_position(0, 0, 0)
+terrain.add_component(terrain)
 
-# Create terrain
-terrain = pychrono.RigidTerrain(name="Terrain", dimensions=[8192, 8192], texture="flat")
-terrain.set_static(True)
+# Initialize the vehicle with location, orientation, contact method, and tire model
+vehicle = pychrono.Vehicle()
+vehicle.set_body(vehicle_body)
+vehicle.set_location(0, 0, 0)
+vehicle.set_orientation(0, 0, 1)
+vehicle.set_contact_method("Contact")
+vehicle.set_tire_model("TMEASY")
 
-# Set up visualization
-renderer = pychrono.IrrlichtRenderer()
-renderer.set_window_size(1024, 768)
-renderer.set_hud_alignment(pychrono.Irrlicht.HUD_ALIGN_RIGHT)
-renderer.set_wireframe_mode(True)
-renderer.set_camera_position([100, 50, 10])
-renderer.set_look_at([0, 0, 0])
+# Add driver controls
+driver = pychrono.Driver()
+driver.add_input("steering_wheel", -1, 1, 0)  # Left and right steering
+driver.add_input("throttle", 0, 1, 0)  # Throttle control
+driver.add_input("brakes", 0, 0, -1)  # Braking control
 
-# Create driver
-driver = pychrono.Driver(name="Driver")
-driver.set_control_input(pychrono.Vehicle.Steer, 0)
-driver.set_control_input(pychrono.Vehicle.Throttle, 0)
-driver.set_control_input(pychrono.Vehicle.Brake, 0)
+# Create visualization
+renderer = irr.Renderer()
+renderer.set_happiness(0.1)
+renderer.set_light(0, 1, 1, 0, 0, 0)  # Light source
+renderer.set_camera_position(5, 0, 5)
+renderer.set_active_window(0, 0, 800, 600)
 
-# Add UI elements
-speed_label = pychrono.HUDText2D(name="Speed", position=[0, 50, 0])
-rpm_label = pychrono.HUDText2D(name="RPM", position=[0, 100, 0])
-gear_label = pychrono.HUDText2D(name="Gear", position=[0, 150, 0])
+# Setup simulation
+simulation = pychrono.Simulation()
+simulation.set_time_step(1/50)  # 50Hz
+simulation.set_contact_update(10)
 
-# Add vehicle to scene
-renderer.add_vehicle(vehicle, name="Vehicle", wireframe=True)
-renderer.add_terrain(terrain, name="Terrain")
-
-# Initialize simulation
-simit = pychrono.Simit()
-simit.set_timestep(1 / 50)  # 50 FPS
-simit.set_real_time(True)
-
-# Add vehicle dynamics
-vehicle.add(pychrono.Vehicle.Dynamics2D(mass=100, inertia=[0, 0, 1], friction=0.1, damping=0.5))
-engine.add_output_to_wheels([0, 0, 0, 0])
-suspension.add_output_to_vehicle([0, 0, 0])
-
-# Add driver input
-driver.set_input_source(pychrono.Driver.InputSource.Keyboard)
-driver.set_control_mapping(pychrono.Driver.ControlMapping.SteerLeft, pychrono.Driver.ControlMapping.ThrottleForward, pychrono.Driver.ControlMapping.BrakeReverse)
-
-# Run simulation
-simit.start()
+# Add simulation loop for rendering
+display = irr.Display(renderer)
 while True:
-    simit.step()
+    simulation.update()
     renderer.update()
-    speed = vehicle.get_velocity()[0]
-    rpm = engine.get_output()[0]
-    gear = engine.get_gear()
-    
-    speed_label.set_text(f"Speed: {int(speed)}")
-    rpm_label.set_text(f"RPM: {int(rpm)}")
-    gear_label.set_text(f"Gear: {int(gear)}")
-    
-    if pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.W):
-        driver.set_throttle(0.5)
-    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.S):
-        driver.set_brake(0.5)
-    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.A):
-        driver.set_steer(-1.0)
-    elif pychrono.Keyboard.is_pressed(pychrono.Keyboard.Key.D):
-        driver.set_steer(1.0)
+    display.render()
+    display.swap()
+
+    # Apply controls
+    vehicle.apply_driver()
+    renderer.update()
+    display.render()
+    display.swap()

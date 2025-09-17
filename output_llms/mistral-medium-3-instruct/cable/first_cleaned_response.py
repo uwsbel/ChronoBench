@@ -1,6 +1,5 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.fea as fea
 import numpy as np
 
 
@@ -11,70 +10,69 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
 
 
-
-beam_length = 2.0
-num_elements = 10
-diameter = 0.1
-
-
-beam = fea.ChBeamANCF()
-beam.SetNumElements(num_elements)
-beam.SetElementsFromFile("beam.txt")  
+beam_length = 1.0  
+num_elements = 10  
+num_nodes = num_elements + 1  
 
 
-material = fea.ChMaterialShellANCF()
-material.SetYoungModulus(2.1e11)
-material.SetPoissonRatio(0.3)
-material.SetDensity(7800)
-beam.SetMaterial(material)
+nodes = []
+for i in range(num_nodes):
+    
+    x = i * beam_length / num_elements
+    node = chrono.ChNodeFEAxyzD(x, 0, 0)
+    system.Add(node)
+    nodes.append(node)
 
 
-beam.SetDiameter(diameter)
+elements = []
+for i in range(num_elements):
+    element = chrono.ChElementCableANCF()
+    element.SetNodes(nodes[i], nodes[i+1])
+
+    
+    element.SetDiameter(0.02)  
+    element.SetYoungModulus(2.1e11)  
+    element.SetDensity(7850)  
+    element.SetRayleighDamping(0.01)  
+
+    system.Add(element)
+    elements.append(element)
 
 
-fixed_node = beam.GetNode(0)
-fixed_node.SetFixed(True)
-
-
-system.Add(beam)
-
+constraint = chrono.ChLinkLockLock()
+constraint.Initialize(nodes[0], chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+system.Add(constraint)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
 vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("ANCF Beam Simulation")
+vis.SetWindowTitle("ANCF Cable Beam Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0, 5))
+vis.AddCamera(chrono.ChVectorD(0.5, 0.5, 2))
 vis.AddTypicalLights()
-vis.AttachSystem(system)
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, 5, 2), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
 
 
-beam_asset = chronoirr.ChBeamVisualizationIrrlicht(beam)
-vis.AddVisualModel(beam_asset)
+for element in elements:
+    vis.AddFEAelement(element)
 
 
-time_step = 0.01
-sim_time = 5.0
-current_time = 0
+time_step = 0.001
+vis.SetSimulationStep(time_step)
 
 while vis.Run():
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
+    
     system.DoStepDynamics(time_step)
-    current_time += time_step
 
     
-    if int(current_time % 1) == 0:
-        print("Time:", current_time)
-        print("Node 0 position:", beam.GetNode(0).GetPos())
-        print("Node -1 position:", beam.GetNode(-1).GetPos())
-
-    if current_time > sim_time:
-        break
-
-
-vis.Close()
+    if system.GetChTime() > 0.1 and system.GetChTime() < 0.11:
+        print("Time:", system.GetChTime())
+        print("Node 0 position:", nodes[0].GetPos())
+        print("Node 5 position:", nodes[5].GetPos())

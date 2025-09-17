@@ -10,7 +10,7 @@ class CustomIntPublisherHandler(chrono_ros.ChRosHandler):
 
     def Update(self):
         msg = Int32()
-        msg.data = 42  # Example value, can be modified dynamically
+        msg.data = 42  # Example value, can be dynamic based on simulation
         self.publisher.publish(msg)
 
 def main():
@@ -31,24 +31,27 @@ def main():
     box.SetPos(chrono.ChVectorD(0, 2, 0))
     system.Add(box)
 
-    # Initialize ROS handlers
+    # Create custom ROS handler for integer messages
     custom_handler = CustomIntPublisherHandler('/integer_topic')
 
-    # Configure ROS manager
+    # Configure ROS manager and handlers
     manager = chrono_ros.ChManager()
     manager.SetSystem(system)
 
-    # Add required handlers
+    # Add clock handler for real-time synchronization
     clock_handler = chrono_ros.ChRosClockHandler()
-    clock_handler.SetRealtimeFactor(1.0)  # Real-time simulation
+    clock_handler.SetRealtimeFactor(1.0)  # Real-time execution
     manager.AddHandler(clock_handler)
 
-    manager.AddHandler(chrono_ros.ChRosBodyLoader())  # Body loader
-    manager.AddHandler(chrono_ros.ChRosTransformPublisher())  # TF publisher
-    manager.AddHandler(custom_handler)  # Custom integer publisher
+    # Add body and transform handlers
+    manager.AddHandler(chrono_ros.ChRosBodyLoader())
+    manager.AddHandler(chrono_ros.ChRosTransformPublisher())
+
+    # Register custom handler
+    manager.AddHandler(custom_handler)
 
     # Simulation loop parameters
-    step_size = 0.001  # Time step
+    step_size = 0.001
 
     while not rospy.is_shutdown():
         # Synchronize with ROS time and advance simulation

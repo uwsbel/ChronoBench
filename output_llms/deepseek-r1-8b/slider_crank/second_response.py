@@ -3,7 +3,7 @@ import pychrono.irrlicht as chronoirr  # Import the Irrlicht visualization libra
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
 import numpy as np  # Import numpy for numerical operations
 
-# Initialize the arrays for storing data
+# Initialize the arrays for storing simulation data
 array_time = []
 array_angle = []
 array_pos = []
@@ -75,41 +75,45 @@ vis.AddCamera(chrono.ChVector3d(1, 1, 3), chrono.ChVector3d(0, 1, 0))  # Add a c
 vis.AddTypicalLights()  # Add typical lights for better visualization
 
 # Run the interactive simulation loop
-while True:
+while vis.Run():
     # Visualization and time step integration
     vis.BeginScene()  # Begin the visualization scene
     vis.Render()  # Render the scene
     vis.EndScene()  # End the visualization scene
-    
-    # Collect simulation data
-    current_time = sys.GetTime() * 0.001  # Convert simulation time to seconds
-    current_angle = my_motor.GetAngularSpeed()  # Get current angular speed
-    current_pos = mpiston.GetPos().x  # Get piston position (x-component)
-    current_speed = my_angularspeed.GetVelocity()  # Get angular speed (in rad/s)
-    
-    # Store data in arrays
-    array_time.append(current_time)
-    array_angle.append(current_angle)
-    array_pos.append(current_pos)
-    array_speed.append(current_speed)
-    
-    # Stop condition
-    if current_time >= 20:
-        break
 
-# Create plots
+    # Collect simulation data
+    current_time = sys.GetTime()
+    array_time.append(current_time)
+    
+    # Get crank position and speed
+    crank_pos = sys.GetLinkPosition(mcrank)
+    crank_angle = sys.GetLinkAngle(mcrank)
+    crank_speed = sys.GetLinkVelocity(mcrank)[0]  # Extract angular speed
+    
+    array_angle.append(crank_angle)
+    array_pos.append(crank_pos[1])  # Only y-coordinate is needed for position
+    array_speed.append(crank_speed)
+    
+    if current_time >= 20:  # Stop simulation after 20 seconds
+        break
+    
+    sys.DoStepDynamics(1e-3)  # Advance the simulation by a time step of 0.001 seconds (1 ms)
+
+# Create plots after simulation ends
 plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.plot(array_time, array_pos, 'b-', linewidth=2)
-plt.xlabel('Time (s)')
-plt.ylabel('Position (m)')
+plt.subplot(2, 1, 1)
+plt.plot(array_time, array_pos, label='Position [m]')
+plt.xlabel('Time [s]')
+plt.ylabel('Position [m]')
 plt.title('Crank Position vs Time')
-plt.grid(True)
-plt.subplot(1, 2, 2)
-plt.plot(array_time, array_speed, 'r-', linewidth=2)
-plt.xlabel('Time (s)')
-plt.ylabel('Speed (m/s)')
+plt.legend()
+
+plt.subplot(2, 1, 2)
+plt.plot(array_time, array_speed, label='Speed [m/s]')
+plt.xlabel('Time [s]')
+plt.ylabel('Speed [m/s]')
 plt.title('Crank Speed vs Time')
-plt.grid(True)
+plt.legend()
+
 plt.tight_layout()
 plt.show()

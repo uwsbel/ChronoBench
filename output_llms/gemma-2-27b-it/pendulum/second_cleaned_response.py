@@ -36,11 +36,11 @@ pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY
 pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
 
 
-pend_1.SetWvel(chrono.ChVector3d(0, 0, 1)) 
+pend_1.SetWvel_loc(chrono.ChVector3d(0, 0, 1)) 
 
 
-spherical_joint = chrono.ChLinkLockSpherical()
-spherical_joint.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1))) 
+spherical_joint = chrono.ChLinkSphere()
+spherical_joint.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1)))
 sys.AddLink(spherical_joint)
 
 

@@ -3,8 +3,6 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-print(veh)
-
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -26,6 +24,7 @@ tire_model = veh.TireModelType_TMEASY
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
+terrain_model = veh.RigidTerrain.HIGHWAY_MESH  
 
 
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -37,13 +36,14 @@ contact_vis = False
 
 step_size = 1e-4  
 tire_step_size = step_size
-
-
 render_step_size = 1.0 / 100  
 
 
 
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
 
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 vehicle = veh.BMW_E90()
@@ -53,31 +53,15 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
-vehicle.Initialize()
-
-vehicle.SetChassisVisualizationType(vis_type)
-vehicle.SetSuspensionVisualizationType(vis_type)
-vehicle.SetSteeringVisualizationType(vis_type)
-vehicle.SetWheelVisualizationType(vis_type)
-vehicle.SetTireVisualizationType(vis_type)
-
-vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle.SetSteeringResponseTime(5.0)  
 
 
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-terrain.SetMeshFile(veh.GetDataFile("terrain/highway.obj"))  
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.SetMesh(veh.GetDataFile("terrain/highway_mesh.obj"))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -101,26 +85,16 @@ driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 
-driver.Initialize()
+
+pid_controller = veh.PIDController(0.1, 0.01, 0.001)
+driver.SetThrottleController(pid_controller)
 
 
-pid_controller = veh.PIDController()
-pid_controller.SetKp(0.1)
-pid_controller.SetKi(0.01)
-pid_controller.SetKd(0.001)
-
-
-ref_speed = 50.0  
+reference_speed = 50.0  
 
 
 
 
-
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
-
-
-render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -153,13 +127,10 @@ while vis.Run() :
     vis.Advance(step_size)
 
     
-    speed_error = ref_speed - vehicle.GetVehicle().GetSpeed()
-    pid_controller.Update(speed_error)
-    throttle_input = pid_controller.GetOutput()
-    driver_inputs.throttle = throttle_input
-
-    
-    step_number += 1
-
-    
     realtime_timer.Spin(step_size)
+
+    
+    speed_error = vehicle.GetVehicle().GetSpeed() - reference_speed
+    pid_controller.SetInput(speed_error)
+    throttle_output = pid_controller.GetOutput()
+    driver.SetThrottle(throttle_output)

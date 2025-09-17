@@ -60,9 +60,14 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 terrain.SetTerrainSize(terrainLength, terrainWidth)
 terrain.SetHeightDistribution(terrainHeight)
-terrain.CreatePatch(0, 0, 0, 0, 0, 0)  
+terrain.SetStatic(True)
+terrain.SetContactMethod(contact_method)
+
+
+terrain.LoadHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"))
+
+
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-terrain.Initialize()
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -101,6 +106,7 @@ render_steps = math.ceil(render_step_size / step_size)
 s = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
+
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 

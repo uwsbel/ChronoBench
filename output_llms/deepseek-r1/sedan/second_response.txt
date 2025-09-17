@@ -1,10 +1,24 @@
 
-To address the requirements, I'll make the following key changes:
-1. Add a second vehicle with different initial position
-2. Change terrain texture to "concrete.jpg"
-3. Create drivers for both vehicles
-4. Implement sinusoidal steering for both vehicles
-5. Update simulation loop for both vehicles
+Based on the instructions and analysis of the provided script, here are the modifications made:
+
+1. **Added Second Vehicle**:
+   - Created `vehicle2` with different initial position (offset by 5m in Y-direction)
+   - Shared the same physical system between both vehicles
+   - Maintained identical vehicle parameters except initial position
+
+2. **Updated Terrain Texture**:
+   - Changed from "tile4.jpg" to "concrete.jpg"
+
+3. **Created Driver Systems**:
+   - Added two `veh.ChDriver` instances (one per vehicle)
+   - Implemented sinusoidal steering input for both vehicles in simulation loop
+   - Added constant throttle (0.5) and zero braking
+
+4. **Modified Simulation Loop**:
+   - Added sinusoidal steering calculations (0.5 amplitude, 0.2Hz frequency)
+   - Added 90° phase difference between vehicles
+   - Synchronized and advanced both vehicles independently
+   - Updated visualization synchronization to use first vehicle's inputs
 
 Here's the corrected and modified script:
 
@@ -20,19 +34,15 @@ veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle locations and orientations
 initLoc1 = chrono.ChVector3d(0, 0, 0.5)
-initLoc2 = chrono.ChVector3d(0, 3, 0.5)  # Second vehicle offset in Y direction
+initLoc2 = chrono.ChVector3d(0, -5, 0.5)  # Second vehicle offset by 5m in Y
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Visualization type for vehicle parts
+# Visualization and collision settings
 vis_type = veh.VisualizationType_MESH
-
-# Collision type for chassis
 chassis_collision_type = veh.CollisionType_NONE
-
-# Type of tire model
 tire_model = veh.TireModelType_TMEASY
 
-# Rigid terrain parameters
+# Terrain parameters
 terrainHeight = 0
 terrainLength = 100.0
 terrainWidth = 100.0
@@ -40,27 +50,18 @@ terrainWidth = 100.0
 # Camera tracking point
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
 
-# Contact method
+# Simulation parameters
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
-
-# Simulation step sizes
 step_size = 1e-3
 tire_step_size = step_size
-
-# Time interval between render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the system
-if contact_method == chrono.ChContactMethod_NSC:
-    system = chrono.ChSystemNSC()
-else:
-    system = chrono.ChSystemSMC()
+# Create main system
+system = chrono.ChSystemNSC()
 system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create first vehicle
 vehicle1 = veh.BMW_E90(system)
-vehicle1.SetContactMethod(contact_method)
 vehicle1.SetChassisCollisionType(chassis_collision_type)
 vehicle1.SetChassisFixed(False)
 vehicle1.SetInitPosition(chrono.ChCoordsysd(initLoc1, initRot))
@@ -75,7 +76,6 @@ vehicle1.SetTireVisualizationType(vis_type)
 
 # Create second vehicle
 vehicle2 = veh.BMW_E90(system)
-vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
 vehicle2.SetChassisFixed(False)
 vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot))
@@ -93,12 +93,10 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(system)
-patch = terrain.AddPatch(
-    patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth
-)
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Changed texture
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  # Updated texture
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -111,85 +109,71 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle1.GetVehicle())  # Attach to first vehicle
+vis.AttachVehicle(vehicle1.GetVehicle())  # Attach first vehicle for camera tracking
 
 # Create driver systems
 driver1 = veh.ChDriver(vehicle1.GetVehicle())
 driver2 = veh.ChDriver(vehicle2.GetVehicle())
 
 # Simulation parameters
-amplitude = 0.5  # Steering amplitude (radians)
-frequency = 0.5  # Hz
-
-# Print vehicle masses
 print("VEHICLE 1 MASS: ", vehicle1.GetVehicle().GetMass())
 print("VEHICLE 2 MASS: ", vehicle2.GetVehicle().GetMass())
-
-# Number of simulation steps between renders
 render_steps = math.ceil(render_step_size / step_size)
-
-# Initialize counters
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
+# Simulation loop
 while vis.Run():
     time = system.GetChTime()
-    
+
     # Render scene
     if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
+
+    # Sinusoidal steering inputs (0.2 Hz, 0.5 amplitude, 90° phase difference)
+    steering1 = 0.5 * math.sin(2 * math.pi * 0.2 * time)
+    steering2 = 0.5 * math.sin(2 * math.pi * 0.2 * time + math.pi/2)
     
-    # Generate sinusoidal steering for both vehicles
-    steering = amplitude * math.sin(2 * math.pi * frequency * time)
-    driver1.SetSteering(steering)
-    driver2.SetSteering(steering)
-    
-    # Set constant throttle (50%) and no braking
-    driver1.SetThrottle(0.5)
+    # Set driver controls
+    driver1.SetSteering(steering1)
+    driver2.SetSteering(steering2)
+    driver1.SetThrottle(0.5)  # Constant throttle
     driver2.SetThrottle(0.5)
     driver1.SetBraking(0.0)
     driver2.SetBraking(0.0)
-    
+
     # Get driver inputs
     driver_inputs1 = driver1.GetInputs()
     driver_inputs2 = driver2.GetInputs()
-    
-    # Update modules
-    driver1.Synchronize(time)
-    driver2.Synchronize(time)
+
+    # Synchronize systems
     terrain.Synchronize(time)
     vehicle1.Synchronize(time, driver_inputs1, terrain)
     vehicle2.Synchronize(time, driver_inputs2, terrain)
-    vis.Synchronize(time, driver_inputs1)
-    
-    # Advance simulation
+    vis.Synchronize(time, driver_inputs1)  # Use first vehicle's inputs for visualization
+
+    # Advance systems
     driver1.Advance(step_size)
     driver2.Advance(step_size)
     terrain.Advance(step_size)
     vehicle1.Advance(step_size)
     vehicle2.Advance(step_size)
     vis.Advance(step_size)
-    
-    # Increment step number
+
+    # Increment counters
     step_number += 1
-    
-    # Spin for real-time synchronization
     realtime_timer.Spin(step_size)
 ```
 
-Key improvements made:
-1. Created a shared Chrono system for both vehicles
-2. Added second vehicle with Y-offset initial position
-3. Changed terrain texture to concrete.jpg
-4. Created dedicated drivers for each vehicle
-5. Implemented sinusoidal steering input for both vehicles
-6. Updated synchronization and advancement for both vehicles
-7. Added constant throttle to keep vehicles moving
-8. Fixed visualization attachment to first vehicle
-9. Improved system initialization for multi-vehicle setup
+Key improvements:
+1. Shared physics system enables proper interaction between vehicles
+2. Sinusoidal steering creates interesting driving patterns
+3. Phase difference prevents identical trajectories
+4. Visual tracking focuses on first vehicle while showing both
+5. Texture update provides different visual appearance
 
-The simulation now features two vehicles driving side-by-side with synchronized sinusoidal steering inputs on a concrete-textured terrain.
+The simulation will show two vehicles driving side-by-side with synchronized but phase-shifted steering inputs, creating weaving patterns on a concrete-textured terrain.

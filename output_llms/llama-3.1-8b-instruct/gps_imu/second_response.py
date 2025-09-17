@@ -174,14 +174,14 @@ while vis.Run():
 
     # Modified driver inputs
     if time > 6:
-        driver_inputs = chrono.ChDriverInputs()
-        driver_inputs.steering = 0.5
-        driver_inputs.throttle = 0.5
-        driver_inputs.brake = 1.0
+        driver_inputs.throttle = 0
+        driver_inputs.braking = 1
+    else:
+        driver_inputs.throttle = 1
+        driver_inputs.braking = 0
 
-    # Added GPS data output
-    if step_number == 1000:
-        print("GPS Data: ", gps_data)
+# Added GPS data output
+print("GPS Data: ", gps_data)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())

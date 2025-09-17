@@ -44,12 +44,11 @@ def main():
     
     
     side = 5.0
-    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)
-    box_body.SetPos(chrono.ChVector3d(0, 0, 2))
-    box_shape = box_body.GetVisualShape(0)
-    box_shape.SetTexture(chrono.GetChronoDataFile("textures/skin.jpg"))
+    mbox = chrono.ChBodyEasyBox(side, side, side, 1000)
+    mbox.SetPos(chrono.ChVector3d(0, 0, 2 * side))
 
-    mphysicalSystem.Add(box_body)
+    
+    mphysicalSystem.Add(mbox)
 
     
     
@@ -64,7 +63,7 @@ def main():
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar = sens.ChLidarSensor(
-        box_body,  
+        mbox,  
         update_rate,  
         offset_pose,  
         horizontal_samples,  
@@ -91,7 +90,6 @@ def main():
     elif noise_model == "NONE":
         pass
 
-    vis = True
     if vis:
         
         lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
@@ -116,7 +114,7 @@ def main():
         chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
     )
     lidar_2d = sens.ChLidarSensor(
-        box_body,  
+        mbox,  
         update_rate,  
         offset_pose_2d,  
         horizontal_samples,  
@@ -164,12 +162,20 @@ def main():
     ch_time = 0.0
     render_time = 0
     t1 = time.time()
+    vis = True  
     while ch_time < end_time:
         
         lidar.SetOffsetPose(
             chrono.ChFramed(
                 chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate),
-                                   -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+                                  -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+        lidar_2d.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate),
+                                  -orbit_radius * math.sin(ch_time * orbit_rate), 1),
                 chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
             )
         )

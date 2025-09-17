@@ -31,13 +31,13 @@ def main():
     patch_mat.SetFriction(0.9)
     patch_mat.SetRestitution(0.01)
     patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
+                             veh.GetDataFile("terrain/meshes/Highway_col.obj"), 0.01)
     patch.SetCollision(True)
 
     
     visual_mesh = chrono.ChVisualShapeTriangleMesh()
     visual_mesh.SetMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
-    terrain.GetGroundBody().AddVisualShape(visual_mesh)
+    patch.GetGroundBody().AddVisualShape(visual_mesh)
 
     terrain.Initialize()
 

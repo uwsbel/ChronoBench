@@ -1,74 +1,88 @@
 ```python
 import pychrono
 import pychrono.core as pc
-import pychrono.objects as o
-import pychrono.utils as uc
+import pychrono.core.objects as o
+import pychrono.core.sensors as sc
+import pychrono.core.visuals as v
+import pychrono.core.sensors.lidar as lidar
 import numpy as np
 import matplotlib.pyplot as plt
-from pychrono.utils import visualize
 
-def simulate_orbit(mesh_path, sensor_manager, simulation_time, lidar_resolution=100):
-    """
-    Simulates the orbit of a triangular mesh around a fixed body using PyChrono.
+# --- Configuration ---
+mesh_file = "triangle_mesh.obj"  # Replace with your Wavefront .obj file
+sensor_manager = pc.SensorManager()
+lidar_sensor = lidar.LidarSensor(mesh_file)
+simulation_time = 10  # Simulation duration in seconds
+orbit_radius = 10  # Radius of the orbit
+noise_level = 0.1 # Noise level for lidar data
+visualization_interval = 100  # Interval for visualization updates
+lidar_buffer_size = 1000 # Size of the lidar buffer
 
-    Args:
-        mesh_path (str): Path to the Wavefront .obj file representing the mesh.
-        sensor_manager (pychrono.core.SensorManager): The sensor manager to use.
-        simulation_time (float): The duration of the simulation in seconds.
-        lidar_resolution (int): The resolution of the lidar data.
-    """
+# --- Initialize PyChrono ---
+try:
+    pychrono.initialize()
+except Exception as e:
+    print(f"Error initializing PyChrono: {e}")
+    exit()
 
-    try:
-        mesh = pc.Mesh.from_obj(mesh_path)
-        print(f"Mesh loaded: {mesh_path}")
+# --- Load Mesh ---
+try:
+    mesh = o.Mesh(mesh_file)
+except Exception as e:
+    print(f"Error loading mesh: {e}")
+    exit()
 
-        # Initialize the sensor manager
-        sensor_manager = sensor_manager.create_sensor_manager()
+# --- Set Initial Parameters ---
+# Define the mesh
+try:
+    mesh.vertices = mesh.vertices.astype(float)
+    mesh.faces = mesh.faces.astype(float)
+    mesh.normals = mesh.normals.astype(float)
+except Exception as e:
+    print(f"Error setting up mesh: {e}")
+    exit()
 
-        # Define the orbit parameters
-        orbit_radius = 10  # Radius of the orbit
-        orbit_speed = 0.1  # Speed of the orbit
-        simulation_steps = int(simulation_time / orbit_speed)
+# --- Sensor Setup ---
+try:
+    sensor_manager.add_sensor(lidar_sensor)
+except Exception as e:
+    print(f"Error adding sensor: {e}")
+    exit()
 
-        # Create the lidar sensor
-        lidar_sensor = pc.Lidar(sensor_manager, resolution=lidar_resolution)
+# --- Simulation Loop ---
+try:
+    for i in range(simulation_time):
+        # Update lidar position
+        lidar_sensor.update_position(mesh.vertices[i])
 
-        # Simulate the orbit
-        for step in range(simulation_steps):
-            print(f"Step: {step + 1}/{simulation_steps}")
-            
-            # Simulate the lidar position update
-            lidar_position = mesh.position()
-            lidar_position = pc.Vector(lidar_position)
-            
-            # Apply noise filters to the lidar data
-            lidar_data = lidar_sensor.get_data()
-            lidar_data = uc.noise_filter(lidar_data, sigma=10)  # Adjust sigma as needed
+        # Print lidar data
+        print(f"Simulation Step: {i}, Lidar Data: {lidar_sensor.data}")
 
-            # Visualize the lidar data
-            visualize(lidar_data,  # Use visualize for visualization
-                      title="Lidar Data",
-                      x_label="X",
-                      y_label="Y",
-                      color="blue",
-                      opacity=0.7)
+        # Visualize the mesh
+        v.visualize(mesh, sensor_manager)
 
-            # Save the lidar data to a file (optional)
-            # lidar_data.save("lidar_data.npy") # Example: save to a numpy array
+        # Wait for visualization interval
+        if (i + 1) % visualization_interval == 0:
+            print(f"Visualization Interval: {visualization_interval}")
 
-            # Wait for the next step
-            time.sleep(1)
+except Exception as e:
+    print(f"Simulation error: {e}")
+    break
 
-        print("Simulation complete.")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-
-if __name__ == '__main__':
-    # Example Usage (Replace with your actual file paths)
-    mesh_file = "path/to/your/mesh.obj"  # Replace with the actual path to your mesh file
-    sensor_manager = pychrono.core.SensorManager()
-    simulation_time = 5  # seconds
-    simulate_orbit(mesh_file, sensor_manager, simulation_time)
+# --- Save Visualization (Optional) ---
+try:
+    v.save_visualization(mesh, sensor_manager, visualization_interval)
+    print("Visualization saved.")
+except Exception as e:
+    print(f"Error saving visualization: {e}")
+    
+# --- Cleanup ---
+finally:
+    if 'mesh' in locals():
+        mesh.close()
+    if 'lidar_sensor' in locals():
+        lidar_sensor.close()
+    if 'sensor_manager' in locals():
+        sensor_manager.close()
+    pychrono.shutdown()
 ```

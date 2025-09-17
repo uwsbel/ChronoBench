@@ -28,38 +28,45 @@ manager = sens.ChSensorManager(my_system)
 lidar = sens.ChLidarSensor(
     my_system,              # physical system
     100,                    # scanning rate
-    chrono.ChVectorD(0, 0, 0),  # offset pose
-    chrono.ChVectorD(0, 0, 1),  # direction
-    100.0,                  # max distance
-    0.05,                   # angular resolution
-    0.05                    # vertical angle
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),  # offset pose
+    360,                    # horizontal FOV
+    0.02,                   # vertical FOV
+    100,                    # number of horizontal samples
+    2,                      # number of vertical samples
+    100                     # max distance
 )
 lidar.SetName("Lidar")
-lidar.SetNoise(sens.ChNoiseNone())
-lidar.SetVisualization(sens.ChVisualizationMode::SENSOR_POINT_CLOUD, 1.0, 1000)
-lidar.SetSaveOptions(sens.ChSaveOptions::SENSOR_DATA, True)
+
+# Add noise filter to the lidar
+noise = sens.ChNoiseNormal(0, 0.1)
+lidar.PushFilter(noise)
+
+# Add visualization to the lidar
+vis = sens.ChLidarVisualizePoints(chrono.ChVectorD(0, 0, 0), 1, 0)
+lidar.PushFilter(vis)
+
+# Add saving filter to the lidar
+save = sens.ChLidarSavePoints('/path/to/output/', 'lidar_data', 1, 0)
+lidar.PushFilter(save)
+
+# Add the lidar to the sensor manager
 manager.AddSensor(lidar)
 
-# Add the lidar to the body
-body.AddAsset(lidar)
+# Create an orbiting path for the lidar
+theta = 0
+dtheta = chrono.CH_C_PI / 180
 
 # Simulate the system
-t_step = 0.01
-t_end = 10.0
-chrono.ChTimestepperChange(my_system, chrono.ChTimestepperType::EULER_IMPLICIT_LINEARIZED)
-while my_system.GetChTime() < t_end:
-    # Update lidar position
-    lidar.SetOffsetPose(chrono.ChVectorD(2 * chrono.CH_C_PI * my_system.GetChTime(), 0, 0))
-    lidar.SetDirection(chrono.ChVectorD(0, 0, 1).RotateY(chrono.CH_C_PI * my_system.GetChTime()))
+while my_system.GetChTime() < 10:
+    # Update the lidar's position
+    theta += dtheta
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(5 * chrono.CH_C_COS(theta), 0, 5 * chrono.CH_C_SIN(theta)), chrono.QUNIT))
 
-    # Advance simulation
-    my_system.DoStepDynamics(t_step)
+    # Perform a simulation step
+    my_system.DoStepDynamics(chrono.ChTimeStepD(0.01))
 
     # Print lidar buffer data
     buffer = lidar.GetMostRecentBuffer()
     print("Lidar Buffer Data:")
     for point in buffer:
         print(point)
-
-# Shut down the simulation
-del my_system

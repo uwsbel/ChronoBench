@@ -3,16 +3,10 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-print(veh)
-
-
-chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
-
 
 initLoc1 = chrono.ChVector3d(0, 0, 0.5)
 initRot1 = chrono.ChQuaterniond(1, 0, 0, 0)
-initLoc2 = chrono.ChVector3d(5, 0, 0.5)
+initLoc2 = chrono.ChVector3d(10, 0, 0.5)
 initRot2 = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -44,6 +38,10 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
+
+
+
+
 vehicle1 = veh.BMW_E90()
 vehicle1.SetContactMethod(contact_method)
 vehicle1.SetChassisCollisionType(chassis_collision_type)
@@ -51,6 +49,7 @@ vehicle1.SetChassisFixed(False)
 vehicle1.SetInitPosition(chrono.ChCoordsysd(initLoc1, initRot1))
 vehicle1.SetTireType(tire_model)
 vehicle1.SetTireStepSize(tire_step_size)
+
 vehicle1.Initialize()
 
 vehicle1.SetChassisVisualizationType(vis_type)
@@ -61,6 +60,7 @@ vehicle1.SetTireVisualizationType(vis_type)
 
 vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
+
 vehicle2 = veh.BMW_E90()
 vehicle2.SetContactMethod(contact_method)
 vehicle2.SetChassisCollisionType(chassis_collision_type)
@@ -68,6 +68,7 @@ vehicle2.SetChassisFixed(False)
 vehicle2.SetInitPosition(chrono.ChCoordsysd(initLoc2, initRot2))
 vehicle2.SetTireType(tire_model)
 vehicle2.SetTireStepSize(tire_step_size)
+
 vehicle2.Initialize()
 
 vehicle2.SetChassisVisualizationType(vis_type)
@@ -92,8 +93,9 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Two Sedans')
+vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -105,6 +107,8 @@ vis.AttachVehicle(vehicle2.GetVehicle())
 
 
 driver1 = veh.ChInteractiveDriverIRR(vis)
+
+
 driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
@@ -123,8 +127,11 @@ driver2.Initialize()
 
 
 
-print("VEHICLE 1 MASS: ",  vehicle1.GetVehicle().GetMass())
-print("VEHICLE 2 MASS: ",  vehicle2.GetVehicle().GetMass())
+
+
+
+print( "VEHICLE1 MASS: ",  vehicle1.GetVehicle().GetMass())
+print( "VEHICLE2 MASS: ",  vehicle2.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -149,8 +156,8 @@ while vis.Run() :
     driver_inputs2 = driver2.GetInputs()
 
     
-    driver_inputs1.steering = 0.1 * math.sin(time)
-    driver_inputs2.steering = 0.1 * math.sin(time + math.pi)
+    driver_inputs1.m_steering = 0.5 * math.sin(time)
+    driver_inputs2.m_steering = 0.5 * math.sin(time + math.pi)
 
     
     driver1.Synchronize(time)
@@ -167,7 +174,6 @@ while vis.Run() :
     vehicle1.Advance(step_size)
     vehicle2.Advance(step_size)
     vis.Advance(step_size)
-
     
     step_number += 1
 

@@ -91,42 +91,31 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-for _ in range(10):
-    box = chrono.ChBodyEasyBox(
-        1,  
-        1,  
-        1,  
-        1000,  
-        True,  
-        True  
-    )
-    box.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 1))
-    vehicle.GetSystem().Add(box)
+pl1 = chrono.ChPointLight()
+pl1.SetPos(chrono.ChVectorD(-10, 0, 5))
+vis.AddLight(pl1)
+
+pl2 = chrono.ChPointLight()
+pl2.SetPos(chrono.ChVectorD(10, 0, 5))
+vis.AddLight(pl2)
 
 
 sensor_manager = chrono.ChSensorManager(vehicle.GetSystem())
 
 
-for _ in range(5):
-    light = chrono.ChPointLight()
-    light.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 2))
-    sensor_manager.AddSensor(light)
-
-
-camera = chrono.ChCameraSensor(
-    640,  
-    480,  
-    60,  
-    0.1,  
-    100  
-)
-camera.SetPos(chrono.ChVectorD(0, 0, 2))
-camera.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+camera = chrono.ChCameraSensor(vehicle.GetChassisBody(), 640, 480, 60, chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0))
+camera.SetCollectionWindow(chrono.ChVectorD(-1, -1, 1), chrono.ChVectorD(1, 1, 1))
 sensor_manager.AddSensor(camera)
 
 
-filter = chrono.ChFilterVisualize(camera)
-sensor_manager.AddFilter(filter)
+camera_filter = chrono.ChFilterVisualize(camera, vis)
+sensor_manager.AddFilter(camera_filter)
+
+
+for _ in range(10):
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+    box.SetPos(chrono.ChVectorD(random.uniform(-10, 10), random.uniform(-10, 10), 1))
+    vehicle.GetSystem().AddBody(box)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -174,12 +163,14 @@ while vis.Run():
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
+    sensor_manager.Synchronize(time)
 
     
     driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
+    sensor_manager.Advance(step_size)
 
     
     step_number += 1

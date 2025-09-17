@@ -1,10 +1,10 @@
 ```python
-import math as m  # Import the math library for trigonometric functions, constants, etc.
-import pychrono as chrno  # Import the main PyChrono library
-import pychrono.fea as fea  # Import the finite element analysis module from PyChrono
-import pychrono.pardisomkl as mklsolver  # Import the Pardiso solver module from PyChrono
-import pychrono.irrlicht as chronicls  # Import the Irrlicht visualization module from PyChrono
-import os  # Import the OS library for file and directory operations
+import math as m  
+import pychrono as chrno
+import pychrono.fea as fea
+import pychrono.pardisomkl as mklsolver
+import pychrono.irrlicht as chronicls
+import os
 
 # Custom function class for motor angle:
 class ChFunctionMyFun(chrono.ChFunction):
@@ -125,4 +125,8 @@ builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 
 
 # Define nodes at the ends of the crank beam
 node_crnkG = builderB.GetLastBeamNodes()[0]
-node_crankB = builderB.Get
+node_crankB = builderB.GetLastBeamNodes()[-1]
+
+# Create a constraint between the crank beam and the body crank
+constr_cbd = chrono.ChLinkMatePrismatic()
+constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG

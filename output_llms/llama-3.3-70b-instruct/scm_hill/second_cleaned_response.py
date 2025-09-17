@@ -101,7 +101,7 @@ vis.AttachVehicle(vehicle.GetVehicle())
 obstacles = []
 for _ in range(5):
     obstacle = chrono.ChBodyEasyBox(vehicle.GetSystem(), 1, 1, 1, 1000, True, True)
-    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), np.random.uniform(-10, 10), 0.5))
+    obstacle.SetPos(chrono.ChVectorD(np.random.uniform(-10, 10), 0, np.random.uniform(-10, 10)))
     obstacles.append(obstacle)
 
 
@@ -119,21 +119,21 @@ driver.Initialize()
 
 
 manager = ChSensorManager()
-manager.AddSensor(ChLidarSensor(vehicle.GetChassisBody(), 
-                                chrono.ChVectorD(0, 0, 1.5), 
-                                chrono.ChVectorD(0, 0, 0), 
-                                10, 
-                                0.1, 
-                                10, 
-                                0.1, 
-                                0.1, 
-                                0.1, 
-                                0.1, 
-                                0.1, 
-                                0.1, 
-                                True, 
-                                True, 
-                                True))
+manager.SetSystem(vehicle.GetSystem())
+
+
+lidar = ChLidarSensor()
+lidar.SetName("Lidar")
+lidar.SetPosition(chrono.ChVectorD(0, 0, 2))
+lidar.SetOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+lidar.SetRange(10)
+lidar.SetHorizontalResolution(0.1)
+lidar.SetVerticalResolution(0.1)
+lidar.SetHorizontalFOV(180)
+lidar.SetVerticalFOV(180)
+lidar.SetFrequency(10)
+lidar.SetVisualizationMode(ChLidarSensor.VISUALIZATION_POINTS)
+manager.AddSensor(lidar)
 
 
 

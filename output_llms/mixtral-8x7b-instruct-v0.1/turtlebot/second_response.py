@@ -51,31 +51,27 @@ def move(mode):
         robot.SetMotorSpeed(0, 0)
         robot.SetMotorSpeed(math.pi, 1)
     else:
-        raise ValueError("Invalid mode. Choose from 'straight', 'left', or 'right'.")
+        raise ValueError(f"Invalid mode: {mode}")
 
 # Simulation loop
 time_step = 2e-3
 time = 0
-mode = 'straight'
+movement_mode = 'straight'
 while vis.Run():
-    move(mode)
-    print(f"Robot is in {'straight' if mode == 'straight' else mode} mode")
+    print(f"Time: {time:.2f}, Mode: {movement_mode}")
+    move(movement_mode)
 
-    # Update mode
-    if time < 5:
-        pass
-    elif 5 <= time < 10:
-        mode = 'left'
-    else:
-        mode = 'right'
-
-    # Increment time counter
     time += time_step
 
-    # Render the scene
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
-    # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
+
+    if time < 5:
+        movement_mode = 'straight'
+    elif time < 10:
+        movement_mode = 'left'
+    else:
+        movement_mode = 'right'

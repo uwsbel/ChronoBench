@@ -1,136 +1,126 @@
-Here's a PyChrono simulation script that meets your requirements. It loads a triangular mesh from a Wavefront .obj file, visualizes it as a fixed body, adds a lidar sensor with noise filters and visualization, and dynamically updates the lidar's position in an orbit around the mesh while printing lidar data at each step.
+Here's a PyChrono simulation script that meets your requirements. This script loads a triangular mesh from a Wavefront .obj file, creates a fixed body with it, adds a lidar sensor with noise filters and visualization, and simulates the system while dynamically updating the lidar's position in an orbit around the mesh.
 
 ```python
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import pychrono.sensor as sensors
 import numpy as np
 import os
 
-# 1. Initialize PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set path to Chrono data directory
-mesh_path = "PATH_TO_YOUR_MESH.obj"  # Replace with your .obj file path
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(__file__), '..', '..', 'data'))
 
-# Create the physical system
+# Create a Chrono physical system
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity for this simulation
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# 2. Add physical systems and objects
-# Create the fixed mesh body
-mesh = chrono.ChTriangleMeshConnected()
-mesh.LoadWavefrontMesh(mesh_path, False, True)  # False=no smooth normals, True=compute normals
-
-mesh_body = chrono.ChBody()
-mesh_body.SetBodyFixed(True)
-mesh_body.GetCollisionModel().ClearModel()
-mesh_body.GetCollisionModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
-mesh_body.GetCollisionModel().BuildModel()
-mesh_body.GetVisualModel().ClearModel()
-mesh_body.GetVisualModel().AddTriangleMesh(mesh, False, False, chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
-system.Add(mesh_body)
-
-# 3. Set up visualization
+# Create the Irrlicht visualization system
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
-vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle("Lidar Simulation")
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Lidar Simulation with Triangular Mesh")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0))
+vis.AddCamera(chrono.ChVectorD(0, 1, 5))
 vis.AddTypicalLights()
-vis.SetSymbolScale(1.0)
+vis.SetCameraVertical(chrono.ChCameraVerticalDir::Z)
 
-# Set up sensor manager
-sensor_manager = sensors.ChSensorManager(system)
-system.Add(sensor_manager)
+# Load the triangular mesh from a Wavefront .obj file
+mesh_filename = "mesh.obj"  # Replace with your actual .obj file path
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh(mesh_filename, False, True)
 
-# Create lidar sensor
-lidar = sensors.ChLidarSensor("lidar_sensor")
-lidar.SetNumSamples(100)  # Number of rays per scan
-lidar.SetScanRate(10)     # Hz
-lidar.SetMinRange(0.1)    # Minimum detection range
-lidar.SetMaxRange(10)     # Maximum detection range
-lidar.SetFov(360)         # Field of view in degrees
-lidar.SetBeamDivergence(0.1)  # Beam divergence angle in radians
-lidar.SetSampleRes(0.01)  # Sample resolution in meters
+# Create a body with the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)  # Make it a fixed body
+body.GetVisualModel().AddTriangleMesh(mesh)
+body.GetCollisionModel().AddTriangleMesh(mesh)
+system.Add(body)
 
-# Add noise filters
-noise_filter = sensors.ChGaussianNoiseFilter()
-noise_filter.SetNoiseAmount(0.01)  # 1% noise
-lidar.AddFilter(noise_filter)
+# Create a sensor manager
+sensor_manager = chrono.sensor.ChSensorManager(system)
 
-# Add visualization
-lidar_visualization = sensors.ChLidarVisualization(sensor_manager)
+# Create a lidar sensor
+lidar = chrono.sensor.ChLidarSensor()
+lidar.SetName("LidarSensor")
+lidar.SetUpdateRate(100)  # Hz
+lidar.SetCollectInterval(0.01)  # seconds
+
+# Set lidar parameters
+lidar.SetRayCount(100, 100)  # 100x100 grid
+lidar.SetRayLength(10.0)  # meters
+lidar.SetRaySpreadAngle(chrono.ChVector2d(60, 60))  # degrees
+
+# Add noise filters to the lidar
+noise_model = chrono.sensor.ChGaussianNoiseModel()
+noise_model.SetNoiseAmount(0.01)  # 1% noise
+lidar.AddNoiseModel(noise_model)
+
+# Create a visualization for the lidar
+lidar_visualization = chrono.sensor.ChLidarVisualization(system)
 lidar_visualization.SetLidar(lidar)
-lidar_visualization.SetMaxPoints(10000)  # Maximum points to display
-lidar_visualization.SetPointSize(2)      # Point size in pixels
+lidar_visualization.SetPointSize(0.01)  # Size of points in visualization
+lidar_visualization.SetColor(chrono.ChColor(1, 0, 0))  # Red color
 
-# Add data saving
-data_saver = sensors.ChLidarDataSaver()
-data_saver.SetLidar(lidar)
-data_saver.SetSaveDirectory("lidar_data")  # Directory to save data
-data_saver.SetSaveFormat(sensors.ChLidarDataSaver.Format.CSV)  # Save format
-data_saver.SetSaveRate(1)  # Save every 1 scan
-
-# Attach sensor to a body (we'll create a dummy body for the sensor)
-sensor_body = chrono.ChBody()
-sensor_body.SetPos(chrono.ChVectorD(2, 0, 0))  # Initial position
-sensor_body.SetBodyFixed(False)
-system.Add(sensor_body)
-
-lidar.AttachBody(sensor_body)
-lidar.SetPose(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))  # Relative to body
+# Add the lidar to the sensor manager
 sensor_manager.AddSensor(lidar)
+
+# Initialize the lidar position (orbit parameters)
+orbit_radius = 2.0
+orbit_height = 1.0
+angular_speed = 0.5  # radians per second
+current_angle = 0.0
 
 # Simulation parameters
 time_step = 0.01
 end_time = 10.0
-output_step = 0.1
 
 # Simulation loop
-current_time = 0
-while current_time < end_time:
-    # Update lidar position in orbit around the mesh
-    angle = 2 * chrono.CH_PI * current_time / end_time
-    radius = 3.0
-    sensor_body.SetPos(chrono.ChVectorD(radius * np.cos(angle), radius * np.sin(angle), 1.0))
+while vis.Run():
+    current_time = system.GetChTime()
 
-    # Rotate sensor to face the center
-    sensor_body.SetRot(chrono.Q_from_AngAxis(-angle, chrono.ChVectorD(0, 0, 1)))
+    # Update the lidar position in an orbit around the mesh
+    current_angle += angular_speed * time_step
+    lidar_pos = chrono.ChVectorD(
+        orbit_radius * np.cos(current_angle),
+        orbit_height,
+        orbit_radius * np.sin(current_angle)
+    )
 
-    # Update sensor manager
+    # Set the lidar position and orientation (pointing toward the mesh)
+    lidar.SetOffsetPos(lidar_pos)
+    lidar.SetOffsetRot(chrono.ChQuaternionD().Q_from_AngAxis(-current_angle, chrono.ChVectorD(0, 1, 0)))
+
+    # Update the sensor manager
     sensor_manager.Update()
 
-    # Print lidar buffer data
-    if lidar.GetBuffer()->GetNumPoints() > 0:
-        print(f"Time: {current_time:.2f}s - Points detected: {lidar.GetBuffer()->GetNumPoints()}")
-        for i in range(lidar.GetBuffer()->GetNumPoints()):
-            point = lidar.GetBuffer()->GetPoint(i)
-            print(f"  Point {i}: Distance={point.dist:.3f}, Coords=({point.coords.x:.3f}, {point.coords.y:.3f}, {point.coords.z:.3f})")
+    # Print lidar buffer data at each simulation step
+    if lidar.GetBufferSize() > 0:
+        buffer = lidar.GetMostRecentBuffer()
+        print(f"Time: {current_time:.2f}s - Lidar points: {buffer.size()}")
 
-    # Advance simulation
-    system.DoStepDynamics(time_step)
-    current_time += time_step
-
-    # Visualization update
+    # Advance the simulation
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
-    vis.Run()
+
+    system.DoStepDynamics(time_step)
+
+    if current_time >= end_time:
+        break
+
+# Save the lidar data to a file (optional)
+lidar.SaveBufferToFile("lidar_data.csv")
 ```
 
-Important notes:
-1. Replace `PATH_TO_CHRONO_DATA` with the actual path to your Chrono data directory.
-2. Replace `PATH_TO_YOUR_MESH.obj` with the path to your Wavefront .obj file.
-3. The script creates a directory called "lidar_data" to save the lidar measurements.
-4. The lidar sensor orbits around the mesh with a radius of 3 units.
-5. The simulation runs for 10 seconds with a time step of 0.01 seconds.
+### Key Features:
+1. **Initialization**: Sets up the Chrono physical system and Irrlicht visualization.
+2. **Mesh Loading**: Loads a triangular mesh from a Wavefront .obj file and creates a fixed body with it.
+3. **Lidar Sensor**: Adds a lidar sensor with noise filters and visualization.
+4. **Dynamic Orbit**: Updates the lidar's position in an orbit around the mesh during simulation.
+5. **Data Output**: Prints lidar buffer data at each simulation step and optionally saves it to a file.
 
-The script includes:
-- Fixed mesh body from .obj file
-- Lidar sensor with noise filter
-- Visualization of lidar points
-- Data saving functionality
-- Dynamic orbiting of the lidar around the mesh
-- Printing of lidar data at each step
+### Notes:
+- Replace `"mesh.obj"` with the path to your actual Wavefront .obj file.
+- Adjust the lidar parameters (ray count, spread angle, etc.) as needed for your application.
+- The simulation runs for 10 seconds by default, but you can change `end_time` to suit your needs.

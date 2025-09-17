@@ -4,168 +4,195 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set. (No deduction)
-- **Body Creation:** Two bodies created: floor and box. However, the constructor calls for `ChBodyEasyBox` are incorrect:
-  - The first argument should be dimensions (lengthX, lengthY, lengthZ), followed by density, then booleans for visualize and collision, then material.
-  - The code passes `system` as the first argument instead of dimensions.
-  - This is a critical error (see correctness below).
-- **Material Setup:** Material created and properties set. (No deduction)
-- **Visualization Setup:** Visualization system created, but **missing `AttachSystem(system)` and `Initialize()` calls**, which are essential for linking the physical system to the visualization and preparing the visualization system before running.
-- **Simulation Loop:** Two loops:
-  - First loop runs the simulation for 10 seconds with ROS updates.
-  - Second loop runs visualization with Irrlicht.
-  - The two loops are separate, which is unusual; typically, the simulation stepping and visualization happen together.
-- **ROS Integration:** Custom ROS publisher implemented and registered with `ChROSManager`. This is a good inclusion.
-- **Summary:** Missing or incorrectly configured essential components:
-  - Incorrect body creation (deduct under correctness).
-  - Missing visualization system attachment and initialization (deduct here).
-  - Separate simulation and visualization loops without synchronization (minor omission).
+- **System Initialization:** Present and correctly done with `chrono.ChSystemNSC()` and gravity set. **No deduction.**
 
-**Deductions:**
+- **Body Creation:**  
+  - Floor and box bodies are created using `ChBodyEasyBox`.  
+  - However, the constructor calls are incorrect:  
+    ```python
+    floor = chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, material)
+    box = chrono.ChBodyEasyBox(system, 1, 1, 1, 1000, True, material)
+    ```  
+    According to the API, `ChBodyEasyBox` signature is:  
+    ```python
+    ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)
+    ```  
+    The first argument should be a float (lengthX), not the system object. Passing `system` as the first argument is incorrect. This is a **significant error** (see correctness below).  
+  - The bodies are added to the system correctly.  
+  - The floor is fixed, which is appropriate.  
+  - **Deduct 15 points for missing/incorrect body creation (completeness).**
 
-- Missing `AttachSystem(system)` and `Initialize()` for visualization: **-15 points** (essential component detail missing).
-- Separate simulation and visualization loops without synchronization or integration: **-5 points** (minor omission).
+- **Material Creation:**  
+  - `chrono.ChMaterialSurfaceNSC()` is used, which is correct for NSC systems.  
+  - Friction, damping, compliance, and tangential compliance are set.  
+  - However, the values for compliance and damping are very low (0.0001), which might be unrealistic but not necessarily incorrect.  
+  - **No deduction here.**
 
-**Subtotal Completeness: 40 - 20 = 20 points**
+- **ROS Integration:**  
+  - The script uses `pychrono_ros` to create a ROS publisher and handlers.  
+  - The custom ROS publisher is defined properly, publishing an integer message with the current simulation time.  
+  - ROS handlers are registered correctly.  
+  - **No deduction.**
+
+- **Simulation Loop:**  
+  - The loop advances the simulation by 0.01 seconds per step and updates ROS.  
+  - The loop breaks after 10 seconds.  
+  - **No deduction.**
+
+- **Visualization:**  
+  - The Irrlicht visualization system is created and configured.  
+  - However, the visualization system is **not attached to the physical system** (`vis.AttachSystem(system)` is missing).  
+  - Without attaching the system, visualization will not reflect the simulation state.  
+  - Also, the visualization initialization (`application.Initialize()`) is missing before the rendering loop.  
+  - **Deduct 15 points for missing essential visualization setup steps (completeness).**
+
+**Subtotal Completeness deduction: 15 + 15 = 30 points deducted**  
+Remaining: 10 points
 
 ---
 
 ### 2. Correctness (30 points)
 
 - **Incorrect use of `ChBodyEasyBox`:**  
-  The constructor is called as `chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, material)` and `chrono.ChBodyEasyBox(system, 1, 1, 1, 1000, True, material)`.  
-  According to the API, the signature is:  
-  `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`  
-  Passing `system` as the first argument is incorrect and will cause runtime errors or unexpected behavior.
+  - Passing `system` as the first argument is a **significant API misuse** that will cause runtime errors or incorrect behavior.  
+  - **Deduct 15 points.**
 
-- **Use of `Set_G_acc`:**  
-  The method is called as `system.Set_G_acc(...)`. The correct method is `Set_G_acc` or `Set_G_acceleration`? The API documentation shows `Set_G_acc` is correct (used in example). So no deduction here.
+- **Gravity setting:**  
+  - Uses `Set_G_acc` instead of `Set_G_acceleration` or `Set_GAcceleration`.  
+  - According to the API, the correct method is `Set_G_acceleration()`.  
+  - This is a **minor API misuse** that may cause the gravity not to be set properly.  
+  - **Deduct 5 points.**
 
-- **Material type:**  
-  The code uses `ChMaterialSurfaceNSC()`, which is correct for `ChSystemNSC()`.
-
-- **ROS Publisher:**  
-  The custom ROS publisher uses `chronoros.ChROSNode().advertise(...)` inside the constructor. This creates a new node each time the handler is instantiated, which is inefficient and possibly incorrect. Usually, a single ROS node should be created and shared.  
-  However, since only one instance is created, this is not a critical error but a minor inefficiency.
+- **Material creation:**  
+  - Uses `ChMaterialSurfaceNSC()`, but the API documentation shows `ChContactMaterialNSC()` as the standard for NSC materials.  
+  - `ChMaterialSurfaceNSC()` is not documented in the provided API.  
+  - This suggests a possible confusion or outdated API usage.  
+  - **Deduct 10 points for incorrect material class usage.**
 
 - **Visualization:**  
-  Missing `AttachSystem` and `Initialize` calls are correctness issues as they are required for proper visualization.
+  - Missing `AttachSystem` and `Initialize` calls are correctness issues (already deducted under completeness).  
+  - The method `AddTypicalLigths()` is misspelled; the correct method is `AddTypicalLights()`.  
+  - This will cause an AttributeError at runtime.  
+  - **Deduct 5 points.**
 
-- **Simulation Loop:**  
-  The first loop advances the simulation for 10 seconds without visualization, then the visualization loop runs separately. This means the visualization will show a static scene at the last simulation state, not a live simulation. This is a logical error.
+- **ROS message creation:**  
+  - `chronoros.Std_msgsInt32()` is used, but the API documentation does not mention this exact class.  
+  - Assuming it is correct as per `pychrono_ros` conventions.  
+  - No deduction here.
 
-**Deductions:**
+**Subtotal Correctness deduction: 15 + 5 + 10 + 5 = 35 points deducted**  
+Maximum is 30 points, so capped at 30 points deducted.
 
-- Incorrect `ChBodyEasyBox` usage: **-15 points** (significant API misuse).
-- Missing visualization attachment and initialization (already deducted under completeness, but also correctness): no double deduction, but note this is a correctness issue.
-- ROS node creation inside handler constructor: minor inefficiency, no deduction (not specified).
-- Separate simulation and visualization loops causing logical error: **-10 points** (logical error).
-
-**Subtotal Correctness: 30 - 25 = 5 points**
+Remaining: 0 points
 
 ---
 
 ### 3. Code Quality (10 points)
 
 - **Readability:**  
-  Variable names are meaningful (`system`, `material`, `floor`, `box`, `ros_manager`, `application`).  
-  Code is mostly well structured.
-
-- **Comments:**  
-  No comments at all explaining the purpose of blocks or functions.  
-  This is a significant omission for clarity and maintainability.
+  - Variable names are meaningful (`system`, `material`, `floor`, `box`, `ros_manager`, `application`).  
+  - Code is structured logically.  
+  - However, no comments are present to explain steps or rationale.  
+  - The code mixes two infinite loops: one for simulation stepping and ROS updates, and another for visualization, which is unusual. Typically, visualization and simulation stepping are integrated in one loop.  
+  - The simulation loop runs for 10 seconds, then visualization starts, which means visualization shows a static scene after simulation ends. This is likely unintended.  
+  - **Deduct 5 points for lack of comments and suboptimal structure.**
 
 - **Formatting:**  
-  Generally good formatting and indentation.
+  - Code formatting is acceptable.  
+  - No major PEP8 violations.
 
-**Deductions:**
+- **Comments:**  
+  - No comments at all.  
+  - **Deduct 5 points for insufficient comments.**
 
-- Lack of comments/documentation: **-5 points**  
-- Code quality otherwise acceptable, no deduction for readability.
-
-**Subtotal Code Quality: 10 - 5 = 5 points**
+**Subtotal Code Quality deduction: 10 points**  
+Remaining: 0 points
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- **ROS Node Creation:**  
-  Creating a new ROS node inside the handler constructor is inefficient; better to create once and share. Minor inefficiency but not deducted per guidelines.
+- **Simulation and visualization loops are separated:**  
+  - The simulation runs fully for 10 seconds before visualization starts. This is inefficient if the goal is real-time visualization.  
+  - Better practice is to integrate simulation stepping and visualization in the same loop.  
+  - **Deduct 3 points for missing obvious optimization opportunity.**
 
-- **Simulation and Visualization Loops:**  
-  Running simulation and visualization in separate loops is inefficient and non-idiomatic; usually, simulation stepping and visualization happen together in one loop. This is a missed optimization.
+- **Material compliance and damping values are very low:**  
+  - Could cause numerical stiffness or slow convergence, but this is more a simulation parameter choice than code inefficiency.  
+  - No deduction.
 
-- **Material properties:**  
-  Setting very small damping and compliance values is acceptable but might be tuned better.
+- **ROS publisher creates a new message every update:**  
+  - This is standard practice; no inefficiency here.
 
-**Deductions:**
+- **No redundant or unnecessary API calls detected.**
 
-- Separate simulation and visualization loops: **-5 points** (unnecessary inefficiency).
-
-**Subtotal Efficiency: 10 - 5 = 5 points**
+**Subtotal Efficiency deduction: 3 points**  
+Remaining: 7 points
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all (try-except blocks, checks for ROS connectivity, or simulation errors).  
-- No handling of edge cases (e.g., what if ROS node fails, or simulation step fails).  
-- While not always mandatory, basic error handling is a best practice.
+- **No error handling:**  
+  - No try-except blocks or checks for ROS initialization or system errors.  
+  - No checks for visualization initialization success.  
+  - **Deduct 5 points for lack of basic error handling.**
 
-**Deductions:**
+- **Edge cases:**  
+  - The simulation loop breaks after 10 seconds, which is acceptable.  
+  - No handling of user interrupts or exceptions.  
+  - No deduction beyond above.
 
-- Lack of basic error handling: **-5 points**
-
-**Subtotal Error Handling: 0 points**
+Remaining: 0 points
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and configured with window size, title, camera, lighting, skybox, and postprocessing effects.  
-- However, missing `AttachSystem(system)` and `Initialize()` calls, which are essential for visualization to work properly.  
-- Also, the visualization loop runs after the simulation loop, so visualization is static, not real-time.  
-- Minor typos: `AddTypicalLigths()` should be `AddTypicalLights()` (typo in method name). This will cause runtime error or no lights added.
+- **Missing `AttachSystem` call:**  
+  - Visualization will not show the system state.  
+  - **Deduct 5 points.**
 
-**Deductions:**
+- **Missing `Initialize()` call:**  
+  - Visualization system is not properly initialized before running.  
+  - Already accounted in completeness and correctness deductions.
 
-- Missing `AttachSystem` and `Initialize`: already deducted under completeness and correctness, but also visualization issue.  
-- Typo in `AddTypicalLigths()` method call: **-3 points** (minor visualization issue).  
-- Visualization loop separate from simulation loop: already deducted.
+- **Typo in `AddTypicalLigths()` instead of `AddTypicalLights()`:**  
+  - Already deducted under correctness.
 
-**Subtotal Visualization: 5 - 3 = 2 points**
+- **Lighting and camera setup is otherwise reasonable.**
 
----
-
-### **Final Scoring Summary**
-
-| Criterion                  | Points | Deduction | Score |
-|----------------------------|--------|-----------|-------|
-| Completeness               | 40     | 20        | 20    |
-| Correctness                | 30     | 25        | 5     |
-| Code Quality               | 10     | 5         | 5     |
-| Efficiency                 | 10     | 5         | 5     |
-| Error Handling & Robustness| 5      | 5         | 0     |
-| Visualization              | 5      | 3         | 2     |
-| **Total**                  | 100    | 63        | 37    |
+Remaining: 0 points
 
 ---
 
-### **Explanation of deductions:**
+### **Summary of deductions:**
 
-- **Major issues:**
-  - Incorrect use of `ChBodyEasyBox` constructor (passing `system` instead of dimensions).
-  - Missing critical visualization setup calls (`AttachSystem` and `Initialize`).
-  - Separate simulation and visualization loops causing logical and efficiency problems.
-  - Lack of any error handling.
-  - Typo in visualization method name causing runtime error.
-- **Minor issues:**
-  - No comments/documentation.
-  - Minor inefficiency in ROS node creation.
-  - Slightly unusual simulation loop structure.
+| Criterion                     | Max Points | Deduction | Remaining |
+|-------------------------------|------------|-----------|-----------|
+| Completeness                  | 40         | 30        | 10        |
+| Correctness                  | 30         | 30 (capped) | 0         |
+| Code Quality                 | 10         | 10        | 0         |
+| Efficiency                   | 10         | 3         | 7         |
+| Error Handling and Robustness| 5          | 5         | 0         |
+| Visualization Tools          | 5          | 5         | 0         |
+| **Total**                   | **100**    | **83**    | **17**    |
 
 ---
 
-**Final score:**
+### Final score: [[17]]
 
-[[37]]
+---
+
+### Explanation:
+
+- The script misses critical API usage correctness, especially in body creation and visualization setup, which would prevent the simulation from running correctly or visualizing properly.
+- The gravity setting method is incorrect.
+- The material class used is not aligned with the documented API.
+- Visualization setup is incomplete and contains a typo.
+- The simulation and visualization loops are separated, which is inefficient and unusual.
+- No comments or error handling are present, reducing code quality and robustness.
+- These issues lead to heavy deductions in correctness, completeness, code quality, error handling, and visualization.
+- Minor inefficiency deduction for loop structure.
+
+Overall, the script requires significant corrections and improvements to be functional and maintainable according to PyChrono API and best practices.

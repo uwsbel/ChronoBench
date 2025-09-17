@@ -9,61 +9,70 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # Create a rigid terrain
-terrain = chrono.ChRigidTerrain(system)
-terrain.SetDimensions(20, 20)  # X and Y dimensions
-terrain.SetHeight(0)  # Z height
+terrain = chrono.vehicle.RigidTerrain(system)
+terrain.SetSize(100, 100)  # Size in x and z directions
+terrain.SetHeight(0)  # Height of the terrain
 terrain.SetFriction(0.9)  # Friction coefficient
 terrain.SetRestitution(0.5)  # Restitution coefficient
-terrain.SetCollisionMargin(0.05)  # Collision margin
-terrain.Build()
 
 # Create a UAZBUS vehicle
 vehicle = chrono.vehicle.UAZBUS()
 vehicle.SetChassisInitialPosition(chrono.ChVectorD(0, 0, 1))  # Initial position
-vehicle.SetChassisInitialRotation(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial rotation
-vehicle.Initialize()
+vehicle.SetChassisInitialOrientation(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
 
-# Create a driver system
-driver = chrono.vehicle.ChDriver()
-driver.Initialize(vehicle.GetDriverInputs())
+# Add vehicle to the system
+system.Add(vehicle.GetChassis())
+for wheel in vehicle.GetWheelSet().GetWheels():
+    system.Add(wheel)
+
+# Create a driver
+driver = chrono.vehicle.Driver()
+driver.SetVehicle(vehicle.GetDriverAPI())
 driver.SetTargetSpeed(10)  # Target speed in m/s
 
-# Create an Irrlicht application
-app = chrono.ChIrrApp(system, "UAZBUS Simulation", chrono.CHIRR_SIZE(800, 600))
-app.SetCameraPosition(chrono.ChVectorD(10, 0, 5))  # Camera position
+# Create Irrlicht application
+app = chrono.ChIrrApp(system, "UAZBUS Simulation", 1024, 768)
+app.SetCameraPosition(chrono.ChVectorD(5, 5, 5))  # Camera position
 app.SetCameraRotation(chrono.ChQuaternionD(1, 0, 0, 0))  # Camera rotation
-app.AddLight(chrono.ChVectorD(0, 0, 5), chrono.ChColor(1, 1, 1))  # Add a light source
-app.AddGridDecoration()  # Add grid decoration
+app.AddLight(chrono.ChVectorD(0, 10, 0), chrono.ChColor(1, 1, 1))  # Add lighting
 
-# Add the vehicle to the Irrlicht application
-app.AddChassis(vehicle.GetChassis())
+# Add terrain to the Irrlicht scene
+app.AddTerrain(terrain.GetTerrain())
 
-# Simulation parameters
-step_size = 0.01  # Time step
-num_steps = 1000  # Number of simulation steps
+# Add vehicle visualization
+vehicle.SetRigid meshes
+vehicle.SetChassisVisualizationType(chrono.vehicle.VisualizationType.RIGID_MESH)
+for wheel in vehicle.GetWheelSet().GetWheels():
+    wheel.SetVisualizationType(chrono.vehicle.VisualizationType.RIGID_MESH)
 
-# Simulation loop
-for i in range(num_steps):
-    # Update the vehicle
-    vehicle.Update(step_size)
+# Add grid decoration
+app.AddGrid()
+
+# Run the simulation
+for i in range(10000):  # Number of timesteps
+    # Update vehicle
+    vehicle.Update(chrono.GetChTime())
     
-    # Update the driver
-    driver.Update(step_size)
+    # Update driver
+    driver.Update()
     
-    # Update the terrain
+    # Update terrain
     terrain.Update()
     
-    # Update the Irrlicht application
+    # Update Irrlicht
     app.BeginScene()
     app.DrawAll()
     app.EndScene()
     
-    # Synchronize the system
-    system.DoStepDynamics(step_size)
+    # Synchronize
+    chrono.ChronoSynchronize()
+    
+    # Advance time
+    system.DoStepDynamics(0.001)  # Time step
     
     # Check for exit
-    if app.GetDevice().IsKeyDown(chrono.KEY_ESCAPE):
+    if app.GetDevice().IsKeyDown(chrono.CH_KEY_ESCAPE):
         break
 
 # Cleanup
-chrono.CHRONO_SHUTDOWN()
+chrono.CHRONO_cleanup()

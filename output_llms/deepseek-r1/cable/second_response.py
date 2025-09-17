@@ -14,7 +14,7 @@ class Model1:
         msection_cable2 = fea.ChBeamSectionCable()
         msection_cable2.SetDiameter(0.015)  # Set the diameter of the cable section to 15 mm
         msection_cable2.SetYoungModulus(0.01e9)  # Set the Young's modulus of the cable section (0.01 GPa)
-        msection_cable2.SetRayleighDamping(0.0001)  # MODIFIED: Rayleigh damping changed to 0.0001
+        msection_cable2.SetRayleighDamping(0.0001)  # MODIFIED: Increased Rayleigh damping to 0.0001
 
         # Create a ChBuilderCableANCF helper object to facilitate the creation of ANCF beams
         builder = fea.ChBuilderCableANCF()
@@ -30,15 +30,17 @@ class Model1:
 
         # Apply boundary conditions and loads:
         # Retrieve the end nodes of the beam and apply load/constraints
-        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # MODIFIED: Force changed to (0, -0.7, 0)
+        # FIXED: Apply force to front node (free end) instead of back node
+        builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))  # MODIFIED: Increased force magnitude
 
         # Create a truss body (a fixed reference frame in the simulation)
         mtruss = chrono.ChBody()
         mtruss.SetFixed(True)  # Fix the truss body
+        system.Add(mtruss)  # FIXED: Add truss body to the system
 
         # Create and initialize a hinge constraint to fix beam's end point to the truss
         constraint_hinge = fea.ChLinkNodeFrame()
-        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)
+        constraint_hinge.Initialize(builder.GetLastBeamNodes().back(), mtruss)  # Constrain the back node (fixed end)
         system.Add(constraint_hinge)  # Add the constraint to the system
 
 # Initialize the physical system and mesh container:
@@ -78,15 +80,15 @@ vis.AddSkyBox()  # Add a skybox for better aesthetics
 vis.AddCamera(chrono.ChVector3d(0, 0.6, -1))  # Add a camera with specific position
 vis.AddTypicalLights()  # Add typical lights for better illumination
 
-# Set solver type and settings
-solver = chrono.ChSolverMINRES()  # MODIFIED: Changed to MINRES solver
-if solver.GetType() == chrono.ChSolver.Type_MINRES:  # MODIFIED: Check for MINRES type
+# MODIFIED: Change solver to MINRES with proper configuration
+solver = chrono.ChSolverMINRES()  # Changed to MINRES solver
+if solver.GetType() == chrono.ChSolver.Type_MINRES:
     print("Using MINRES solver")
 sys.SetSolver(solver)
-solver.SetMaxIterations(200)  # MODIFIED: Set max iterations
-solver.SetTolerance(1e-10)  # MODIFIED: Set tolerance
-solver.EnableDiagonalPreconditioner(True)  # MODIFIED: Enable diagonal preconditioner
-solver.EnableWarmStart(True)  # MODIFIED: Enable warm start
+solver.SetMaxIterations(200)  # Set maximum iterations
+solver.SetTolerance(1e-10)  # Set solver tolerance
+solver.EnableDiagonalPreconditioner(True)  # Enable diagonal preconditioner
+solver.EnableWarmStart(True)  # Enable warm start
 solver.SetVerbose(False)  # Disable verbose output
 
 # Set the timestepper for the simulation

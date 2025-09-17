@@ -1,6 +1,6 @@
 import chrono as ch
-import chrono.sensor as cs
-import chrono_ros as cr
+import chrono.sensor as chs
+import chrono_ros as chr
 
 
 ch.ChronoEngine.Initialize()
@@ -9,80 +9,78 @@ ch.ChronoEngine.Initialize()
 system = ch.ChronoSystemNSM()
 
 
-ground_body = ch.ChronoBody(system)
-ground_body.SetPos(ch.ChronoVector(0, 0, 0))
-ground_body.SetRot(ch.ChronoQuaternion(1, 0, 0, 0))
+ground_body = system.GetGroundBody()
 
 
-mesh = ch.ChronoTriangleMeshShape(ground_body)
-mesh.SetFilename("path/to/mesh.obj")
+mesh = ch.ChronoTriangleMeshShape(ground_body, "path/to/mesh.obj")
 ground_body.AddVisualShape(mesh)
 
 
-def MoveGroundBody(t):
-    x = 10 * ch.ChTime.cos(2 * ch.ChTime.pi * t)
-    y = 10 * ch.ChTime.sin(2 * ch.ChTime.pi * t)
-    z = 0
-    ground_body.SetPos(ch.ChronoVector(x, y, z))
+ground_body.SetPos_dt(ch.ChVector3(0, 0, 0))
+ground_body.SetRot_dt(ch.ChQuaternion(1, 0, 0, 0))
 
 
-sensor_manager = cs.ChronoSensorManager(system)
+sensor_manager = chs.ChSensorManager(system)
 
 
-camera = cs.ChronoCameraSensor(ground_body)
-camera.SetResolution(ch.ChronoVector(640, 480))
-camera.SetFOV(ch.ChronoVector(60, 45))
-camera.SetNearPlane(0.1)
-camera.SetFarPlane(100)
+camera = chs.ChCameraSensor(ground_body,  
+                            chs.ChFrame3(0, 0, 0, 0, 0, 0),  
+                            640, 480,  
+                            chs.SENSOR orientations=[0, 0, 0],  
+                            chs.SENSOR positions=[0, 0, 1.5])  
 sensor_manager.AddSensor(camera)
 
-lidar = cs.ChronoLidarSensor(ground_body)
-lidar.SetResolution(ch.ChronoVector(128, 128))
-lidar.SetFOV(ch.ChronoVector(30, 30))
-lidar.SetNearPlane(0.1)
-lidar.SetFarPlane(100)
+lidar = chs.ChLidarSensor(ground_body,
+                          chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                          100,  
+                          100,  
+                          chs.SENSOR orientations=[0, 0, 0],
+                          chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(lidar)
 
-gps = cs.ChronoGPSSensor(ground_body)
-gps.SetLocalization(ch.ChronoVector(1, 1, 1))
+gps = chs.ChGPSSensor(ground_body,
+                      chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                      chs.SENSOR orientations=[0, 0, 0],
+                      chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(gps)
 
-accelerometer = cs.ChronoAccelerometerSensor(ground_body)
-accelerometer.SetFrameRate(100)
+accelerometer = chs.ChAccelerometerSensor(ground_body,
+                                          chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                          chs.SENSOR orientations=[0, 0, 0],
+                                          chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(accelerometer)
 
-gyroscope = cs.ChronoGyroscopeSensor(ground_body)
-gyroscope.SetFrameRate(100)
+gyroscope = chs.ChGyroscopeSensor(ground_body,
+                                  chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                  chs.SENSOR orientations=[0, 0, 0],
+                                  chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(gyroscope)
 
-magnetometer = cs.ChronoMagnetometerSensor(ground_body)
-magnetometer.SetFrameRate(100)
+magnetometer = chs.ChMagnetometerSensor(ground_body,
+                                        chs.ChFrame3(0, 0, 0, 0, 0, 0),
+                                        chs.SENSOR orientations=[0, 0, 0],
+                                        chs.SENSOR positions=[0, 0, 1.5])
 sensor_manager.AddSensor(magnetometer)
 
 
-ros_manager = cr.ChronoROSManager()
+ros_manager = chr.ChROSManager()
+ros_manager.AttachSensor(camera, "camera/image_raw")
+ros_manager.AttachSensor(lidar, "lidar/point_cloud")
+ros_manager.AttachSensor(gps, "gps/fix")
+ros_manager.AttachSensor(accelerometer, "accelerometer/data")
+ros_manager.AttachSensor(gyroscope, "gyroscope/data")
+ros_manager.AttachSensor(magnetometer, "magnetometer/data")
 
 
-ros_manager.RegisterSensor(camera, "/camera/image")
-ros_manager.RegisterSensor(lidar, "/lidar/pointcloud")
-ros_manager.RegisterSensor(gps, "/gps/fix")
-ros_manager.RegisterSensor(accelerometer, "/accelerometer/data")
-ros_manager.RegisterSensor(gyroscope, "/gyroscope/data")
-ros_manager.RegisterSensor(magnetometer, "/magnetometer/data")
-
-
-while system.GetChTime() < 10:
+while system.GetChTime() < 10:  
     
     sensor_manager.Update()
-
     
-    system.DoStep(0.01)
-
     
-    ch.ChronoEngine.Sleep(ch.ChronoTime(0.01))
-
+    system.DoStep(1e-3)  
     
-    MoveGroundBody(system.GetChTime())
+    
+    chr.ChROSUtils.SleepUntilNextStep(system.GetChTimeStep())
 
 
-ch.ChronoEngine.Finalize()
+ch.ChronoEngine.Terminate()

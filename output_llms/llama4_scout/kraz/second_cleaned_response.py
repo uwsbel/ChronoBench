@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -97,12 +98,13 @@ step_number = 0
 render_frame = 0
 
 
-maneuver_time = 10.0  
-lane_change_time = 2.0  
-lane_change_duration = 1.0  
+lane_change_time = 5.0  
+lane_change_duration = 2.0  
+simulation_time = 0
 
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
+    simulation_time = time
 
     
     if (step_number % render_steps == 0):
@@ -115,12 +117,10 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     
-    if time > lane_change_time and time < lane_change_time + lane_change_duration:
-        driver_inputs.steering = 0.5
-    elif time > lane_change_time + lane_change_duration and time < lane_change_time + 2 * lane_change_duration:
-        driver_inputs.steering = -0.5
-    else:
-        driver_inputs.steering = 0.0
+    if simulation_time > lane_change_time and simulation_time < lane_change_time + lane_change_duration:
+        driver_inputs.steering = 0.5  
+    elif simulation_time > lane_change_time + lane_change_duration and simulation_time < lane_change_time + 2 * lane_change_duration:
+        driver_inputs.steering = -0.5  
 
     
     driver.Synchronize(time)

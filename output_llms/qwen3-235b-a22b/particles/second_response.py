@@ -49,7 +49,7 @@ mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
 mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
 emitter.SetParticleAngularVelocity(mangvelo)
 
-# Replace convex hulls with spheres and configure parameters
+# Replace convex hulls with spheres
 mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
 mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
 mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
@@ -87,34 +87,16 @@ while vis.Run():
 
     for body in sys.GetBodies():
         body.EmptyAccumulators()
-
-    G_constant = 6.674e-3  # Moved inside the loop
-
-    # Calculate kinetic energy
-    kinetic_energy = 0.0
-    for body in sys.GetBodies():
-        mass = body.GetMass()
-        vel = body.GetPos_dt()  # Get velocity
-        kinetic_energy += 0.5 * mass * vel.Length2()
-
-    # Calculate potential energy
-    potential_energy = 0.0
+    
+    # Move G_constant inside loop before force application
+    G_constant = 6.674e-3
+    
+    # Apply gravitational forces
     mlist = list(combinations(sys.GetBodies(), 2))
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()
-        if r_attract < 1e-6:
-            continue  # Avoid division by zero
-        potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
-
-    total_energy = kinetic_energy + potential_energy
-    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")
-
-    # Apply gravitational forces
-    for abodyA, abodyB in mlist:
-        D_attract = abodyB.GetPos() - abodyA.GetPos()
-        r_attract = D_attract.Length()
-        if r_attract < 1e-6:
+        if r_attract < 1e-6:  # Avoid division by zero
             continue
         f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
         F_attract = (D_attract / r_attract) * f_attract
@@ -122,3 +104,24 @@ while vis.Run():
         abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
 
     sys.DoStepDynamics(stepsize)
+
+    # Energy calculations
+    kinetic_energy = 0.0
+    potential_energy = 0.0
+
+    # Calculate kinetic energy
+    for body in sys.GetBodies():
+        velocity = body.GetPos_dt()
+        kinetic_energy += 0.5 * body.GetMass() * velocity.Length2()
+
+    # Calculate gravitational potential energy
+    mlist_energy = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist_energy:
+        D = abodyB.GetPos() - abodyA.GetPos()
+        r = D.Length()
+        if r < 1e-6:
+            continue
+        potential_energy += -G_constant * abodyA.GetMass() * abodyB.GetMass() / r
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy}, Potential Energy: {potential_energy}, Total Energy: {total_energy}")

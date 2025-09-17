@@ -48,21 +48,21 @@ my_motor.SetMotorFunction(my_angularspeed)
 sys.Add(my_motor)
 
 
-mjointA = chrono.ChLinkLockSpherical()  
+mjointA = chrono.ChLinkSphere()
 mjointA.Initialize(mrod,
                    mcrank,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
+                   chrono.ChCoordsysD(crank_center + chrono.ChVector3d(crank_rad, 0, 0)))
 sys.Add(mjointA)
 
 
-mjointB = chrono.ChLinkLockSpherical()  
+mjointB = chrono.ChLinkSphere()
 mjointB.Initialize(mpiston,
                    mrod,
-                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
+                   chrono.ChCoordsysD(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0)))
 sys.Add(mjointB)
 
 
-mjointC = chrono.ChLinkPlane()  
+mjointC = chrono.ChLinkPlane()
 mjointC.Initialize(mpiston, mfloor)
 sys.Add(mjointC)
 

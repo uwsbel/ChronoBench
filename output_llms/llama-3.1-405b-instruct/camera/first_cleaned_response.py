@@ -13,55 +13,55 @@ ground = chrono.ChBodyEasyBox(sys, 1, 1, 1, 1000, True)
 sys.Add(ground)
 
 
-mesh = chrono.ChBodyEasyMesh(sys, '/path/to/mesh.obj', 1000, True)
-sys.Add(mesh)
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh('/path/to/mesh.obj')
 
 
-camera = sens.ChCameraSensor(
-    sys,              
-    512, 512,         
-    60,               
-    1.4,              
-    "camera",         
-    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT)
-)
-sys.AddSensor(camera)
+body = chrono.ChBodyEasyMesh(sys, mesh, 1000, True)
+sys.Add(body)
 
 
 manager = sens.ChSensorManager(sys)
+
+
+camera = sens.ChCameraSensor(
+    sys,  
+    640,  
+    480,  
+    3.14 / 4,  
+    body,  
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))  
+)
 manager.AddSensor(camera)
 
 
-camera.AddFilter(sens.ChFilterNoise())
+camera.AddFilter(sens.ChFilterCameraNoise())
 
 
-camera.AddVisualizer(sens.ChVisualizerCameraImage())
+app = chronoirr.ChIrrApp(sys, 'PyChrono Simulation', chronoirr.dimension2du(800, 600))
 
 
-t_step = 0.01
-t_end = 10
-t = 0
-while t < t_end:
+camera_orbit_radius = 2.0
+camera_orbit_speed = 0.01
+
+
+while app.GetDevice().run():
     
-    camera.SetFrame(chrono.ChFrameD(
-        chrono.ChVectorD(2 * chrono.CH_C_PI * t, 0, 1),
-        chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))
-    ))
+    camera_offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(camera_orbit_radius * chrono.ChMath.cos(chrono.ChTimer.GetTimeInSeconds() * camera_orbit_speed),
+                         camera_orbit_radius * chrono.ChMath.sin(chrono.ChTimer.GetTimeInSeconds() * camera_orbit_speed),
+                         0),
+        chrono.ChQuaternionD(1, 0, 0, 0)
+    )
+    camera.SetOffsetPose(camera_offset_pose)
 
     
-    sys.DoStepDynamics(t_step)
+    sys.DoStepDynamics(chrono.ChTimer.GetTimeStep())
 
     
     print(camera.GetMostRecentImage().GetData())
 
     
-    t += t_step
-
-
-app = chronoirr.ChVisualSystemIrrlicht()
-app.AttachSystem(sys)
-app.SetWindowSize(800, 600)
-app.SetWindowTitle('PyChrono Simulation')
-app.Initialize()
-app.Run()
-app.Delete()
+    app.BeginScene(True, True, chronoirr.SColor(255, 255, 255))
+    app.DrawAll()
+    app.EndScene()

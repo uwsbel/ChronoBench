@@ -1,44 +1,46 @@
 import chrono as ch
-import chrono.vehicle as veh
-import chrono.irrlicht as irr
+import chrono.irrlicht as chirr
 
 # 1. Initialize the PyChrono environment and core components
 ch.ChEngine.Initialize()
 
 # 2. Create the simulation system
-system = ch.ChSystem_EulerImplicit()
+system = ch.ChSystemNSC()
 
 # 3. Create a rigid terrain
-terrain = veh.ChTerrain(system)
-terrain.SetTerrainMass(1e12)  # Set a large mass to make it immovable
-terrain.SetFrictionCoefficient(0.8)  # Friction coefficient
-terrain.SetRestitutionCoefficient(0.3)  # Restitution coefficient
-terrain.EnableCollisionResponse(True)
+terrain = ch.ChTerrain()
+terrain.SetGridSize(100, 100)
+terrain.SetGridSpacing(1, 1)
+terrain.SetFrictionCoefficient(0.8)
+terrain.SetRestitutionCoefficient(0.3)
+terrain.Initialize()
 
-# 4. Create a UAZBUS vehicle
-vehicle = veh.ChVehicle(veh.VehicleType.Rigid, system, veh.ChContactMaterial())
-vehicle.Initialize(veh.ChCoordsys(ch.ChVectorD(0, 0, 1), ch.ChQuaternionD(1, 0, 0, 0)))
+# Add terrain to the system
+system.Add(terrain.GetGroundBody())
+
+# 4. Load the UAZBUS vehicle
+vehicle = ch.ChVehicle()
+vehicle.Initialize(ch.ChCoordsysA(0, 0, 1, ch.ChQuaternion(1, 0, 0, 0)))
+
+# Add vehicle to the system
+system.Add(vehicle.GetChassisBody())
 
 # 5. Initialize a driver system for vehicle control
-driver = veh.ChDriver(vehicle)
-driver.Initialize()
+driver = ch.ChDriver()
+driver.Initialize(vehicle)
 
 # 6. Create a real-time visualization using Irrlicht
-vis = irr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetCameraVertical(0, -20, 5)
-vis.SetLight(0, ch.ChVectorD(10, 10, 10), ch.ChVectorD(-1, -1, -1), ch.ChColor(1, 1, 1))
+vis = chirr.ChIrrApp(system, 'UAZBUS Simulation', 800, 600)
+vis.SetCameraVertical(CameraVerticalMode.Z_UP)
+vis.SetCameraDistance(10)
+vis.SetLight(0, ch.ChVector3(5, 5, 5), ch.ChVector3(0, 0, 0), ch.ChColor(1, 1, 1), True)
 
-# 7. Simulation loop
+# Simulation parameters
+step_size = 0.01
+real_time_factor = 1.0
+
+# Simulation loop
 while vis.Run():
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    # Advance the simulation
-    system.DoStepDynamics(0.02)
-
-    # Synchronize systems
-    driver.Synchronize(0.02)
-    terrain.Synchronize(0.02)
-    vis.Synchronize(0.02)
+    vis.PreRender()
+    system.DoStepDynamics(step_size)
+    vis.PostRender(1 / 60)

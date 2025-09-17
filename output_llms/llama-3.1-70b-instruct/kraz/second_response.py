@@ -3,6 +3,7 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
+# Set the path to the Chrono data directory
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
@@ -20,13 +21,12 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
-# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
-trackPoint = chrono.ChVector3d(3, 0, 2.1)
+trackPoint = chrono.ChVector3d(3,0, 2.1)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
@@ -40,7 +40,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
-
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -80,7 +79,6 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetTractor())
 
-
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
@@ -105,11 +103,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver sequence
-lane_change_time = 2.0
-lane_change_distance = 10.0
-target_steering_angle = 0.5
-
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
@@ -130,12 +123,14 @@ while vis.Run() :
     vis.Synchronize(time, driver_inputs)
 
     # Double lane change maneuver sequence
-    if time < lane_change_time:
-        driver_inputs.m_steering = -target_steering_angle
-    elif time < 2 * lane_change_time:
-        driver_inputs.m_steering = target_steering_angle
-    else:
-        driver_inputs.m_steering = 0.0
+    if time > 2 and time < 4:
+        driver.SetSteeringInput(-0.5)
+    elif time > 4 and time < 6:
+        driver.SetSteeringInput(0.5)
+    elif time > 6 and time < 8:
+        driver.SetSteeringInput(-0.5)
+    elif time > 8 and time < 10:
+        driver.SetSteeringInput(0.5)
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)

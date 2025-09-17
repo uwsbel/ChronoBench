@@ -16,29 +16,27 @@ vis_type_mesh = veh.VisualizationType_MESH
 # Collision type for chassis (PRIMITIVES, MESH, or NONE)
 chassis_collision_type = veh.CollisionType_NONE
 
-# Type of tire model (RIGID, TMEASY, PAC89)
-tire_model = veh.TireModelType_PAC89  # Changed to Pacejka 89
+# Tire model change to Pacejka 89
+tire_model = veh.TireModelType_PACEJKA_89
 
-# Rigid terrain
+# Rigid terrain parameters
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
 
-# Camera tracking point
 trackPoint = chrono.ChVectorD(-15.0, 10.0, 5.8)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
-contact_vis = False
 
-# Simulation step sizes (reduced to 5e-4)
+# Simulation step size reduction
 step_size = 5e-4
 tire_step_size = step_size
 
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the citybus vehicle, set parameters, and initialize
+# Create the citybus vehicle
 vehicle = veh.CityBus()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -55,18 +53,14 @@ vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type_mesh)
 vehicle.SetTireVisualizationType(vis_type_mesh)
 
-# Removed the line setting collision system to Bullet (conflict with NSC contact method)
-
-# Create the terrain
-patch_mat = chrono.ChMaterialNSC()  # Using NSC material
+# Create the terrain with dirt texture
+patch_mat = chrono.ChMaterialSurfaceNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-    terrainLength, terrainWidth)
-
-# Changed texture to dirt.jpg
+                        chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
@@ -80,25 +74,24 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
-vis.AttachVehicle(vehicle.GetVehicle())
+# Fix: Use vehicle instead of vehicle.GetVehicle()
+vis.AttachVehicle(vehicle)
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
 
-# Set the time response for inputs
+# Set driver input response times
 steering_time = 1.0
 throttle_time = 1.0
 braking_time = 0.3
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 render_steps = math.ceil(render_step_size / step_size)
-
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -113,7 +106,6 @@ while vis.Run():
         render_frame += 1
 
     driver_inputs = driver.GetInputs()
-
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
@@ -123,6 +115,5 @@ while vis.Run():
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
-
     step_number += 1
     realtime_timer.Spin(step_size)

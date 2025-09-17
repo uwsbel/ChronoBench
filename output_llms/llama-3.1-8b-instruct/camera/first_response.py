@@ -1,60 +1,70 @@
-import chrono as chrono
+import chrono as ch
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Initialize the PyChrono environment
-chrono.Initialize()
+ch.initialize()
 
-# Create a scene
-scene = chrono.Scene()
+# Create a world object
+world = ch.ChWorld()
 
-# Load the triangular mesh from a Wavefront .obj file
-# Replace 'path_to_mesh.obj' with the actual path to your .obj file
-mesh_path = 'path_to_mesh.obj'
-mesh = chrono.ImportOBJ(mesh_path)
-
-# Create a fixed body from the mesh
-body = chrono.ChBody()
+# Create a fixed body with a triangular mesh loaded from a Wavefront .obj file
+body = ch.ChBody()
 body.SetBodyFixed(True)
-body.AddAsset(chrono.ChTriangleMeshAsset(mesh))
-scene.Add(body)
+body.SetBodyInertia(1, 1, 1, 0, 0, 0)
+body.LoadObjectFromWavefront("mesh.obj")
+world.Add(body)
 
 # Create a camera sensor
-camera = chrono.ChCameraSensor()
-camera.SetBody(body)
-camera.SetSensorMode(chrono.ChCameraSensor.SENSOR_MODE_COLOR)
+camera = ch.ChCameraSensor()
+camera.SetSensorType(ch.CT_CAMERA_SENSOR)
+camera.SetSensorId(0)
+camera.SetSensorWidth(640)
+camera.SetSensorHeight(480)
+camera.SetSensorFocalLength(50)
+camera.SetSensorXsize(640)
+camera.SetSensorYsize(480)
+camera.SetSensorXcenter(320)
+camera.SetSensorYcenter(240)
 
 # Create a sensor manager
-sensor_manager = chrono.ChSensorManager()
-sensor_manager.AddSensor(camera)
+sensor_manager = ch.ChSensorManager()
+sensor_manager.Add(camera)
 
-# Apply noise filters and visualizations to the camera images
-camera.SetFilter(chrono.ChCameraSensor.FILTER_GAUSSIAN)
-camera.SetVisualizationMode(chrono.ChCameraSensor.VISUALIZATION_MODE_GRAYSCALE)
+# Create a noise filter
+noise_filter = ch.ChNoiseFilter()
+noise_filter.SetFilterType(ch.CT_FILTER_GAUSSIAN)
+noise_filter.SetFilterSigma(5)
 
-# Set the initial camera position
-camera.SetPosition(chrono.ChVector(0, 10, 20))
+# Apply the noise filter to the camera sensor
+camera.SetSensorFilter(noise_filter)
 
-# Set the simulation parameters
-t = 0
-dt = 0.01
-step = 0
-max_steps = 1000
+# Create a visualization for the camera images
+camera_visualization = ch.ChCameraVisualization()
+camera_visualization.SetVisualizationType(ch.CT_VISUALIZATION_CAMERA)
+camera_visualization.SetVisualizationId(0)
+camera_visualization.SetVisualizationWidth(640)
+camera_visualization.SetVisualizationHeight(480)
+camera_visualization.SetVisualizationFocalLength(50)
+camera_visualization.SetVisualizationXsize(640)
+camera_visualization.SetVisualizationYsize(480)
+camera_visualization.SetVisualizationXcenter(320)
+camera_visualization.SetVisualizationYcenter(240)
 
-while t < max_steps * dt:
-    # Update the camera position in an orbit around the mesh
-    body_pos = body.GetPos()
-    camera_pos = chrono.ChVector(np.cos(t) * 5, np.sin(t) * 5, 20)
-    camera.SetPosition(camera_pos)
+# Add the camera visualization to the sensor manager
+sensor_manager.Add(camera_visualization)
 
-    # Print out camera buffer data at each step
-    print(camera.GetBuffer())
+# Set the camera's position in an orbit around the mesh
+camera.SetSensorPosition(1, 0, 0)
+camera.SetSensorOrientation(0, 0, 0, 1)
 
-    # Simulate the system
-    scene.DoStepDynamics(dt)
+# Simulate the system
+for i in range(100):
+    world.StepSimulation(0.01)
+    camera_data = camera.GetSensorData()
+    print(camera_data)
+    camera.SetSensorPosition(np.cos(i * 0.1) * 2, 0, np.sin(i * 0.1) * 2)
+    camera.SetSensorOrientation(0, 0, 0, 1)
 
-    # Increment the simulation time
-    t += dt
-    step += 1
-
-# Clean up
-chrono.CleanUp()
+# Finalize the PyChrono environment
+ch.finalize()

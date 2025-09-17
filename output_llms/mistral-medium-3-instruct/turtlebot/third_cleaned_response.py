@@ -5,7 +5,7 @@ import numpy as np
 import pychrono as chrono
 import pychrono.robot as turtlebot
 from pychrono import irrlicht as chronoirr
-import pychrono.sensor as sens
+from pychrono import sensor as sens
 
 
 system = chrono.ChSystemNSC()
@@ -33,48 +33,51 @@ sensor_manager = sens.ChSensorManager(system)
 system.Add(sensor_manager)
 
 
-lidar = sens.ChLidarSensor()
-lidar.SetName("lidar_sensor")
-lidar.SetScanRate(10)  
-lidar.SetHorizontalResolution(0.5)  
-lidar.SetVerticalResolution(0.5)  
-lidar.SetHorizontalAngleRange(chrono.ChVector2d(-90, 90))  
-lidar.SetVerticalAngleRange(chrono.ChVector2d(-15, 15))  
-lidar.SetRange(5.0)  
-lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.1), chrono.ChQuaterniond(1, 0, 0, 0)))
-lidar.AddFilter(sens.ChFilterRayHit())
-lidar.AddFilter(sens.ChFilterPCfromDepth())
+lidar = sens.ChLidarSensor(robot.GetChassisBody(),  
+                           10,                      
+                           chrono.ChFrameD(chrono.ChVector3d(0.1, 0, 0.1),  
+                                           chrono.Q_from_AngAxis(-chrono.CH_PI/4, chrono.ChVector3d(0, 0, 1))),  
+                           1.0,                     
+                           0.5,                     
+                           1.0,                     
+                           0.5,                     
+                           0.1,                     
+                           5.0)                     
+lidar.SetName("LidarSensor")
+lidar.AddFilter(sens.ChFilterRayC2C())  
+lidar.AddFilter(sens.ChFilterPC2Grid()) 
 sensor_manager.AddSensor(lidar)
 
 
 box_mat = chrono.ChContactMaterialNSC()
+box_mat.SetFriction(0.3)
+box_mat.SetRestitution(0.1)
+
 for i in range(5):
     box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True, box_mat)
     box.SetPos(chrono.ChVector3d(random.uniform(-2, 2), random.uniform(-2, 2), 0.1))
-    box.SetRot(chrono.ChQuaterniond(random.random(), random.random(), random.random(), random.random()).GetNormalized())
+    box.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    box.GetVisualShape(0).SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
     system.Add(box)
 
 
 def move(mode):
-    LEFT_DRIVE_WHEEL = 0
-    RIGHT_DRIVE_WHEEL = 1
-
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, 0)  
+        robot.SetMotorSpeed(math.pi, 1)  
     elif mode == 'left':
-        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(-math.pi, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, 0)        
+        robot.SetMotorSpeed(-math.pi, 1) 
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, LEFT_DRIVE_WHEEL)
-        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-math.pi, 0) 
+        robot.SetMotorSpeed(0, 1)        
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain with Lidar')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

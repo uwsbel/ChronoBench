@@ -1,9 +1,9 @@
-import math as m  
-import pychrono as chrno  
-import pychrono.fea as fea  
-import pychrono.pardisomkl as mklsolver  
-import pychrono.irrlicht as chronicls  
-import os  
+import math as m
+import pychrono as chrno
+import pychrono.fea as fea
+import pychrono.pardisomkl as mklsolver
+import pychrono.irrlicht as chronicls
+import os
 
 
 class ChFunctionMyFun(chrno.ChFunction):
@@ -52,7 +52,7 @@ body_crank.AddVisualShape(boxcrank)
 
 
 motor = chrno.ChLinkMotorRotationSpeed()
-motor.Initialize(body_trss, body_crank, chrno.ChFramed(vG))
+motor.Initialize(body_truss, body_crank, chrno.ChFramed(vG))
 myfun = ChFunctionMyFun()
 motor.SetTorqueFunction(myfun)
 sys.Add(motor)

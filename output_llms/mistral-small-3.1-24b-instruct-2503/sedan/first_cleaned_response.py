@@ -1,60 +1,72 @@
-import pychrono as chrono
-import pychrono.irrlicht as chronoirr
-import pychrono.postprocess as postprocess
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
 
 
-chrono.SetChronoDataPath('path_to_chrono_data')  
+chrono.SetChronoDataPath('path/to/chrono/data')
 
 
 system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
 
-ground = chrono.ChBodyEasyBox(50, 0.5, 50, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
-ground.SetBodyFixed(True)
-ground.GetMaterialSurface().SetFriction(0.9)
-system.Add(ground)
+vehicle = veh.ChVehicleSystem()
+vehicle.Initialize(system, veh.ChVehicleSystemType.CH_VEHICLESEDAN)
 
 
-vehicle = chrono.vehicle.BMW_E90()
-vehicle.InitSystem(system, chrono.ChVectorD(0, 1, 0), chrono.ChQuaternionD(1, 0, 0, 0), False)
+vehicle.SetChassisBodyType(veh.ChChassisBody.E90)
 
 
-vehicle.SetTireModelType(chrono.vehicle.TireModelType.TMEASY)
+tire_model = veh.ChTireHandler_TMEASY()
+vehicle.AddTireModel(tire_model)
 
 
-driver = chrono.vehicle.ChDriver()
-driver.Initialize(vehicle.GetVehicle())
-driver.SetSteeringController(chrono.vehicle.ChSteeringControllerDriver(vehicle.GetVehicle()))
-driver.SetThrottleController(chrono.vehicle.ChThrottleControllerDriver(vehicle.GetVehicle()))
-driver.SetBrakingController(chrono.vehicle.ChBrakingControllerDriver(vehicle.GetVehicle()))
+driver = veh.ChDriver()
+driver.Initialize(vehicle)
+driver.SetSteeringController(veh.ChDriverSteeringControllerType.CH_DRIVER_STEERING_CONTROLLER_PI)
+driver.SetThrottleController(veh.ChDriverThrottleControllerType.CH_DRIVER_THROTTLE_CONTROLLER_PI)
+driver.SetBrakingController(veh.ChDriverBrakingControllerType.CH_DRIVER_BRAKING_CONTROLLER_PI)
 
 
-visualization = chronoirr.ChIrrApp()
-visualization.AddTypicalSky()
-visualization.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_small.png'))
-visualization.AddTypicalUnitSystems()
-visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 0.0, 1.0), chrono.ChVectorD(0.5, 0.5, 0.5), 150, 150, 10, 40, 512)
-visualization.SetChaseCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0.0), 0.5)
+terrain = veh.ChTerrain()
+terrain.Initialize(system, "terrain/flat_terrain.xml")
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceBase())
 
 
-visualization.AddVisualSystem(system)
-visualization.AddVisualSystem(vehicle.GetVehicle())
-visualization.AddVisualSystem(ground)
+vehicle.AddTerrain(terrain)
 
 
-simulation_time = 10  
-time_step = 1e-3  
-visualization_step = 10  
+vis = irr.ChIrrApp()
+vis.AddTypicalSky()
+vis.AddTypicalLogo()
+vis.AddTypicalCamera(chrono.ChVectorD(0, 5, -10), chrono.ChVectorD(0, 0, 0))
+vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 10, 5, 50)
 
 
-for t in range(int(simulation_time / time_step)):
-    system.DoStepDynamics(time_step)
-    if t % visualization_step == 0:
-        visualization.BeginScene()
-        visualization.Render()
-        visualization.EndScene()
+vis.AddVisualSystem(vehicle.GetVehicleVisualizationSystem())
+vis.AddVisualSystem(terrain.GetTerrainVisualizationSystem())
 
 
-visualization.Close()
+camera = vis.GetSceneManager().createCameraSceneNode()
+camera.setPosition(chrono.ChVectorD(0, 5, -10))
+camera.setTarget(chrono.ChVectorD(0, 0, 0))
+camera.setFarValue(1000)
+vis.AddCamera(camera)
+
+
+system.SetTimestepperType(chrono.ChTimestepperType.CH_TIMSTEPER_HEUN)
+system.SetMaxPenetrationRecoverySpeed(2.0)
+system.SetMaxIterationsSolverIP(100)
+system.SetIterLCP(i_max_iterations=100)
+
+
+vis.SetTimestep(0.01)
+vis.SetTryRealTime(True)
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(vis.GetTimestep())

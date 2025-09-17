@@ -47,20 +47,17 @@ vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 vehicle.Initialize()
-
 vehicle.SetChassisVisualizationType(vis_type)
 vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
 patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
-
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
@@ -79,11 +76,18 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 # Create a path-follower, cruise-control driver system
-driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), veh.GetDataFile('paths/double_lane_change.txt'), 10.0)
-driver.SetLookAheadDistance(5.0)
-driver.SetGains(0.5, 2.0, 0.0, 0.5, 2.0)  # Steering and speed controller gains
+path = veh.ChPath()
+path.AppendPoint(chrono.ChVector3d(-50, 0, 0))
+path.AppendPoint(chrono.ChVector3d(-20, 3, 0))
+path.AppendPoint(chrono.ChVector3d(20, 3, 0))
+path.AppendPoint(chrono.ChVector3d(50, 0, 0))
 
-# output vehicle mass
+driver = veh.ChPathFollowerDriver(vehicle, path, 10.0)  # Target speed of 10.0
+driver.SetLookAheadDistance(5)
+driver.SetSteeringPID(1.0, 0.1, 0.01)
+driver.SetSpeedControllerGains(1.0, 0.1, 0.01)
+
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

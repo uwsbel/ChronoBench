@@ -25,9 +25,9 @@ tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
 # terrain_model = veh.RigidTerrain.BOX
-terrainHeight = 0
-terrainLength = 100.0  
-terrainWidth = 100.0   
+terrainHeight = 0      # terrain height
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
@@ -41,7 +41,7 @@ step_size = 1e-4  # Decreased step size
 tire_step_size = step_size
 
 # Time interval between two render frames
-render_step_size = 1.0 / 100  # Increased render step size for finer control
+render_step_size = 1.0 / 100  # Increased render step size
 
 # --------------
 # Create systems
@@ -67,17 +67,18 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the terrain with highway mesh
+# Create the terrain with a highway mesh
 terrain_file = veh.GetDataFile("terrain/highway.obj")
 terrain = veh.RigidTerrain(vehicle.GetSystem())
 patch = terrain.AddPatch(chrono.ChContactMaterialNSC(), 
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-patch.SetMesh(terrain_file)
+    terrainLength, terrainWidth, mesh_filename=terrain_file)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
+
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Sedan')
 vis.SetWindowSize(1280, 1024)
@@ -94,8 +95,8 @@ driver = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
 steering_time = 5.0  # Increased steering response time
-throttle_time = 1.0  
-braking_time = 0.3   
+throttle_time = 1.0  # time to go from 0 to +1 
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -103,13 +104,15 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 # PID controller for throttle control
-kp = 0.5  # Proportional gain
-ki = 0.1  # Integral gain
-kd = 0.05 # Derivative gain
-target_speed = 20  # Desired speed (m/s)
-speed_error = 0
-integral_error = 0
-previous_error = 0
+Kp = 1.0
+Ki = 0.1
+Kd = 0.01
+target_speed = 20.0  # Set desired speed
+error = 0.0
+integral = 0.0
+derivative = 0.0
+
+driver.Initialize()
 
 # ---------------
 # Simulation loop
@@ -145,17 +148,14 @@ while vis.Run() :
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
 
-    # Calculate speed error
-    current_speed = vehicle.GetVehicle().GetSpeed()
-    speed_error = target_speed - current_speed
-
     # PID control for throttle
-    integral_error += speed_error * step_size
-    derivative_error = (speed_error - previous_error) / step_size
-    throttle_output = kp * speed_error + ki * integral_error + kd * derivative_error
-
-    # Apply throttle output
-    driver_inputs['throttle'] = throttle_output
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    error = target_speed - current_speed
+    integral += error * step_size
+    derivative = (error - previous_error) / step_size
+    previous_error = error
+    throttle = Kp * error + Ki * integral + Kd * derivative
+    driver_inputs.throttle = throttle
 
     # Advance simulation for one timestep for all modules
     driver.Advance(step_size)
@@ -167,4 +167,3 @@ while vis.Run() :
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
-    previous_error = speed_error

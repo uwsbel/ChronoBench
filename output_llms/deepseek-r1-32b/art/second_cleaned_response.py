@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_MESH
 tire_model = veh.TireModelType_FIALA  
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -78,7 +77,7 @@ terrain.Initialize()
 
 
 
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis = veh.ChTrackedVehicleVisualSystemIrrlicht()  
 vis.SetWindowTitle('dart')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)

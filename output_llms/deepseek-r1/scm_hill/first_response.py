@@ -1,76 +1,95 @@
+import os
 import pychrono as chrono
 import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    # 1. Initialize PyChrono environment
-    chrono.SetChronoDataPath(chrono.GetChronoDataPath())
-    system = chrono.ChSystemSMC()
-    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
-
-    # 2. Create HMMWV vehicle
-    vehicle = veh.HMMWV_Full(system)
-    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
-    vehicle.Initialize()
-    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
-    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
-
-    # 3. Create deformable terrain with SCM
+    # Initialize Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.SetSolverMaxIterations(100)
+    
+    # Create HMMWV vehicle
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.QUNIT))
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.Initialize()
+    
+    # Set vehicle visualization mode
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    # Create SCM deformable terrain
     terrain = veh.SCMDeformableTerrain(system)
-    terrain.SetSoilParameters(
-        Bekker_Kphi=5301e3,
-        Bekker_Kc=102e3,
-        Bekker_n=0.793,
-        Mohr_cohesion=1.3e3,
-        Mohr_friction=31.1,
-        Janosi_shear=1.2e-2,
-        Elastic_K=4e8,
-        Damping_R=3e4
-    )
-    terrain.Initialize(20.0, 20.0, 0.2)  # Size and resolution
-
-    # 4. Create driver system
-    driver = veh.ChInteractiveDriverIRR(vehicle)
-    driver.SetSteeringDelta(0.02)
-    driver.SetThrottleDelta(0.02)
-    driver.SetBrakingDelta(0.06)
-
-    # 5. Setup Irrlicht visualization
+    terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngX(-0.5)))
+    
+    # Configure soil parameters
+    soil_params = veh.SoilParameters()
+    soil_params.Kphi = 5301e3
+    soil_params.Kc = 102e3
+    soil_params.n = 1.1
+    soil_params.cohesion = 0
+    soil_params.phi = 31 * chrono.CH_DEG_TO_RAD
+    soil_params.K = 1.8e-2
+    soil_params.E_elastic = 3e6
+    soil_params.damping = 0.01
+    
+    # Terrain visualization and mesh settings
+    terrain.SetSoilParameters(soil_params)
+    terrain.Initialize(20, 10, 0.04)  # Length, width, resolution
+    
+    # Create driver system
+    driver = veh.ChPathFollowerDriver(hmmwv.GetVehicle())
+    path = chrono.ChBezierCurve()
+    path.AddPoint(chrono.ChVectorD(-10, 0, 0), chrono.ChVectorD(10, 0, 0))
+    driver.GetSteeringController().SetLookAheadDistance(5.0)
+    driver.GetSteeringController().SetGains(0.5, 0, 0)
+    driver.GetSpeedController().SetGains(0.4, 0, 0)
+    driver.SetPath(path)
+    
+    # Set up Irrlicht visualization
     vis = irr.ChVisualSystemIrrlicht()
     vis.AttachSystem(system)
     vis.SetWindowSize(1280, 720)
-    vis.SetWindowTitle('HMMWV on Deformable Terrain')
+    vis.SetWindowTitle("HMMWV on SCM Terrain")
     vis.Initialize()
-    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
     vis.AddSkyBox()
-    vis.AddCamera(chrono.ChVectorD(3, 3, 1), chrono.ChVectorD(0, 0, 0))
+    vis.AddCamera(chrono.ChVectorD(5, 2, 5), chrono.ChVectorD(0, 0, 0))
     vis.AddTypicalLights()
-    vis.AddLightWithShadow(
-        chrono.ChVectorD(-5, 0, 8), chrono.ChVectorD(0, 0, 0),
-        50, 5, 15, 50, 512, chrono.ChColor(0.8, 0.8, 0.8)
-    )
+    vis.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 20, 5, 20, 40, 512)
     vis.EnableShadows()
-
-    # 6. Simulation loop
+    
+    # Simulation loop settings
     step_size = 0.002
     realtime_timer = chrono.ChRealtimeStepTimer()
+    
     while vis.Run():
         time = system.GetChTime()
-
-        # Update visualization and driver inputs
+        
+        # Update driver inputs
+        driver.Synchronize(time)
+        
+        # Update vehicle systems
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
         vis.BeginScene()
         vis.Render()
+        vis.RenderFrame(chrono.ChFrameD(), 2)  # Reference frame
         vis.EndScene()
-        driver.Synchronize(time)
-
-        # Advance simulation
-        terrain.Synchronize(time)
-        vehicle.Synchronize(time, driver.GetInputs(), terrain)
-        system.DoStepDynamics(step_size)
+        
+        # Maintain real-time synchronization
         realtime_timer.Spin(step_size)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

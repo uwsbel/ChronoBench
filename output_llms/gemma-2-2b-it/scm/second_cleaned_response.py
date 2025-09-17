@@ -3,81 +3,82 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-
 class SCMTerrainParameters:
-    def __init__(self, soil_parameters, soil_parameters_2, soil_parameters_3, soil_parameters_4, soil_parameters_5, soil_parameters_6, soil_parameters_7, soil_parameters_8):
+    def __init__(self, soil_parameters, soil_parameters_2, soil_parameters_3, soil_parameters_4, soil_parameters_5, soil_parameters_6):
         self.soil_parameters = soil_parameters
         self.soil_parameters_2 = soil_parameters_2
         self.soil_parameters_3 = soil_parameters_3
         self.soil_parameters_4 = soil_parameters_4
         self.soil_parameters_5 = soil_parameters_5
         self.soil_parameters_6 = soil_parameters_6
-        self.soil_parameters_7 = soil_parameters_7
-        self.soil_parameters_8 = soil_parameters_8
+
+    def set_soil_parameters(self, soil_parameters):
+        self.soil_parameters = soil_parameters
+
+    def set_soil_parameters_2(self, soil_parameters_2):
+        self.soil_parameters_2 = soil_parameters_2
+
+    def set_soil_parameters_3(self, soil_parameters_3):
+        self.soil_parameters_3 = soil_parameters_3
+
+    def set_soil_parameters_4(self, soil_parameters_4):
+        self.soil_parameters_4 = soil_parameters_4
+
+    def set_soil_parameters_5(self, soil_parameters_5):
+        self.soil_parameters_5 = soil_parameters_5
+
+    def set_soil_parameters_6(self, soil_parameters_6):
+        self.soil_parameters_6 = soil_parameters_6
+
+    def get_soil_parameters(self):
+        return self.soil_parameters
+
+    def get_soil_parameters_2(self):
+        return self.soil_parameters_2
+
+    def get_soil_parameters_3(self):
+        return self.soil_parameters_3
+
+    def get_soil_parameters_4(self):
+        return self.soil_parameters_4
+
+    def get_soil_parameters_5(self):
+        return self.soil_parameters_5
+
+    def get_soil_parameters_6(self):
+        return self.soil_parameters_6
 
 
-def InitializeTerrainParameters(terrain_type):
-    if terrain_type == "soft":
-        soil_parameters = (2e6, 0, 1.1, 0, 30, 0.01, 2e8, 3e4)  
-    elif terrain_type == "mid":
-        soil_parameters = (1e6, 0, 1.5, 0, 40, 0.02, 1e7, 5e4)
-    elif terrain_type == "hard":
-        soil_parameters = (5e6, 0, 1.9, 0, 50, 0.05, 3e8, 7e4)
-    else:
-        raise ValueError("Invalid terrain type. Choose from 'soft', 'mid', or 'hard'.")
-
-    return SCMTerrainParameters(soil_parameters)
-
-
-initLoc = chrono.ChVector3d(-8, 0, 0.6)
-initRot = chrono.ChQuaterniond(1, 0, 0, 0)
-
-
-vis_type = veh.VisualizationType_MESH
-
-
-chassis_collision_type = veh.CollisionType_NONE
-
-
-tire_model = veh.TireModelType_RIGID
-
-
-
-terrainHeight = 0      
-terrainLength = 100.0  
-terrainWidth = 100.0   
-
-
-trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
-
-
-contact_method = chrono.ChContactMethod_SMC
-contact_vis = False
-
-
-step_size = 1e-3
-tire_step_size = step_size
-
-
-render_step_size = 1.0 / 50  
-
-
-
-vehicle = veh.HMMWV_Full() 
-vehicle.SetContactMethod(contact_method)
-vehicle.SetChassisCollisionType(chassis_collision_type)
-vehicle.SetChassisFixed(False)
-vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
-vehicle.SetTireType(tire_model)
-vehicle.SetTireStepSize(tire_step_size)
-
-vehicle.Initialize()
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
-terrain.SetSoilParameters(InitializeTerrainParameters("soft"))
+terrain.SetSoilParameters(2e6,   
+                            0,     
+                            1.1,   
+                            0,     
+                            30,    
+                            0.01,  
+                            2e8,   
+                            3e4    
+)
 
 
+terrain_params = SCMTerrainParameters(
+    soil_parameters=2e6,  
+    soil_parameters_2=0,   
+    soil_parameters_3=1.1,  
+    soil_parameters_4=0,   
+    soil_parameters_5=30,   
+    soil_parameters_6=0.01,  
+)
+
+
+terrain.SetSoilParameters(terrain_params.get_soil_parameters())
+terrain.SetSoilParameters_2(terrain_params.get_soil_parameters_2())
+terrain.SetSoilParameters_3(terrain_params.get_soil_parameters_3())
+terrain.SetSoilParameters_4(terrain_params.get_soil_parameters_4())
+terrain.SetSoilParameters_5(terrain_params.get_soil_parameters_5())
+terrain.SetSoilParameters_6(terrain_params.get_soil_parameters_6())
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))

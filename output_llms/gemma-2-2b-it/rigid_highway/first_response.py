@@ -1,85 +1,69 @@
-# Import necessary libraries
-from pychrono import *
-from pychrono.irrlicht import IrrlichtApplication
-from pychrono.irrlicht.irrlicht import IrrlichtDevice
-from pychrono.irrlicht.irrlicht import IrrlichtEngine
-from pychrono.irrlicht.irrlicht import IrrlichtScene
-from pychrono.irrlicht.irrlicht import IrrlichtSceneNode
-from pychrono.irrlicht.irrlicht import IrrlichtMaterial
-from pychrono.irrlicht.irrlicht import IrrlichtMesh
-from pychrono.irrlicht.irrlicht import IrrlichtLight
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.irrlicht.collision as collision
+import pychrono.irrlicht.mesh as mesh
+import pychrono.tmeasy as tmeasy
 
 # Initialize PyChrono
-init_chrono()
-
-# Create Irrlicht application
-app = IrrlichtApplication(
-    "HMMWV Simulation",
-    None,
-    False,
-    None,
-    None
-)
-
-# Create Irrlicht device
-device = app.getIrrlichtDevice()
+chrono.initialize()
 
 # Create Irrlicht engine
-engine = app.getIrrlichtEngine()
+engine = irr.IrrlichtEngine()
+engine.createWindow("HMMWV Simulation", 800, 600)
 
-# Create Irrlicht scene
-scene = app.getIrrlichtScene()
+# Create a new world
+world = chrono.World()
 
-# Create Irrlicht scene node for the HMMWV
-hmmwv_node = scene.addSceneNode("HMMWV")
+# Define the terrain
+terrain = chrono.MeshTerrain(
+    "Highway_col.obj",
+    "Highway_vis.obj",
+    world
+)
 
-# Create Irrlicht mesh for the HMMWV
-hmmwv_mesh = IrrlichtMesh.createMesh("HMMWV_mesh.obj")
-hmmwv_node.addMesh(hmmwv_mesh)
+# Create the HMMWV
+vehicle = chrono.Vehicle(
+    world,
+    chrono.VehicleType.HMMWV,
+    "HMMWV.obj",
+    terrain
+)
 
-# Create Irrlicht material for the HMMWV
-hmmwv_material = IrrlichtMaterial.createMaterial("HMMWV_material")
-hmmwv_material.setDiffuseColor(0.5, 0.5, 0.5)
-hmmwv_material.setSpecularColor(0.5, 0.5, 0.5)
-hmmwv_node.addMaterial(hmmwv_material)
+# Set vehicle parameters
+vehicle.setContactMethod(chrono.ContactMethod.STATIC)
+vehicle.setTMEASYModel(tmeasy.TMEASYModel(
+    vehicle,
+    chrono.VehicleType.HMMWV
+))
 
-# Create Irrlicht light for the HMMWV
-hmmwv_light = IrrlichtLight.createLight("HMMWV_light")
-hmmwv_light.setPosition(0, 0, 0)
-hmmwv_light.setDirection(0, 0, 1)
-hmmwv_node.addLight(hmmwv_light)
+# Set initial position and orientation
+vehicle.setPosition(chrono.Vector3(0, 0, 0))
+vehicle.setOrientation(chrono.Quaternion(0, 0, 0, 1))
 
-# Create Irrlicht mesh for the terrain
-terrain_mesh = IrrlichtMesh.createMesh("Highway_col.obj")
-terrain_node = scene.addSceneNode("Terrain")
-terrain_node.addMesh(terrain_mesh)
+# Set initial velocity
+vehicle.setVelocity(chrono.Vector3(0, 0, 0))
 
-# Create Irrlicht mesh for the terrain visualization
-terrain_vis_mesh = IrrlichtMesh.createMesh("Highway_vis.obj")
-terrain_vis_node = scene.addSceneNode("TerrainVisualization")
-terrain_vis_node.addMesh(terrain_vis_mesh)
+# Create a driver system
+driver = chrono.Driver(vehicle)
 
-# Create Irrlicht driver system
-driver_system = app.createDriverSystem()
+# Set driver controls
+driver.setSteering(chrono.Vector3(0, 0, 0))
+driver.setThrottle(chrono.Vector3(0, 1, 0))
+driver.setBrake(chrono.Vector3(0, 0, 1))
 
-# Configure driver system parameters
-driver_system.setSteeringControlType(DriverControlType.SteeringWheel)
-driver_system.setThrottleControlType(DriverControlType.Throttle)
-driver_system.setBrakingControlType(DriverControlType.Brakes)
+# Create a simulation loop
+engine.run()
 
-# Set initial parameters for the HMMWV
-hmmwv_position = Vec3(0, 0, 0)
-hmmwv_orientation = Vec3(0, 0, 0)
-hmmwv_contact_method = ContactMethod.ContactSurface
+# Set the frame rate
+engine.setFramerateLimit(50)
 
-# Initialize the HMMWV
-hmmwv_driver = driver_system.createDriver("HMMWV")
-hmmwv_driver.setVehiclePosition(hmmwv_position)
-hmmwv_driver.setVehicleOrientation(hmmwv_orientation)
-hmmwv_driver.setContactMethod(hmmwv_contact_method)
+# Run the simulation
+while engine.isRunning():
+    # Update vehicle dynamics
+    vehicle.update()
 
-# Set TMEASY tire model for the HMMWV
-hmmwv_tire = hmmwv_driver.createTire("TMEASY")
+    # Render the scene
+    engine.render()
 
-# Configure the simulation loop
-app.run(50)
+# Terminate PyChrono
+chrono.terminate()

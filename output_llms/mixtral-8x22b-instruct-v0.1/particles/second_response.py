@@ -105,4 +105,13 @@ while vis.Run():
 
     print(f"Kinetic energy: {kinetic_energy:.2f}, Potential energy: {potential_energy:.2f}, Total energy: {total_energy:.2f}")
 
+    mlist = list(combinations(sys.GetBodies(), 2))
+    for abodyA, abodyB in mlist:
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+        F_attract = (D_attract / r_attract) * f_attract
+        abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+        abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
     sys.DoStepDynamics(stepsize)

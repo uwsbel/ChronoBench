@@ -2,7 +2,6 @@ import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
-import numpy as np
 
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
@@ -25,7 +24,7 @@ terrainHeight = 0      # terrain height
 terrainLength = 200.0  # size in X direction (increased from 100 to 200)
 terrainWidth = 200.0   # size in Y direction (increased from 100 to 200)
 
-# Poon chassis tracked by the camera
+# Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
 
 # Contact method
@@ -39,16 +38,6 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Circular path parameters
-path_radius = 20.0  # meters
-path_center = chrono.ChVector3d(0, 0, 0)
-constant_throttle = 0.3
-
-# PID controller parameters
-Kp = 0.5  # Proportional gain
-Ki = 0.0  # Integral gain
-Kd = 0.1  # Derivative gain
-
 # Create the HMMWV vehicle, set parameters, and initialize
 vehicle = veh.HMMWV_Full()
 vehicle.SetContactMethod(contact_method)
@@ -57,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -73,14 +61,15 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                        terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('HMMWV Path Following Demo')
+vis.SetWindowTitle('HMMWV Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()
@@ -89,16 +78,56 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
-# Create visualization for the circular path
-path_vis = irr.ChIrrTools(vis.GetSceneManager(), vis.GetVideoDriver())
-path_vis.addSphere(chrono.ChVector3d(path_center.x + path_radius, path_center.y, path_center.z), 0.5, chrono.ChColor(1, 0, 0))
-path_vis.addSphere(chrono.ChVector3d(path_center.x - path_radius, path_center.y, path_center.z), 0.5, chrono.ChColor(0, 1, 0))
+# Create path visualization spheres
+path_radius = 20.0  # Radius of the circular path
+path_center = chrono.ChVector3d(0, 0, 0)
 
-# PID controller variables
-integral_error = 0
-prev_error = 0
+# Create two balls to visualize the path
+ball_radius = 0.5
+ball1 = chrono.ChBody()
+ball1.SetPos(chrono.ChVector3d(path_radius, 0, ball_radius))
+ball1.SetBodyFixed(True)
+ball1.GetVisualModel().AddSphere(ball_radius)
+ball1.GetVisualModel().SetColor(chrono.ChColor(1, 0, 0))  # Red
+vehicle.GetSystem().Add(ball1)
 
-# output vehicle mass
+ball2 = chrono.ChBody()
+ball2.SetPos(chrono.ChVector3d(-path_radius, 0, ball_radius))
+ball2.SetBodyFixed(True)
+ball2.GetVisualModel().AddSphere(ball_radius)
+ball2.GetVisualModel().SetColor(chrono.ChColor(0, 1, 0))  # Green
+vehicle.GetSystem().Add(ball2)
+
+# Create the path-following driver
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), "path_follower")
+driver.SetPath(veh.ChBezierCurve.CreateCircle(path_center, path_radius, 100))
+driver.SetPathOffset(chrono.ChVector3d(0, 0, 0.5))  # Offset from path to vehicle COM
+
+# PID controller parameters for steering
+kp = 1.0  # Proportional gain
+ki = 0.1  # Integral gain
+kd = 0.2  # Derivative gain
+
+driver.SetSteeringController(veh.ChSteeringController.PID(kp, ki, kd))
+driver.SetThrottle(0.3)  # Constant throttle value
+
+# Create visualization for sentinel and target points
+sentinel_sphere = chrono.ChBody()
+sentinel_sphere.SetBodyFixed(True)
+sentinel_sphere.GetVisualModel().AddSphere(0.3)
+sentinel_sphere.GetVisualModel().SetColor(chrono.ChColor(1, 0, 1))  # Purple
+vehicle.GetSystem().Add(sentinel_sphere)
+
+target_sphere = chrono.ChBody()
+target_sphere.SetBodyFixed(True)
+target_sphere.GetVisualModel().AddSphere(0.3)
+target_sphere.GetVisualModel().SetColor(chrono.ChColor(0, 1, 1))  # Cyan
+vehicle.GetSystem().Add(target_sphere)
+
+# Initialize the driver
+driver.Initialize()
+
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
@@ -112,55 +141,6 @@ render_frame = 0
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
-    # Get current vehicle position and orientation
-    vehicle_pos = vehicle.GetVehicle().GetPos()
-    vehicle_rot = vehicle.GetVehicle().GetRot()
-
-    # Calculate current heading (forward direction in XY plane)
-    forward_dir = vehicle_rot.Rotate(chrono.ChVector3d(1, 0, 0))
-    forward_dir.z = 0  # Project to XY plane
-    forward_dir.Normalize()
-
-    # Calculate vector from vehicle to path center
-    to_center = path_center - vehicle_pos
-    to_center.z = 0  # Project to XY plane
-
-    # Calculate lateral error (distance from path center to vehicle's path)
-    lateral_error = to_center.Cross(forward_dir).z
-
-    # Calculate heading error (difference between desired and actual heading)
-    desired_heading = to_center.Normalize()
-    heading_error = math.atan2(desired_heading.Cross(forward_dir).z, desired_heading.Dot(forward_dir))
-
-    # PID control for steering
-    integral_error += lateral_error * step_size
-    derivative_error = (lateral_error - prev_error) / step_size
-
-    steering_angle = Kp * lateral_error + Ki * integral_error + Kd * derivative_error
-
-    # Limit steering angle to reasonable values
-    steering_angle = max(-0.5, min(0.5, steering_angle))
-
-    prev_error = lateral_error
-
-    # Create driver inputs
-    driver_inputs = veh.ChDriverInputs()
-    driver_inputs.m_throttle = constant_throttle
-    driver_inputs.m_steering = steering_angle
-    driver_inputs.m_braking = 0
-
-    # Visualize sentinel and target points
-    if step_number % render_steps == 0:
-        # Sentinel point (current target point on path)
-        sentinel_pos = path_center + desired_heading * path_radius
-        sentinel_vis = path_vis.addSphere(chrono.ChVector3d(sentinel_pos.x, sentinel_pos.y, sentinel_pos.z + 0.5),
-                                         0.3, chrono.ChColor(0, 0, 1))
-
-        # Target point (point ahead on path)
-        target_pos = path_center + desired_heading * (path_radius + 5)
-        target_vis = path_vis.addSphere(chrono.ChVector3d(target_pos.x, target_pos.y, target_pos.z + 0.5),
-                                       0.3, chrono.ChColor(1, 1, 0))
-
     # Render scene and output POV-Ray data
     if (step_number % render_steps == 0):
         vis.BeginScene()
@@ -168,12 +148,21 @@ while vis.Run():
         vis.EndScene()
         render_frame += 1
 
+    # Update sentinel and target point visualization
+    sentinel_pos = driver.GetSentinelLocation()
+    target_pos = driver.GetTargetLocation()
+
+    sentinel_sphere.SetPos(sentinel_pos)
+    target_sphere.SetPos(target_pos)
+
     # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain)
+    vis.Synchronize(time, driver.GetInputs())
 
     # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)

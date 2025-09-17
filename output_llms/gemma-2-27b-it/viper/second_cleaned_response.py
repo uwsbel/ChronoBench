@@ -57,11 +57,11 @@ manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(inten
 offset_pose = chrono.ChFramed(chrono.ChVector3d(1.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
 cam = sens.ChCameraSensor(
     rover.GetChassis().GetBody(),
-    15, 
+    15,  
     offset_pose,
-    720, 
-    480, 
-    1.408 
+    720,  
+    480,  
+    1.408  
 )
 cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(720, 480, "Viper Front Camera"))
@@ -80,17 +80,18 @@ while vis.Run():
     time += time_step  
     steering = 0
     max_steering = math.pi / 6  
-    
+
     
     if 2 < time < 7:
         steering = max_steering * (time - 2) / 5  
     elif 7 < time < 12:
         steering = max_steering * (12 - time) / 5  
-    
+
     driver.SetSteering(steering)  
 
     rover.Update()  
 
+    
     manager.Update()
 
     
@@ -98,7 +99,8 @@ while vis.Run():
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
+
     step_number += 1
-    
+
     
     system.DoStepDynamics(time_step)

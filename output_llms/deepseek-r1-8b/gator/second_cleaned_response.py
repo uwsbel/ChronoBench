@@ -58,12 +58,11 @@ vehicle.SetTireVisualizationType(vis_type)
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
-patch_material = chrono.ChContactMaterialNSC()
-patch_material.SetFriction(0.9)
-patch_material.SetRestitution(0.01)
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
 
 
-terrain_patches = []
 textures = [
     "terrain/textures/tile1.jpg",
     "terrain/textures/tile2.jpg",
@@ -71,52 +70,44 @@ textures = [
     "terrain/textures/tile4.jpg"
 ]
 
+
 for i in range(4):
-    patch = veh.RigidTerrain(vehicle.GetSystem())
-    patch_mat = patch.AddPatch(patch_material,
-        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
-        terrainLength, terrainWidth)
+    
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
     
     
     patch_mat.SetTexture(veh.GetDataFile(textures[i]), 200, 200)
-    if i == 0:
+    
+    
+    if i == 3:
         
-        height_map = []
-        for x in range(100):
-            row = []
-            for y in range(100):
-                height = 0.0
-                
-                height += math.sin(x * 0.1) * 0.5
-                height += math.cos(y * 0.1) * 0.5
-                row.append(height)
-            height_map.append(row)
-        
-        
-        patch_height = chrono.ChHeightMapd(height_map)
+        height_map = chrono.ChHeightMap(100, 100, 10.0)
+        height_map.SetHeightMap(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+        patch_height = terrain.AddHeightMap(height_map)
         patch_height.Initialize()
-        patch_mat.SetHeightMap(patch_height)
     
+    else:
+        
+        patch = terrain.AddPatch(patch_mat, 
+            chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+            terrainLength, terrainWidth)
+        
+        
+        patch.AddBump(chrono.ChBumpd(10, 0, 0, 0, 1.0))
     
-    if i == 0 or i == 2:
-        bump = chrono.ChCylinderd(0.1, 0.1, 0.2, chrono.ChVector3d(0, 50, 0), chrono.QUNIT)
-        patch.GetSystem().AddObject(bump)
     
     patch.Initialize()
-
-terrain_patches.append(patch)
-
-
-for patch in terrain_patches:
-    vehicle.GetSystem().AddObject(patch)
+    terrain.AttachPatch(patch)
 
 
-for patch in terrain_patches:
-    patch.SetVisibility(contact_vis)
+terrain.Initialize()
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Gator vehicle with Multi-Terrain')
+vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 6.0, 0.5)
 vis.Initialize()

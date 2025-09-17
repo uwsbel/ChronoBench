@@ -3,166 +3,96 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 import sys
 
-# Create the Chrono::Engine physical system
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemNSC()
 
-# Create the Irrlicht application
-app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
-app.SetSymbolscale(0.01)
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+    # Create the Irrlicht application
+    app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
+    app.SetSymbolscale(0.01)
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV()
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireType(veh.TireModelType.RIGID)
-vehicle.SetTireVisualType(veh.VisualizationType_MESH)
-
-# Initialize vehicle at specified position and orientation
-init_position = chrono.ChVectorD(0, 0, 1)
-init_rotation = chrono.QUNIT
-vehicle.Initialize(chrono.ChCoordsysD(init_position, init_rotation))
-
-# Create the SCM deformable terrain
-soil = veh.SoilModelSCM()
-soil.SetCohesion(1000)          # Pa
-soil.SetFrictionAngle(30 * chrono.CH_C_DEG_TO_RAD)
-soil.SetRelativeDensity(0.6)
-soil.SetThickness(0.5)          # Soil thickness in meters
-
-terrain = veh.DeformableTerrain(my_system, chrono.ChCoordsysD(), soil)
-terrain.SetSize(100, 100)       # Terrain size in meters
-terrain.SetVisualizationType(veh.VisualizationType_MESH)
-terrain.SetVisualizationSinkage(True)
-
-# Add a moving patch that follows the chassis
-initial_patch_pos = vehicle.GetChassis().GetPos()
-moving_patch = terrain.AddPatch(initial_patch_pos, 10, 10, 0, 0)
-moving_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
-
-# Setup driver inputs
-driver = veh.ChIrrGuiDriver(app)
-vehicle.SetDriver(driver)
-
-# Simulation settings
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EXPLICIT)
-my_system.SetSolverMaxIterations(10)
-my_system.SetMaxPenetrationRecoverySpeed(5e3)
-my_system.SetTimeStep(0.02)  # 50 Hz
-
-# Simulation loop
-while app.GetDevice().run():
-    time = my_system.GetChTime()
+    # Create the HMMWV vehicle
+    vehicle = veh.HMMWV()
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+    vehicle.SetTireType(veh.TireModelType.RIGID)
+    vehicle.SetVisualizationType(veh.VisualizationType.MESH)
     
-    # Update driver inputs
-    driver.Synchronize(time)
-    
-    # Update vehicle state
-    vehicle.Synchronize(time, driver)
-    
-    # Update moving patch position
-    chassis_pos = vehicle.GetChassis().GetPos()
-    moving_patch.SetPos(chassis_pos)  # <--- This may not work if the patch can't be moved
-    
-    # Advance simulation
-    my_system.DoStepDynamics()
-    
-    # Render
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Maintain real-time
-    app.DoStep()
+    # Initialize vehicle system (required for interactions)
+    vehicle_system = veh.ChWheeledVehicleSystem()
+    vehicle_system.Initialize(my_system, vehicle, None, False)  # Temporarily without terrain
 
-# Close the application
-app.GetDevice().closeDevice()
+    # Create SCM soil model
+    soil = veh.SoilModelSCM()
+    soil.SetCohesion(0.1)
+    soil.SetFrictionAngle(chrono.CH_C_PI_4)  # 45 degrees
+    soil.SetRelativeDensity(0.7)
+    soil.SetThickness(0.5)
+    soil.SetMoisture(0.0)
 
-import pychrono as chrono
-import pychrono.vehicle as veh
-import pychrono.irrlicht as irr
-import sys
+    # Create deformable terrain with moving patch
+    terrain = veh.ChDeformableTerrain(my_system)
+    terrain.SetSoilModel(soil)
+    terrain.SetSize(20, 20)  # 20m x 20m terrain
+    terrain.SetVisualizationType(veh.VisualizationType.GRID)
+    terrain.SetDrawSinkage(True)  # Enable false color sinkage visualization
 
-# Create the Chrono::Engine physical system
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    # Add a moving patch following the chassis
+    moving_patch = veh.ChTerrainPatch()
+    moving_patch.SetSize(5, 5)  # 5m x 5m patch
+    moving_patch.SetPosition(chrono.ChVectorD(0, 0, 0))  # Initial position
+    terrain.AddPatch(moving_patch)
 
-# Create the Irrlicht application
-app = irr.ChIrrApp(my_system, 'HMMWV on SCM Terrain', irr.dimension2du(1024, 768))
-app.SetSymbolscale(0.01)
-app.AddTypicalLogo()
-app.AddTypicalSky()
-app.AddTypicalLights()
-app.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+    # Re-initialize vehicle system with terrain
+    vehicle_system.SetTerrain(terrain)
+    vehicle_system.Initialize(my_system, vehicle, terrain, False)
 
-# Create the HMMWV vehicle
-vehicle = veh.HMMWV()
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetTireType(veh.TireModelType.RIGID)
-vehicle.SetTireVisualType(veh.VisualizationType_MESH)
+    # Add visualization for vehicle and terrain
+    app.Add(vehicle.GetVisualization())  # Explicitly add vehicle visualization
+    app.Add(terrain.GetVisualization())
 
-# Initialize vehicle at specified position and orientation
-init_position = chrono.ChVectorD(0, 0, 1)
-init_rotation = chrono.QUNIT
-vehicle.Initialize(chrono.ChCoordsysD(init_position, init_rotation))
+    # Create driver for user controls
+    driver = veh.ChDriver()
+    vehicle.SetDriver(driver)
 
-# Create the SCM deformable terrain
-soil = veh.SoilModelSCM()
-soil.SetCohesion(1000)          # Pa
-soil.SetFrictionAngle(30 * chrono.CH_C_DEG_TO_RAD)
-soil.SetRelativeDensity(0.6)
-soil.SetThickness(0.5)          # Soil thickness in meters
+    # Simulation settings
+    app.SetTimestep(0.02)  # 50 FPS (real-time simulation)
+    app.SetRealTimeFactor(1.0)
 
-terrain = veh.DeformableTerrain(my_system, chrono.ChCoordsysD(), soil)
-terrain.SetSize(100, 100)       # Terrain size in meters
-terrain.SetVisualizationType(veh.VisualizationType_MESH)
-terrain.SetVisualizationSinkage(True)
+    # Main simulation loop
+    while app.Run():
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
 
-# Add a moving patch that follows the chassis
-initial_patch_pos = vehicle.GetChassis().GetPos()
-moving_patch = terrain.AddPatch(initial_patch_pos, 10, 10, 0, 0)
-moving_patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+        # Update driver inputs
+        key = app.GetKeyboard()
+        if key.keyIsPressed(irr.KEY_KEY_UP):
+            driver.SetThrottle(1.0)
+        elif key.keyIsPressed(irr.KEY_KEY_DOWN):
+            driver.SetThrottle(-1.0)
+        else:
+            driver.SetThrottle(0.0)
+        if key.keyIsPressed(irr.KEY_KEY_LEFT):
+            driver.SetSteering(-1.0)
+        elif key.keyIsPressed(irr.KEY_KEY_RIGHT):
+            driver.SetSteering(1.0)
+        else:
+            driver.SetSteering(0.0)
+        if key.keyIsPressed(irr.KEY_KEY_SPACE):
+            driver.SetBrake(1.0)
+        else:
+            driver.SetBrake(0.0)
 
-# Setup driver inputs
-driver = veh.ChIrrGuiDriver(app)
-vehicle.SetDriver(driver)
+        # Update moving patch position based on chassis location
+        chassis_pos = vehicle.GetChassis().GetPos()
+        moving_patch.SetPosition(chrono.ChVectorD(chassis_pos.x, chassis_pos.y, 0))
 
-# Simulation settings
-my_system.SetTimestepperType(chrono.ChTimestepper.Type_EXPLICIT)
-my_system.SetSolverMaxIterations(10)
-my_system.SetMaxPenetrationRecoverySpeed(5e3)
-my_system.SetTimeStep(0.02)  # 50 Hz
+        app.EndScene()
 
-# Simulation loop
-while app.GetDevice().run():
-    time = my_system.GetChTime()
-    
-    # Update driver inputs
-    driver.Synchronize(time)
-    
-    # Update vehicle state
-    vehicle.Synchronize(time, driver)
-    
-    # Update moving patch position (requires API support for patch position updates)
-    chassis_pos = vehicle.GetChassis().GetPos()
-    # Note: The following line assumes a method to set patch position, which may require API adjustments
-    moving_patch.SetPos(chassis_pos)
-    
-    # Advance simulation
-    my_system.DoStepDynamics()
-    
-    # Render
-    app.BeginScene()
-    app.DrawAll()
-    app.EndScene()
-    
-    # Maintain real-time
-    app.DoStep()
-
-# Close the application
-app.GetDevice().closeDevice()
+if __name__ == '__main__':
+    main()

@@ -52,7 +52,17 @@ vehicle1.SetChassisFixed(False)
 vehicle1.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle1.SetTireType(tire_model)
 vehicle1.SetTireStepSize(tire_step_size)
+
+vehicle2 = veh.BMW_E90()
+vehicle2.SetContactMethod(contact_method)
+vehicle2.SetChassisCollisionType(chassis_collision_type)
+vehicle2.SetChassisFixed(False)
+vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(10, 0, 0), chrono.QUNIT))
+vehicle2.SetTireType(tire_model)
+vehicle2.SetTireStepSize(tire_step_size)
+
 vehicle1.Initialize()
+vehicle2.Initialize()
 
 vehicle1.SetChassisVisualizationType(vis_type)
 vehicle1.SetSuspensionVisualizationType(vis_type)
@@ -60,7 +70,14 @@ vehicle1.SetSteeringVisualizationType(vis_type)
 vehicle1.SetWheelVisualizationType(vis_type)
 vehicle1.SetTireVisualizationType(vis_type)
 
+vehicle2.SetChassisVisualizationType(vis_type)
+vehicle2.SetSuspensionVisualizationType(vis_type)
+vehicle2.SetSteeringVisualizationType(vis_type)
+vehicle2.SetWheelVisualizationType(vis_type)
+vehicle2.SetTireVisualizationType(vis_type)
+
 vehicle1.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 patch_mat = chrono.ChContactMaterialNSC()
@@ -71,7 +88,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile("concrete.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -86,10 +103,11 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle1.GetVehicle())
-
+vis.AttachVehicle(vehicle2.GetVehicle())
 
 
 driver1 = veh.ChInteractiveDriverIRR(vis)
+driver2 = veh.ChInteractiveDriverIRR(vis)
 
 
 steering_time = 1.0  
@@ -98,64 +116,11 @@ braking_time = 0.3
 driver1.SetSteeringDelta(render_step_size / steering_time)
 driver1.SetThrottleDelta(render_step_size / throttle_time)
 driver1.SetBrakingDelta(render_step_size / braking_time)
-
-driver1.Initialize()
-
-
-vehicle2 = veh.BMW_E90()
-vehicle2.SetContactMethod(contact_method)
-vehicle2.SetChassisCollisionType(chassis_collision_type)
-vehicle2.SetChassisFixed(False)
-vehicle2.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
-vehicle2.SetTireType(tire_model)
-vehicle2.SetTireStepSize(tire_step_size)
-vehicle2.Initialize()
-
-vehicle2.SetChassisVisualizationType(vis_type)
-vehicle2.SetSuspensionVisualizationType(vis_type)
-vehicle2.SetSteeringVisualizationType(vis_type)
-vehicle2.SetWheelVisualizationType(vis_type)
-vehicle2.SetTireVisualizationType(vis_type)
-
-vehicle2.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
-
-
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-terrain = veh.RigidTerrain(vehicle2.GetSystem())
-patch = terrain.AddPatch(patch_mat, 
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
-    terrainLength, terrainWidth)
-
-patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
-terrain.Initialize()
-
-
-
-vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Sedan')
-vis.SetWindowSize(1280, 1024)
-vis.SetChaseCamera(trackPoint, 6.0, 0.5)
-vis.Initialize()
-vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis.AddLightDirectional()
-vis.AddSkyBox()
-vis.AttachVehicle(vehicle2.GetVehicle())
-
-
-
-driver2 = veh.ChInteractiveDriverIRR(vis)
-
-
-steering_time = 1.0  
-throttle_time = 1.0  
-braking_time = 0.3   
 driver2.SetSteeringDelta(render_step_size / steering_time)
 driver2.SetThrottleDelta(render_step_size / throttle_time)
 driver2.SetBrakingDelta(render_step_size / braking_time)
 
+driver1.Initialize()
 driver2.Initialize()
 
 

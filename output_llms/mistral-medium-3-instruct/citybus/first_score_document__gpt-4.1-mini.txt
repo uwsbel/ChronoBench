@@ -4,186 +4,152 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`, gravity set).  
+- **System Initialization:**  
+  The script does not explicitly create a `chrono.ChSystemSMC()` or `chrono.ChSystemNSC()` system object. Instead, it relies on `vehicle.GetSystem()` internally, which is acceptable for vehicle simulations since the vehicle internally manages the system.  
+  **No deduction here** as this is a common pattern in PyChrono vehicle simulations.
+
+- **Body Creation:**  
+  The vehicle is created via `citybus.CityBus()`, which is a high-level vehicle model. This is appropriate and complete for the vehicle setup.  
   **No deduction.**
 
-- **Terrain Creation:** Uses `veh.RigidTerrain(system)`, sets friction, restitution, material properties, loads mesh, initializes terrain with mesh, sets texture and scale.  
+- **Terrain Setup:**  
+  Terrain is created with `veh.RigidTerrain(vehicle.GetSystem())` and configured with friction, restitution, material properties, texture, and initialized.  
+  However, the call `terrain.SetPlotType(veh.Terrain::PLOT_TEXTURE, True)` uses incorrect syntax (`::` instead of `.`). Also, `veh.Terrain` is not the correct class for `SetPlotType`; it should be `veh.RigidTerrain.PLOT_TEXTURE` or similar.  
+  **Deduct 10 points** for incorrect configuration of terrain plotting.
+
+- **Driver Setup:**  
+  Driver is created with `veh.ChInteractiveDriverIRR(vehicle)`, deltas are set, and initialized.  
   **No deduction.**
 
-- **Vehicle Creation:** Creates `veh.CityBus(system)`, sets contact properties, initializes at position and rotation.  
-  **No deduction.**
+- **Visualization Setup:**  
+  The visualization app is created with `chronoirr.ChIrrApp(vehicle.GetSystem(), "CityBus Demo", chrono.ChVectorD(1280, 720))`.  
+  The third argument is supposed to be the window size, but the API expects two integers for window size, not a `ChVectorD`. The correct call should be `app = chronoirr.ChIrrApp(vehicle.GetSystem(), "CityBus Demo", 1280, 720)` or use `SetWindowSize` method.  
+  Also, `app.SetCameraVertical(chrono.ChCameraVertical_DIRTYZ)` is incorrect; the correct enum is `chrono.ChCameraVertical_DIR_Z` (note the underscore and spelling).  
+  **Deduct 15 points** for incorrect visualization initialization and camera setup.
 
-- **Tire Setup:** Creates a `veh.ChPacejkaTire` and assigns it to the bus.  
-  **No deduction.**
+- **Simulation Loop:**  
+  The loop runs while `app.GetDevice().run()`, which is correct.  
+  However, inside the loop, the order of calls is problematic:  
+  - `app.BeginScene()`  
+  - `app.DrawAll()` (should be `app.DrawAll()` or `app.Render()`? The API uses `Render()`)  
+  - `app.DoStepDynamics(step_size)`  
+  - `app.EndScene()`  
+  Then after synchronization calls, it calls `app.GetSystem().DoStepDynamics(step_size)` and `app.DoStepDynamics(step_size)` again conditionally.  
+  This means `DoStepDynamics` is called multiple times per loop iteration, which is incorrect and will cause simulation errors.  
+  **Deduct 15 points** for incorrect simulation stepping logic.
 
-- **Visualization:** Uses `chronoirr.ChVisualSystemIrrlicht()`, attaches system, sets window size and title, initializes, adds logo, skybox, camera, and sets camera follow.  
-  **No deduction.**
+- **Missing Initialization of Chrono Data Path:**  
+  The script does not set the Chrono data path via `chrono.SetChronoDataPath()`, which is important for loading textures and assets.  
+  **Deduct 5 points** for minor omission.
 
-- **Driver Setup:** Creates `veh.ChDriver(system)`, sets steering, throttle, braking deltas, assigns to bus.  
-  **No deduction.**
-
-- **Simulation Loop:** Proper loop with `vis.Run()`, scene begin/render/end, input handling, driver control updates, and system step.  
-  **No deduction.**
-
-- **Additional Details:**  
-  - The bus chassis collision is disabled (`SetCollide(False)`), but visual mesh is loaded for visualization.  
-  - The terrain is initialized with a mesh, which is correct.  
-  - The bus is initialized with position and rotation.  
-  - The tire is assigned correctly.  
-
-**Minor omission:**  
-- The bus's `Initialize()` method is called with position and rotation, but the API documentation for `veh.CityBus` typically expects `Initialize(chrono.ChCoordsysD)` or `Initialize(chrono.ChVectorD, chrono.ChQuaternionD)`. The code uses separate position and rotation arguments, which is acceptable but less common.  
-- The visual mesh for the bus chassis is loaded manually by creating a new `ChTriangleMeshConnected()` and loading the mesh, but this is not a typical or recommended way to add visual shapes to a body. Usually, visual shapes are added via `AddVisualShape()` or the vehicle model already includes visuals.  
-- The terrain is initialized with a mesh, but no collision model or contact material is explicitly created or assigned to the terrain patch. The `SetContactMaterialProperties()` is called on terrain, which is correct for `RigidTerrain`.  
-- The driver is created with `veh.ChDriver(system)`, but the API documentation and examples usually show a more specialized driver class (e.g., `ChIrrGuiDriver` or a custom driver). This is acceptable but minimal.
-
-**Deduction:** Minor omissions in vehicle visual mesh setup and driver usage.  
-**Deduct 5 points.**
+**Total Completeness Deduction: 10 + 15 + 15 + 5 = 45 points**  
+Since max is 40, cap deduction at 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **System gravity set correctly:** `system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))` is correct.
+- **Incorrect use of `veh.TireModelType::TMEASY`:**  
+  Python uses dot notation, not `::`. It should be `veh.TireModelType.TMEASY`.  
+  **Deduct 15 points** for incorrect API usage.
 
-- **Terrain friction, restitution, and material properties:** Set correctly.
+- **Incorrect use of `veh.Terrain::PLOT_TEXTURE`:**  
+  Same as above, should be `veh.RigidTerrain.PLOT_TEXTURE` or similar.  
+  Already counted in completeness, but also correctness. Deduct 15 points here as well.
 
-- **Terrain mesh loading:** `LoadWavefrontMesh("PATH_TO_TERRAIN_MESH.obj", False, True)` is correct (second arg: no flip, third arg: compute normals).
+- **Incorrect `chrono.ChCameraVertical_DIRTYZ`:**  
+  The correct enum is `chrono.ChCameraVertical_DIR_Z`.  
+  **Deduct 10 points** for incorrect enum usage.
 
-- **Terrain initialization:** `terrain.Initialize(terrain_mesh, 0, chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))` is consistent with API.
+- **Calling `app.DoStepDynamics(step_size)` and `app.GetSystem().DoStepDynamics(step_size)` both:**  
+  This is redundant and incorrect; simulation stepping should be done once per loop iteration.  
+  **Deduct 15 points** for logical error in simulation stepping.
 
-- **Bus initialization:** `bus.Initialize(initLoc, initRot)` is acceptable.
+- **`vehicle.GetSystem().Set_G_acc(chrono.ChVectorD(0, 0, -9.81,))`:**  
+  The trailing comma inside `ChVectorD` is unnecessary but harmless. No deduction.
 
-- **Tire assignment:** `bus.SetTireType(tire)` is correct.
+- **`terrain.Initialize(0, 0, 0, 0)`:**  
+  The `Initialize` method for `RigidTerrain` typically takes no arguments or specific ones; passing four zeros is suspicious and likely incorrect.  
+  **Deduct 10 points** for incorrect method call.
 
-- **Visualization:**  
-  - `vis.AddCamera(chrono.ChVectorD(5, 0, 2), chrono.ChVectorD(0, 0, 0))` is used, but API documentation shows `AddCamera(position)` with a single argument. The two-argument version is not documented. This could be an error or misuse.  
-  - `vis.SetCameraFollow(bus.GetChassisBody(), chrono.ChVectorD(0, -5, 2))` is correct.
-
-- **Bus chassis collision disabled:** `bus.GetChassisBody().SetCollide(False)` is acceptable if collision is not desired.
-
-- **Visual mesh loading on chassis:**  
-  - `bus.GetChassisBody().GetVisualModel().AddTriangleMesh(chrono.ChTriangleMeshConnected())` followed by loading the mesh is unusual and likely incorrect.  
-  - The API suggests adding visual shapes via `AddVisualShape()`, not directly manipulating the visual model's mesh list.  
-  - This could cause issues or unexpected behavior.
-
-- **Driver usage:**  
-  - `veh.ChDriver(system)` is a base class; usually, a derived class or a more specialized driver is used.  
-  - Setting steering, throttle, braking deltas and then setting driver inputs is logical.
-
-- **Simulation loop:** Correct usage of `vis.Run()`, `BeginScene()`, `Render()`, `EndScene()`, and `system.DoStepDynamics(time_step)`.
-
-- **Bus Synchronize:** Called after `DoStepDynamics()`, but usually `Synchronize()` is called before `DoStepDynamics()` to update the vehicle state based on driver inputs and terrain. This is a logical error.
-
-**Deduction:**  
-- Incorrect or undocumented use of `vis.AddCamera()` with two arguments: **-15 points** (significant API misuse).  
-- Incorrect way of adding visual mesh to chassis body: **-15 points** (significant API misuse).  
-- Logical error in calling `bus.Synchronize(time_step)` after `DoStepDynamics()` instead of before: **-10 points**.
-
-Total correctness deduction: 15 + 15 + 10 = 40 points. However, only 30 points are allocated for correctness, so cap at **-30 points**.
+**Total Correctness Deduction: 15 + 15 + 10 + 15 + 10 = 65 points**  
+Cap at 30 points max.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- Code is mostly readable with meaningful variable names (`system`, `terrain`, `bus`, `tire`, `driver`, `vis`).
+- The code lacks comments explaining the purpose of blocks or variables.  
+- Variable names like `step_size2` and `render_steps` are confusing and redundant.  
+- Formatting is inconsistent (extra blank lines, inconsistent spacing).  
+- Some variables are unused or redundant (e.g., `step_size2 = step_size` serves no purpose).  
+- Imports include `pychrono.vehicle.citybus as citybus` but no aliasing or explanation.  
+- No docstrings or comments describing the simulation setup.
 
-- Formatting is consistent.
-
-- However, there are **no comments** explaining the purpose of code blocks or parameters.
-
-- Some variable names could be more descriptive (e.g., `initLoc`, `initRot` are fine but could be `init_pos`, `init_rot`).
-
-- The code could be structured into functions or classes for better modularity.
-
-- Minor inconsistency: `chrono.ChVectorD` vs `chrono.ChVector3d` (the API uses `ChVector3d` in examples).
-
-**Deduction:**  
-- Lack of comments: **-5 points**.  
-- Minor code structure/readability issues: **-3 points**.
-
-Total: **-8 points**.
+**Deduct 8 points** for poor readability, lack of comments, and confusing variable naming.
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations.
+- The simulation loop calls `DoStepDynamics` multiple times per iteration unnecessarily.  
+- The calculation of `render_steps = int(step_size2 / step_size)` is always 1, making the modulo check redundant.  
+- The synchronization calls are done after stepping, which is acceptable but could be better ordered.  
+- No use of `SetTryRealtime(True)` is good, but the redundant stepping negates efficiency.
 
-- The visual mesh loading inside the simulation loop is avoided (good).
-
-- The driver input handling is minimal but acceptable.
-
-- However, the manual creation and loading of visual mesh on chassis is inefficient compared to using built-in vehicle visuals.
-
-- The `bus.Synchronize()` call after `DoStepDynamics()` is inefficient and logically incorrect.
-
-**Deduction:**  
-- Inefficient visual mesh loading approach: **-5 points**.  
-- Missing optimization by calling `Synchronize()` before stepping: **-3 points**.
-
-Total: **-8 points**.
+**Deduct 5 points** for redundant simulation stepping and inefficient loop structure.
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling for file loading (mesh, texture, tire data).
+- No error handling or try-except blocks to catch exceptions during initialization or simulation.  
+- No checks for device availability or resource loading success.  
+- No handling of edge cases like zero or negative step sizes, or invalid parameters.
 
-- No checks for successful initialization.
-
-- No try-except blocks or warnings for missing files or invalid inputs.
-
-- No handling of edge cases like invalid key presses or driver inputs.
-
-**Deduction:**  
-- Lack of basic error handling: **-5 points**.
+**Deduct 5 points** for lack of any error handling or robustness measures.
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system initialized properly.
+- Visualization setup is incomplete and incorrect: wrong window size argument, incorrect camera enum.  
+- No call to `app.Initialize()` or `app.AddTypicalLights()`, which are important for proper visualization.  
+- `app.SetSkyBox()` is called but no skybox texture is specified; this may default but is incomplete.  
+- No camera positioning beyond chase camera, no lighting setup.
 
-- Window size and title set.
-
-- Logo and skybox added.
-
-- Camera added, but with incorrect API usage (two arguments).
-
-- No lighting added (`vis.AddTypicalLights()` missing), which is important for good visualization.
-
-- Camera follow set correctly.
-
-**Deduction:**  
-- Incorrect `AddCamera` usage: already counted in correctness, no double deduction here.  
-- Missing typical lights: **-2 points**.
+**Deduct 5 points** for inadequate and incorrect visualization setup.
 
 ---
 
-### Summary of deductions:
+### Summary of Deductions
 
-| Criterion                   | Deduction Points |
-|-----------------------------|------------------|
-| Completeness                | 5                |
-| Correctness                | 30 (capped)      |
-| Code Quality               | 8                |
-| Efficiency                 | 8                |
-| Error Handling & Robustness| 5                |
-| Visualization Tools        | 2                |
-| **Total Deductions**       | **58**           |
-
----
-
-### Final score:
-
-100 - 58 = **42**
+| Criterion                    | Deduction       |
+|-----------------------------|-----------------|
+| Completeness                | 40 (max)        |
+| Correctness                | 30 (max)        |
+| Code Quality               | 8               |
+| Efficiency                 | 5               |
+| Error Handling & Robustness| 5               |
+| Visualization Tools        | 5               |
+| **Total Deduction**         | **93**          |
 
 ---
 
-**Final score:** [[42]]
+### Final Score Calculation
+
+Max score = 100  
+Deductions = 93  
+**Final score = 7**
 
 ---
 
-**Explanation:**  
-The script includes all essential components but has significant API misuse in visualization (incorrect camera addition and improper visual mesh loading), logical errors in the simulation loop order, and lacks error handling and comments. Minor inefficiencies and missing lighting reduce the visualization quality. Overall, the script is functional but requires corrections and improvements for correctness, robustness, and clarity.
+### Explanation
+
+The script attempts to set up a vehicle simulation with terrain and visualization, but contains multiple critical API misuse errors (incorrect syntax, wrong enums), incorrect simulation stepping logic (multiple calls to `DoStepDynamics` per loop), and incomplete visualization setup. The code quality is poor with no comments and confusing variable usage. There is no error handling, and the terrain initialization is suspicious. These issues severely impact the correctness and usability of the simulation.
+
+---
+
+**Final score:**
+
+[[7]]

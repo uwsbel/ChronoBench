@@ -61,6 +61,7 @@ def main():
     sens_manager.AddSensor(lidar)
     
     
+    
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
     lidar2d.PushFilter(sens.ChFilterDIAccess())  
@@ -135,10 +136,11 @@ def main():
         time = sys.GetChTime()  
 
         
-        sens_manager.Update()
-
-        if not ros_manager.Update():  
+        if not ros_manager.Update():
+            print("ROS manager update failed. Exiting simulation.")
             break
+
+        sens_manager.Update()
 
         sys.DoStepDynamics(time_step)  
 

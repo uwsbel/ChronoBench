@@ -90,7 +90,14 @@ driver_inputs = [
 ]
 
 
-driver = veh.ChDataDriver(driver_inputs)
+driver = veh.ChDataDriver(vehicle.GetVehicle())
+driver.SetDriverInputs(driver_inputs)
+
+
+print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+
+
+render_steps = math.ceil(render_step_size / step_size)
 
 
 realtime_timer = chrono.ChRealtimeStepTimer()
@@ -101,7 +108,7 @@ while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % math.ceil(render_step_size / step_size) == 0) :
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -122,6 +129,3 @@ while vis.Run() :
     step_number += 1
     
     realtime_timer.Spin(step_size)
-
-    
-    print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())

@@ -1,53 +1,53 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Initialize the PyChrono system
+# Create the simulation system
 system = chrono.ChSystemNSC()
 
 # Create the ground body
 ground = chrono.ChBody()
-ground.SetBodyFixed(True)
+ground.SetFixed(True)
 system.Add(ground)
 
 # Create the mass body
-mass = chrono.ChBody()
-mass.SetMass(1.0)
-mass.SetInertiaXX(chrono.ChVector(1, 1, 1))
-mass.SetPos(chrono.ChVector(0, 1, 0))  # Position above the ground
-system.Add(mass)
+mass_body = chrono.ChBody()
+mass_body.SetMass(1)
+mass_body.SetInertiaXX(chrono.ChVectorD(0.2, 0.2, 0.2))  # Arbitrary inertia
+mass_body.SetPos(chrono.ChVectorD(0, -1, 0))
+
+# Add a box visualization for the mass
+box_shape = chrono.ChVisualShapeBox(chrono.ChVectorD(0.2, 0.2, 0.2))
+box_shape.SetColor(chrono.ChColor(0.6, 0, 0))  # Red color
+mass_body.AddVisualShape(box_shape)
+system.Add(mass_body)
 
 # Create the TSDA link (spring-damper)
 tsda = chrono.ChLinkTSDA()
-# Connect ground and mass with the spring-damper
-tsda.Initialize(ground, mass, True, chrono.ChVector(0, 0, 0), chrono.ChVector(0, 0, 0))
-# Set linear spring-damper parameters (example values as defaults)
+# Initialize with points in absolute coordinates: ground at (0,0,0), mass at (0,-1,0)
+tsda.Initialize(ground, mass_body, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, -1, 0), True)
+# Set linear spring-damper parameters (default values)
 tsda.SetSpringK(100)  # Spring stiffness
-tsda.SetDamperR(10)   # Damping coefficient
+tsda.SetSpringC(5)    # Damping coefficient
+# Add a spring visual shape
+spring_vis = chrono.ChVisualShapeSpring(0.05, 10)
+tsda.AddVisualShape(spring_vis)
 system.Add(tsda)
 
-# Add visual shapes
-# Mass visual shape (box)
-mass_shape = chrono.ChVisualShapeBox(0.5, 0.5, 0.5)
-mass.AddVisualShape(mass_shape)
-
-# Spring visual shape
-spring_shape = chrono.ChVisualShapeSpring(0.05, 100, 15)
-tsda.AddVisualShape(spring_shape)
-
-# Create Irrlicht visualization application
-application = chronoirr.ChIrrApp(system, 'Mass-Spring-Damper Simulation', chronoirr.dimension2du(1024, 768))
-
-# Set up Irrlicht camera and lights
-application.AddTypicalLights()
-application.AddCamera(chronoirr.vector3df(0, 3, -6), chronoirr.vector3df(0, 1, 0))
-
-# Bind and update all visualization assets
-application.AssetBindAll()
-application.AssetUpdateAll()
+# Set up Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Mass-Spring-Damper System')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, -5), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
 
 # Simulation loop
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.EndScene()
-    system.DoStepDynamics(chrono.ChTimeStep(1e-3))
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    chronoirr.drawAll(vis)
+    system.DoStepDynamics(0.01)
+    vis.EndScene()

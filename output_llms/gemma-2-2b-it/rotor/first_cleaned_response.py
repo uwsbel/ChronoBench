@@ -1,74 +1,70 @@
-import pychrono as chrono
+import pychrono as pchrono
 import pychrono.core as core
 import pychrono.physics as physics
 import pychrono.visualization as visualization
-import pychrono.fem as fem
-import numpy as np
+import pychrono.irrlicht as irrlicht
 
 
-chrono.init()
+pchrono.init()
 
 
-sim = chrono.Simulation()
-
-sim.set_time_step(0.01)  
-sim.set_duration(10)  
+world = pchrono.World()
 
 
-
-beam_length = 1.0
-beam_width = 0.1
-beam_thickness = 0.01
-beam_material = "Steel"  
-beam_density = 7850.0  
+rotor_body = pchrono.RigidBody(world)
+rotor_body.mass = 1.0  
+rotor_body.inertia = pchrono.Vector3(0.0, 0.0, 0.0)  
+rotor_body.position = pchrono.Vector3(0.0, 0.0, 0.0)  
 
 
-beam = fem.Beam(
-    name="Jeffcott Rotor Beam",
-    length=beam_length,
-    width=beam_width,
-    thickness=beam_thickness,
-    material=beam_material,
-    density=beam_density
+beam = pchrono.Beam(world)
+beam.length = 0.5  
+beam.width = 0.05  
+beam.material = pchrono.Material("beam")
+beam.inertia = pchrono.Vector3(0.0, 0.0, 0.0)  
+beam.mass = 0.1  
+beam.position = pchrono.Vector3(0.0, 0.0, 0.0)  
+
+
+flywheel = pchrono.RigidBody(world)
+flywheel.mass = 0.5  
+flywheel.inertia = pchrono.Vector3(0.0, 0.0, 0.0)  
+flywheel.position = pchrono.Vector3(0.25, 0.0, 0.0)  
+flywheel.rotation = pchrono.Vector3(0.0, 0.0, 0.0)  
+
+
+motor = pchrono.Motor(world)
+motor.torque = 1.0  
+motor.position = pchrono.Vector3(0.0, 0.0, 0.0)  
+
+
+rotor_force = pchrono.Force(rotor_body, pchrono.Vector3(0.0, 0.0, 1.0))  
+beam_force = pchrono.Force(beam, pchrono.Vector3(0.0, 0.0, 1.0))  
+
+
+beam.IGA_properties = pchrono.IGAProperties(
+    element_type="Beam",
+    boundary_type="Free",
+    mesh_type="Quad",
+    solver_type="Newton",
+    damping_factor=0.1,
 )
-beam.set_geometry()
 
 
-flywheel = fem.Rotor(
-    name="Flywheel",
-    radius=0.1,
-    mass=0.5,  
-    material="Steel",
-    density=7850.0
-)
-flywheel.set_geometry()
+world.add_body(rotor_body)
+world.add_body(flywheel)
+world.add_body(motor)
+world.add_body(beam)
 
 
-motor = fem.Motor(
-    name="Motor",
-    torque=10.0,  
-    speed=100.0,  
-    power=100.0  
-)
-motor.set_geometry()
+visualization.init()
+visualization.add_mesh(beam, "beam_mesh")
+visualization.add_mesh(flywheel, "flywheel_mesh")
+visualization.add_mesh(rotor_body, "rotor_body_mesh")
 
 
-beam.attach_object(flywheel)
+irrlicht_window = irrlicht.IrrlichtWindow()
+irrlicht_window.show()
 
 
-motor.connect_to_object(beam)
-
-
-sim.add_object(beam)
-sim.add_object(flywheel)
-sim.add_object(motor)
-
-
-vis = visualization.Visualization()
-vis.add_mesh(beam)
-vis.add_mesh(flywheel)
-vis.add_mesh(motor)
-vis.run()
-
-
-sim.run()
+pchrono.run(world)

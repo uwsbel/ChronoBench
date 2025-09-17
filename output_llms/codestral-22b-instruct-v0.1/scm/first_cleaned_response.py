@@ -4,53 +4,45 @@ import pychrono.vehicle as veh
 import pychrono.scmdeformable as scm
 
 
-chrono.SetChronoDataPath('path_to_chrono_data_folder')
-system = chrono.ChSystemNSC()
+chrono.SetChronoDataPath('PYCHRONO_DATA_DIR')
 
 
-vehicle = veh.HMMWV(system)
-vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
-vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
-vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+my_system = chrono.ChSystemNSC()
 
 
-terrain = scm.SCMDeformableTerrain(system)
-terrain.SetSoilParameters(2e6,  
-                          0.3,  
-                          0.1,  
-                          0.02, 
-                          1.5,  
-                          30,   
-                          0.01, 
-                          0.01) 
+hmmwv = veh.HMMWV()
+hmmwv.Initialize(my_system)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetChassisCollisionType(chrono.ChMaterialSurface.SURFACE_CAR)
+hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetTireType(veh.TireModelType_RIGID)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+hmmwv.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+hmmwv.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+
+terrain = scm.SCMDeformableTerrain(my_system)
+terrain.SetSoilParameters(young_modulus=1e8, poisson_ratio=0.3, cohesion=100, friction_angle=30)
 terrain.SetPlotType(scm.SCMDeformableTerrain.PLOT_SINKAGE, 0, 2)
-terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
-                   chrono.ChVectorD(0, 0, 1),
-                   chrono.ChVectorD(100, 100, 10),
-                   chrono.ChVectorD(0.01, 0.01, 0.01))
+terrain.EnableMovingPatch(True)
+terrain.SetMovingPatchActive(True)
+terrain.SetMovingPatchCenter(hmmwv.GetChassisBody())
 
 
-terrain.EnableMovingPatch(vehicle.GetChassisBody(), 2.5)
-
-
-driver = veh.ChVehicleDriver(vehicle)
+driver = veh.ChDriver(hmmwv)
 driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
 driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
 driver.Initialize()
 
 
-app = irr.ChIrrApp(system, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(1024, 768))
+app = irr.ChIrrApp(my_system, 'HMMWV on SCM Deformable Terrain', irr.dimension2du(1024, 768))
 app.AddTypicalLogo()
 app.AddTypicalSky()
 app.AddTypicalLights()
 app.AddTypicalCamera(irr.vector3df(0, 3, -6))
 app.AddTypicalEnvironment()
-app.AssetBindAll()
-app.AssetUpdateAll()
+app.AddLightWithShadow(irr.vector3df(3, 10, -10), irr.vector3df(0, 0, 0), 10, 2, 10, 40, 512)
 app.SetTimestep(0.02)
-app.SetTryRealtime(True)
-app.SetFrameRate(50)
 
 
 while app.GetDevice().run():
@@ -58,3 +50,4 @@ while app.GetDevice().run():
     app.DrawAll()
     app.DoStep()
     app.EndScene()
+    my_system.DoStepDynamics(0.02)

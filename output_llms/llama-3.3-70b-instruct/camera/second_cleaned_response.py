@@ -51,14 +51,12 @@ def main():
     offset_pose = chrono.ChFramed(chrono.ChVector3d(-7, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
 
     
-    update_rate = 30
-    image_width = 960
-    image_height = 480
+    update_rate = 30  
+    image_width = 960  
+    image_height = 480  
     fov = 1.408  
-    lag = 0
-    exposure_time = 0
-    noise_model = "CONST_NORMAL"
-
+    lag = 0  
+    exposure_time = 0  
     cam = sens.ChCameraSensor(
         mesh_body,              
         update_rate,            
@@ -75,6 +73,7 @@ def main():
     
     
     
+    noise_model = "CONST_NORMAL"  
     if noise_model == "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  
     elif noise_model == "PIXEL_DEPENDENT":
@@ -123,8 +122,8 @@ def main():
     orbit_radius = 10  
     orbit_rate = 0.1   
     ch_time = 0.0      
-    end_time = 20.0
-    step_size = 1e-3
+    step_size = 1e-3  
+    end_time = 20.0  
 
     t1 = time.time()  
 

@@ -1,91 +1,75 @@
-import pychrono as chrono
-import pychrono.vehicle as vehicle
-import pychrono_ros as ros
+importchrono
 import rospy
+from std_msgs.msg import Float32MultiArray
+from sensor_msgs.msg import JointState
 
-def initialize_simulation():
-    
-    system = chrono.ChSystemNSC()
-    system.SetSolverType(chrono.ChSolverType.SOLVER_PSSOR)
-    system.SetMaxIterSolverSpeed(100)
-    system.SetToleranceSolverSpeed(1e-6)
-    return system
 
-def create_hmmwv_vehicle(system):
-    
-    vehicle_path = vehicle.GetVehicleDataPath()
-    vehicle_params = vehicle.HMMWVParams()
-    vehicle_params.vehicle_type = "HMMWV"
-    vehicle_params.contact_method = "CHRONO"
-    vehicle_params.engine_type = "SI"
-    vehicle_params.tire_model = "TME"
-    
-    vehicle_hmmwv = vehicle.HMMWV(vehicle_params)
-    vehicle_hmmwv.SetChassisPos(chrono.ChVectorD(0, 0, 1))
-    vehicle_hmmwv.SetChassisRot(chrono.ChQuaternionD(1, 0, 0, 0))
-    vehicle_hmmwv.Initialize(system, vehicle_path, True, True)
-    return vehicle_hmmwv
+chrono.SetChronoDataPath()
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-def setup_terrain(system):
-    
-    terrain = vehicle.ChTerrain()
-    terrain.SetFriction(0.8)
-    terrain.SetRestitution(0.3)
-    terrain.SetHeight(0)
-    terrain.SetSize(100, 100)
-    terrain.SetType(vehicle.ChTerrainType.TERRAIN_TYPE_PLANE)
-    terrain.Initialize(system, vehicle.GetVehicleDataPath())
-    return terrain
 
-def initialize_driver(vehicle):
-    
-    driver = vehicle.ChDriver()
-    driver.SetSteering(0)
-    driver.SetThrottle(0.5)
-    driver.SetBraking(0)
-    vehicle.SetDriver(driver)
-    return driver
+hmmwv = chrono.ChHMMWV()
+hmmwv.SetContactMethod(chrono.CHRONO>Contact method)  
+hmmwv.SetEngineType(chrono.ChHMMWVEngineType_SIMPLE_MAP)  
+hmmwv.SetTireType(chrono.ChTireModelType_PACEJKA)  
+hmmwv.Initialize()
 
-def ros_integration():
-    
-    rospy.init_node('chrono_simulation', anonymous=True)
-    ros_manager = ros.ChRosManager()
-    ros_manager.RegisterHandler(ros.ChRosHandlerClock())
-    ros_manager.RegisterHandler(ros.ChRosHandlerDriver())
-    ros_manager.RegisterHandler(ros.ChRosHandlerVehicleState())
-    return ros_manager
 
-def simulation_loop(system, vehicle, terrain, driver, ros_manager):
-    
-    while not rospy.is_shutdown():
-        
-        ros_manager.Synchronize()
-        
-        
-        driver.Update()
-        
-        
-        system.DoStepDynamics(chrono.ChTimeStep(0.001))
-        
-        
-        ros_manager.PublishVehicleState(vehicle)
-        
-        
-        print("Simulation time: ", system.GetChTime())
-        print("Vehicle speed: ", vehicle.GetSpeed())
+terrain = chrono.ChTerrain()
+terrain.SetSize(100, 100)  
+terrain.SetFriction(0.8)  
+terrain.SetRestitution(0.3)  
+material = chrono.ChMaterialSurface()
+material.SetFriction(0.8)
+material.SetRestitution(0.3)
+terrain.SetMaterial(material)
+terrain.Initialize()
+system.Add(terrain)
 
-def main():
-    system = initialize_simulation()
-    vehicle = create_hmmwv_vehicle(system)
-    terrain = setup_terrain(system)
-    driver = initialize_driver(vehicle)
-    ros_manager = ros_integration()
-    
-    simulation_loop(system, vehicle, terrain, driver, ros_manager)
-    
-    
-    ros_manager.UnregisterHandlers()
-    rospy.signal_shutdown("Simulation completed")
 
-if __name__ == "__main__":
-    main()
+system.Add(hmmwv.GetChassis())
+
+
+driver = chrono.ChDriver()
+driver.Initialize(hmmwv.GetDriverInputs())
+hmmwv.SetDriver(driver)
+
+
+rospy.init_node('chrono_simulation')
+ros_manager = chrono_ros.ChRosManager(system)
+ros_manager.Initialize()
+
+
+pub_state = rospy.Publisher('vehicle_state', JointState, queue_size=10)
+sub_clock = rospy.Subscriber('clock', rospy.Time, lambda msg: ros_manager.SynchTime(msg))
+sub_driver = rospy.Subscriber('driver_inputs', Float32MultiArray, lambda msg: on_driver_inputs(msg))
+
+
+step_size = 0.001
+time = 0.0
+
+while not rospy.is_shutdown():
+    
+    system.DoStepDynamics(step_size)
+    
+    
+    driver.Synchronize(time)
+    
+    
+    state_msg = JointState()
+    state_msg.header.stamp = rospy.Time.now()
+    state_msg.position = [hmmwv.GetChassis().GetPos().x, hmmwv.GetChassis().GetPos().y, hmmwv.GetChassis().GetPos().z]
+    pub_state.publish(state_msg)
+    
+    
+    ros_manager.Synch()
+    
+    
+    rospy.sleep(step_size)
+    
+    time += step_size
+
+
+ros_manager.Shutdown()
+rospy.signal_shutdown('Simulation finished')

@@ -19,7 +19,7 @@ terrain.SetPlane(chrono.ChVector3d(0, 0, 1), -1)
 terrain.SetLength(20)
 terrain.SetWidth(20)
 terrain.SetMeshResolution(50)
-terrain.SetSoilParameters(1500, 1000, 0.8, 0.5, 1.5, 0.5)
+terrain.SetSoilParameters(1500, 1000, 0.8, 0.5, 1.5)
 
 
 rover = viper.Viper(system)  
@@ -36,7 +36,7 @@ vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(system)
 vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
 vis.SetWindowSize(1280, 720)
-vis.SetWindowTitle('Viper rover - Deformable terrain')
+vis.SetWindowTitle('Viper rover - Rigid terrain')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()
@@ -52,7 +52,7 @@ time_step = 1e-3
 
 
 time = 0
-steering = 0
+steering = 0  
 while vis.Run():
     time += time_step  
 

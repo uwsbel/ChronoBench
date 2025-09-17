@@ -46,6 +46,7 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -71,15 +72,16 @@ terrain.Initialize()
 
 
 box_body = chrono.ChBody()
-box_body.SetBodyFixed(True)
-box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))
-box_body.SetCollide(True)
+box_body.SetPos(chrono.ChVector3d(5, 0, 0.1))  
+box_body.SetBodyFixed(True)  
 box_body.GetCollisionModel().ClearModel()
 box_body.GetCollisionModel().AddBox(0.25, 2.5, 0.1)  
 box_body.GetCollisionModel().BuildModel()
 box_body.GetVisualModel().ClearModel()
-box_body.GetVisualModel().AddBox(0.5, 5, 0.2)
-box_body.GetVisualModel().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+box_body.GetVisualModel().AddBox(0.5, 5, 0.2)  
+box_body.GetVisualModel().BuildModel()
+box_body.SetCollide(True)
+box_body.SetMaterialSurface(patch_mat)  
 vehicle.GetSystem().Add(box_body)
 
 

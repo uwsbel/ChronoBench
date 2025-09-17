@@ -1,84 +1,76 @@
-import chrono
-import chrono.vehicle as veh
-import chrono.ros as ros
-import rospy
-from std_msgs.msg import Float32
-from chrono_vehicle_msgs.msg import VehicleState
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.ros as crost
+import pychrono.irrlicht as chronoirr
 
 # Initialize the PyChrono environment
-chrono.SetChronoDataPath('path/to/chrono/data')
+chrono.SetChronoDataPath('path/to/chrono/data')  # Set the path to Chrono data
 
-# Create a system
+# Create the physical system
 system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
 
-# Set the time step for the simulation
-time_step = 0.01
-system.SetTimestepperType(chrono.ChTimestepperType.Fixed)
-
-# Create the HMMWV vehicle
+# Create the vehicle
 vehicle = veh.HMMWV()
-vehicle.SetChassisBodyFix(False)
-vehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
-vehicle.SetInitOrientation(chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 0, 1)))
-vehicle.SetTireType(veh.TireModelType::TIRE_MODEL_FIALA)
-vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
-vehicle.SetEngineType(veh.EngineModelType::ENGINE_MODEL_MAP)
+vehicle.SetChassisBodyVisualizationType(veh.ChVisualizationType::PRISM)
+vehicle.SetChassisBodyCollisionType(veh.ChCollisionType::MESH)
 
-# Add the vehicle to the system
-system.Add(vehicle.GetVehicle())
+# Set the contact method
+vehicle.SetContactMethod(chrono.ChContactMethod::NSC)
+
+# Set the engine type
+vehicle.SetEngineType(veh.ChVehicleEngineType::FUEL_INJECTION)
+
+# Set the tire model
+vehicle.SetTireModel(veh.ChTireModelType::TMEASY)
+
+# Initialize the vehicle in the system
+vehicle.Initialize(system)
+
+# Set the initial position and orientation of the vehicle
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisOrientation(chrono.Q_from_AngAxis(chrono.ChMatrix33D(1)))
 
 # Create the terrain
 terrain = veh.RigidTerrain(system)
-terrain.Initialize(100, 100, 0.1, "/terrain/materials/flat.xml")
-terrain.GetMaterialSurface().SetFriction(0.9)
-terrain.GetMaterialSurface().SetRestitution(0.1)
-terrain.GetMaterialSurface().SetCompliance(0.001)
-terrain.GetMaterialSurface().SetComplianceT(0.001)
-terrain.GetMaterialSurface().SetDampingF(0.2)
-terrain.GetMaterialSurface().SetDampingT(0.2)
-terrain.GetMaterialSurface().SetRollingFriction(0.02)
+terrain.SetContactMaterial(0.8, 0.2, 0.01)  # friction, restitution, compliance
 
-# Add the terrain to the system
-system.Add(terrain.GetGroundBody())
+# Initialize the terrain in the system
+terrain.Initialize()
 
-# Initialize the driver system
-driver = veh.Driver()
-driver.Initialize(vehicle, system)
+# Create the driver system
+driver = veh.ChDriver()
+driver.Initialize(vehicle)
 
-# Initialize ROS
-ros_manager = ros.ChRosManager(system)
-ros_manager.AddClockSynchronizationHandler()
-ros_manager.AddDriverInputHandler(driver)
-ros_manager.AddVehicleStateHandler(vehicle)
+# Set up ROS integration
+ros_manager = crost.ChRosManager()
+ros_manager.Initialize(system)
 
-# ROS node initialization
-rospy.init_node('chrono_vehicle_simulation', anonymous=True)
+# Register ROS handlers
+ros_manager.RegisterClockHandler()
+ros_manager.RegisterDriverInputHandler(driver)
+ros_manager.RegisterVehicleStateHandler(vehicle)
 
-# ROS publishers
-vehicle_state_pub = rospy.Publisher('/vehicle_state', VehicleState, queue_size=10)
+# Create the visualization system
+visualization = chronoirr.ChIrrApp()
+visualization.AddTypicalSky()
+visualization.AddTypicalLogo()
+visualization.AddLightWithShadow(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.ChVectorD(1, -1, 1), 1, 1, 10, 40, 512, 512)
+visualization.AddLight(chrono.ChVectorD(0.5, 0.5, 1.0), chrono.ChVectorD(0, 0, 1), 1, 1, 1, chronoirr.irrlicht.ESLRSM)
+visualization.AddLight(chrono.ChVectorD(-1.0, -1.0, -1.0), chrono.ChVectorD(0, 0, -1), 1, 1, 1, chronoirr.irrlicht.ESLRSM)
+visualization.AddTypicalCamera(chrono.ChVectorD(0.0, 0.0, 2.0), chrono.ChVectorD(0.0, 0.0, 0.0))
+visualization.AssetBind(vehicle.GetChassis())
+visualization.AssetBind(terrain.GetGroundBody())
 
 # Simulation loop
-simulation_time = 0.0
-while simulation_time < 10.0:
-    # Synchronize ROS
-    ros_manager.Synchronize()
+def simulation_loop():
+    while visualization.Run():
+        time = system.GetChTime()
+        driver.SynchronizeDriver(time)
+        vehicle.Synchronize(time, driver, terrain)
+        terrain.Synchronize(time)
+        system.DoStepDynamics(0.01)  # Timestep of 0.01 seconds
+        ros_manager.Update(time)
 
-    # Advance the simulation
-    system.DoStepDynamics(time_step)
-
-    # Update ROS manager
-    ros_manager.Update()
-
-    # Publish vehicle state
-    vehicle_state_msg = VehicleState()
-    vehicle_state_msg.position = vehicle.GetChassisBody().GetPos()
-    vehicle_state_msg.orientation = vehicle.GetChassisBody().GetRot().Q_to_AngAxis()
-    vehicle_state_msg.velocity = vehicle.GetChassisBody().GetPos_dt()
-    vehicle_state_msg.angular_velocity = vehicle.GetChassisBody().GetWvel_loc()
-    vehicle_state_pub.publish(vehicle_state_msg)
-
-    # Increment simulation time
-    simulation_time += time_step
-
-# Clean up
-ros_manager.Close()
+# Run the simulation
+simulation_loop()

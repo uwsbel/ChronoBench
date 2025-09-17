@@ -121,21 +121,30 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Add a box object to the system
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+# Added Box Object
+box_size = chrono.ChVector3d(1, 1, 1)
+box_pos = chrono.ChVector3d(0, 0, 0.5)
+box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+box_body = chrono.ChBodyEasyBox(box_size, 1000, True, True, box_mat)
+box_body.SetPos(box_pos)
 box_body.SetBodyFixed(True)
 gator.GetSystem().Add(box_body)
-box_body.GetVisualShape(0).SetTexture(veh.GetDataFile("bluwhite.png"))
 
-# Add a cylinder object to the system
-cylinder_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
-cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
+# Added Cylinder Object
+cylinder_radius = 0.5
+cylinder_height = 1
+cylinder_pos = chrono.ChVector3d(0, 0, 1.5)
+cylinder_mat = chrono.ChMaterialSurfaceNSC()
+cylinder_mat.SetFriction(0.9)
+cylinder_mat.SetRestitution(0.01)
+cylinder_body = chrono.ChBodyEasyCylinder(cylinder_radius, cylinder_height, 1000, True, True, cylinder_mat)
+cylinder_body.SetPos(cylinder_pos)
 cylinder_body.SetBodyFixed(True)
 gator.GetSystem().Add(cylinder_body)
-cylinder_body.GetVisualShape(0).SetTexture(veh.GetDataFile("bluwhite.png"))
 
-# Add a Lidar sensor to the system
+# Added Lidar Sensor
 lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
@@ -154,9 +163,9 @@ lidar = sens.ChLidarSensor(
 )
 lidar.SetName("Lidar")
 lidar.PushFilter(sens.ChFilterLidarPointCloud())
-lidar.PushFilter(sens.ChFilterLidarXYZI())
 lidar.PushFilter(sens.ChFilterLidarDepth())
 lidar.PushFilter(sens.ChFilterLidarIntensity())
+lidar.PushFilter(sens.ChFilterLidarXYZI())
 lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar"))
 manager.AddSensor(lidar)
 
@@ -313,21 +322,30 @@ cam.SetName("Third Person POV")
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
-# Add a box object to the system
-box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
-box_body.SetPos(chrono.ChVector3d(0, 0, 0.5))
+# Added Box Object
+box_size = chrono.ChVector3d(1, 1, 1)
+box_pos = chrono.ChVector3d(0, 0, 0.5)
+box_mat = chrono.ChMaterialSurfaceNSC()
+box_mat.SetFriction(0.9)
+box_mat.SetRestitution(0.01)
+box_body = chrono.ChBodyEasyBox(box_size, 1000, True, True, box_mat)
+box_body.SetPos(box_pos)
 box_body.SetBodyFixed(True)
 gator.GetSystem().Add(box_body)
-box_body.GetVisualShape(0).SetTexture(veh.GetDataFile("bluwhite.png"))
 
-# Add a cylinder object to the system
-cylinder_body = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
-cylinder_body.SetPos(chrono.ChVector3d(0, 0, 1.5))
+# Added Cylinder Object
+cylinder_radius = 0.5
+cylinder_height = 1
+cylinder_pos = chrono.ChVector3d(0, 0, 1.5)
+cylinder_mat = chrono.ChMaterialSurfaceNSC()
+cylinder_mat.SetFriction(0.9)
+cylinder_mat.SetRestitution(0.01)
+cylinder_body = chrono.ChBodyEasyCylinder(cylinder_radius, cylinder_height, 1000, True, True, cylinder_mat)
+cylinder_body.SetPos(cylinder_pos)
 cylinder_body.SetBodyFixed(True)
 gator.GetSystem().Add(cylinder_body)
-cylinder_body.GetVisualShape(0).SetTexture(veh.GetDataFile("bluwhite.png"))
 
-# Add a Lidar sensor to the system
+# Added Lidar Sensor
 lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
@@ -346,9 +364,9 @@ lidar = sens.ChLidarSensor(
 )
 lidar.SetName("Lidar")
 lidar.PushFilter(sens.ChFilterLidarPointCloud())
-lidar.PushFilter(sens.ChFilterLidarXYZI())
 lidar.PushFilter(sens.ChFilterLidarDepth())
 lidar.PushFilter(sens.ChFilterLidarIntensity())
+lidar.PushFilter(sens.ChFilterLidarXYZI())
 lidar.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Lidar"))
 manager.AddSensor(lidar)
 

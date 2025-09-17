@@ -4,117 +4,166 @@
 
 ### 1. Completeness (40 points)
 
-- **System initialization:** Present and correct (`chrono.ChSystemNSC()`).
-- **Contact material creation:** Present, but **incorrect class used** (see correctness).
-- **Body creation:** Ground and beam created. However:
-  - Ground creation uses `chrono.ChBodyEasyBox(system, ...)` which is incorrect usage (see correctness).
-  - Beam created with `chrono.ChBodyEasyCableANCF(...)` which is a valid FEA body.
-- **Joint creation:** A hinge joint is created but incorrectly initialized (see correctness).
-- **Visualization:** Visualization system created and configured, but missing `AttachSystem()` and `Initialize()` calls (see correctness).
-- **Simulation loop:** Present and correctly structured.
-- **Node visualization:** Present, but uses `DrawSphere` with `ChVectorD` for color, which is incorrect (see correctness).
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), no deduction.
+- **Body Creation:**  
+  - Ground body created using `ChBodyEasyBox` — correct usage.  
+  - Beam created using `ChBodyEasyCableANCF` — correct usage for a beam with FEA cable element.  
+- **Joint Creation:**  
+  - A hinge joint is created using `chrono.ChLinkHinge` but the initialization is incorrect (see correctness below).  
+- **Visualization:**  
+  - Visualization system created with `ChVisualSystemIrrlicht`.  
+  - Window size, title, lights, skybox, and cameras added.  
+  - However, the visualization system is **not attached to the system** via `AttachSystem()`, and `Initialize()` is missing. This is essential for visualization to work properly.  
+- **Simulation Loop:** Present and correct with `DoStepDynamics` and visualization calls.
 
-**Deductions:**
+**Deductions:**  
+- Missing `AttachSystem(system)` and `Initialize()` for visualization: **-15 points** (essential component missing).  
+- Minor omission: The beam is created but not added to the system before the hinge is created. The hinge is created before adding bodies to the system, which is not a strict error but less clean. No deduction here as `system.Add()` is called for both bodies eventually.  
+- The hinge joint is created but not initialized properly (see correctness). This is a correctness issue, not completeness.
 
-- Ground body creation missing correct constructor usage: **-15 points** (essential component incorrectly configured).
-- Joint initialization missing proper method: **-15 points** (essential component incorrectly configured).
-- Visualization missing `AttachSystem()` and `Initialize()`: **-15 points** (essential component incomplete).
-- Minor omission: no comments/documentation: **-5 points**.
-
-Subtotal: 40 - 15 - 15 - 15 - 5 = **-5 points** (negative means 0, so minimum 0 for completeness)
-
-But since the total is 40, and deductions sum to 50, the final completeness score is **0**.
+**Completeness score:** 40 - 15 = 25
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Contact material:** Created as `chrono.ChMaterialSurfaceNSC()`, but per documentation, the correct class is `chrono.ChContactMaterialNSC()`. This is a significant API misuse: **-15 points**.
-- **Ground body creation:** `chrono.ChBodyEasyBox(system, 10, 1, 10, 1000, True, contact_material)` is incorrect. The first argument should be lengthX, not the system. The correct signature is `ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)`. The `collision` argument is missing (should be True/False). This will cause an error or unexpected behavior: **-15 points**.
-- **Joint creation:** `chrono.ChLinkHinge(beam, ground, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, -5, 0))` is incorrect. According to the documentation, joints are created with `chrono.ChLinkLockRevolute()` or `chrono.ChLinkHinge()` (if it exists), but more importantly, joints must be initialized with `Initialize(body1, body2, frame)` where `frame` is a `ChCoordsysD`. The code directly passes bodies and two vectors, which is not the documented usage: **-15 points**.
-- **Solver setting:** `system.SetSolverType(chrono.ChSolver.Type_ACCGSM)` is incorrect. The correct method is `SetSolverType()` with an enum from `chrono.ChSolver.Type_...`, but `ChSolver` is a class, and `Type_ACCGSM` is not a documented solver type. The correct solver types are e.g., `chrono.ChSolver.Type_BARZILAIBORWEIN`, `Type_PSSOR`, etc. This will cause an error or fallback: **-15 points**.
-- **Visualization:** Missing `AttachSystem(system)` and `Initialize()` calls, which are necessary for visualization to work properly: **-10 points**.
-- **Visualization camera:** `AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))` is incorrect. The documented method takes a single position vector, not two vectors. The second argument is invalid: **-10 points**.
-- **Drawing spheres:** `application.DrawSphere(chrono.ChVectorD(node_pos.x(), node_pos.y(), node_pos.z()), 0.1, chrono.ChVectorD(1, 0, 0))` is incorrect. The third argument should be a color, typically `chrono.ChColor(1,0,0)`, not a vector: **-5 points**.
+- **Contact Material:**  
+  - Created as `chrono.ChMaterialSurfaceNSC()`, but the documentation shows `chrono.ChContactMaterialNSC()` as the correct class for NSC contact materials.  
+  - The code uses `chrono.ChMaterialSurfaceNSC()`, which is **incorrect** — this will cause an error or unexpected behavior.  
+- **Ground Body Creation:**  
+  - `ChBodyEasyBox(system, 10, 1, 10, 1000, True, contact_material)` is incorrect.  
+  - According to the API, `ChBodyEasyBox` signature is:  
+    ```python
+    ChBodyEasyBox(lengthX, lengthY, lengthZ, density, visualize, collision, material)
+    ```  
+  - The first argument should be lengthX, not the system. The system is not passed here. So passing `system` as the first argument is incorrect.  
+- **Beam Creation:**  
+  - `ChBodyEasyCableANCF` is used with parameters:  
+    `(beam_length, beam_thickness, beam_density, beam_youngs_modulus, beam_poissons_ratio, beam_num_elements, contact_material)`  
+  - This matches the expected signature, so correct.  
+- **Hinge Joint:**  
+  - Created as `chrono.ChLinkHinge(beam, ground, chrono.ChVectorD(0, 5, 0), chrono.ChVectorD(0, -5, 0))`  
+  - According to the documentation, `ChLinkHinge` is created with no arguments, and then **initialized** with `Initialize(body1, body2, frame)` where frame is a `ChCoordsysD` (position + rotation).  
+  - The code passes bodies and two vectors directly to the constructor, which is incorrect usage.  
+  - The joint is never added to the system (`system.Add(hinge)` is called, but the joint is not properly initialized).  
+- **Gravity Setting:**  
+  - `system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))` is incorrect.  
+  - The correct method is `system.Set_G_acc()` (underscore after Set) or `system.Set_G_acc()`?  
+  - According to the documentation, the method is `Set_G_acc()`. The code uses `Set_G_acc()`, so this is correct.  
+- **Solver Type:**  
+  - `system.SetSolverType(chrono.ChSolver.Type_ACCGSM)` is used.  
+  - The documentation does not mention `SetSolverType` or `ChSolver.Type_ACCGSM`.  
+  - The correct way to set solver type is usually via `system.SetSolverType()` with appropriate enum.  
+  - However, the code uses `chrono.ChSolver.Type_ACCGSM` which may not exist or is not documented.  
+  - This is a minor correctness issue but could affect simulation behavior.  
+- **Visualization:**  
+  - Missing `AttachSystem(system)` and `Initialize()` (already deducted in completeness).  
+- **Simulation Loop:**  
+  - `application.Run()`, `DoStepDynamics(0.01)`, and rendering calls are correct.
 
-Subtotal deductions: 15+15+15+15+10+10+5 = 85 points deducted from 30 → minimum 0.
+**Deductions:**  
+- Incorrect contact material class: **-15 points** (significant API misuse).  
+- Incorrect `ChBodyEasyBox` constructor usage: **-15 points** (significant error).  
+- Incorrect hinge joint creation (constructor misuse, no initialization): **-15 points** (major logical error).  
+- Solver type usage unclear, but no explicit error: **-5 points** (minor inaccuracy).  
+
+Total deductions here exceed 30 points, but max is 30, so full 30 deducted.
+
+**Correctness score:** 0
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- No comments or docstrings explaining the code: **-5 points**.
-- Variable names are reasonable and consistent.
-- Formatting is acceptable.
-- No excessive or redundant code.
-- Overall, code is readable but lacks documentation.
+- Variable names are meaningful and consistent.  
+- Code is mostly readable and structured.  
+- However, **no comments** explaining the steps or parameters.  
+- Imports include `numpy` but it is unused.  
+- Minor formatting issues: no blank lines between logical blocks (e.g., between system setup and body creation).  
+- Visualization cameras are added twice with overlapping views (two cameras added, one behind and one above, but no explanation).  
+- No docstrings or comments.
 
-Score: 10 - 5 = **5 points**
+**Deductions:**  
+- Lack of comments/documentation: **-5 points**  
+- Minor readability/formatting issues and unused import: **-3 points**
+
+**Code Quality score:** 10 - 5 - 3 = 2
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No obvious redundant calculations.
-- The loop draws spheres every frame for each node, which is acceptable for visualization.
-- However, `node_pos` is obtained via `beam.GetNodePosition(i)` which is fine.
-- No caching or optimization needed here.
-- Minor inefficiency: `chrono.ChVectorD(node_pos.x(), node_pos.y(), node_pos.z())` is redundant since `node_pos` is already a `ChVectorD`. Could just pass `node_pos` directly: **-3 points**.
+- No obvious redundant calculations or inefficient API usage.  
+- Unused import of `numpy` is minor inefficiency.  
+- Adding two cameras without explanation might be unnecessary but not a big issue.  
+- No explicit optimization opportunities missed.
 
-Score: 10 - 3 = **7 points**
+**Deductions:**  
+- Unused import: **-3 points**  
+- Minor inefficiency in camera setup (no clear purpose for two cameras): **-3 points**
+
+**Efficiency score:** 10 - 3 - 3 = 4
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling at all.
-- No try-except blocks or checks for initialization success.
-- While not always mandatory, basic error handling or at least minimal checks are recommended.
-- Deduct full 5 points for lack of any error handling.
+- No error handling at all (try-except blocks, input validation, or checks).  
+- No handling of edge cases (e.g., checking if bodies are added before joints).  
+- While not always mandatory, basic error handling is recommended.
 
-Score: 0 points.
+**Deductions:**  
+- Lack of basic error handling: **-5 points**
+
+**Error Handling score:** 0
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization system created and window size/title set.
-- Missing `AttachSystem()` and `Initialize()` calls, which are essential.
-- Incorrect `AddCamera()` usage.
-- Lighting and skybox added correctly.
-- Drawing spheres with incorrect color argument.
-- Deduct 5 points for missing critical visualization setup and incorrect API usage.
+- Visualization system created and configured with window size, title, lights, skybox, and cameras.  
+- However, **missing `AttachSystem()` and `Initialize()` calls**, which are essential for visualization to work.  
+- Uses `DrawAll()` instead of documented `Render()` method (minor issue).  
+- Adding two cameras is unusual but not necessarily wrong.  
+- No logo added (optional).  
+- Lighting and skybox are added properly.
 
-Score: 0 points.
+**Deductions:**  
+- Missing `AttachSystem()` and `Initialize()`: **-5 points** (major visualization setup error).  
+- Use of `DrawAll()` instead of `Render()` (minor deviation): **-2 points**
 
----
-
-### **Final scoring summary:**
-
-| Criterion                    | Points | Deductions | Score |
-|-----------------------------|--------|------------|-------|
-| Completeness                | 40     | 40         | 0     |
-| Correctness                 | 30     | 30         | 0     |
-| Code Quality                | 10     | 5          | 5     |
-| Efficiency                  | 10     | 3          | 7     |
-| Error Handling & Robustness | 5      | 5          | 0     |
-| Visualization               | 5      | 5          | 0     |
-| **Total**                  | 100    | 88         | **12**|
+**Visualization score:** 5 - 5 - 2 = -2 → minimum 0 (no negative scores)
 
 ---
 
-### **Explanation of deductions:**
+### **Summary of Scores**
 
-- The script misses or misuses essential API components, especially in body creation, joint initialization, and visualization setup.
-- Incorrect class names and method calls would cause runtime errors or incorrect simulation behavior.
-- Missing visualization system attachment and initialization would prevent rendering.
-- Lack of comments reduces code clarity.
-- Minor inefficiencies and incorrect color usage in drawing spheres.
-- No error handling reduces robustness.
-- Visualization setup is incomplete and partially incorrect.
+| Criterion                 | Max Points | Deduction | Score |
+|---------------------------|------------|-----------|-------|
+| Completeness              | 40         | 15        | 25    |
+| Correctness               | 30         | 30        | 0     |
+| Code Quality              | 10         | 8         | 2     |
+| Efficiency                | 10         | 6         | 4     |
+| Error Handling & Robustness | 5          | 5         | 0     |
+| Visualization Tools       | 5          | 5         | 0     |
+| **Total**                 | **100**    | **69**    | **31**|
 
 ---
 
-**Final score:**
+### **Final Score: [[31]]**
 
-[[12]]
+---
+
+### **Explanation of Deductions:**
+
+- **Major API misuse:** The use of `ChMaterialSurfaceNSC()` instead of `ChContactMaterialNSC()`, incorrect constructor usage for `ChBodyEasyBox`, and incorrect hinge joint creation are critical errors that would prevent the simulation from running correctly or as intended. These justify the full deduction in correctness.
+
+- **Visualization setup is incomplete:** Missing `AttachSystem()` and `Initialize()` calls for the Irrlicht visualization system is a fundamental omission, causing the visualization not to function properly.
+
+- **Lack of comments and unused imports:** The code lacks any explanatory comments and imports `numpy` without use, reducing code quality and efficiency.
+
+- **No error handling:** The script does not include any error handling or robustness measures, which is a best practice in simulation scripting.
+
+- **Minor inefficiencies and visualization method usage:** Using `DrawAll()` instead of the documented `Render()` method and adding multiple cameras without explanation are minor issues.
+
+Overall, the script shows an understanding of the components needed for a PyChrono simulation but fails in critical API usage and visualization setup, leading to a low score.

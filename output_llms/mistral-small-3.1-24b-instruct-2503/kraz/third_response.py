@@ -6,13 +6,12 @@ import math
 chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
-# Initial truck location and orientation
-initLoc_truck = chrono.ChVector3d(0, 0, 0.5)
-initRot_truck = chrono.ChQuaterniond(1, 0, 0, 0)
+# Initial vehicle locations and orientations
+initLocTruck = chrono.ChVector3d(0, 0, 0.5)
+initRotTruck = chrono.ChQuaterniond(1, 0, 0, 0)
 
-# Initial sedan location and orientation
-initLoc_sedan = chrono.ChVector3d(5, 0, 0.5)
-initRot_sedan = chrono.ChQuaterniond(1, 0, 0, 0)
+initLocSedan = chrono.ChVector3d(10, 0, 0.5)
+initRotSedan = chrono.ChQuaterniond(1, 0, 0, 0)
 
 # Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
 vis_type = veh.VisualizationType_MESH
@@ -28,6 +27,7 @@ tire_model_sedan = veh.TireModelType_TMEASY
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
+terrain_mesh_file = veh.GetDataFile("terrain/road_mesh.obj")
 
 # Poon chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0, 0, 2.1)
@@ -43,34 +43,38 @@ tire_step_size = step_size
 # Time interval between two render frames
 render_step_size = 1.0 / 50  # FPS = 50
 
-# Create the Kraz truck, set parameters, and initialize
+# Create the truck vehicle, set parameters, and initialize
 truck = veh.Kraz()
 truck.SetContactMethod(contact_method)
 truck.SetChassisCollisionType(chassis_collision_type)
 truck.SetChassisFixed(False)
-truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
+truck.SetInitPosition(chrono.ChCoordsysd(initLocTruck, initRotTruck))
+truck.SetTireModelType(tire_model_truck)
 truck.Initialize()
+
 truck.SetChassisVisualizationType(vis_type, vis_type)
 truck.SetSteeringVisualizationType(vis_type)
 truck.SetSuspensionVisualizationType(vis_type, vis_type)
 truck.SetWheelVisualizationType(vis_type, vis_type)
 truck.SetTireVisualizationType(vis_type, vis_type)
-truck.SetTireModelType(tire_model_truck)
-truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the sedan, set parameters, and initialize
+# Create the sedan vehicle, set parameters, and initialize
 sedan = veh.HMMWV()
 sedan.SetContactMethod(contact_method)
 sedan.SetChassisCollisionType(chassis_collision_type)
 sedan.SetChassisFixed(False)
-sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
+sedan.SetInitPosition(chrono.ChCoordsysd(initLocSedan, initRotSedan))
+sedan.SetTireModelType(tire_model_sedan)
 sedan.Initialize()
+
 sedan.SetChassisVisualizationType(vis_type, vis_type)
 sedan.SetSteeringVisualizationType(vis_type)
 sedan.SetSuspensionVisualizationType(vis_type, vis_type)
 sedan.SetWheelVisualizationType(vis_type, vis_type)
 sedan.SetTireVisualizationType(vis_type, vis_type)
-sedan.SetTireModelType(tire_model_sedan)
+
+# Set the collision system type
+truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the terrain
@@ -78,16 +82,12 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(truck.GetSystem())
-patch = terrain.AddPatch(patch_mat,
-    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
-    terrainLength, terrainWidth)
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.AddMesh(patch_mat, terrain_mesh_file, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
 terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
-vis.SetWindowTitle('Kraz and Sedan Demo')
+vis.SetWindowTitle('Vehicle Demo')
 vis.SetWindowSize(1280, 1024)
 vis.SetChaseCamera(trackPoint, 25.0, 1.5)
 vis.Initialize()
@@ -97,8 +97,9 @@ vis.AddSkyBox()
 vis.AttachVehicle(truck.GetTractor())
 vis.AttachVehicle(sedan.GetVehicle())
 
-# Create the driver system for the truck
+# Create the driver systems
 driver_truck = veh.ChInteractiveDriverIRR(vis)
+driver_sedan = veh.ChDriverSedan()
 
 # Set the time response for steering and throttle keyboard inputs for the truck
 steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
@@ -109,11 +110,10 @@ driver_truck.SetThrottleDelta(render_step_size / throttle_time)
 driver_truck.SetBrakingDelta(render_step_size / braking_time)
 driver_truck.Initialize()
 
-# Create the driver system for the sedan
-driver_sedan = veh.ChDriverSedan(chrono.ChFunction_Ramp(0, 1))
-driver_sedan.SetSteering(0)  # Fixed steering
-driver_sedan.SetThrottle(1)  # Fixed throttle
-driver_sedan.SetBraking(0)   # No braking
+# Set the sedan driver to move forward with fixed throttle and steering
+driver_sedan.SetSteering(0.0)  # straight ahead
+driver_sedan.SetThrottle(0.5)  # 50% throttle
+driver_sedan.SetBraking(0.0)   # no braking
 driver_sedan.Initialize()
 
 # Output vehicle masses
@@ -128,8 +128,8 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Storage for truck's tractor and trailer states
-truck_states = []
+# Store the state of the truck's tractor and trailer during the simulation
+truck_state = []
 
 while vis.Run():
     time = truck.GetSystem().GetChTime()
@@ -151,7 +151,7 @@ while vis.Run():
     terrain.Synchronize(time)
     truck.Synchronize(time, driver_inputs_truck, terrain)
     sedan.Synchronize(time, driver_inputs_sedan, terrain)
-    vis.Synchronize(time, driver_inputs_truck)
+    vis.Synchronize(time, driver_inputs_truck, driver_inputs_sedan)
 
     # Advance simulation for one timestep for all modules
     driver_truck.Advance(step_size)
@@ -162,7 +162,9 @@ while vis.Run():
     vis.Advance(step_size)
 
     # Store the state of the truck's tractor and trailer
-    truck_states.append((truck.GetTractor().GetPos(), truck.GetTractor().GetRot()))
+    truck_state.append((truck.GetTractor().GetPos(), truck.GetTractor().GetRot()))
+    if truck.GetTrailer():
+        truck_state.append((truck.GetTrailer().GetPos(), truck.GetTrailer().GetRot()))
 
     # Increment frame number
     step_number += 1

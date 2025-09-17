@@ -79,9 +79,9 @@ spring_2.Initialize(body_2, ground, True, chrono.ChVector3d(0, 0, 0), chrono.ChV
 spring_2.SetRestLength(rest_length)
 sys.AddLink(spring_2)
 
-# Attach custom force functor to spring_2
-force_functor = MySpringForce(spring_coef, damping_coef)
-spring_2.SetForceFunctor(force_functor)
+# Add custom force functor to spring_2
+my_force = MySpringForce(spring_coef, damping_coef)
+spring_2.SetForceFunctor(my_force)
 
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)

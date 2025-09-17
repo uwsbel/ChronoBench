@@ -1,66 +1,90 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
-import math
+import pychrono.vehicle as veh
+from pychrono.vehicle import Viper
+from pychrono import ChVectorD
 
 # 1. Initialize the PyChrono environment and core components
 chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path here
 
 # Create the Chrono system
-my_system = chrono.ChSystemNSC()
-my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
 # 2. Add the required physical systems and objects
-# Create the ground body
-ground = chrono.ChBody()
-ground.SetBodyFixed(True)
-ground.GetVisualModel().AddBox(10, 0.1, 10, chrono.ChVectorD(0, -0.1, 0))
-ground.GetCollisionModel().AddBox(10, 0.1, 10, chrono.ChVectorD(0, -0.1, 0))
-my_system.Add(ground)
+# Create the terrain
+terrain = veh.Terrain(system)
+terrain.SetContactFrictionCoefficient(0.8)
+terrain.SetContactRestitutionCoefficient(0.1)
+terrain.SetContactMaterialProperties(2e7, 0.3)
 
+# Create a flat rigid terrain
+patch = terrain.AddPatch(chrono.GetChronoDataFile("terrain/flat.pov"),
+                         chrono.ChVectorD(0, 0, 0),
+                         chrono.ChVectorD(0, 0, 0),
+                         100, 100)
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+# 3. Initialize the Viper rover and its driver
 # Create the Viper rover
-viper = chrono.ChViperWheeledVehicle(my_system)
-viper.Initialize(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
-viper.GetChassis().SetBodyFixed(False)
-my_system.Add(viper.GetChassis())
+viper = Viper()
+viper.SetContactMethod(chrono.ChContactMethod_NSC)
+viper.SetChassisFixed(False)
+viper.SetInitPosition(chrono.ChCoorD(0, 0.5, 0))
+viper.SetInitFwdVel(1)
+viper.Initialize(system, terrain)
 
-# Create and initialize the driver
-driver = chrono.ChViperDriver(viper)
-driver.Initialize()
+# Create the driver system
+driver = veh.ChDriverVI()
+driver.Initialize(viper.GetVehicle())
 
-# 3. Set up visualization
+# 4. Create real-time visualization
 vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(my_system)
+vis.AttachSystem(system)
 vis.SetWindowSize(1280, 720)
 vis.SetWindowTitle("Viper Rover Simulation")
 vis.Initialize()
 vis.AddLogo()
 vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(5, 2, 0))
+vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0.5, 0))
 vis.AddTypicalLights()
-vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
-vis.SetUseSkyBox(True)
+vis.AssetBindAll()
+vis.AssetUpdateAll()
 
-# 4. Simulation loop
+# 5. Simulation loop with steering control
 time_step = 0.01
-sim_time = 0
 max_time = 10.0
+steering_time = 5.0  # Time period for steering change
 
-while vis.Run() and sim_time < max_time:
-    # Update driver inputs (gradually changing steering)
-    steering_angle = 0.5 * math.sin(2 * math.pi * sim_time / 5)  # Oscillating steering
-    throttle = 0.3  # Constant throttle
+current_time = 0
+while current_time < max_time:
+    # Update time
+    current_time = system.GetChTime()
 
+    # Calculate steering angle (changes gradually over steering_time)
+    if current_time < steering_time:
+        steering_angle = 0.5 * (1 - current_time/steering_time)  # From 0.5 to 0 rad
+    else:
+        steering_angle = 0
+
+    # Set driver inputs
     driver.SetSteering(steering_angle)
-    driver.SetThrottle(throttle)
+    driver.SetThrottle(0.5)  # Constant throttle
 
-    # Update visualization
+    # Update modules and visualize
+    driver.Synchronize(current_time)
+    viper.Synchronize(current_time, driver.GetSteering(), driver.GetThrottle(), driver.GetBraking())
     vis.BeginScene()
     vis.Render()
     vis.EndScene()
 
     # Advance simulation
-    my_system.DoStepDynamics(time_step)
-    sim_time += time_step
+    system.DoStepDynamics(time_step)
 
-    # Print simulation time
-    print(f"Simulation time: {sim_time:.2f}s")
+    # Print some information
+    if current_time > 0.5:
+        print(f"Time: {current_time:.2f}, Steering: {steering_angle:.2f}, Position: {viper.GetChassisBody().GetPos().x:.2f}")
+
+# Clean up
+vis.CloseDevice()

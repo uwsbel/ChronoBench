@@ -95,11 +95,11 @@ link_revoluteD = chrono.ChLinkLockRevolute()
 link_revoluteD.Initialize(mbody_gearD, mbody_truss, chrono.ChFramed(chrono.ChVector3d(-10, 0, -9), chrono.QUNIT))
 sys.AddLink(link_revoluteD)
 
-# Create the gear constraint between the first gear A and the bevel gear D
+# Create the gear constraint between the first gear A and bevel gear D
 link_gearAD = chrono.ChLinkLockGear()
 link_gearAD.Initialize(mbody_gearA, mbody_gearD, chrono.ChFramed())
 link_gearAD.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleX(-m.pi / 2)))
-link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(-m.pi / 2)))
+link_gearAD.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 link_gearAD.SetTransmissionRatio(1)
 link_gearAD.SetEnforcePhase(True)
 sys.AddLink(link_gearAD)
@@ -116,9 +116,11 @@ link_revoluteE = chrono.ChLinkLockRevolute()
 link_revoluteE.Initialize(mbody_pulleyE, mbody_truss, chrono.ChFramed(chrono.ChVector3d(-10, -11, -9), chrono.QUNIT))
 sys.AddLink(link_revoluteE)
 
-# Create the synchro belt constraint between the bevel gear D and the pulley E
-link_beltDE = chrono.ChLinkSynchro()
+# Create the synchro belt constraint between bevel gear D and pulley E
+link_beltDE = chrono.ChLinkLockSynchro()
 link_beltDE.Initialize(mbody_gearD, mbody_pulleyE, chrono.ChFramed())
+link_beltDE.SetFrameShaft1(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
+link_beltDE.SetFrameShaft2(chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleZ(m.pi / 2)))
 sys.AddLink(link_beltDE)
 
 # Create the Irrlicht visualization

@@ -3,7 +3,7 @@ import pychrono.vehicle as veh
 import pychrono.irrlicht as irr
 
 def main():
-    #  Create the HMMWV vehicle, set parameters, and initialize
+    # Create the HMMWV vehicle, set parameters, and initialize
     hmmwv = veh.HMMWV_Full()
     hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
     hmmwv.SetChassisFixed(False)
@@ -43,7 +43,7 @@ def main():
     patch3_mat.SetFriction(0.9)
     patch3_mat.SetRestitution(0.01)
     patch3 = terrain.AddPatch(patch3_mat, chrono.ChCoordsysd(chrono.ChVector3d(5, -45, 0), chrono.QUNIT),
-                              veh.GetDataFile("terrain/meshes/bump.obj"))  # Updated position
+                              veh.GetDataFile("terrain/meshes/bump.obj"))
     patch3.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
     patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 

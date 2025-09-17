@@ -1,3 +1,4 @@
+```python
 import pychrono.core as chrono
 import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
@@ -111,6 +112,7 @@ gator.GetSystem().AddBody(cylinder)
 
 
 driver = veh.ChDriver(gator.GetVehicle())
+
 driver.Initialize()
 
 
@@ -132,29 +134,14 @@ cam = sens.ChCameraSensor(
     chrono.CH_PI / 12,         
     -chrono.CH_PI / 6,         
     100.0,                  
-    lidar.SetLag(lag)
-    lidar.SetCollectionWindow(1/update_rate)
-)
+    lidar.GetSensor())
 cam.SetName("Third Person POV")
 
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-lidar.PushFilter(sens.ChFilterDIAccess())
-
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
 manager.AddSensor(lidar)
-
-
-lidar.PushFilter(sens.ChFilterXYZIAccess())
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
 
 
 
@@ -167,7 +154,6 @@ while time < end_time:
     
     driver.SetSteering(0.5)
     driver.SetThrottle(0.2)
-
     
     driver_inputs = driver.GetInputs()
 
@@ -177,44 +163,8 @@ while time < end_time:
     gator.Synchronize(time, driver_inputs, terrain)
 
     manager.Update()
-
-    
-    driver.Advance(step_size)
-    terrain.Advance(step_size)
-    gator.Advance(step_size)
-
     
     realtime_timer.Spin(step_size)
-
-
-
-
-terrain = veh.RigidTerrain(gator.GetSystem())
-patch_mat = chrono.ChContactMaterialNSC()
-patch_mat.SetFriction(0.9)
-patch_mat.SetRestitution(0.01)
-patch = terrain.AddPatch(patch_mat, chrono.CSYSNORM, 50, 50)
-patch.SetColor(chrono.ChColor(0.8, 0.8, 1.0))
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
-terrain.Initialize()
-
-
-box = chrono.ChBodyEasyBox(1, 1, 1, 1000)
-box.SetPos(chrono.ChVector3d(0, 0, 0.5))
-box.SetFixed(True)
-box.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-gator.GetSystem().AddBody(box)
-
-
-cylinder = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y ,0.5, 1, 1000)
-cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
-cylinder.SetFixed(True)
-cylinder.GetVisualModel().GetShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
-gator.GetSystem().AddBody(cylinder)
-
-
-driver = veh.ChDriver(gator.GetVehicle())
-driver.Initialize()
 
 
 
@@ -224,7 +174,9 @@ intensity = 1.0
 manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
 
 
-offset_pose = chrono.ChFramed(chrono.ChVector3d(-8.0, 0, 1.45), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0)))
+offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(0.0, 0, 2), chrono.QuatFromAngleAxis(.2, chrono.ChVector3d(0, 1, 0))
+    )
 cam = sens.ChCameraSensor(
     gator.GetChassisBody(),              
     update_rate,            
@@ -235,24 +187,11 @@ cam = sens.ChCameraSensor(
     chrono.CH_PI / 12,         
     -chrono.CH_PI / 6,         
     100.0,                  
-    lidar.SetLag(lag)
-    lidar.SetCollectionWindow(1/update_rate)
-)
+    lidar.GetSensor())
 cam.SetName("Third Person POV")
 
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-lidar.PushFilter(sens.ChFilterDIAccess())
-
-lidar.PushFilter(sens.ChFilterPCfromDepth())
-
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
 manager.AddSensor(lidar)
-
-
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
-
-lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))

@@ -30,7 +30,7 @@ terrainWidth = 100.0   # size in Y direction
 # Point on chassis tracked by the camera
 trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
-# Contact method changed to NSC
+# Contact method - changed to NSC as per instructions
 contact_method = chrono.ChContactMethod_NSC
 contact_vis = False
 
@@ -42,14 +42,13 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  # FPS = 50
 
 # Create the HMMWV vehicle, set parameters, and initialize
-vehicle = veh.HMMWV_Full()
+vehicle = veh.HMMWV_Full()  # veh.HMMWV_Reduced() could be another choice here
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 vehicle.Initialize()
 
 vehicle.SetChassisVisualizationType(vis_type)
@@ -60,13 +59,15 @@ vehicle.SetTireVisualizationType(vis_type)
 
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the rigid terrain
+# Create the rigid terrain with a single patch - changed from SCM to rigid terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
+terrain.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"),
+                    veh.GetDataFile("terrain/textures/dirt.jpg"),
+                    terrainLength, terrainWidth,
+                    terrainHeight)
 
-# Initialize the rigid terrain with a height map
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),
-                  40, 40, terrainHeight, terrainLength, terrainWidth)
-terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+# Initialize the terrain
+terrain.Initialize()
 
 # Create the vehicle Irrlicht interface
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -96,7 +97,7 @@ driver.Initialize()
 # Simulation loop
 # ---------------
 
-# output vehicle mass
+# Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events

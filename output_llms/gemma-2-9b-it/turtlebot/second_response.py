@@ -38,9 +38,7 @@ vis.AddSkyBox()
 vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
 vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
-
-# Enable shadows
-vis.EnableShadows()
+vis.EnableShadows()  # Enable shadows
 
 # Set the simulation time step
 time_step = 2e-3
@@ -48,17 +46,21 @@ time_step = 2e-3
 # Simulation loop
 time = 0
 while vis.Run():
+    # Define WheelID enum values for motor control
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+
     # Move the robot straight for the first 5 seconds
     if time < 5:
-        robot.move("straight")
+        robot.move(mode='straight')
         print("Robot moving straight")
     # Turn the robot left for the next 5 seconds
     elif time < 10:
-        robot.move("left")
+        robot.move(mode='left')
         print("Robot turning left")
     # Turn the robot right thereafter
     else:
-        robot.move("right")
+        robot.move(mode='right')
         print("Robot turning right")
 
     # Increment time counter
@@ -72,15 +74,16 @@ while vis.Run():
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
 
+
 def move(mode):
-    if mode == "straight":
-        robot.SetMotorSpeed(0.5, 0)
-        robot.SetMotorSpeed(0.5, 1)
-    elif mode == "left":
-        robot.SetMotorSpeed(-math.pi/4, 0)
-        robot.SetMotorSpeed(math.pi/4, 1)
-    elif mode == "right":
-        robot.SetMotorSpeed(math.pi/4, 0)
-        robot.SetMotorSpeed(-math.pi/4, 1)
+    if mode == 'straight':
+        robot.SetMotorSpeed(0.5, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0.5, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(-math.pi/2, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi/2, RIGHT_DRIVE_WHEEL)
     else:
-        raise ValueError("Invalid mode. Choose from 'straight', 'left', 'right'.")
+        raise ValueError("Invalid mode. Choose from: 'straight', 'left', 'right'")

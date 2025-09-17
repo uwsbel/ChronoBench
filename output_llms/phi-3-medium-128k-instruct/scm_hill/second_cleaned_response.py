@@ -43,11 +43,11 @@ tire_step_size = step_size
 render_step_size = 1.0 / 20  
 
 
-
 vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
 
@@ -58,20 +58,18 @@ vehicle.SetSuspensionVisualizationType(vis_type)
 vehicle.SetSteeringVisualizationType(vis_type)
 vehicle.SetWheelVisualizationType(vis_type)
 vehicle.SetTireVisualizationType(vis_type)
-
 vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 
 terrain = veh.SCMTerrain(vehicle.GetSystem())
 terrain.SetSoilParameters(2e6,   
-                            0,     
-                            1.1,   
-                            0,     
-                            30,    
-                            0.01,  
-                            2e8,   
-                            3e4    
-)
+                        0,     
+                        1.1,   
+                        0,     
+                        30,    
+                        0.01,  
+                        2e8,   
+                        3e4)   
 
 
 terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(5, 3, 1))
@@ -80,7 +78,7 @@ terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVector3d(0, 0, 0), chr
 terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
 
 
-terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"),40, 40, -1,1, 0.02)
+terrain.Initialize(veh.GetDataFile("terrain/height_maps/bump64.bmp"), 40, 40, -1, 1, 0.02)
 
 terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
 
@@ -122,17 +120,26 @@ render_steps = math.ceil(render_step_size / step_size)
 sensor_manager = sensor.SensorManager()
 
 
-lidar = sensor.Lidar(vehicle, 1.0, 180.0, 0.05, 0.05, sensor.Lidar.FILTER_DISTANCE, sensor.Lidar.FILTER_REFLECTIVITY)
+lidar = sensor.Lidar(vehicle.GetSystem(),
+                       sensor.Lidar.FILTER_TYPE_DISTANCE,
+                       sensor.Lidar.FILTER_TYPE_ANGLE,
+                       sensor.Lidar.FILTER_TYPE_INTENSITY,
+                       sensor.Lidar.FILTER_TYPE_INTENSITY,
+                       sensor.Lidar.FILTER_TYPE_INTENSITY)
 vehicle.AddSensor(lidar)
 
 
 num_obstacles = 5
 
-for i in range(num_obstacles):
-    obstacle_size = np.random.uniform(0.5, 2.0)
-    obstacle_pos = np.random.uniform(-20, 20, 3)
-    obstacle = chrono.ChBox(chrono.ChVector3d(obstacle_size, obstacle_size, obstacle_size))
-    vehicle.AddBody(obstacle, chrono.ChBodyType_Static)
+
+obstacles = []
+for _ in range(num_obstacles):
+    obstacle_size = np.random.uniform(0.5, 1.0)
+    obstacle_position = np.random.uniform(-20, 20, size=3)
+    obstacles.append(veh.Box(obstacle_size, obstacle_position))
+
+
+vis.AddBox(obstacles)
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -173,9 +180,7 @@ while vis.Run() :
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
-
-    
-    sensor_manager.Update()
+    sensor_manager.Update()  
 
     
     driver.Advance(step_size)

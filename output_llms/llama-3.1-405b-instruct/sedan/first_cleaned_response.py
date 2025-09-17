@@ -14,66 +14,59 @@ ground = chrono.ChBodyEasyBox(sys,
                               1000,  
                               True,  
                               True,  
-                              chrono.ChMaterialSurfaceNSC())  
+                              chrono.ChMaterialSurfaceNSC()  
+                              )
 ground.SetBodyFixed(True)
 sys.Add(ground)
 
 
-vehicle = veh.ChPart(sys,  
-                     veh.ChPartType_VEHICLE)  
-vehicle.SetMass(1500)  
-vehicle.SetInertiaXX(2500)  
-vehicle.SetPos(chrono.ChVectorD(0, 0, 1.5))  
+vehicle = veh.ChPart(ground)
+vehicle.SetMass(1500)
+vehicle.SetInertiaXX(3000)
+vehicle.SetInertiaYY(3000)
+vehicle.SetInertiaZZ(3000)
 
 
-vehicle.AddVisualizationAssets('BMW_E90_Sedan.obj',  
-                               'BMW_E90_Sedan_diffuse.png',  
-                               'BMW_E90_Sedan_normal.png')  
+chassis = veh.ChChassis(vehicle)
+chassis.SetMass(1000)
+chassis.SetInertiaXX(2000)
+chassis.SetInertiaYY(2000)
+chassis.SetInertiaZZ(2000)
 
 
-tire_model = veh.ChTMEasy(sys,  
-                          vehicle,  
-                          veh.ChTMEasyModelType_RIGID)  
-vehicle.AddTire(tire_model)
+wheels = []
+for i in range(4):
+    wheel = veh.ChWheel(chassis)
+    wheel.SetMass(20)
+    wheel.SetInertiaXX(10)
+    wheel.SetInertiaYY(10)
+    wheel.SetInertiaZZ(10)
+    wheel.SetRadius(0.35)
+    wheel.SetWidth(0.2)
+    wheels.append(wheel)
 
 
-driver = veh.ChIrrNodeDriver(sys,  
-                            vehicle,  
-                            chronoirr.ChIrrNodeDriverType_DEFAULT)  
-sys.Add(driver)
+tire_model = veh.ChTireModelTMEasy()
+tire_model.SetStiffness(100000)
+tire_model.SetDamping(5000)
+tire_model.SetFriction(0.8)
 
 
-app = chronoirr.ChIrrApp(sys,  
-                         'BMW E90 Sedan Simulation',  
-                         chronoirr.dimension2du(800, 600))  
+driver = veh.ChIrrNodeDriver(ground)
+driver.SetSteeringIncrement(0.01)
+driver.SetThrottleIncrement(0.01)
+driver.SetBrakingIncrement(0.01)
 
 
-camera = chronoirr.ChIrrNodeCameraChaseTarget(app.GetSceneManager(),  
-                                              vehicle,  
-                                              chronoirr.vector3df(0, 0, 2))  
-app.GetSceneManager().AddCamera(camera)
+app = chronoirr.ChIrrApp(sys, 'BMW E90 Sedan Simulation', chronoirr.dimension2du(800, 600))
+app.AddTypicalSky()
+app.AddTypicalLights()
+app.AddCamera(chronoirr.vector3df(0, 0, 0), chronoirr.vector3df(0, 0, -1))
+app.AssetBindAll()
+app.AssetUpdateAll()
 
 
-light = chronoirr.ChIrrNodeLightDirectional(app.GetSceneManager(),  
-                                           chronoirr.vector3df(0, 0, 1))  
-app.GetSceneManager().AddLight(light)
-
-
-skybox = chronoirr.ChIrrNodeSkyBox(app.GetSceneManager(),  
-                                   'skybox.obj',  
-                                   'skybox_diffuse.png',  
-                                   'skybox_normal.png')  
-app.GetSceneManager().AddSkyBox(skybox)
-
-
-terrain_texture = chronoirr.ChIrrNodeTexture(app.GetSceneManager(),  
-                                            'terrain_diffuse.png')  
-app.GetSceneManager().AddTexture(terrain_texture)
-
-logo = chronoirr.ChIrrNodeLogo(app.GetSceneManager(),  
-                               'logo.png',  
-                               chronoirr.vector3df(0, 0, 1))  
-app.GetSceneManager().AddLogo(logo)
+app.GetSceneManager().AddNode(vehicle.GetNode())
 
 
 app.SetTimestep(0.01)

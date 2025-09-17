@@ -3,10 +3,8 @@ import pychrono.irrlicht as irr
 import pychrono.vehicle as veh
 import math
 
-# Set the Chrono data path
-chrono.SetChronoDataPath('/path/to/chrono/data')
-
-# Set the vehicle data path
+# Set path to Chrono data
+chrono.SetChronoDataPath('/path/to/chrono/data')  # Update this path
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 # Initial vehicle location and orientation
@@ -32,6 +30,7 @@ trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
 
 # Contact method
 contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
 
 # Simulation step sizes
 step_size = 1e-3
@@ -60,12 +59,16 @@ vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
 # Create the rigid terrain
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNITERNION))
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNITERNION), 
+                         chrono.ChVector3d(terrainLength, terrainWidth, 1))
 patch.SetContactFrictionCoefficient(0.9)
 patch.SetContactRestitutionCoefficient(0.01)
 patch.SetContactMaterialProperties(1.7e7, 0.3)
 patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
-patch.SetVisualizationType(veh.VisualizationType_MESH)
+patch.SetVisible(True)
+
+# Load a height map
+# patch.SetHeightMap(veh.GetDataFile("terrain/height_maps/bump64.bmp"))
 
 terrain.Initialize()
 
@@ -92,8 +95,17 @@ driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
+# ---------------
 # Simulation loop
+# ---------------
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
 realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
@@ -128,3 +140,4 @@ while vis.Run():
 
     # Spin in place for real time to catch up
     realtime_timer.Spin(step_size)
+

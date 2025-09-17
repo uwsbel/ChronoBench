@@ -1,5 +1,5 @@
 import pychrono as chrono
-import pychrono.irrlicht as chronoirr
+import pychrono.irrlicht as irr
 import random
 import math
 
@@ -8,112 +8,121 @@ system = chrono.ChSystemNSC()
 system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
 
 
-application = chronoirr.ChIrrApp(system, 'Gravitational Particles', chronoirr.dimension2du(1024, 768))
-application.AddTypicalLogo()
-application.AddTypicalCamera(chronoirr.vector3df(0, 0, 10))
+application = irr.ChIrrApp(system, 'Gravitational Particle Attraction', irr.dimension2du(1024, 768))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 0, -40))
 application.AddTypicalLights()
-application.DrawAll()
+application.AssetBindAll()
+application.AssetUpdateAll()
 
 
-particles = []
-
-def create_particle(system, particles):
-    
-    body = chrono.ChBody()
-    body.SetCollide(False)  
-
-    
-    shape_type = random.choice(['sphere', 'box', 'cylinder'])
-
-    if shape_type == 'sphere':
-        radius = random.uniform(0.1, 0.5)
-        body.SetMass(1.0)
-        inertia = (2/5.0) * radius**2  
-        body.SetInertiaXX(chrono.ChVectorD(inertia, inertia, inertia))
-        vis_shape = chrono.ChSphereShape()
-        vis_shape.GetSphereGeometry().rad = radius
-        body.GetAssets().push_back(vis_shape)
-
-    elif shape_type == 'box':
-        size = chrono.ChVectorD(random.uniform(0.2, 0.5), random.uniform(0.2, 0.5), random.uniform(0.2, 0.5))
-        body.SetMass(1.0)
-        
-        inertia_x = (1.0 / 6.0) * size.x**2
-        inertia_y = (1.0 / 6.0) * size.y**2
-        inertia_z = (1.0 / 6.0) * size.z**2
-        body.SetInertiaXX(chrono.ChVectorD(inertia_x, inertia_y, inertia_z))
-        vis_shape = chrono.ChBoxShape()
-        vis_shape.GetBoxGeometry().Size = size
-        body.GetAssets().push_back(vis_shape)
-
-    elif shape_type == 'cylinder':
-        radius = random.uniform(0.1, 0.3)
-        height = random.uniform(0.2, 0.5)
-        body.SetMass(1.0)
-        
-        inertia_y = 0.5 * radius**2  
-        inertia_x = (1.0 / 12.0) * (3 * radius**2 + height**2)  
-        body.SetInertiaXX(chrono.ChVectorD(inertia_x, inertia_y, inertia_x))
-        vis_shape = chrono.ChCylinderShape()
-        vis_shape.GetCylinderGeometry().rad = radius
-        vis_shape.GetCylinderGeometry().p1 = chrono.ChVectorD(0, -height/2, 0)
-        vis_shape.GetCylinderGeometry().p2 = chrono.ChVectorD(0, height/2, 0)
-        body.GetAssets().push_back(vis_shape)
-
-    
-    pos = chrono.ChVectorD(
-        random.uniform(-5, 5),
-        random.uniform(-5, 5),
-        random.uniform(-5, 5)
-    )
-    body.SetPos(pos)
-
-    
-    angle = random.uniform(0, 2 * math.pi)
-    axis = chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1)).GetNormalized()
-    quat = chrono.ChQuaternionD()
-    quat.Q_from_AngAxis(angle, axis)
-    body.SetRot(quat)
-
-    
-    vel = chrono.ChVectorD(
-        random.uniform(-1, 1),
-        random.uniform(-1, 1),
-        random.uniform(-1, 1)
-    )
-    body.SetPos_dt(vel)
-
-    
-    system.Add(body)
-    particles.append(body)
-    return body
-
-
-for _ in range(10):
-    create_particle(system, particles)
+emitter_interval = 0.5  
+last_emitted_time = 0.0
+G = 0.1  
 
 
 while application.GetDevice().run():
     
-    G = 1e-3  
-    for body in particles:
-        total_force = chrono.ChVectorD(0, 0, 0)
-        for other in particles:
-            if other == body:
-                continue
-            r = other.GetPos() - body.GetPos()
-            distance = r.Length()
-            if distance < 1e-3:  
-                continue
-            force_magnitude = G / (distance**2)
-            force_vector = r * (force_magnitude / distance)  
-            total_force += force_vector
-        body.SetForce(total_force)
-
+    current_time = system.GetChTime()
+    if current_time - last_emitted_time > emitter_interval:
+        
+        mass = random.uniform(0.5, 2.0)
+        pos = chrono.ChVectorD(
+            random.uniform(-10, 10),
+            random.uniform(-10, 10),
+            random.uniform(-10, 10)
+        )
+        vel = chrono.ChVectorD(
+            random.uniform(-1, 1),
+            random.uniform(-1, 1),
+            random.uniform(-1, 1)
+        )
+        
+        angle = random.uniform(0, 2 * math.pi)
+        axis = chrono.ChVectorD(0, 1, 0)
+        rot = chrono.ChQuaternionD()
+        rot.Q_from_AngAxis(angle, axis)
+        
+        
+        body = chrono.ChBody()
+        body.SetMass(mass)
+        body.SetPos(pos)
+        body.SetPos_dt(vel)
+        body.SetRot(rot)
+        body.SetBodyFixed(False)
+        body.SetCollide(True)
+        
+        
+        shape = random.choice(['sphere', 'box'])
+        if shape == 'sphere':
+            radius = random.uniform(0.2, 0.5)
+            
+            body.GetCollisionModel().ClearModel()
+            sphere_shape = chrono.ChCollisionShape(chrono.ChCollisionShape.eSphere, radius)
+            body.GetCollisionModel().AddShape(sphere_shape, chrono.ChFrameD())
+            body.GetCollisionModel().BuildModel()
+            
+            vis_shape = chrono.ChSphereShape(radius)
+            body.AddAsset(vis_shape)
+            
+            inertia = (2.0/5.0) * mass * radius * radius
+            body.SetInertiaXX(chrono.ChVectorD(inertia, inertia, inertia))
+        else:
+            size = chrono.ChVectorD(
+                random.uniform(0.5, 1.0),
+                random.uniform(0.5, 1.0),
+                random.uniform(0.5, 1.0)
+            )
+            
+            body.GetCollisionModel().ClearModel()
+            box_shape = chrono.ChCollisionShape(chrono.ChCollisionShape.eBox, size.x, size.y, size.z)
+            body.GetCollisionModel().AddShape(box_shape, chrono.ChFrameD())
+            body.GetCollisionModel().BuildModel()
+            
+            vis_shape = chrono.ChBoxShape(size)
+            body.AddAsset(vis_shape)
+            
+            ixx = (mass / 12.0) * (size.y**2 + size.z**2)
+            iyy = (mass / 12.0) * (size.x**2 + size.z**2)
+            izz = (mass / 12.0) * (size.x**2 + size.y**2)
+            body.SetInertiaXX(chrono.ChVectorD(ixx, iyy, izz))
+        
+        
+        color = chrono.ChColorAsset()
+        color.SetColor(chrono.ChColor(random.random(), random.random(), random.random()))
+        body.AddAsset(color)
+        
+        
+        system.AddBody(body)
+        
+        last_emitted_time = current_time
     
-    system.DoStepDynamics(1e-3)
-
+    
+    bodies = system.Get_bodylist()
+    num_bodies = len(bodies)
+    for i in range(num_bodies):
+        body_i = bodies[i]
+        for j in range(i+1, num_bodies):
+            body_j = bodies[j]
+            pos_i = body_i.GetPos()
+            pos_j = body_j.GetPos()
+            r = pos_j - pos_i
+            distance_sq = r.x**2 + r.y**2 + r.z**2
+            distance = math.sqrt(distance_sq)
+            if distance < 1e-3:
+                continue  
+            force_mag = G * body_i.GetMass() * body_j.GetMass() / distance_sq
+            force_dir = r * (1.0 / distance)
+            force_i = force_dir * force_mag
+            force_j = -force_dir * force_mag
+            
+            
+            body_i.Accumulate_force(force_i, chrono.ChVectorD(0,0,0), False)  
+            body_j.Accumulate_force(force_j, chrono.ChVectorD(0,0,0), False)
+    
     
     application.BeginScene()
     application.DrawAll()
     application.EndScene()
+    system.DoStepDynamics(0.01)

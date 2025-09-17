@@ -40,13 +40,18 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-vehicle = veh.HMMWV_Full()  
+path_radius = 10.0
+path_center = chrono.ChVector3d(path_radius, 0, 0)
+
+
+vehicle = veh.HMMWV_Full() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
 vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
+
 
 vehicle.Initialize()
 
@@ -63,10 +68,25 @@ patch_mat = chrono.ChContactMaterialNSC()
 patch_mat.SetFriction(0.9)
 patch_mat.SetRestitution(0.01)
 terrain = veh.RigidTerrain(vehicle.GetSystem())
-patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch = terrain.AddPatch(patch_mat,chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),terrainLength, terrainWidth)
 patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
+
+
+path_ball_radius = 0.1
+path_sentinel = veh.ChBodyEasySphere(path_radius + path_ball_radius, 2000, True, False)
+path_sentinel.SetPos(path_center)
+path_sentinel.SetBodyFixed(True)
+path_sentinel.SetCollisionType(chrono.ChCollisionType.CT_NONE)
+vehicle.GetSystem().AddBody(path_sentinel)
+
+path_target = veh.ChBodyEasySphere(path_ball_radius, 2000, True, False)
+path_target.SetPos(path_center)
+path_target.SetBodyFixed(True)
+path_target.SetCollisionType(chrono.ChCollisionType.CT_NONE)
+vehicle.GetSystem().AddBody(path_target)
+
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -77,73 +97,40 @@ vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
 
 
-pathRadius = 10.0
-numPathPoints = 100
-path = []
-for i in range(numPathPoints):
-    angle = 2 * math.pi * i / numPathPoints
-    x = pathRadius * math.cos(angle)
-    y = pathRadius * math.sin(angle)
-    path.append(chrono.ChVector2d(x, y))
+pid_Kp = 0.15
+pid_Ki = 0.0
+pid_Kd = 0.0
+path_follower = veh.ChPathFollower(vehicle, pid_Kp, pid_Ki, pid_Kd, path_radius)
 
 
-pathBallRadius = 0.3
-pathBallColor = chrono.ChColor(0, 1, 0)
-pathSentinel = chrono.ChVector2d(0, 0)
-pathTarget = chrono.ChVector2d(pathRadius, 0)
-for i in range(numPathPoints):
-    ballPos = chrono.ChVector3d(path[i].x, path[i].y, 0)
-    vis.AddSphere(ballPos, pathBallRadius, pathBallColor, 10, 10, True)
+path_follower.SetThrottle(0.3)
 
 
-throttleValue = 0.3
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
 
-
-kp = 1.0
-ki = 0.0
-kd = 0.0
-
-
-def calculateSteering(vehicle, pathSentinel, pathTarget, kp, ki, kd):
-    vehiclePos = vehicle.GetChassis().GetPos()
-    vehicleHeading = vehicle.GetChassis().GetRot().GetYaw()
-    vehiclePos2D = chrono.ChVector2d(vehiclePos.x, vehiclePos.y)
-    pathSentinel2D = chrono.ChVector2d(pathSentinel.x, pathSentinel.y)
-    pathTarget2D = chrono.ChVector2d(pathTarget.x, pathTarget.y)
-    distanceToTarget = (pathTarget2D - vehiclePos2D).Length()
-    crossProduct = (pathTarget2D - vehiclePos2D).Cross(pathSentinel2D - vehiclePos2D)
-    error = math.atan2(crossProduct, (pathTarget2D - vehiclePos2D).Dot(pathSentinel2D - vehiclePos2D))
-    integral = integral + error * render_step_size
-    derivative = (error - previous_error) / render_step_size
-    previous_error = error
-    steeringValue = kp * error + ki * integral + kd * derivative
-    return steeringValue
-
-previous_error = 0
-
-while vis.Run():
+while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0):
+    if (step_number % render_steps == 0) :
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
 
     
-    
-
-    
-    
+    path_follower.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle.Synchronize(time, None, terrain)
-    vis.Synchronize(time, None)
+    vehicle.Synchronize(time, path_follower.GetControls(), terrain)
+    vis.Synchronize(time, path_follower.GetControls())
 
     
-    
+    path_follower.Advance(step_size)
     terrain.Advance(step_size)
     vehicle.Advance(step_size)
     vis.Advance(step_size)
@@ -153,19 +140,3 @@ while vis.Run():
 
     
     realtime_timer.Spin(step_size)
-
-    
-    pathSentinel = pathTarget
-    for i in range(numPathPoints):
-        if path[i].x * path[i].x + path[i].y * path[i].y > pathTarget.x * pathTarget.x + pathTarget.y * pathTarget.y:
-            pathSentinel = path[i]
-            break
-
-    pathTarget = path[((path.index(pathTarget) + 1) % numPathPoints)]
-
-    
-    vehicle.SetThrottle(throttleValue)
-
-    
-    steeringValue = calculateSteering(vehicle, pathSentinel, pathTarget, kp, ki, kd)
-    vehicle.SetSteer(steeringValue)

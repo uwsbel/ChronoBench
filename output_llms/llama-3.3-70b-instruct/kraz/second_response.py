@@ -20,6 +20,7 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 # Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
 terrainHeight = 0      # terrain height
 terrainLength = 100.0  # size in X direction
 terrainWidth = 100.0   # size in Y direction
@@ -39,6 +40,7 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  # FPS = 50
 
 # Create the kraz vehicle, set parameters, and initialize
+
 vehicle = veh.Kraz()
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -102,11 +104,6 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-# Double lane change maneuver sequence
-lane_change_start_time = 2.0  # seconds
-lane_change_duration = 4.0  # seconds
-lane_change_direction = 1.0  # 1.0 for left, -1.0 for right
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
@@ -121,10 +118,24 @@ while vis.Run():
     driver_inputs = driver.GetInputs()
 
     # Double lane change maneuver sequence
-    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
-        driver_inputs.steering = lane_change_direction * (time - lane_change_start_time) / lane_change_duration
-    elif time >= lane_change_start_time + lane_change_duration and time < lane_change_start_time + 2 * lane_change_duration:
-        driver_inputs.steering = -lane_change_direction * (time - lane_change_start_time - lane_change_duration) / lane_change_duration
+    if time < 2.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    elif time < 4.0:
+        driver_inputs.steering = -0.5
+        driver_inputs.throttle = 1.0
+    elif time < 6.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    elif time < 8.0:
+        driver_inputs.steering = 0.5
+        driver_inputs.throttle = 1.0
+    elif time < 10.0:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 1.0
+    else:
+        driver_inputs.steering = 0.0
+        driver_inputs.throttle = 0.0
 
     # Update modules (process inputs from other modules)
     driver.Synchronize(time)

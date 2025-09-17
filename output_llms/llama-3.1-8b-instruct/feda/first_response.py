@@ -1,130 +1,155 @@
 import chrono as chrono
-from chrono import ChVector, ChColor
-import chrono.irrlicht as chronoirr
-import irrlicht
+import chrono.ironbender as ironbender
+import chrono.irrlicht as irrlicht
+import irrlicht.video as video
+import irrlicht.scene as scene
+import irrlicht.video.sfs as sfs
 
-# Initialize PyChrono environment
+# Initialize PyChrono environment and core components
 chrono.Initialize()
+core = chrono.Core()
 
-# Create a rigid terrain
-terrain = chrono.RigidBodyDynamics()
-terrain.SetSolverType(chrono.SolverType_HMPS)
-terrain.SetMaxStepsInLS(100)
-terrain.SetMaxIterationsInLS(10)
-
-# Create a custom texture for the terrain
-texture = chronoirr.IrrTexture2D()
-texture.SetImage("terrain_texture.png")
-terrain.SetTexture(texture)
-
-# Create a RigidTerrain object
-terrain_body = terrain.AddRigidBody(chrono.RigidBodyDynamics())
-terrain_body.SetName("Terrain")
-terrain_body.SetPosition(ChVector(0, 0, 0))
-terrain_body.SetRotation(ChVector(0, 0, 0))
-terrain_body.SetMass(10000)
-terrain_body.SetMaterial(chrono.Material(0.9, 0.1, 0.1))
-terrain_body.SetFriction(0.5)
+# Create a RigidTerrain with a custom texture
+terrain = chrono.RigidTerrain("terrain.obj", "terrain.png")
+terrain.SetName("Terrain")
+terrain.SetPosition(chrono.Vector(0, 0, 0))
+terrain.SetRotation(chrono.QfromEuler(0, 0, 0))
+core.Add(terrain)
 
 # Create a FEDA vehicle
-vehicle = chrono.RigidBodyDynamics()
-vehicle.SetSolverType(chrono.SolverType_HMPS)
-vehicle.SetMaxStepsInLS(100)
-vehicle.SetMaxIterationsInLS(10)
+vehicle = chrono.RigidBody()
+vehicle.SetName("FEDA")
+vehicle.SetPosition(chrono.Vector(0, 0, 0))
+vehicle.SetRotation(chrono.QfromEuler(0, 0, 0))
+vehicle.SetMass(1000)
+core.Add(vehicle)
 
-# Create a vehicle body
-vehicle_body = vehicle.AddRigidBody(chrono.RigidBodyDynamics())
-vehicle_body.SetName("Vehicle")
-vehicle_body.SetPosition(ChVector(0, 0, -1))
-vehicle_body.SetRotation(ChVector(0, 0, 0))
-vehicle_body.SetMass(500)
-vehicle_body.SetMaterial(chrono.Material(0.9, 0.1, 0.1))
-vehicle_body.SetFriction(0.5)
+# Add vehicle parts
+wheel1 = chrono.RigidBody()
+wheel1.SetName("Wheel1")
+wheel1.SetPosition(chrono.Vector(-0.5, -0.5, 0))
+wheel1.SetRotation(chrono.QfromEuler(0, 0, 0))
+wheel1.SetMass(10)
+core.Add(wheel1)
 
-# Create a vehicle chassis
-chassis = vehicle_body.AddPoint2D(chrono.ChPoint2D(0, 0))
-chassis.SetName("Chassis")
-chassis.SetMass(200)
-chassis.SetMaterial(chrono.Material(0.9, 0.1, 0.1))
-chassis.SetFriction(0.5)
+wheel2 = chrono.RigidBody()
+wheel2.SetName("Wheel2")
+wheel2.SetPosition(chrono.Vector(0.5, -0.5, 0))
+wheel2.SetRotation(chrono.QfromEuler(0, 0, 0))
+wheel2.SetMass(10)
+core.Add(wheel2)
 
-# Create a vehicle front axle
-front_axle = vehicle_body.AddPoint2D(chrono.ChPoint2D(0.5, 0))
-front_axle.SetName("Front Axle")
-front_axle.SetMass(100)
-front_axle.SetMaterial(chrono.Material(0.9, 0.1, 0.1))
-front_axle.SetFriction(0.5)
+wheel3 = chrono.RigidBody()
+wheel3.SetName("Wheel3")
+wheel3.SetPosition(chrono.Vector(-0.5, 0.5, 0))
+wheel3.SetRotation(chrono.QfromEuler(0, 0, 0))
+wheel3.SetMass(10)
+core.Add(wheel3)
 
-# Create a vehicle rear axle
-rear_axle = vehicle_body.AddPoint2D(chrono.ChPoint2D(-0.5, 0))
-rear_axle.SetName("Rear Axle")
-rear_axle.SetMass(100)
-rear_axle.SetMaterial(chrono.Material(0.9, 0.1, 0.1))
-rear_axle.SetFriction(0.5)
+wheel4 = chrono.RigidBody()
+wheel4.SetName("Wheel4")
+wheel4.SetPosition(chrono.Vector(0.5, 0.5, 0))
+wheel4.SetRotation(chrono.QfromEuler(0, 0, 0))
+wheel4.SetMass(10)
+core.Add(wheel4)
 
-# Create a vehicle steering system
-steering = vehicle_body.AddJoint(chrono.SphericalJoint(chrono.SphericalJointType_Spherical))
-steering.SetName("Steering")
-steering.SetPosition(ChVector(0, 0, 0))
-steering.SetRotation(ChVector(0, 0, 0))
-steering.SetFriction(0.5)
+# Add tire model
+tire1 = ironbender.Tire()
+tire1.SetName("Tire1")
+tire1.SetPosition(chrono.Vector(-0.5, -0.5, 0))
+tire1.SetRotation(chrono.QfromEuler(0, 0, 0))
+tire1.SetRadius(0.2)
+tire1.SetContactMethod(chrono.ContactMethod.Friction)
+core.Add(tire1)
 
-# Create a vehicle driver system
-driver = vehicle_body.AddJoint(chrono.RigidBodyDynamics())
-driver.SetName("Driver")
-driver.SetPosition(ChVector(0, 0, 0))
-driver.SetRotation(ChVector(0, 0, 0))
-driver.SetFriction(0.5)
+tire2 = ironbender.Tire()
+tire2.SetName("Tire2")
+tire2.SetPosition(chrono.Vector(0.5, -0.5, 0))
+tire2.SetRotation(chrono.QfromEuler(0, 0, 0))
+tire2.SetRadius(0.2)
+tire2.SetContactMethod(chrono.ContactMethod.Friction)
+core.Add(tire2)
 
-# Set up the vehicle's contact method
-vehicle_body.SetContactMethod(chrono.ContactMethod_Default)
+tire3 = ironbender.Tire()
+tire3.SetName("Tire3")
+tire3.SetPosition(chrono.Vector(-0.5, 0.5, 0))
+tire3.SetRotation(chrono.QfromEuler(0, 0, 0))
+tire3.SetRadius(0.2)
+tire3.SetContactMethod(chrono.ContactMethod.Friction)
+core.Add(tire3)
 
-# Set up the vehicle's tire model
-vehicle_body.SetTireModel(chrono.TireModel_Susan)
+tire4 = ironbender.Tire()
+tire4.SetName("Tire4")
+tire4.SetPosition(chrono.Vector(0.5, 0.5, 0))
+tire4.SetRotation(chrono.QfromEuler(0, 0, 0))
+tire4.SetRadius(0.2)
+tire4.SetContactMethod(chrono.ContactMethod.Friction)
+core.Add(tire4)
 
-# Create a camera object
-camera = chronoirr.IrrCamera()
-camera.SetPosition(ChVector(0, 0, 5))
-camera.SetRotation(ChVector(0, 0, 0))
-camera.SetTarget(vehicle_body.GetPosition())
-camera.SetFocalLength(50)
+# Set vehicle parameters
+vehicle.SetContactMethod(chrono.ContactMethod.Friction)
+vehicle.SetFriction(0.5)
+vehicle.SetRollInertia(10)
+vehicle.SetPitchInertia(10)
+vehicle.SetYawInertia(10)
 
-# Create an Irrlicht device
-device = chronoirr.IrrlichtDevice()
-device.SetWindowTitle("FEDA Vehicle Simulation")
-device.SetVideoMode(800, 600, 32)
+# Set camera position and orientation
+camera = irrlicht.Camera()
+camera.SetPosition(chrono.Vector(0, 0, 10))
+camera.SetRotation(chrono.QfromEuler(0, 0, 0))
 
-# Create a scene manager
-smgr = device.GetSceneManager()
+# Create Irrlicht driver
+driver = irrlicht.Driver.CreateDevice(video.EDT_OPENGL1, video.EHW_OPENGL)
+driver.SetWindowTitle("FEDA Simulation")
+driver.SetWindowResizable(True)
 
-# Create a mesh visualizer
-mesh = chronoirr.IrrMeshVisualizer()
-mesh.SetColor(ChColor(1, 0, 0))
-mesh.SetMesh("vehicle_mesh.obj")
+# Create Irrlicht scene manager
+smgr = driver.GetSceneManager()
+smgr.AddCamera(camera)
 
-# Add the vehicle body to the mesh visualizer
-vehicle_body.AddMeshVisualizer(mesh)
+# Create Irrlicht mesh visualization type
+mesh_type = irrlicht.MeshType()
+mesh_type.SetMeshType(irrlicht.EMT_STANDARD)
 
-# Create a terrain visualizer
-terrain_mesh = chronoirr.IrrMeshVisualizer()
-terrain_mesh.SetColor(ChColor(0, 1, 0))
-terrain_mesh.SetMesh("terrain_mesh.obj")
+# Create vehicle meshes
+wheel1_mesh = irrlicht.Mesh("wheel.obj", mesh_type)
+wheel2_mesh = irrlicht.Mesh("wheel.obj", mesh_type)
+wheel3_mesh = irrlicht.Mesh("wheel.obj", mesh_type)
+wheel4_mesh = irrlicht.Mesh("wheel.obj", mesh_type)
 
-# Add the terrain body to the terrain visualizer
-terrain_body.AddMeshVisualizer(terrain_mesh)
+# Add meshes to scene manager
+smgr.AddMesh(wheel1_mesh, wheel1)
+smgr.AddMesh(wheel2_mesh, wheel2)
+smgr.AddMesh(wheel3_mesh, wheel3)
+smgr.AddMesh(wheel4_mesh, wheel4)
 
-# Set up the simulation loop
-while device.Run():
-    # Update the vehicle dynamics
-    vehicle.Update()
+# Create interactive driver system
+driver = ironbender.Driver()
+driver.SetVehicle(vehicle)
+driver.SetSteering(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
 
-    # Render the scene
-    device.BeginScene()
+# Simulation loop
+while True:
+    # Update vehicle dynamics
+    core.StepSimulation(0.01)
+
+    # Render scene
+    driver.BeginScene()
     smgr.DrawAll()
-    device.EndScene()
+    driver.EndScene()
 
-    # Update the camera
-    camera.Update()
+    # Update camera position
+    camera.SetPosition(vehicle.GetPosition())
+    camera.SetRotation(vehicle.GetRotation())
+
+    # Check for user input
+    if driver.IsKeyTyped(irrlicht.KEY_ESCAPE):
+        break
+
+    # Cap frame rate
+    chrono.Sleep(1000 / 50)
 
 # Clean up
 chrono.Deinitialize()

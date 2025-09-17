@@ -87,7 +87,7 @@ emitter.RegisterAddBodyCallback(mcreation_callback)
 
 sys.SetSolverType(chrono.ChSolver.Type_PSOR)
 sys.GetSolver().AsIterative().SetMaxIterations(40)
-sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No gravity
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No gravity from Chrono
 
 # Simulation loop
 stepsize = 1e-2
@@ -122,7 +122,7 @@ while vis.Run():
     # Total energy of the system
     total_energy = kinetic_energy + potential_energy
 
-    # Apply gravitational forces between bodies
+    # Apply gravitational forces
     for abodyA, abodyB in mlist:
         D_attract = abodyB.GetPos() - abodyA.GetPos()
         r_attract = D_attract.Length()

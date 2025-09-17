@@ -1,59 +1,52 @@
-import pychrono as p
-import pychrono.irrlicht as irr
-import pychrono.physics as phys
-import numpy as np
+import pychrono as chrono
+import pychrono.irrlicht as irrlicht
+import pychrono.physics as physics
+import pychrono.math as math
 
 # Initialize PyChrono
-p.init()
+chrono.init()
 
-# Create Irrlicht window
-win = irr.IrrlichtApplication.createWindow(
-    "Simple Pendulum",
-    1280,
-    720,
-    irr.irr_display_type.e_display_window
-)
+# Create the Irrlicht engine
+engine = irrlicht.IrrlichtEngine()
 
-# Create ground body
-ground = p.createBody(p.BodyType.e_ground)
-ground.position = p.Vector3(0, 0, 0)
-ground.inertia = p.Inertia(mass=100, Ixx=100, Iyy=100, Izz=100)
+# Create the world
+world = chrono.World()
 
-# Create pendulum
-pendulum = p.createBody(p.BodyType.e_rigidbody)
-pendulum.mass = 1
-pendulum.inertia = p.Inertia(mass=1, Ixx=0.1, Iyy=0.1, Izz=0.1)
-pendulum.position = p.Vector3(0, 0.5, 0)
-pendulum.rotation = p.Quaternion(0, 0, 0, 1)
+# Create the ground body
+ground = chrono.Body(chrono.BodyType.STATIC, chrono.Vector3(0, 0, 0))
+ground.setMass(1000)
+ground.setInertia(chrono.Vector3(0, 0, 0))
+world.addBody(ground)
 
-# Create revolute joint
-joint = p.createRevoluteJoint(
-    pendulum, ground, p.Vector3(0, 0, 0), p.Vector3(0, 0, 1)
-)
+# Create the pendulum
+pendulum = chrono.Body(chrono.BodyType.DYNAMIC, chrono.Vector3(0, 5, 0))
+pendulum.setMass(1)
+pendulum.setInertia(chrono.Vector3(0, 0.1, 0))
+pendulum.setFixedRotation(True)
 
-# Set simulation parameters
-dt = 0.01
-time = 0.0
+# Create the revolute joint
+joint = chrono.RevoluteJoint(pendulum, ground)
+world.addBody(pendulum)
+world.addBody(ground)
+world.addJoint(joint)
 
-# Set up simulation
-p.setDeltaTime(dt)
-p.setSimTime(time)
+# Set the pendulum's initial position and velocity
+pendulum.setPosition(chrono.Vector3(0, 5, 0))
+pendulum.setVelocity(chrono.Vector3(0, 0, 0))
 
-# Run simulation
+# Set the visualization parameters
+engine.addScene(world)
+engine.run()
+
+# Periodically log the pendulum's position and velocity
 while True:
-    # Update simulation
-    p.update()
+    # Get the pendulum's position and velocity
+    position = pendulum.getPosition()
+    velocity = pendulum.getVelocity()
 
-    # Get pendulum position and velocity
-    pendulum_position = pendulum.position
-    pendulum_velocity = pendulum.velocity
+    # Log the values
+    print(f"Position: {position}")
+    print(f"Velocity: {velocity}")
 
-    # Log data
-    print("Pendulum Position:", pendulum_position)
-    print("Pendulum Velocity:", pendulum_velocity)
-
-    # Render the simulation
-    win.render()
-
-    # Increment time
-    time += dt
+    # Update the simulation
+    engine.update()

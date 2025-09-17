@@ -41,20 +41,20 @@ vis.AddTypicalLights()
 vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
 vis.EnableShadows()  # Enable shadows
 
-# Set the simulation time step
+# Simulation parameters
 time_step = 2e-3
 
 # Function to control the robot's movement
 def move(mode):
     if mode == 'straight':
-        robot.SetMotorSpeed(math.pi, 0)  # Assuming pi rad/s for straight movement
-        robot.SetMotorSpeed(math.pi, 1)
+        robot.SetMotorSpeed(0.5, 0)  # Assuming 0.5 rad/s for straight movement
+        robot.SetMotorSpeed(0.5, 1)
     elif mode == 'left':
-        robot.SetMotorSpeed(0, 0)  
-        robot.SetMotorSpeed(-math.pi, 1)
+        robot.SetMotorSpeed(-0.5, 0)  # Assuming -0.5 rad/s for left turn
+        robot.SetMotorSpeed(0.5, 1)
     elif mode == 'right':
-        robot.SetMotorSpeed(-math.pi, 0)
-        robot.SetMotorSpeed(0, 1)
+        robot.SetMotorSpeed(0.5, 0)  # Assuming 0.5 rad/s for right turn
+        robot.SetMotorSpeed(-0.5, 1)
     else:
         raise ValueError("Invalid mode. Use 'straight', 'left', or 'right'.")
 
@@ -79,6 +79,4 @@ while vis.Run():
 
     # Advance the simulation by one time step
     system.DoStepDynamics(time_step)
-
-    # Increment time counter
     time += time_step

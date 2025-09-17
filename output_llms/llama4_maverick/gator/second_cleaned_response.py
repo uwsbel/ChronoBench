@@ -21,9 +21,9 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-terrainHeight = 0
-terrainLength = 100.0
-terrainWidth = 100.0
+terrainHeight = 0  
+terrainLength = 50.0  
+terrainWidth = 50.0  
 
 
 trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
@@ -66,28 +66,29 @@ terrain = veh.RigidTerrain(vehicle.GetSystem())
 
 
 
-patch1 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, -50, 0), chrono.QUNIT), 50, 50)
-patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
+patch1 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength, -terrainWidth, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch1.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
 patch1.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
-patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -50, 0), chrono.QUNIT), 50, 50)
+patch2 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, -terrainWidth, 0), chrono.QUNIT), terrainLength, terrainWidth)
 patch2.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 50, 50)
 patch2.SetColor(chrono.ChColor(0.5, 0.8, 0.5))
 patch2.SetHeightMap(veh.GetDataFile("terrain/height_maps/test_height.bmp"), 0, 5)
 
 
-patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-50, 0, 0), chrono.QUNIT), 50, 50)
-patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 50, 50)
+patch3 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(-terrainLength, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch3.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 100, 100)
 patch3.SetColor(chrono.ChColor(0.8, 0.5, 0.5))
 
+mesh_bump = chrono.ChTriangleMeshConnected()
+mesh_bump.LoadWavefrontMesh(chrono.GetChronoDataFile('models/bump.obj'), True, True)
+patch3.AddMesh(mesh_bump, chrono.ChVector3d(0, 0, 0.1))
 
-patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 50, 50)
-patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 50, 50)
+
+patch4 = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch4.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
 patch4.SetColor(chrono.ChColor(0.5, 0.5, 0.8))
-
-
-patch4.SetBump(chrono.ChVector3d(10, 10, 2), 5)
 
 terrain.Initialize()
 
@@ -109,17 +110,14 @@ driver = veh.ChInteractiveDriverIRR(vis)
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3  
-
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
-
 driver.Initialize()
 
 
-output = True
-if output:
-    print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)

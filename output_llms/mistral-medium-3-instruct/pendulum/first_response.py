@@ -3,75 +3,64 @@ import pychrono.irrlicht as chronoirr
 import math
 
 # 1. Initialize the PyChrono environment and core components
-chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set the path to Chrono data directory
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set your Chrono data path here
 
-# Create the physical system
-system = chrono.ChSystemNSC()
-system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+# Create a Chrono physical system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
 
-# 2. Add physical systems and objects
-
+# 2. Add the required physical systems and objects
 # Create the ground body
-ground = chrono.ChBodyEasyBox(4, 0.2, 4, 1000, True, True)
-ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
 ground.SetBodyFixed(True)
-system.Add(ground)
+my_system.Add(ground)
 
 # Create the pendulum bob
-pendulum = chrono.ChBodyEasySphere(0.2, 1, True, True)  # radius, density, visualization, collision
-pendulum.SetPos(chrono.ChVectorD(0, 1.5, 0))
-system.Add(pendulum)
+pendulum_mass = 1.0
+pendulum_radius = 0.1
+pendulum_length = 2.0
+pendulum_inertia = 0.5 * pendulum_mass * pendulum_radius * pendulum_radius  # Moment of inertia for a sphere
 
-# 3. Set up the revolute joint
-revolute = chrono.ChLinkLockRevolute()
-revolute.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 1.5, 0)))
-system.Add(revolute)
+pendulum = chrono.ChBodyEasySphere(pendulum_radius, pendulum_mass, True, True)
+pendulum.SetPos(chrono.ChVectorD(pendulum_length, 0, 0))
+pendulum.SetInertiaXX(chrono.ChVectorD(pendulum_inertia, pendulum_inertia, pendulum_inertia))
+my_system.Add(pendulum)
 
-# 4. Set up visualization
-vis = chronoirr.ChVisualSystemIrrlicht()
-vis.AttachSystem(system)
-vis.SetWindowSize(800, 600)
-vis.SetWindowTitle("Simple Pendulum")
-vis.Initialize()
-vis.AddLogo()
-vis.AddSkyBox()
-vis.AddCamera(chrono.ChVectorD(0, 0.5, 2))
-vis.AddTypicalLights()
-vis.AssetBindAll()
-vis.AssetUpdateAll()
+# Create a revolute joint to connect the pendulum to the ground
+joint = chrono.ChLinkLockRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+my_system.Add(joint)
 
-# 5. Simulation parameters
+# 3. Set up visualization
+my_application = chronoirr.ChIrrApp(my_system, 'Pendulum Simulation', chronoirr.dimension2du(800, 600))
+my_application.AddTypicalLogo()
+my_application.AddTypicalSky()
+my_application.AddTypicalLights()
+my_application.AddTypicalCamera(chrono.ChVectorD(0, 1, 5))
+my_application.AssetBindAll()
+my_application.AssetUpdateAll()
+
+# Simulation parameters
 time_step = 0.01
-sim_time = 10.0
-output_step = 0.1  # Log every 0.1 seconds
+simulation_time = 10.0
+output_step = 0.1
 
-# 6. Simulation loop
+# Run the simulation
 current_time = 0
-output_time = 0
-while current_time < sim_time:
-    # Advance simulation
-    system.DoStepDynamics(time_step)
+output_counter = 0
+while current_time < simulation_time:
+    my_application.BeginScene()
+    my_application.DrawAll()
+    my_application.DoStepDynamics(time_step)
+    my_application.EndScene()
+
+    # Periodically log the pendulum's position and velocity
+    if current_time >= output_counter * output_step:
+        print(f"Time: {current_time:.2f} s")
+        print(f"Position: {pendulum.GetPos()}")
+        print(f"Velocity: {pendulum.GetPos_dt()}")
+        print("-------------------")
+        output_counter += 1
+
     current_time += time_step
-
-    # Visualization update
-    vis.BeginScene()
-    vis.Render()
-    vis.EndScene()
-
-    # Periodic logging
-    if current_time >= output_time:
-        # Get pendulum position and velocity
-        pos = pendulum.GetPos()
-        vel = pendulum.GetPos_dt()
-
-        # Calculate angle (simple approximation)
-        angle = math.atan2(pos.x, 1.5 - pos.y)  # Approximate angle from vertical
-
-        print(f"Time: {current_time:.2f}s | Position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f}) | "
-              f"Velocity: ({vel.x:.3f}, {vel.y:.3f}, {vel.z:.3f}) | Angle: {math.degrees(angle):.1f}°")
-
-        output_time += output_step
-
-    # Check for user exit
-    if vis.Run() == 0:
-        break

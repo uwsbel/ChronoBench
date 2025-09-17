@@ -1,56 +1,31 @@
-import pychrono as chrono
-import pychrono.irrlicht as vis
-import pychrono.postprocess as postprocess
+from pychrono import ChSystem, ChBody, ChPointPointConstraint, ChMaterialShell, ChVectorD, ChQuaternionD
+from pychrono.irrlicht import ChIrrApp
+from pychrono.solver import ChSolverPardisoMKL
 
 
-chrono.SetChronoDataPath("..")  
-system = chrono.ChSystemNSC()
-
-
-vis_app = vis.ChIrrApp(system, 'Cloth Folding Simulation')
-vis_app.AddTypicalSky()
-vis_app.AddTypicalLights()
-
-
-
-
-cloth_mesh = chrono.ChMeshReader.ReadOBJ("tablecloth.obj")
-cloth_body = chrono.ChBodyEasyBox(1.0, 1.0, 0.01)  
-cloth_body.SetBodyFixed(True)  
-cloth_body.AddAsset(cloth_mesh)
+system = ChSystem()
+system.Set_G_acc(ChVectorD(0, 0, -9.81))  
 
 
 
 
 
-num_rows = 10
-num_cols = 10
-nodes = []
-elements = []
+material = ChMaterialShell()
+material.Set_E(1e6)  
+material.Set_nu(0.3)  
 
 
 
 
-material = chrono.ChMaterialShell()
-material.SetIsotropic(1e6, 0.1, 0.1)  
+
+app = ChIrrApp(system, 'Tablecloth Folding', 'data/textures/', 'data/models/')
+app.AddCamera(ChVectorD(1, 1, 1), ChVectorD(0, 0, 0), ChVectorD(0, 1, 0))
 
 
-for element in elements:
-    shell_element = chrono.ChShellElement(material, element.nodes)
-    cloth_body.AddElement(shell_element)
-
-
-system.AddBody(cloth_body)
-
-
-solver = chrono.ChSolverPardisoMKL()
+solver = ChSolverPardisoMKL(system)
 system.SetSolver(solver)
 
 
-vis_app.SetCamera(chrono.ChVectorD(5, 5, 5))
-vis_app.SetCameraVertical(chrono.ChVectorD(0, 1, 0))
-while vis_app.Run():
-    system.DoStepDynamics(0.01)
-
-
-postprocess.SavePos(cloth_body, "cloth_positions.txt")
+app.SetTimestep(0.01)
+while app.Run():
+    system.DoStepDynamics(app.GetTimestep())

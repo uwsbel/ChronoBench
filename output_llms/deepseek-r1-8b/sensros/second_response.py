@@ -52,35 +52,45 @@ def main():
     sens_manager.AddSensor(cam)
 
     # Create and configure a 2D lidar sensor.
-    lidar = sens.ChLidarSensor(ground_body, 5., offset_pose, 90, 300, 2*ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100., 0)
-    lidar.PushFilter(sens.ChFilterLIDARScan())  # Access raw lidar data.
-    lidar.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud.
-    lidar.SetName("lidar2d")
-    sens_manager.AddSensor(lidar)
+    lidar2d = sens.ChLidarSensor(
+        ground_body,
+        5.,  # range_min
+        10.,  # range_max
+        0.,  # angle_min
+        2*ch.CH_PI,  # angle_max
+        ch.CH_PI / 12,  # verticalresolution
+        -ch.CH_PI / 6,  # horizontalresolution
+        100.  # maxdistance
+    )
+    lidar2d.PushFilter(sens.ChFilterName("lidar2d_scan"))  # Set scan name for visualization
+    lidar2d.PushFilter(sens.ChFilterDIAccess())  # Access raw lidar data
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1))  # Visualize the point cloud
+    lidar2d.SetName("lidar2d")
+    sens_manager.AddSensor(lidar2d)
 
     # Create and configure a GPS sensor.
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
     gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_reference, noise_model_none)
-    gps.PushFilter(sens.ChFilterGPSAccess())  # Access GPS data.
+    gps.PushFilter(sens.ChFilterGPSAccess())  # Access GPS data
     gps.SetName("gps")
     sens_manager.AddSensor(gps)
 
     # Create and configure an accelerometer sensor.
     acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_model_none)
-    acc.PushFilter(sens.ChFilterAccelAccess())  # Access accelerometer data.
+    acc.PushFilter(sens.ChFilterAccelAccess())  # Access accelerometer data
     acc.SetName("accelerometer")
     sens_manager.AddSensor(acc)
 
     # Create and configure a gyroscope sensor.
     gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_model_none)
-    gyro.PushFilter(sens.ChFilterGyroAccess())  # Access gyroscope data.
+    gyro.PushFilter(sens.ChFilterGyroAccess())  # Access gyroscope data
     gyro.SetName("gyroscope")
     sens_manager.AddSensor(gyro)
 
     # Create and configure a magnetometer sensor.
     mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_model_none, gps_reference)
-    mag.PushFilter(sens.ChFilterMagnetAccess())  # Access magnetometer data.
+    mag.PushFilter(sens.ChFilterMagnetAccess())  # Access magnetometer data
     mag.SetName("magnetometer")
     sens_manager.AddSensor(mag)
 
@@ -89,12 +99,11 @@ def main():
 
     # Create the ROS manager and register handlers for the sensors.
     ros_manager = chros.ChROSPythonManager()
-    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler.
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())  # Register the clock handler
 
-    # Register handlers for each sensor, specifying ROS topics for output.
+    # Register handlers for each sensor, specifying ROS topics for output
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar2d/data/scan"))  # New 2D lidar handler
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan"))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -103,32 +112,32 @@ def main():
     mag_handler = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
     ros_manager.RegisterHandler(mag_handler)
 
-    # Create and configure an IMU handler.
+    # Create and configure an IMU handler
     imu_handler = chros.ChROSIMUHandler(100, "~/output/imu/data")
     imu_handler.SetAccelerometerHandler(acc_handler)
     imu_handler.SetGyroscopeHandler(gyro_handler)
     imu_handler.SetMagnetometerHandler(mag_handler)
     ros_manager.RegisterHandler(imu_handler)
 
-    ros_manager.Initialize()  # Initialize the ROS manager.
+    ros_manager.Initialize()  # Initialize the ROS manager
 
-    # Run the simulation loop.
+    # Run the simulation loop
     time = 0
-    time_step = 1e-3  # Define the simulation time step.
-    time_end = 100  # Set the duration of the simulation.
+    time_step = 1e-3  # Define the simulation time step
+    time_end = 100  # Set the duration of the simulation
 
-    # Apply rotational velocity to the ground body for sensor motion.
+    # Apply rotational velocity to the ground body for sensor motion
     ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
 
     while time < time_end:
-        time = sys.GetChTime()  # Update simulation time.
+        time = sys.GetChTime()  # Update simulation time
 
-        # Update sensors and ROS data.
+        # Update sensors and ROS data
         sens_manager.Update()
         if not ros_manager.Update(time, time_step):
-            break  # Exit loop if ROS manager update fails.
+            break  # Exit loop if ROS manager update fails
 
-        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step.
+        sys.DoStepDynamics(time_step)  # Advance the simulation by one time step
 
 if __name__ == "__main__":
     main()

@@ -50,7 +50,7 @@ vehicle_truck.SetContactMethod(contact_method)
 vehicle_truck.SetChassisCollisionType(chassis_collision_type)
 vehicle_truck.SetChassisFixed(False)
 vehicle_truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
-vehicle_truck.SetInitVelocity(chrono.ChVectorD(0, 0, 0))
+vehicle_truck.SetInitPose(True)
 vehicle_truck.Initialize()
 
 vehicle_truck.SetChassisVisualizationType(vis_type, vis_type)
@@ -85,13 +85,13 @@ vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle_truck.GetTractor())
 
-# Create the sedan vehicle, set parameters, and initialize
+# Create the sedan
 vehicle_sedan = veh.Sedan()
 vehicle_sedan.SetContactMethod(contact_method)
 vehicle_sedan.SetChassisCollisionType(chassis_collision_type)
 vehicle_sedan.SetChassisFixed(False)
 vehicle_sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
-vehicle_sedan.SetInitVelocity(chrono.ChVectorD(10, 0, 0))
+vehicle_sedan.SetInitPose(True)
 vehicle_sedan.Initialize()
 
 vehicle_sedan.SetChassisVisualizationType(vis_type, vis_type)
@@ -102,7 +102,20 @@ vehicle_sedan.SetTireVisualizationType(vis_type, vis_type)
 
 vehicle_sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 
-# Create the second driver system for the sedan
+# Create the driver system for the truck
+driver_truck = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver_truck.SetSteeringDelta(render_step_size / steering_time)
+driver_truck.SetThrottleDelta(render_step_size / throttle_time)
+driver_truck.SetBrakingDelta(render_step_size / braking_time)
+
+driver_truck.Initialize()
+
+# Create the driver system for the sedan
 driver_sedan = veh.ChInteractiveDriverIRR(vis)
 
 # Set the time response for steering and throttle keyboard inputs.
@@ -112,6 +125,9 @@ braking_time = 0.3   # time to go from 0 to +1
 driver_sedan.SetSteeringDelta(render_step_size / steering_time)
 driver_sedan.SetThrottleDelta(render_step_size / throttle_time)
 driver_sedan.SetBrakingDelta(render_step_size / braking_time)
+
+driver_sedan.SetFixedThrottle(1)
+driver_sedan.SetFixedSteering(0)
 
 driver_sedan.Initialize()
 
@@ -128,8 +144,8 @@ step_number = 0
 render_frame = 0
 
 # Store the state of the truck's tractor and trailer during the simulation
-tractor_states = []
-trailer_states = []
+tractor_state = vehicle_truck.GetTractor().GetState()
+trailer_state = vehicle_truck.GetTrailer().GetState()
 
 while vis.Run() :
     time = vehicle_truck.GetSystem().GetChTime()
@@ -142,25 +158,24 @@ while vis.Run() :
         render_frame += 1
 
     # Get driver inputs
-    driver_inputs = driver_sedan.GetInputs()
+    driver_inputs_truck = driver_truck.GetInputs()
+    driver_inputs_sedan = driver_sedan.GetInputs()
 
     # Update modules (process inputs from other modules)
+    driver_truck.Synchronize(time)
     driver_sedan.Synchronize(time)
     terrain.Synchronize(time)
-    vehicle_truck.Synchronize(time, driver_inputs, terrain)
-    vehicle_sedan.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
+    vehicle_truck.Synchronize(time, driver_inputs_truck, terrain)
+    vehicle_sedan.Synchronize(time, driver_inputs_sedan, terrain)
+    vis.Synchronize(time, driver_inputs_truck)
 
     # Advance simulation for one timestep for all modules
+    driver_truck.Advance(step_size)
     driver_sedan.Advance(step_size)
     terrain.Advance(step_size)
     vehicle_truck.Advance(step_size)
     vehicle_sedan.Advance(step_size)
     vis.Advance(step_size)
-
-    # Store the state of the truck's tractor and trailer during the simulation
-    tractor_states.append(vehicle_truck.GetTractor().GetState())
-    trailer_states.append(vehicle_truck.GetTrailer().GetState())
 
     # Increment frame number
     step_number += 1

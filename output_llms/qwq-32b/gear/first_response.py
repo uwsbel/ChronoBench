@@ -1,173 +1,198 @@
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Create the Chrono system
-system = chrono.ChSystemNSC()
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
-# Create the Irrlicht application
-application = chronoirr.ChIrrApp(system, 'Epicyclic Gears', chronoirr.dimension2du(800, 600))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(1.5, 1.5, 1.5))
+    # Visualization setup
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Epicyclic Gears Simulation')
+    vis.SetSymbolscale(0.01)
+    vis.SetLightIntensity(0.8)
+    vis.SetLightPosition(chrono.ChVectorD(2, 2, 2))
+    vis.SetCameraPosition(chrono.ChVectorD(1.5, 1.5, 1.5))
+    vis.SetCameraLookatPoint(chrono.ChVectorD(0, 0, 0))
+    my_system.SetVisualSystem(vis)
 
-# Create the fixed truss (base structure)
-truss = chrono.ChBodyEasyBox(2.0, 0.2, 2.0, 1000, True, True)
-truss.SetBodyFixed(True)
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
-truss.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.5, 0.5, 0.5))
-system.Add(truss)
-application.AddBody(truss)
+    # Create fixed truss (base plate)
+    truss = chrono.ChBodyEasyBox(1.0, 0.2, 0.2, 1000, True, True)
+    truss.SetPos(chrono.ChVectorD(0, 0, 0))
+    truss.SetBodyFixed(True)
+    truss.GetVisualShape(0).SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+    truss.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    my_system.Add(truss)
 
-# Create the rotating bar (along X-axis)
-bar_radius = 0.05
-bar_length = 1.0
-bar = chrono.ChBodyEasyCylinder(bar_radius, bar_length, 1000, True, True)
-bar.SetPos(chrono.ChVectorD(0, 0, 0))
-bar.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1)))  # Align cylinder along X-axis
-bar.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.2, 0.2, 0.8))
-system.Add(bar)
-application.AddBody(bar)
+    # Create rotating bar (carrier)
+    bar_length = 0.3
+    bar = chrono.ChBodyEasyBox(bar_length, 0.05, 0.05, 1000, True, True)
+    bar.SetPos(chrono.ChVectorD(0.15, 0, 0))  # Center at (0.15,0,0)
+    bar.SetMaterialSurface(chrono.ChMaterialSurface())
+    bar.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    my_system.Add(bar)
 
-# Revolute joint between truss and bar (rotation around Y-axis)
-rev_joint = chrono.ChLinkRevolute()
-rev_joint.Initialize(truss, bar, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-system.AddLink(rev_joint)
+    # Revolute joint between truss and bar (at origin)
+    rev_joint = chrono.ChLinkRevolute()
+    rev_joint.Initialize(truss, bar,
+                        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(-0.15, 0, 0), chrono.QUNIT))
+    my_system.AddLink(rev_joint)
 
-# Apply a motor to the bar's joint for constant rotation
-rev_motor = rev_joint.GetMotor()
-rev_motor.SetVelocityTarget(chrono.CH_C_2_PI)  # 1 revolution per second (rad/s)
-rev_motor.SetTorqueMax(1e6)
+    # Enable motor on the joint to enforce rotation
+    rev_motor = rev_joint.GetMotor()
+    rev_motor.SetVelocity(10)  # 10 rad/s
+    rev_motor.SetTorqueMax(1e6)
+    rev_motor.Enable(True)
 
-# Create Gear1 attached to the end of the bar
-gear1_radius = 0.2
-gear1_length = 0.1
-gear1 = chrono.ChBodyEasyCylinder(gear1_radius, gear1_length, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(0.5, 0, 0))  # End of the bar at (0.5,0,0)
-gear1.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.8, 0, 0))
-system.Add(gear1)
-application.AddBody(gear1)
+    # Create sun gear (fixed to truss)
+    sun_radius = 0.2
+    sun_gear = chrono.ChBodyEasyCylinder(sun_radius, 0.02, 1000, True, True)
+    sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+    sun_gear.SetBodyFixed(True)
+    sun_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+    my_system.Add(sun_gear)
 
-# Attach Gear1 to the bar via a revolute joint (rotates with the bar)
-gear1_joint = chrono.ChLinkLockRevolute()
-gear1_joint.Initialize(bar, gear1, chrono.ChFrameD(gear1.GetPos(), chrono.QUNIT))
-system.AddLink(gear1_joint)
+    # Create planet gear (attached to bar's end)
+    planet_radius = 0.1
+    planet_gear = chrono.ChBodyEasyCylinder(planet_radius, 0.02, 1000, True, True)
+    planet_gear.SetPos(chrono.ChVectorD(0.3, 0, 0))
+    planet_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+    my_system.Add(planet_gear)
 
-# Create Gear2 positioned to mesh with Gear1
-gear2_radius = 0.4
-gear2_length = 0.1
-gear2_pos_x = 0.5 + (gear1_radius + gear2_radius)  # Distance between centers = sum of radii
-gear2 = chrono.ChBodyEasyCylinder(gear2_radius, gear2_length, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(gear2_pos_x, 0, 0))
-gear2.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0, 0.8, 0))
-system.Add(gear2)
-application.AddBody(gear2)
+    # Revolute joint between bar and planet gear (allowing rotation around Z)
+    planet_rev_joint = chrono.ChLinkRevolute()
+    planet_rev_joint.Initialize(bar, planet_gear,
+                               chrono.ChFrameD(chrono.ChVectorD(0.3, 0, 0), chrono.QUNIT),
+                               chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    my_system.AddLink(planet_rev_joint)
 
-# Revolute joint for Gear2 to allow rotation around Y-axis (fixed to truss)
-gear2_joint = chrono.ChLinkRevolute()
-gear2_joint.Initialize(truss, gear2, chrono.ChFrameD(gear2.GetPos(), chrono.QUNIT))
-system.AddLink(gear2_joint)
+    # Gear constraint between bar and planet gear
+    gear_ratio = -planet_radius / sun_radius  # -0.5
+    gear_link = chrono.ChLinkGear()
+    gear_link.Initialize(bar, planet_gear,
+                        chrono.ChFrameD(chrono.ChVectorD(0.3, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    gear_link.SetGearRatio(gear_ratio)
+    my_system.Add(gear_link)
 
-# Create gear constraint between Gear1 and Gear2
-gear_ratio = - (gear1_radius / gear2_radius)  # -0.5
-gear_link = chrono.ChLinkGear()
-gear_link.Initialize(gear1, gear2, chrono.ChFrameD())  # Same rotation axis direction
-gear_link.SetGearRatio(gear_ratio)
-system.Add(gear_link)
+    # Visualization setup
+    vis.AddAllVisualizationAssets()
 
-# Simulation loop
-application.SetTimestep(0.005)
-application.SetVideoframeSaveIntervalLS(-1)  # Disable video saving
+    # Simulation loop
+    application = chronoirr.ChIrrApp(my_system, 'Epicyclic Gears', chronoirr.dimension2du(1024, 768))
+    application.SetCamera(chronoirr.ChVectorD(1.5, 1.5, 1.5))
+    application.AddAllTypicalLights()
+    application.AddAllVisualization()
+    application.AssetBind()
+    application.AssetUpdate()
+    application.SetTimestep(0.001)
+    application.SetTryRealtime(True)
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+    while application.GetDevice().run():
+        application.BeginScene(True, True, chrono.ChColor(0.8, 0.8, 0.8))
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
+
+if __name__ == '__main__':
+    main()
 
 import pychrono as chrono
 import pychrono.irrlicht as chronoirr
 
-# Initialize the Chrono system
-system = chrono.ChSystemNSC()
+def main():
+    # Initialize Chrono system
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_Gravity(chrono.ChVectorD(0, -9.81, 0))
 
-# Set up the Irrlicht visualization
-application = chronoirr.ChIrrApp(system, 'Epicyclic Gears', chronoirr.dimension2du(800, 600))
-application.AddTypicalLogo()
-application.AddTypicalSky()
-application.AddTypicalLights()
-application.AddTypicalCamera(chronoirr.vector3df(1.5, 1.5, 1.5))
+    # Visualization setup
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Epicyclic Gears Simulation')
+    vis.SetLightIntensity(0.8)
+    vis.SetLightPosition(chrono.ChVectorD(2, 2, 2))
+    vis.SetCameraPosition(chrono.ChVectorD(1.5, 1.5, 1.5))
+    vis.SetCameraLookatPoint(chrono.ChVectorD(0, 0, 0))
+    my_system.SetVisualSystem(vis)
 
-# Create the fixed truss (base structure)
-truss = chrono.ChBodyEasyBox(2.0, 0.2, 2.0, 1000, True, True)
-truss.SetBodyFixed(True)
-truss.SetPos(chrono.ChVectorD(0, 0, 0))
-truss.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.5, 0.5, 0.5))
-system.Add(truss)
-application.AddBody(truss)
+    # Create fixed truss (base plate)
+    truss = chrono.ChBodyEasyBox(1.0, 0.2, 0.2, 1000, True, True)
+    truss.SetPos(chrono.ChVectorD(0, 0, 0))
+    truss.SetBodyFixed(True)
+    truss.GetVisualShape(0).SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+    truss.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+    my_system.Add(truss)
 
-# Create the rotating bar (aligned along X-axis)
-bar_radius = 0.05
-bar_length = 1.0
-bar = chrono.ChBodyEasyCylinder(bar_radius, bar_length, 1000, True, True)
-bar.SetPos(chrono.ChVectorD(0, 0, 0))
-bar.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1)))  # Align cylinder along X-axis
-bar.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.2, 0.2, 0.8))
-system.Add(bar)
-application.AddBody(bar)
+    # Create rotating bar (carrier)
+    bar_length = 0.3
+    bar = chrono.ChBodyEasyBox(bar_length, 0.05, 0.05, 1000, True, True)
+    bar.SetPos(chrono.ChVectorD(0.15, 0, 0))  # Center at (0.15,0,0)
+    bar.SetMaterialSurface(chrono.ChMaterialSurface())
+    bar.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    my_system.Add(bar)
 
-# Revolute joint between truss and bar (rotation around Y-axis)
-rev_joint = chrono.ChLinkRevolute()
-rev_joint.Initialize(truss, bar, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
-system.AddLink(rev_joint)
+    # Revolute joint between truss and bar (at origin)
+    rev_joint = chrono.ChLinkRevolute()
+    rev_joint.Initialize(truss, bar,
+                        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(-0.15, 0, 0), chrono.QUNIT))
+    my_system.AddLink(rev_joint)
 
-# Apply a motor to the bar's joint for constant rotation
-rev_motor = rev_joint.GetMotor()
-rev_motor.SetVelocityTarget(chrono.CH_C_2_PI)  # 1 revolution per second
-rev_motor.SetTorqueMax(1e6)
+    # Enable motor to enforce rotation
+    rev_motor = rev_joint.GetMotor()
+    rev_motor.SetVelocity(10)  # 10 rad/s
+    rev_motor.SetTorqueMax(1e6)
+    rev_motor.Enable(True)
 
-# Create Gear1 attached to the end of the bar
-gear1_radius = 0.2
-gear1_length = 0.1
-gear1 = chrono.ChBodyEasyCylinder(gear1_radius, gear1_length, 1000, True, True)
-gear1.SetPos(chrono.ChVectorD(0.5, 0, 0))  # End of the bar at (0.5,0,0)
-gear1.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.8, 0, 0))
-system.Add(gear1)
-application.AddBody(gear1)
+    # Create sun gear (fixed to truss)
+    sun_radius = 0.2
+    sun_gear = chrono.ChBodyEasyCylinder(sun_radius, 0.02, 1000, True, True)
+    sun_gear.SetPos(chrono.ChVectorD(0, 0, 0))
+    sun_gear.SetBodyFixed(True)
+    sun_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+    my_system.Add(sun_gear)
 
-# Attach Gear1 to the bar via a revolute joint (rotates with the bar)
-gear1_joint = chrono.ChLinkLockRevolute()
-gear1_joint.Initialize(bar, gear1, chrono.ChFrameD(gear1.GetPos(), chrono.QUNIT))
-system.AddLink(gear1_joint)
+    # Create planet gear (attached to bar's end)
+    planet_radius = 0.1
+    planet_gear = chrono.ChBodyEasyCylinder(planet_radius, 0.02, 1000, True, True)
+    planet_gear.SetPos(chrono.ChVectorD(0.3, 0, 0))
+    planet_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.2, 0.2))
+    my_system.Add(planet_gear)
 
-# Create Gear2 positioned to mesh with Gear1
-gear2_radius = 0.4
-gear2_length = 0.1
-gear2_pos_x = 0.5 + (gear1_radius + gear2_radius)  # Distance between centers = sum of radii
-gear2 = chrono.ChBodyEasyCylinder(gear2_radius, gear2_length, 1000, True, True)
-gear2.SetPos(chrono.ChVectorD(gear2_pos_x, 0, 0))
-gear2.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0, 0.8, 0))
-system.Add(gear2)
-application.AddBody(gear2)
+    # Revolute joint between bar and planet gear (rotation around Z-axis)
+    planet_rev_joint = chrono.ChLinkRevolute()
+    planet_rev_joint.Initialize(bar, planet_gear,
+                               chrono.ChFrameD(chrono.ChVectorD(0.3, 0, 0), chrono.QUNIT),
+                               chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    my_system.AddLink(planet_rev_joint)
 
-# Revolute joint for Gear2 to allow rotation around Y-axis (fixed to truss)
-gear2_joint = chrono.ChLinkRevolute()
-gear2_joint.Initialize(truss, gear2, chrono.ChFrameD(gear2.GetPos(), chrono.QUNIT))
-system.AddLink(gear2_joint)
+    # Gear constraint between bar and planet gear
+    gear_ratio = -planet_radius / sun_radius  # -0.5
+    gear_link = chrono.ChLinkGear()
+    gear_link.Initialize(bar, planet_gear,
+                        chrono.ChFrameD(chrono.ChVectorD(0.3, 0, 0), chrono.QUNIT),
+                        chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+    gear_link.SetGearRatio(gear_ratio)
+    my_system.Add(gear_link)
 
-# Create gear constraint between Gear1 and Gear2
-gear_ratio = - (gear1_radius / gear2_radius)  # -0.5 ratio
-gear_link = chrono.ChLinkGear()
-gear_link.Initialize(gear1, gear2, chrono.ChFrameD())  # Same rotation axis direction
-gear_link.SetGearRatio(gear_ratio)
-system.Add(gear_link)
+    # Initialize Irrlicht application
+    application = chronoirr.ChIrrApp(my_system, 'Epicyclic Gears', chronoirr.dimension2du(1024, 768))
+    application.SetCamera(chronoirr.ChVectorD(1.5, 1.5, 1.5))
+    application.AddAllTypicalLights()
+    application.AddAllVisualization()
+    application.AssetBind()
+    application.AssetUpdate()
+    application.SetTimestep(0.001)
+    application.SetTryRealtime(True)
 
-# Simulation loop
-application.SetTimestep(0.005)
-application.SetVideoframeSaveIntervalLS(-1)  # Disable video saving
+    # Simulation loop
+    while application.GetDevice().run():
+        application.BeginScene(True, True, chrono.ChColor(0.8, 0.8, 0.8))
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
 
-while application.GetDevice().run():
-    application.BeginScene()
-    application.DrawAll()
-    application.DoStep()
-    application.EndScene()
+if __name__ == '__main__':
+    main()

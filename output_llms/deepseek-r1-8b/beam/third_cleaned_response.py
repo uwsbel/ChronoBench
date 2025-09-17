@@ -74,12 +74,7 @@ constr_d = chrono.ChLinkMateGeneric()
 constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
 sys.Add(constr_d)
 constr_d.SetConstrainedCoords(False, True, True,     
-                              False, False,False)    
-
-
-
-
-
+                              False, False, False)    
 
 
 
@@ -91,28 +86,14 @@ builder = fea.ChBuilderBeamEuler()
 builder.BuildBeam(mesh,                   
                     msection,                  
                     5,                         
-                    chrono.ChVector3d(0, 0, -0.1),   
-                    chrono.ChVector3d(0.2, 0, -0.1), 
+                    chrono.ChVector3d(0.2, 0, -0.1),   
+                    chrono.ChVector3d(0.2, 0.1, -0.1), 
                     chrono.ChVector3d(0, 1, 0))      
 
 
 
-builder.GetLastBeamNodes().back().SetFixed(True)
-builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -1, 0))
 
 
-
-builder.BuildBeam(mesh,
-                 msection,
-                 5,
-                 chrono.ChVector3d(0, 0, -0.1),  
-                 chrono.ChVector3d(0.2, 0.1, -0.1),  
-                 chrono.ChVector3d(0, 1, 0))      
-
-
-new_beam_nodes = builder.GetLastBeamNodes()
-new_beam_nodes.back().SetFixed(True)  
-new_beam_nodes.front().SetForce(chrono.ChVector3d(0, -1, 0))  
 
 
 mesh.SetAutomaticGravity(False);
@@ -131,6 +112,14 @@ visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
 visualizebeamA.SetSmoothFaces(True)
 visualizebeamA.SetWireframe(False)
 mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
 
 
 vis = chronoirr.ChVisualSystemIrrlicht()

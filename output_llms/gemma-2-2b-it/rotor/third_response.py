@@ -94,16 +94,19 @@ sys.Add(rotmotor1)
 
 # Define a custom motor function class
 class ChFunctionMyFun(chrono.ChFunction):
-    def GetVal(self, x):
-        A1 = 1.0
-        A2 = 0.5
-        T1 = 0.1
-        T2 = 0.2
-        T3 = 0.3
-        w = 0.1
-        return A1 * (1 - (x / T1)) * (1 - (x / T2)) * (1 - (x / T3)) * w
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
 
-rotmotor1.SetMotorFunction(ChFunctionMyFun())
+    def GetVal(self, x):
+        return self.A1 * (1 - math.exp(-x / self.T1)) + self.A2 * math.sin(x / self.T2) + self.T3 * x + self.w
+
+# Replace the simple sine motor function with the custom one
+rotmotor1.SetMotorFunction(ChFunctionMyFun(1, 2, 1, 1, 1, 0.1))  # Example parameters
 
 # Attach a visualization of the FEM mesh.
 

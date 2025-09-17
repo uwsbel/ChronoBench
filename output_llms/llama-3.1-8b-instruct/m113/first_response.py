@@ -23,52 +23,37 @@ vehicle.SetName("M113")
 vehicle.SetPosition(cpy.Vec3(0, 0, 0))
 vehicle.SetRotation(cpy.Vec3(0, 0, 0))
 vehicle.SetMass(5000)  # kg
-vehicle.SetInertia(cpy.MomentOfInertia(1000, 1000, 1000))  # kg m^2
+vehicle.SetInertia(cpy.Mat3(1000, 0, 0, 0, 1000, 0, 0, 0, 1000))  # kg m^2
 
 # Step 5: Set up the driver system
 driver = cpy.Driver(world)
-driver.SetName("Driver")
-driver.SetPosition(cpy.Vec3(0, 0, 0))
-driver.SetRotation(cpy.Vec3(0, 0, 0))
-driver.SetMass(50)  # kg
-driver.SetInertia(cpy.MomentOfInertia(10, 10, 10))  # kg m^2
+driver.SetVehicle(vehicle)
+driver.SetSpeed(5)  # m/s
+driver.SetAcceleration(1)  # m/s^2
 
-# Step 6: Create the visualization
+# Step 6: Set up the visual system
 visual = cpy.Visual(world)
-visual.SetName("Visual")
-visual.SetPosition(cpy.Vec3(0, 0, 0))
-visual.SetRotation(cpy.Vec3(0, 0, 0))
+visual.SetCameraPosition(cpy.Vec3(0, 10, 0))
+visual.SetCameraTarget(cpy.Vec3(0, 0, 0))
+visual.SetLightPosition(cpy.Vec3(0, 10, 0))
+visual.SetLightIntensity(1)
+visual.SetLightColor(cpy.Vec3(1, 1, 1))
 
-# Step 7: Set up the camera
-camera = cpy.Camera(visual)
-camera.SetPosition(cpy.Vec3(0, 0, 0))
-camera.SetRotation(cpy.Vec3(0, 0, 0))
-camera.SetFov(60)  # field of view
-
-# Step 8: Set up the lighting
-light = cpy.Light(visual)
-light.SetPosition(cpy.Vec3(0, 0, 0))
-light.SetRotation(cpy.Vec3(0, 0, 0))
-light.SetIntensity(10)  # intensity
-
-# Step 9: Define the simulation loop
-def simulate():
-    # Advance the simulation by one timestep
-    world.Step(1e-3)  # 1 ms
-
-    # Synchronize the vehicle, terrain, driver, and visual system
-    vehicle.Synchronize()
-    terrain.Synchronize()
-    driver.Synchronize()
-    visual.Synchronize()
-
-    # Update the camera and lighting
-    camera.Update()
-    light.Update()
-
-# Step 10: Run the simulation loop
+# Step 7: Create the simulation loop
+timestep = 0.01  # s
 while True:
-    simulate()
+    # Step 8: Synchronize the world
+    world.Synchronize()
 
-# Step 11: Clean up
+    # Step 9: Advance the world
+    world.Step(timestep)
+
+    # Step 10: Visualize the world
+    visual.Render()
+
+    # Step 11: Check for real-time execution
+    if world.GetTime() > 10:
+        break
+
+# Step 12: Clean up
 chrono.Destroy()

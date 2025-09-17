@@ -96,18 +96,16 @@ patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 50, 50)
 terrain.Initialize()
 
 
-
-
 box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
 box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetBodyFixed(True)
 box.GetVisualShape(0).SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
 gator.GetSystem().Add(box)
 
 
-
-
 cylinder = chrono.ChBodyEasyCylinder(0.5, 1, 1000, True, True)
 cylinder.SetPos(chrono.ChVector3d(0, 0, 1.5))
+cylinder.SetBodyFixed(True)
 cylinder.GetVisualShape(0).SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"))
 gator.GetSystem().Add(cylinder)
 
@@ -133,33 +131,30 @@ cam = sens.ChCameraSensor(
     fov
 )
 cam.SetName("Third Person POV")
-
 cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Gator Camera"))
 manager.AddSensor(cam)
 
 
-
-
-lidar_offset_pose = chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2))
 lidar = sens.ChLidarSensor(
     gator.GetChassisBody(),
     update_rate,
-    lidar_offset_pose,
-    800,  
-    300,  
-    2 * chrono.CH_PI,  
-    chrono.CH_PI / 12,  
-    -chrono.CH_PI / 6,  
-    100.0,  
-    sens.ChLidarSensor.RECTANGULAR_BEAM,  
-    2,  
-    0.003  
+    chrono.ChFramed(chrono.ChVector3d(0.0, 0, 2)),
+    800,
+    300,
+    2 * chrono.CH_PI,
+    chrono.CH_PI / 12,
+    -chrono.CH_PI / 6,
+    100.0,
+    sens.ChLidarSensor.BeamShape_RECTANGULAR,
+    2,
+    0.003,
+    sens.ChLidarSensor.StrongestReturn
 )
-lidar.SetStrongestReturnMode()
+lidar.SetName("Lidar Sensor")
 lidar.PushFilter(sens.ChFilterDepth())
 lidar.PushFilter(sens.ChFilterIntensity())
 lidar.PushFilter(sens.ChFilterXYZIPointCloud())
-lidar.PushFilter(sens.ChFilterVisualize())
+lidar.PushFilter(sens.ChFilterVisualize(1280, 720, "Lidar Sensor"))
 manager.AddSensor(lidar)
 
 

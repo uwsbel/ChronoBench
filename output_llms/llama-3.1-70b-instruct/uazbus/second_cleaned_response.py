@@ -20,7 +20,6 @@ chassis_collision_type = veh.CollisionType_NONE
 tire_model = veh.TireModelType_TMEASY
 
 
-
 terrainHeight = 0      
 terrainLength = 100.0  
 terrainWidth = 100.0   
@@ -40,8 +39,6 @@ tire_step_size = step_size
 render_step_size = 1.0 / 50  
 
 
-
-
 vehicle = veh.UAZBUS() 
 vehicle.SetContactMethod(contact_method)
 vehicle.SetChassisCollisionType(chassis_collision_type)
@@ -49,7 +46,6 @@ vehicle.SetChassisFixed(False)
 vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
 vehicle.SetTireType(tire_model)
 vehicle.SetTireStepSize(tire_step_size)
-
 
 vehicle.Initialize()
 
@@ -73,7 +69,6 @@ patch = terrain.AddPatch(patch_mat,
 patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 200, 200)  
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
-
 
 
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
@@ -100,7 +95,7 @@ driver.SetBrakingDelta(render_step_size / braking_time)
 driver.Initialize()
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -111,18 +106,16 @@ step_number = 0
 render_frame = 0
 
 
-time_interval_1 = 5.0
-time_interval_2 = 10.0
-time_interval_3 = 15.0
-steering_adjustment_1 = -0.5
-steering_adjustment_2 = 0.5
-throttle_adjustment_1 = 0.5
-throttle_adjustment_2 = 0.0
+lane_change_start_time = 2.0
+lane_change_duration = 4.0
+steering_angle = 0.5
+throttle_input = 0.5
+braking_input = 0.5
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
@@ -132,25 +125,19 @@ while vis.Run() :
     driver_inputs = driver.GetInputs()
 
     
+    if time >= lane_change_start_time and time < lane_change_start_time + lane_change_duration:
+        driver_inputs.m_steering = steering_angle
+        driver_inputs.m_throttle = throttle_input
+    elif time >= lane_change_start_time + lane_change_duration:
+        driver_inputs.m_steering = 0.0
+        driver_inputs.m_throttle = 0.0
+        driver_inputs.m_braking = braking_input
+
+    
     driver.Synchronize(time)
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-
-    
-    if time < time_interval_1:
-        driver_inputs.m_steering = steering_adjustment_1
-        driver_inputs.m_throttle = throttle_adjustment_1
-    elif time < time_interval_2:
-        driver_inputs.m_steering = steering_adjustment_2
-        driver_inputs.m_throttle = throttle_adjustment_1
-    elif time < time_interval_3:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = throttle_adjustment_2
-    else:
-        driver_inputs.m_steering = 0.0
-        driver_inputs.m_throttle = 0.0
-        driver_inputs.m_braking = 1.0
 
     
     driver.Advance(step_size)

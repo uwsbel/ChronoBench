@@ -19,7 +19,7 @@ sys = chrono.ChSystemNSC()
 sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
 coll = sys.GetCollisionSystem()
 
-# Create sphere bodies
+# Create three sphere bodies
 sphere_mat = chrono.ChContactMaterialNSC()
 sphere_mat.SetFriction(0.2)
 
@@ -75,7 +75,7 @@ emitter.SetParticleCreator(mcreator_spheres)
 vis = chronoirr.ChVisualSystemIrrlicht()
 vis.AttachSystem(sys)
 vis.SetWindowSize(1024, 768)
-vis.SetWindowTitle('Three-body problem with particle emitter')
+vis.SetWindowTitle('Particle emitter demo')
 vis.Initialize()
 vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddSkyBox()

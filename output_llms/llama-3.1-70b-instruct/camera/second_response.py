@@ -67,33 +67,38 @@ def main():
     # Create a filter graph for post-processing the data from the camera
     # ------------------------------------------------------------------
     # Apply noise model to the camera sensor based on the specified type
-    if True:  # Assuming noise model is always applied
+    if "CONST_NORMAL":
         cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))  # Add constant normal noise
+    elif "PIXEL_DEPENDENT":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))  # Add pixel-dependent noise
+    elif "NONE":
+        # No noise model applied
+        pass
 
     # Visualize the image before applying grayscale filter
-    if True:  # Assuming visualization is always enabled
+    if True:
         cam.PushFilter(sens.ChFilterVisualize(960, 480, "Before Grayscale Filter"))
 
     # Provide host access to the RGBA8 buffer from the camera
     cam.PushFilter(sens.ChFilterRGBA8Access())
 
     # Save the current image to a PNG file at the specified path
-    if True:  # Assuming saving is always enabled
-        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/rgb/"))
+    if True:
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/" + "rgb/"))
 
     # Convert the camera image to grayscale
     cam.PushFilter(sens.ChFilterGrayscale())
 
     # Visualize the grayscaled image
-    if True:  # Assuming visualization is always enabled
-        cam.PushFilter(sens.ChFilterVisualize(480, 240, "Grayscale Image"))
+    if True:
+        cam.PushFilter(sens.ChFilterVisualize(int(960 / 2), int(480 / 2), "Grayscale Image"))
 
     # Save the grayscaled image to a PNG file at the specified path
-    if True:  # Assuming saving is always enabled
-        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/gray/"))
+    if True:
+        cam.PushFilter(sens.ChFilterSave("SENSOR_OUTPUT/" + "gray/"))
 
     # Resize the image to the specified width and height
-    cam.PushFilter(sens.ChFilterImageResize(480, 240))
+    cam.PushFilter(sens.ChFilterImageResize(int(960 / 2), int(480 / 2)))
 
     # Access the grayscaled image buffer as R8 pixels
     cam.PushFilter(sens.ChFilterR8Access())

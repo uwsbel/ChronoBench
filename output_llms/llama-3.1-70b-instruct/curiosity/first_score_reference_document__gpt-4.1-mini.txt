@@ -4,122 +4,182 @@
 
 ### 1. Completeness (40 points)
 
-- **System Initialization:** Present (`mysystem = chrono.ChSystemNSC()`), but missing important configurations such as collision system type (`SetCollisionSystemType`), gravity setting, and collision model envelope/margin adjustments present in the reference.  
-  **Deduct 10 points** (component present but lacks important details).
+- **System Initialization:** Present and correct (`chrono.ChSystemNSC()`), no deduction.
+- **Collision System Type:** Missing setting collision system type to BULLET as in reference (`system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)`). This is important for collision handling and simulation accuracy. **Deduct 15 points.**
+- **Gravity Setting:** Missing explicit gravity setting (`system.SetGravitationalAcceleration(...)`). The reference sets gravity explicitly; the provided code relies on default gravity (likely zero or default). This can significantly affect simulation behavior. **Deduct 15 points.**
+- **Ground Body:** Present but differs:
+  - Reference uses a larger ground box (20x20x1) vs. 10x1x10 in provided.
+  - Reference sets ground fixed with `SetFixed(True)`; provided uses `SetBodyFixed(True)` (equivalent).
+  - Reference adds a contact material to ground; provided does not specify material.
+  - Reference adds ground to system explicitly (`system.Add(ground)`), provided does not.
+  - Reference sets ground position slightly below origin; provided sets at y = -1 (vertical axis differs).
+  
+  The provided ground is created with `ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, False)` which is incorrect usage: `ChBodyEasyBox` signature is `(lengthX, lengthY, lengthZ, density, visualize, collision, material=None)`. The first argument should be lengthX (float), but the provided code passes `mysystem` as first argument, which is wrong. This is a **significant API misuse** (see correctness below).
 
-- **Ground Body:** Created with `ChBodyEasyBox`, but dimensions differ (10x2x10 vs 20x20x1), position differs (y = -3 vs y = -0.5), and no contact material is assigned. Also, the ground is fixed but uses `SetBodyFixed` instead of `SetFixed` (minor API inconsistency). No texture from Chrono data files is used; instead, a custom texture is added manually.  
-  **Deduct 10 points** (component present but lacks important details and differs from reference).
+  Also, the ground is not added to the system explicitly.
 
-- **Rover:** Created as a simple box (`ChBodyEasyBox`) instead of using the expert `robot.Curiosity` class, which encapsulates the rover model and its dynamics. No initialization of position and orientation via `Initialize` or `ChFramed`.  
-  **Deduct 15 points** (missing essential component: expert rover model and proper initialization).
+  **Deduct 15 points for missing or incorrect ground creation and addition.**
 
-- **Driver:** The code uses `ChMotorLinearSpeed` and adds it to the rover via `AddDriver`, which is not a documented or standard API usage in PyChrono. The reference uses `robot.CuriosityDCMotorControl()` and sets it via `SetDriver`.  
-  **Deduct 15 points** (missing essential component: correct driver setup).
+- **Rover Creation:** Provided code uses `veh.ChWheeledVehicle(mysystem)` and attempts to set chassis collision shape and material manually, while reference uses `robot.Curiosity(system)` which is a specialized rover class with proper initialization.
 
-- **Visualization:** The code creates `ChVisualSystemIrrlicht` and sets many parameters manually but does not attach the system (`AttachSystem`), nor does it call `Initialize()`. It uses `BeginScene()`, `DrawAll()`, and `EndScene()` instead of `BeginScene()`, `Render()`, and `EndScene()`. The reference adds typical lights, shadowed lights, skybox, logo via `AddLogo()`, and camera via `AddCamera()`. The code manually adds textures and a logo as visualization assets, which is not the recommended approach.  
-  **Deduct 10 points** (component present but lacks important details and incorrect usage).
+  The provided code does not initialize the rover (no call to `Initialize()` or setting initial position/orientation). **Deduct 15 points for missing proper rover initialization and use of specialized rover class.**
 
-- **Simulation Loop:** Present, but the time step is hardcoded in `DoStepDynamics(0.01)` instead of using a variable. No update calls for the rover or driver, no steering control logic, and no time tracking.  
-  **Deduct 10 points** (component present but lacks important details).
+- **Driver:** Provided code uses `veh.ChWheeledVehicleMotorControl(mysystem)` and sets vehicle and enables steering, but the reference uses `robot.CuriosityDCMotorControl()` and sets it via `rover.SetDriver(driver)`. The provided code does not set steering input dynamically or update the rover.
 
-- **Contact Callback:** The code attempts to set a contact callback with `mysystem.SetContactCallback(collision_callback)`, but this method does not exist in PyChrono API. The reference does not use a contact callback but uses proper contact material and collision settings.  
-  **Deduct 15 points** (missing essential component or incorrect API usage).
+  **Deduct 10 points for incomplete driver setup and missing dynamic control.**
 
-**Total Completeness Deduction:** 10 + 10 + 15 + 15 + 10 + 10 + 15 = 85 points deducted from 40 → capped at full deduction for completeness (40 points max), so **-40 points**.
+- **Visualization:**
+  - Provided code creates `ChVisualSystemIrrlicht()` but does not attach system (`vis.AttachSystem(mysystem)` missing).
+  - Provided code sets camera with `SetCamera` but reference uses `AddCamera`.
+  - Provided code calls `AddLogo` with vector arguments instead of a file path.
+  - Provided code calls `AddGrid` with unusual parameters (vectors for size and spacing) which is not standard.
+  - Provided code calls `AddShadowAll()` which is not a documented method; reference uses `AddLightWithShadow`.
+  - Provided code does not call `Initialize()` on visualization.
+  
+  **Deduct 15 points for incomplete and incorrect visualization setup.**
+
+- **Simulation Loop:**
+  - Provided code uses `while mysystem.GetChTime() < mysystem.GetMaxTime():` with fixed step size.
+  - Reference uses `while vis.Run():` which is standard for Irrlicht visualization.
+  - Provided code does not update rover or driver inputs during simulation.
+  - Provided code does not call `vis.Render()`, instead calls `vis.DrawAll()` which is not a documented method.
+  
+  **Deduct 10 points for incomplete simulation loop and missing updates.**
+
+- **Summary Completeness Deduction:** 15 + 15 + 15 + 10 + 15 + 10 = 80 points over 40, so capped at full deduction of 40 points.
 
 ---
 
 ### 2. Correctness (30 points)
 
-- **Incorrect API usage:**  
-  - `SetBodyFixed(True)` is not the standard method; `SetFixed(True)` is correct.  
-  - `AddDriver` is not a documented method for `ChBodyEasyBox`.  
-  - `ChMotorLinearSpeed` is not initialized or linked properly to bodies; no `Initialize()` call or frame specification.  
-  - `SetSpeed` expects a scalar or function, but a `ChVectorD` is passed, which is incorrect.  
-  - `SetContactCallback` does not exist on `ChSystemNSC`.  
-  - Visualization: missing `AttachSystem()` and `Initialize()` calls, which are required.  
-  - Visualization rendering uses `DrawAll()` instead of `Render()`.  
-  **Deduct 15 points** for significant API misuse.
+- **Incorrect API usage in ground creation:**
 
-- **Logical errors:**  
-  - The rover is a simple box, not the complex rover model, so dynamics and driver control are logically incorrect.  
-  - No gravity is set, so simulation behavior will differ significantly.  
-  **Deduct 10 points** for logical errors.
+  `chrono.ChBodyEasyBox(mysystem, 10, 1, 10, 1000, True, False)` is incorrect. The first argument should be lengthX (float), not the system. This will cause runtime error or unexpected behavior.
 
-- **Minor inaccuracies:**  
-  - Hardcoded time step in `DoStepDynamics(0.01)` instead of variable.  
-  - Texture loading is manual and not using `GetChronoDataFile()`.  
-  **Deduct 5 points**.
+  **Deduct 15 points.**
 
-**Total Correctness Deduction:** 15 + 10 + 5 = 30 points (full deduction).
+- **Use of `SetBodyFixed(True)` vs `SetFixed(True)`:**
+
+  `SetBodyFixed` is deprecated or less common; `SetFixed` is standard. Minor issue.
+
+  **Deduct 5 points.**
+
+- **Setting default friction and restitution via `chrono.ChMaterialSurface.SetDefaultFriction(0.9)` etc.**
+
+  These are static methods affecting all materials globally, which is acceptable but less flexible than creating and assigning materials explicitly as in reference.
+
+  **Deduct 5 points for minor inaccuracy.**
+
+- **Rover chassis collision shape set via `SetChassisCollisionShape(chrono.ChBox(...))` is not a documented method in PyChrono vehicle API.**
+
+  The reference uses a specialized rover class that handles chassis collision internally.
+
+  **Deduct 10 points for incorrect or unsupported API usage.**
+
+- **Visualization calls:**
+
+  `vis.AddShadowAll()` is not a documented method.
+
+  `vis.Add(chrono.ChVisualBoxSimple(...))` is not standard usage.
+
+  **Deduct 10 points for incorrect visualization API usage.**
+
+- **Simulation loop calls `vis.DrawAll()` which is not documented; reference uses `vis.Render()`.**
+
+  **Deduct 5 points.**
+
+- **No initialization of visualization system (`vis.Initialize()` missing).**
+
+  **Deduct 5 points.**
+
+- **Summary Correctness Deduction:** 15 + 5 + 5 + 10 + 10 + 5 + 5 = 55 points over 30, capped at full deduction of 30 points.
 
 ---
 
 ### 3. Code Quality (10 points)
 
-- No comments or documentation explaining the steps.  
-- Variable names like `mysystem`, `viz`, `motor_driver` are acceptable but not consistent with reference (`system`, `vis`, `driver`).  
-- Code structure is flat, no functions or modularization.  
-- Imports include unused `numpy` and `chronoengine`.  
-- Visualization setup is verbose and manual, not using higher-level helper functions.  
-**Deduct 7 points** for lack of comments and moderate readability issues.
+- No comments or documentation in provided code; reference code is well commented.
+
+- Variable names like `mysystem`, `vis`, `driver`, `rover` are acceptable but no explanation or structure.
+
+- Code formatting is basic but acceptable.
+
+- Lack of meaningful comments or explanation.
+
+**Deduct 7 points for lack of comments and documentation.**
 
 ---
 
 ### 4. Efficiency (10 points)
 
-- No use of `AttachSystem()` and `Initialize()` for visualization, which are optimized calls.  
-- No use of `robot.Curiosity` class, which encapsulates efficient rover setup.  
-- Hardcoded time step in `DoStepDynamics`.  
-- Manual texture and logo addition instead of using built-in methods.  
-**Deduct 6 points** for inefficient use of APIs and missed optimizations.
+- Provided code sets step size via `mysystem.SetStep(0.01)` and `mysystem.SetMaxTime(10)`, which are not standard methods in PyChrono API (no such methods documented).
+
+- Simulation loop uses fixed step size but no adaptive or smaller time step as in reference (1e-3).
+
+- Visualization calls unnecessary or redundant (e.g., adding visual box simple).
+
+- No dynamic steering input or update calls, so simulation is static and inefficient in terms of control.
+
+**Deduct 5 points for inefficient or incorrect use of step size and simulation loop.**
 
 ---
 
 ### 5. Error Handling and Robustness (5 points)
 
-- No error handling or checks for file existence for textures or logos.  
-- No handling of simulation edge cases or initialization errors.  
-- Contact callback is incorrectly set, which could cause runtime errors.  
-**Deduct 5 points** for lack of basic error handling and robustness.
+- No error handling or checks.
+
+- No handling of visualization system initialization or failure.
+
+- No dynamic input or update of rover state.
+
+- Reference code uses `while vis.Run():` which handles window closing gracefully.
+
+- Provided code uses time-based loop without checking visualization status.
+
+**Deduct 5 points for lack of error handling and robustness.**
 
 ---
 
 ### 6. Use of Visualization Tools (5 points)
 
-- Visualization setup is incomplete: no `AttachSystem()`, no `Initialize()`.  
-- Uses `DrawAll()` instead of `Render()`.  
-- Lighting setup is manual and minimal; no typical lights or shadowed lights added.  
-- Logo added as visualization asset instead of using `AddLogo()`.  
-- Camera setup is manual and less clear than reference.  
-**Deduct 5 points** for inadequate visualization setup.
+- Visualization setup is incomplete and incorrect:
+
+  - Missing `AttachSystem`.
+
+  - Missing `Initialize()`.
+
+  - Incorrect camera setup.
+
+  - Incorrect logo addition.
+
+  - Use of non-existent methods (`AddShadowAll()`, `DrawAll()`).
+
+- Lighting setup is minimal and not as rich as reference.
+
+**Deduct 5 points for inadequate visualization setup.**
 
 ---
 
 ### Summary of Deductions
 
-| Criterion                     | Max Points | Deduction | Points Awarded |
-|-------------------------------|------------|-----------|---------------|
-| Completeness                  | 40         | 40        | 0             |
-| Correctness                  | 30         | 30        | 0             |
-| Code Quality                 | 10         | 7         | 3             |
-| Efficiency                  | 10         | 6         | 4             |
-| Error Handling and Robustness | 5          | 5         | 0             |
-| Use of Visualization Tools    | 5          | 5         | 0             |
-| **Total**                    | **100**    | **93**    | **7**         |
+| Criterion                      | Points | Deduction |
+|-------------------------------|--------|-----------|
+| Completeness                  | 40     | 40        |
+| Correctness                  | 30     | 30        |
+| Code Quality                 | 10     | 7         |
+| Efficiency                  | 10     | 5         |
+| Error Handling and Robustness | 5      | 5         |
+| Visualization Tools          | 5      | 5         |
+| **Total Deductions**          | 100    | 92        |
 
 ---
 
-**Final Score:**
+### Final Score
 
-[[7]]
+100 - 92 = 8 points
 
 ---
 
-**Explanation:**
+**Final score:**
 
-The provided script misses many essential components present in the expert reference, such as proper system configuration (gravity, collision system), use of the specialized `robot.Curiosity` class for the rover, correct driver setup, and proper visualization initialization. It also misuses several PyChrono APIs, including incorrect methods for setting fixed bodies, motor drivers, and contact callbacks. The visualization setup is incomplete and does not follow best practices, lacking system attachment and initialization, and uses deprecated or incorrect rendering calls.
-
-Code quality suffers from lack of comments and some unused imports. Efficiency is reduced due to manual and suboptimal setup of visualization and rover components. There is no error handling or robustness considerations.
-
-Overall, the script is a very rough and incorrect approximation of the reference and would not produce a comparable simulation.
+[[8]]

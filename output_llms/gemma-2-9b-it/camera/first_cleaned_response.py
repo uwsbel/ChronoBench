@@ -1,57 +1,57 @@
 import pychrono as chrono
-import numpy as np
+import pychrono.postprocess as postprocess
 
 
-chrono.SetChronoDataPath("path/to/chrono/data")  
+chrono.SetChronoDataPath("..")  
 system = chrono.ChSystemNSC()
 
 
-mesh_file = "path/to/mesh.obj"  
+mesh_file = "path/to/your/mesh.obj"  
 mesh = chrono.ChTriangleMeshConnected()
 if not mesh.LoadWavefront(mesh_file):
-    raise RuntimeError(f"Failed to load mesh from {mesh_file}")
+    raise Exception(f"Failed to load mesh from {mesh_file}")
 
 
-body = chrono.ChBodyEasy(mesh)
+body = chrono.ChBodyEasyBox(1.0, 1.0, 1.0)  
 body.SetBodyFixed(True)
+body.SetCollide(True)
+body.GetCollisionModel().SetMaterialSurface(chrono.ChMaterialSurface(0.5, 0.5, 0.5))  
+body.AddAsset(chrono.ChTriangleMeshShape(mesh))
 system.Add(body)
 
 
 camera = chrono.ChCamera()
-camera.SetSensorType(chrono.ChCamera.SENSOR_TYPE_COLOR)
-camera.SetResolution(640, 480)
-camera.SetLens(50)  
-camera.SetSensorNoise(0.01)  
-body.AddSensor(camera)
+camera.SetSensorType(chrono.ChCameraSensor.SENSOR_TYPE_RGB)  
+camera.SetWidth(640)
+camera.SetHeight(480)
+camera.SetNearPlane(0.1)
+camera.SetFarPlane(10.0)
 
 
 sensor_manager = chrono.ChSensorManager()
 sensor_manager.AddSensor(camera)
-sensor_manager.SetVisualization(True)  
-sensor_manager.SetNoiseFilter(chrono.ChNoiseFilter.FILTER_GAUSSIAN)  
+camera.SetBody(body)
 
 
-orbit_radius = 1.0
+camera.SetNoiseFilter(chrono.ChNoiseFilter(0.01, 0.001))  
+camera.SetVisualization(chrono.ChCameraVisualization.VIS_COLOR)  
+
+
+orbit_radius = 2.0
 orbit_period = 2.0
-camera_rotation_speed = 0.1
 
 
-time_step = 0.01
+dt = 0.01
 for i in range(1000):
-    
-    camera_angle = 2 * np.pi * i / orbit_period
-    camera_x = orbit_radius * np.cos(camera_angle)
-    camera_y = orbit_radius * np.sin(camera_angle)
-    camera.SetPos(chrono.ChVectorD(camera_x, camera_y, 0))
-    camera.SetRot(chrono.ChQuaternionD(np.cos(camera_rotation_speed * i),
-                                      np.sin(camera_rotation_speed * i), 0, 0))
+    system.DoStepDynamics(dt)
 
     
-    system.DoStepDynamics(time_step)
+    camera_angle = 2 * chrono.ChTime.Get() / orbit_period * chrono.CH_C_PI
+    camera.SetPos(chrono.ChVectorD(orbit_radius * chrono.cos(camera_angle), 0, orbit_radius * chrono.sin(camera_angle)))
 
     
-    camera_buffer = sensor_manager.GetSensorData(camera)
+    camera_buffer = camera.GetImageBuffer()
     print(f"Camera buffer data at step {i}: {camera_buffer}")
 
 
-chrono.ChVisualSystem_rt_Thread()
+postprocess.SaveCameraImages(camera, "camera_images")

@@ -4,54 +4,45 @@ import pychrono.ros as pros
 import numpy as np
 
 # Initialize PyChrono environment and core components
-pc.init()
-
-# Create the Chrono system
+env = pc.Environment()
 sys = pc.System()
+sim = pc.Simulation(env, sys)
 
 # Add a mesh object for visualization
-mesh = pc.Mesh("ground.obj")
+mesh = pc.Mesh('ground.obj')
 sys.add(mesh)
 
 # Configure the ground body to move
-ground_body = pc.Body()
-ground_body.set_position([0, 0, -1])
-ground_body.set_velocity([0, 0, 0])
-sys.add(ground_body)
+ground = sys.add(pc.Body(name='ground'))
+ground.set_position([0, 0, -1])
+ground.set_velocity([0, 0, 0])
+ground.set_force([0, 0, -9.81])
 
 # Integrate multiple sensors using a sensor manager
 sensor_manager = ps.SensorManager()
-camera = ps.Camera()
-lidar = ps.Lidar()
-gps = ps.GPS()
-accelerometer = ps.Accelerometer()
-gyroscope = ps.Gyroscope()
-magnetometer = ps.Magnetometer()
-
-sensor_manager.add_sensors([camera, lidar, gps, accelerometer, gyroscope, magnetometer])
+camera = sensor_manager.add(ps.Camera())
+lidar = sensor_manager.add(ps.Lidar())
+gps = sensor_manager.add(ps.GPS())
+accelerometer = sensor_manager.add(ps.Accelerometer())
+gyroscope = sensor_manager.add(ps.Gyroscope())
+magnetometer = sensor_manager.add(ps.Magnetometer())
 
 # Register sensors with a ROS manager to publish data to specific ROS topics
 ros_manager = pros.ROSManager()
-ros_manager.add_sensors(sensor_manager.sensors)
+ros_manager.register_camera(camera, '/camera/image_raw')
+ros_manager.register_lidar(lidar, '/lidar/points')
+ros_manager.register_gps(gps, '/gps/fix')
+ros_manager.register_accelerometer(accelerometer, '/imu/data')
+ros_manager.register_gyroscope(gyroscope, '/imu/data')
+ros_manager.register_magnetometer(magnetometer, '/imu/mag')
 
-# Set up the simulation loop
-dt = 0.01  # Time step
-sim_time = 0.0  # Simulation time
-while sim_time < 10.0:  # Run the simulation for 10 seconds
-    # Update the sensors
+# Simulation loop that updates the sensors, advances the simulation, and maintains real-time execution
+while not sim.is_finished():
+    # Update sensors
     sensor_manager.update()
 
-    # Advance the simulation
-    sys.integrate(dt)
-
-    # Publish sensor data to ROS topics
-    ros_manager.publish()
+    # Advance simulation
+    sim.advance()
 
     # Maintain real-time execution
-    pc.sleep(0.01)
-
-    # Update simulation time
-    sim_time += dt
-
-# Clean up and shut down PyChrono
-pc.shutdown()
+    sim.wait_for_real_time()

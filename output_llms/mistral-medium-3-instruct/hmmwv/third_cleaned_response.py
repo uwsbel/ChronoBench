@@ -89,12 +89,14 @@ class MyDriver(veh.ChDriver):
 
     def Synchronize(self, time):
         
-        if time > self.delay:
-            self.throttle = min(0.7, (time - self.delay) / 0.2 * 0.7)
+        if time > self.delay and time <= self.delay + 0.2:
+            self.throttle = 0.7 * (time - self.delay) / 0.2
+        elif time > self.delay + 0.2:
+            self.throttle = 0.7
 
         
-        if time > 2.0:
-            self.steering = 0.5 * math.sin(2 * math.pi * (time - 2.0))
+        if time > self.delay + 2.0:
+            self.steering = 0.5 * math.sin(2 * math.pi * (time - (self.delay + 2.0)) / 2.0)
 
         
         self.braking = 0.0
@@ -122,13 +124,11 @@ step_number = 0
 render_frame = 0
 
 
-end_time = 4.0
-
 while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if time >= end_time:
+    if time >= 4.0:
         break
 
     

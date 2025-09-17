@@ -1,69 +1,62 @@
-import chrono as c
-import irrlicht as irr
-import time
+import chrono as ch
+import chrono.vehicle as chv
+import chrono.terrain as cht
+import chrono.interactive as chi
 
 
-c.init()
+ch.Init()
 
 
-sim = c.Simulation()
+terrain = cht.RigidTerrain(
+    name='terrain',
+    dim=[100, 100, 0.1],
+    texture='path/to/texture.jpg',
+    friction=0.7,
+    restitution=0.5
+)
 
 
-terrain = c.RigidTerrain(sim, 10, 10, c.Vector3(0, 0, 0))
-terrain.set_texture("path/to/terrain/texture.jpg")
+vehicle = chv.HMMWV(
+    name='hmmwv',
+    pos=[0, 0, 0],
+    euler=[0, 0, 0],
+    contact_method=ch.ContactMethod.PREDICTION,
+    tire_model='TMEASY',
+    wheel_radius=0.3,
+    wheel_width=0.2,
+    wheel_distance=1.5,
+    suspension_stiffness=100000,
+    damping_coefficient=500,
+    camber_angle=0,
+    steering_angle=0,
+    brake_force=1000,
+    max_speed=100
+)
 
 
-vehicle = c.RigidBody(sim, "HMMWV")
-vehicle.set_position(c.Vector3(0, 0, 0))
-vehicle.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.set_contact_method(c.ContactMethod.SWEEPER)
-vehicle.set_tire_model(c.TireModel.TMEASY)
+vehicle.add_primitive(ch.Box(name='chassis', pos=[0, 0, 0], size=[2, 2, 0.1]))
+vehicle.add_primitive(ch.Box(name='body', pos=[0, 0, 0.1], size=[2, 2, 1]))
+vehicle.add_primitive(ch.Box(name='engine', pos=[0, 0, 1.1], size=[1, 1, 0.1]))
 
 
-chassis = c.RigidBody(sim, "Chassis")
-chassis.set_position(c.Vector3(0, 0, 0))
-chassis.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.add_component(chassis)
-
-engine = c.RigidBody(sim, "Engine")
-engine.set_position(c.Vector3(0, 0, 0))
-engine.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-vehicle.add_component(engine)
-
-wheels = []
-for i in range(4):
-    wheel = c.RigidBody(sim, f"Wheel {i}")
-    wheel.set_position(c.Vector3(-2, 0, -1 + i * 1.5))
-    wheel.set_orientation(c.Quaternion(c.PI / 2, c.Vector3(1, 0, 0)))
-    vehicle.add_component(wheel)
-    wheels.append(wheel)
+driver = chi.InteractiveDriver(
+    name='driver',
+    steering_gain=0.1,
+    throttle_gain=0.1,
+    brake_gain=0.1
+)
 
 
-for component in [chassis, engine] + wheels:
-    component.set_primitive_type(c.PrimitiveType.BOX)
+ch.SetRealTime(50)
 
 
-driver = c.Driver(sim)
-driver.set_steering_gain(1.0)
-driver.set_throttle_gain(1.0)
-driver.set_braking_gain(1.0)
-
-
-sim.set_fps(50)
-sim.set_real_time(True)
+def simulation_step():
+    
+    vehicle.update()
+    
+    
+    ch.Render()
 
 
 while True:
-    sim.update()
-    time.sleep(1 / 50)  
-
-    
-    irr.init()
-    irr.set_window_title("HMMWV Simulation")
-    irr.set_window_size(800, 600)
-    irr.begin()
-    irr.draw_terrain(terrain)
-    irr.draw_rigid_body(vehicle)
-    irr.end()
-    irr.update()
-    irr.wait_key()
+    simulation_step()

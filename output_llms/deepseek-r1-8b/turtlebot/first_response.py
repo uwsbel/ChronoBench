@@ -1,86 +1,74 @@
 import pychrono as pychrono
-import pydgp as pydgp
-import pyirrlicht as pyirrlicht
+from pychrono import Body, BodyStatic, BodyRigid, BodySphere, BodyCapsule, BodyBox, BodyPlane, BodyJoint, BodyHinge, BodyRevolute, BodyFixed, BodyFixedPoint, BodyFixedAxis, BodyFixedRotation, BodyFixedTranslation
+from pychrono import chrono, D, G, M, Unit, deg, rad
+import numpy as np
+import Irrlicht as Irrlicht
 
 # Initialize PyChrono
-pychrono.init()
-pychrono.setGravity(pychrono.vector3(0, 0, -9.81))
+chrono = pychrono.Chrono()
+chrono.setGravity(D(0, 0, G))
 
 # Create ground body
-ground_body = pydgp.createBody(pydgp.shape_plane_xy(1, 1, 0.1))
-ground_body.setPos(pychrono.vector3(0, 0, 0))
-ground_body.setMaterial(pydgp.material_py(1.0, 0.0, 0.0, 0.5, 0.0, 0.0))
+ground = BodyStatic()
+ground.setMass(M(1000))
+ground.setPosition(D(0, 0, 0))
+ground.setRot(D(0, 0, 0))  # Ground is static
+chrono.addBody(ground)
 
 # Create Turtlebot
-turtlebot_body = pydgp.createBody(pydgp.shape_sphere(0.05))
-turtlebot_body.setPos(pychrono.vector3(0, 0.5, 0))
-turtlebot_body.setRot(pychrono.vector3(0, 1, 0))  # Initial rotation: z-axis 90 degrees (up)
+turtlebot = BodyRigid()
+turtlebot.setMass(M(10))
+turtlebot.setPosition(D(0, 1, 0))  # Start slightly above ground
+turtlebot.setRot(D(0, 0, 0))  # Initial orientation
+chrono.addBody(turtlebot)
 
-# Create camera
-camera = pyirrlicht.createCamera("Camera")
-camera.setPos(pychrono.vector3(0, 10, 20))
-camera.lookAt(pychrono.vector3(0, 0, 0))
-camera.setFieldOfView(45.0)
-camera.setNearFar(0.1, 1000.0)
+# Create Turtlebot links
+# Each link has length 0.5m and mass 0.1kg
+turtlebot_links = []
+for i in range(4):
+    link = BodyCapsule()
+    link.setMass(M(0.1))
+    link.setLength(D(0.5, 0, 0))
+    turtlebot_links.append(link)
+    # Add joint between links
+    joint = BodyRevolute()
+    joint.setRot(D(0, 0, 0))  # Initial rotation
+    joint.setPivotPoint(turtlebot_links[i-1].getEndPoint())
+    joint.setAxis(D(0, 0, 1))  # Rotation axis is along z-axis
+    chrono.addBody(joint)
+    turtlebot_links[i].setParent(turtlebot_links[i-1])
 
-# Add lighting
-light = pyirrlicht.createLight("Light")
-light.setPos(pychrono.vector3(10, 10, 10))
-light.setDiffuseColor(pychrono.vector3(1.0, 1.0, 1.0))
-light.setDirection(pychrono.vector3(-1, -1, -1))
+# Setup Irrlicht visualization
+renderer = Irrlicht.Renderer()
+renderer.setLight(D(10, 10, 10))  # Add lighting
+camera = D(5, 5, 5)
+renderer.setCamera(camera, D(0, 0, 0))  # Look at origin
+renderer.enableShadows()
 
-# Add all bodies to Chrono
-chrono_system = pychrono.ChronoSystem()
-chrono_system.addBody(turtlebot_body)
-chrono_system.addBody(ground_body)
-
-# Setup simulation
-timestep = 0.01  # 50Hz
-simulation_loop = pychrono.SimulationLoop(timestep)
-
-# Motors
-right_motor = 0.5
-left_motor = -0.5
-
-# Torque (for turning)
-torque = 0.5
-
-# Visualization
-turtlebot_mesh = pyirrlicht.createMesh("Turtlebot")
-turtlebot_mesh.setMaterial(pyirrlicht.material_diffuse_color(pychrono.vector3(1.0, 0.0, 0.0)))
-
-def simulate():
-    global right_motor, left_motor, torque
-    # Get key presses
-    keys = pychrono.getKeys()
+# Simulation loop
+timestep = 0.1
+while True:
+    # Update robot motors
+    turtlebot.setMotors(D(-1, 0, 0), D(1, 0, 0))  # Left and right turns
     
-    # Movement
-    speed = 0.1
-    if keys[pychrono.KEY_UP]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(speed, 0, 0))
-    elif keys[pychrono.KEY_DOWN]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(-speed, 0, 0))
-    elif keys[pychrono.KEY_LEFT]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(0, speed, 0))
-    elif keys[pychrono.KEY_RIGHT]:
-        turtlebot_body.setLinearVelocity(pychrono.vector3(0, -speed, 0))
+    # Render scene
+    renderer.clear()
+    renderer.render()
     
-    # Motors and torque
-    turtlebot_body.setRotationalVelocity(pychrono.vector3(0, 0, torque))
-    turtlebot_body.setLinearVelocity(pychrono.vector3(0, 0, 0))  # No vertical movement
+    # Draw ground
+    renderer.drawBody(ground)
     
-    # Update motors
-    turtlebot_body.setRot(pychrono.vector3(0, 1, 0))  # Keep robot upright
-    turtlebot_body.setLinearVelocity(pychrono.vector3(0, 0, 0))
+    # Draw Turtlebot
+    renderer.drawBody(turtlebot)
     
-    # Update visualization
-    turtlebot_mesh.update()
-    ground_body.update()
-    chrono_system.update()
-    camera.update()
+    # Draw links
+    for link in turtlebot_links:
+        renderer.drawBody(link)
     
-    # Render
-    renderer.update()
-
-# Start simulation
-simulation_loop.start(simulate)
+    # Update camera position
+    camera_pos = D(5, 5, 5)
+    camera_look = D(0, 0, 0)
+    renderer.setCamera(camera_pos, camera_look)
+    
+    # Next timestep
+    chrono.step(timestep)

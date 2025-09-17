@@ -7,7 +7,7 @@ chrono.SetChronoDataPath(chrono.GetChronoDataPath())
 veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
 
 
-initLoc = chrono.ChVector3d(-5, 0, 0.5)  
+initLoc = chrono.ChVector3d(-5, 0, 0.5)
 initRot = chrono.ChQuaterniond(1, 0, 0, 0)
 
 
@@ -35,6 +35,7 @@ tire_step_size = step_size
 
 
 render_step_size = 1.0 / 50  
+
 
 
 vehicle = veh.M113()
@@ -72,10 +73,13 @@ patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
 
-box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 2, 1, 1000, True, True)
-box.SetPos(chrono.ChVector3d(0, 0, 1))
-box.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
-vehicle.GetSystem().Add(box)
+box = chrono.ChBodyEasyBox(vehicle.GetSystem(), 10, 2, 1, 1000, True, False)
+box.SetPos(chrono.ChVector3d(0, 0, 0.5))
+box.SetMaterial(chrono.ChMaterialSurfaceSMC())
+box.SetFriction(0.9)
+box.SetRestitution(0.01)
+box.SetBodyFixed(True)
+
 
 
 vis = veh.ChTrackedVehicleVisualSystemIrrlicht()

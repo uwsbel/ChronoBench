@@ -63,13 +63,12 @@ def main():
     
     offset_pose_2dlidar = ch.ChFramed(ch.ChVector3d(-8, 0, 0), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
     lidar2d = sens.ChLidarSensor(ground_body, 5, offset_pose_2dlidar, 480, 1, 2 * ch.CH_PI, ch.CH_PI / 12, -ch.CH_PI / 6, 100.0)
-    lidar2d.PushFilter(sens.ChFilterDIAccess())  
-    lidar2d.PushFilter(sens.ChFilterPCfromDepth())  
-    lidar2d.PushFilter(sens.ChFilterXYZIAccess())  
+    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
     lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(1280, 720, 1,"2D Lidar Scan Data"))
-    lidar2d.SetName("2D Lidar")
     sens_manager.AddSensor(lidar2d)
-
+    
     
     noise_model_none = sens.ChNoiseNone()
     gps_reference = ch.ChVector3d(-89.4, 433.07, 260.)
@@ -106,7 +105,7 @@ def main():
     
     ros_manager.RegisterHandler(chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image"))
     ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud"))
-    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan",chros.ChROSLidarHandlerMessageType_LASER_SCAN))
+    ros_manager.RegisterHandler(chros.ChROSLidarHandler(lidar2d, "~/output/lidar2d/data/scan", chros.ChROSLidarHandlerMessageType_LASER_SCAN))
     ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
     acc_handler = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
     ros_manager.RegisterHandler(acc_handler)
@@ -137,10 +136,10 @@ def main():
 
         
         sens_manager.Update()
+
         
-        
-        if not ros_manager.GetStatus():
-            print("ROS manager connection lost, exiting simulation.")
+        if not ros_manager.GetUpdateRate():
+            print("Failed to initialize ROS manager update.")
             break
 
         sys.DoStepDynamics(time_step)  

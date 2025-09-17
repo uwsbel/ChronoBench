@@ -114,16 +114,19 @@ render_frame = 0
 
 
 sensor_manager = sensor.ChSensorManager()
-lidar = sensor.ChLidar(vehicle.GetVehicle().GetSystem())
+lidar = sensor.ChLidarSensor()
+lidar.SetRange(50)
+lidar.SetAngleStep(0.1)
+lidar.SetNumRays(360)
 sensor_manager.AddSensor(lidar)
 
 
 for i in range(10):
-    box = chrono.ChBoxShape(chrono.ChVector3d(0.5, 0.5, 0.5))
-    body = chrono.ChBodyEasy(1.0, box)
-    body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), 1))
-    body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
-    vehicle.GetSystem().Add(body)
+    box = chrono.ChBoxShape(chrono.ChVector3d(1, 1, 1))
+    box_body = chrono.ChBodyEasy(1, box)
+    box_body.SetPos(chrono.ChVector3d(np.random.uniform(-50, 50), np.random.uniform(-50, 50), np.random.uniform(1, 2)))
+    vehicle.GetSystem().Add(box_body)
+    sensor_manager.AddSensor(box_body)
 
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
@@ -141,9 +144,7 @@ while vis.Run() :
     terrain.Synchronize(time)
     vehicle.Synchronize(time, driver_inputs, terrain)
     vis.Synchronize(time, driver_inputs)
-    
-    
-    sensor_manager.Update(time)
+    sensor_manager.Update(time) 
 
     
     driver.Advance(step_size)
