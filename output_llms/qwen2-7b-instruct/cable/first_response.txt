@@ -6,84 +6,81 @@ frompychronoimportchrono as pychrono
 frompychronoimportirrlichtengine
 frompychronoimportchronoengine
 frompychronoimportvisual
-frompychronoimportutils
+frompychronoimportgeometry
+frompychronoimportrigidbody
+frompychronoimportjoint
+frompychronoimportmaterial
+frompychronoimportvisualmodel
 
 # Initialize PyChrono environment
-pychrono.init()
+pychrono.Initialize()
 
-# Create the world
+# Create a new PyChrono world
 world = pychrono.ChSystemNSC()
 
-# Define default gravity vector
-default_gravity = pychrono.ChVectorD(0, -9.81, 0)
+# Set gravity
+world.SetGravity(pychrono.ChVectorD(0, -9.81, 0))
 
 # Create ground
-ground = pychrono.ChBodyEasyBox(1000, 1, 100, 10000)
+ground = pychrono.ChBodyEasyBox(100, 1, 1, 1000)
 ground.SetPos(pychrono.ChVectorD(0, -1, 0))
 ground.SetBodyFixed(True)
 world.Add(ground)
 
-# Define beam parameters
+# Define a cable element
+cable_element = pychrono.ChLinkCable()
+
+# Define a node (hinge) at the ground
+hinge_node = pychrono.ChBodyEasySphere(0.05, 1000)
+hinge_node.SetPos(pychrono.ChVectorD(0, -0.5, 0))
+hinge_node.SetBodyFixed(True)
+world.Add(hinge_node)
+
+# Define the beam (ANCF cable) with nodes and connections
 beam_length = 1.0
-beam_width = 0.1
-beam_height = 0.05
+num_nodes = 5
+node_spacing = beam_length / (num_nodes - 1)
 
-# Create beam as an ANCF cable
-beam = pychrono.ChLinkCable()
-beam.SetCableType(chrono.ChCableType.ANCF)
-beam.SetBeamLength(beam_length)
-beam.SetBeamWidth(beam_width)
-beam.SetBeamHeight(beam_height)
-beam.SetBeamMaterial(chrono.ChMaterialSurfaceNSC())
-beam.SetBeamDensity(7800)
-beam.SetBeamCrossSection(chrono.ChVectorD(beam_width / 2, beam_height / 2, beam_height / 2))
-beam.SetBeamYoungModulus(200e9)
-beam.SetBeamPoissonRatio(0.3)
-beam.SetBeamDensity(7800)
-beam.SetBeamDensity(7800)
-beam.SetBeamMassDensity(7800)
-beam.SetBeamMassPerLength(beam_density * beam_width * beam_height)
-
-# Define beam nodes and connections
-beam_nodes = [pychrono.ChVectorD(0, 0, 0), pychrono.ChVectorD(beam_length, 0, 0)]
-beam_connectivity = [(0, 1)]
-
-# Create nodes
-for i, pos in enumerate(beam_nodes):
+# Create nodes and connections
+nodes = []
+for i in range(num_nodes):
     node = pychrono.ChBodyEasySphere(0.05, 1000)
-    node.SetPos(pos)
+    node.SetPos(pychrono.ChVectorD(-beam_length / 2 + i * node_spacing, 0, 0))
+    nodes.append(node)
     world.Add(node)
-    beam.AddNode(node)
 
-# Connect nodes with beam elements
-for node_index in beam_connectivity:
-    element = pychrono.ChLinkCableElement()
-    element.SetNode1(beam.GetNode(node_index[0]))
-    element.SetNode2(beam.GetNode(node_index[1]))
-    beam.AddLink(element)
+# Connect nodes with cable elements
+for i in range(num_nodes - 1):
+    cable_element.Initialize(nodes[i], nodes[i + 1], pychrono.ChVectorD(0, 0, 0))
+    world.AddLink(cable_element)
 
-# Add gravity force to the beam
-beam.AddForce(pychrono.ChForce(pychrono.ChVectorD(0, -9.81, 0)), True)
+# Set material properties
+material = pychrono.ChMaterialWeldedSteel()
 
-# Set up visualization
+# Set default parameters for nodes and cable elements
+for node in nodes:
+    node.SetMaterialSurface(material)
+
+# Visualization
 renderer = irrlichtengine.IrrlichtRenderer()
-renderer.SetWindowSize(800, 600)
-renderer.SetPosition(100, 100)
-renderer.SetTitle("PyChrono ANCF Beam Simulation")
-renderer.AddLight(pychrono.ChVectorD(1, 1, 1))
-renderer.AddCamera(pychrono.ChVectorD(0, 0, -20))
+renderer.SetAntialiasing(True)
+renderer.SetWindowCaption("PyChrono ANCF Beam Simulation")
 
-# Set up the simulation loop
-simulation = pychrono.ChSimulator()
-simulation.SetTimestepperType(chrono.ChTimestepperRungeKutta4)
-simulation.SetTimestep(0.001)
-simulation.SetMaxNodes(10000)
+# Simulation loop
+world.SetTimestepperType(pychrono.ChTimestepperRungeKutta4)
+world.SetTimestepperFrequency(30)
 
-# Run the simulation
-simulation.SetSystem(world)
-simulation.AttachRenderer(renderer)
-simulation.Run()
+simulation_time = 10.0
+time_step = 1.0 / 30.0
 
-# Close the PyChrono environment
-pychrono.close()
+for current_time in range(int(simulation_time / time_step)):
+    world.DoStepDynamics(time_step)
+    renderer.RenderStep(world)
+    # Visualize deformation and nodal positions
+    for node in nodes:
+        position = node.GetPos()
+        renderer.DrawPoint(position, (0, 1, 0), 0.1)
+
+# Finalize PyChrono environment
+pychrono.Finalize()
 ```

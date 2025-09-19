@@ -60,7 +60,7 @@ terrain_material.SetFriction(0.9)
 terrain_material.SetRestitution(0.01)
 terrain = veh.HighwayTerrain(vehicle.GetSystem())
 terrain_mesh = chrono.ChTriangleMeshConnected()
-terrain_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('vehicle/highway.mesh'), chrono.GetChronoDataPath() + 'vehicle/')
+terrain_mesh.LoadWavefrontMesh(chrono.GetChronoDataFile('vehicle/highway.mesh'), True, True)
 terrain.SetMesh(terrain_mesh)
 terrain.Initialize()
 
@@ -77,6 +77,9 @@ vis.AttachVehicle(vehicle.GetTractor())
 
 # Create the driver system for the truck
 driver = veh.ChInteractiveDriverIRR(vis)
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -96,16 +99,19 @@ sedan.SetSuspensionVisualizationType(vis_type, vis_type)
 sedan.SetWheelVisualizationType(vis_type, vis_type)
 sedan.SetTireVisualizationType(vis_type, vis_type)
 
-# Create the driver system for the sedan
+sedan.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the sedan driver system
 sedan_driver = veh.ChInteractiveDriverIRR(vis)
 sedan_driver.SetSteeringDelta(render_step_size / steering_time)
 sedan_driver.SetThrottleDelta(render_step_size / throttle_time)
 sedan_driver.SetBrakingDelta(render_step_size / braking_time)
 sedan_driver.Initialize()
 
-# Set the sedan to move forward with fixed throttle and steering
-sedan_driver.SetThrottle(1.0)
-sedan_driver.SetSteering(0.0)
+# Set the time response for steering and throttle keyboard inputs for the sedan
+sedan_driver.SetSteeringDelta(render_step_size / steering_time)
+sedan_driver.SetThrottleDelta(render_step_size / throttle_time)
+sedan_driver.SetBrakingDelta(render_step_size / braking_time)
 
 # Output vehicle mass
 print("VEHICLE MASS: ", vehicle.GetTractor().GetMass())
@@ -122,7 +128,7 @@ while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     # Render scene and output POV-Ray data
-    if (step_number % render_steps == 0):
+    if step_number % render_steps == 0:
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
