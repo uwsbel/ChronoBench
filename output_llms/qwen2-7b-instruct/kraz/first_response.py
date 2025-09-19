@@ -40,7 +40,7 @@ camera.SetPosition(ChVector<>(10, 10, 5))
 camera.SetLookAt(ChVector<>(0, 0, 0))
 app.SetCamera(camera)
 
-# Start simulation loop
+# Main simulation loop
 timestep = 0.001
 realtime_rate = 20
 
@@ -49,9 +49,19 @@ while app.GetDevice().run():
     app.DrawAll()
     app.EndScene()
 
-    # Advance the simulation
+    # Advance simulation
     chrono.DoStepDynamics(timestep)
 
     # Update visualization
-    app.DoStepSimulation(realtime_rate)
-    app.Render()
+    app.GetSceneManager().Clear()
+    app.GetSceneManager().add(chrono.GetVisualizationSystem().GetScene())
+    app.GetSceneManager().setActiveCamera(camera)
+    app.GetSceneManager().addLighting()
+
+    # Synchronize with real-time rate
+    app.SetTimestep(timestep)
+    app.GetDevice().setRealTimeFactor(realtime_rate)
+
+    # Check for exit
+    if app.GetDevice().checkQuit():
+        break

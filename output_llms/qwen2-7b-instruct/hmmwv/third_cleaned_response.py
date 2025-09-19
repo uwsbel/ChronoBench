@@ -96,20 +96,13 @@ class MyDriver(veh.ChDriver):
             if time >= 2.0:
                 self.steering = math.sin(time - 2.0) * 0.5 + 0.5
             if time >= 4.0:
-                self.throttle = 0.0
-                self.steering = 0.0
-                self.braking = 0.0
-                self.End()
-
-
-
-driver = MyDriver(0.5)
-driver.Initialize()
+                self.quit = True
 
 
 steering_time = 1.0  
 throttle_time = 1.0  
 braking_time = 0.3   
+driver = MyDriver(0.5)
 driver.SetSteeringDelta(render_step_size / steering_time)
 driver.SetThrottleDelta(render_step_size / throttle_time)
 driver.SetBrakingDelta(render_step_size / braking_time)
@@ -160,5 +153,4 @@ while vis.Run() :
 
     
     if time >= 4.0:
-        driver.End()
         break

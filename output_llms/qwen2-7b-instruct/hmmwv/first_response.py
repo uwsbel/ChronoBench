@@ -5,60 +5,40 @@ import pychrono.irrlicht as chronoirr
 # Initialize the PyChrono system
 chrono.Ch纪元.initialize()
 
-# Create the simulation engine
-engine = chrono.ChSystemNSC()
-
 # Create the terrain
 terrain = chrono.ChTerrain()
-terrain.SetType(chrono.ChTerrainType.CH_TERRAIN_TYPE_PLANE)
-terrain.SetSize(chrono.ChVectorD(200, 200, 0.1))
-terrain.SetResolution(100, 100)
-terrain.SetTexture(chrono.ChTexture("terrain.png"))
+terrain.Set_size(chrono.ChVectorD(100, 100, 1))  # Size of the terrain
+terrain.Set_texture(chrono.ChTexture(chrono.ChTexture.TextureType.TEXTURE_GRASS))
+terrain.Set_gravity(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
 
-# Add the terrain to the system
-engine.Add(terrain)
-
-# Create the vehicle (HMMWV)
+# Create the HMMWV vehicle
 vehicle = chrono.ChVehicle()
-vehicle.SetBody(chrono.ChBody())
-vehicle.GetBody().SetMass(2000)
-vehicle.GetBody().SetInertiaXX(chrono.ChVectorD(200, 200, 200))
-vehicle.GetBody().SetPos(chrono.ChVectorD(0, 0, 0))
-vehicle.GetBody().SetRot(chrono.Q_from_AngAxis(-chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0)))
-vehicle.GetBody().SetBodyFixed(False)
-vehicle.GetBody().SetCollide(True)
+vehicle.Set_position(chrono.ChVectorD(0, 0, 0))  # Initial position
+vehicle.Set_rotation(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
+vehicle.Set_contact_method(chrono.ChVehicle::CONTACT_METHOD_TMEASY)  # Contact method
+vehicle.Set_tire_model(chrono.ChVehicle::TMEASY)  # Tire model
+vehicle.Set_visual_model(chrono.ChVisualModel())  # Visual model
 
-# Set the contact method and tire model
-vehicle.GetVehicleSystem().SetContactMethod(chrono.ChContactMethod.CH_TMEASY)
-vehicle.GetVehicleSystem().SetTireModel(chrono.ChTireModel.CH_TMEASY)
-
-# Add primitive visualization for the vehicle components
-vehicle.AddVisualizationModel(chrono.ChVisualModel("hmmwv.obj"))
-
-# Add the vehicle to the system
-engine.Add(vehicle)
-
-# Create the driver system
+# Create the interactive driver system
 driver = chrono.ChDriverSteeringThrottleBrake()
-driver.SetVehicle(vehicle)
-driver.SetMaxSteeringAngle(chrono.CH_C_PI_2)
-driver.SetMaxThrottle(1.0)
-driver.SetMaxBrake(1.0)
+driver.Set_vehicle(vehicle)
 
-# Set up the Irrlicht visualization
-vis_engine = chronoirr.ChIrrApp(engine, "PyChrono HMMWV Simulation", chronoirr.dimension2du(1024, 768), False)
-vis_engine.AddTypicalCamera(chrono.ChVectorD(0, 5, 5))
-vis_engine.AddTypicalSky()
-vis_engine.AddTypicalLogo("logo.ppm")
-vis_engine.AddTypicalSky()
-vis_engine.AddTypicalLights()
-vis_engine.AddTypicalCameraController()
-vis_engine.AssetBindAll()
-vis_engine.AssetUpdateAll()
-vis_engine.SetTimestep(1.0 / 50)
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.AttachSystem(terrain)
+vis.AttachSystem(vehicle)
+vis.SetTimestep(1.0/50)  # Set the frame rate to 50 FPS
+vis.Initialize()
 
-# Run the simulation loop
-vis_engine.run()
+# Start the simulation loop
+while vis.Run():
+    # Update the vehicle dynamics
+    vehicle.DoStepDynamics()
 
-# Finalize the PyChrono system
-chrono.Ch纪元.finalize()
+    # Render the scene
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    vis.FastForward()

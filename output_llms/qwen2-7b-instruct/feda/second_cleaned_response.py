@@ -82,23 +82,24 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-from pychrono.vehicle import ChVehiclePathFollowerDriver
+path = veh.Path()
+path.SetPath(veh.PathType_ISO_DOUBLE_LANE_CHANGE)
+path.SetTargetSpeed(10.0)
+path.SetLookAheadDistance(5)
+path.SetSteeringGain(0.1)
+path.SetSpeedGain(0.1)
 
-path = [ 
-    (chrono.ChVectorD(-50, 0, 0), 0),
-    (chrono.ChVectorD(-40, 0, 0), 0),
-    (chrono.ChVectorD(-30, 0, 0), 0),
-    (chrono.ChVectorD(-20, 0, 0), 0),
-    (chrono.ChVectorD(-10, 0, 0), 0),
-    (chrono.ChVectorD(0, 0, 0), 0),
-    (chrono.ChVectorD(10, 0, 0), 0),
-    (chrono.ChVectorD(20, 0, 0), 0),
-    (chrono.ChVectorD(30, 0, 0), 0),
-    (chrono.ChVectorD(40, 0, 0), 0),
-    (chrono.ChVectorD(50, 0, 0), 0)
-]
+driver = veh.ChPathFollowerDriver(vis, path)
+driver.Initialize()
 
-driver = ChVehiclePathFollowerDriver(vis, vehicle, path, 10.0, 5, 0.05, 0.01)
+
+steering_time = 1.0  
+throttle_time = 1.0  
+braking_time = 0.3   
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
 driver.Initialize()
 
 

@@ -11,39 +11,52 @@ irr = IrrlichtApp(chrono, 1280, 720, "PyChrono Mass-Spring-Damper System")
 sys = ChSystemParallelNSC()
 
 
-ground = ChBodyEasyBox(100, 100, 0.1, 1000, true, false, false)
-ground.SetPos(ChVector<>(0, -10, 0))
+ground = ChBodyEasyBox(10000, 10000, 1, 0, 1000, 0)
+ground.SetPos(ChVector<>(0, 0, -0.5))
+ground.SetBodyFixed(True)
 sys.AddBody(ground)
 
 
-mass = 1.0
-radius = 0.5
-height = 0.5
+mass = ChBodyEasySphere(0.1, 1000, 0, True, True)
+mass.SetPos(ChVector<>(0, 0, 0.5))
+mass.SetBodyFixed(False)
+sys.AddBody(mass)
 
 
-mass_obj = ChBodyEasyCylinder(radius, height, mass, false, false, false)
-mass_obj.SetPos(ChVector<>(0, 0, 0))
-mass_obj.SetBodyFixed(false)
-sys.AddBody(mass_obj)
+k = 1000  
+b = 50  
 
 
-k = 1000.0  
-c = 100.0   
+link = ChLinkTSDA()
+link.SetChSystem(sys)
+link.Initialize(mass, ground, ChVector<>(0, 0, 0), ChVector<>(0, 0, 0))
+link.SetK(k)
+link.SetB(b)
 
 
-spring = ChLinkTSDA()
-spring.Initialize(mass_obj, ground, ChVector<>(0, 0, 0), ChVector<>(0, 0, 0))
-spring.SetSpringStiffness(k)
-spring.SetDampingRatio(c / sqrt(k * k))
-sys.AddLink(spring)
+mass_shape = ChTriangleMeshShape()
+mass_shape.SetAsset(SphereAsset(0.1))
+mass_shape.SetStatic(True)
+mass_shape.SetColor(ChColor(1, 0, 0, 1))
+mass.AddAsset(mass_shape)
+
+spring_shape = ChTriangleMeshShape()
+spring_shape.SetAsset(SpringDamperAsset(10, 0.1))
+spring_shape.SetStatic(True)
+spring_shape.SetColor(ChColor(0, 1, 0, 1))
+link.AddAsset(spring_shape)
 
 
-irr.SetBackgroundColor(ChColor(0.2, 0.2, 0.2))
-irr.SetCameraTarget(ChVector<>(0, 0, -10))
-irr.SetCameraPosition(ChVector<>(0, 0, 15))
+irr.AddLight(ChVector<>(10, 10, 10), ChVector<>(1, 1, 1))
 
 
-while irr.GetDevice().run():
-    sys.DoStepDynamics(1 / 60.0)
-    irr.DoStep()
-    Ch纪元().DoStepVisual()
+irr.SetCameraTarget(ChVector<>(0, 0, -1))
+irr.SetCameraUpVector(ChVector<>(0, 1, 0))
+
+
+chrono.SetTimestepperType(chrono.ChTimestepperLinear)
+chrono.DoStepDynamics(0.001)
+irr.Run()
+
+
+irr.Close()

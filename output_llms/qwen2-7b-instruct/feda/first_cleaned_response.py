@@ -55,7 +55,7 @@ while sim.GetStep() < 1000:
     sim.DoStepDynamics()
     
     
-    engine.BeginScene(irrlicht.CEGUIRendererFlags.NORMAL)
+    engine.BeginScene(irrlicht.CEGUIRendererFlags.Default)
     engine.DrawAll()
     engine.EndScene()
     

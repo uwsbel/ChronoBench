@@ -107,18 +107,7 @@ patch4 = terrain.AddPatch(patch_material4,
 patch4.SetTexture(patch_height_map)
 patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
-# Add a bump to the patches of terrain
-for patch in [patch1, patch2, patch3, patch4]:
-    patch.SetHeightMap(chrono.GetChronoDataFile('terrain/textures/bump_map.png'))
-
-terrain.Initialize()
-
-
-# -------------------------------------
 # Create the vehicle Irrlicht interface
-# Create the driver system
-# -------------------------------------
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -128,7 +117,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 # Create the driver system
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -148,7 +136,7 @@ driver.Initialize()
 # ---------------
 
 # output vehicle mass
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 # Number of simulation steps between miscellaneous events
 render_steps = math.ceil(render_step_size / step_size)

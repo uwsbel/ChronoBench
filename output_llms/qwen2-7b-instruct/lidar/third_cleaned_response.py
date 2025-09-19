@@ -62,7 +62,7 @@ def main():
     system.Add(terrain)
 
     
-    lidar_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 0, 1), chrono.Q_from_AngleAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0)))
+    lidar_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 0, 1), chrono.Q_from_AngleAxis(math.pi / 2, chrono.ChVectorD(0, 1, 0)))
     lidar_3d = sens.ChLidarSensor(car_body, 5.0, lidar_offset, 800, 300, 2 * math.pi, 0.0, math.pi / 12, 100.0, sens.LidarBeamShape_RECTANGULAR, 1, 0.003, sens.LidarReturnMode_STRONGEST_RETURN)
     lidar_3d.SetName("Lidar Sensor 3D")
     lidar_3d.SetLag(0)
@@ -87,7 +87,7 @@ def main():
     system.AddSensor(lidar_2d)
 
     
-    cam_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.Q_from_AngleAxis(math.pi / 4, chrono.ChVectorD(0, 1, 0)))
+    cam_offset = chrono.ChFrameD(chrono.ChVectorD(1.0, 1.0, 1.0), chrono.Q_from_AngleAxis(math.pi / 2, chrono.ChVectorD(0, 1, 0)))
     camera = sens.ChCameraSensor(car_body, cam_offset, 800, 600)
     camera.SetName("Camera Sensor")
     camera.SetCollectionWindow(1.0)
@@ -138,24 +138,27 @@ def main():
 
 
 
-wheel_diameter = 0.25
-wheel_separation = 0.5
-wheel_radius = 0.05
-max_speed = 20.0
-max_acc = 1.0
-max_steering_angle = math.pi / 6
-end_time = 40.0
+
+
+
+
 step_size = 1e-3
-noise_model = "NONE"
-return_mode = sens.LidarReturnMode_STRONGEST_RETURN
-horizontal_samples = 800
-vertical_samples = 300
-horizontal_fov = 2 * math.pi
-max_vert_angle = math.pi / 12
-min_vert_angle = -math.pi / 6
-lag = 0
-collection_time = 1.0 / 5.0
-sample_radius = 1
-divergence_angle = 0.003
+
+
+end_time = 40.0
+
+
+save = False
+
+
+vis = True
+
+
+out_dir = "SENSOR_OUTPUT/"
+
+
+
+
+
 
 main()

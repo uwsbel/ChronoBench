@@ -52,5 +52,15 @@ while app.GetDevice().run():
     chrono.DoStepDynamics(timestep)
 
     
-    app.DoStepSimulation(realtime_rate)
-    app.Render()
+    app.GetSceneManager().Clear()
+    app.GetSceneManager().add(chrono.GetVisualizationSystem().GetScene())
+    app.GetSceneManager().setActiveCamera(camera)
+    app.GetSceneManager().addLighting()
+
+    
+    app.SetTimestep(timestep)
+    app.GetDevice().setRealTimeFactor(realtime_rate)
+
+    
+    if app.GetDevice().checkQuit():
+        break

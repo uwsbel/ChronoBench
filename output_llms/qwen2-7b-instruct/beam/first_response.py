@@ -11,32 +11,44 @@ chrono.Set_G_acc(ChVector<>(0, -9.81, 0))
 mesh = ChTriangleMesh()
 mesh.LoadWavefrontMesh("path/to/your/mesh.obj")
 
-# Create a ChTriangleMeshShape with the loaded mesh
+# Create a ChTriangleMeshShape for visualization
 mesh_shape = ChTriangleMeshShape()
 mesh_shape.SetMesh(mesh)
-mesh_shape.SetColor(ChColor(1, 1, 1))  # Set the color of the mesh
+mesh_shape.SetColor(ChColor(0.8, 0.8, 0.8))  # White color for visualization
 
-# Add the mesh shape to the physical system
-chrono.Add(mesh_shape)
+# Add the visualization shape to the system
+chrono.AddVisualShape(mesh_shape)
 
-# Define the beam properties
+# Define the physical properties of the beams
 beam_length = 1.0
-beam_cross_section = ChVector<>(0.1, 0.1, 0.01)
+beam_area = 0.01
+beam_density = 7800.0
+beam_modulus = 2.1e11
+beam_cross_section = ChVector<>(beam_area, beam_area, 0.01)
 
-# Create a beam element and add it to the system
-beam = chrono.NewBeamElement(
-    ChFrameD(ChVector<>(0, 0, 0)),  # Position of the first node
-    ChFrameD(ChVector<>(beam_length, 0, 0)),  # Position of the second node
-    beam_cross_section,  # Cross-section of the beam
-    1e3,  # Young's modulus
-    0.3  # Poisson's ratio
-)
-chrono.Add(beam)
+# Create a beam element
+beam_element = ChBeamFiniteElement()
+beam_element.SetLength(beam_length)
+beam_element.SetArea(beam_area)
+beam_element.SetDensity(beam_density)
+beam_element.SetElasticModulus(beam_modulus)
+beam_element.SetCrossSection(beam_cross_section)
 
-# Add visualization using Irrlicht engine
-gui = ChronoIrrGui()
-gui.Initialize(chrono)
-gui.AddSystem(chrono)
-gui.AddTypicalLights()
-gui.AddCamera(ChVector<>(0, 0, -10), ChVector<>(0, 0, 0))
-gui.StartAnimationLoop()
+# Add the beam element to the system
+chrono.Add(beam_element)
+
+# Set default parameters for the simulation
+chrono.SetSolverType(chrono.SOLVER_TYPE_ITERATIVE)
+chrono.SetSolverMaxIter(1000)
+chrono.SetSolverDamping(0.01)
+chrono.SetSolverPreconType(chrono.PRECONDITIONER_ILU)
+
+# Set up the Irrlicht engine for real-time rendering
+gui = ChronoIrrGui(chrono)
+gui.Initialize()
+gui.AddTypicalCamera(chrono.GetSystem())
+
+# Run the simulation loop
+while gui.IsWindowOpen():
+    gui.DoStep()
+    gui.DrawEverything()

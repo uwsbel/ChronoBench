@@ -60,20 +60,26 @@ def update_lidar_position():
 scene.AddFunction(update_lidar_position)
 
 
-sim = core.ChSystem()
-sim.SetGravity(chrono.ChVectorD(0, -9.81, 0))
-sim.AddScene(scene)
+sim = chrono.ChSim()
+sim.SetTimestepperType(chrono.ChTimestepperType.TYPE_LINEAR)
+sim.SetTimestep(0.001)
+sim.SetMaxStepSize(0.01)
+sim.SetMaxIterations(1000)
 
 
-post_manager = postprocess.ChPostProcessingManager()
-post_manager.AddSensorData(lidar_manager)
+data_logger = postprocess.ChDataLog()
+data_logger.AddPlot("Lidar Data", "lidar_data")
+data_logger.AddPlot("Position", "position")
+sim.Add(data_logger)
 
 
-step_size = 0.001
-for _ in range(10000):
-    sim.DoStepDynamics(step_size)
-    post_manager.DoStep()
-    print(lidar_manager.GetSensorData(lidar_sensor))
+sim.DoStepDynamics()
 
 
-chrono.Ch纪.fini()
+lidar_data = lidar_manager.GetSensorData(lidar_sensor)
+lidar_data.SaveCSV("lidar_data.csv")
+
+
+lidar_manager.RemoveSensor(lidar_sensor)
+scene.Remove(fixed_body)
+chrono.Ch纪.term_system()

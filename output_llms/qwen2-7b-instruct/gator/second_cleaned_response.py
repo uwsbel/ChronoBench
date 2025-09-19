@@ -108,17 +108,6 @@ patch4.SetTexture(patch_height_map)
 patch4.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 
 
-for patch in [patch1, patch2, patch3, patch4]:
-    patch.SetHeightMap(chrono.GetChronoDataFile('terrain/textures/bump_map.png'))
-
-terrain.Initialize()
-
-
-
-
-
-
-
 vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
 vis.SetWindowTitle('Gator vehicle')
 vis.SetWindowSize(1280, 1024)
@@ -128,7 +117,6 @@ vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
 vis.AddLightDirectional()
 vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
-
 
 
 driver = veh.ChInteractiveDriverIRR(vis)
@@ -148,7 +136,7 @@ driver.Initialize()
 
 
 
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)

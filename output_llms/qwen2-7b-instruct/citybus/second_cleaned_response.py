@@ -67,7 +67,7 @@ patch = terrain.AddPatch(patch_mat,
     chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT), 
     terrainLength, terrainWidth)
 
-patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetTexture(veh.GetDataFile('terrain/textures/tile4.jpg'), 200, 200)
 patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
 terrain.Initialize()
 
@@ -83,19 +83,19 @@ vis.AddSkyBox()
 vis.AttachVehicle(vehicle.GetVehicle())
 
 
-driver = veh.ChDataDriver()
-driver.AddEntry(chrono.ChTime(0.0), veh.DataDriverEntry(0.0, 0.0, 0.0))
-driver.AddEntry(chrono.ChTime(0.1), veh.DataDriverEntry(1.0, 0.0, 0.0))
-driver.AddEntry(chrono.ChTime(0.5), veh.DataDriverEntry(1.0, 0.7, 0.0))
+driver = veh.ChDataDriver(vis)
 
 
-driver.Initialize()
+driver_inputs = veh.vector_Entry()
+driver_inputs.push_back(veh.DataDriverEntry(0.0, 0.0, 0.0, 0.0))
+driver_inputs.push_back(veh.DataDriverEntry(0.1, 1.0, 0.0, 0.0))
+driver_inputs.push_back(veh.DataDriverEntry(0.5, 1.0, 0.7, 0.0))
 
 
+driver.Initialize(driver_inputs)
 
 
-
-print( "VEHICLE MASS: ",  vehicle.GetVehicle().GetMass())
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
 
 
 render_steps = math.ceil(render_step_size / step_size)
@@ -105,24 +105,15 @@ realtime_timer = chrono.ChRealtimeStepTimer()
 step_number = 0
 render_frame = 0
 
-while vis.Run() :
+while vis.Run():
     time = vehicle.GetSystem().GetChTime()
 
     
-    if (step_number % render_steps == 0) :
+    if (step_number % render_steps == 0):
         vis.BeginScene()
         vis.Render()
         vis.EndScene()
         render_frame += 1
-
-    
-    driver_inputs = driver.GetInputs()
-
-    
-    driver.Synchronize(time)
-    terrain.Synchronize(time)
-    vehicle.Synchronize(time, driver_inputs, terrain)
-    vis.Synchronize(time, driver_inputs)
 
     
     driver.Advance(step_size)

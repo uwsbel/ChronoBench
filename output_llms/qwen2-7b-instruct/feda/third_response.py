@@ -116,16 +116,14 @@ camera_sensor.Initialize(sensor_manager, vehicle.GetVehicle().GetBody(0))
 camera_sensor.SetCameraSize(1920, 1080)
 camera_sensor.SetFieldOfView(90)
 camera_sensor.SetPosition(chrono.ChVectorD(0, 0, 2))
-camera_sensor.SetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
-sensor_manager.AddSensor(camera_sensor)
+camera_sensor.SetOrientation(chrono.QUNIT)
 
-# Add a visualization filter to render the image
-camera_filter = veh.ChSensorFilter()
-camera_filter.SetSensor(camera_sensor)
-camera_filter.SetImageType(irr.IRR_LIGHT_IMAGE)
-camera_filter.SetResolution(1920, 1080)
-sensor_manager.AddFilter(camera_filter)
+# Add visualization filter
+vis_filter = veh.ChIrrCameraFilter()
+vis_filter.SetCameraSensor(camera_sensor)
+vis.AddFilter(vis_filter)
 
+# Insert the appropriate API to ensure that the camera is updated as the vehicle moves and that the camera filter is visible in visualization.
 while vis.Run() :
     time = vehicle.GetSystem().GetChTime()
 

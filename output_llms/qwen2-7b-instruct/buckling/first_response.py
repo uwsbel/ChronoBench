@@ -54,32 +54,34 @@ constraint = chrono.ChConstraint()
 constraint.SetType(chrono.ChConstraintType.CONSTRAINT_TYPE_Hooke)
 constraint.SetSpringConstant(1000000)
 constraint.SetDampingConstant(100000)
-constraint.SetConnectedBodies(beam_element1.GetNodeA(), beam_element1.GetNodeB())
+constraint.SetFirstNode(beam_element1.GetNodes()[0])
+constraint.SetSecondNode(beam_element1.GetNodes()[1])
+constraint.SetRestLength(beam_element1.GetLength())
 beam.AddConstraint(constraint)
-
-# Set up visualization
-vis_engine = IrrlichtEngine()
-vis_engine.SetWindowName("Beam Buckling Simulation")
-vis_engine.AddTypicalCamera(chrono.ChVectorD(0, 0, 10))
-vis_engine.AddLightSource(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(1, 1, 1))
-vis_engine.AddScene(beam)
 
 # Set solver and timestepper
 solver = chrono.ChSolver()
-solver.SetType(chrono.ChSolverType.CHRONO_ITERATIVE)
 solver.SetMaxIterations(default_solver_iterations)
-solver.SetRelativeTolerance(1e-6)
-solver.SetAbsoluteTolerance(1e-6)
+solver.SetDampingFactor(0.01)
+engine.AddSolver(solver)
 
 timestepper = chrono.ChTimestepper()
-timestepper.SetType(chrono.ChTimestepperType.CHRONO_LINEAR)
 timestepper.SetSolver(solver)
 timestepper.SetTimeStep(default_time_step)
+engine.AddTimestepper(timestepper)
 
-# Run the simulation
+# Visualization setup
+vis_engine = chrono.ChVisualEngine()
+vis_engine.Initialize()
+vis_engine.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChColor(1, 1, 1))
+vis_engine.AddCamera(chrono.ChVectorD(0, 0, 10), chrono.ChVectorD(0, 0, 0))
+vis_engine.AddLight(chrono.ChVectorD(-10, -10, 10), chrono.ChColor(1, 1, 1))
+vis_engine.AddCamera(chrono.ChVectorD(0, 0, -10), chrono.ChVectorD(0, 0, 0))
+
+# Simulation loop
 while engine.GetChTime() < 10:
-    engine.DoStepDynamics(timestepper)
-    vis_engine.Render()
+    engine.DoStepDynamics()
+    vis_engine.RenderStep()
 
-# Finalize the simulation
-vis_engine.Finalize()
+# Cleanup
+engine.End()

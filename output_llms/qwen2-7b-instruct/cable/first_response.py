@@ -29,60 +29,42 @@ beam_height = 0.05
 
 # Create beam as an ANCF cable
 beam = pychrono.ChLinkCable()
-beam.SetCableType(chrono.ChCableType.ANCF)
-beam.SetBeamLength(beam_length)
 beam.SetBeamWidth(beam_width)
 beam.SetBeamHeight(beam_height)
-beam.SetBeamMaterial(chrono.ChMaterialSurfaceNSC())
-beam.SetBeamDensity(7800)
-beam.SetBeamCrossSection(chrono.ChVectorD(beam_width / 2, beam_height / 2, beam_height / 2))
-beam.SetBeamYoungModulus(200e9)
-beam.SetBeamPoissonRatio(0.3)
-beam.SetBeamDensity(7800)
-beam.SetBeamDensity(7800)
-beam.SetBeamMassDensity(7800)
-beam.SetBeamMassPerLength(beam_density * beam_width * beam_height)
+beam.SetBeamDensity(1000)
+beam.SetBeamModulus(210e9)
+beam.SetBeamPoisson(0.3)
+beam.SetBeamCrossSection(pychrono.ChVectorD(beam_width, beam_height, beam_height))
 
-# Define beam nodes and connections
-beam_nodes = [pychrono.ChVectorD(0, 0, 0), pychrono.ChVectorD(beam_length, 0, 0)]
-beam_connectivity = [(0, 1)]
+# Create beam nodes
+node1 = pychrono.ChLinkCableNode()
+node1.SetPos(pychrono.ChVectorD(0, 0, 0))
+beam.AddNode(node1)
 
-# Create nodes
-for i, pos in enumerate(beam_nodes):
-    node = pychrono.ChBodyEasySphere(0.05, 1000)
-    node.SetPos(pos)
-    world.Add(node)
-    beam.AddNode(node)
+node2 = pychrono.ChLinkCableNode()
+node2.SetPos(pychrono.ChVectorD(beam_length, 0, 0))
+beam.AddNode(node2)
 
-# Connect nodes with beam elements
-for node_index in beam_connectivity:
-    element = pychrono.ChLinkCableElement()
-    element.SetNode1(beam.GetNode(node_index[0]))
-    element.SetNode2(beam.GetNode(node_index[1]))
-    beam.AddLink(element)
+# Connect nodes with beam
+beam.SetNodes(node1, node2)
+world.Add(beam)
 
-# Add gravity force to the beam
-beam.AddForce(pychrono.ChForce(pychrono.ChVectorD(0, -9.81, 0)), True)
+# Set gravity on the beam
+beam.SetBodyForce(default_gravity)
 
-# Set up visualization
-renderer = irrlichtengine.IrrlichtRenderer()
-renderer.SetWindowSize(800, 600)
-renderer.SetPosition(100, 100)
-renderer.SetTitle("PyChrono ANCF Beam Simulation")
-renderer.AddLight(pychrono.ChVectorD(1, 1, 1))
-renderer.AddCamera(pychrono.ChVectorD(0, 0, -20))
+# Add Irrlicht visualization
+engine = irrlichtengine.IrrlichtEngine()
+engine.AttachSystem(world)
+engine.SetWindowCaption("PyChrono ANCF Beam Simulation")
+engine.SetWindowSize(800, 600)
+engine.SetTargetFPS(60)
 
-# Set up the simulation loop
-simulation_time = 10.0
-time_step = 0.01
-simulation_steps = int(simulation_time / time_step)
+# Simulation loop
+while engine.IsRunning():
+    engine.BeginScene()
+    engine.DrawAll()
+    world.DoStepDynamics(1/60.0)
+    engine.EndScene()
 
-for step in range(simulation_steps):
-    world.DoStepDynamics(time_step)
-    renderer.RenderWorld(world)
-    print("Step:", step)
-    print("Node positions:", [node.GetPos() for node in beam.GetNodes()])
-    print("Beam deformation:", beam.GetDeformation())
-
-# Finalize the PyChrono environment
+# Cleanup
 pychrono.close()

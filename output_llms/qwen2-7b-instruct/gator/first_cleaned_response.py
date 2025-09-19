@@ -13,39 +13,53 @@ gator_model = chrono.ChModel()
 gator_model.ReadFile('path_to_gator_model/model_file.chr')
 
 
-gator_model.GetBody(0).SetPos(chrono.ChVectorD(0, 0, 0))
-gator_model.GetBody(0).SetRot(chrono.Q_from_AngX(chrono.CH_C_PI / 2))
+gator_model.GetSystem().Add(gator_model.GetCollisionModel())
+gator_model.GetSystem().Add(gator_model.GetVisualModel())
+gator_model.SetPos(chrono.ChVectorD(0, 0, 0))
+gator_model.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
 
 
-vehicle.AddModel(gator_model)
+gator_model.SetContactMethod(chrono.ChContactMethod.TMEASY)
+
+
+vehicle.Add(gator_model.GetSystem())
 
 
 terrain = chrono.ChTerrain()
-terrain.SetType(chrono.ChTerrain::TYPE_RIGID)
-terrain.SetSize(chrono.ChVectorD(50, 50, 1))
-terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
-terrain.SetTexture(chrono.GetChronoDataFile('terrain/terrain.jpg'))
+terrain.SetWidth(100)
+terrain.SetLength(100)
+terrain.SetHeight(0.1)
+terrain.SetTexture('path_to_terrain_texture/texture_file.jpg')
+terrain.SetCollisionType(chrono.ChCollisionModel.CT_RIGID_BODIES)
+terrain.SetFriction(0.5)
+terrain.SetRestitution(0.1)
+terrain.SetDamping(0.01)
 
 
-vehicle.AddTerrain(terrain)
+vehicle.Add(terrain.GetTerrainModel())
 
 
-vis_engine = chronoirr.ChIrrApp(vehicle, "PyChrono Gator Simulation", chronoirr.dimension2du(800, 600))
-vis_engine.AddTypicalCamera(chrono.ChVectorD(0, 0, 2))
-vis_engine.AddTypicalLights()
-vis_engine.AddTypicalSky()
-vis_engine.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
-vis_engine.AddTypicalSky()
-vis_engine.AddTypicalCamera()
-vis_engine.AddVehicleVisualization(gator_model)
+vis_system = chronoirr.ChVisualSystemIrrlicht()
+vis_system.SetWindowSize(800, 600)
+vis_system.SetWindowTitle('Gator Vehicle Simulation')
+vis_system.Initialize()
+vis_system.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis_system.AddSkyBox()
+vis_system.AddCamera(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0))
+vis_system.AddTypicalLights()
+vis_system.AddLight(chrono.ChVectorD(5, 5, 5), chrono.ChColor(1, 1, 1), 10, 10, 1)
+vis_system.AddTypicalGround()
 
 
-vis_engine.SetTimestep(1 / 50)
-vis_engine.SetRealTime(True)
+vis_system.SetTimestep(1. / 50)
+vis_system.SetTargetFPS(50)
 
 
-vis_engine.Execute()
-vis_engine.Run()
 
 
-chrono.Ch纪元().GetPhysicalWorld().GetSystem().Free()
+while vis_system.Run():
+    
+    vehicle.DoStepDynamics()
+    vis_system.BeginScene()
+    vis_system.DrawAll()
+    vis_system.EndScene()
