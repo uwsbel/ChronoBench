@@ -1,0 +1,120 @@
+import chrono
+import chrono.irrlicht as chronoirr
+import chrono.vehicle as chronoveh
+import math
+
+# ---
+#  Create the simulation system and add items
+# ---
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create the ground body
+body_ground = chrono.ChBodyEasy()
+body_ground.SetBodyFixed(True)
+body_ground.SetMass(1000)
+body_ground.SetShape(chrono.ChBoxShape())
+body_ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+body_ground.SetVisualizationType(chrono.ChVisualizationType.BOX)
+system.Add(body_ground)
+
+# ---
+# Create the Turtlebot
+# ---
+
+# Define Turtlebot parameters
+turtlebot_mass = 3.0  # kg
+turtlebot_radius = 0.09  # m
+turtlebot_height = 0.12  # m
+
+# Create the main body of the Turtlebot
+body_turtlebot = chrono.ChBodyEasy()
+body_turtlebot.SetMass(turtlebot_mass)
+body_turtlebot.SetPos(chrono.ChVectorD(0, 0.1, 0))
+body_turtlebot.SetBodyFixed(False)
+body_turtlebot.SetVisualizationType(chrono.ChVisualizationType.BOX)
+body_turtlebot.SetShape(chrono.ChBoxShape(chrono.ChVectorD(turtlebot_radius * 2, turtlebot_height, turtlebot_radius * 2)))
+system.Add(body_turtlebot)
+
+# Create wheels
+wheel_radius = 0.03  # m
+wheel_width = 0.02  # m
+wheel_offset_x = turtlebot_radius * 1.5
+wheel_offset_y = 0.05
+
+# Left wheel
+wheel_left = chrono.ChBodyEasy()
+wheel_left.SetMass(0.1)
+wheel_left.SetPos(chrono.ChVectorD(wheel_offset_x, wheel_radius, wheel_offset_y))
+wheel_left.SetBodyFixed(False)
+wheel_left.SetShape(chrono.ChCylinderShape(wheel_radius, wheel_width))
+wheel_left.SetVisualizationType(chrono.ChVisualizationType.CYLINDER)
+system.Add(wheel_left)
+
+# Right wheel
+wheel_right = chrono.ChBodyEasy()
+wheel_right.SetMass(0.1)
+wheel_right.SetPos(chrono.ChVectorD(wheel_offset_x, wheel_radius, -wheel_offset_y))
+wheel_right.SetBodyFixed(False)
+wheel_right.SetShape(chrono.ChCylinderShape(wheel_radius, wheel_width))
+wheel_right.SetVisualizationType(chrono.ChVisualizationType.CYLINDER)
+system.Add(wheel_right)
+
+# Create a revolute joint for the left wheel
+joint_left = chrono.ChLinkMateRevolute()
+joint_left.Initialize(body_turtlebot, wheel_left, chrono.ChCoordsys(chrono.ChVectorD(wheel_offset_x, wheel_radius, wheel_offset_y)))
+system.Add(joint_left)
+
+# Create a revolute joint for the right wheel
+joint_right = chrono.ChLinkMateRevolute()
+joint_right.Initialize(body_turtlebot, wheel_right, chrono.ChCoordsys(chrono.ChVectorD(wheel_offset_x, wheel_radius, -wheel_offset_y)))
+system.Add(joint_right)
+
+# ---
+#  Create an Irrlicht application to visualize the system
+# ---
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Turtlebot Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 1, -2))
+vis.AddTypicalLights()
+
+# ---
+#  Simulation loop
+# ---
+
+# Define motor control times and speeds
+turn_left_time = 5.0
+turn_right_time = 10.0
+motor_speed = 2.0  # rad/s
+
+simulation_time = 15.0
+time_step = 0.01
+
+current_time = 0.0
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)
+
+    # Motor control
+    if current_time > turn_left_time and current_time < turn_right_time:
+        # Turn left
+        wheel_left.SetWvel(chrono.ChVectorD(0, motor_speed, 0))
+        wheel_right.SetWvel(chrono.ChVectorD(0, -motor_speed, 0))
+    else:
+        # Move forward (or stop)
+        wheel_left.SetWvel(chrono.ChVectorD(0, 0, 0))
+        wheel_right.SetWvel(chrono.ChVectorD(0, 0, 0))
+
+    current_time += time_step
+    if current_time > simulation_time:
+        break

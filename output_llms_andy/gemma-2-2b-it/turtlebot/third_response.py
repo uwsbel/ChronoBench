@@ -1,0 +1,103 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+from pychrono.sensor import SensManager
+from pychrono.sensor import LidarSensor
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in negative Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body as terrain plane that robot will drive on
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Position the ground slightly below the origin
+ground.SetFixed(True)  # Fix the ground in place
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
+
+# Create sensor manager
+sens_manager = SensManager(system)
+
+# Create lidar sensor
+lidar = LidarSensor(sens_manager, 
+                   sensor_name='lidar', 
+                   range=1.0, 
+                   resolution=0.1, 
+                   angle_resolution=0.1, 
+                   threshold=0.5, 
+                   filter_mode='gaussian', 
+                   filter_sigma=0.1)
+
+# Add the lidar sensor to the sensor manager
+sens_manager.AddSensor(lidar)
+
+# Add randomly placed boxes
+box_pos = [
+    chrono.ChVector3d(5, 0, 0),
+    chrono.ChVector3d(-5, 0, 0),
+    chrono.ChVector3d(0, 5, 0),
+    chrono.ChVector3d(0, -5, 0),
+    chrono.ChVector3d(0, 0, 5)
+]
+box_shapes = [
+    chrono.ChBox(1, 1, 1),
+    chrono.ChBox(1, 1, 1),
+    chrono.ChBox(1, 1, 1),
+    chrono.ChBox(1, 1, 1),
+    chrono.ChBox(1, 1, 1)
+]
+
+for i in range(5):
+    box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, chrono.ChContactMaterialNSC())
+    box.SetPos(box_pos[i])
+    box.SetFixed(True)
+    box.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/wood.jpg"))
+    system.Add(box)
+
+# Motion control function
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(0, 0)  # Set motor speed to 0 for straight movement
+    elif mode == 'left':
+        robot.SetMotorSpeed(-math.pi, 1)  # Set motor speed for left turn
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, 1)  # Set motor speed for right turn
+    
+# Simulation loop
+time = 0
+while vis.Run():
+    # Define WheelID enum values for motor control
+    LEFT_DRIVE_WHEEL = 0
+    RIGHT_DRIVE_WHEEL = 1
+
+    # At time = 1 s, start left turn
+    if abs(time - 1.0) < 1e-4:
+        move('left')  
+    
+    # At time = 2 s, start right turn
+    if abs(time - 2.0) < 1e-4:
+        move('right')
+    
+    # Increment time counter
+    time += time_step
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)

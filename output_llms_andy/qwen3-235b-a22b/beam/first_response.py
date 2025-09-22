@@ -1,0 +1,62 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+
+# Create a mesh container
+mesh = chrono.ChMesh()
+system.Add(mesh)
+
+# Define material properties for the beam
+material = chrono.ChMaterialBeamEulerSimple()
+material.SetYoungModulus(2e5)  # Young's modulus in Pascals
+material.SetShearModulus(8e4)   # Shear modulus in Pascals
+material.SetArea(0.01)          # Cross-sectional area in m^2
+material.SetIyy(0.001)          # Area moment of inertia in y-direction
+material.SetIzz(0.001)          # Area moment of inertia in z-direction
+material.SetJ(0.0001)           # Torsion constant
+
+# Create nodes and add them to the mesh
+for i in range(10):
+    pos = chrono.ChVectorD(i * 0.1, 0, 0)  # Position along x-axis
+    rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Identity rotation
+    node = chrono.ChNodeFEAxyzrot(pos, rot)  # Node with translation and rotation DOFs
+    if i == 0:
+        node.SetFixed(True)  # Fix the first node
+    mesh.AddNode(node)
+
+# Create beam elements and add them to the mesh
+for i in range(9):
+    element = chrono.ChElementBeamEulerSimple()
+    element.SetNodes(mesh.GetNode(i), mesh.GetNode(i + 1))
+    element.SetMaterial(material)
+    element.SetYDirection(chrono.ChVectorD(0, 1, 0))  # Define beam cross-section orientation
+    mesh.AddElement(element)
+
+# Enable gravity
+system.Set_G(chrono.ChVectorD(0, -9.81, 0))
+
+# Set up Irrlicht visualization
+application = chronoirr.ChIrrApp(system, 'Beam Finite Element Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(0.5, 0.5, -1), chronoirr.vector3df(0, 0, 0))
+
+# Configure mesh visualization
+mesh_vis = chrono.ChVisualShapeFEA(mesh)
+mesh_vis.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mesh.AddVisualShapeFEA(mesh_vis)
+
+# Finalize visualization setup
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+step_size = 0.01  # Time step in seconds
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    system.DoStepDynamics(step_size)

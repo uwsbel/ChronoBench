@@ -1,0 +1,51 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+vehicle.SetInitFwdVel(5)
+vehicle.SetTireType(veh.TireType_TMEasy)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e6, 0, 1.7e5, 0, 30, 0.1, 0.9)
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_PRESSURE, 0, 10000)
+heightmap = chrono.ChGrid(0.1, 0.1, 100, 100)
+for i in range(heightmap.GetNumX()):
+    for j in range(heightmap.GetNumY()):
+        heightmap.SetValue(i, j, chrono.ChVector2d(i * 0.1, j * 0.1).Length() * 0.1)
+terrain.Initialize(heightmap)
+
+
+driver = veh.ChDriver(vehicle, True)
+driver.Initialize()
+
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetCamera(chrono.ChVector3d(10, 10, 10), chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, 0, 1))
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.EnableShadows(True)
+vis.AttachVehicle(vehicle)
+
+
+step_size = 2e-3
+realtime_timer = chrono.ChRealtimeStepTimer()
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    driver.Advance(step_size)
+    vis.Advance(step_size)
+    vis.Render()
+    realtime_timer.Spin(step_size)

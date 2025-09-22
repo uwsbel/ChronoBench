@@ -1,0 +1,61 @@
+import chrono as ch
+import irrrlicht as irr
+
+# Initialize PyChrono environment and core components
+ch.InitChronicEngine()
+
+# Create a world object
+world = ch.ChWorld()
+
+# Create a ground object
+ground = ch.ChBodyEasyBox(10, 0.1, 10, 1, 1, 1)
+ground.SetPos(ch.Vec3(0, -5, 0))
+ground.SetRot(ch.Vec3(0, 0, 0))
+ground.SetBodyType(ch.ChBodyKT)
+ground.SetCollisionModel(ch.ChCollisionModelDefault)
+world.Add(ground)
+
+# Create a mass object
+mass = ch.ChBodyEasySphere(1, 1, 1)
+mass.SetPos(ch.Vec3(0, 0, 0))
+mass.SetRot(ch.Vec3(0, 0, 0))
+mass.SetBodyType(ch.ChBodyKT)
+mass.SetCollisionModel(ch.ChCollisionModelDefault)
+world.Add(mass)
+
+# Create a spring-damper connection
+link = ch.ChLinkTSDA()
+link.SetPos(ch.Vec3(0, 0, 0))
+link.SetRot(ch.Vec3(0, 0, 0))
+link.SetBody1(mass)
+link.SetBody2(ground)
+link.SetSpringDamp(1, 0.1)
+link.SetSpringK(1000)
+link.SetSpringDampMaxForce(1000)
+world.Add(link)
+
+# Create an Irrlicht visualization
+irr.SetWindowTitle("Mass-Spring-Damper Simulation")
+irr.SetAmbientLight(ch.Vec3(0.5, 0.5, 0.5))
+irr.SetCameraPosition(ch.Vec3(0, 0, 10))
+irr.SetCameraTarget(ch.Vec3(0, 0, 0))
+irr.SetCameraRot(ch.Vec3(0, 0, 0))
+
+# Add visual shapes for the mass and spring
+mass.AddVisualShape(ch.ChSphereShape(1))
+ground.AddVisualShape(ch.ChBoxShape(10, 0.1, 10))
+link.AddVisualShape(ch.ChSpringShape(1, 1))
+
+# Set simulation parameters
+world.SetGravity(ch.Vec3(0, -9.81, 0))
+world.SetTimestep(0.001)
+world.SetMaxStep(0.01)
+
+# Run the simulation
+while not irr.IsQuit():
+    world.Step()
+    irr.Render()
+
+# Clean up
+ch.Cleanup()
+irr.Cleanup()

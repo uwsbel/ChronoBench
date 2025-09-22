@@ -1,0 +1,1 @@
+[ERROR] openai sdk missing: No module named 'openai'

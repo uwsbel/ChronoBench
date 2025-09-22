@@ -1,0 +1,166 @@
+#
+# PyChrono example that
+#  • publishes a few basic ROS2 streams               (clock, TF, body state)
+#  • publishes a custom Int64 message                 (MyCustomHandler)
+#  • renders the scene with Irrlicht                  (camera + lights)
+#  • keeps ROS and rendering in real-time
+#
+# Author:  (your name)
+#
+
+import math
+import pychrono as ch
+from   pychrono import irrlicht as irr                      # Irrlicht wrapper
+import pychrono.ros as chros
+
+import rclpy
+import rclpy.publisher
+from   std_msgs.msg import Int64
+
+
+# ---------------------------------------------------------------------------
+# Helper : add a texture to an Easy body (or to any ChBody/ChVisualShape)
+# ---------------------------------------------------------------------------
+
+def add_texture(body, filepath):
+    """Attach a texture to body’s first visual shape."""
+    texture = ch.ChTexture()
+    texture.SetTextureFilename(filepath)
+    body.AddAsset(texture)
+
+
+# ---------------------------------------------------------------------------
+# Custom ROS handler – publishes consecutive Int64 numbers on a topic
+# ---------------------------------------------------------------------------
+
+publish_rate = 10     # [Hz] – same value will be reused for other handlers
+
+class MyCustomHandler(chros.ChROSHandler):
+    """Publish an increasing Int64 on <topic> at <publish_rate> Hz."""
+
+    def __init__(self, topic: str):
+        super().__init__(publish_rate)                     # desired frequency
+        self.topic     = topic
+        self.publisher : rclpy.publisher.Publisher = None
+        self.ticker    = 0
+
+    # called once by ChROSPythonManager
+    def Initialize(self, interface: chros.ChROSPythonInterface) -> bool:
+        print(f"[ROS] Creating publisher on {self.topic}")
+        node = interface.GetNode()
+        self.publisher = node.create_publisher(Int64, self.topic, 10)
+        return True
+
+    # called every time the manager decides we should publish
+    def Tick(self, time: float):
+        msg       = Int64()
+        msg.data  = self.ticker
+        self.publisher.publish(msg)
+        print(f"[ROS] Published {self.ticker} on {self.topic}")
+        self.ticker += 1
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+
+    # ----------------------------  Chrono system  ---------------------------
+    sys = ch.ChSystemNSC()
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+
+    # contact material (NSC = non-smooth contacts)
+    mat = ch.ChContactMaterialNSC()
+    mat.SetFriction(0.5)
+
+    # ----------------------------  Bodies  ----------------------------------
+    # Floor
+    floor = ch.ChBodyEasyBox(10, 10, 1,            # size
+                             1000,                 # density
+                             True, True, mat)
+    floor.SetPos(ch.ChVector3d(0, 0, -1))
+    floor.SetFixed(True)
+    floor.SetName("base_link")
+    add_texture(floor, ch.GetChronoDataFile("textures/concrete.jpg"))
+    sys.Add(floor)
+
+    # Box
+    box = ch.ChBodyEasyBox(1, 1, 1,
+                           1000,
+                           True, True, mat)
+    box.SetPos(ch.ChVector3d(0, 0, 5))
+    # Quaternion from angle/axis
+    box.SetRot(ch.Q_from_AngAxis(0.2, ch.ChVector3d(1, 0, 0)))
+    box.SetName("box")
+    add_texture(box, ch.GetChronoDataFile("textures/cubetexture_bluewhite.png"))
+    sys.Add(box)
+
+    # ----------------------------  ROS manager  -----------------------------
+    ros_manager = chros.ChROSPythonManager()
+
+    # standard handlers
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(chros.ChROSBodyHandler(publish_rate, box, "~/box"))
+
+    tf_handler = chros.ChROSTFHandler(publish_rate)
+    tf_handler.AddTransform(floor, floor.GetName(), box, box.GetName())
+    ros_manager.RegisterHandler(tf_handler)
+
+    # custom handler
+    custom_handler = MyCustomHandler("~/my_topic")
+    ros_manager.RegisterPythonHandler(custom_handler)
+
+    ros_manager.Initialize()
+
+    # ----------------------------  Irrlicht   -------------------------------
+    app = irr.ChIrrApp(sys,
+                       "PyChrono — ROS/Irrlicht demo",
+                       irr.dimension2du(1024, 768))
+
+    app.AddTypicalSky()
+    app.AddTypicalLights()
+    app.AddTypicalCamera(irr.vector3df(3, 3, 3),
+                         irr.vector3df(0, 0, 0))
+
+    app.AssetBindAll()
+    app.AssetUpdateAll()
+
+    # ----------------------------  Simulation loop --------------------------
+    time_step   = 1e-3                                 # dynamics integrator
+    time_end    = 30.0
+
+    # rendering control variables
+    step_number       = 0                              # counts every sim step
+    render_step_size  = 1.0 / 60.0                     # want ~60 FPS
+    render_steps      = int(render_step_size / time_step)
+
+    realtime_timer = ch.ChRealtimeStepTimer()
+
+    while sys.GetChTime() < time_end:
+
+        # break if Irrlicht window is closed
+        if not app.GetDevice().run():
+            break
+
+        # Do dynamics
+        sys.DoStepDynamics(time_step)
+
+        # update ROS
+        if not ros_manager.Update(sys.GetChTime(), time_step):
+            break
+
+        # Render only every <render_steps> integrator steps
+        if step_number % render_steps == 0:
+            app.BeginScene()
+            app.DrawAll()
+            app.EndScene()
+
+        step_number += 1
+        realtime_timer.Spin(time_step)                # keep realtime pace
+
+
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    main()

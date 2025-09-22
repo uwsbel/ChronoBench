@@ -1,0 +1,147 @@
+import math as m
+import chrono
+import chrono.fea as fea
+import chrono.irrlicht as chronoirr
+import chrono.pardisomkl as mkl
+
+sys = chrono.ChSystemSMC()
+
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+mesh.SetAutomaticGravity(True,
+                         2)  
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+
+
+
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800)
+minertia.SetArea(m.pi * (beam_ro ** 2 - beam_ri ** 2))
+minertia.SetIyy((m.pi / 4.0) * (beam_ro ** 4 - beam_ri ** 4))
+minertia.SetIzz((m.pi / 4.0) * (beam_ro ** 4 - beam_ri ** 4))
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((m.pi / 4.0) * (beam_ro ** 4 - beam_ri ** 4))
+melasticity.SetIzz((m.pi / 4.0) * (beam_ro ** 4 - beam_ri ** 4))
+melasticity.SetJ((m.pi / 2.0) * (beam_ro ** 4 - beam_ri ** 4))
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)  
+
+
+
+
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh,  
+                  msection,  
+                  20,  
+                  chrono.ChVector3d(0, 0, 0),  
+                  chrono.ChVector3d(beam_L, 0, 0),  
+                  chrono.VECT_Y,  
+                  1)  
+
+node_mid = builder.GetLastBeamNodes()[int(builder.GetLastBeamNodes().size() / 2.0)]
+
+
+
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)  
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),  
+                       chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Z))
+    
+)
+sys.Add(mbodyflywheel)
+
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos())
+                   )
+sys.Add(bearing)
+
+
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def GetVal(self, x):
+        if x < T1:
+            return A1
+        elif x < T2:
+            return A1 + (A2 - A1) * (x - T1) / (T2 - T1)
+        elif x < T3:
+            return A1 + (A2 - A1) * (T2 - T1) * (x - T2) / (T3 - T2)
+        else:
+            return A2
+
+
+f_ramp = ChFunctionMyFun(40, 0.2, 1, 2, 3, 0.5)
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(),  
+                     truss,  
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Y))
+                     
+                     )
+rotmotor1.SetMotorFunction(f_ramp)
+
+
+
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test FEA: the Jeffcott rotor with IGA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
+vis.AddTypicalLights()
+
+
+
+
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+sys.DoStaticLinear()
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)

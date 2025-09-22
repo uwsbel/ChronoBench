@@ -1,0 +1,70 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from chrono import *
+from chrono.sensor import *
+
+# Initialize PyChrono environment and core components
+chrono.ChEngine.Initialize()
+
+# Create a Chrono system
+system = chrono.ChSystem()
+
+# Load triangular mesh from Wavefront .obj file
+mesh = chrono.ChTriangleMeshShape()
+mesh.LoadWavefrontMesh('path/to/your/mesh.obj', False)
+
+# Create a fixed body for the mesh
+body = chrono.ChBody()
+body.SetPos(chrono.ChVector3d(0, 0, 0))
+body.AddVisualShape(mesh)
+
+# Add body to the system
+system.AddBody(body)
+
+# Create a sensor manager
+sensor_manager = chrono.ChSensorManager(system)
+
+# Create a lidar sensor
+lidar = chrono.ChLidarSensor(body, 
+                             1.0,  # min_distance
+                             100.0,  # max_distance
+                             0.1,  # resolution
+                             chrono.ChVector3d(0, 0, 0),  # position
+                             chrono.ChQuaterniond(1, 0, 0, 0),  # rotation
+                             30.0,  # horizontal_fov
+                             30.0  # vertical_fov
+                            )
+
+# Add noise filter to lidar
+noise_filter = chrono.ChNoiseLidarFilter(0.1,  # noise_std_dev
+                                        0.0  # noise_mean
+                                       )
+lidar.AddFilter(noise_filter)
+
+# Enable lidar visualization
+lidar.EnableVisualization(True)
+
+# Add lidar to sensor manager
+sensor_manager.AddSensor(lidar)
+
+# Set saving options for lidar data
+lidar.EnablePointCloudSaving(True, 'lidar_data')
+
+# Simulation parameters
+step_size = 0.01
+end_time = 10.0
+
+# Simulation loop
+for time in np.arange(0, end_time, step_size):
+    system.DoStepDynamics(step_size)
+
+    # Dynamically update lidar position in an orbit around the mesh
+    angle = time * 0.1
+    radius = 5.0
+    lidar_pos = chrono.ChVector3d(radius * np.cos(angle), radius * np.sin(angle), 2.0)
+    lidar.SetPos(lidar_pos)
+
+    # Print lidar buffer data
+    buffer = lidar.GetBuffer()
+    if buffer is not None:
+        print(f"Time: {time:.2f}, Lidar Buffer Size: {buffer.GetSize()}")

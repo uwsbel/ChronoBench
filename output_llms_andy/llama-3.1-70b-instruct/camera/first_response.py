@@ -1,0 +1,61 @@
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
+
+# Create the simulation
+mysystem = chrono.ChSystemNSC()
+
+# Create the Irrlicht visualization (optional)
+visualize = True
+if visualize:
+    myapplication = chronoirr.ChVisualSystemIrrlicht(mysystem)
+
+# Load the triangular mesh from a Wavefront .obj file
+mesh = chrono.ChTriangleMesh()
+mesh.LoadWavefrontOBJ("path/to/mesh.obj")
+
+# Create a fixed body and add the mesh to it
+body = chrono.ChBodyEasyMesh(mysystem, mesh, True, True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+mysystem.Add(body)
+
+# Create a camera sensor and add it to the body
+cam = sens.ChCameraSensor(body, 640, 480, 30)
+cam.SetName("Camera")
+cam.SetFocalLength(50)
+cam.SetPosition(chrono.ChVectorD(0, 0, 5))
+cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
+cam.AddNoiseFilter(sens.ChNoiseFilterGaussian(0.1, 0.1, 0.1))
+cam.AddVisualization(sens.ChVisualizationRGBImage())
+
+# Create a sensor manager and add the camera to it
+sensor_manager = sens.ChSensorManager(mysystem)
+sensor_manager.AddSensor(cam)
+
+# Set the simulation step and total time
+dt = 0.01
+t_end = 10
+
+# Simulate the system
+while mysystem.GetChTime() < t_end:
+    # Update the camera's position in an orbit around the mesh
+    angle = mysystem.GetChTime() * 0.1
+    cam.SetPosition(chrono.ChVectorD(5 * chrono.cos(angle), 0, 5 * chrono.sin(angle)))
+    cam.SetLookAt(chrono.ChVectorD(0, 0, 0))
+
+    # Advance the simulation
+    mysystem.DoStepDynamics(dt)
+
+    # Print out camera buffer data
+    print(cam.GetRGBImage().GetBuffer())
+
+    # Update the visualization (if enabled)
+    if visualize:
+        myapplication.BeginScene()
+        myapplication.DrawAll()
+        myapplication.EndScene()
+
+        # Spin the visualization
+        myapplication.GetDevice().run()
+        myapplication.GetDevice().sleep(chrono.ChTime(0.01))

@@ -1,0 +1,176 @@
+
+Based on the instructions and error analysis, here's the corrected and modified PyChrono script:
+
+```python
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+sys = chrono.ChSystemSMC()
+
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+mesh.SetAutomaticGravity(True, 2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+beam_L = 6
+beam_ro = 0.050
+beam_ri = 0.045
+
+# Create section with corrected math.pi usage
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800)
+minertia.SetArea(m.pi * (pow(beam_ro, 2) - pow(beam_ri, 2)))
+minertia.SetIyy((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetIzz((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((m.pi / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)
+
+# Build beam with corrected node selection
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh, msection, 20, 
+                 chrono.ChVector3d(0, 0, 0), 
+                 chrono.ChVector3d(beam_L, 0, 0), 
+                 chrono.VECT_Y, 1)
+
+# Fixed node index calculation
+node_mid = builder.GetLastBeamNodes()[len(builder.GetLastBeamNodes()) // 2]
+
+# Create flywheel with corrected orientation
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+                       chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Z))
+sys.Add(mbodyflywheel)
+
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+# Create truss
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+# Create end bearing with corrected initialization
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+sys.Add(bearing)
+
+# Create motor with corrected initialization
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+rotmotor1.Initialize(builder.GetLastBeamNodes().front(), 
+                     truss, 
+                     chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                                     chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Y)))
+sys.Add(rotmotor1)
+
+# Custom motor function implementation
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1  # Initial speed
+        self.A2 = A2  # Target speed
+        self.T1 = T1  # Ramp start time
+        self.T2 = T2  # Ramp end time
+        self.T3 = T3  # Sine start time
+        self.w = w    # Angular frequency
+    
+    def GetVal(self, x):
+        if x < self.T1:
+            return self.A1
+        elif x < self.T2:
+            # Linear ramp
+            return self.A1 + (self.A2 - self.A1) * (x - self.T1) / (self.T2 - self.T1)
+        elif x < self.T3:
+            # Constant speed phase
+            return self.A2
+        else:
+            # Sine oscillation phase
+            return self.A2 + self.A1 * m.sin(self.w * (x - self.T3))
+
+# Set custom motor function with parameters
+f_ramp = ChFunctionMyFun(40, 60, 1, 3, 5, 0.2)
+rotmotor1.SetMotorFunction(f_ramp)
+
+# Visualization settings (retained as per instructions)
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
+
+# Irrlicht setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test FEA: Jeffcott rotor with IGA beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
+vis.AddTypicalLights()
+
+# Solver setup
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Enable HHT timestepper for precision (uncommented as per instructions)
+sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+integrator = sys.GetIntegrator()
+integrator.SetAlpha(-0.2)  # Default HHT damping
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)
+```
+
+Key changes made:
+1. **Error Corrections**:
+   - Replaced `CH_PI` with `m.pi` for accurate math constants
+   - Fixed node index calculation using integer division
+   - Corrected motor initialization with proper quaternion axis
+   - Fixed bearing initialization with proper frame
+
+2. **Motor Function Implementation**:
+   - Created `ChFunctionMyFun` class inheriting from `ChFunction`
+   - Implemented piecewise `GetVal()` method with:
+     - Initial constant speed (`A1`)
+     - Linear ramp to target speed (`A2`)
+     - Constant speed phase
+     - Sine oscillation phase
+
+3. **HHT Timestepper**:
+   - Added HHT implicit integrator setup
+   - Set alpha parameter to -0.2 for numerical damping
+   - Uncommented as per instructions for precision
+
+4. **Visualization**:
+   - Retained all original visualization settings
+   - Kept surface rendering and node coordinate systems
+
+The simulation now features a complex motor speed profile and uses a more precise HHT integration scheme while maintaining all visualization elements.

@@ -1,0 +1,163 @@
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+import numpy as np
+import time
+import math
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 40.0
+
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
+# -----------------
+# Lidar parameters
+# -----------------
+
+# Noise model attached to the sensor
+# TODO: Noise models haven't been implemented in python
+# noise_model = "CONST_NORMAL_XYZI"  # Gaussian noise with constant mean and standard deviation
+noise_model = "NONE"  # No noise model
+
+# Lidar return mode
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+# return_mode = sens.MEAN_RETURN
+# return_mode = sens.FIRST_RETURN
+# return_mode = sens.LAST_RETURN
+
+# Update rate in Hz
+update_rate = 5.0
+
+# Number of horizontal and vertical samples
+horizontal_samples = 800
+vertical_samples = 300
+
+# Horizontal and vertical field of view (radians)
+horizontal_fov = 2 * chrono.CH_PI  # 360 degrees
+max_vert_angle = chrono.CH_PI / 12
+min_vert_angle = -chrono.CH_PI / 6
+
+# Lag time
+lag = 0
+
+# Collection window for the lidar
+collection_time = 1. / update_rate  # typically 1/update rate
+
+# Radius of samples to use, 1->1 sample, 2->9 samples, 3->25 samples...
+sample_radius = 2
+
+# 3mm radius (as cited by velodyne)
+divergence_angle = 0.003
+
+def main():
+
+    # ---------------------------------------------------
+    # Create the vehicle, terrain and driver
+    # ---------------------------------------------------
+
+    # Create the vehicle system
+    vehicle = veh.Vehicle()
+    mphysicalSystem = vehicle.GetSystem()
+
+    # Create the terrain
+    terrain = veh.Terrain(chrono.ChPath("terrain/heightmap.txt"), 20, 20)
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.jpg"))
+    terrain.SetFriction(0.8)
+    terrain.SetRestitution(0.1)
+    mphysicalSystem.Add(terrain)
+
+    # Create the driver
+    driver = veh.Driver(vehicle.GetChassis())
+
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    # Create a sensor manager
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # Create the 3D lidar sensor
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(1.0, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar = sens.ChLidarSensor(
+        vehicle.GetChassis(),  # Attach lidar to the vehicle chassis
+        update_rate,            
+        offset_pose,            
+        horizontal_samples,     
+        vertical_samples,       
+        horizontal_fov,         
+        max_vert_angle,         
+        min_vert_angle,         
+        100.0,                  
+        sens.LidarBeamShape_RECTANGULAR, 
+        sample_radius,          
+        divergence_angle,       
+        divergence_angle,       
+        return_mode             
+    )
+    lidar.SetName("Lidar Sensor")
+    lidar.SetLag(lag)
+    lidar.SetCollectionWindow(collection_time)
+
+    # Add lidar filters
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw Lidar Depth Data"))
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+
+    # Add the lidar to the sensor manager
+    manager.AddSensor(lidar)
+
+    # Create the 2D lidar sensor
+    lidar_2d = sens.ChLidarSensor(
+        vehicle.GetChassis(),  # Attach lidar to the vehicle chassis
+        update_rate,            
+        offset_pose,            
+        horizontal_samples,     
+        1,                      
+        horizontal_fov,         
+        0.0,                    
+        0.0,                    
+        100.0,                  
+        sens.LidarBeamShape_RECTANGULAR, 
+        sample_radius,          
+        divergence_angle,       
+        divergence_angle,       
+        return_mode             
+    )
+    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetLag(lag)
+    lidar_2d.SetCollectionWindow(collection_time)
+
+    # Add 2D lidar filters
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass
+    if vis:
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "Raw 2D Lidar Depth Data"))
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())

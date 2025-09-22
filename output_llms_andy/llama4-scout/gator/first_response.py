@@ -1,0 +1,117 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+from pychrono.vehicle import *
+
+# Initialize PyChrono environment and core components
+chrono.ChEngine.Initialize()
+
+# Create the Irrlicht application
+app = irr.IrrlichtApplication()
+
+# Create a Gator vehicle
+gator = Gator()
+
+# Set vehicle parameters
+gator.SetLocation(chrono.ChVector3d(0, 0, 1))
+gator.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+
+# Use TMEASY tire model
+gator.SetTireModel(chrono.ChTire.TIRE_TMEASY)
+
+# Set contact method
+gator.SetContactMethod(chrono.ChContactMethod.SMC)
+
+# Enable mesh visualization for all vehicle components
+gator.EnableMeshVisualization(True)
+
+# Create a RigidTerrain
+terrain = chrono.RigidTerrain(gator.GetSystem())
+terrain.SetTerrainFile("terrain.obj")
+terrain.SetTextureFile("terrain_texture.jpg")
+terrain.SetDimensions(100, 100)
+
+# Create an interactive driver system
+driver = chrono.ChInteractiveDriver(gator)
+
+# Set up the simulation loop
+gator.GetSystem().SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Set simulation parameters
+sim_params = chrono.ChSimulationParameters()
+sim_params.SetStepSize(0.02)
+sim_params.SetMaxSteps(100000)
+sim_params.SetRealTime(1)
+
+# Create the Irrlicht scene node
+scene = irr.IrrlichtSceneNode(app, gator.GetSystem(), terrain)
+
+# Run the simulation
+app.SetSimulationParameters(sim_params)
+app.AttachVehicle(gator)
+app.AttachTerrain(terrain)
+app.SetDriver(driver)
+app.Run()
+
+# Close the PyChrono environment
+chrono.ChEngine.Finalize()
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
+from pychrono.vehicle import *
+
+# Initialize PyChrono environment and core components
+chrono.ChEngine.Initialize()
+
+# Create the Irrlicht application
+app = irr.IrrlichtApplication()
+
+# Create a Gator vehicle
+gator = Gator()
+
+# Set vehicle parameters
+gator.SetLocation(chrono.ChVector3d(0, 0, 1))
+gator.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+
+# Use TMEASY tire model
+gator.SetTireModel(chrono.ChTire.TIRE_TMEASY)
+
+# Set contact method
+gator.SetContactMethod(chrono.ChContactMethod.SMC)
+
+# Enable mesh visualization for all vehicle components
+gator.EnableMeshVisualization(True)
+
+# Create a RigidTerrain
+terrain = chrono.RigidTerrain(gator.GetSystem())
+terrain.SetTerrainFile("terrain.obj")
+terrain.SetTextureFile("terrain_texture.jpg")
+terrain.SetDimensions(100, 100)
+
+# Create an interactive driver system
+driver = chrono.ChInteractiveDriver(gator)
+
+# Set up the simulation loop
+gator.GetSystem().SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Set simulation parameters
+sim_params = chrono.ChSimulationParameters()
+sim_params.SetStepSize(0.02)
+sim_params.SetMaxSteps(100000)
+
+# Create the Irrlicht scene node
+scene = irr.IrrlichtSceneNode(app, gator.GetSystem(), terrain)
+
+# Run the simulation
+app.SetSimulationParameters(sim_params)
+app.AttachVehicle(gator)
+app.AttachTerrain(terrain)
+app.SetDriver(driver)
+
+# Set target FPS
+chrono.ChFpsDisplay.SetTarget(50)
+
+# Run the simulation
+app.Run()
+
+# Close the PyChrono environment
+chrono.ChEngine.Finalize()

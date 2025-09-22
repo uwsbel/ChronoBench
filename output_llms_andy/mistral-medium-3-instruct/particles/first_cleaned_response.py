@@ -1,0 +1,137 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import random
+import math
+
+
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  
+
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  
+
+
+class ParticleEmitter:
+    def __init__(self, system, emit_rate=5, max_particles=100):
+        self.system = system
+        self.emit_rate = emit_rate
+        self.max_particles = max_particles
+        self.particles = []
+        self.time_since_last_emit = 0
+        self.mass = 0.1
+        self.radius = 0.1
+
+    def update(self, time_step):
+        self.time_since_last_emit += time_step
+        if len(self.particles) < self.max_particles and self.time_since_last_emit >= 1.0/self.emit_rate:
+            self.time_since_last_emit = 0
+            self.emit_particle()
+
+    def emit_particle(self):
+        
+        body = chrono.ChBody()
+        body.SetMass(self.mass)
+
+        
+        pos = chrono.ChVectorD(
+            random.uniform(-2, 2),
+            random.uniform(-2, 2),
+            random.uniform(0, 2)
+        )
+        body.SetPos(pos)
+
+        
+        vel = chrono.ChVectorD(
+            random.uniform(-0.5, 0.5),
+            random.uniform(-0.5, 0.5),
+            random.uniform(-0.5, 0.5)
+        )
+        body.SetPos_dt(vel)
+
+        
+        rot = chrono.ChQuaternionD()
+        rot.Q_from_AngAxis(random.uniform(0, math.pi*2), chrono.ChVectorD(1, 0, 0))
+        body.SetRot(rot)
+
+        
+        shape_type = random.choice(['sphere', 'box', 'ellipsoid'])
+        if shape_type == 'sphere':
+            sphere = chrono.ChSphereShape()
+            sphere.GetSphereGeometry().rad = self.radius
+            body.AddAsset(sphere)
+        elif shape_type == 'box':
+            box = chrono.ChBoxShape()
+            box.GetBoxGeometry().SetLengths(chrono.ChVectorD(self.radius, self.radius, self.radius))
+            body.AddAsset(box)
+        else:
+            ellipsoid = chrono.ChEllipsoidShape()
+            ellipsoid.GetEllipsoidGeometry().SetRadii(
+                chrono.ChVectorD(self.radius*0.8, self.radius*1.2, self.radius)
+            )
+            body.AddAsset(ellipsoid)
+
+        
+        self.system.Add(body)
+        self.particles.append(body)
+
+
+emitter = ParticleEmitter(system, emit_rate=5, max_particles=50)
+
+
+class GravitationalForce(chrono.ChForce):
+    def __init__(self, G=1.0, min_distance=0.1):
+        super().__init__()
+        self.G = G
+        self.min_distance = min_distance
+
+    def ComputeQ(self, time, body1, body2):
+        
+        pos1 = body1.GetPos()
+        pos2 = body2.GetPos()
+        delta = pos2 - pos1
+        distance = delta.Length()
+
+        if distance < self.min_distance:
+            distance = self.min_distance
+
+        force_magnitude = self.G * body1.GetMass() * body2.GetMass() / (distance * distance)
+        force_direction = delta.GetNormalized()
+        force = force_direction * force_magnitude
+
+        
+        body1.Force_Accumulate(force)
+        body2.Force_Accumulate(-force)
+
+
+gravity_force = GravitationalForce(G=0.5, min_distance=0.2)
+system.AddForce(gravity_force)
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Particle Gravitational Attraction')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, -5, 1))
+vis.AddTypicalLights()
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+
+
+time_step = 0.01
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    
+    emitter.update(time_step)
+
+    
+    for i, body1 in enumerate(emitter.particles):
+        for j, body2 in enumerate(emitter.particles[i+1:], i+1):
+            gravity_force.ComputeQ(0, body1, body2)
+
+    
+    system.DoStepDynamics(time_step)

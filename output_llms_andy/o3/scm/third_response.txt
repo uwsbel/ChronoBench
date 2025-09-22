@@ -1,0 +1,232 @@
+Corrected and updated PyChrono script
+------------------------------------------------
+The script below
+
+1. fixes the wrong chassis–collision–type enumeration  
+2. adds 20 randomly–positioned dynamic boxes (never spawned closer than 5 m to the vehicle start)  
+3. creates a sensor-manager, several point lights, and a camera sensor attached to the HMMWV chassis, together with a visualization filter that opens a live camera window while the simulation is running.  
+
+
+```python
+import math
+import random
+
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import pychrono.sensor as sens     #  <-- sensor module
+
+# ---------------------------------------------------------------------
+# General set-up
+# ---------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+
+random.seed(1)         # reproducibility for the random boxes
+
+# Initial vehicle state ------------------------------------------------
+initLoc = chrono.ChVector3d(-8, 0, 0.6)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualisation / collision / tire model ------------------------------
+vis_type               = veh.VisualizationType_MESH
+chassis_collision_type = veh.ChassisCollisionType_NONE   # <-- fixed enum
+tire_model             = veh.TireModelType_RIGID
+
+# Terrain --------------------------------------------------------------
+terrainHeight = 0
+terrainLength = 100.0
+terrainWidth  = 100.0
+
+# Camera chase point used by Irrlicht ---------------------------------
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.71)
+
+# Contact --------------------------------------------------------------
+contact_method = chrono.ChContactMethod_SMC
+
+# Simulation step sizes -----------------------------------------------
+step_size       = 1e-3
+tire_step_size  = step_size
+render_step_size = 1.0 / 50.0          # [s]  -> 50 FPS
+
+# ---------------------------------------------------------------------
+# Create the vehicle
+# ---------------------------------------------------------------------
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+system = vehicle.GetSystem()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# ---------------------------------------------------------------------
+# SCM deformable terrain
+# ---------------------------------------------------------------------
+terrain = veh.SCMTerrain(system)
+terrain.SetSoilParameters(
+    2e6,   # Bekker Kphi
+    0,     # Bekker Kc
+    1.1,   # Bekker n exponent
+    0,     # Cohesive limit
+    30,    # Friction [deg]
+    0.01,  # Shear coef.
+    2e8,   # Elastic stiffness
+    3e4    # Damping
+)
+terrain.AddMovingPatch(vehicle.GetChassisBody(),
+                       chrono.ChVector3d(0, 0, 0),
+                       chrono.ChVector3d(5, 3, 1))
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+terrain.Initialize(20, 20, 0.02)
+
+# ---------------------------------------------------------------------
+# Irrlicht visualisation
+# ---------------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("HMMWV with Sensors")
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# ---------------------------------------------------------------------
+# Driver (keyboard)
+# ---------------------------------------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+driver.SetSteeringDelta(render_step_size / 1.0)   # steering_time = 1 s
+driver.SetThrottleDelta(render_step_size / 1.0)   # throttle_time = 1 s
+driver.SetBrakingDelta (render_step_size / 0.3)   # braking_time  = 0.3 s
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Add random boxes to the scene
+# ---------------------------------------------------------------------
+box_density  = 800      # [kg/m^3]
+box_size     = (0.6, 0.6, 0.6)
+num_boxes    = 20
+min_distance = 5.0      # [m] – keep away from vehicle start position
+
+for _ in range(num_boxes):
+    while True:
+        x = random.uniform(-terrainLength / 2, terrainLength / 2)
+        y = random.uniform(-terrainWidth  / 2, terrainWidth  / 2)
+        if math.hypot(x - initLoc.x, y - initLoc.y) > min_distance:
+            break
+    z = terrainHeight + box_size[2] / 2.0
+    body = chrono.ChBodyEasyBox(*box_size,       # x, y, z sizes
+                                box_density,
+                                True, True)      # collide, visualise
+    body.SetPos(chrono.ChVector3d(x, y, z))
+    body.SetRot(chrono.ChQuaterniond(1, 0, 0, 0))
+    system.Add(body)
+
+# ---------------------------------------------------------------------
+# Sensor system
+# ---------------------------------------------------------------------
+smanager = sens.ChSensorManager(system)
+
+# Global render resolution for the visualisation filter (used below)
+cam_width  = 640
+cam_height = 480
+
+# Add some point lights ------------------------------------------------
+light_positions = [
+    chrono.ChVectorF(0,   0, 10),
+    chrono.ChVectorF(-5, -5, 5),
+    chrono.ChVectorF(10,  0, 6)
+]
+for lp in light_positions:
+    smanager.scene.AddPointLight(lp, chrono.ChColor(1, 1, 1), 150.0)
+
+# Camera sensor --------------------------------------------------------
+# Mounted on the chassis reference frame, looking forward
+cam_update_rate = 30.0                      # [Hz]
+fov            = math.radians(60)           # [rad]
+
+cam_rel_pose = chrono.ChFrameD(
+    chrono.ChVectorD(0.0, 0.0, 1.5),        # 1.5 m above chassis origin
+    chrono.QUNIT                )           # no rotation (looking along +X)
+
+camera = sens.ChCameraSensor(
+    vehicle.GetChassisBody(),               # parent body
+    cam_update_rate,
+    cam_rel_pose,
+    cam_width,
+    cam_height,
+    fov
+)
+camera.SetName("DriverCam")
+
+# Access filter (to grab the image buffer in python if desired)
+camera.PushFilter(sens.ChFilterRGBA8Access())
+
+# Visualisation filter – pops up a live window
+camera.PushFilter(sens.ChFilterVisualize(cam_width, cam_height, "Camera"))
+
+smanager.AddSensor(camera)
+
+# ---------------------------------------------------------------------
+# Simulation loop
+# ---------------------------------------------------------------------
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
+
+render_steps   = math.ceil(render_step_size / step_size)
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+step_number  = 0
+render_frame = 0
+
+while vis.Run():
+    time = system.GetChTime()
+
+    # Render Irrlicht every render_steps
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Driver inputs ----------------------------------------------------
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize ------------------------------------------------------
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance ----------------------------------------------------------
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # --- sensor manager must be updated every Chrono step ------------
+    smanager.Update()
+
+    # Real-time run ----------------------------------------------------
+    realtime_timer.Spin(step_size)
+    step_number += 1
+```
+
+Explanation of the key corrections and additions
+• The wrong enumeration `veh.CollisionType_NONE` was replaced by the valid `veh.ChassisCollisionType_NONE`.  
+• 20 `ChBodyEasyBox` objects are placed randomly on the terrain, each at least 5 m away from the vehicle’s initial position so that they do not spawn inside the HMMWV.  
+• A `sens.ChSensorManager` is created and given three point lights.  
+• A camera sensor is rigidly attached to the vehicle chassis 1.5 m above its origin, with 60° FOV and 640 × 480 resolution.  
+• The sensor’s filter stack contains `ChFilterVisualize`, which opens a live window that streams the camera image; the access filter is also added for optional post-processing.  
+• The sensor manager is advanced every simulation step with `smanager.Update()`.

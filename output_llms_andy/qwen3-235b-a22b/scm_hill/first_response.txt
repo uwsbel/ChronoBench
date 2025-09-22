@@ -1,0 +1,82 @@
+
+
+```python
+import math
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.terrain as terrain
+import pychrono.irrlicht as irr
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0.5, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+# Set up SCM deformable terrain
+scm_terrain = terrain.SCMDeformableTerrain(system)
+scm_terrain.SetSoilParameters(
+    2e6,    # Young's modulus (Pa)
+    0.3,    # Poisson ratio
+    30,     # Friction angle (degrees)
+    1000,   # Cohesion (Pa)
+    10,     # Dilation angle (degrees)
+    0.01,   # Kphi
+    0.01    # Kc
+)
+
+# Define height map function
+def HeightFunction(x, y):
+    return 0.05 * math.sin(x * 0.5)
+
+# Initialize terrain with height map
+scm_terrain.Initialize(HeightFunction, 100, 100, 20, 20)
+
+# Create Irrlicht visualization
+application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.SetShowInfos(True)
+application.SetStepManage(True)
+application.SetTimestep(1e-3)
+application.SetTryRealtime(True)
+
+# Set camera position and target
+application.AddCamera(chrono.ChVector3d(0, 3, -6), chrono.ChVector3d(0, 0, 0))
+
+# Initialize driver system
+driver = irr.ChIrrGuiDriver(vehicle, application.GetDevice(), 0.05, 0.05)
+driver.Initialize()
+
+# Simulation loop
+while application.GetDevice().run():
+    time = system.GetChTime()
+    step = application.GetTimestep()
+
+    # Synchronize components
+    driver.Synchronize(time)
+    scm_terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), scm_terrain)
+    application.Synchronize('HMMWV Simulation', driver.GetInputs())
+
+    # Advance components
+    driver.Advance(step)
+    scm_terrain.Advance(step)
+    vehicle.Advance(step)
+    application.Advance(step)
+
+    # Update dynamics
+    system.DoStepDynamics(step)
+
+    # Render scene
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+```

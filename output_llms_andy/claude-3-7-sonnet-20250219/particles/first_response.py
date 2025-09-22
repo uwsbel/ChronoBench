@@ -1,0 +1,208 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import random
+import math
+
+# Initialize the Chrono system
+print("Creating the simulation system...")
+chrono_system = chrono.ChSystemNSC()
+chrono_system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Turn off standard gravity
+
+# Set solver parameters
+chrono_system.SetSolverType(chrono.ChSolver.Type_PSOR)
+chrono_system.SetSolverMaxIterations(100)
+chrono_system.SetSolverForceTolerance(1e-8)
+
+# Global simulation parameters
+GRAVITATIONAL_CONSTANT = 6.67430e-2  # Increased for better visualization
+EMISSION_FREQUENCY = 0.5  # seconds between particle emissions
+MAX_PARTICLES = 100  # Maximum number of particles to prevent performance issues
+SIMULATION_BOUNDS = 20  # Boundary of the simulation space
+PARTICLE_DENSITY = 1000.0  # kg/m^3
+MIN_PARTICLE_MASS = 0.5
+MAX_PARTICLE_MASS = 10.0
+MIN_PARTICLE_SIZE = 0.2
+MAX_PARTICLE_SIZE = 0.8
+
+# Particle storage
+particles = []
+last_emission_time = 0
+
+# Create visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(chrono_system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Particle Gravitational Attraction Simulation")
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 10, -20), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Function to create a random particle
+def create_random_particle():
+    # Random shape type (0: sphere, 1: box, 2: cylinder)
+    shape_type = random.randint(0, 2)
+    
+    # Random position within bounds
+    pos_x = random.uniform(-SIMULATION_BOUNDS/2, SIMULATION_BOUNDS/2)
+    pos_y = random.uniform(-SIMULATION_BOUNDS/2, SIMULATION_BOUNDS/2)
+    pos_z = random.uniform(-SIMULATION_BOUNDS/2, SIMULATION_BOUNDS/2)
+    
+    # Random velocity
+    vel_x = random.uniform(-1.0, 1.0)
+    vel_y = random.uniform(-1.0, 1.0)
+    vel_z = random.uniform(-1.0, 1.0)
+    
+    # Random orientation
+    rot_angle = random.uniform(0, 2*math.pi)
+    rot_axis_x = random.uniform(-1.0, 1.0)
+    rot_axis_y = random.uniform(-1.0, 1.0)
+    rot_axis_z = random.uniform(-1.0, 1.0)
+    rot_quat = chrono.Q_from_AngAxis(rot_angle, chrono.ChVectorD(rot_axis_x, rot_axis_y, rot_axis_z))
+    
+    # Create the body
+    body = chrono.ChBody()
+    body.SetPos(chrono.ChVectorD(pos_x, pos_y, pos_z))
+    body.SetRot(rot_quat)
+    body.SetPos_dt(chrono.ChVectorD(vel_x, vel_y, vel_z))
+    
+    # Material properties
+    material = chrono.ChMaterialSurfaceNSC()
+    material.SetFriction(0.2)
+    material.SetRestitution(0.8)
+    
+    # Random size
+    size = random.uniform(MIN_PARTICLE_SIZE, MAX_PARTICLE_SIZE)
+    
+    # Create shape based on type
+    if shape_type == 0:  # Sphere
+        body.AddVisualShape(chrono.ChVisualShapeSphere(size))
+        body.AddCollisionShape(chrono.ChCollisionShapeSphere(size), chrono.ChVectorD(0, 0, 0))
+        volume = (4/3) * math.pi * size**3
+    elif shape_type == 1:  # Box
+        body.AddVisualShape(chrono.ChVisualShapeBox(size, size, size))
+        body.AddCollisionShape(chrono.ChCollisionShapeBox(size, size, size), chrono.ChVectorD(0, 0, 0))
+        volume = size**3
+    else:  # Cylinder
+        radius = size
+        height = size * 2
+        body.AddVisualShape(chrono.ChVisualShapeCylinder(radius, height))
+        body.AddCollisionShape(chrono.ChCollisionShapeCylinder(radius, height), chrono.ChVectorD(0, 0, 0))
+        volume = math.pi * radius**2 * height
+    
+    # Random mass
+    mass = random.uniform(MIN_PARTICLE_MASS, MAX_PARTICLE_MASS)
+    body.SetMass(mass)
+    
+    # Calculate inertia based on shape and density
+    inertia = chrono.ChVectorD(1, 1, 1)  # Default
+    if shape_type == 0:  # Sphere
+        inertia.x = inertia.y = inertia.z = (2/5) * mass * size**2
+    elif shape_type == 1:  # Box
+        inertia.x = inertia.y = inertia.z = (1/6) * mass * size**2
+    else:  # Cylinder
+        inertia.x = inertia.y = (1/12) * mass * (3*radius**2 + height**2)
+        inertia.z = (1/2) * mass * radius**2
+    
+    body.SetInertiaXX(inertia)
+    
+    # Add random color
+    col_r = random.uniform(0.0, 1.0)
+    col_g = random.uniform(0.0, 1.0)
+    col_b = random.uniform(0.0, 1.0)
+    
+    # Apply color to the visual shape
+    for vshape in body.GetVisualShapeList():
+        vshape.SetColor(chrono.ChColor(col_r, col_g, col_b))
+    
+    # Add body to the system
+    chrono_system.Add(body)
+    
+    return body
+
+# Custom gravitational force callback
+class GravitationalForceCallback(chrono.PyChForceCallbackNSC):
+    def __init__(self):
+        super().__init__()
+    
+    def UpdateForce(self, time, body, force, torque):
+        # Skip the force calculation if the body is not in the particles list
+        if body not in particles:
+            return
+        
+        # Calculate gravitational forces from all other particles
+        for other_body in particles:
+            if other_body == body:
+                continue
+                
+            # Calculate distance vector
+            pos1 = body.GetPos()
+            pos2 = other_body.GetPos()
+            r_vec = chrono.ChVectorD(pos2.x - pos1.x, pos2.y - pos1.y, pos2.z - pos1.z)
+            
+            # Calculate distance (with minimum to avoid singularities)
+            dist = max(r_vec.Length(), 0.1)
+            
+            # Calculate gravitational force magnitude
+            force_mag = GRAVITATIONAL_CONSTANT * body.GetMass() * other_body.GetMass() / (dist**2)
+            
+            # Calculate unit direction vector
+            r_hat = r_vec / dist
+            
+            # Calculate force vector
+            grav_force = chrono.ChVectorD(
+                force_mag * r_hat.x,
+                force_mag * r_hat.y,
+                force_mag * r_hat.z
+            )
+            
+            # Add to total force
+            force.x += grav_force.x
+            force.y += grav_force.y
+            force.z += grav_force.z
+
+# Create gravitational force callback
+grav_force_callback = GravitationalForceCallback()
+
+# Main simulation loop
+print("Starting the simulation...")
+is_running = True
+
+while is_running and vis.Run():
+    # Process visualization
+    vis.BeginScene()
+    vis.Render()
+    
+    # Current time
+    time = chrono_system.GetChTime()
+    
+    # Emit new particles periodically
+    if time - last_emission_time > EMISSION_FREQUENCY and len(particles) < MAX_PARTICLES:
+        new_particle = create_random_particle()
+        particles.append(new_particle)
+        new_particle.RegisterForceFunctor(grav_force_callback)
+        last_emission_time = time
+    
+    # Remove particles that are too far from the origin
+    particles_to_remove = []
+    for particle in particles:
+        pos = particle.GetPos()
+        dist = math.sqrt(pos.x**2 + pos.y**2 + pos.z**2)
+        if dist > SIMULATION_BOUNDS * 2:
+            particles_to_remove.append(particle)
+    
+    for particle in particles_to_remove:
+        chrono_system.Remove(particle)
+        particles.remove(particle)
+    
+    # Display some information on screen
+    vis.DrawTextBackground(f"Particles: {len(particles)}/{MAX_PARTICLES}", 10, 30)
+    vis.DrawTextBackground(f"Simulation time: {time:.2f} s", 10, 60)
+    
+    # Advance simulation
+    chrono_system.DoStepDynamics(0.01)
+    
+    # End visualization scene
+    vis.EndScene()
+
+print("Simulation ended.")

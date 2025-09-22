@@ -1,0 +1,107 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+
+# Create the floor (truss)
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.SetMass(0)
+floor.SetInertiaXX(chrono.ChVectorD(1, 1, 1))
+floor.SetPos(chrono.ChVectorD(0, -0.1, 0))  # Position below the crankshaft
+floor_shape = chrono.ChBoxShape()
+floor_shape.GetBoxGeometry().Size = chrono.ChVectorD(2, 0.1, 1)  # Half-lengths in x, y, z
+floor.AddAsset(floor_shape)
+floor_texture = chrono.ChTexture()
+floor_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/concrete.jpg"))
+floor.AddAsset(floor_texture)
+system.Add(floor)
+
+# Create the crankshaft
+crankshaft = chrono.ChBody()
+crankshaft.SetMass(1)
+crankshaft.SetInertiaXX(chrono.ChVectorD(0.01, 0.01, 0.01))
+crankshaft.SetPos(chrono.ChVectorD(0, 0, 0))  # Center at origin
+crank_shape = chrono.ChBoxShape()
+crank_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.1, 0.05, 0.05)  # Length 0.2 in x
+crankshaft.AddAsset(crank_shape)
+crank_texture = chrono.ChTexture()
+crank_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/blue.png"))
+crankshaft.AddAsset(crank_texture)
+system.Add(crankshaft)
+
+# Create the connecting rod
+connecting_rod = chrono.ChBody()
+connecting_rod.SetMass(0.5)
+connecting_rod.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+connecting_rod.SetPos(chrono.ChVectorD(0.35, 0, 0))  # Center at 0.35 in x
+rod_shape = chrono.ChBoxShape()
+rod_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.25, 0.025, 0.025)  # Length 0.5 in x
+connecting_rod.AddAsset(rod_shape)
+rod_texture = chrono.ChTexture()
+rod_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/red.png"))
+connecting_rod.AddAsset(rod_texture)
+system.Add(connecting_rod)
+
+# Create the piston
+piston = chrono.ChBody()
+piston.SetMass(2)
+piston.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+piston.SetPos(chrono.ChVectorD(0.6, 0, 0))  # Center at 0.6 in x
+piston_shape = chrono.ChBoxShape()
+piston_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.15, 0.05, 0.05)  # Length 0.3 in x
+piston.AddAsset(piston_shape)
+piston_texture = chrono.ChTexture()
+piston_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/green.png"))
+piston.AddAsset(piston_texture)
+system.Add(piston)
+
+# Create joints
+# Revolute joint between floor and crankshaft
+revolute_floor_crank = chrono.ChLinkLockRevolute()
+revolute_floor_crank.Initialize(floor, crankshaft, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+system.Add(revolute_floor_crank)
+
+# Revolute joint between crankshaft and connecting rod
+revolute_crank_rod = chrono.ChLinkLockRevolute()
+revolute_crank_rod.Initialize(crankshaft, connecting_rod, chrono.ChCoordsysD(chrono.ChVectorD(0.1, 0, 0), chrono.QUNIT))
+system.Add(revolute_crank_rod)
+
+# Revolute joint between connecting rod and piston
+revolute_rod_piston = chrono.ChLinkLockRevolute()
+revolute_rod_piston.Initialize(connecting_rod, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.6, 0, 0), chrono.QUNIT))
+system.Add(revolute_rod_piston)
+
+# Prismatic joint between piston and floor
+prismatic_piston_floor = chrono.ChLinkLockPrismatic()
+prismatic_piston_floor.Initialize(floor, piston, chrono.ChCoordsysD(chrono.ChVectorD(0.6, 0, 0), chrono.QUNIT))
+system.Add(prismatic_piston_floor)
+
+# Create motor to drive the crankshaft
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(floor, crankshaft, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+motor.SetSpeedFunction(chrono.ChFunctionConst(chrono.CH_C_PI * 2))  # 2π rad/s (60 rpm)
+system.Add(motor)
+
+# Create Irrlicht visualization
+application = chronoirr.ChIrrApp(system, 'Crank-Slider Mechanism', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chronoirr.vector3df(1, 1, 2), chronoirr.vector3df(0, 0, 0))
+
+# Set up visualization assets
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

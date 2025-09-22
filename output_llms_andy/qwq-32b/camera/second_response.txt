@@ -1,0 +1,585 @@
+Okay, let's tackle this problem step by step. First, I need to go through the original code provided and apply the modifications as per the instructions. But before that, I should check for any existing errors in the code to ensure it runs correctly before making the changes. Let me start by looking through the code carefully.
+
+Starting with the imports: The user imported pychrono.core as chrono and pychrono.sensor as sens. That seems okay. Then math and time are standard, so that's fine.
+
+Looking at the main function:
+
+First part: creating the system. The system is initialized as a ChSystemNSC, which is correct for non-smooth contact. Then adding the mesh. The mesh is loaded from the HMMWV chassis OBJ file. The scaling part uses mmesh.Transform with a scale matrix. Wait, the Transform function here might need a scaling matrix. The current line is Transform(chrono.ChVector3d(0,0,0), chrono.ChMatrix33d(2)). The first argument is the translation vector, and the second is the rotation/scale matrix. Since the scale is 2, maybe the ChMatrix33d(2) is correct because it creates a diagonal matrix with 2 in each diagonal element. That should scale the mesh uniformly by 2. So that part is okay.
+
+Then creating the visual shape and attaching to the body. The body is fixed, added to the system. That looks okay.
+
+Next, the sensor manager. The manager is initialized with the physical system. Then adding point lights. The first point light is at (2, 2.5, 100), but the instructions say to remove the other three at 9, 16, 23. So I need to check that in the code. The code has four point lights and an area light. The instructions say to remove the extra three, so only keep the first one at (2, 2.5, 100) and the area light? Wait, the instruction says "remove the extra point lights added at those positions". The original code has three extra point lights besides the first one? Let me count: the first call is AddPointLight(2, ...), then three more with 9, 16, 23. So those three need to be removed. The area light is separate and should stay.
+
+Next, creating the camera sensor. The code has variables like update_rate, image_width, image_height, fov, lag, exposure_time which are referenced but not defined in the function. Wait a second, these variables are defined later in the Camera parameters section, but in the current code structure, the main function is called at the end, so those variables are global. However, in Python, if variables are assigned outside the function, they are considered global. But in the code provided, the main function is defined first, then the parameters are set. Since in Python, variables defined after the function but before the main() call would be accessible in the main function because the function is called after defining them. So that's okay. But perhaps the code has an error if those variables are not properly defined before being used in the camera creation. Wait, in the code, the parameters like update_rate are defined after the main function. Since in Python, when you call main() at the end, the variables are in the global scope, so when main is executed, those variables should be available. Let me check the code structure. The main function is defined, then the parameters (like noise_model, lens_model, etc.) are set, then main() is called. So in the main function, when it references those variables, they are in the global namespace. That should be okay, but maybe in some cases, if the variables are not properly defined before the function is called, but since the code is written so that the parameters are set before main() is called, it should work. However, there's a problem with the lens_model variable. The code has a line "lens_model = sens.PINHOLE" but it's not used anywhere in the camera setup. The instructions say to remove the definition of lens_model because it's unused, so that's part of the modifications.
+
+Now, looking at the camera setup. The camera is initialized with parameters like update_rate, image_width, etc. The parameters are passed as arguments to the ChCameraSensor constructor. The code uses variables like update_rate, offset_pose, image_width, image_height, fov. These are all defined in the parameters section, so that's okay.
+
+The offset_pose is initially set to chrono.ChVector3d(-5,0,2), which needs to be changed to -7,0,2 as per the instructions.
+
+The orbit rate is set to 0.5, which needs to be changed to 0.1.
+
+The image dimensions: changing width from 1280 to 960 and height from 720 to 480. So in the parameters section, image_width and image_height need to be updated.
+
+The save parameter is set to False by default, but the instructions say to set it to True.
+
+Now, checking for errors in the original code:
+
+Looking at the camera creation line:
+
+cam = sens.ChCameraSensor(
+    mesh_body,              # Body the camera is attached to
+    update_rate,            # Camera update rate in Hz
+    offset_pose,            # Offset pose of the camera
+    image_width,            # Image width in pixels
+    image_height,           # Image height in pixels
+    fov                     # Camera's horizontal field of view in radians
+)
+
+Wait, the parameters for ChCameraSensor might be different. Let me check the PyChrono documentation. The ChCameraSensor constructor typically requires parameters like the body, update rate, offset pose, image width, height, and field of view. The order here seems correct. But maybe the parameters are in a different order. Alternatively, perhaps the constructor requires additional parameters like the sensor manager or other parameters. Wait, perhaps the ChCameraSensor's constructor has more parameters. Let me think. The ChCameraSensor constructor in Chrono typically takes the following parameters:
+
+ChCameraSensor(chrono::ChBody* parent_body, 
+              double update_rate_hz, 
+              const chrono::ChFrame<double>& offset_pose, 
+              int image_width, 
+              int image_height, 
+              double horizontal_fov)
+
+So the parameters in the code seem correct. So that's okay.
+
+Another possible error: the line where the mesh is scaled. The Transform function's first argument is the translation vector, and the second is the rotation/scale matrix. The current code uses chrono.ChMatrix33d(2). However, ChMatrix33d is a 3x3 matrix. The ChMatrix33d(2) would create a matrix with all elements set to 2, which is not a scaling matrix. Wait, no. Wait, in Chrono, the ChMatrix33d constructor when given a scalar initializes all diagonal elements to that value and off-diagonal to zero. Wait, actually, the ChMatrix33d(2) would set all elements to 2, but that's not correct for scaling. To create a scaling matrix, you need to set the diagonal elements to the scale factor. Wait, perhaps the correct way is to use chrono.ChMatrix33d().SetScale(2). So the current code might be incorrect here. Because if you just create a ChMatrix33d with 2, it might not be a scaling matrix. Let me confirm. The ChMatrix33d constructor with a double initializes all elements to that value? Or is it the identity matrix scaled? Hmm, that's a possible error. The Transform function applies a transformation matrix. To scale uniformly by 2, the scaling matrix should have 2 on the diagonal and 0 elsewhere. So the correct way would be to create a scaling matrix using SetScale(2). Therefore, the line:
+
+mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+is incorrect. It should be:
+
+scale_matrix = chrono.ChMatrix33d()
+scale_matrix.SetScale(2)
+mmesh.Transform(chrono.ChVector3d(0,0,0), scale_matrix)
+
+Alternatively, perhaps there's a helper function. Alternatively, maybe the Transform function can take a scaling factor directly? Maybe the user intended to scale the mesh by 2, but the current code is using a matrix filled with 2s, which would not be a scaling matrix. That's a mistake. So this is an error in the original code.
+
+Another possible error: in the camera's offset_pose definition. The code uses chrono.ChFramed(...), but the ChFrame class in Chrono is ChFrame<double>, so perhaps the correct is chrono.ChFrame<double> but in Python, the class is named chrono.ChFramed. Wait, in the code, the user wrote:
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+
+Wait, the ChFramed is correct, as it's the double-precision version. So that's okay.
+
+Another possible error: the line where the QuatFromAngleAxis is used. The function name in Chrono might be chrono.Q_from_AngAxis or something similar. Wait, in PyChrono, the function to create a quaternion from angle-axis is chrono.ChQuaternionD(angle, axis), but perhaps the user is using a helper function. Wait, the code uses chrono.QuatFromAngleAxis(2, ...). Wait, perhaps the correct function is chrono.Q_from_AngAxis(angle, axis). Let me check. The QuatFromAngleAxis function might not exist. For example, in Chrono, to create a quaternion from an angle and axis, you can do:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(angle, axis)
+
+Alternatively, perhaps the code is using a helper function that's not properly imported. The line:
+
+chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0))
+
+might be incorrect. The correct way would be to create a ChQuaternionD object and use Q_from_AngAxis. Alternatively, maybe the user intended to use a function like chrono.ChQuaternionD(angle, axis), but that's not the case. Let me see the correct syntax. Let me think: in Chrono, to create a quaternion from angle-axis, you can do:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(angle, axis_vector)
+
+So in the code, the line should be:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVectorD(0,1,0))
+
+But in the original code, they have:
+
+chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0,1,0))
+
+Which is probably a syntax error because QuatFromAngleAxis is not a function. That's a mistake. So that's an error in the original code. So that line should be corrected to create the quaternion properly.
+
+Another possible error: in the camera's SetOffsetPose function. The code passes a ChFrame object, which is correct.
+
+Now, moving to the simulation loop:
+
+Inside the while loop, the camera's offset pose is dynamically set with:
+
+cam.SetOffsetPose(chrono.ChFramed(...))
+
+The position part here is:
+
+chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1)
+
+Wait, the Z component is 1. But the original orbit_radius is 10, so the position is (-10*cos(...), -10*sin(...), 1). That's okay, but perhaps the Z component should be adjusted based on the orbit. Not sure, but that's part of the simulation setup.
+
+Another possible error: in the line where they call chrono.QuatFromAngleAxis again. The same issue as before. The code uses:
+
+chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0,0,1))
+
+Again, that function likely doesn't exist. So this line is incorrect. The correct way would be to create a quaternion using Q_from_AngAxis.
+
+So these are the errors I can spot:
+
+1. The mesh scaling uses an incorrect matrix. The ChMatrix33d(2) creates a matrix with all elements 2, which is not a scaling matrix. Need to create a scaling matrix with SetScale(2).
+
+2. The calls to chrono.QuatFromAngleAxis are incorrect. They should be replaced with proper quaternion creation using Q_from_AngAxis.
+
+3. The lens_model variable is defined but not used, which is why the instruction says to remove it.
+
+Now, modifying the code according to the instructions:
+
+First, the camera offset pose change from (-5,0,2) to (-7,0,2). So in the offset_pose line:
+
+Original: chrono.ChVector3d(-5, 0, 2)
+
+Change to chrono.ChVector3d(-7, 0, 2).
+
+Second, remove the extra point lights. The original code has three additional point lights after the first one. So remove the lines adding the ones at (9,2.5,100), (16,2.5,100), and (23,2.5,100). So leave only the first point light and the area light.
+
+Third, change the orbit rate from 0.5 to 0.1. In the simulation parameters section, set orbit_rate = 0.1.
+
+Fourth, update image dimensions: set image_width to 960 and image_height to 480.
+
+Fifth, enable saving by setting save = True.
+
+Sixth, remove the lens_model variable (since it's not used).
+
+Additionally, fix the errors I found:
+
+1. Mesh scaling:
+
+Original line:
+
+mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+Should be:
+
+scale_matrix = chrono.ChMatrix33d()
+scale_matrix.SetScale(2)
+mmesh.Transform(chrono.ChVector3d(0,0,0), scale_matrix)
+
+Alternatively, perhaps there's a helper function. Alternatively, maybe the Transform function can take a scale factor directly, but I think the correct way is to use SetScale.
+
+2. The quaternion creation:
+
+In the offset_pose definition:
+
+original line:
+
+chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0))
+
+Should be replaced with:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVector3d(0, 1, 0))
+
+Then pass that quat to the ChFrame.
+
+So the offset_pose line becomes:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVector3d(0, 1, 0))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7, 0, 2), quat)
+
+Wait, but in the code, the original uses ChFramed (double precision). So the ChVector3d is correct, and the quaternion should be ChQuaternionD.
+
+Similarly, in the simulation loop when setting the camera's offset pose:
+
+The line:
+
+chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0,0,1))
+
+Should be replaced with:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVector3d(0,0,1))
+
+Then pass that quat into the ChFrame.
+
+Putting that together, the line becomes:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(ch_time * orbit_rate, chrono.ChVectorD(0,0,1))
+frame = chrono.ChFrameD(chrono.ChVectorD(...), quat)
+cam.SetOffsetPose(frame)
+
+Alternatively, perhaps using the constructor directly.
+
+So, modifying that line in the loop:
+
+Inside the while loop, the camera's offset pose is set as:
+
+current_angle = ch_time * orbit_rate
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(current_angle, chrono.ChVectorD(0,0,1))
+position = chrono.ChVectorD(-orbit_radius * math.cos(current_angle), 
+                           -orbit_radius * math.sin(current_angle), 
+                           1)
+offset_frame = chrono.ChFrameD(position, quat)
+cam.SetOffsetPose(offset_frame)
+
+Wait, but the original code uses ChVector3d and ChFramed. Since in Python, the classes are named with D suffix for double, but perhaps the code uses the correct types. Let me see: the original code uses chrono.ChFramed which is correct (double precision), and the vector is ChVector3d, which is also correct. So the corrected line would be:
+
+In the offset_pose initial definition:
+
+Original:
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+
+Corrected:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVectorD(0,1,0))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7,0,2), quat)
+
+Wait, but in Python, the class names might be ChFrameD or ChFramed? Let me check the PyChrono documentation. The ChFrame class for double precision is called ChFrameD. So the correct class is chrono.ChFrameD. So in the original code, using ChFramed might be a typo. Wait, in the original code, the user wrote:
+
+chrono.ChFramed
+
+But perhaps it's a typo and should be chrono.ChFrameD. That's another error. So the initial offset_pose line has an incorrect class name. The correct is ChFrameD.
+
+So that's another error to fix: changing ChFramed to ChFrameD.
+
+Similarly, in the simulation loop, the code uses chrono.ChFramed again, which should be chrono.ChFrameD.
+
+So, all instances of ChFramed should be changed to ChFrameD.
+
+That's another critical error in the original code.
+
+So, putting all these corrections together.
+
+Now, modifying the code step by step:
+
+First, the mesh scaling:
+
+Original:
+
+mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+Corrected:
+
+scale_matrix = chrono.ChMatrix33d()
+scale_matrix.SetScale(2)
+mmesh.Transform(chrono.ChVectorD(0,0,0), scale_matrix)
+
+Wait, but the first argument is a translation vector. So the code should be:
+
+mmesh.Transform(chrono.ChVectorD(0,0,0), scale_matrix)
+
+But in the original code, the first argument was a ChVector3d, which is correct (since it's a vector3d for translation). The scale_matrix is ChMatrix33d, which is okay.
+
+So that's fixed.
+
+Second, the quaternion creation in the offset_pose:
+
+Original:
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5,0,2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0,1,0)))
+
+Corrected (with proper class name and quaternion creation):
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVectorD(0,1,0))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7,0,2), quat)
+
+Also changing the position to -7.
+
+Third, in the simulation loop's camera offset pose:
+
+Original line:
+
+chrono.ChFramed(
+    chrono.ChVector3d(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1),
+    chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))))
+
+Corrected:
+
+current_angle = ch_time * orbit_rate
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(current_angle, chrono.ChVectorD(0,0,1))
+position = chrono.ChVectorD(-orbit_radius * math.cos(current_angle), 
+                           -orbit_radius * math.sin(current_angle), 
+                           1)
+frame = chrono.ChFrameD(position, quat)
+cam.SetOffsetPose(frame)
+
+So replacing that block.
+
+Fourth, the lens_model variable is defined but not used, so remove the line:
+
+lens_model = sens.PINHOLE
+
+Fifth, the parameters:
+
+image_width = 960
+
+image_height = 480
+
+orbit_rate = 0.1
+
+save = True
+
+Also, remove the extra point lights.
+
+Now, compiling all these changes into the code.
+
+Let me go through each part step by step.
+
+First, the mesh scaling part:
+
+In the original code:
+
+mmesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(2))
+
+We need to create a scaling matrix properly. So:
+
+scale_matrix = chrono.ChMatrix33d()
+scale_matrix.SetScale(2)
+mmesh.Transform(chrono.ChVectorD(0,0,0), scale_matrix)
+
+Wait, but the first argument is a translation vector. The user's original code used ChVector3d, but in the corrected code, using ChVectorD (double precision) is okay.
+
+Second, the offset_pose:
+
+Original code had:
+
+offset_pose = chrono.ChFramed(chrono.ChVector3d(-5, 0, 2), chrono.QuatFromAngleAxis(2, chrono.ChVector3d(0, 1, 0)))
+
+Corrected to:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVectorD(0,1,0))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7,0,2), quat)
+
+Third, in the simulation loop's camera offset pose:
+
+The line creating the frame was using QuatFromAngleAxis and ChFramed. Corrected as above.
+
+Now, the point lights: remove the three lines adding the point lights at positions 9, 16, 23.
+
+Original code has:
+
+manager.scene.AddPointLight(chrono.ChVector3f(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+manager.scene.AddPointLight(chrono.ChVector3f(9, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+manager.scene.AddPointLight(chrono.ChVector3f(16, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+manager.scene.AddPointLight(chrono.ChVector3f(23, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+manager.scene.AddAreaLight(...)
+
+So remove the three lines after the first one.
+
+Next, the orbit rate is set to 0.1 in the simulation parameters section.
+
+image_width and height are set to 960 and 480.
+
+save is set to True.
+
+Remove the lens_model line.
+
+Now, let's also check other possible errors:
+
+In the camera's creation parameters, the parameters are passed correctly. The variables like update_rate are in the global scope, so they should be accessible.
+
+Another possible issue: the ChFilterSave requires a directory path. The code uses out_dir + "rgb/" but maybe needs to ensure the directory exists. However, the user's instruction doesn't mention that, so perhaps it's okay.
+
+Also, in the camera sensor's creation, the parameters are in the correct order. The code uses:
+
+cam = sens.ChCameraSensor(
+    mesh_body,              # Body the camera is attached to
+    update_rate,            # Camera update rate in Hz
+    offset_pose,            # Offset pose of the camera
+    image_width,            # Image width in pixels
+    image_height,           # Image height in pixels
+    fov                     # Camera's horizontal field of view in radians
+)
+
+The parameters for ChCameraSensor are body, update rate, offset pose, image width, image height, and fov. So that's correct.
+
+Another possible issue: the ChFilterImageResize uses int(image_width / 2), but since image_width is now 960, 960/2 is 480, which is okay.
+
+Now, putting all these changes into the code:
+
+Here's the corrected and modified code with all the changes and error fixes:
+
+Starting with the mesh scaling part:
+
+Inside the main function, after loading the mesh:
+
+mmesh = chrono.ChTriangleMeshConnected()
+mmesh.LoadWavefrontMesh(...)
+
+Then:
+
+scale_matrix = chrono.ChMatrix33d()
+scale_matrix.SetScale(2)
+mmesh.Transform(chrono.ChVectorD(0,0,0), scale_matrix)
+
+Next, the offset_pose definition:
+
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(2, chrono.ChVectorD(0,1,0))
+offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7,0,2), quat)
+
+Then, in the simulation loop:
+
+current_angle = ch_time * orbit_rate
+quat = chrono.ChQuaternionD()
+quat.Q_from_AngAxis(current_angle, chrono.ChVectorD(0,0,1))
+position = chrono.ChVectorD(-orbit_radius * math.cos(current_angle), 
+                           -orbit_radius * math.sin(current_angle), 
+                           1)
+frame = chrono.ChFrameD(position, quat)
+cam.SetOffsetPose(frame)
+
+Also, removing the extra point lights.
+
+Changing the parameters:
+
+orbit_rate = 0.1
+
+image_width = 960
+
+image_height = 480
+
+save = True
+
+Remove lens_model = sens.PINHOLE
+
+Now, the full code with all these changes:
+
+Here's the final code after applying all the modifications and corrections.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+
+import math
+import time
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # -----------------------------------
+    # Add a mesh to be sensed by a camera
+    # -----------------------------------
+    mmesh = chrono.ChTriangleMeshConnected()
+    mmesh.LoadWavefrontMesh(chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"), False, True)
+    
+    # Correctly scale the mesh using a scaling matrix
+    scale_matrix = chrono.ChMatrix33d()
+    scale_matrix.SetScale(2)
+    mmesh.Transform(chrono.ChVectorD(0, 0, 0), scale_matrix)
+
+    trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+    trimesh_shape.SetMesh(mmesh)
+    trimesh_shape.SetName("HMMWV Chassis Mesh")
+    trimesh_shape.SetMutable(False)
+
+    mesh_body = chrono.ChBody()
+    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    mesh_body.AddVisualShape(trimesh_shape)
+    mesh_body.SetFixed(True)
+    mphysicalSystem.Add(mesh_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    intensity = 1.0
+    # Remove extra point lights
+    manager.scene.AddPointLight(chrono.ChVectorF(2, 2.5, 100), chrono.ChColor(intensity, intensity, intensity), 500.0)
+    manager.scene.AddAreaLight(chrono.ChVectorF(0, 0, 4), chrono.ChColor(intensity, intensity, intensity), 500.0, chrono.ChVectorF(1, 0, 0), chrono.ChVectorF(0, -1, 0))
+
+    # ------------------------------------------------
+    # Create a camera and add it to the sensor manager
+    # ------------------------------------------------
+    # Corrected offset pose with ChFrameD and proper quaternion creation
+    quat = chrono.ChQuaternionD()
+    quat.Q_from_AngAxis(2, chrono.ChVectorD(0, 1, 0))
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(-7, 0, 2), quat)
+
+    cam = sens.ChCameraSensor(
+        mesh_body,
+        update_rate,
+        offset_pose,
+        image_width,
+        image_height,
+        fov
+    )
+    cam.SetName("Camera Sensor")
+    cam.SetLag(lag)
+    cam.SetCollectionWindow(exposure_time)
+
+    # Filters and other configurations remain unchanged except for the parameters
+
+    if noise_model == "CONST_NORMAL":
+        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
+    elif noise_model == "PIXEL_DEPENDENT":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))
+    elif noise_model == "NONE":
+        pass
+
+    if vis:
+        cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Before Grayscale Filter"))
+    cam.PushFilter(sens.ChFilterRGBA8Access())
+    if save:
+        cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
+    cam.PushFilter(sens.ChFilterGrayscale())
+    if vis:
+        cam.PushFilter(sens.ChFilterVisualize(int(image_width/2), int(image_height/2), "Grayscale Image"))
+    if save:
+        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+    cam.PushFilter(sens.ChFilterImageResize(int(image_width/2), int(image_height/2)))
+    cam.PushFilter(sens.ChFilterR8Access())
+
+    manager.AddSensor(cam)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        current_angle = ch_time * orbit_rate
+        quat = chrono.ChQuaternionD()
+        quat.Q_from_AngAxis(current_angle, chrono.ChVectorD(0, 0, 1))
+        position = chrono.ChVectorD(
+            -orbit_radius * math.cos(current_angle),
+            -orbit_radius * math.sin(current_angle),
+            1
+        )
+        frame = chrono.ChFrameD(position, quat)
+        cam.SetOffsetPose(frame)
+
+        rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
+        if rgba8_buffer.HasData():
+            rgba8_data = rgba8_buffer.GetRGBA8Data()
+            print(f'RGBA8 buffer received from cam. Resolution: {rgba8_buffer.Width}x{rgba8_buffer.Height}')
+            print(f'First Pixel: {rgba8_data[0, 0, :]}')
+
+        manager.Update()
+        mphysicalSystem.DoStepDynamics(step_size)
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+# -----------------
+# Camera parameters
+# -----------------
+noise_model = "CONST_NORMAL"
+update_rate = 30
+image_width = 960
+image_height = 480
+fov = 1.408
+lag = 0
+exposure_time = 0
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+step_size = 1e-3
+end_time = 20.0
+save = True
+vis = True
+out_dir = "SENSOR_OUTPUT/"
+
+main()
+```

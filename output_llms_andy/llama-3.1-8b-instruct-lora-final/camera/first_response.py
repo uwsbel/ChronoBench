@@ -1,0 +1,94 @@
+import pychrono as ch
+    import pychrono.sensor as sens
+
+    # Initialize the Chrono physical system
+    sys = ch.ChSystemNSC()
+
+    # Create a mesh loader for Wavefront.obj files
+    mmesh_loader = ch.ChTriangleMeshLoadableWavefront()
+
+    # Load a triangular mesh from a.obj file
+    mesh = ch.ChTriangleMesh()
+    mesh.LoadWavefront("models/meshes/bulldozer/bulldozer.obj", mmesh_loader, sys)
+
+    # Define the contact material properties
+    contact_material = ch.ChContactMaterialNSC()
+    contact_material.SetFriction(0.5)
+    contact_material.SetRestitution(0.01)
+
+    # Create a visual shape from the mesh
+    visual_shape = ch.ChVisualShapeTriangleMesh()
+    visual_shape.SetMesh(mesh)
+    visual_shape.SetMutable(False)  # Set the mesh as immutable
+    visual_shape.SetTextureScale(ch.ChVector3d(0.02, 0.02, 1.0))  # Scale the texture
+
+    # Create a body and add the visual shape
+    body = ch.ChBodyEasyMesh()
+    body.SetContactMaterial(contact_material)
+    body.AddVisualShape(visual_shape)
+    body.SetFixed(True)  # Fix the body in place
+    body.SetPos(ch.ChVector3d(0, 0, 0))  # Set the body's position
+    sys.AddBody(body)  # Add the body to the simulation system
+
+    # Create a sensor manager
+    manager = sens.ChSensorManager(sys)
+
+    # Define the camera's offset pose
+    offset_pose = ch.ChFramed(ch.ChVector3d(-5, 0, 1), ch.QuatFromAngleAxis(.2, ch.ChVector3d(0, 1, 0)))
+
+    # Create a camera sensor
+    cam = sens.ChCameraSensor(
+        body,              # Body the sensor is attached to
+        30,                # Image width
+        24,                # Image height
+        offset_pose,       # Camera offset pose
+        sens.NSensorShape::Camera
+    )
+
+    # Add filters to the camera sensor
+    cam.PushFilter(sens.ChFilterVisualize())
+    cam.PushFilter(sens.ChFilterDIAccess())
+    cam.PushFilter(sens.ChFilterRGB8Access())
+
+    # Add the camera sensor to the sensor manager
+    manager.AddSensor(cam)
+
+    # Define the noise model for the sensor
+    noise_model = sens.ChNoiseModelNone()
+
+    # Define the lens model for the sensor
+    lens_model = sens.ChLensModelPinHole()
+
+    # Update the camera's position in an orbit around the mesh
+    orbit_radius = 10.0
+    orbit_center = ch.ChVector3d(0, 0, 0)
+    orbit_rate = 0.5  # radians per second
+
+    # Simulation loop
+    time = 0
+    time_end = 30.0
+    time_step = 1e-3
+    timeaccumulator = 0.0
+    while time < time_end:
+        time = time + time_step
+        timeaccumulator += time_step
+
+        # Update the camera position
+        cam.SetOffsetPose(ch.ChFramed(
+            ch.ChVector3d(orbit_radius * math.cos(orbit_rate * time), orbit_radius * math.sin(orbit_rate * time), 1),
+            ch.QuatFromAngleAxis(orbit_rate * time, ch.ChVector3d(0, 1, 0))
+        ))
+
+        # Access the camera buffer
+        cam.GetLatestImage().GetBuffer().GetRGB8Data().CopyToRGBA8Buffer()
+
+        # Print the camera buffer data
+        print("Camera buffer data at time: ", time, " is: ", cam.GetLatestImage().GetBuffer().GetRGB8Data().GetHostMemoryPointer())
+
+        # Update sensor manager
+        manager.Update()
+
+        # Advance the simulation by one timestep
+        sys.DoStepDynamics(time_step)
+
+    print("Done!")

@@ -1,0 +1,90 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# 1. Initialize the PyChrono environment and core components
+chrono.ChSystemSMC()
+system = chrono.ChSystemSMC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the ground body
+ground_body = chrono.ChBodyEasyBox(100, 1, 100, 1000, True, True, chrono.ChVectorD(0, -0.5, 0))
+system.Add(ground_body)
+
+# 2. Add the required physical systems and objects
+# Initialize the Turtlebot
+turtlebot_position = chrono.ChVectorD(0, 0.2, 0)
+turtlebot_orientation = chrono.ChQuaternionD(1, 0, 0, 0)
+turtlebot = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1, True, True, turtlebot_position, turtlebot_orientation)
+system.Add(turtlebot)
+
+# Add left and right wheels
+wheel_radius = 0.05
+wheel_width = 0.02
+wheel_mass = 0.1
+left_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, wheel_mass, True, True, chrono.ChVectorD(-0.1, 0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+right_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, wheel_mass, True, True, chrono.ChVectorD(0.1, 0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+system.Add(left_wheel)
+system.Add(right_wheel)
+
+# Add left and right wheel motors
+left_motor = chrono.ChLinkMotorRotationSpeed()
+left_motor.Initialize(turtlebot, left_wheel, chrono.ChFrameD(chrono.ChVectorD(-0.1, 0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.Add(left_motor)
+
+right_motor = chrono.ChLinkMotorRotationSpeed()
+right_motor.Initialize(turtlebot, right_wheel, chrono.ChFrameD(chrono.ChVectorD(0.1, 0.1, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+system.Add(right_motor)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+# Set wheel-ground contact
+contact_method = chrono.ChMaterialSurface.SMC
+contact_material = chrono.ChMaterialSurfaceSMC()
+contact_material.SetFriction(0.9)
+contact_material.SetRestitution(0.0)
+left_wheel.GetCollisionModel().SetDefaultMaterial(contact_material)
+right_wheel.GetCollisionModel().SetDefaultMaterial(contact_material)
+ground_body.GetCollisionModel().SetDefaultMaterial(contact_material)
+
+# Set motor speeds
+left_motor_speed = 0
+right_motor_speed = 0
+
+# Create a real-time visualization using Irrlicht
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Turtlebot Simulation")
+vis.AddCamera(chronoirr.ChCamera(chronoirr.ChVectorD(0, 1, -2), chronoirr.ChVectorD(0, 0.2, 0)))
+vis.AddLight(chronoirr.ChLight(chronoirr.ChVectorD(10, 10, 10), chronoirr.ChColor(1, 1, 1), 100))
+vis.Initialize()
+
+# Implement a simulation loop
+timestep = 0.01
+simulation_time = 0
+turn_time = 2  # Time to turn left or right
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+
+    # Control left and right turns at specified times
+    if simulation_time > turn_time:
+        left_motor_speed = -1
+        right_motor_speed = 1
+    elif simulation_time > turn_time * 2:
+        left_motor_speed = 1
+        right_motor_speed = -1
+    else:
+        left_motor_speed = 0
+        right_motor_speed = 0
+
+    left_motor.SetSpeedFunction(chrono.ChFunction_Const(left_motor_speed))
+    right_motor.SetSpeedFunction(chrono.ChFunction_Const(right_motor_speed))
+
+    system.DoStepDynamics(timestep)
+    simulation_time += timestep
+
+    vis.EndScene()

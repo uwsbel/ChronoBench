@@ -1,0 +1,41 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')
+
+# Create a vehicle system
+vehicle = veh.WheeledVehicle()
+vehicle.Initialize(chrono.GetChronoDataFile('vehicle/hmmwv/hmmwv_Vehicle.json'))
+
+# Set up the terrain
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(chrono.MakeShared(chrono.Geometry))
+patch.SetTexture(chrono.GetChronoDataFile('terrain/textures/dirt.jpg'))
+
+# Set up the tire model
+tire_type = veh.TMeasyTire
+vehicle.SetTireType(tire_type)
+
+# Set up the driver system
+driver = veh.SimpleDriver(vehicle)
+driver.Initialize()
+
+# Set up the visualization system
+vis = veh.ChVehicleVisualSystemIrrlicht()
+vis.AttachVehicle(vehicle)
+vis.SetWindowTitle('BMW E90 Sedan on Rigid Terrain')
+vis.SetChaseCamera(chrono.VectorD(0, 0, 2), 6.0, 0.5)
+vis.SetLightDirection(chrono.VectorD(1.5, -2.0, 2.0))
+vis.AddSkyBox()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddTypicalLights()
+
+# Run the simulation
+while vis.Run():
+    vehicle.Update(1e-3)
+    driver.Synchronize(1e-3)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

@@ -1,0 +1,749 @@
+Okay, I need to create a PyChrono simulation of a simple pendulum with Irrlicht visualization. Let me start by recalling the steps for setting up a basic simulation. First, I should import the necessary modules. Since it's using Irrlicht, I'll need to import chronoirrl and then create a system.
+
+The user mentioned a ground body, a pendulum, and a revolute joint. The pendulum needs mass and inertia, so I should define a rigid body for that. The ground is typically a static body. Let me structure the code step by step.
+
+First, initialize the Chrono system. Then create the ground. Maybe a simple box or a sphere? Wait, the ground is usually just a static object. Maybe a box at the top to represent the pivot point? Or perhaps just a point. Hmm, the revolute joint connects two bodies. The ground will be one, and the pendulum the other.
+
+Wait, the revolute joint in Chrono requires two bodies. The ground can be a Chrono::ChBody, but set as a static body. The pendulum body will be dynamic. So first, create the ground body. Let's make it a static box at (0,0,0) or maybe at a higher position? Let me think. The pendulum will hang down, so perhaps the pivot is at (0,0,1) or something. Wait, coordinates depend on the setup. Let me decide to place the pivot point at (0,0,0), and the pendulum bob below it.
+
+Wait, the ground body can be a static body placed at the pivot point. Alternatively, maybe the ground is a separate body, but since it's static, it doesn't need to be part of the simulation except for the joint. Alternatively, perhaps using the ChBodyAuxRef as the ground? Not sure. Maybe better to just create a static body for the pivot.
+
+Wait, the standard way in Chrono is to have the ground as a static body. So let's create a ground body. Then the pendulum body is connected via a revolute joint to the ground.
+
+Next, the pendulum body. Let's model it as a sphere for simplicity. So create a sphere shape with a certain radius and mass. The inertia will be automatically computed based on mass and radius.
+
+Then, the revolute joint. The revolute joint between ground and pendulum. The coordinates: the joint's anchor point should be at the pivot point. Let's say the pendulum is hanging from (0,0,0), so the anchor is there. The joint allows rotation around the z-axis, maybe? Or the y-axis? Depending on the coordinate system. Let me think: in 3D, the revolute joint can have an axis. Let's set the axis as the Y-axis so that the pendulum swings in the X-Z plane. Wait, maybe the axis is along the Y, so rotation is around Y. Hmm, perhaps better to set the joint axis as the Y-axis, so the pendulum swings in the X-Z plane. Alternatively, maybe X or Z. Let me just set it as Y for now.
+
+Next, visualization. Using Irrlicht, so I need to create a ChIrrApp, set up the camera, add the bodies, and then run the simulation loop.
+
+Also, the user wants to log the pendulum's position and velocity periodically. So I need to set up a loop that steps the simulation and logs those values at each step. Or maybe after each simulation step, but in the main loop. Alternatively, using a callback or just during the rendering loop.
+
+Wait, in the Irrlicht app, the main loop typically runs the simulation steps and renders each frame. So inside the while loop, after simulating each step, I can record the position and velocity of the pendulum.
+
+Let me outline the steps:
+
+1. Import modules: chrono and chronoirrl.
+
+2. Create a Chrono system: my_system = chrono.ChSystemNSC()
+
+3. Create the ground body:
+   - ground = chrono.ChBody()
+   - Set it as a static body (ground.SetBodyFixed(True))
+   - Position at (0,0,0) or maybe higher? Wait, the pendulum is attached here. Let's place the ground at (0,0,1) so the pendulum can swing below. Wait, but maybe it's better to have the pivot at (0,0,0) and the pendulum below. The ground body can be a small box at (0,0,0) but static.
+
+   Alternatively, maybe the ground is just a reference point, so perhaps we can use the ChBodyAuxRef as the ground, but I think creating a regular body is easier here.
+
+   Wait, perhaps the ground body can be a simple box with no collision shape since it's just a point for the joint. Alternatively, to visualize it, maybe add a small sphere or box at the pivot point.
+
+   Hmm, for visualization, maybe adding a small sphere at the pivot point so it's visible. So create the ground body as a static body, add a sphere geometry with small radius.
+
+   So:
+
+   ground = chrono.ChBody()
+   ground.SetBodyFixed(True)
+   ground.SetPos(chrono.ChVectorD(0,0,0))
+   ground_shape = chrono.ChSphereShape()
+   ground_shape.GetSphereGeometry().rad = 0.1
+   ground.AddAsset(ground_shape)
+   ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.3,0.3,0.3)))  # Gray color
+
+   Then add it to the system.
+
+4. Create the pendulum body:
+   - pendulum = chrono.ChBody()
+   - Set mass and inertia. Let's say mass = 1 kg. The shape is a sphere with radius 0.2 m. So:
+
+   pendulum.SetMass(1)
+   pendulum.SetInertiaXX(chrono.ChMatrix33D())  # Let it auto compute inertia based on mass and geometry?
+   Wait, maybe better to explicitly set inertia. For a sphere, inertia is (2/5)mr². But maybe using the method SetSphere()?
+
+   Alternatively, create a sphere shape and set the geometry, then the inertia is automatically computed. Wait, in Chrono, when you add a shape, the inertia is computed based on the geometry and mass. So if I add a sphere shape with radius 0.2, and set the mass, then inertia is handled automatically.
+
+   So:
+
+   pendulum_shape = chrono.ChSphereShape()
+   pendulum_shape.GetSphereGeometry().rad = 0.2
+   pendulum.AddAsset(pendulum_shape)
+   pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8,0.2,0.2)))  # Red color
+
+   pendulum.SetPos(chrono.ChVectorD(0,0,-1))  # Start at position below pivot (0,0,0) by 1m?
+
+   Wait, the length of the pendulum is the distance between the pivot and the center of the sphere. So if the pivot is at (0,0,0), and the pendulum is at (0,0,-1), then the length is 1m. That's good.
+
+   So set the initial position accordingly.
+
+5. Create the revolute joint between ground and pendulum.
+
+   revolute = chrono.ChLinkLockRevolute()
+   revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.QUNIT))
+   revolute.SetLimit_Rz(True, -chrono.CH_C_PI/2, chrono.CH_C_PI/2)  # Maybe not necessary, but just in case?
+
+   Wait, the revolute joint allows rotation around the Z-axis? Or the Y-axis? The rotation axis is determined by the coordinate system. The ChLinkLockRevolute's rotation axis is along the Z-axis of the reference frame. Since the joint is at (0,0,0), and the default rotation axis is Z (assuming the ChFrame is identity), so rotation is around Z. Wait, perhaps the user wants it to swing in a plane, so maybe the rotation axis should be along the Y-axis. Hmm, perhaps I should set the rotation axis to Y.
+
+   To set the rotation axis, the joint's frame's coordinate system can be adjusted. Let me think: the ChLinkLockRevolute's rotation axis is the Z-axis of its reference frame. To have the pendulum swing in the X-Z plane (so rotating around Y-axis), the joint's Z-axis should be aligned with the Y-axis of the world. Wait, maybe I need to set the rotation axis as Y. Alternatively, perhaps the default is okay, but maybe the pendulum's movement is around the Z axis, so it would swing in the X-Y plane. Hmm, perhaps the user just wants any plane, but let's proceed with the default.
+
+   Alternatively, maybe the rotation axis is along the Y-axis. To set that, we can rotate the reference frame of the joint. Let me see: the ChFrameD can be initialized with a rotation. For example, if I want the rotation axis to be Y, then the rotation part of the frame should rotate the Z-axis into the Y-axis. So a rotation of 90 degrees around X-axis.
+
+   Let me think: the default rotation (QUNIT) is identity, so the rotation axis is along Z. To make it along Y, we can rotate the frame by 90 degrees around X-axis. So:
+
+   rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(1,0,0))
+   revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), rotation))
+
+   That way, the rotation axis is now along Y.
+
+   Alternatively, maybe it's better to just set it as the default and see, but the user didn't specify the plane, so maybe it's okay. Let me proceed with the default (rotation around Z), so the pendulum swings in the X-Y plane. Wait, perhaps the standard pendulum is in the vertical plane, so the pivot is at (0,0,0), and the pendulum is hanging along the negative Y-axis. Hmm, perhaps I should adjust the initial position of the pendulum to (0,-1,0) so that it's hanging downward along Y. Then the rotation axis would be around Z (so swinging in X-Z plane). Alternatively, maybe the initial position is (0,0,-1) if using Z as down? Wait, in Chrono, the coordinate system is typically Y-up, so perhaps the pendulum should be placed along the negative Y direction. Let me think again.
+
+   Maybe I should set the initial position of the pendulum to (0, -1, 0), so that it's hanging straight down along the Y-axis. Then the revolute joint allows rotation around the Z-axis (so the pendulum can swing in the X-Z plane, but if it's hanging along Y, then the swing would be in X-Z plane. Alternatively, perhaps the rotation axis should be along the X-axis so that it swings in Y-Z plane. Hmm, this is getting a bit confusing. Maybe it's better to just set the rotation axis as Y, so that the pendulum swings in the X-Z plane with the pivot at (0,0,0), and the pendulum starts at (0,0,-1). Wait, perhaps the Y-axis is up, so the pendulum's length is along the Z-axis. Hmm, maybe I should just proceed with the code and adjust as needed.
+
+   Let me proceed with the initial position of the pendulum as (0,0,-1), and the rotation axis along Y. Wait, perhaps the rotation axis should be along the Y-axis, so that the pendulum can swing in the X-Z plane. Let me try to set that.
+
+   Alternatively, perhaps the rotation axis is along the Y-axis, so the joint allows rotation around Y. To do that, the frame's rotation should align the Z-axis of the joint with the Y-axis of the world. So a rotation of 90 degrees around the X-axis.
+
+   So:
+
+   rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(1,0,0))  # Rotate Z to Y
+
+   Then, the revolute joint's rotation axis is along the Y-axis of the world.
+
+   That way, the pendulum can swing in the X-Z plane, starting at (0,0,-1). Wait, but the initial position is (0,0,-1), so the distance from the pivot is 1 unit along the Z-axis. So the length is 1m. That's okay.
+
+6. Add the bodies and joint to the system:
+
+   my_system.Add(ground)
+   my_system.Add(pendulum)
+   my_system.AddLink(revolute)
+
+7. Visualization setup:
+
+   Create an Irrlicht app:
+
+   vis = chronoirr.ChIrrApp(my_system, 'Pendulum Simulation', chronoirr.dimension2du(800,600))
+
+   vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))  # Position the camera to see the pendulum
+   vis.SetCameraVertical(chrono.ChVectorD(0,1,0))  # Y is up
+
+   vis.AddTypicalLights()
+   vis.AddTypicalLogo()
+   vis.AddAllItems()  # Adds all bodies to the scene
+
+   vis.AssetBind()
+   vis.AssetUpdate()
+
+8. Simulation loop:
+
+   vis.Run() will handle the loop, but we need to log the position and velocity. To do this, perhaps in the main loop, after each step, we can record the data.
+
+   Alternatively, override the step function. Wait, in the Irrlicht app, the simulation is run via vis.Run(), which calls the simulation steps. To log data, perhaps we can use a loop inside the while loop.
+
+   Wait, the standard approach is to have a loop like:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       # Do something here
+
+   But in the Chrono Irrlicht app, the Run() function is a blocking loop. To perform actions each step, perhaps we can use a step function.
+
+   Alternatively, we can use the vis.DoStep() function inside the loop.
+
+   Let me check the PyChrono documentation. The standard loop is:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       my_system.DoStepDynamics()
+       # do something here
+
+   Wait, perhaps not exactly. The Run() function is a loop that runs the simulation steps and renders. To perform actions at each step, perhaps we need to override or insert code into the loop.
+
+   Alternatively, perhaps the best way is to set up the simulation to run with a fixed step, and in each iteration, record the position and velocity.
+
+   Let me structure it like this:
+
+   vis.SetTimestep(0.005)  # Choose a time step, maybe 5ms
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       # After each render, step the simulation
+       my_system.DoStepDynamics()
+       # Log the pendulum's position and velocity
+       pos = pendulum.GetPos()
+       vel = pendulum.GetPos_dt()
+       print(f"Time: {my_system.GetChTime():.2f}, Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}, Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
+
+   But I'm not sure if this is the correct way. Alternatively, maybe the DoStepDynamics() is handled automatically by the Irrlicht app. Hmm, perhaps the correct approach is to use the vis.Run() which internally manages the simulation steps, and we can access the system's time and bodies at each frame.
+
+   Alternatively, perhaps the code should be:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       # Get the current time and pendulum state
+       current_time = my_system.GetChTime()
+       pos = pendulum.GetPos()
+       vel = pendulum.GetPos_dt()
+       print(f"Time: {current_time:.2f}, Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}, Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
+
+   But then the simulation might not be advancing. Because the DoStepDynamics() is needed to advance the system. So maybe the correct way is to have the main loop call DoStepDynamics() each iteration.
+
+   Let me check the example code from PyChrono's documentation. For example, in the basic simulation examples, when using Irrlicht, the loop is often written as:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       my_system.DoStepDynamics()
+
+   So the DoStepDynamics() is called each frame, which advances the simulation by one time step. So in this case, to log data each step, we can add the print statements before or after the DoStepDynamics().
+
+   Wait, but DoStepDynamics() must be called each time to advance the simulation. So the code would be:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+       # Log before stepping?
+       # Or after?
+
+       # Log the current state
+       current_time = my_system.GetChTime()
+       pos = pendulum.GetPos()
+       vel = pendulum.GetPos_dt()
+       print(f"Time: {current_time:.2f}, Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}, Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
+
+       my_system.DoStepDynamics()
+
+   Wait, but the timing would be after the step? Hmm, maybe it's better to log after the step. Alternatively, perhaps the timing is correct as is.
+
+   Alternatively, perhaps the code should be:
+
+   while vis.Run():
+       vis.BeginScene()
+       vis.Render()
+       vis.EndScene()
+
+       my_system.DoStepDynamics()
+
+       # Now log the current state after stepping
+       current_time = my_system.GetChTime()
+       pos = pendulum.GetPos()
+       vel = pendulum.GetPos_dt()
+       print(f"Time: {current_time:.2f}, Position: {pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}, Velocity: {vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f}")
+
+   That way, after each step, the data is logged.
+
+   That should work.
+
+Now, putting it all together.
+
+Wait, also, the revolute joint needs to be added to the system via my_system.AddLink(revolute). That's done earlier.
+
+Also, setting the gravity. Oh right, the system's gravity is set via my_system.SetGravity(). Since the pendulum is affected by gravity, we need to set that. The default gravity in Chrono is (0, -9.81, 0), but maybe the user expects that. Let me check. If not set, it's (0, -9.81, 0). But better to explicitly set it.
+
+So add:
+
+my_system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+Wait, assuming Y is up, so gravity is in negative Y direction.
+
+Now, putting all steps together.
+
+Let me structure the code step by step.
+
+First, imports:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+Then create the system:
+
+my_system = chrono.ChSystemNSC()
+my_system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+Create ground body:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))  # Pivot point at origin
+ground_shape = chrono.ChSphereShape()
+ground_shape.GetSphereGeometry().rad = 0.1
+ground.AddAsset(ground_shape)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.3, 0.3, 0.3)))
+my_system.Add(ground)
+
+Pendulum body:
+
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum_shape = chrono.ChSphereShape()
+pendulum_shape.GetSphereGeometry().rad = 0.2
+pendulum.AddAsset(pendulum_shape)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.2, 0.2)))
+pendulum.SetPos(chrono.ChVectorD(0, 0, -1))  # Start at 1m below pivot (along Z)
+my_system.Add(pendulum)
+
+Revolute joint:
+
+rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(1, 0, 0))  # Rotate to align rotation axis along Y
+revolute = chrono.ChLinkLockRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), rotation))
+my_system.AddLink(revolute)
+
+Visualization setup:
+
+vis = chronoirr.ChIrrApp(my_system, 'Pendulum Simulation', chronoirr.dimension2du(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))  # Position the camera
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))  # Y is up
+vis.AddTypicalLights()
+vis.AddTypicalLogo()
+vis.AddAllTypicalLights()
+vis.AssetBind()
+vis.AssetUpdate()
+vis.SetTimestep(0.005)  # Time step of 5ms
+
+Then the main loop:
+
+vis.Run()
+
+Wait, but inside the loop, we need to log the data. So modifying the loop as:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    my_system.DoStepDynamics()
+
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+Wait, but the DoStepDynamics() is called each iteration, so the simulation progresses. But in the standard Irrlicht app's Run() function, does it handle the DoStepDynamics()? Or do we need to call it manually?
+
+Hmm, perhaps the Run() function already handles the simulation steps. Wait, looking at the documentation, the Run() function is a loop that handles rendering and simulation steps. So perhaps the DoStepDynamics() is called automatically, but I'm not sure. To be safe, perhaps the code should be written with the loop as:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Log the data
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+    # Advance the simulation
+    my_system.DoStepDynamics()
+
+Wait, but this may cause the simulation to step twice each iteration? Because the Run() function may be handling steps internally. Hmm, perhaps the correct approach is to let the Irrlicht app handle the simulation steps, and then in the loop, just log the data. But I'm a bit confused here. Let me think again.
+
+Alternatively, perhaps the standard way is to use the loop as follows, with DoStepDynamics() called each time:
+
+The Run() function returns False when the window is closed, so the loop continues while Run() is True. Inside, each iteration, after rendering, we call DoStepDynamics() to advance the simulation by one step, then log the data.
+
+So the order is:
+
+- Render the current state
+- Log the current state (after step)
+- Advance the simulation step.
+
+Wait, no. The DoStepDynamics() must be called before the next step. So perhaps the correct order is:
+
+Call DoStepDynamics() first, then render. But in the Irrlicht loop, the render is done after the step. Hmm.
+
+Alternatively, perhaps the standard code is:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    my_system.DoStepDynamics()
+
+So in this case, the DoStepDynamics() is called after rendering, which advances the simulation for the next frame. So to log the current state before stepping, we can insert the logging before DoStepDynamics().
+
+Wait, but the current time and position would be before the step. Hmm. Alternatively, to log after the step, but then it would be after the step.
+
+Alternatively, perhaps the logging should be done after the step. Let me structure it as:
+
+Inside the loop:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Log the current state before stepping
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, Position: ...")
+
+    my_system.DoStepDynamics()
+
+Wait, but then the step is after the logging. So the logged data is the state before the step. So the next frame would have the new state.
+
+Hmm, perhaps the user wants the data logged after each step. To get the data after the step, the code should be:
+
+After DoStepDynamics(), log the data.
+
+So:
+
+Inside the loop:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    my_system.DoStepDynamics()
+
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, ...")
+
+That way, after the step is done, the data is logged.
+
+This seems correct.
+
+Putting it all together, the code would be:
+
+Now, checking for any missing parts.
+
+Wait, the ground body's inertia? Since it's static, it doesn't matter, but perhaps it's better to set it as fixed.
+
+Also, the pendulum's inertia is handled by the shape's geometry and mass. Since we added a sphere shape with radius 0.2 and set mass to 1, the inertia should be computed automatically. Alternatively, perhaps we need to call pendulum.SetInertiaXX()?
+
+Wait, in Chrono, when you add a shape to a body, the body's inertia is automatically computed based on the shape's volume and the mass. So as long as the mass is set, the inertia is handled. So that's okay.
+
+Another thing: the revolute joint's rotation axis. Let me confirm again.
+
+We wanted the pendulum to swing in the X-Z plane, so the rotation axis is along Y. To achieve that, the joint's rotation axis must be Y. The code uses a rotation of 90 degrees around X to align the joint's Z-axis (original rotation axis) with the Y-axis of the world. That should work.
+
+Testing the initial position: the pendulum starts at (0,0,-1), so the distance from the pivot (0,0,0) is 1m along Z-axis. The gravity is along -Y, so the pendulum should swing downward along the Y direction? Wait, no. Because the gravity is pulling in -Y direction, so the pendulum will swing towards the negative Y direction. Wait, but the initial position is along the Z-axis. Hmm, that might be an issue.
+
+Ah, here's a problem. The initial position of the pendulum is along the Z-axis, but gravity is acting along the Y-axis. So the pendulum will not swing towards the pivot, but instead along the Y direction. Wait, that's a mistake.
+
+Wait, the initial position is (0,0,-1). The gravity is in the negative Y direction (since my_system.SetGravity(0,-9.81,0)). So the pendulum's initial position is along Z, but gravity is pulling in the Y direction. So the pendulum will start moving in the Y direction, but the joint allows rotation around Y-axis? Wait, the rotation axis is Y. Wait, the rotation axis is Y, so the pendulum can rotate around the Y-axis. So the pendulum can swing in the X-Z plane.
+
+Wait, if the initial position is along Z, then the pendulum is hanging along Z, but gravity is pulling in Y. That means the pendulum will swing in the plane perpendicular to the Y-axis, which is the X-Z plane, but gravity is pulling it towards negative Y, so perhaps the initial position is not aligned with the gravity direction. This might cause unexpected behavior.
+
+Ah, this is a mistake. The pendulum should be aligned with the gravity direction. So perhaps the initial position should be along the Y-axis.
+
+Let me correct that.
+
+The gravity is in the negative Y direction. So the pendulum should be hanging along the negative Y direction. So the initial position of the pendulum should be (0, -1, 0), so that it's 1m below the pivot along Y-axis.
+
+So changing the pendulum's initial position to:
+
+pendulum.SetPos(chrono.ChVectorD(0, -1, 0))
+
+That way, the pendulum is hanging straight down along the Y-axis, and the gravity will act on it properly.
+
+Also, the rotation axis of the joint should be along the Z-axis (so that it can swing in the X-Z plane) or Y-axis?
+
+Wait, let's re-express:
+
+If the rotation axis is along the Z-axis (the default), then the pendulum can swing in the X-Y plane. But since the gravity is along Y, the pendulum would swing in the X-Y plane, but the initial position is along -Y. So when released, it would swing in the X-Y plane, but perhaps that's okay.
+
+Alternatively, if the rotation axis is along the X-axis, then the pendulum can swing in the Y-Z plane. Hmm.
+
+Wait, perhaps the rotation axis should be along the X-axis. Let me think:
+
+The pendulum is hanging along the negative Y direction. To swing in the vertical plane (assuming the pivot is at (0,0,0)), the swing should be in the Y-Z plane if the rotation axis is along X. Or in the Y-X plane if rotation axis is along Z.
+
+Alternatively, perhaps the rotation axis should be along the X-axis so that the pendulum can swing in the Y-Z plane. Wait, the rotation axis direction determines the plane of rotation. For example, rotation around X-axis allows rotation in Y-Z plane.
+
+If the pendulum is hanging along the Y-axis, then the natural swing would be in the Y-Z plane (if rotation axis is X). So that's probably better.
+
+Wait, let me think again. The rotation axis is the axis around which the pendulum can rotate. So if the rotation axis is along the X-axis (pointing to the right), then the pendulum can swing in the Y-Z plane. So starting at (0,-1,0), it can swing upwards in the Y direction, or sideways in Z.
+
+But gravity is pulling in the negative Y direction, so the pendulum would swing in the Y direction, but the joint allows that because rotation around X allows movement along Y.
+
+Alternatively, perhaps the rotation axis should be along the Z-axis, allowing the pendulum to swing in the X-Y plane, but then the initial position is along Y, so that's okay.
+
+Wait, maybe the rotation axis along Z allows the pendulum to swing in the X-Y plane. So if the pendulum is hanging along the negative Y direction, then the gravity will cause it to swing in the Y direction, which is allowed by rotation around Z.
+
+Wait, the rotation around Z allows the pendulum to rotate in the X-Y plane. So the initial position is along the Y-axis, so when gravity acts, it will swing along the Y-axis (since that's part of the X-Y plane). So that's okay.
+
+Alternatively, perhaps the rotation axis should be along the X-axis. Let me think:
+
+Rotation axis along X allows rotation in Y-Z plane. The initial position is along Y, so when gravity pulls down (negative Y), the pendulum would swing along the Y direction, which is allowed.
+
+Either way, perhaps the rotation axis along Z is okay.
+
+Wait, perhaps I should just set the rotation axis to be along the X-axis to allow the pendulum to swing in the Y-Z plane. Let me recalculate the rotation needed.
+
+To have the rotation axis along X, the joint's frame needs to have its Z-axis aligned with the X-axis of the world. So a rotation of 90 degrees around Y-axis.
+
+Wait, the default rotation is identity (no rotation), so the joint's Z-axis is the world's Z. To align the joint's rotation axis (Z) with the world's X-axis, we need to rotate the frame by 90 degrees around Y-axis.
+
+Wait, perhaps this is getting too complicated. Maybe the simplest way is to set the rotation axis to be along the X-axis by rotating the joint's frame so that its Z-axis points along X.
+
+Alternatively, perhaps I should just set the rotation axis to be along the X-axis, so the joint's rotation axis is X. To do that, the rotation frame would need to rotate the Z-axis (original) to X-axis. That requires a rotation of -90 degrees around Y-axis.
+
+Wait, let me think in terms of rotation matrices.
+
+The default rotation axis is the Z-axis of the joint's frame. To have the rotation axis be along the X-axis of the world, we need to rotate the joint's frame so that its Z-axis aligns with the world's X-axis.
+
+A rotation of 90 degrees around the Y-axis would do that. Because rotating around Y by 90 degrees would take the original Z-axis (0,0,1) to (1,0,0).
+
+Wait, let's see:
+
+Rotation around Y by 90 degrees (positive direction, according to right-hand rule):
+
+The rotation matrix would be:
+
+[cosθ 0 sinθ]
+[0    1   0]
+[-sinθ 0 cosθ]
+
+With θ = 90 degrees (π/2 radians):
+
+cos(90) = 0, sin(90)=1.
+
+So:
+
+[0 0 1]
+[0 1 0]
+[-1 0 0]
+
+So applying this rotation to the original Z vector (0,0,1):
+
+[0 0 1][0] = 1
+[0 1 0][0] = 0
+[-1 0 0][1] = -1
+
+Wait, that gives (1,0,-1). Hmm, not exactly. Wait, perhaps I made a mistake.
+
+Wait, the rotation matrix for rotating around Y by θ is:
+
+The standard rotation matrix around Y-axis is:
+
+Ry(θ) = [cosθ 0 sinθ
+          0    1  0
+          -sinθ 0 cosθ]
+
+So applying this to the original Z vector (0,0,1):
+
+The resulting vector is (sinθ, 0, cosθ). Wait, no:
+
+Wait, let me compute each component:
+
+First component: cosθ * 0 + 0*0 + sinθ *1 = sinθ
+
+Second component: 0*0 +1*0 +0*1 =0
+
+Third component: -sinθ*0 +0*0 + cosθ*1 = cosθ
+
+So the rotated Z vector is (sinθ, 0, cosθ)
+
+For θ = 90 degrees:
+
+sin(90)=1, cos(90)=0. So the rotated Z vector is (1,0,0), which is the X-axis. Perfect.
+
+So a rotation of 90 degrees around Y-axis will align the joint's Z-axis (rotation axis) with the world's X-axis.
+
+Therefore, to set the rotation axis to X, the rotation is Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0,1,0)).
+
+So the code for the revolute joint should be:
+
+rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))  # Rotate around Y by 90 degrees to align rotation axis with X
+
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), rotation))
+
+Wait, but then the rotation axis is along X, allowing the pendulum to swing in the Y-Z plane. So the initial position is along Y, so that's okay. Gravity pulls along -Y, so the pendulum will swing in the Y direction, which is allowed.
+
+Alternatively, perhaps it's better to have the rotation axis along the X-axis so that the pendulum can swing in the Y-Z plane, with gravity pulling in Y.
+
+Alternatively, maybe I should just set the rotation axis along the X-axis and adjust accordingly.
+
+This might be getting too involved. Perhaps the user just wants a simple pendulum, so the rotation axis can be along the X-axis, allowing the pendulum to swing in the Y-Z plane. The initial position is along Y, so that's fine.
+
+So correcting the code:
+
+The pendulum's initial position is (0,-1,0), so it's along Y.
+
+The revolute joint's rotation axis is along X.
+
+The gravity is along -Y, so the pendulum will swing in the Y direction.
+
+Now, the code:
+
+Wait, also, the camera position should be adjusted to see the pendulum swinging in the Y direction. The initial camera position was (2,2,2), but if the pendulum is along Y, perhaps setting the camera to look along the Y axis.
+
+Alternatively, set the camera position to (2, 2, 2) and look towards the origin.
+
+Alternatively, perhaps better to set the camera to look along the X-axis, so that the swing in Y-Z plane is visible.
+
+Alternatively, set the camera position to (3, 0, 3) looking at the origin.
+
+But maybe the initial code's camera is okay.
+
+Now, putting all corrections into the code:
+
+The corrected pendulum position is (0, -1, 0).
+
+The revolute joint's rotation is around X.
+
+So the code for the joint:
+
+rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI/2, chrono.ChVectorD(0,1,0))
+
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0,0,0), rotation))
+
+Now, the full code:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+my_system = chrono.ChSystemNSC()
+my_system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+# Create ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))  # Pivot point at origin
+ground_shape = chrono.ChSphereShape()
+ground_shape.GetSphereGeometry().rad = 0.1
+ground.AddAsset(ground_shape)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.3, 0.3, 0.3)))
+my_system.Add(ground)
+
+# Create pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum_shape = chrono.ChSphereShape()
+pendulum_shape.GetSphereGeometry().rad = 0.2
+pendulum.AddAsset(pendulum_shape)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.2, 0.2)))
+pendulum.SetPos(chrono.ChVectorD(0, -1, 0))  # Start at 1m below pivot along Y
+my_system.Add(pendulum)
+
+# Create revolute joint with rotation axis along X
+rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))  # Rotate around Y by 90 degrees to align rotation axis with X
+revolute = chrono.ChLinkLockRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), rotation))
+my_system.AddLink(revolute)
+
+# Visualization setup
+vis = chronoirr.ChIrrApp(my_system, 'Pendulum Simulation', chronoirr.dimension2du(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(2, 2, 2))  # Position the camera
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))  # Y is up
+vis.AddTypicalLights()
+vis.AddTypicalLogo()
+vis.AddAllTypicalLights()
+vis.AssetBind()
+vis.AssetUpdate()
+vis.SetTimestep(0.005)  # Time step of 5ms
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Log the current state after stepping
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+
+    # Advance the simulation
+    my_system.DoStepDynamics()
+
+Wait, but in this code, the order is: after rendering, log the current state, then do the step. That means the logged data is before the step. So the next step will use that data. To log after the step, the code should be:
+
+Call DoStepDynamics first, then log.
+
+So the loop should be:
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    my_system.DoStepDynamics()
+
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, ...")
+
+That way, after the step is done, the data is logged.
+
+Yes, that's better.
+
+Now, this should work. Testing this code should show the pendulum swinging downward along the Y-axis due to gravity, and the logs will show the position and velocity over time.
+
+Another thing to check: the revolute joint's Initialize function parameters. The first body is ground (fixed), the second is pendulum. The frame is the position and orientation of the joint relative to the first body (ground). Since the ground is at (0,0,0), the anchor point is correct.
+
+I think that's all. Now, compiling all of this into the final code.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono system
+my_system = chrono.ChSystemNSC()
+my_system.SetGravity(chrono.ChVectorD(0, -9.81, 0))
+
+# Create ground body (pivot point)
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, 0, 0))
+ground_shape = chrono.ChSphereShape()
+ground_shape.GetSphereGeometry().rad = 0.1
+ground.AddAsset(ground_shape)
+ground.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.3, 0.3, 0.3)))
+my_system.Add(ground)
+
+# Create pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum_shape = chrono.ChSphereShape()
+pendulum_shape.GetSphereGeometry().rad = 0.2
+pendulum.AddAsset(pendulum_shape)
+pendulum.AddAsset(chrono.ChColorAsset(chrono.ChColor(0.8, 0.2, 0.2)))
+pendulum.SetPos(chrono.ChVectorD(0, -1, 0))  # Start 1m below pivot along Y-axis
+my_system.Add(pendulum)
+
+# Create revolute joint with rotation axis along X (swing in Y-Z plane)
+rotation = chrono.Q_from_AngAxis(chrono.CH_C_PI / 2, chrono.ChVectorD(0, 1, 0))  # Rotate around Y to align axis with X
+revolute = chrono.ChLinkLockRevolute()
+revolute.Initialize(ground, pendulum, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), rotation))
+my_system.AddLink(revolute)
+
+# Visualization setup
+vis = chronoirr.ChIrrApp(my_system, 'Pendulum Simulation', chronoirr.dimension2du(800, 600))
+vis.SetCameraPosition(chrono.ChVectorD(3, 3, 3))  # Camera position
+vis.SetCameraVertical(chrono.ChVectorD(0, 1, 0))  # Y-up orientation
+vis.AddTypicalLights()
+vis.AddTypicalLogo()
+vis.AssetBind()
+vis.AssetUpdate()
+vis.SetTimestep(0.005)  # Time step of 5ms
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance simulation step
+    my_system.DoStepDynamics()
+
+    # Log position and velocity
+    current_time = my_system.GetChTime()
+    pos = pendulum.GetPos()
+    vel = pendulum.GetPos_dt()
+    print(f"Time: {current_time:.2f}, Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), Velocity: ({vel.x:.2f}, {vel.y:.2f}, {vel.z:.2f})")
+```

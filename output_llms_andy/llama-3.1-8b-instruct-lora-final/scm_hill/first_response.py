@@ -1,0 +1,112 @@
+import pychrono as ch
+    import pychrono.vehicle as veh
+    import pychrono.irrlicht as chir
+    import math
+
+    # -----------------
+    # Create the Chrono system
+    # -----------------
+    sys = ch.ChSystemNSC()
+    sys.SetCollisionSystemType(ch.ChCollisionSystem.Type_BULLET)
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))  # Set gravity in the negative Z direction
+
+    # -----------------
+    # Create terrain
+    # -----------------
+    # Define the SCM soil parameters
+    soil_params = veh.SCMSoilPoissonYoungData()
+    soil_params.SetPoisson(0.0)  # Set Poisson ratio
+    soil_params.SetYoung(1e6)  # Set Young's modulus
+    soil_params.SetShrinkingCoefficient(0.0)  # Set shrinking coefficient
+
+    # Initialize the SCM terrain with a height map
+    terrainHeight = veh.SCMTerrain(sys, soil_params, 5, 5, 0.2)
+    patch_mat = ch.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)  # Set friction coefficient
+    patch_mat.SetRestitution(0.01)  # Set restitution coefficient
+    terrainHeight.AddPatch(patch_mat, ch.ChCoordsysD(ch.ChVector3d(-12, 0, 0), ch.Quat()), 40, 40)
+
+    # -----------------
+    # Create vehicle
+    # -----------------
+    # Initialize the HMMWV vehicle model
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(ch.ChContactMethod_NSC)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(ch.ChCoordsysD(ch.ChVector3d(0, 0, 0.5), ch.Quat()))
+    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(1.0 / 20)  # Set tire simulation step size
+    hmmwv.Initialize()
+
+    # -----------------
+    # Create driver system
+    # -----------------
+    driver = veh.ChDriver(hmmwv)
+    driver.Initialize()
+
+    # -----------------
+    # Create visualization
+    # -----------------
+    vis = chir.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('HMMWV demo')
+    vis.Initialize()
+    vis.AddLogo(chir.ChLogoType ChíRONO)
+    vis.AddSkyBox()
+    vis.AddCamera(chir.ChVector3d(0, 0, 6.5), chrono.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(chir.ChVector3d(1.5, -2.5, 25), chrono.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
+
+    # -----------------
+    # Create interactive driver
+    # -----------------
+    interactive_driver = veh.ChInteractiveDriverIRR(vis)
+    interactive_driver.SetDriver(driver)
+    interactive_driver.Initialize()
+
+    # ---------------
+    # Simulation loop
+    # ---------------
+    time = 0
+    time_step = 1.0 / 20  # Define the simulation timestep
+    time_end = 100  # Set the total simulation time
+
+    # Initialize the time counter
+    time_counter = 0
+
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Define the current steering input
+        steering = 0
+        if interactive_driver.GetSteering() > 0:
+            steering = 0.2
+        elif interactive_driver.GetSteering() < 0:
+            steering = -0.2
+
+        # Update the driver inputs
+        driver.SetSteering(steering)
+
+        # Advance the simulation by one timestep
+        hmmwv.Update()
+        terrainHeight.Update()
+        driver.Update()
+        sys.DoStepDynamics(time_step)
+
+        # Increment the time counter
+        time_counter += time_step
+
+        # Check if the simulation has reached the end time
+        if time_counter < time_end:
+            continue
+
+        break
+
+    return 0

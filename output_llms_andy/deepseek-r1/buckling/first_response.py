@@ -1,0 +1,105 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+def main():
+    # 1. Initialize Chrono system
+    system = chrono.ChSystemSMC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # Disable gravity for buckling test
+
+    # 2. Create FEA mesh and material
+    mesh = fea.ChMesh()
+    system.Add(mesh)
+
+    # Beam properties
+    length = 2.0       # Beam length (m)
+    width = 0.05       # Cross-section width (m)
+    height = 0.05      # Cross-section height (m)
+    density = 7800     # Steel density (kg/m³)
+    E = 2.0e11         # Young's modulus (Pa)
+    nu = 0.3           # Poisson's ratio
+    num_elements = 10  # Number of FEA elements
+
+    # Create beam section and material
+    section = fea.ChBeamSectionEuler()
+    section.SetAsRectangularSection(width, height)
+    section.SetDensity(density)
+    section.SetYoungModulus(E)
+    section.SetShearModulus(E/(2*(1+nu)))
+    material = fea.ChBeamMaterialEuler(section)
+
+    # 3. Build the beam using builder utility
+    builder = fea.ChBuilderBeamEuler()
+    builder.BuildBeam(
+        mesh,           # FEA mesh
+        material,       # Beam material
+        num_elements,   # Number of elements
+        chrono.ChVectorD(0, 0, 0),        # Start point
+        chrono.ChVectorD(length, 0, 0),   # End point
+        chrono.ChVectorD(0, 0, 1)         # Up direction
+    )
+    beam_nodes = builder.GetLastBeamNodes()
+
+    # 4. Apply boundary conditions (fixed at first node)
+    constraint = fea.ChLinkPointFrame()
+    constraint.Initialize(beam_nodes[0], beam_nodes[0])
+    mesh.Add(constraint)
+
+    # 5. Create perturbation force (small lateral force to trigger buckling)
+    perturb_force = fea.ChLoadPointForce(beam_nodes[int(num_elements/2)])
+    perturb_force.SetForce(chrono.ChVectorD(0, 1, 0))  # 1N lateral force
+    mesh.Add(perturb_force)
+
+    # 6. Create compressive load at free end (time-dependent)
+    class CompressiveForce(chrono.ChLoad):
+        def __init__(self, node):
+            chrono.ChLoad.__init__(self, node)
+            self.time = 0
+            self.max_force = -70000  # Target compressive force (N)
+            self.ramp_time = 2.0     # Ramp duration (s)
+            
+        def ComputeForce(self, node, force, torque):
+            if self.time < self.ramp_time:
+                factor = self.time / self.ramp_time
+            else:
+                factor = 1.0
+            force.Set(factor * self.max_force, 0, 0)
+            torque.SetNull()
+            
+        def Update(self, time):
+            self.time = time
+
+    compressive_load = CompressiveForce(beam_nodes[-1])
+    mesh.Add(compressive_load)
+
+    # 7. Setup solver and timestepper
+    solver = chrono.ChSolverMINRES()
+    system.SetSolver(solver)
+    solver.SetMaxIterations(100)
+    solver.SetTolerance(1e-12)
+    system.SetSolverForceTolerance(1e-10)
+    system.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+    hht_stepper = system.GetTimestepper().AsTimestepperHHT()
+    hht_stepper.SetAlpha(-0.2)  # Numerical damping
+
+    # 8. Setup Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Beam Buckling Simulation")
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(1.5, 0.5, 1.0), chrono.ChVectorD(0.5, 0, 0))
+    vis.AddTypicalLights()
+
+    # 9. Simulation loop
+    time_step = 0.001
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
+
+if __name__ == "__main__":
+    main()

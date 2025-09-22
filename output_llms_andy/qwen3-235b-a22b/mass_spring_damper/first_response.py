@@ -1,0 +1,61 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, -9.81, 0))  # Set gravity along negative Y-axis
+
+# Create the mass body
+mass_body = chrono.ChBody()
+mass_body.SetMass(1.0)
+mass_body.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))  # Adjusted inertia for stability
+mass_body.SetPos(chrono.ChVectorD(0, 1, 0))  # Initial position of the mass
+mass_body.SetBodyFixed(False)
+system.Add(mass_body)
+
+# Add a box shape for the mass visualization
+box_shape = chrono.ChBoxShape()
+box_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.2, 0.2, 0.2)  # Size of the box
+mass_body.AddAsset(box_shape)
+
+# Add color to the mass for better visibility
+color = chrono.ChColorAsset()
+color.SetColor(chrono.ChColor(0.6, 0.6, 0.6))  # Gray color
+mass_body.AddAsset(color)
+
+# Create the ChLinkTSDA (spring-damper) connecting the mass to the ground
+link = chrono.ChLinkTSDA()
+
+# Define attachment points: ground at (0,0,0), mass at (0,0,0) relative to its position
+ground_point = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+mass_point = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Initialize the link between ground and mass
+link.Initialize(system.GetGroundBody(), mass_body, False, ground_point, mass_point)
+system.Add(link)
+
+# Set default linear spring-damper parameters
+link.SetSpringK(100)  # Spring stiffness (N/m)
+link.SetDampingR(5)   # Damping coefficient (Ns/m)
+
+# Add spring visualization to the link
+spring_shape = chrono.ChSpringShape(0.05, 10, 0.4)  # Radius, number of coils, wire thickness
+link.AddAsset(spring_shape)
+
+# Create Irrlicht visualization application
+application = chronoirr.ChIrrApp(system, "Mass-Spring-Damper Simulation", chronoirr.dimension2du(1024, 768))
+application.AddTypicalLights()
+application.AddCamera(chronoirr.vector3df(0, 3, -6), chronoirr.vector3df(0, 1, 0))  # Camera setup
+
+# Enable camera auto-rotation for better viewing
+application.CameraUseAutoRotate(True)
+
+# Set simulation time step
+application.SetTimestep(0.01)
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+    system.DoStepDynamics(application.GetTimestep())

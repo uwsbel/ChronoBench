@@ -1,0 +1,201 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+# Modified: Changed initial X location to -50
+initLoc = chrono.ChVector3d(-50, 0, 0.5) 
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+# terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0      # terrain height
+# Modified: Increased terrain length to 200
+terrainLength = 200.0  # size in X direction 
+terrainWidth = 100.0   # size in Y direction
+
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the FEDA vehicle, set parameters, and initialize
+vehicle = veh.FEDA()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, 
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('FEDA vehicle')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+
+# --- Driver System Modification ---
+# Create the path-follower driver system
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), 
+                                  "my_path.txt",
+                                  "my_path_follower",
+                                  10.0) # target speed
+
+# Create the path (Double Lane Change - ISO 3888-2)
+# You might need to adjust these values based on your specific needs
+path_width = 3.5
+path_length = 80.0
+s_start1 = 15.0
+s_start2 = s_start1 + path_length + 2.5 * path_width
+s_end = s_start2 + path_length
+
+# Function to describe the double lane change path
+def path_function(s):
+    if s < s_start1:
+        return 0.0
+    elif s < s_start2:
+        ds = s - s_start1
+        return path_width * math.sin(math.pi * ds / (2.5 * path_width))
+    elif s <= s_end:
+        ds = s - s_start2
+        return -path_width * math.sin(math.pi * ds / (2.5 * path_width))
+    else:
+        return 0.0
+
+# Generate path points
+num_points = 200
+path_points = []
+for i in range(num_points + 1):
+    s = i * (s_end + 10.0) / num_points
+    path_points.append(chrono.ChVectorD(s, path_function(s), 0.1))
+
+# Create the path using ChBezierCurve
+path = chrono.ChBezierCurve()
+path.SetupFromPoints(path_points)
+
+# Set the path for the path follower driver
+driver.GetSteeringController().SetLookAheadDistance(5)
+driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)  # Adjust gains if needed
+driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)      # Adjust gains if needed
+
+driver.Initialize()
+
+# output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs (Not needed for path follower)
+    # driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver.GetInputs(), terrain) # Use driver.GetInputs() here
+    vis.Synchronize(time, driver.GetInputs()) # Use driver.GetInputs() here
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```
+
+**Explanation of Changes and Error Corrections:**
+
+1. **Driver System Modification:**
+   - Replaced the interactive driver (`ChInteractiveDriverIRR`) with a path-follower, cruise-control driver (`ChPathFollowerDriver`).
+   - Created a path that approximates the ISO standard double lane change maneuver using `ChBezierCurve`. 
+   - Set a target speed of 10.0 for the path follower.
+   - Configured the steering and speed controllers with initial gain values (you might need to fine-tune these).
+
+2. **Initial Vehicle Location Change:**
+   - Changed the `initLoc` from (0, 0, 0.5) to (-50, 0, 0.5) to position the vehicle appropriately for the maneuver.
+
+3. **Terrain Length Change:**
+   - Increased the `terrainLength` from 100.0 to 200.0 to accommodate the double lane change path.
+
+**Additional Notes:**
+
+- **Path Generation:** The `path_function` creates a smooth double lane change trajectory. You can adjust the `path_width`, `path_length`, and other parameters to modify the maneuver. 
+- **Gains Tuning:** The gains for the steering and speed controllers (e.g., `driver.GetSteeringController().SetGains(0.8, 0.0, 0.0)`) might need adjustments depending on your vehicle model and the desired performance.
+- **Path File:** The code currently defines the path programmatically.  If you want to use a separate path file, you need to create a text file named "my_path.txt" and save the path data in it (one point per line, with x, y, and z coordinates separated by spaces). You can then load this file when you create the `ChPathFollowerDriver`.
+- **Simulation Visualization:** The visualization part of the code remains mostly unchanged. However, you might want to adjust the camera position to better observe the double lane change maneuver.
+
+Remember that this is a starting point. You may need to experiment with different parameters (path geometry, controller gains, etc.) to achieve the desired behavior for your specific simulation. 

@@ -1,0 +1,594 @@
+Okay, I need to create a PyChrono simulation for a beam buckling scenario with FEA, custom motors, constraints, and visualization. Let me start by recalling how PyChrono handles beams and FEA.
+
+First, I'll initialize the environment. I'll need to import Chrono and the Irrlicht visualization module. Then create a system and a simulation manager.
+
+Next, the beam. For FEA, Chrono has the FEA module. I should create a FEA beam using ChBeamFEAobject. I need to define the beam's geometry: length, cross-section, material properties. Maybe a simple rectangular cross-section. The beam should be discretized into elements. Let's say 20 elements along its length for decent resolution.
+
+Material properties: Young's modulus, Poisson's ratio, density. Let's pick typical steel values for stiffness. The beam's initial position and orientation. Maybe horizontal along the x-axis, starting at (0,0,0).
+
+Constraints: The beam's end needs to be fixed at one end. So a fixed constraint at the first node. The other end might be free, but maybe add a hinge or some constraint later. Wait, buckling typically requires constrained ends. Maybe fixed at both ends but with a load? Hmm, the problem mentions constraints between different parts, so perhaps one end is fixed, and the other has a motor applying force.
+
+Motor functions: The user mentioned custom motor functions. A motor could apply a force or displacement over time. Maybe a linear motor at the free end to apply a compressive force. The motor's function could increase the load until buckling occurs.
+
+Visualization: Add the beam to the Irrlicht window. Set camera position to view the buckling.
+
+Solver and timestepper: Use the standard ChTimestepperHHT for better stability, especially for buckling which might have stiff dynamics. Set the solver tolerance and timestep appropriately. Maybe a small timestep like 1e-3.
+
+Putting it all together step by step:
+
+1. Import modules: chrono, chrono.fea, chrono irrlicht.
+2. Create system and simulation manager.
+3. Create the beam FEA object: define nodes, elements, material, cross-section.
+4. Add constraints: fixed at first node.
+5. Create a motor (maybe a ChLinkMotorLinear) between the last node and a reference body to apply force.
+6. Add visualization assets like colors and textures.
+7. Initialize the Irrlicht window, add all items to the scene.
+8. Set up the timestepper and solver parameters.
+9. Simulation loop: advance time, render.
+
+Wait, I need to make sure the beam is modeled correctly with FEA. The ChBeamFEAobject requires a mesh. Let me think about how to set up the nodes and elements. Alternatively, maybe use a predefined beam with parameters like length, num_elements, cross-section dimensions.
+
+Alternatively, perhaps using ChBeamFEAobject with a simple setup. Let me check the parameters for ChBeamFEAobject. The constructor might take length, num_elements, cross-section type, material, etc.
+
+Wait, maybe the ChBeamFEAobject can be initialized with parameters like length, number of elements, cross-section dimensions (like width and height), and material properties. So:
+
+beam = chrono.fea.ChBeamFEAobject()
+beam.SetLength(length)
+beam.SetElementsNum(elements_num)
+beam.SetSection(chrono.fea.ChBeamSectionRBE3(width, height)) # or another section type
+material = chrono.ChMaterialSurface()
+material.SetYoungModulus(210e9)
+material.SetPoissongRatio(0.3)
+beam.SetMaterialSurface(material)
+
+Wait, maybe the ChBeamFEAobject has methods to set these properties. Alternatively, maybe the cross-section is set via a ChBeamSection object.
+
+Also, the beam's position and orientation. Maybe place it along the x-axis from (0,0,0) to (length,0,0). The fixed constraint at the first node (index 0) and the motor at the last node (index elements_num).
+
+The motor would need to connect between the last node and a reference point. The motor's function could be a linear displacement that increases over time, causing compression.
+
+Wait, the ChLinkMotorLinear requires two points. The first is the node's position, and the second is a fixed point. The motor can apply a force or displacement. For buckling, maybe applying a displacement that compresses the beam.
+
+Alternatively, using a force motor. Let me think: the motor function could be a time-dependent function that increases the compressive force until buckling.
+
+The motor function would need to be a user-defined function. For example, a function that returns the desired displacement or force at time t.
+
+Another thing: the solver. Using ChTimestepperHHT with damping and alpha parameters for better stability in FEA simulations. The HHT method is good for structural dynamics.
+
+Putting all together, here's a rough outline of the code steps:
+
+Import modules.
+
+Create system.
+
+Create beam with FEA:
+
+- Define parameters (length, elements, cross-section, material)
+- Set up beam object with these parameters
+- Add beam to system.
+
+Add constraints:
+
+- Fix the first node (beam.GetNode(0)) using a ChLinkLockPointFrame.
+
+Add motor:
+
+- Create a ChLinkMotorLinear between the last node and a fixed point (maybe a dummy body at the end position)
+- Define a motor function that increases displacement over time (e.g., linear function with time)
+- Attach the motor to the system.
+
+Visualization:
+
+- Create Irrlicht application.
+- Add all items (beam, etc.) to the scene.
+- Set camera position.
+
+Simulation settings:
+
+- Set the timestepper to HHT with appropriate parameters.
+- Set the solver tolerance.
+- Run the simulation loop, updating the scene and advancing time.
+
+Wait, the motor function needs to be implemented. Let me think of a simple function. Suppose the displacement increases linearly until a certain time, then stops. Or maybe a force that increases over time.
+
+Alternatively, the motor could be a displacement motor that moves the end node towards the fixed end, thereby applying compression.
+
+For example, the motor's function could be:
+
+def motor_function(time):
+    return -0.01 * time  # moves the end node in negative x direction over time
+
+But the motor's type needs to be displacement. Or perhaps force. Let me check the ChLinkMotorLinear documentation.
+
+Alternatively, using a force motor with a time-dependent force.
+
+Wait, maybe the ChLinkMotorLinear has a function that returns the desired displacement between the two points. So if the beam is along the x-axis, the motor would control the displacement along the x-axis between the last node and the fixed point.
+
+Wait, the ChLinkMotorLinear connects two points (on two bodies) and allows defining a desired displacement between them. So if the beam's last node is connected to a fixed point (like a dummy body at the original end position), then the motor can control the displacement.
+
+Alternatively, perhaps the motor is between the beam's end node and a fixed reference point. Let me see.
+
+Alternatively, perhaps the motor is between the beam's end node and a fixed point. Let me structure it as follows:
+
+- Create a dummy body at the original end position (x = length, 0,0), fixed in space.
+
+- The motor connects the last node of the beam to this dummy body's position.
+
+- The motor's function would then control the distance between them, causing compression.
+
+So:
+
+dummy = chrono.ChBody()
+dummy.SetBodyFixed(True)
+dummy.SetPos(chrono.ChVectorD(length, 0, 0))
+system.Add(dummy)
+
+motor = chrono.ChLinkMotorLinear()
+motor.Initialize(beam.GetNode(nodes_num-1), dummy, chrono.ChFrameD(chrono.ChVectorD(0,0,0)))
+motor.SetMotionFunction(lambda time: -0.01 * time)  # negative displacement over time
+
+Wait, but the motor's function is a ChFunction. So perhaps need to use a ChFunction_Ramp or create a custom function.
+
+Alternatively, using a ChFunction_Ramp which starts at 0 and increases with a slope of -0.01 (so displacement decreases over time, causing compression).
+
+motor.SetMotionFunction(chrono.ChFunction_Ramp(0, -0.01))
+
+That might work. The slope would be displacement per second. So after 10 seconds, displacement is -0.1 meters.
+
+This would apply a compressive force on the beam's end.
+
+Now, the solver settings. Using ChTimestepperHHT:
+
+timestepper = chrono.ChTimestepperHHT(system)
+timestepper.SetAlpha(-0.2)  # typical for HHT
+timestepper.SetMaxiters(5)
+timestepper.SetAbsTolerances(1e-5)
+timestepper.SetRelTolerances(1e-4)
+
+The simulation loop would use the timestepper's DoStep function.
+
+Putting all this into code:
+
+Wait, also need to add the beam to the system via system.Add(beam).
+
+Wait, the beam is a ChBeamFEAobject, which is a ChPhysicsItem, so adding to the system is necessary.
+
+Now, the visualization part: the beam has its own geometry, but maybe need to add a visualization asset. The FEA beam might have a mesh that can be visualized with Irrlicht.
+
+Alternatively, the ChBeamFEAobject has a method to create a visualization asset. Or perhaps it's automatically visualized if added to the Irrlicht system.
+
+Alternatively, need to add a ChVisualizationFEAmesh to the beam.
+
+Wait, looking up: The ChBeamFEAobject has a method GetAssets() which includes visualization assets. So when added to the Irrlicht system, it should display.
+
+Testing code structure:
+
+import pychrono as chrono
+import pychrono irrlicht as chr
+
+system = chrono.ChSystemMyDEM()  # or just ChSystem?
+Wait, no, standard system is ChSystem.
+
+system = chrono.ChSystem()
+
+beam_length = 2.0
+num_elements = 20
+width = 0.1  # cross-section width
+height = 0.05  # cross-section height
+
+material = chrono.ChMaterialSurface()
+material.SetYoungModulus(210e9)
+material.SetPoissongRatio(0.3)
+
+beam = chrono.fea.ChBeamFEAobject()
+beam.SetLength(beam_length)
+beam.SetElementsNum(num_elements)
+beam.SetSection(chrono.fea.ChBeamSectionRBE3(width, height))  # or another section type?
+Wait, the ChBeamSectionRBE3 takes width and height as parameters for rectangular cross-section?
+
+Alternatively, maybe the parameters are width and height, but I need to confirm. Alternatively, maybe it's a different class for rectangular sections.
+
+Alternatively, perhaps using ChBeamSectionTimoshenko for a more accurate section, but I'm not sure. Let me assume that ChBeamSectionRBE3 is suitable for a simple case.
+
+Then set the material:
+
+beam.SetMaterialSurface(material)
+
+Add the beam to the system:
+
+system.Add(beam)
+
+Now, constraints. The first node is fixed:
+
+node0 = beam.GetNode(0)
+constraint = chrono.ChLinkLockPointFrame()
+constraint.Initialize(node0, system.Get_terrain(), chrono.ChFrameD(node0.GetPos()))
+system.Add(constraint)
+
+Wait, system.Get_terrain() is not correct. The terrain is part of the system, but perhaps better to use a fixed frame.
+
+Alternatively, the constraint links the node to a fixed point in the world frame. So using a ChLinkLockPointFrame to lock the node's position and orientation.
+
+Alternatively, perhaps using a ChLinkLockPoint to just lock the position. The ChLinkLockPointFrame locks both position and orientation.
+
+Alternatively, maybe the beam's first node is fixed in space, so:
+
+fixed_frame = chrono.ChFrameD(node0.GetPos())
+constraint = chrono.ChLinkLockPointFrame(node0, fixed_frame)
+Wait, no, the syntax for ChLinkLockPointFrame is Initialize(body, reference_frame). The reference frame is the position and orientation to lock to.
+
+Alternatively, create a fixed body (like the ground) and link to that. Let me see.
+
+Wait, the ChLinkLockPointFrame requires two bodies. The first is the body to constrain, and the second is the reference body (usually ground). But the ground is not a body in Chrono by default. So perhaps create a ground body:
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+Then:
+
+constraint = chrono.ChLinkLockPointFrame()
+constraint.Initialize(node0, ground, chrono.ChFrameD(node0.GetPos()))
+system.Add(constraint)
+
+This would lock the node's position to the ground's frame at that position.
+
+Alternatively, maybe simpler to use ChLinkLockPoint to just lock the position. The ChLinkLockPoint locks the point to a fixed position in the world.
+
+Alternatively, perhaps the ChLinkLockPointFrame is better for fixing both position and orientation, but for a beam node, maybe just position is sufficient.
+
+Hmm, perhaps I should look up the exact way to fix a point in the FEA beam.
+
+Alternatively, maybe the ChBeamFEAobject has a method to fix nodes. Wait, perhaps not. The standard approach is to use constraints.
+
+Moving on, the motor. Let's create a dummy body at the original end position (beam_length, 0,0).
+
+dummy_body = chrono.ChBody()
+dummy_body.SetBodyFixed(True)
+dummy_body.SetPos(chrono.ChVectorD(beam_length, 0, 0))
+system.Add(dummy_body)
+
+The last node is beam.GetNode(num_elements -1).
+
+Then create a motor between this node and the dummy_body.
+
+motor = chrono.ChLinkMotorLinear()
+motor.Initialize(beam.GetNode(num_elements-1), dummy_body, chrono.ChFrameD(chrono.ChVectorD(0,0,0)))
+
+Wait, the third argument is the coordinate system for the motor. Since both are in world coordinates, maybe just use the default.
+
+Then set the motion function. Let's use a ramp function.
+
+slope = -0.01  # meters per second
+motor.SetMotionFunction(chrono.ChFunction_Ramp(0, slope))
+
+This would apply a displacement that decreases over time, causing compression.
+
+Now, visualization:
+
+visualizator = chr.ChVisualSystemIrrlicht()
+visualizator.SetWindowSize(1024,768)
+visualizator.SetWindowTitle('Beam Buckling FEA Simulation')
+visualizator.SetCameraPosition(chrono.ChVectorD(1,1,1)*3)  # some position above the beam
+visualizator.AddLight(chrono.ChVectorD(1,1,1)*3, chrono.ChVectorD(255,255,255))
+
+system.SetVisualSystem(visualizator)
+visualizator.SetSystem(system)
+
+Add the beam and dummy_body to the visual system? Or does the system automatically include them?
+
+Wait, the visual system is linked to the system, so adding bodies to the system should automatically add them to visualization. But for the beam, since it's a FEA object, maybe need to explicitly add its visualization.
+
+Alternatively, the beam's visualization is handled by its own assets. Let me assume that adding the beam to the system will display it.
+
+Then the simulation loop:
+
+timestep = 1e-3
+sim_time = 0
+while sim_time < 10:
+    system.DoStepDynamics(timestep)
+    visualizator.BeginScene()
+    visualizator.Render()
+    visualizator.EndScene()
+    sim_time += timestep
+
+Wait, but using the HHT timestepper, perhaps need to use the timestepper's DoStep function instead of system.DoStepDynamics.
+
+Wait, the code needs to set the timestepper as the system's timestepper.
+
+Wait, the ChSystem has a timestepper. To use HHT:
+
+timestepper = chrono.ChTimestepperHHT(system)
+timestepper.SetAlpha(-0.2)
+timestepper.SetMaxiters(5)
+timestepper.SetAbsTolerances(1e-5)
+timestepper.SetRelTolerances(1e-4)
+
+Then in the loop:
+
+while sim_time < 10:
+    if not timestepper.DoStepDynamics(timestep):
+        break
+    sim_time += timestep
+
+Alternatively, perhaps the system's DoStepDynamics is using the default timestepper. To use HHT, the system's timestepper must be replaced.
+
+Wait, the ChSystem's timestepper can be set via system.SetTimestepper(timestepper). So after creating timestepper, do that.
+
+Wait, perhaps the code should be:
+
+system.SetTimestepper(timestepper)
+
+Then, in the loop, use system.DoStepDynamics(timestep) which will use the HHT stepper.
+
+Alternatively, perhaps the DoStepDynamics function uses the system's current timestepper.
+
+Yes, so setting the timestepper via system.SetTimestepper is the way.
+
+Putting all together, the code should look something like this.
+
+Wait, also need to make sure that the beam is properly initialized. Maybe the beam's initial position is along the x-axis from (0,0,0) to (length,0,0). The FEA beam might have nodes along that path.
+
+Testing code:
+
+Wait, the cross-section for ChBeamSectionRBE3: perhaps the parameters are width and height. So for a rectangular cross-section of 0.1 m width and 0.05 m height.
+
+Now, putting all code pieces together with proper syntax.
+
+Also, the Irrlicht setup requires adding the visual system to the system and initializing it.
+
+Wait, the code structure would be:
+
+import pychrono as chrono
+import pychrono.irrlicht as chr
+
+def main():
+    system = chrono.ChSystem()
+    
+    # Create beam parameters
+    length = 2.0
+    num_elements = 20
+    width = 0.1
+    height = 0.05
+    young_modulus = 210e9
+    poisson = 0.3
+    density = 7850  # steel density
+    
+    # Create beam FEA object
+    beam = chrono.fea.ChBeamFEAobject()
+    beam.SetLength(length)
+    beam.SetElementsNum(num_elements)
+    beam.SetSection(chrono.fea.ChBeamSectionRBE3(width, height))
+    
+    # Set material properties
+    material = chrono.ChMaterialSurface()
+    material.SetYoungModulus(young_modulus)
+    material.SetPoissongRatio(poisson)
+    beam.SetMaterialSurface(material)
+    
+    # Add beam to system
+    system.Add(beam)
+    
+    # Create ground body for constraints
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    system.Add(ground)
+    
+    # Fix first node to ground
+    first_node = beam.GetNode(0)
+    constraint = chrono.ChLinkLockPointFrame()
+    constraint.Initialize(first_node, ground, chrono.ChFrameD(first_node.GetPos()))
+    system.Add(constraint)
+    
+    # Create dummy body at the end position
+    dummy = chrono.ChBody()
+    dummy.SetBodyFixed(True)
+    dummy.SetPos(chrono.ChVectorD(length, 0, 0))
+    system.Add(dummy)
+    
+    # Create motor between last node and dummy body
+    last_node = beam.GetNode(num_elements -1)
+    motor = chrono.ChLinkMotorLinear()
+    motor.Initialize(last_node, dummy, chrono.ChFrameD())
+    # Set motion function as a ramp with slope -0.01 m/s
+    motor.SetMotionFunction(chrono.ChFunction_Ramp(0, -0.01))
+    system.Add(motor)
+    
+    # Setup visualization
+    vis = chr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024,768)
+    vis.SetWindowTitle('Beam Buckling Simulation')
+    vis.SetCameraPosition(chrono.ChVectorD(3,3,3))
+    vis.AddLight(chrono.ChVectorD(3,3,3), chrono.ChVectorD(255,255,255))
+    system.SetVisualSystem(vis)
+    vis.SetSystem(system)
+    
+    # Setup solver and timestepper
+    timestepper = chrono.ChTimestepperHHT(system)
+    timestepper.SetAlpha(-0.2)
+    timestepper.SetMaxiters(5)
+    timestepper.SetAbsTolerances(1e-5)
+    timestepper.SetRelTolerances(1e-4)
+    system.SetTimestepper(timestepper)
+    
+    # Simulation loop
+    time = 0
+    while time < 10:
+        system.DoStepDynamics(1e-3)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        time += 1e-3
+    
+if __name__ == '__main__':
+    main()
+
+Wait, but in the ChLinkMotorLinear initialization, the third argument is the coordinate system. Maybe it's better to use the default frame (chrono.ChFrameD()) since both nodes are in world coordinates.
+
+Also, the ChFunction_Ramp is created with parameters (initial value, slope). The initial value is 0, slope is -0.01, so displacement decreases over time, causing compression.
+
+Potential issues:
+
+- The beam's initial position may not be aligned correctly. The beam's nodes start at (0,0,0) and go to (length,0,0). The fixed constraint at the first node is correct.
+
+- The motor's displacement direction: the function is negative, so the end node moves towards the fixed end, causing compression.
+
+- The solver parameters and timestepper settings may need tuning. The HHT method with alpha=-0.2 is common. The time step of 1e-3 may be okay, but if the simulation is unstable, it might need to be smaller.
+
+- The visualization may not show the beam properly. Maybe the beam's cross-section is too small, making it hard to see. Adjusting width and height could help.
+
+- The beam's material properties and cross-section dimensions may need adjustment to observe buckling within the simulation time (10 seconds). The slope of -0.01 m/s means after 10 seconds, displacement is -0.1 m. Depending on the beam's length and stiffness, this may or may not cause buckling. Maybe increasing the slope or reducing the beam's stiffness could help.
+
+Another thing: The ChBeamFEAobject may require density. Wait, in the material properties, the material surface sets Young's modulus and Poisson's ratio, but density is part of the material's mass properties. The ChMaterialSurface doesn't handle density. Instead, the beam's section might have a material with density.
+
+Wait, looking at the ChBeamFEAobject's documentation, perhaps the density is set via the material's density. Wait, maybe the beam's section has a material that includes density. Alternatively, the beam's material surface is for contact properties, and the structural material (for FEA) is set via another method.
+
+Ah, right, in FEA elements, the material properties for structural analysis (like Young's modulus, density) are set via the material assigned to each element. The ChBeamFEAobject's SetMaterialSurface is for contact, but the structural material might be set via another function.
+
+Wait, perhaps I made a mistake here. Let me think again.
+
+The ChBeamFEAobject has a method SetMaterialSurface which is for contact properties. The structural material properties (like Young's modulus, Poisson's ratio, density) are set via the material assigned to each beam element.
+
+Wait, each beam element has its own material. So perhaps the beam's section needs to have a material with those properties.
+
+Alternatively, the ChBeamSectionRBE3 has a method to set material properties.
+
+Looking up the Chrono documentation: 
+
+The ChBeamSectionRBE3 class has a method SetMaterial that takes a ChBeamMaterial pointer. The ChBeamMaterial contains the structural properties like Young's modulus, Poisson's ratio, and density.
+
+Ah, so perhaps I should create a ChBeamMaterial object and set its properties, then assign it to the beam section.
+
+So, correcting that part:
+
+material = chrono.fea.ChBeamMaterial()
+material.SetYoungModulus(young_modulus)
+material.SetPoissongRatio(poisson)
+material.SetDensity(density)
+
+section = chrono.fea.ChBeamSectionRBE3(width, height)
+section.SetMaterial(material)
+
+beam.SetSection(section)
+
+That way, the beam's elements use this material for structural analysis.
+
+This is an important correction. Previously, I was setting the ChMaterialSurface, which is for contact, not structural properties. So the structural material must be set via the beam's section's material.
+
+So, updating the code:
+
+After creating the beam:
+
+material = chrono.fea.ChBeamMaterial()
+material.SetYoungModulus(young_modulus)
+material.SetPoissongRatio(poisson)
+material.SetDensity(density)
+
+section = chrono.fea.ChBeamSectionRBE3(width, height)
+section.SetMaterial(material)
+beam.SetSection(section)
+
+That should correctly assign the structural material properties.
+
+Another thing: the ChBeamFEAobject's SetSection method takes the section object, so that's correct.
+
+Now, with this correction, the beam's elements will have the proper material properties for FEA.
+
+Another possible issue: the beam's initial position. The beam is created with length along the x-axis from (0,0,0) to (length,0,0). The nodes are along that path. The fixed constraint at node 0 is correct.
+
+The motor applies a displacement that moves the last node in the negative x-direction, causing compression. The buckling should occur when the compressive force exceeds the critical buckling load.
+
+The simulation should show the beam bending sideways when buckling happens.
+
+Testing the code with these corrections.
+
+Now, putting all together in the final code.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chr
+
+def main():
+    # Initialize system and visualization
+    system = chrono.ChSystem()
+    vis = chr.ChVisualSystemIrrlicht()
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('Beam Buckling FEA Simulation')
+    vis.SetCameraPosition(chrono.ChVectorD(3, 3, 3))
+    vis.AddLight(chrono.ChVectorD(3, 3, 3), chrono.ChVectorD(255, 255, 255))
+    system.SetVisualSystem(vis)
+    vis.SetSystem(system)
+
+    # Beam parameters
+    length = 2.0
+    num_elements = 20
+    width = 0.1  # Cross-section width
+    height = 0.05  # Cross-section height
+    young_modulus = 210e9  # Steel
+    poisson = 0.3
+    density = 7850  # Steel density
+
+    # Create beam FEA object
+    beam = chrono.fea.ChBeamFEAobject()
+    beam.SetLength(length)
+    beam.SetElementsNum(num_elements)
+
+    # Define structural material properties
+    beam_material = chrono.fea.ChBeamMaterial()
+    beam_material.SetYoungModulus(young_modulus)
+    beam_material.SetPoissongRatio(poisson)
+    beam_material.SetDensity(density)
+
+    # Set beam section with material
+    section = chrono.fea.ChBeamSectionRBE3(width, height)
+    section.SetMaterial(beam_material)
+    beam.SetSection(section)
+
+    system.Add(beam)
+
+    # Ground body for constraints
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    system.Add(ground)
+
+    # Fix first node to ground
+    first_node = beam.GetNode(0)
+    constraint = chrono.ChLinkLockPointFrame()
+    constraint.Initialize(first_node, ground, chrono.ChFrameD(first_node.GetPos()))
+    system.Add(constraint)
+
+    # Dummy body at original end position
+    dummy = chrono.ChBody()
+    dummy.SetBodyFixed(True)
+    dummy.SetPos(chrono.ChVectorD(length, 0, 0))
+    system.Add(dummy)
+
+    # Motor to apply compressive displacement
+    last_node = beam.GetNode(num_elements - 1)
+    motor = chrono.ChLinkMotorLinear()
+    motor.Initialize(last_node, dummy, chrono.ChFrameD())
+    # Ramp function: displacement decreases over time (compressive)
+    motor.SetMotionFunction(chrono.ChFunction_Ramp(0, -0.01))  # slope = -0.01 m/s
+    system.Add(motor)
+
+    # Solver and timestepper setup
+    timestepper = chrono.ChTimestepperHHT(system)
+    timestepper.SetAlpha(-0.2)  # HHT damping parameter
+    timestepper.SetMaxiters(5)
+    timestepper.SetAbsTolerances(1e-5)
+    timestepper.SetRelTolerances(1e-4)
+    system.SetTimestepper(timestepper)
+
+    # Simulation loop
+    time = 0
+    while time < 10:
+        system.DoStepDynamics(1e-3)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        time += 1e-3
+
+if __name__ == '__main__':
+    main()
+```

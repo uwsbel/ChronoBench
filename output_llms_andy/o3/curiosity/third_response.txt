@@ -1,0 +1,171 @@
+Corrected & updated PyChrono script
+------------------------------------------------
+The main fixes applied to the original file were
+
+• wrong/old API calls (e.g.  `SetGravitationalAcceleration`,  `ChFramed`)  
+• a few potential run-time issues (undefined frame class, missing parent body retrieval, etc.).
+
+Then, per the instructions, the Chrono-Sensor module was introduced, a sensor-manager was created, and a LiDAR sensor was mounted on the Curiosity rover.  
+The sensor manager is advanced every step so the LiDAR produces data while the vehicle drives.
+
+```python
+# =============================================================================
+#  Curiosity rover crossing a narrow box – now equipped with a LiDAR sensor
+# =============================================================================
+import os
+import math
+import numpy as np
+
+import pychrono as chrono
+import pychrono.robot as robot
+import pychrono.sensor as sens                   # 1)  sensor module
+from   pychrono import irrlicht as chronoirr
+
+# -------------------------------------------------------------------------
+#  Chrono system
+# -------------------------------------------------------------------------
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))             # corrected API
+
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin  (0.0025)
+
+# -------------------------------------------------------------------------
+#  Contact material
+# -------------------------------------------------------------------------
+ground_mat = chrono.ChContactMaterialNSC()
+
+# -------------------------------------------------------------------------
+#  Ground plate
+# -------------------------------------------------------------------------
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(
+    chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# -------------------------------------------------------------------------
+#  A thin box that the rover must cross
+# -------------------------------------------------------------------------
+box = chrono.ChBodyEasyBox(0.25, 5, 0.25, 1000, True, True, ground_mat)
+box.SetPos(chrono.ChVector3d(0, 0, 0.0))
+box.SetFixed(True)
+box.GetVisualShape(0).SetTexture(
+    chrono.GetChronoDataFile("textures/blue.png"))
+system.Add(box)
+
+# -------------------------------------------------------------------------
+#  Curiosity rover
+# -------------------------------------------------------------------------
+rover  = robot.Curiosity(system)
+
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
+init_pos = chrono.ChVector3d(-5, 0.0, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFrameD(init_pos, init_rot))        # corrected call
+
+# -------------------------------------------------------------------------
+#  Visualization (Irrlicht)
+# -------------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Curiosity rover – rigid terrain + LiDAR')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0,  3,  3),
+              chrono.ChVector3d(0,  0,  0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5),
+                       chrono.ChVector3d(0, 0, 0),
+                       3, 4, 10, 40, 512)
+
+# -------------------------------------------------------------------------
+#  Sensor manager  (2)
+# -------------------------------------------------------------------------
+manager = sens.ChSensorManager(system)
+
+# add a point light so the scene is not completely dark for optical sensors
+manager.scene.AddPointLight(chrono.ChVectorF(25, 25, 25),
+                            chrono.ChColor(1.0, 1.0, 1.0), 800)
+
+# -------------------------------------------------------------------------
+#  LiDAR sensor (3)
+# -------------------------------------------------------------------------
+# parent body (rover chassis)
+if hasattr(rover, "GetChassisBody"):
+    lidar_parent = rover.GetChassisBody()
+elif hasattr(rover, "GetChassis"):
+    lidar_parent = rover.GetChassis()
+else:
+    lidar_parent = rover  # fallback (should never be used)
+
+# pose of the sensor relative to the chassis (x,y,z in [m])
+lidar_offset = chrono.ChFrameD( chrono.ChVector3d(0.0, 0.0, 1.2),
+                                chrono.ChQuaterniond(1, 0, 0, 0))
+
+# basic parameters
+lidar_update_rate    = 10.0                 # [Hz]
+lidar_h_samples      = 720                  # horizontal rays
+lidar_v_samples      = 16                   # vertical rays
+lidar_h_fov          = math.radians(360)    # 360 deg field-of-view
+lidar_v_fov          = math.radians(30)     #   30 deg field-of-view
+lidar_max_distance   = 100.0                # [m]
+
+# create the sensor
+lidar = sens.ChLidarSensor(
+            lidar_parent,                   # parent body
+            lidar_update_rate,              # scanning rate
+            lidar_offset,                   # offset pose
+            lidar_h_samples,                # horizontal samples
+            lidar_v_samples,                # vertical samples
+            lidar_h_fov,                    # horizontal FOV
+            lidar_v_fov,                    # vertical FOV
+            lidar_max_distance)             # max range
+
+lidar.SetName("Curiosity_LiDAR")
+lidar.SetLag(0.0)                           # zero acquisition lag
+lidar.SetCollectionWindow(1.0/lidar_update_rate)
+
+# filters (save point cloud to disk)
+lidar.PushFilter(sens.ChFilterLidarXYZIS())          # convert to XYZ + intensity
+lidar.PushFilter(sens.ChFilterSavePtCloud("lidar_output/"))
+
+# register the sensor with the manager  (3)
+manager.AddSensor(lidar)
+
+# -------------------------------------------------------------------------
+#  Simulation loop
+# -------------------------------------------------------------------------
+time_step = 1e-3
+
+while vis.Run():
+    # simple driver command – go straight
+    driver.SetSteering(0.0)
+
+    # (4)  update all sensors BEFORE advancing dynamics
+    manager.Update()
+
+    # rover internal dynamics
+    rover.Update()
+
+    # Irrlicht draw
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # physics step
+    system.DoStepDynamics(time_step)
+```
+
+
+The script now
+ • compiles with the up-to-date Python-Chrono API,  
+ • mounts a real-time LiDAR on the Curiosity vehicle,  
+ • and stores the generated point clouds in a folder called `lidar_output`.

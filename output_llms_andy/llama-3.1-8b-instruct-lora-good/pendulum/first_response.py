@@ -1,0 +1,50 @@
+You are a PyChrono expert tasked with generating a simulation script based on the following instructions. Make sure to:
+    1. Initialize the PyChrono environment and core components.
+    2. Add the required physical systems and objects as specified.
+    3. Set necessary default parameters such as positions, forces, and interactions.
+
+    Instructions:
+    Create a simulation of a simple pendulum using the PyChrono library with Irrlicht for visualization. Set up a ground body, a pendulum with appropriate mass and inertia, and connect them with a revolute joint. Use the visualization system to render the simulation and periodically log the pendulum's position and velocity.
+     ``` 
+    """
+    # Initialize PyChrono environment and core
+    chrono.SetChronoEngine()
+    chrono.SetChronoCore()
+
+    # Create ground body
+    ground = chrono.ChBody.ChBody()
+    ground.SetFixed(True)  # ground is fixed
+    ground.SetPos(chrono.Ch.ChVectorDIAxis(0, 0, 0,0)  )  # set ground position
+    ground.SetMass(0)  # ground has no mass
+    ground.SetInertiaXX(chrono.ChVector3d(1,1,1,1,1)  # inertia
+    ground.SetMat(chrono.ChMatConstMatrix(1, 1,1,1,1)  # density matrix
+    ground.GetBodyHandle().SetData(chrono.ChData(ground)  # data
+    ground.SetUseTrull(True) # use trull
+    ground.SetUseCollision(True) # collision
+    ground.SetUseGyro(False) # gyro
+    ground.SetGyro(True) # gyro
+
+    # pendulum
+    pend = chrono.ChBody.ChBody()
+    Set(0.1, 1,1,1)  # mass and inertia
+    SetMat(chrono.ChConstMatrix1,1,1,1)  # density
+    SetMat(chronoMat(1,1,1,1)  # matrix
+    Set(chrono.ChVector3(1,1,1,1)  # position
+    pend.SetMat(chrono.ChMatrix(1,1,1)  # rotation
+    Set(Ch(1,1)  # angle
+    Set(1  # angle
+    Set(1,  # angle
+    Set(1  # angle
+    Set(1  # angle
+    Set(1 # angle
+    Set(  # angle
+    Set  # angle
+    Set(  # angle
+ Set(  # angle
+ Set(  # angle Set  angle
+    Set(  # Set
+    Set(  # Set
+    Set  # Set Set
+    Set  # Set
+    Set Set  Set Set
+ Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set Set

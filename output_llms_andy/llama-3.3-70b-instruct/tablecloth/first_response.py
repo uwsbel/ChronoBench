@@ -1,0 +1,76 @@
+# Import necessary modules
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.mesh as chronomesh
+import numpy as np
+
+# Initialize the PyChrono environment and core components
+sys = chrono.ChSystem()
+
+# Set the default solver to PardisoMKL for efficient dynamics handling
+sys.SetDefaultSolver(chrono.ChSolverPardisoMKL())
+
+# Create the ground body
+ground = chrono.ChBodyEasyBox(sys, 10, 1, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -5, 0))
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+# Define the material properties for the tablecloth (isotropic Kirchhoff material)
+E = 1e6  # Young's modulus
+nu = 0.3  # Poisson's ratio
+thickness = 0.1  # Thickness of the tablecloth
+density = 1000  # Density of the tablecloth
+
+# Create a mesh grid for the tablecloth
+nx, ny = 20, 20  # Number of elements in x and y directions
+Lx, Ly = 5, 5  # Length and width of the tablecloth
+nodes = []
+elements = []
+
+# Generate nodes
+for i in range(nx + 1):
+    for j in range(ny + 1):
+        x = i * Lx / nx
+        y = j * Ly / ny
+        node = chrono.ChNodeFEAxyz(chrono.ChVectorD(x, y, 0))
+        node.SetMass(density * thickness * (Lx / nx) * (Ly / ny))
+        sys.Add(node)
+        nodes.append(node)
+
+# Generate shell elements
+for i in range(nx):
+    for j in range(ny):
+        n1 = nodes[i * (ny + 1) + j]
+        n2 = nodes[i * (ny + 1) + j + 1]
+        n3 = nodes[(i + 1) * (ny + 1) + j + 1]
+        n4 = nodes[(i + 1) * (ny + 1) + j]
+        element = chrono.ChElementShellSK(chrono.ChVectorD(0, 0, 0), n1, n2, n3, n4, thickness, E, nu)
+        sys.Add(element)
+        elements.append(element)
+
+# Set up the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 10))
+vis.AddTypicalLights()
+
+# Set up the simulation loop
+time_step = 1e-3
+end_time = 10
+
+while sys.GetChTime() < end_time:
+    sys.DoStepDynamics(time_step)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+
+    # Apply a force to the center of the tablecloth to simulate folding
+    if sys.GetChTime() < 1:
+        force = chrono.ChForce()
+        force.SetF(chrono.ChVectorD(0, -100, 0))
+        nodes[nx * (ny + 1) // 2].AddForce(force)
+
+# Clean up
+sys.Delete()

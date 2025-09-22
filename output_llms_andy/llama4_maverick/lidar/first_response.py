@@ -1,0 +1,69 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")  # Optional, set path to chrono data if needed
+
+# Create a Chrono system
+sys = chrono.ChSystemNSC()
+
+# Load a mesh from a Wavefront .obj file
+mesh = chrono.ChTriangleMesh()
+mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + "models/bulldozer.obj")  # Replace with your .obj file path
+mesh.Transform(chrono.ChFrame(chrono.ChVector3d(0, 0, 0)))  # Optional transformation
+
+# Create a body and add the mesh to it
+body = chrono.ChBody()
+body.SetBodyFixed(True)  # Make the body fixed
+mesh_asset = chrono.ChTriangleMeshShape()
+mesh_asset.SetMesh(mesh)
+body.AddVisualShape(mesh_asset)
+body.SetMass(1)  # Dummy mass
+sys.Add(body)
+
+# Create a sensor manager
+manager = sens.ChSensorManager(sys)
+
+# Add a lidar sensor to the body
+offset_pose = chrono.ChFrame(chrono.ChVector3d(0, 1, 0), chrono.Q_from_AngAxis(0, chrono.ChVector3d(1, 0, 0)))
+lidar = sens.ChLidarSensor(body,  # body lidar is attached to
+                           10,  # update rate in Hz
+                           offset_pose,  # offset pose from body
+                           100,  # number of horizontal samples
+                           10,  # number of vertical channels
+                           chrono.CH_C_PI,  # horizontal field of view
+                           chrono.CH_C_PI / 4)  # vertical field of view
+lidar.SetName("Lidar Sensor")
+lidar.PushFilter(sens.ChFilterDIArea(0.01))  # Optional filter
+lidar.PushFilter(sens.ChFilterVisualize(256, 256, 1))  # Visualization filter
+lidar.PushFilter(sens.ChFilterSave("lidar_data/"))  # Save data to file
+
+# Add the lidar to the sensor manager
+manager.AddSensor(lidar)
+
+# Simulation loop
+step_size = 1e-3
+time = 0
+
+while time < 10:
+    # Update the lidar's position in an orbit around the mesh
+    angle = time
+    x = np.cos(angle)
+    z = np.sin(angle)
+    lidar.SetOffsetPose(chrono.ChFrame(chrono.ChVector3d(x, 1, z), chrono.Q_from_AngAxis(angle, chrono.ChVector3d(0, 1, 0))))
+
+    # Update the simulation
+    sys.Update(step_size)
+    manager.Update()
+
+    # Access and print lidar buffer data
+    buffer = lidar.GetMostRecentBuffer()
+    if buffer.HasData():
+        print("Lidar Buffer Data:")
+        print(buffer.GetX().size())
+        # Optionally, you can access and print the data using buffer.GetX(), buffer.GetY(), buffer.GetZ()
+
+    # Increment time
+    time += step_size
+

@@ -1,0 +1,135 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import math
+import os
+
+# ---------------------------------------------------------------------
+# Initialize the Chrono system
+# ---------------------------------------------------------------------
+chrono.SetChronoDataPath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/'))
+
+# Create the chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+
+# ---------------------------------------------------------------------
+# Create the terrain
+# ---------------------------------------------------------------------
+terrain = veh.RigidTerrain(system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+
+# Create a flat terrain patch
+terrain_height = 0
+terrain_length = 100.0  # size in X direction
+terrain_width = 100.0   # size in Y direction
+patch = terrain.AddPatch(patch_mat, 
+                         chrono.ChCoordsysD(chrono.ChVectorD(0, 0, terrain_height), chrono.QUNIT),
+                         terrain_length, terrain_width)
+                         
+# Add texture for better visualization
+patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+terrain.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the Viper rover vehicle
+# ---------------------------------------------------------------------
+# Set vehicle JSON specification files
+viper_file = veh.GetDataFile("viper/viper.json")
+rover_tire_file = veh.GetDataFile("viper/viper_tire.json")
+powertrain_file = veh.GetDataFile("viper/viper_powertrain.json")
+
+# Create the Viper rover
+viper = veh.Viper(system)
+viper.SetContactMethod(chrono.ChContactMethod_NSC)
+viper.SetChassisFixed(False)
+viper.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.QUNIT))
+viper.SetTireType(veh.TireModelType_RIGID)
+viper.SetTireStepSize(1e-3)
+viper.Initialize()
+
+# Set visualization mode for vehicle components
+viper.SetChassisVisualizationType(veh.VisualizationType_MESH)
+viper.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+viper.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+viper.SetWheelVisualizationType(veh.VisualizationType_MESH)
+viper.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# Create the driver system
+driver = veh.ChIrrGuiDriver(viper.GetVehicle())
+driver.Initialize()
+
+# ---------------------------------------------------------------------
+# Create the real-time visualization
+# ---------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 5, 1), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5), chrono.ChVectorD(0, 0, 0), 3, 4, 10, 40, 512)
+
+# ---------------------------------------------------------------------
+# Simulation parameters
+# ---------------------------------------------------------------------
+step_size = 1e-3  # simulation step size
+render_step_size = 1.0 / 50  # time interval between visualization frames
+total_simulation_time = 20.0  # total simulation time
+
+# ---------------------------------------------------------------------
+# Simulation loop
+# ---------------------------------------------------------------------
+time = 0
+render_time = 0
+
+steering_target = 0.0
+throttle_target = 0.3  # Constant forward throttle
+
+steering_transition_time = 5.0  # Time to transition from left to right steering
+max_steering = 0.3  # Maximum steering angle
+
+print("Simulation running...")
+
+while vis.Run() and time < total_simulation_time:
+    # Calculate steering based on time (oscillating between left and right)
+    if time < steering_transition_time:
+        # Gradually turn left
+        steering_target = max_steering * (time / steering_transition_time)
+    elif time < 2 * steering_transition_time:
+        # Gradually turn right
+        steering_target = max_steering * (1 - (time - steering_transition_time) / steering_transition_time)
+    elif time < 3 * steering_transition_time:
+        # Return to straight
+        steering_target = 0
+    
+    # Set driver inputs
+    driver_inputs = veh.DriverInputs()
+    driver_inputs.m_steering = steering_target
+    driver_inputs.m_throttle = throttle_target
+    driver_inputs.m_braking = 0.0
+    
+    # Update the vehicle with driver inputs
+    viper.Synchronize(time, driver_inputs, terrain)
+    
+    # Advance simulation for one step
+    terrain.Synchronize(time)
+    system.DoStepDynamics(step_size)
+    
+    # Render scene
+    render_time += step_size
+    if render_time >= render_step_size:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_time = 0
+    
+    # Increment time
+    time += step_size
+
+print("Simulation completed.")

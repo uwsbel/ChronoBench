@@ -1,0 +1,144 @@
+
+
+```python
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def GetVal(self, x):
+        if x < self.T1:
+            return self.A1 * (x / self.T1)  # Linear ramp-up
+        elif self.T1 <= x < self.T2:
+            return self.A1  # Constant speed
+        elif self.T2 <= x < self.T3:
+            return self.A1 + self.A2 * m.sin(self.w * (x - self.T2))  # Sinusoidal variation
+        else:
+            return 0  # Stop after T3
+
+sys = chrono.ChSystemSMC()
+
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+mesh.SetAutomaticGravity(True, 2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+beam_L = 6
+beam_ro = 0.050
+beam_ri = 0.045
+CH_PI = m.pi  # Corrected pi value
+
+# Create beam section
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800)
+minertia.SetArea(CH_PI * (beam_ro**2 - beam_ri**2))
+minertia.SetIyy((CH_PI / 4.0) * (beam_ro**4 - beam_ri**4))
+minertia.SetIzz((CH_PI / 4.0) * (beam_ro**4 - beam_ri**4))
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((CH_PI / 4.0) * (beam_ro**4 - beam_ri**4))
+melasticity.SetIzz((CH_PI / 4.0) * (beam_ro**4 - beam_ri**4))
+melasticity.SetJ((CH_PI / 2.0) * (beam_ro**4 - beam_ri**4))
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)
+
+# Build beam with cubic IGA elements (order=3)
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh, msection, 20, chrono.ChVector3d(0, 0, 0), 
+                 chrono.ChVector3d(beam_L, 0, 0), chrono.VECT_Y, 3)
+
+# Get mid node
+node_mid_index = len(builder.GetLastBeamNodes()) // 2
+node_mid = builder.GetLastBeamNodes()[node_mid_index]
+
+# Create flywheel
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+                      chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Z))
+)
+sys.Add(mbodyflywheel)
+
+# Create joint between flywheel and beam
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+# Create truss and bearing
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes()[-1], truss,
+                  chrono.ChFramed(builder.GetLastBeamNodes()[-1].GetPos()))
+sys.Add(bearing)
+
+# Create motor with custom function
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+rotmotor1.Initialize(builder.GetLastBeamNodes()[0], truss,
+                    chrono.ChFramed(builder.GetLastBeamNodes()[0].GetPos(),
+                                   chrono.QuatFromAngleAxis(CH_PI / 2.0, chrono.VECT_Y)))
+f_ramp = ChFunctionMyFun(10, 20, 1, 3, 5, 0.5)  # Custom function parameters
+rotmotor1.SetMotorFunction(f_ramp)
+sys.Add(rotmotor1)
+
+# Visualization
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
+
+# Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Jeffcott rotor with IGA beams and custom motor')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1, 4), chrono.ChVector3d(beam_L / 2, 0, 0))
+vis.AddTypicalLights()
+
+# Solver setup
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Optional HHT timestepper for better accuracy
+timestepper = chrono.ChTimestepperHHT(sys)
+timestepper.SetAlpha(-0.1)  # 2nd order accuracy
+timestepper.SetMaxiters(100)
+timestepper.SetAbsTolerances(1e-5)
+sys.SetTimestepper(timestepper)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)
+```

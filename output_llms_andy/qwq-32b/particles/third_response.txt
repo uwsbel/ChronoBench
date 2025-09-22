@@ -1,0 +1,422 @@
+Okay, let's tackle this problem step by step. First, I need to understand what the user is asking for. They provided a PyChrono script that's supposed to simulate particles under gravity, but there are errors and they want modifications to create a three-body problem with two additional spheres.
+
+Starting with the original code, I'll look for potential issues. Let's go through the code line by line.
+
+First, the class MyCreatorForAll inherits from ChRandomShapeCreator_AddBodyCallback. The OnAddBody method is supposed to handle adding bodies from the emitter. Wait, the parameters here might be an issue. The base class's OnAddBody method probably expects certain parameters. Let me check the PyChrono documentation. Oh right, the base class's OnAddBody method has parameters like body, coords, and creator. The user's code has those, so that's okay. But maybe when they call BindItem, they need to make sure the collision system is properly initialized. Hmm, not sure yet.
+
+Next, creating the sphere: the code uses ChBodyEasySphere with radius 2.1, density 1800, and adds it to the system. The position is set to (1,1,0). That seems okay. But then there's a texture set on the visual shape. Wait, the line body.GetVisualShape(0).SetTexture... but maybe the visual shape hasn't been created yet? Because when using ChBodyEasySphere, the visual shape is automatically added, so that should be okay.
+
+Looking at the emitter setup. The emitter_positions uses a ChBox with 50,50,50 dimensions. The frame is ChFramed(), which is a typo? Wait, the correct class is ChFrame<double>, so maybe it should be chrono.ChFrameD() instead of ChFramed(). That's a possible error here. Oh yes, because in Chrono, the class names with 'd' usually refer to double precision, but the actual class name is ChFrame<double> which is called ChFrameD. So the line emitter_positions.SetGeometry(chrono.ChBox(50,50,50), chrono.ChFramed()) has a typo. It should be chrono.ChFrameD() instead of ChFramed(). That's an important fix.
+
+Moving on to the simulation loop. The code uses while vis.Run(): which is correct for Irrlicht. But in the loop, after rendering, they call emitter.EmitParticles(sys, stepsize). Then they loop through all bodies to empty accumulators. That's okay, but in the next part, they calculate gravitational forces between all pairs of bodies. Wait, the problem says to add two more spheres for a three-body problem, but the current code is handling all bodies, including the particles emitted by the emitter. That's a problem because the particles are part of the system's bodies, so when calculating the gravitational forces between all bodies, it would include the particles, which might not be intended. The user wants a three-body problem with the three spheres, so the particles from the emitter should be excluded. Hmm, but the instructions don't mention removing the emitter, so maybe the user wants to have the three spheres plus the particles, but the three-body problem is just the spheres. Alternatively, maybe the emitter is part of the simulation but the three spheres are the main bodies. Need to clarify, but according to the instructions, the user wants to add two more spheres to make three bodies, so the emitter might be part of the system but the three spheres are the main ones. However, in the current code, all bodies (including particles) are considered in the gravitational calculations. That might not be desired. However, the user's instructions don't mention removing the emitter, so perhaps the code is intended to have both, but the three-body problem is just the three spheres. Therefore, the current code's approach of calculating all pairs would include the particles, leading to incorrect forces. To fix this, the user's code should only consider the three spheres when calculating gravitational forces. But the problem statement doesn't mention this, so maybe it's an oversight. Alternatively, perhaps the emitter is supposed to be turned off? Not sure. Since the user's main instruction is to add two spheres, maybe the rest is okay, but the current code's approach might have unintended side effects. However, the user's instructions don't mention this, so perhaps proceed with the given code, but when adding the three spheres, ensure they are properly initialized.
+
+Now, the main task is to add two more spheres. Let's look at the existing code. The first sphere is created with:
+
+msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))
+msphereBody.SetPos(chrono.ChVector3d(1, 1, 0))  # Wait, maybe the initial velocity is missing?
+
+Wait, the user's instruction says to set initial velocities for the three spheres. The first sphere (Sphere1) should have velocity (0.5,0,0.1). The current code for the first sphere doesn't set the velocity. So that's an error. The existing sphere (Sphere1) is missing velocity setting. Also, the two new spheres need to be added with their positions and velocities.
+
+So first, modifying the existing sphere (Sphere1) to set its velocity. Then adding two more spheres.
+
+Looking at the existing code:
+
+After creating msphereBody, they set the position, but not velocity. The user's instruction requires setting velocities for all three spheres. So the existing sphere (Sphere1) must have its velocity set. The new spheres (Sphere2 and Sphere3) also need positions and velocities.
+
+So, let's proceed step by step.
+
+First, the existing sphere (Sphere1):
+
+msphereBody.SetPos(chrono.ChVectorD(1,1,0))  # Wait, in the original code, it's written as ChVector3d. Wait, the correct class is ChVector<double>, which is ChVectorD. The original code uses ChVector3d which is a typo. Because in Chrono, the vector classes are named ChVectorD (for double), not ChVector3d. So that's an error. The line should be:
+
+msphereBody.SetPos(chrono.ChVectorD(1,1,0))
+
+Similarly, when setting velocities, the velocity is stored as a ChVectorD. So for Sphere1's velocity:
+
+msphereBody.SetPos_dt(chrono.ChVectorD(0.5,0,0.1))
+
+Wait, the velocity is set via SetPos_dt? Or is it SetLinearVelocity? Wait, in Chrono, the velocity is accessed via GetPos_dt(), which is the time derivative of position, i.e., velocity. To set the velocity, you can use SetPos_dt. Alternatively, there's a method SetLinearVelocity, which is more straightforward. Let me check. The ChBody class has SetLinearVelocity which takes a ChVector<double>. So perhaps better to use that. So for Sphere1:
+
+msphereBody.SetLinearVelocity(chrono.ChVectorD(0.5, 0, 0.1))
+
+Same for the others.
+
+Now, the two new spheres:
+
+Sphere2: Position (-10,-10,0), velocity (-0.5,0,-0.1)
+
+Sphere3: Position (0,20,0), velocity (0,-0.5,0.2)
+
+So need to create those. Let's see:
+
+After creating the first sphere (Sphere1), add:
+
+# Create second sphere (Sphere2)
+sphere2_mat = chrono.ChContactMaterialNSC()
+sphere2_mat.SetFriction(0.2)  # same as first?
+msphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere2_mat)
+msphere2.SetPos(chrono.ChVectorD(-10, -10, 0))
+msphere2.SetLinearVelocity(chrono.ChVectorD(-0.5, 0, -0.1))
+sys.Add(msphere2)
+
+Similarly for Sphere3:
+
+msphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere2_mat)  # Wait, material can be same as first?
+Wait, the material for Sphere2 and Sphere3: the user's instruction doesn't specify different materials, so maybe they can reuse the same material. So perhaps use sphere_mat instead of creating new ones each time. So:
+
+sphere_mat = chrono.ChContactMaterialNSC()
+sphere_mat.SetFriction(0.2)
+msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+...
+msphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphere2.SetPos(...)
+msphere2.SetLinearVelocity(...)
+
+Same for Sphere3.
+
+Wait, but in the original code, the sphere_mat is already created for the first sphere. So reusing sphere_mat is okay.
+
+So adding those two spheres with their positions and velocities.
+
+Now, the next issue: in the collision system. The original code has coll = sys.GetCollisionSystem(). But when adding new bodies, they need to be bound to the collision system and visualization. The existing code uses the MyCreatorForAll class which binds items to vis and coll. However, the existing sphere (Sphere1) is added via sys.Add(msphereBody), but the visual and collision are handled via the MyCreatorForAll callback? Wait no. Wait, the MyCreatorForAll is registered with the emitter. The emitter's particles will use that callback. But the three spheres are added directly via sys.Add, so their visual and collision items are not bound to the visual system or collision system. That's a problem.
+
+Ah, right! The three spheres (Sphere1, Sphere2, Sphere3) are added via sys.Add, but their visual shapes and collision shapes are not bound to the visual system (vis) and collision system (coll). So in the original code, the first sphere's visual shape is set with SetTexture, but the BindItem is not called for it. The MyCreatorForAll is only used for particles emitted by the emitter. So the three spheres won't be visible because their visual items aren't bound to the visual system. That's a major error.
+
+So, to fix this, each of the three spheres must have their visual and collision items bound. So for each sphere, after creating and adding to the system, we need to call:
+
+vis.BindItem(body)
+coll.BindItem(body)
+
+Alternatively, since the MyCreatorForAll is a callback for the emitter, but the spheres are added directly, we need to manually bind them.
+
+So for Sphere1:
+
+msphereBody.GetVisualShape(0).SetTexture(...)  # existing line
+vis.BindItem(msphereBody)
+coll.BindItem(msphereBody)
+
+Wait, the original code for the first sphere has:
+
+msphereBody.GetVisualShape(0).SetTexture(...)
+But in the original code, the first sphere's texture is set, but then the vis and coll are not bound. So that's an error. The original code's first sphere is not bound to the visual and collision systems, so it won't be visible and won't collide. That's a big mistake.
+
+Therefore, the original code has an error in not binding the initial sphere. So the corrections needed are:
+
+After creating each sphere (Sphere1, Sphere2, Sphere3), after adding to the system, need to call vis.BindItem and coll.BindItem on each.
+
+So for Sphere1:
+
+msphereBody = chrono.ChBodyEasySphere(...)
+sys.Add(msphereBody)
+vis.BindItem(msphereBody)
+coll.BindItem(msphereBody)
+
+Same for Sphere2 and Sphere3.
+
+Now, moving to the simulation loop. The code calculates gravitational forces between all bodies using combinations(sys.GetBodies(),2). This includes the emitter's particles, which might not be intended. But according to the user's instructions, they want a three-body problem, so the three spheres should be the only ones considered. However, the code as given includes all bodies, including particles. To fix this, the user's code should only consider the three spheres. But since the user's instructions don't mention excluding particles, perhaps the problem is that the user wants the three spheres plus particles, but the three-body problem is just the spheres. Alternatively, maybe the emitter should be turned off. But the user's instructions don't mention that. Since the user's main instruction is to add the three spheres, perhaps the code is okay, but the gravitational calculation is including particles. However, that would complicate the simulation. Alternatively, maybe the user intended to have only the three spheres, so the emitter should be removed or disabled. But the instructions don't say that, so perhaps proceed as per the user's given code, but ensure that the three spheres are properly added.
+
+Another point: in the gravitational force calculation, the code uses:
+
+for abodyA, abodyB in combinations(sys.GetBodies(),2):
+    D_attract = abodyB.GetPos() - abodyA.GetPos()
+    r_attract = D_attract.Length()
+    potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+Then, the forces are calculated as F = G * m1*m2 / r² * direction.
+
+But in the force accumulation, the code does:
+
+abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
+Wait, the force on A is F_attract, and on B is -F_attract. That's correct by Newton's third law. But the position where the force is applied? Since gravitational force is central, it's applied at the center of mass, so the position should be the center of mass. The parameters to AccumulateForce are the force vector, the point where the force is applied (as a ChVector), and a flag indicating whether the point is in absolute coordinates or relative to the body's frame. Here, the code uses abodyA.GetPos(), which is the position of the body's center of mass. So that's correct, because the gravitational force is a central force applied at the center of mass. So that's okay.
+
+Another possible error is in the calculation of the gravitational constant. The code uses G_constant = 6.674e-3, which is much larger than the real gravitational constant (6.674e-11 m^3 kg^-1 s^-2), but perhaps it's a scaled value for simulation purposes. Since the user's instruction says to use this value, it's okay.
+
+Now, compiling all the corrections:
+
+First, fix the ChFramed() typo to ChFrameD() in the emitter_positions setup.
+
+Second, correct the ChVector3d to ChVectorD in the sphere positions and velocities.
+
+Third, ensure that all three spheres are added with their positions and velocities.
+
+Fourth, bind each sphere's visual and collision items to the visual and collision systems.
+
+Fifth, set the velocities for all three spheres.
+
+Now, let's go step by step.
+
+First, in the emitter_positions line:
+
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFramed())
+
+This should be chrono.ChFrameD() instead of ChFramed().
+
+Second, the initial sphere's position:
+
+msphereBody.SetPos(chrono.ChVector3d(1, 1, 0)) → should be ChVectorD.
+
+Same for velocities.
+
+Third, adding the two new spheres:
+
+After the first sphere's creation, add code for Sphere2 and Sphere3.
+
+Fourth, binding each sphere to vis and coll.
+
+Now, let's also check other possible errors.
+
+The solver settings: the system uses PSOR solver with max iterations 40. That's okay.
+
+The simulation loop: the step is done via sys.DoStepDynamics(stepsize). That's correct.
+
+The kinetic energy calculation uses body.GetPosDt().Length2(). But GetPosDt() is the velocity vector, so Length2() is the squared norm. So 0.5 * mass * velocity squared is correct.
+
+Potential energy is calculated as sum over pairs of -G*m1*m2 / r. That's correct for gravitational potential energy (negative because it's attractive).
+
+Now, putting all corrections together.
+
+First, fix the ChFramed() to ChFrameD():
+
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())
+
+Second, fix the vector types in the first sphere's position and velocity:
+
+msphereBody.SetPos(chrono.ChVectorD(1,1,0))
+msphereBody.SetLinearVelocity(chrono.ChVectorD(0.5, 0, 0.1))
+
+Third, adding Sphere2 and Sphere3:
+
+sphere2_mat = ... but actually reuse sphere_mat.
+
+Wait, in the original code, the first sphere uses sphere_mat. So for the others, we can reuse the same material.
+
+So:
+
+# Create second sphere (Sphere2)
+msphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphere2.SetPos(chrono.ChVectorD(-10, -10, 0))
+msphere2.SetLinearVelocity(chrono.ChVectorD(-0.5, 0, -0.1))
+sys.Add(msphere2)
+vis.BindItem(msphere2)
+coll.BindItem(msphere2)
+
+# Create third sphere (Sphere3)
+msphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphere3.SetPos(chrono.ChVectorD(0, 20, 0))
+msphere3.SetLinearVelocity(chrono.ChVectorD(0, -0.5, 0.2))
+sys.Add(msphere3)
+vis.BindItem(msphere3)
+coll.BindItem(msphere3)
+
+Also, the first sphere needs the vis and coll binding:
+
+After adding msphereBody:
+
+vis.BindItem(msphereBody)
+coll.BindItem(msphereBody)
+
+Wait, in the original code, after creating msphereBody:
+
+sys.Add(msphereBody)
+
+But no binding. So adding those lines after the Add.
+
+So the original code's sphere creation section becomes:
+
+sphere_mat = chrono.ChContactMaterialNSC()
+sphere_mat.SetFriction(0.2)
+msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))  # corrected from ChVector3d
+msphereBody.SetLinearVelocity(chrono.ChVectorD(0.5, 0, 0.1))  # added velocity
+msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody)
+vis.BindItem(msphereBody)  # added
+coll.BindItem(msphereBody)  # added
+
+Then adding Sphere2 and Sphere3 as above.
+
+Now, the other possible issues:
+
+In the MyCreatorForAll class, the BindItem is called on the body, but the body's visual shape is set. The GetVisualShape(0) may not exist if the body is created with no visual shape, but since they are created via ChBodyEasySphere, the visual shape is present. So that's okay.
+
+Another possible error: when using combinations(sys.GetBodies(),2), the same pair is considered once, but in the loop, the code applies the force twice (once for A and B, and once for B and A?), but combinations returns each pair once. So the code is correct because combinations gives each unordered pair once.
+
+Wait, combinations are unique pairs, so each pair is considered once. So the code is correct in that it adds the force between A and B once. The force on A is F, and on B is -F, which is correct.
+
+Now, compiling all these corrections into the code.
+
+Also, check for other typos:
+
+In the original code, the line:
+
+body.SetUseGyroTorque(False)
+
+That's okay, but perhaps not necessary.
+
+Another possible issue: the simulation loop's step size is 1e-2, which may be too large for gravitational simulations, but the user didn't mention that, so leave as is.
+
+Finally, the user's instructions require the three spheres, so the code must have all three added with their positions and velocities, and properly bound to visual and collision systems.
+
+So putting all together, the corrected and modified code would have:
+
+- Fixed the ChFramed() typo.
+- Corrected ChVector3d to ChVectorD.
+- Added Sphere2 and Sphere3 with their positions and velocities.
+- Bound each sphere to vis and coll.
+- Set velocities for all three spheres.
+
+Now, let's write the code accordingly.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+from itertools import combinations
+
+class MyCreatorForAll(chrono.ChRandomShapeCreator_AddBodyCallback):
+    def __init__(self, vis, coll):
+        super().__init__()
+        self.vis = vis
+        self.coll = coll
+
+    def OnAddBody(self, body, coords, creator):
+        body.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+        self.vis.BindItem(body)
+        self.coll.BindItem(body)
+        body.SetUseGyroTorque(False)
+
+# Create a Chrono physical system
+sys = chrono.ChSystemNSC()
+sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+coll = sys.GetCollisionSystem()
+
+# Create three spheres for the three-body problem
+sphere_mat = chrono.ChContactMaterialNSC()
+sphere_mat.SetFriction(0.2)
+
+# Sphere 1
+msphereBody = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphereBody.SetPos(chrono.ChVectorD(1, 1, 0))
+msphereBody.SetLinearVelocity(chrono.ChVectorD(0.5, 0, 0.1))
+msphereBody.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+sys.Add(msphereBody)
+vis.BindItem(msphereBody)
+coll.BindItem(msphereBody)
+
+# Sphere 2
+msphere2 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphere2.SetPos(chrono.ChVectorD(-10, -10, 0))
+msphere2.SetLinearVelocity(chrono.ChVectorD(-0.5, 0, -0.1))
+sys.Add(msphere2)
+vis.BindItem(msphere2)
+coll.BindItem(msphere2)
+
+# Sphere 3
+msphere3 = chrono.ChBodyEasySphere(2.1, 1800, True, True, sphere_mat)
+msphere3.SetPos(chrono.ChVectorD(0, 20, 0))
+msphere3.SetLinearVelocity(chrono.ChVectorD(0, -0.5, 0.2))
+sys.Add(msphere3)
+vis.BindItem(msphere3)
+coll.BindItem(msphere3)
+
+# Create an emitter (unchanged except for corrected ChFrameD)
+emitter = chrono.ChParticleEmitter()
+emitter.SetParticlesPerSecond(2000)
+emitter.SetUseParticleReservoir(True)
+emitter.SetParticleReservoirAmount(200)
+
+emitter_positions = chrono.ChRandomParticlePositionOnGeometry()
+emitter_positions.SetGeometry(chrono.ChBox(50, 50, 50), chrono.ChFrameD())  # Fixed ChFramed() typo
+emitter.SetParticlePositioner(emitter_positions)
+
+emitter_rotations = chrono.ChRandomParticleAlignmentUniform()
+emitter.SetParticleAligner(emitter_rotations)
+
+mvelo = chrono.ChRandomParticleVelocityAnyDirection()
+mvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.5))
+emitter.SetParticleVelocity(mvelo)
+
+mangvelo = chrono.ChRandomParticleVelocityAnyDirection()
+mangvelo.SetModulusDistribution(chrono.ChUniformDistribution(0.0, 0.2))
+emitter.SetParticleAngularVelocity(mangvelo)
+
+mcreator_spheres = chrono.ChRandomShapeCreatorSpheres()
+mcreator_spheres.SetDiameterDistribution(chrono.ChZhangDistribution(0.6, 0.23))
+mcreator_spheres.SetDensityDistribution(chrono.ChConstantDistribution(1600))
+emitter.SetParticleCreator(mcreator_spheres)
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Three-Body Particle Emitter Demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 14, -20))
+vis.AddTypicalLights()
+
+mcreation_callback = MyCreatorForAll(vis, coll)
+emitter.RegisterAddBodyCallback(mcreation_callback)
+
+sys.SetSolverType(chrono.ChSolver.Type_PSOR)
+sys.GetSolver().AsIterative().SetMaxIterations(40)
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, 0))
+
+# Simulation loop
+stepsize = 1e-2
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    emitter.EmitParticles(sys, stepsize)
+
+    for body in sys.GetBodies():
+        body.EmptyAccumulators()
+
+    G_constant = 6.674e-3  # Modified gravitational constant
+
+    # Calculate total kinetic energy
+    kinetic_energy = 0
+    for body in sys.GetBodies():
+        mass = body.GetMass()
+        velocity = body.GetPos_dt()
+        kinetic_energy += 0.5 * mass * velocity.Length2()
+
+    # Calculate total potential energy
+    potential_energy = 0
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 0:  # Avoid division by zero
+            potential_energy += -G_constant * (abodyA.GetMass() * abodyB.GetMass()) / r_attract
+
+    # Apply gravitational forces
+    for abodyA, abodyB in combinations(sys.GetBodies(), 2):
+        D_attract = abodyB.GetPos() - abodyA.GetPos()
+        r_attract = D_attract.Length()
+        if r_attract > 0:
+            f_attract = G_constant * (abodyA.GetMass() * abodyB.GetMass()) / (r_attract ** 2)
+            F_attract = (D_attract / r_attract) * f_attract
+            abodyA.AccumulateForce(F_attract, abodyA.GetPos(), False)
+            abodyB.AccumulateForce(-F_attract, abodyB.GetPos(), False)
+
+    total_energy = kinetic_energy + potential_energy
+    print(f"Kinetic Energy: {kinetic_energy:.6f}, Potential Energy: {potential_energy:.6f}, Total Energy: {total_energy:.6f}")
+
+    sys.DoStepDynamics(stepsize)
+```
+
+Key modifications and fixes:
+1. **Added Two More Spheres**: Created Sphere2 and Sphere3 with specified positions and velocities.
+2. **Fixed Vector Types**: Replaced `ChVector3d` with `ChVectorD` for positions and velocities.
+3. **Corrected Collision Frame**: Fixed `ChFramed()` to `ChFrameD()` in emitter setup.
+4. **Bound Spheres to Visual/Collision Systems**: Ensured all three spheres are bound to the visual and collision systems.
+5. **Velocity Initialization**: Added velocity settings for all three spheres.
+6. **Division by Zero Protection**: Added check to avoid division by zero in gravitational calculations.
+7. **Texture and Material Consistency**: Reused the same material for all spheres for simplicity.

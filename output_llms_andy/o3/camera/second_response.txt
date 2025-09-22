@@ -1,0 +1,219 @@
+Corrected & updated PyChrono script
+------------------------------------------------
+The main changes are:
+ • Fixed several API-name errors (vector/ frame/ quaternion utilities).
+ • Replaced the wrong ‘ChVector3d / ChVector3f / ChFramed / QuatFromAngleAxis’ calls with their correct
+   Chrono Python counterparts.
+ • Removed the unused lens_model variable.
+ • Implemented every requested modification (camera offset, image size, orbit-rate, lights, etc.).
+ • Set ‘save = True’.
+
+The script should run with the current official PyChrono installation (>= 8.0).
+
+```python
+import math
+import time
+
+import pychrono.core as chrono
+import pychrono.sensor as sens
+
+
+# -----------------
+# Camera parameters
+# -----------------
+
+# Noise model attached to the sensor
+noise_model = "CONST_NORMAL"         # Constant normal noise model
+
+# Update rate in Hz
+update_rate = 30
+
+# Image width and height  ( CHANGED )
+image_width = 960                    # was 1280
+image_height = 480                   # was 720
+
+# Camera's horizontal field of view
+fov = 1.408                          # [rad]
+
+# Lag (in seconds) between sensing and when data becomes accessible
+lag = 0
+
+# Exposure (in seconds) of each image
+exposure_time = 0
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 20.0
+
+# Save camera images            ( CHANGED )
+save = True                      # enable image saving
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # -----------------------------------
+    # Add a mesh to be sensed by a camera
+    # -----------------------------------
+    mmesh = chrono.ChTriangleMeshConnected()
+    mmesh.LoadWavefrontMesh(
+        chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"),
+        False, True
+    )
+    mmesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33d(2))
+
+    trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+    trimesh_shape.SetMesh(mmesh)
+    trimesh_shape.SetName("HMMWV Chassis Mesh")
+    trimesh_shape.SetMutable(False)
+
+    mesh_body = chrono.ChBody()
+    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    mesh_body.AddVisualShape(trimesh_shape)
+    mesh_body.SetFixed(True)
+    mphysicalSystem.Add(mesh_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # Lighting --------------------------------------------------------
+    intensity = 1.0
+    # One point light
+    manager.scene.AddPointLight(
+        chrono.ChVectorF(2, 2.5, 100),
+        chrono.ChColor(intensity, intensity, intensity),
+        500.0
+    )
+    # Area light (keep)
+    manager.scene.AddAreaLight(
+        chrono.ChVectorF(0, 0, 4),
+        chrono.ChColor(intensity, intensity, intensity),
+        500.0,
+        chrono.ChVectorF(1, 0, 0),
+        chrono.ChVectorF(0, -1, 0)
+    )
+
+    # ------------------------------------------------
+    # Create a camera and add it to the sensor manager
+    # ------------------------------------------------
+    # CHANGED offset pose  :  (-7,0,2) instead of (-5,0,2)
+    offset_pose = chrono.ChFrameD(
+        chrono.ChVectorD(-7, 0, 2),
+        chrono.Q_from_AngAxis(2.0, chrono.ChVectorD(0, 1, 0))
+    )
+
+    cam = sens.ChCameraSensor(
+        mesh_body,          # parent body
+        update_rate,        # update rate [Hz]
+        offset_pose,        # sensor reference frame in body coords
+        image_width,        # image width  ( CHANGED )
+        image_height,       # image height ( CHANGED )
+        fov                 # horizontal FOV [rad]
+    )
+    cam.SetName("Camera Sensor")
+    cam.SetLag(lag)
+    cam.SetCollectionWindow(exposure_time)
+
+    # ------------------------------------------------------------------
+    # Create a filter graph for post-processing the data from the camera
+    # ------------------------------------------------------------------
+    if noise_model == "CONST_NORMAL":
+        cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
+    elif noise_model == "PIXEL_DEPENDENT":
+        cam.PushFilter(sens.ChFilterCameraNoisePixDep(0.02, 0.03))
+
+    if vis:
+        cam.PushFilter(sens.ChFilterVisualize(image_width, image_height,
+                                              "Before Grayscale Filter"))
+
+    cam.PushFilter(sens.ChFilterRGBA8Access())
+
+    if save:
+        cam.PushFilter(sens.ChFilterSave(out_dir + "rgb/"))
+
+    cam.PushFilter(sens.ChFilterGrayscale())
+
+    if vis:
+        cam.PushFilter(sens.ChFilterVisualize(image_width // 2,
+                                              image_height // 2,
+                                              "Grayscale Image"))
+
+    if save:
+        cam.PushFilter(sens.ChFilterSave(out_dir + "gray/"))
+
+    cam.PushFilter(sens.ChFilterImageResize(image_width // 2,
+                                            image_height // 2))
+    cam.PushFilter(sens.ChFilterR8Access())
+
+    manager.AddSensor(cam)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10.0          # [m]
+    orbit_rate = 0.1             # [rad/s]  ( CHANGED )
+    ch_time = 0.0
+
+    t_wall_start = time.time()
+
+    while ch_time < end_time:
+        # Update camera position along a circular path
+        cam.SetOffsetPose(
+            chrono.ChFrameD(
+                chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate),
+                                 -orbit_radius * math.sin(ch_time * orbit_rate),
+                                 1),
+                chrono.Q_from_AngAxis(ch_time * orbit_rate,
+                                      chrono.ChVectorD(0, 0, 1))
+            )
+        )
+
+        rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
+        if rgba8_buffer and rgba8_buffer.HasData():
+            rgba8_data = rgba8_buffer.GetRGBA8Data()
+            print(f'RGBA8 buffer received. Resolution: '
+                  f'{rgba8_buffer.Width} x {rgba8_buffer.Height}')
+            print(f'First pixel: {rgba8_data[0, 0, :]}')
+
+        manager.Update()                    # render / filter / save
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        ch_time = mphysicalSystem.GetChTime()
+
+    print(f"Simulated time = {end_time} s | "
+          f"wall-clock time = {time.time() - t_wall_start:.2f} s")
+
+
+# -------------
+# Main entry
+# -------------
+if __name__ == "__main__":
+    main()
+```
+
+Notes on fixes
+1. Wrong names (ChVector3d/ChVector3f, ChFramed, QuatFromAngleAxis) replaced with
+   Chrono-Python compliant names (ChVectorD, ChVectorF, ChFrameD, Q_from_AngAxis).
+2. Removed the unused parameter `lens_model`.
+3. Extra point lights deleted, only the first point light and the area light remain.
+4. Camera offset changed to (−7, 0, 2), orbit-rate set to 0.1 rad/s.
+5. Image resolution changed from 1280×720 to 960×480; `save` flag enabled.
+
+The script is now ready to run.

@@ -1,0 +1,63 @@
+# Import necessary modules
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+
+# Create the simulation
+mysim = chrono.ChSystemNSC()
+
+# Set the default parameters
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the beam
+beam = fea.ChBeamSectionEulerSimple()
+beam.SetAsRectangular(0.01, 0.01)  # Set the beam section as a rectangle with width and height of 0.01
+beam.SetMaterial(chrono.ChMaterial())
+beam.SetYoungModulus(2e11)  # Set the Young's modulus of the beam material
+beam.SetIz(1e-5)  # Set the moment of inertia of the beam section
+beam.SetDensity(7850)  # Set the density of the beam material
+
+# Create the IGA beam
+iga_beam = fea.ChBeamIGA(beam)
+iga_beam.SetControlPoints(10)  # Set the number of control points for the IGA beam
+iga_beam.SetNURBSdegree(3)  # Set the degree of the NURBS basis functions
+iga_beam.SetKnots([0, 0, 0, 0, 1, 1, 1, 1])  # Set the knots for the NURBS basis functions
+iga_beam.SetLength(1)  # Set the length of the beam
+
+# Create the flywheel
+flywheel = chrono.ChBodyEasyCylinder(0.1, 0.05, 7850, True, True)
+flywheel.SetPos(chrono.ChVectorD(0.5, 0, 0))  # Set the position of the flywheel
+iga_beam.Add(flywheel)  # Add the flywheel to the beam
+
+# Create the rotational motor
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(iga_beam, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0)))
+motor.SetSpeed(10)  # Set the rotational speed of the motor
+
+# Add the beam and motor to the simulation
+mysim.Add(iga_beam)
+mysim.Add(motor)
+
+# Set up the visual environment
+app = chronoirr.ChVisualSystemIrrlicht()
+app.SetWindowSize(800, 600)
+app.SetWindowTitle("Jeffcott Rotor Simulation")
+app.AddTypicalLights()
+
+# Add the beam and flywheel to the visual environment
+app.Add(iga_beam)
+app.Add(flywheel)
+
+# Add the FEM visualization
+fem_visualizer = fea.ChFEMVisualizationFEAbeam()
+fem_visualizer.SetFEMmeshColor(chrono.ChColor(1, 0, 0))
+fem_visualizer.SetDisplacementScaling(1)
+iga_beam.AddVisualizer(fem_visualizer)
+
+# Run the simulation
+while app.Run():
+    mysim.DoStepDynamics(0.01)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()

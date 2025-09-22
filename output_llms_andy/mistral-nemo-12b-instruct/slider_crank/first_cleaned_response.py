@@ -1,0 +1,78 @@
+import pychrono as chrono
+import pyirrlicht as irl
+
+
+simulation = chrono.ChSimulation()
+simulation.SetChronoDataPath("path/to/chrono_data")
+
+
+floor = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, False, True)
+floor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+floor.SetName("floor")
+simulation.Add(floor)
+
+crankshaft = chrono.ChBodyEasyBox(0.5, 0.5, 1, 10, False, True)
+crankshaft.SetPos(chrono.ChVectorD(0, 0.25, 0))
+crankshaft.SetName("crankshaft")
+simulation.Add(crankshaft)
+
+connecting_rod = chrono.ChBodyEasyBox(0.5, 0.5, 1, 10, False, True)
+connecting_rod.SetPos(chrono.ChVectorD(0, 0.75, 0))
+connecting_rod.SetName("connecting_rod")
+simulation.Add(connecting_rod)
+
+piston = chrono.ChBodyEasyBox(0.5, 1, 0.5, 10, False, True)
+piston.SetPos(chrono.ChVectorD(0, 1.5, 0))
+piston.SetName("piston")
+simulation.Add(piston)
+
+
+crankshaft_joint = chrono.ChLinkRevolute()
+crankshaft_joint.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(crankshaft_joint)
+
+rod_joint = chrono.ChLinkRevolute()
+rod_joint.Initialize(crankshaft, connecting_rod, chrono.ChVectorD(0, 0.5, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(rod_joint)
+
+piston_joint = chrono.ChLinkRevolute()
+piston_joint.Initialize(connecting_rod, piston, chrono.ChVectorD(0, 1, 0), chrono.ChVectorD(0, 1, 0))
+simulation.Add(piston_joint)
+
+
+motor = chrono.ChLinkMotor()
+motor.Initialize(floor, crankshaft, chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+motor.SetAxes(chrono.ChVectorD(0, 1, 0))
+motor.SetTargetSpeed(chrono.ChVectorD(5))
+simulation.Add(motor)
+
+
+simulation.SetTimestep(0.01)
+
+
+irrlicht = irl.CIrrlicht()
+irrlicht.SetWindowSize(800, 600)
+irrlicht.SetWindowTitle("Crank-Slider Mechanism")
+irrlicht.AddEventListener("ESC", "quit")
+
+camera = irrlicht.GetCamera()
+camera.SetPosition(chrono.ChVectorD(3, 3, -5))
+camera.SetTarget(chrono.ChVectorD(0, 0, 0))
+
+light = irrlicht.GetLightManager().AddLight()
+light.SetType(irl.ELT_DIRECTIONAL)
+light.SetPosition(chrono.ChVectorD(5, 5, 5))
+light.SetColor(irl.SColorf(1, 1, 1, 1))
+
+
+floor_tex = irrlicht.GetVideoDriver().getTexture("path/to/floor_texture.png")
+floor_mat = irrlicht.GetSceneManager().getMaterial("floor_mat")
+floor_mat.SetTexture(0, floor_tex)
+floor_mat.SetDiffuseColor(irl.SColor(255, 255, 255, 255))
+floor.AddMaterial(floor_mat)
+
+
+while not irrlicht.IsQuit():
+    simulation.DoStep()
+    irrlicht.DrawAll()
+    irrlicht.ToggleFullscreen()

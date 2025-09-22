@@ -1,0 +1,81 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import random
+
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+
+# Create the physical system
+my_system = chrono.ChSystemNSC()
+
+# Set gravitational acceleration
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("Particle Gravity Simulation")
+vis.Initialize()
+vis.AddTypicalSky()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+
+# Create a particle emitter
+emitter = chrono.ChParticleEmitter()
+emitter.SetPos(chrono.ChVectorD(0, 10, 0))
+emitter.SetFlowRate(10)  # Particles per second
+
+# Set particle properties
+emitter.SetParticleMass(0.1)
+emitter.SetParticleRadius(0.2)
+
+# Randomize particle shapes
+shapes = [chrono.ChSphereShape, chrono.ChCapsuleShape, chrono.ChBoxShape]
+
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+
+while vis.Run():
+    # Generate new particles
+    for _ in range(emitter.GetFlowRate()):
+        # Randomize position, velocity, and orientation
+        pos = chrono.ChVectorD(random.uniform(-5, 5), random.uniform(5, 15), random.uniform(-5, 5))
+        vel = chrono.ChVectorD(random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(-1, 1))
+        rot = chrono.ChQuaternionD(random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)).Normalize()
+
+        # Create a particle with random shape
+        particle = chrono.ChBody()
+        particle.SetPos(pos)
+        particle.SetBodyFixed(False)
+        particle.SetMass(emitter.GetParticleMass())
+        particle.SetCollide(True)
+        particle.AddAsset(shapes[random.randint(0, len(shapes) - 1)]())
+        particle.SetRot(rot)
+        particle.SetLinVelocity(vel)
+
+        # Add particle to the system
+        my_system.AddBody(particle)
+
+    # Apply gravitational force between particles
+    for i in range(my_system.Get_bodylist().size()):
+        for j in range(i + 1, my_system.Get_bodylist().size()):
+            body1 = my_system.Get_bodylist()[i]
+            body2 = my_system.Get_bodylist()[j]
+            
+            # Calculate distance vector
+            r = body2.GetPos() - body1.GetPos()
+            
+            # Calculate gravitational force
+            force = (6.67430e-11 * body1.GetMass() * body2.GetMass() / r.Length2()) * r.GetNormalized()
+            
+            # Apply force to both bodies
+            body1.AddForce(force)
+            body2.AddForce(-force)
+
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
+    vis.Render()

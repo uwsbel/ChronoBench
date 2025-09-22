@@ -1,0 +1,173 @@
+import pychrono as ch
+import pychrono.sensor as sens
+import pychrono.ros as chros
+
+def main():
+    # 1) create the Chrono simulation system
+    sys = ch.ChSystemNSC()
+
+    # 2) load a triangle mesh and create a visual shape
+    mmesh = ch.ChTriangleMeshConnected()
+    mmesh.LoadWavefrontMesh(
+        ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"),
+        False, True
+    )
+    mmesh.Transform(ch.ChVector3d(0, 0, 0), ch.ChMatrix33d(1))
+
+    trimesh_shape = ch.ChVisualShapeTriangleMesh()
+    trimesh_shape.SetMesh(mmesh)
+    trimesh_shape.SetName("HMMWV Chassis Mesh")
+    trimesh_shape.SetMutable(False)
+
+    mesh_body = ch.ChBody()
+    mesh_body.SetPos(ch.ChVector3d(0, 0, 0))
+    mesh_body.AddVisualShape(trimesh_shape)
+    mesh_body.SetFixed(False)
+    mesh_body.SetMass(0)  # static
+    sys.Add(mesh_body)    # <-- ADDED
+
+    # 3) create a “ground” body which we will actually spin to carry the sensors
+    ground_body = ch.ChBodyEasyBox(1, 1, 1, 1000, False, False)
+    ground_body.SetPos(ch.ChVector3d(0, 0, 0))
+    ground_body.SetFixed(False)
+    ground_body.SetMass(0)  # effectively static but we will give it an ang vel
+    sys.Add(ground_body)
+
+    # 4) sensor manager & scene lights
+    sens_manager = sens.ChSensorManager(sys)
+    intensity = 1.0
+    lights = [
+        ch.ChVector3f(2, 2.5, 100),
+        ch.ChVector3f(9, 2.5, 100),
+        ch.ChVector3f(16, 2.5, 100),
+        ch.ChVector3f(23, 2.5, 100),
+    ]
+    for pt in lights:
+        sens_manager.scene.AddPointLight(
+            pt, ch.ChColor(intensity, intensity, intensity), 500.0
+        )
+
+    # 5) define a common offset pose for most sensors
+    quat = ch.Q_from_AngAxis(0.2, ch.ChVector3d(0, 1, 0))
+    offset_pose = ch.ChFrameD(ch.ChVector3d(-8, 0, 2), quat)
+
+    # 6) camera
+    cam = sens.ChCameraSensor(
+        ground_body, 30, offset_pose, 1280, 720, 1.408
+    )
+    cam.PushFilter(sens.ChFilterVisualize(1280, 720))
+    cam.PushFilter(sens.ChFilterRGBA8Access())
+    cam.SetName("camera")
+    sens_manager.AddSensor(cam)
+
+    # 7) 3D lidar
+    lidar = sens.ChLidarSensor(
+        ground_body, 5.0, offset_pose,
+        90, 300,
+        2 * ch.CH_C_PI, ch.CH_C_PI / 12, -ch.CH_C_PI / 6,
+        100.0, 0.0
+    )
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    lidar.PushFilter(
+        sens.ChFilterVisualizePointCloud(1280, 720, 1, "Lidar PC data")
+    )
+    lidar.SetName("lidar")
+    sens_manager.AddSensor(lidar)
+
+    # 8) 2D lidar — add the same three “data‐access” filters + visualize
+    offset_pose_2dlidar = ch.ChFrameD(ch.ChVector3d(-8, 0, 0), quat)
+    lidar2d = sens.ChLidarSensor(
+        ground_body, 5.0, offset_pose_2dlidar,
+        480, 1,
+        2 * ch.CH_C_PI, ch.CH_C_PI / 12, -ch.CH_C_PI / 6,
+        100.0
+    )
+    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
+    lidar2d.PushFilter(
+        sens.ChFilterVisualizePointCloud(1280, 720, 1, "2D Lidar Scan Data")
+    )
+    lidar2d.SetName("lidar2d")
+    sens_manager.AddSensor(lidar2d)
+
+    # 9) GPS, accelerometer, gyro, magnetometer
+    noise_none = sens.ChNoiseNone()
+    gps_ref = ch.ChVector3d(-89.4, 433.07, 260.0)
+
+    gps = sens.ChGPSSensor(ground_body, 10, offset_pose, gps_ref, noise_none)
+    gps.PushFilter(sens.ChFilterGPSAccess())
+    gps.SetName("gps")
+    sens_manager.AddSensor(gps)
+
+    acc = sens.ChAccelerometerSensor(ground_body, 100, offset_pose, noise_none)
+    acc.PushFilter(sens.ChFilterAccelAccess())
+    acc.SetName("accelerometer")
+    sens_manager.AddSensor(acc)
+
+    gyro = sens.ChGyroscopeSensor(ground_body, 100, offset_pose, noise_none)
+    gyro.PushFilter(sens.ChFilterGyroAccess())
+    gyro.SetName("gyroscope")
+    sens_manager.AddSensor(gyro)
+
+    mag = sens.ChMagnetometerSensor(ground_body, 100, offset_pose, noise_none, gps_ref)
+    mag.PushFilter(sens.ChFilterMagnetAccess())
+    mag.SetName("magnetometer")
+    sens_manager.AddSensor(mag)
+
+    # 10) initialize sensor manager
+    sens_manager.Update()
+
+    # 11) ROS manager & handlers
+    ros_manager = chros.ChROSPythonManager()
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+    ros_manager.RegisterHandler(
+        chros.ChROSCameraHandler(cam.GetUpdateRate() / 4, cam, "~/output/camera/data/image")
+    )
+    ros_manager.RegisterHandler(
+        chros.ChROSLidarHandler(lidar, "~/output/lidar/data/pointcloud")
+    )
+    ros_manager.RegisterHandler(
+        chros.ChROSLidarHandler(
+            lidar2d,
+            "~/output/lidar2d/data/scan",
+            chros.ChROSLidarHandlerMessageType_LASER_SCAN
+        )
+    )
+    ros_manager.RegisterHandler(chros.ChROSGPSHandler(gps, "~/output/gps/data"))
+
+    acc_h = chros.ChROSAccelerometerHandler(acc, "~/output/accelerometer/data")
+    gyro_h = chros.ChROSGyroscopeHandler(gyro, "~/output/gyroscope/data")
+    mag_h = chros.ChROSMagnetometerHandler(mag, "~/output/magnetometer/data")
+    ros_manager.RegisterHandler(acc_h)
+    ros_manager.RegisterHandler(gyro_h)
+    ros_manager.RegisterHandler(mag_h)
+
+    imu_h = chros.ChROSIMUHandler(100, "~/output/imu/data")
+    imu_h.SetAccelerometerHandler(acc_h)
+    imu_h.SetGyroscopeHandler(gyro_h)
+    imu_h.SetMagnetometerHandler(mag_h)
+    ros_manager.RegisterHandler(imu_h)
+
+    ros_manager.Initialize()
+
+    # 12) spin the “ground” so we see data moving
+    ground_body.SetAngVelParent(ch.ChVector3d(0, 0, 0.1))
+
+    # 13) simulation loop
+    time_step = 1e-3
+    time_end = 100.0
+    while sys.GetChTime() < time_end:
+        # update all sensors
+        sens_manager.Update()
+        # publish to ROS, break out on failure
+        if not ros_manager.Update():
+            print("ROS manager update failed — exiting loop")
+            break
+        # advance physics
+        sys.DoStepDynamics(time_step)
+
+if __name__ == "__main__":
+    main()

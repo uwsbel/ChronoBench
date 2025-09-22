@@ -1,0 +1,119 @@
+# Import necessary PyChrono and ROS2 Python packages
+import pychrono as chrono
+import rclpy
+from rclpy.node import Node
+from chrono_ros_msgs.srv import SetParameters
+from chrono_ros_msgs.msg import SimulationParameters
+from chrono_ros_msgs.srv import GetParameters
+from chrono_ros_msgs.msg import SimulationStatus
+from chrono_ros_msgs.msg import SensorData
+from chrono_ros_msgs.msg import SensorStatus
+
+# Initialize ROS2 node
+rclpy.init(args=['--ros-args', '--log-level=info'])
+node = Node('pychrono_simulation_node')
+
+# Initialize PyChrono environment
+sim = chrono.ChSystemNSC()
+
+# Set up the ground body
+ground_body = chrono.createBody(
+    name='ground_body',
+    mass=1e4,
+    rest_position=chrono.ChVectorD(0, 0, 0),
+    rest_velocity=chrono.ChVectorD(0, 0, 0),
+    density=1000,
+    friction_coefficient=0.3,
+    rest_rotation=chrono.ChQuaternionD(0, 0, 0, 1)
+)
+sim.Add(ground_body)
+
+# Add a mesh object for visualization
+ground_mesh = chrono.Mesh('ground_mesh.obj')
+sim.Add(ground_mesh)
+
+# Configure the ground body to move
+ground_body.AddApplyBodyForce(
+    chrono.ChVectorD(0, 0, -9.81 * 10),  # Gravity force
+    chrono.ChFrameX(chrono.ChVectorD(0, 0, 10),
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0, 0, -1),
+    chrono.ChForceGroup.kAir
+)
+
+# Initialize sensor manager and ROS2 publishers
+sensor_manager = chrono.SensorManager()
+
+# Define sensor topics
+camera_topic = 'camera_sensor/image'
+lidar_topic = 'lidar_sensor/data'
+gps_topic = 'gps_sensor/data'
+accelerometer_topic = 'accelerometer_sensor/data'
+gyroscope_topic = 'gyroscope_sensor/data'
+magnetometer_topic = 'magnetometer_sensor/data'
+
+# Register sensors with ROS2 publishers
+camera_publisher = node.create_publisher(chrono_ros_msgs.msg.SensorData, camera_topic, 10)
+lidar_publisher = node.create_publisher(chrono_ros_msgs.msg.SensorData, lidar_topic, 10)
+accelerometer_publisher = node.create_publisher(chrono_ros_msgs.msg.SensorData, accelerometer_topic, 10)
+gyroscope_publisher = node.create_publisher(chrono_ros_msgs.msg.SensorData, gyroscope_topic, 10)
+magnetometer_publisher = node.create_publisher(chrono_ros_msgs.msg.SensorData, magnetometer_topic, 10)
+
+# Function to update sensors and publish data
+def update_sensors_and_publish(sim):
+    # Update sensor data here (dummy data for illustration)
+    camera_data = chrono_ros_msgs.msg.SensorData(image_data="...")
+    lidar_data = chrono_ros_msgs.msg.SensorData(data_points=[...])
+    accelerometer_data = chrono_ros_msgs.msg.SensorData(acceleration=chrono.ChVectorD(0, 0, -9.81))
+    gyroscope_data = chrono_ros_msgs.msg.SensorData(angular_velocity=chrono.ChVectorD(0, 0, 0))
+    magnetometer_data = chrono_ros_msgs.msg.SensorData(magnetic_field=chrono.ChVectorD(0, 0, 0))
+
+    # Publish sensor data
+    camera_publisher.publish(camera_data)
+    lidar_publisher.publish(lidar_data)
+    accelerometer_publisher.publish(accelerometer_data)
+    gyroscope_publisher.publish(gyroscope_data)
+    magnetometer_publisher.publish(magnetometer_data)
+
+# Main simulation loop
+def simulation_loop(sim):
+    while rclpy.ok():
+        # Update simulation parameters
+        sim.SetParam('time_step', 1e-3)
+        sim.Step(1e-3, 1e-3)
+
+        # Update and publish sensor data
+        update_sensors_and_publish(sim)
+
+        # Print simulation status
+        status = sim.GetStatus()
+        print(f"Simulation status: {status}")
+
+        # Sleep for a short time to maintain real-time execution
+        rclpy.sleep(1e-3)
+
+# ROS2 service to set simulation parameters
+srv_set_params = node.service_create(SetParameters, 'set_parameters')
+def set_parameters_callback(request, response):
+    sim.SetParam('time_step', request.time_step)
+    return response
+
+# ROS2 service to get simulation parameters
+srv_get_params = node.service_create(GetParameters, 'get_parameters')
+def get_parameters_callback(request, response):
+    response.simulation_parameters = sim.GetParameters()
+    return response
+
+# Main function
+def main():
+    try:
+        # Initialize simulation
+        simulation_loop(sim)
+    except Exception as e:
+        node.get_logger().error(f"Simulation error: {str(e)}
+    finally:
+        node.destroy_node()
+
+if __name__ == '__main__':
+    main()

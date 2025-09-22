@@ -1,0 +1,92 @@
+# Import necessary PyChrono and Chrono modules
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize PyChrono environment
+chrono.SetChTimeStep(1.0 / 60.0)  # Set time step to 1/60 seconds
+
+# Create a new Chrono system
+chrono_sys = chrono.ChSystemNSC()
+
+# Add ground body
+ground = chrono.ChBodyEasyBox(10, 10, 10, 1000)
+ground.SetPos(chrono.ChVectorD(0, 0, -5))
+ground.SetBodyFixed(True)
+chrono_sys.AddBody(ground)
+
+# Add visualization mesh for ground body
+mesh = chrono.ChTriangleMeshConnected()
+mesh.ReadFile("ground_mesh.obj")
+ground.SetVisualShape(chrono.ChVisualShape(chrono.ChTriangleMeshAsset(mesh)))
+
+# Create sensor manager
+sensor_manager = chrono.ChSensorManager(chrono_sys)
+
+# Create ROS manager for sensor data publishing
+ros_manager = chrono.ChRosManager()
+
+# Add camera sensor to the ground body
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+camera_sensor.SetFocalPoint(chrono.ChVectorD(0, 0, 0))
+camera_sensor.SetFOV(45)
+sensor_manager.AddSensor(camera_sensor)
+
+# Add lidar sensor to the ground body
+lidar_sensor = chrono.ChLidarSensor()
+lidar_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+lidar_sensor.SetFOV(45)
+sensor_manager.AddSensor(lidar_sensor)
+
+# Add GPS sensor to the ground body
+gps_sensor = chrono.ChGpsSensor()
+gps_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+sensor_manager.AddSensor(gps_sensor)
+
+# Add accelerometer sensor to the ground body
+accelerometer_sensor = chrono.ChAccelerometerSensor()
+accelerometer_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+sensor_manager.AddSensor(accelerometer_sensor)
+
+# Add gyroscope sensor to the ground body
+gyroscope_sensor = chrono.ChGyroscopeSensor()
+gyroscope_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+sensor_manager.AddSensor(gyroscope_sensor)
+
+# Add magnetometer sensor to the ground body
+magnetometer_sensor = chrono.ChMagnetometerSensor()
+magnetometer_sensor.SetPosition(chrono.ChVectorD(0, 0, 5))
+sensor_manager.AddSensor(magnetometer_sensor)
+
+# Register sensors with the ROS manager
+ros_manager.RegisterSensor(camera_sensor, "camera_data")
+ros_manager.RegisterSensor(lidar_sensor, "lidar_data")
+ros_manager.RegisterSensor(gps_sensor, "gps_data")
+ros_manager.RegisterSensor(accelerometer_sensor, "accelerometer_data")
+ros_manager.RegisterSensor(gyroscope_sensor, "gyroscope_data")
+ros_manager.RegisterSensor(magnetometer_sensor, "magnetometer_data")
+
+# Create an Irrlicht visualization
+irr_app = chronoirr.ChIrrApp(chrono_sys, "PyChrono Sensor Simulation", chronoirr.dimension2du(1024, 768))
+irr_app.AddTypicalSky()
+irr_app.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+irr_app.AddTypicalCamera(chrono.ChVectorD(0, 0, 10))
+irr_app.AssetFlags = chronoirr irr_driver.AssetFlagsBitfield().GRID_AND_WIREFRAME
+irr_app.AssetFlags |= chronoirr irr_driver.AssetFlagsBitfield().SHADOWS
+
+# Main simulation loop
+while irr_app.GetDevice().run():
+    # Update sensors
+    sensor_manager.UpdateSensors()
+    # Advance simulation
+    chrono_sys.DoStepDynamics(chrono.GetChTime())
+    # Publish sensor data
+    ros_manager.PublishSensors()
+    # Update visualization
+    irr_app.BeginScene(True, True, chrono.GetColor(0.8, 0.8, 0.8))
+    irr_app.DrawAll()
+    irr_app.EndScene()
+
+# Clean up
+chrono_sys.Clear()
+irr_app.GetDevice().closeDevice()

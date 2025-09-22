@@ -1,0 +1,128 @@
+import pychrono as pychrono
+import numpy as np
+import math
+
+# Initialize PyChrono simulation
+sim = pychrono.Simulation()
+sim.set_time_step(1e-4)  # Set simulation time step to 1e-4 seconds for real-time execution
+
+# Initialize vehicle
+vehicle_body = pychrono.RigidBody()
+vehicle_body.set_mass(3000)  # Mass of M113
+vehicle_body.set_size([4, 4, 4])  # 4x4 vehicle size
+vehicle_body.set_inertia(1000, [0, 0, 0])  # Inertia for the vehicle body
+vehicle_body.set_friction(1000)  # Friction coefficient
+vehicle_body.set_restitution(0.3)  # Restitution coefficient
+
+# Vehicle chassis setup
+chassis = pychrono.RigidBody()
+chassis.set_mass(200)  # Mass of the chassis
+chassis.set_size([2, 1.5, 0.5])  # Chassis dimensions
+chassis.set_inertia(100, [0, 0, 0])  # Inertia for the chassis
+chassis.set_friction(1000)  # Friction coefficient
+chassis.set_restitution(0.3)  # Restitution coefficient
+
+# Vehicle suspension
+suspension = pychrono.RigidBody()
+suspension.set_mass(100)  # Mass of the suspension
+suspension.set_size([0.5, 0.5, 0.1])  # Suspension dimensions
+suspension.set_inertia(10, [0, 0, 0])  # Inertia for the suspension
+suspension.set_friction(1000)  # Friction coefficient
+suspension.set_restitution(0.3)  # Restitution coefficient
+
+# Vehicle wheels
+wheel1 = pychrono.RigidBody()
+wheel1.set_mass(50)  # Mass of each wheel
+wheel1.set_size([0.3, 0.3, 0.1])  # Wheel dimensions
+wheel1.set_inertia(10, [0, 0, 0])  # Inertia for the wheel
+wheel1.set_friction(1000)  # Friction coefficient
+wheel1.set_restitution(0.3)  # Restitution coefficient
+
+wheel2 = pychrono.RigidBody()
+wheel2.set_mass(50)  # Mass of each wheel
+wheel2.set_size([0.3, 0.3, 0.1])  # Wheel dimensions
+wheel2.set_inertia(10, [0, 0, 0])  # Inertia for the wheel
+wheel2.set_friction(1000)  # Friction coefficient
+wheel2.set_restitution(0.3)  # Restitution coefficient
+
+wheel3 = pychrono.RigidBody()
+wheel3.set_mass(50)  # Mass of each wheel
+wheel3.set_size([0.3, 0.3, 0.1])  # Wheel dimensions
+wheel3.set_inertia(10, [0, 0, 0])  # Inertia for the wheel
+wheel3.set_friction(1000)  # Friction coefficient
+wheel3.set_restitution(0.3)  # Restitution coefficient
+
+wheel4 = pychrono.RigidBody()
+wheel4.set_mass(50)  # Mass of each wheel
+wheel4.set_size([0.3, 0.3, 0.1])  # Wheel dimensions
+wheel4.set_inertia(10, [0, 0, 0])  # Inertia for the wheel
+wheel4.set_friction(1000)  # Friction coefficient
+wheel4.set_restitution(0.3)  # Restitution coefficient
+
+# Chassis to vehicle body connection
+chassis.attach_to(vehicle_body, pychrono.Vector3(0, 0, 0))
+suspension.attach_to(chassis, pychrono.Vector3(0, 0, 0))
+wheel1.attach_to(suspension, pychrono.Vector3(0, 0, 0))
+wheel2.attach_to(suspension, pychrono.Vector3(0, 0, 0))
+wheel3.attach_to(suspension, pychrono.Vector3(0, 0, 0))
+wheel4.attach_to(suspension, pychrono.Vector3(0, 0, 0))
+
+# Initialize terrain
+terrain = pychrono.Plane()
+terrain.set_friction(0.2)  # Friction coefficient
+terrain.set_restitution(0.3)  # Restitution coefficient
+terrain.set_size([100, 100, 0.1])  # Terrain size
+terrain.set_position(pychrono.Vector3(0, 0, 0))  # Position of the terrain
+
+# Initialize driver
+driver = pychrono.Driver()
+driver.set_pid([0.1, 0.1, 0.1, 0.1, 0.1])  # PID gains for acceleration
+driver.set_max_force(1000)  # Maximum force for the driver
+driver.set_max_velocity(10)  # Maximum velocity for the driver
+driver.set_initial_position(pychrono.Vector3(0, 1, 0))  # Driver initial position
+
+# Initialize visualization
+renderer = pychrono.IrrlichtRenderer()
+renderer.set_camera_distance(5)  # Distance of the camera
+renderer.set_fov(60)  # Field of view
+renderer.set_light(0, 1, 0, 0.5, 0.5, 0.5)  # Ambient light
+renderer.set_light(1, -1, 0, 0.5, 0.5, 0.5)  # Directional light
+
+# Initialize simulation
+sim.add_object(vehicle_body)
+sim.add_object(chassis)
+sim.add_object(suspension)
+sim.add_object(wheel1)
+sim.add_object(wheel2)
+sim.add_object(wheel3)
+sim.add_object(wheel4)
+sim.add_object(terrain)
+sim.add_object(driver)
+sim.add_renderer(renderer)
+
+# Set initial position of the vehicle
+initial_position = pychrono.Vector3(-5, 1, 0)
+vehicle_body.set_position(initial_position)
+
+# Set initial position of the driver
+driver.set_position(pychrono.Vector3(0, 1, 0))
+
+# Simulation loop
+while True:
+    sim.step()
+    renderer.update()
+    
+    # Synchronize the driver input
+    target_velocity = driver.get_velocity()
+    target_acceleration = driver.get_acceleration()
+    
+    # Apply driver control to the vehicle
+    vehicle_body.set_acc(0, 0, target_acceleration)
+    
+    # Synchronize the visualization
+    renderer.set_camera_position(sim.get_time() * 2, 0, 5)
+    renderer.set_light_position(sim.get_time() * 2, 0, 5)
+    
+    # Terminate simulation on 'q' key press
+    if renderer.draw_key('q'):
+        break

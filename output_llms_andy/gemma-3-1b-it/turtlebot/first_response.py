@@ -1,0 +1,53 @@
+import pychrono
+import time
+import random
+import math
+
+# Simulation Parameters
+simulation_time = 60  # Simulation duration in seconds
+gravity = 9.81
+dt = 0.1  # Time step in seconds
+frame_rate = 60  # Frames per second
+initial_position = [0, 0]
+initial_orientation = [0, 0, 0]  # Initial orientation in radians
+initial_velocity = 0.1
+
+# Define the terrain
+terrain_heightmap = [
+    [0, 1, 0, 0, 0],
+    [1, 0, 1, 0, 0],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 1],
+    [0, 0, 0, 1, 0]
+]
+
+# Define the Turtlebot
+turtlebot = pychrono.Turtlebot(
+    initial_position,
+    initial_orientation,
+    dt=dt,
+    frame_rate=frame_rate,
+    terrain_heightmap=terrain_heightmap,
+    gravity=gravity
+)
+
+# Simulation Loop
+try:
+    while True:
+        # Update the Turtlebot's position and orientation
+        turtlebot.update_position(initial_position)
+        turtlebot.update_orientation(initial_orientation)
+
+        # Simulate the simulation
+        turtlebot.update_position(initial_position)
+        turtlebot.update_orientation(initial_orientation)
+
+        # Render the simulation
+        turtlebot.render()
+
+        # Wait for the next frame
+        time.sleep(dt)
+
+except KeyboardInterrupt:
+    print("Simulation stopped.")
+    turtlebot.render()  # Render even on exit

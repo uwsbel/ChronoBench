@@ -1,0 +1,22 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(1, 0, 0.5)  # Changed initial location
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_PRIMITIVES  # Changed visualization type
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_MESH  # Changed collision type for chassis
+
+# Type of tire model (RIGID, TMEASY, FIALA)
+tire_model = veh.TireModelType_FIALA  # Updated tire model type
+
+# ... rest of the script remains unchanged ...

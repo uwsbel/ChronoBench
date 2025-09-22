@@ -1,0 +1,87 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.sensor as sens
+import math
+
+# Initialize the Chrono system
+chrono.SetChronoDataPath("PYCHRONO_DATADIR")  # Set to your Chrono data directory
+system = chrono.ChSystemNSC()
+
+# Load the triangular mesh from an OBJ file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("mesh.obj", False, True)  # Ensure mesh.obj is in the working directory
+
+# Create a fixed body for the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.GetAssets().push_back(mesh)
+system.Add(body)
+
+# Create the sensor manager
+manager = sens.ChSensorManager(system)
+
+# Create the camera sensor
+camera = sens.ChCameraSensor(
+    body,  # Parent body (fixed mesh)
+    60,    # Update rate in Hz (0 for every simulation step)
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),  # Initial offset
+    640,   # Image width
+    480,   # Image height
+    60,    # Horizontal field of view (degrees)
+    sens.LENS_MODEL_PINHOLE  # Lens model
+)
+camera.SetName("Camera Sensor")
+camera.SetLag(0)
+camera.SetCollectionWindow(0.01)
+
+# Add noise filter (Gaussian noise)
+camera.AddFilter(sens.ChFilterNoiseGaussian(0.0, 0.02))
+
+# Add visualization filter
+camera.AddFilter(sens.ChFilterVisualize(640, 480, "Camera View"))
+
+# Add the camera to the sensor manager
+manager.AddSensor(camera)
+
+# Simulation loop parameters
+step_size = 0.01
+orbit_radius = 5.0
+orbit_height = 2.0
+orbit_speed = 0.5  # Radians per second
+
+# Simulation loop
+for i in range(1000):
+    time = i * step_size
+    angle = orbit_speed * time
+
+    # Calculate new camera position in orbit
+    x = orbit_radius * math.cos(angle)
+    y = orbit_radius * math.sin(angle)
+    z = orbit_height
+
+    # Compute direction to origin (target point)
+    dir_vec = chrono.ChVectorD(-x, -y, -z).GetNormalized()
+
+    # Calculate rotation to point camera towards origin
+    from_vec = chrono.ChVectorD(0, 0, -1)  # Camera's default forward direction
+    rot_quat = chrono.ChQuaternionD().GetQuaternionBetween(from_vec, dir_vec)
+
+    # Update camera's offset pose
+    camera.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(x, y, z), rot_quat))
+
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+
+    # Update sensors
+    manager.Update()
+
+    # Print camera buffer data (example: timestamp)
+    buffer = camera.GetMostRecentBuffer()
+    if buffer:
+        print(f"Step {i}, Camera buffer timestamp: {buffer.GetTimestamp():.4f}s")
+
+    # Optional: Print current camera position
+    print(f"Camera position: ({x:.2f}, {y:.2f}, {z:.2f})")
+```

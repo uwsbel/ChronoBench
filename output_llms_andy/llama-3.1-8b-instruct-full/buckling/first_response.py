@@ -1,0 +1,112 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+# Create Chrono physical system
+sys = chrono.ChSystemSMC()
+
+# Create and add mesh to the system
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+# Define beam section properties
+L = 1
+beam_wy = 0.012
+beam_wz = 0.025
+Iyy = (beam_wy * beam_wy) / 12.0
+Izz = (beam_wz * beam_zz) / 12.0
+A = beam_wy * beam_wz
+
+# Create beam section
+msection = fea.ChBeamSectionEulerAdvanced()
+msection.SetAsRectangularSection(beam_wy, beam_wz, A, Iyy, Izz)
+msection.SetEulerAdvanced()
+
+# Create nodes for the beam
+h1 = 0
+h2 = L
+mnode1 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(h1, 0, 0)))
+mnode2 = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(h2, 0, 0)))
+
+# Add nodes to the mesh
+mesh.AddNode(mnode1)
+mesh.AddNode(mnode2)
+
+# Create elements and add to mesh
+mbeam = fea.ChElementBeamEuler()
+mbeam.AddNode(mnode1)
+mbeam.AddNode(mnode2)
+mbeam.SetSection(msection)
+mesh.AddElement(mbeam)
+
+# Apply boundary conditions
+mnode1.SetFixed(True)
+
+# Apply load
+mload = fea.ChLoadForce()
+mload.SetFramed(chrono.ChFramed(chrono.ChVector3d(h2, 0, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+mload.SetMagnitude(0.2)
+mnode2.AddLoad(mload)
+
+# Create fixed truss
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+# Create constraint to attach truss to beam tip
+constr = chrono.ChLinkMateGeneric()
+constr.Initialize(mnode2, mtruss, False, mnode2.Frame(), mnode2.Frame())
+sys.Add(constr)
+constr.SetConstrainedCoords(True, True, True, False, False, False)
+
+# Create driver (motor) for moving truss horizontally
+mydriver = chrono.ChFunctionSine()
+mydriver.SetFreq(0.1)
+mydriver.SetPhase(0.2)
+
+# Create constraint driver
+constr.SetDriverX(mydriver)
+constr.SetDriverY(chrono.ChFunctionConstant(0))
+constr.SetDriverZ(chrono.ChFunctionConstant(0))
+
+# Create second driver (motor) for moving truss vertically
+mydriver2 = chrono.ChFunctionSine()
+mydriver2.SetFreq(0.06)
+mydriver2.SetPhase(0.2)
+
+# Create constraint driver
+constr.SetDriverY(mydriver2)
+constr.SetDriverX(chrono.ChFunctionConstant(0))
+constr.SetDriverZ(chrono.ChFunctionConstant(0))
+
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA beam buckling test')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.0, 0.6, -1.0))
+vis.AddTypicalLights()
+
+# Attach a logger to the system
+log = chrono.ChLoggerSystem()
+log.SetVerbose(True)
+sys.AttachLogger(log)
+
+# Change solver to PardisoMKL
+mkl_solver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(mkl_solver)
+
+# Set timestepper
+ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
+sys.SetTimestepper(ts)
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.01)

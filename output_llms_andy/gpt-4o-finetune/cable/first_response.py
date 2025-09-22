@@ -1,0 +1,136 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono::Engine physical system (sys_physice).
+sys_physical = chrono.ChSystemNSC()
+
+# Add a visualization system to render the simulation using Irrlicht (vis).
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys_physical)  # Attach the physical system to the visualization.
+vis.SetWindowSize(1024, 768)  # Set the window size for the visualization.
+vis.SetWindowTitle('FEA ANCF cable')  # Set the window title.
+vis.Initialize()  # Initialize the visualization system.
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))  # Add a logo to the visualization.
+vis.AddSkyBox()  # Add a skybox for better visual appearance.
+vis.AddCamera(chrono.ChVector3d(0, 1, 0), chrono.ChVector3d(0, 1, 3))  # Add a camera to the visualization.
+vis.AddTypicalLights()  # Add typical lights to the scene for better illumination.
+
+# Create a ground body (body_ground) for reference and as an anchor point.
+body_ground = chrono.ChBody()
+sys_physical.Add(body_ground)  # Add the ground body to the physical system.
+body_ground.SetFixed(True)  # Fix the ground body in place.
+vis.AddBody(body_ground)  # Add the ground body to the visualization.
+
+# Create a mesh container (my_mesh) and add it to the physical system.
+my_mesh = fea.ChMesh()
+sys_physical.Add(my_mesh)  # Remember to add the mesh to the physical system.
+
+# Define a new section for beams with specific physical properties.
+msection_cable = fea.ChBeamSectionCable()
+msection_cable.SetDiameter(0.006)  # Set the diameter of the beam.
+msection_cable.SetYoungModulus(0.01e9)  # Set the Young's modulus for the beam.
+msection_cable.SetRayleighDamping(0.000)  # Set Rayleigh damping (if any).
+msection_cable.SetSectionMassPerUnitLength(0.0)  # Set the mass per unit length of the section.
+msection_cable.SetInertiaPerUnitLength(0.0)  # Set the inertia per unit length.
+msection_cable.SetRayleighDampingPerUnitLength(0.0)  # Set Rayleigh damping per unit length.
+
+# Define the length of the beam and other parameters.
+beam_lenght = 1  # Length of the beam.
+
+# Create nodes using the ANCF position and gradient element type.
+mnode1 = fea.ChNodeFEAChase5241()
+mnode1.SetPos(chrono.ChVector3d(0, 0, 0))  # Set the position of the node.
+mnode1.SetDir(chrono.ChVector3d(1, 0, 0))  # Set the direction vector of the node.
+mnode2 = fea.ChNodeFEAChase5241()
+mnode2.SetPos(chrono.ChVector3d(beam_lenght, 0, 0))  # Set the position of the second node.
+mnode2.SetDir(chrono.ChVector3d(1, 0, 0))  # Set the direction vector of the second node.
+
+# Add nodes to the mesh.
+my_mesh.AddNode(mnode1)
+my_mesh.AddNode(mnode2)
+
+# Create a beam element and set its nodes and section properties.
+melement = fea.ChElementBeamANCF_5241()
+melement.SetNodes(mnode1, mnode2)  # Set the nodes of the element.
+melement.SetSection(msection_cable)  # Set the section properties.
+my_mesh.AddElement(melement)  # Add the element to the mesh.
+
+# Create another node for applying end force and add it to the mesh.
+mnode3 = fea.ChNodeFEAChase5241()
+mnode3.SetPos(chrono.ChVector3d(beam_lenght, 0, 0))  # Set the position of the node.
+mnode3.SetDir(chrono.ChVector3d(1, 0, 0))  # Set the direction vector of the node.
+my_mesh.AddNode(mnode3)
+
+# Create a beam element for the end force application, set its nodes and section.
+melement_end_force = fea.ChElementBeamANCF_5241()
+melement_end_force.SetNodes(mnode2, mnode3)  # Set the nodes.
+melement_end_force.SetSection(msection_cable)  # Set the section.
+melement_end_force.ComputeGradVell();  # Important: compute the gradient of velocities.
+my_mesh.AddElement(melement_end_force)  # Add the element to the mesh.
+
+# Create a force object and add an end force to it.
+my_forces = chrono.ChForce()
+my_forces.AddEndForce(melement_end_force, chrono.ChVector3d(0, -0.001, 0), mnode3)  # Add end force.
+sys_physical.Add(my_forces)  # Add the force object to the physical system.
+
+# Create a visualization NECATRI mesh for the FEM beam.
+mvisualbufferbeamA = chrono.ChVisualShapeFEA()
+mvisualbufferbeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZDELTA)  # Set the data type for visualization.
+mvisualbufferbeamA.SetSmoothFaces(True)  # Enable smooth faces.
+mvisualbufferbeamA.SetWireframe(False)  # Set wireframe mode off.
+my_mesh.AddVisualShapeFEA(mvisualbufferbeamA)  # Add the visual shape to the mesh.
+
+# Create a visualization nodes mesh for displaying nodes.
+mvisualnodessmall = chrono.ChVisualShapeFEA()
+mvisualnodessmall.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)  # Set glyph type for nodes.
+mvisualnodessmall.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)  # Set data type.
+mvisualnodessmall.SetSymbolsThickness(0.006)  # Set symbol thickness.
+my_mesh.AddVisualShapeFEA(mvisualnodessmall)  # Add the visual shape to the mesh.
+
+# Create a visualization beam sections object.
+mvisualsection = chrono.ChVisualShapeFEA()
+mvisualsection.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SECTION_AREA)  # Set data type for section area.
+mvisualsection.SetMyBeamSection(msection_cable)  # Set the beam section.
+my_mesh.AddVisualShapeFEA(mvisualsection)  # Add the visual shape to the mesh.
+
+# Apply a hinge constraint to the first node.
+hinge = chrono.ChLinkMateGeneric()
+hinge.Initialize(mnode1, body_ground, False, mnode1.Frame(), mnode1.Frame())  # Initialize the hinge.
+sys_physical.Add(hinge)  # Add the hinge to the system.
+hinge.SetConstrainedCoords(False, False, False, True, True, True)  # Set constrained coordinates (only rotations X,Y,Z are constrained).
+
+# Add gravity to all particles in the mesh.
+my_mesh.AddForce(chrono.ChForceGravity(
+    sys_physical.GetGravitationalAcceleration()))  # Apply gravitational acceleration.
+
+# Set solver type and max iteration for better convergence.
+msolver = chrono.ChSolverMINRES()
+sys_physical.SetSolver(msolver)
+sys_physical.GetSolver().SetMaxIterations(80)
+
+# Improve solver settings.
+msolver.SetDiagonalPreconditioning(True)
+msolver.EnableWarmStart(True)
+msolver.SetTolerance(1e-10)
+msolver.SetVerbose(False)
+
+# Set the time integrator type.
+sys_physical.SetTimestepperType(chrono.ChTimestepper.Type.EULER_IMPLICIT_LINEARIZED)
+
+# Change the solver to PardisoMKL if available (better for FEA problems).
+if sys_physical.GetSolver().GetType() == chrono.ChSolver.Type_MINRES:
+    print("Automatically switching to the Pardiso MKL solver\n"
+          " (a better sparse solver for fea problems)")
+    sys_physical.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+
+# Enable mesh smoothing for better rendering.
+my_mesh.SetAutomaticGravity(False)  # Disable automatic gravity to set custom gravity.
+mvisualbufferbeamA.SetSmoothFaces(True)  # Enable smooth faces for better visualization.
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()  # Begin the scene for rendering.
+    vis.Render()  # Render the scene.
+    vis.EndScene()  # End the scene.
+    sys_physical.DoStepDynamics(0.001)  # Advance the simulation by one step (0.001 seconds).

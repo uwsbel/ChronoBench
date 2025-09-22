@@ -1,0 +1,456 @@
+Let's evaluate the **MODEL CODE** against both the **REFERENCE CODE** and the **API DOCUMENTATION**.
+
+---
+
+## 1. **General Structure and Imports**
+
+- **MODEL CODE** imports:
+  - `math as m`
+  - `pychrono as chrono`
+  - `pychrono.fea as fea`
+  - `pychrono.pardisomkl as mklsolver`
+  - `pychrono.irrlicht as chronicls`
+  - `os`
+
+- **REFERENCE CODE** imports:
+  - `math as m`
+  - `pychrono as chrono`
+  - `pychrono.fea as fea`
+  - `pychrono.pardisomkl as pardiso`
+  - `pychrono.irrlicht as chronoirr`
+  - `os`
+
+**Comments:**
+
+- The MODEL CODE uses `mklsolver` and `chronicls` as aliases, while the reference uses `pardiso` and `chronoirr`. This is a minor naming difference, not an error.
+- The imports are consistent with the API documentation.
+
+---
+
+## 2. **Custom Function Class**
+
+- MODEL CODE `ChFunctionMyFun`:
+  - `GetVal` returns `chrono.CH_PI` if `x > 0.5`, else a cosine-based function with denominator `0.3`.
+- REFERENCE CODE:
+  - `GetVal` returns `chrono.CH_PI` if `x > 0.4`, else similar function with denominator `0.4`.
+
+**Comments:**
+
+- The MODEL CODE uses a threshold of 0.5 and denominator 0.3, while the reference uses 0.4 for both.
+- This is a deliberate parameter change, not an error.
+- The class is correctly derived from `chrono.ChFunction` and overrides `GetVal`.
+- The usage of `chrono.CH_PI` is correct per API.
+
+---
+
+## 3. **Output Directory**
+
+- MODEL CODE: `out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"`
+- REFERENCE: `out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"`
+
+**Comments:**
+
+- Different output folder name, likely intentional.
+- `chrono.GetChronoOutputPath()` is correct per API.
+
+---
+
+## 4. **System Initialization**
+
+- MODEL CODE: `sys = chrono.ChSystemSMC()`
+- REFERENCE: `sys = chrono.ChSystemSMC()`
+
+**Comments:**
+
+- Correct system type for smooth contact.
+- Matches API.
+
+---
+
+## 5. **Geometry Parameters**
+
+- MODEL CODE:
+  - `L=1.2`, `H=0.4`, `K=0.07`
+- REFERENCE:
+  - `L=1.2`, `H=0.3`, `K=0.07`
+
+**Comments:**
+
+- Slight difference in `H` (height).
+- Acceptable as a parameter change.
+
+---
+
+## 6. **Vector Definitions**
+
+- MODEL CODE:
+  - `vA`, `vC`, `vB`, `vG`, `vd` defined as `chrono.ChVector3d`
+- REFERENCE:
+  - Same, with slightly different values for `vB` and `vG` due to `H`.
+
+**Comments:**
+
+- Correct usage of `ChVector3d`.
+
+---
+
+## 7. **Body Creation and Setup**
+
+- MODEL CODE:
+  - `body_truss = chrono.ChBody()`
+  - `body_truss.SetFixed(True)`
+  - `sys.AddBody(body_truss)`
+- REFERENCE:
+  - Same.
+
+**Comments:**
+
+- Correct per API.
+
+---
+
+## 8. **Visual Shapes for Bodies**
+
+- MODEL CODE:
+  - `boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)`
+  - `body_truss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))`
+- REFERENCE:
+  - `boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)`
+  - `body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))`
+
+**Comments:**
+
+- MODEL CODE uses `chrono.ChFrame` while reference uses `chrono.ChFramed`.
+- According to API, the correct class is `chrono.ChFrame` (or `ChCoordsys`), `ChFramed` is not standard in PyChrono Python API.
+- So MODEL CODE is correct here; reference may have a typo.
+- Dimensions differ slightly; acceptable.
+
+---
+
+## 9. **Crank Body**
+
+- MODEL CODE:
+  - `body_crank = chrono.ChBody()`
+  - `body_crank.SetPos((vC + vG) * 0.5)`
+  - `sys.AddBody(body_crank)`
+  - Visual shape box with `(K, 0.05, 0.03)`
+- REFERENCE:
+  - `body_crank = chrono.ChBody()`
+  - `body_crank.SetPos((vB + vG) * 0.5)`
+  - Visual shape box `(K, 0.03, 0.03)`
+
+**Comments:**
+
+- MODEL CODE uses midpoint between `vC` and `vG`, reference uses `vB` and `vG`.
+- Visual shape dimensions differ.
+- These are parameter differences, not errors.
+
+---
+
+## 10. **Motor Joint**
+
+- MODEL CODE:
+  - Uses `chrono.ChLinkMotorRotationSpeed()`
+  - `motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))`
+  - `motor.SetTorqueFunction(myfun)`
+  - `sys.Add(motor)`
+- REFERENCE:
+  - Uses `chrono.ChLinkMotorRotationAngle()`
+  - `motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))`
+  - `motor.SetAngleFunction(myfun)`
+  - `sys.Add(motor)`
+
+**Comments:**
+
+- The MODEL CODE uses a **speed motor** with a torque function, which is not consistent with the API documentation or typical usage.
+- According to API, `ChLinkMotorRotationSpeed` expects a speed function via `SetSpeedFunction()`.
+- `SetTorqueFunction()` is **not** a documented method for `ChLinkMotorRotationSpeed`.
+- The reference uses `ChLinkMotorRotationAngle` with `SetAngleFunction()`, which is correct.
+- This is a **significant API misuse** in the MODEL CODE.
+- Also, `chrono.ChFrame(vG)` is used instead of `chrono.ChCoordsysD` or `chrono.ChFrameD` (depending on PyChrono version). The API documentation uses `chrono.ChCoordsysd` or `chrono.ChFrame` (likely alias). This is acceptable if `ChFrame` is a valid constructor.
+- The motor initialization frame should be a coordinate system (position + rotation). Using only a vector may be insufficient or incorrect.
+- Overall, this is a **major error** in the MODEL CODE.
+
+---
+
+## 11. **Mesh and Beam Sections**
+
+- MODEL CODE:
+  - Creates `fea.ChMesh()`
+  - Defines beam widths, inertia, elasticity, mass section.
+  - Builds IGA beam with 30 elements from `vA` to `vC` along `chrono.VECT_X`.
+  - Fixes first node.
+  - Picks nodes at indices 65 and 32.
+- REFERENCE:
+  - Similar, but:
+    - 32 elements
+    - `chrono.VECT_Y` direction
+    - Different beam widths and material properties
+    - Picks nodes at different indices
+
+**Comments:**
+
+- The MODEL CODE uses `chrono.VECT_X` for beam direction, reference uses `chrono.VECT_Y`.
+- The number of elements and node indices differ.
+- These are parameter differences, not errors.
+- The use of `fea.ChBuilderBeamIGA()` and `BuildBeam()` is correct.
+- Fixing nodes and accessing nodes by index is consistent with API.
+
+---
+
+## 12. **Vertical Beam**
+
+- MODEL CODE:
+  - Uses `fea.ChBeamSectionAdvancedEuler()`
+  - Diameter 0.05, density 2500, Young modulus 75e9, Poisson 0.25
+  - Builds Euler beam with 10 elements from `vC + vd` to `vB + vd` along `(1,0,0)`
+  - Picks nodes at indices 1 and -1
+- REFERENCE:
+  - Diameter 0.03, density 2700, Young modulus 73e9, Poisson 0.3
+  - Builds Euler beam with 6 elements
+  - Picks nodes at indices 0 and -1
+
+**Comments:**
+
+- Parameter differences, acceptable.
+- Usage of `fea.ChBuilderBeamEuler()` and `BuildBeam()` is correct.
+
+---
+
+## 13. **Constraints**
+
+- MODEL CODE:
+  - `constr_bb = chrono.ChLinkMateParallel()`
+  - `constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())`
+  - `sys.Add(constr_bb)`
+  - `constr_bb.SetConstrainedCoords(True, False, True, False, False, False)`
+- REFERENCE:
+  - `constr_bb = chrono.ChLinkMateGeneric()`
+  - `constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())`
+  - `sys.Add(constr_bb)`
+  - `constr_bb.SetConstrainedCoords(True, True, True, False, False, False)`
+
+**Comments:**
+
+- MODEL CODE uses `ChLinkMateParallel`, reference uses `ChLinkMateGeneric`.
+- Both are valid joint types but have different constraint behaviors.
+- The constrained coordinates differ.
+- The MODEL CODE uses `AddVisualShape` on the constraint with a sphere, which is allowed.
+- The `Initialize` method usage is consistent with API.
+
+---
+
+## 14. **Crank Beam**
+
+- MODEL CODE:
+  - Uses `fea.ChBeamSectionEulerAdvanced()`
+  - Diameter 0.06, density 2800, Young modulus 75e9, Poisson 0.25
+  - Builds Euler beam with 4 elements from `vG + vd` to `vB + vd` along `(0,1,0)`
+  - Picks nodes at indices 0 and -1
+- REFERENCE:
+  - Diameter 0.054, density 2700, Young modulus 73e9, Poisson 0.3
+  - Builds Euler beam with 5 elements
+
+**Comments:**
+
+- Parameter differences, acceptable.
+
+---
+
+## 15. **Constraints on Crank Beam**
+
+- MODEL CODE:
+  - `constr_cbd = chrono.ChLinkMatePrismatic()`
+  - `constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())`
+  - `sys.Add(constr_cbd)`
+  - `constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)`
+- REFERENCE:
+  - `constr_cbd = chrono.ChLinkMateGeneric()`
+  - `constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())`
+  - `sys.Add(constr_cbd)`
+  - `constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)`
+
+**Comments:**
+
+- MODEL CODE uses `ChLinkMatePrismatic`, reference uses `ChLinkMateGeneric`.
+- `ChLinkMatePrismatic` is a prismatic joint allowing translation along one axis.
+- The usage here constrains all coordinates, which is unusual for prismatic joint.
+- This may be a misuse or misunderstanding of the joint type.
+- The API documentation shows `ChLinkLockPrismatic` for prismatic joints, not `ChLinkMatePrismatic`.
+- `ChLinkMatePrismatic` is not a standard PyChrono class per API docs.
+- This is likely an **error or misuse**.
+
+---
+
+## 16. **Constraint between vertical and crank beam**
+
+- MODEL CODE:
+  - `constr_bc = chrono.ChLinkMateGeneric()`
+  - `constr_bc.Initialize(node_down, node_crankB, False, node_crankB.Frame(), node_crankB.Frame())`
+  - `sys.Add(constr_bc)`
+  - `constr_bc.SetConstrainedCoords(True, True, False, True, True, False)`
+- REFERENCE:
+  - Similar, but `SetConstrainedCoords(True, True, True, True, True, False)`
+
+**Comments:**
+
+- Mostly consistent, minor difference in constrained coordinates.
+
+---
+
+## 17. **Visual Shapes on Constraints**
+
+- MODEL CODE adds spheres of radius 0.02 and 0.01 to constraints.
+- REFERENCE uses spheres of radius 0.012 and 0.014.
+
+**Comments:**
+
+- Acceptable parameter differences.
+
+---
+
+## 18. **Mesh Gravity**
+
+- MODEL CODE: `mesh.SetAutomaticGravity(True)`
+- REFERENCE: `mesh.SetAutomaticGravity(False)`
+
+**Comments:**
+
+- Different settings, acceptable.
+
+---
+
+## 19. **Add Mesh to System**
+
+- Both add mesh to system.
+
+---
+
+## 20. **Visualization of FEM Mesh**
+
+- MODEL CODE:
+  - `mvisualizebeamA` uses `DataType_ELEM_BEAM_MY`
+  - Color scale -400 to 400
+  - SmoothFaces False
+  - Wireframe False
+- REFERENCE:
+  - Uses `DataType_ELEM_BEAM_MX`
+  - Color scale -500 to 500
+  - SmoothFaces True
+  - Wireframe False
+
+- MODEL CODE:
+  - `mvisualizebeamC` uses `GlyphType_NODE_VECTORS`, `DataType_FULL`
+  - Thickness 0.005, scale 0.01, ZbufferHide True
+- REFERENCE:
+  - `GlyphType_NODE_CSYS`, `DataType_NONE`
+  - Thickness 0.006, scale 0.015, ZbufferHide False
+
+**Comments:**
+
+- Different visualization settings, acceptable.
+
+---
+
+## 21. **Visualization System**
+
+- MODEL CODE:
+  - Uses `chronicls.ChVisualSystemIrrlicht()`
+  - Window size 800x600
+  - Title 'Failed Beam Simulation'
+  - Adds logo `'logo_pychrono_alpha.jpg'`
+  - Adds skybox, camera at `(0.0, 1.0, -1.5)`
+  - Adds typical lights
+- REFERENCE:
+  - Uses `chronoirr.ChVisualSystemIrrlicht()`
+  - Window size 1024x768
+  - Title 'Beams and constraints'
+  - Logo `'logo_pychrono_alpha.png'`
+  - Camera `(0.0, 0.7, -1.2)`
+
+**Comments:**
+
+- Minor differences in naming and parameters.
+- The MODEL CODE uses `.jpg` logo, reference uses `.png`. The API example uses `.png`.
+- This may cause a file not found error if the `.jpg` does not exist.
+- The alias `chronicls` vs `chronoirr` is acceptable.
+
+---
+
+## 22. **Solver**
+
+- MODEL CODE:
+  - `custom_solver = mklsolver.ChSolverPardisoMKL()`
+  - `sys.SetSolver(custom_solver)`
+- REFERENCE:
+  - `pardiso_solver = pardiso.ChSolverPardisoMKL()`
+  - `sys.SetSolver(pardiso_solver)`
+
+**Comments:**
+
+- Correct usage of Pardiso MKL solver.
+- Alias difference only.
+
+---
+
+## 23. **Timestepper**
+
+- MODEL CODE:
+  - `ts = chrono.ChTimestepperHHT()`
+  - `ts.SetStepSize(0.002)`
+  - `sys.SetTimestepper(ts)`
+- REFERENCE:
+  - `ts = chrono.ChTimestepperHHT(sys)`
+  - `ts.SetStepControl(False)`
+  - `sys.SetTimestepper(ts)`
+  - Step size is 0.001 in the main loop.
+
+**Comments:**
+
+- MODEL CODE does not pass `sys` to `ChTimestepperHHT()`, which is acceptable since the constructor can be called without arguments.
+- `SetStepControl(False)` is missing in MODEL CODE.
+- Step size is 0.002 vs 0.001.
+- Minor difference.
+
+---
+
+## 24. **Main Simulation Loop**
+
+- MODEL CODE:
+  - While `vis.Run()`
+  - `vis.BeginScene()`
+  - `vis.Render()`
+  - `chronicls.drawGrid(vis, 0.1, 0.01, 10, 10, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))`
+  - `vis.EndScene()`
+  - `sys.DoStepDynamics(0.002)`
+- REFERENCE:
+  - Similar, but grid spacing is 0.05, 0.05, 20, 20
+  - `sys.DoStepDynamics(0.001)`
+
+**Comments:**
+
+- Minor parameter differences.
+- `drawGrid` usage is consistent.
+
+---
+
+## **Summary of Issues**
+
+| Issue | Severity | Explanation |
+|-------|----------|-------------|
+| Use of `motor.SetTorqueFunction(myfun)` on `ChLinkMotorRotationSpeed` | Major | API docs specify `SetSpeedFunction()`. `SetTorqueFunction()` is not documented or valid. |
+| Use of `chrono.ChLinkMatePrismatic` joint | Major | Not a standard PyChrono class. Possibly a typo or misuse. Should be `ChLinkLockPrismatic` or `ChLinkMateGeneric`. |
+| Motor initialization frame uses `chrono.ChFrame(vG)` with only position vector | Moderate | Motor initialization expects a coordinate system (position + rotation). Using only a vector may cause errors or unexpected behavior. |
+| Visual shape box added with `chrono.ChFrame` vs `chrono.ChFramed` | Minor | `ChFramed` is not standard; MODEL CODE is correct. |
+| Logo file extension `.jpg` vs `.png` | Minor | Could cause file not found error if `.jpg` does not exist. |
+| Missing `SetStepControl(False)` on timestepper | Minor | May affect timestepper behavior. |
+| Parameter differences (beam sizes, node indices, etc.) | Acceptable | Likely intentional changes, not errors. |
+
+---
+
+## **Final Evaluation**
+
+- The MODEL CODE is **mostly consistent** with the reference and API documentation in terms of structure, usage of classes, and general approach.
+- However, **two major API misuses** stand out:
+  1. Using `SetTorqueFunction()` on a speed motor (`ChLinkMotorRotationSpeed`), which is not supported.
+  2. Using a non

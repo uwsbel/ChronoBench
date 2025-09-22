@@ -1,0 +1,50 @@
+import pychrono
+import pychrono.core as pc
+import pychrono.objects as o
+import pychrono.visuals as v
+import numpy as np
+
+# Simulation Parameters
+gravity = 9.81  # m/s^2
+length = 1.0  # meters
+mass = 1.0  # kg
+damping = 0.1  # damping coefficient (optional, for more realistic simulation)
+initial_angle = np.pi / 4  # Initial angle in radians (45 degrees)
+initial_velocity = 0.0  # m/s (initial angular velocity)
+
+# Create the pendulum object
+pendulum = o.Pendulum(mass, length, initial_angle, damping)
+
+# Define the ground body (for visual representation)
+ground_body = o.GroundBody(length)
+
+# Create the revolute joint
+joint = o.RevoluteJoint(pendulum.length, 0.0, 0.0, 0.0)  # Joint at the pendulum's center of mass
+
+# Set up the visual setup
+v.Render(pendulum, ground_body, joint,  # Render the entire system
+          title="Simple Pendulum Simulation",
+          width=600, height=400,  # Adjust for desired resolution
+          camera_position=(0, 0, 0),
+          camera_look_at=(0, 0, 0),
+          fps=30)  # Frame rate
+
+# Initialize the Chrono timer
+chrono.init()
+
+# Simulation Loop
+time = 0.0
+while time < 10.0:  # Run for 10 seconds
+    # Update the pendulum's position and velocity
+    pendulum.update_position(time)
+    pendulum.update_velocity(time)
+
+    # Log the pendulum's position and velocity
+    chrono.log(pendulum, time)
+
+    # Print the current time
+    print(f"Time: {time:.2f}")
+
+    time += 0.1  # Increment time by 0.1 seconds
+
+chrono.cleanup()

@@ -1,0 +1,36 @@
+from PyChrono import *
+
+# Initialize the PyChrono environment and core components
+PyChronoInit()
+
+# Create the physical system
+sys = PhysicsSystem()
+
+# Create a mesh composed of beams and nodes with specific properties
+beam = Beam(0.01, 0.01, 0.001, 0.001, 0.001)
+beam.setElasticity(210000000)
+beam.setDensity(7850)
+beam.setYoungsModulus(210000000000)
+
+node = Node(0.01, 0.01, 0.001, 0.001, 0.001)
+node.setMass(1.0)
+
+# Create the mesh
+mesh = BeamMesh(beam, node)
+
+# Add the mesh to the physical system
+sys.add(mesh)
+
+# Set the default parameters for the simulation
+sys.setGravity(0, -9.81, 0)
+
+# Add visualization using the Irrlicht engine
+vis = IrrlichtViewer(sys, 800, 600)
+
+# Run the simulation loop
+while vis.isRunning():
+    vis.update()
+    sys.step(1.0 / 60.0)
+
+# Finalize the PyChrono environment
+PyChronoFinalize()

@@ -1,0 +1,67 @@
+import chrono as ch
+import numpy as np
+
+# Initialize the PyChrono environment
+ch.InitChSystem()
+
+# Create a world
+world = ch.ChWorld()
+
+# Create a beam
+beam = ch.ChBeam()
+beam.SetName("JeffcottRotor")
+beam.SetDensity(1.0)
+beam.SetYoungModulus(200e9)
+beam.SetPoissonRatio(0.3)
+beam.SetLength(1.0)
+beam.SetCrossSectionArea(0.01)
+beam.SetInertiaMomentX(0.0001)
+beam.SetInertiaMomentY(0.0001)
+beam.SetInertiaMomentZ(0.0001)
+beam.SetMass(0.1)
+
+# Create a flywheel
+flywheel = ch.ChBody()
+flywheel.SetName("Flywheel")
+flywheel.SetDensity(1.0)
+flywheel.SetMass(0.1)
+flywheel.SetInertiaMomentX(0.0001)
+flywheel.SetInertiaMomentY(0.0001)
+flywheel.SetInertiaMomentZ(0.0001)
+flywheel.SetPosition(ch.Vec3(0, 0, 0.5))
+flywheel.SetRotation(ch.Mat3(ch.PI/2, 0, 0))
+
+# Create a rotational motor
+motor = ch.ChMotor()
+motor.SetName("Motor")
+motor.SetType(ch.MOTOR_ROTATIONAL)
+motor.SetMaxTorque(10)
+motor.SetTargetPosition(10)
+motor.SetTargetVelocity(10)
+
+# Attach the flywheel to the beam
+beam.AddPointMass(0.5, flywheel)
+
+# Attach the motor to the beam
+motor.AddPointMass(0, beam)
+
+# Add the beam to the world
+world.Add(beam)
+
+# Add the flywheel to the world
+world.Add(flywheel)
+
+# Add the motor to the world
+world.Add(motor)
+
+# Set the visualization parameters
+world.SetFemVisualization(True)
+world.SetIrrlichtVisualization(True)
+
+# Set the simulation parameters
+world.SetTimestep(1e-4)
+world.SetMaxStep(1e-3)
+world.SetMaxTime(10)
+
+# Run the simulation
+world.Run()

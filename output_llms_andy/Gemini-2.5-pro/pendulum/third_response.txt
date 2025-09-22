@@ -1,0 +1,171 @@
+The provided PyChrono script simulates a single pendulum. The task is to modify it to simulate a double pendulum and fix any potential issues.
+
+**Identified Potential Issues and Corrections:**
+
+1.  **Variable Name Reuse:** The variable `cyl_1` is used for the ground's visual shape and then reused for the pendulum's visual shape. This is not a bug but can be confusing. It's better to use distinct names (e.g., `ground_vis_shape`, `pend1_vis_shape`).
+    *   **Correction:** Renamed visual shape variables for clarity.
+2.  **Inertia Tensor:** The inertia tensor for `pend_1` (`pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))`) seems to use arbitrary values. For more physical accuracy, the inertia of a cylinder (or slender rod) should be calculated based on its mass and dimensions.
+    *   **Correction:** Calculated inertia components for cylindrical pendulums based on their mass (M), length (L), and radius (R):
+        *   `I_longitudinal = 0.5 * M * R^2` (about the cylinder's length axis)
+        *   `I_transverse = (1/12) * M * (3*R^2 + L^2)` (about an axis perpendicular to length, through CoM)
+3.  **Visual Radii:** The visual radius of the first pendulum (0.2) might not match the physical radius if one were assumed for more accurate inertia.
+    *   **Correction:** Made visual radii consistent with physical radii used for inertia calculation.
+4.  **Window Title:** The window title 'ChBodyAuxRef demo' is misleading as the script uses `ChBody`, not `ChBodyAuxRef`.
+    *   **Correction:** Changed the window title to 'Double Pendulum Demo'.
+5.  **Logging:** The logging prints information for `pend_1`. For a double pendulum, it would be more relevant to print information for `pend_2` or both.
+    *   **Modification:** Modified logging to print information for the second pendulum (`pend_2`).
+
+**Modifications for Double Pendulum:**
+
+1.  **Second Pendulum Body (`pend_2`):**
+    *   Created a new `chrono.ChBody` for the second pendulum.
+    *   Set its mass, inertia (calculated accurately), and disabled collisions.
+    *   Added a cylindrical visual shape, distinct in color (e.g., blue).
+2.  **Second Revolute Joint (`rev_2`):**
+    *   Created a `chrono.ChLinkLockRevolute` to connect `pend_1` and `pend_2`.
+    *   Initialized the joint at the end of `pend_1` and the corresponding attachment point of `pend_2`.
+3.  **Initial Conditions:**
+    *   Defined lengths, radii, and masses for both pendulums (L1, R1, M1 and L2, R2, M2).
+    *   Set initial positions for both pendulums. The script will initialize them in a horizontal configuration along the positive X-axis, with pivots aligned along the Z-axis.
+    *   The CoM (Center of Mass) of each pendulum body is at its geometric center. The body's reference frame is at its CoM. Visual shapes are also centered at the CoM and rotated so their length aligns with the body's local X-axis.
+
+The corrected and modified script is provided below.
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
+
+# Parameters for the pendulums
+# Pendulum 1
+L1 = 2.0  # Length
+R1 = 0.1  # Radius
+M1 = 1.0  # Mass
+
+# Pendulum 2
+L2 = 1.5  # Length
+R2 = 0.08 # Radius
+M2 = 0.8  # Mass
+
+# Joint Z-coordinate (all joints will be at this Z level)
+JOINT_Z = 1.0
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)  # The ground is fixed and does not move
+ground.EnableCollision(False)  # Disable collision detection for the ground
+
+# Add a visualization cylinder to mark the first pivot on the ground
+ground_pivot_vis = chrono.ChVisualShapeCylinder(0.15, 0.4)  # Cylinder with radius 0.15 and height 0.4
+ground_pivot_vis.SetColor(chrono.ChColor(0.3, 0.3, 0.3)) # Grey color
+ground.AddVisualShape(ground_pivot_vis, chrono.ChFramed(chrono.ChVector3d(0, 0, JOINT_Z))) # Centered at the pivot
+
+# --- Pendulum 1 ---
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)
+pend_1.EnableCollision(False)
+pend_1.SetMass(M1)
+
+# Calculate inertia for pendulum 1 (cylinder)
+inertia_p1_x = 0.5 * M1 * R1**2
+inertia_p1_yz = (1/12) * M1 * (3 * R1**2 + L1**2)
+pend_1.SetInertiaXX(chrono.ChVector3d(inertia_p1_x, inertia_p1_yz, inertia_p1_yz))
+
+# Add a visualization cylinder to pendulum 1
+# The cylinder's length is L1, its axis is aligned with the body's local X-axis.
+vis_shape_p1 = chrono.ChVisualShapeCylinder(R1, L1)
+vis_shape_p1.SetColor(chrono.ChColor(0.8, 0.2, 0.2))  # Red color
+# Rotate the visual shape so its length (height of cylinder) is along body's X axis
+pend_1.AddVisualShape(vis_shape_p1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Initial position of pendulum 1 (CoM) - horizontal, along +X
+# Pivot 1 is at (0, 0, JOINT_Z)
+pos_p1_com = chrono.ChVector3d(L1/2, 0, JOINT_Z)
+pend_1.SetPos(pos_p1_com)
+pend_1.SetRot(chrono.QUNIT) # Initial rotation: body X along global X
+
+# Create revolute joint between ground and pendulum 1
+rev_1 = chrono.ChLinkLockRevolute()
+# Joint frame in absolute coordinates: at (0,0,JOINT_Z), Z-axis is rotation axis
+joint_pos_1 = chrono.ChVector3d(0, 0, JOINT_Z)
+rev_1.Initialize(ground, pend_1, chrono.ChFramed(joint_pos_1, chrono.QUNIT))
+sys.AddLink(rev_1)
+
+
+# --- Pendulum 2 ---
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(M2)
+
+# Calculate inertia for pendulum 2 (cylinder)
+inertia_p2_x = 0.5 * M2 * R2**2
+inertia_p2_yz = (1/12) * M2 * (3 * R2**2 + L2**2)
+pend_2.SetInertiaXX(chrono.ChVector3d(inertia_p2_x, inertia_p2_yz, inertia_p2_yz))
+
+# Add a visualization cylinder to pendulum 2
+vis_shape_p2 = chrono.ChVisualShapeCylinder(R2, L2)
+vis_shape_p2.SetColor(chrono.ChColor(0.2, 0.2, 0.8))  # Blue color
+# Rotate the visual shape so its length (height of cylinder) is along body's X axis
+pend_2.AddVisualShape(vis_shape_p2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Initial position of pendulum 2 (CoM) - horizontal, along +X, attached to end of pend_1
+# Pivot 2 is at end of pend_1: (L1, 0, JOINT_Z)
+pos_p2_com = chrono.ChVector3d(L1 + L2/2, 0, JOINT_Z)
+pend_2.SetPos(pos_p2_com)
+pend_2.SetRot(chrono.QUNIT) # Initial rotation: body X along global X
+
+# Create revolute joint between pendulum 1 and pendulum 2
+rev_2 = chrono.ChLinkLockRevolute()
+# Joint frame in absolute coordinates: at (L1,0,JOINT_Z), Z-axis is rotation axis
+joint_pos_2 = chrono.ChVector3d(L1, 0, JOINT_Z)
+rev_2.Initialize(pend_1, pend_2, chrono.ChFramed(joint_pos_2, chrono.QUNIT))
+sys.AddLink(rev_2)
+
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Double Pendulum Demo') # Corrected title
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(L1, L1, JOINT_Z + L1*1.5)) # Adjusted camera for better view
+vis.SetCameraTarget(chrono.ChVector3d(L1/2, 0, JOINT_Z)) # Camera target point
+vis.AddTypicalLights()
+
+# Simulation loop
+log_info = True
+time_step = 1e-3
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(time_step)
+
+    if log_info and sys.GetChTime() > 1:
+        pos_p2 = pend_2.GetPos()
+        print(f"t = {sys.GetChTime():.3f} s")
+        print(f"  Pendulum 2 COM Pos: x={pos_p2.x:.3f}, y={pos_p2.y:.3f}, z={pos_p2.z:.3f}")
+        vel_p2 = pend_2.GetPosDt()
+        print(f"  Pendulum 2 COM Vel: vx={vel_p2.x:.3f}, vy={vel_p2.y:.3f}, vz={vel_p2.z:.3f}")
+        
+        # Optional: Log pend_1 info too
+        # pos_p1 = pend_1.GetPos()
+        # print(f"  Pendulum 1 COM Pos: x={pos_p1.x:.3f}, y={pos_p1.y:.3f}, z={pos_p1.z:.3f}")
+        
+        log_info = False # Disable further logging after the first time
+
+del sys
+```

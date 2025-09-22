@@ -1,0 +1,69 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# 1. Initialize the PyChrono environment and core components
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(my_system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('ANCF Beam Simulation')
+vis.Initialize()
+
+# 2. Add the physical systems and objects
+
+# Create a material for the beam
+beam_material = chrono.ChMaterialSurfaceNSC()
+beam_material.SetFriction(0.3)
+beam_material.SetRestitution(0.2)
+
+# Define beam parameters
+num_nodes = 10
+beam_length = 5.0
+beam_radius = 0.1
+
+# Create the ANCF cable beam
+beam = chrono.ChBody()
+beam.SetBodyFixed(False)
+beam.SetMass(1.0)
+beam.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+
+# Add nodes to the beam
+for i in range(num_nodes):
+    node = chrono.ChNodeANCF(beam)
+    node.SetPos(chrono.ChVectorD(i * beam_length / (num_nodes - 1), 0, 0))
+    beam.AddNode(node)
+
+# Connect nodes with ANCF elements
+for i in range(num_nodes - 1):
+    element = chrono.ChElementCableANCF()
+    element.SetNodes(beam.GetNode(i), beam.GetNode(i + 1))
+    element.SetMaterial(beam_material)
+    beam.AddElement(element)
+
+# Hinge the first node to the ground
+hinge = chrono.ChLinkLockRevolute()
+hinge.Initialize(beam.GetNode(0), chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+my_system.AddLink(hinge)
+
+# Add the beam to the system
+my_system.Add(beam)
+
+# 3. Set necessary default parameters and run the simulation
+
+# Simulation settings
+time_step = 0.01
+end_time = 5.0
+
+# Simulation loop
+while my_system.GetChTime() < end_time:
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    my_system.DoStepDynamics(time_step)
+
+# Close the visualization window
+vis.GetDevice().close()

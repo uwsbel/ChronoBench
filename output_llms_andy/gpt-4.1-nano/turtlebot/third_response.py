@@ -1,0 +1,126 @@
+import os
+import math
+import random
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens  # Import sensor module
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in negative Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body as terrain plane that robot will drive on
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted from -1 to -0.6
+ground.SetFixed(True)  # Fix the ground in place
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Enable shadows (commented out to improve performance)
+# vis.EnableShadows()
+
+# Set the simulation time step
+time_step = 2e-3
+
+# Create sensor manager and configure lidar sensor
+sensor_manager = sens.ChSensorManager(system)
+
+# Define sensor position and orientation relative to the robot
+sensor_pos = chrono.ChVector3d(0, 0, 0.2)
+sensor_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Create a lidar sensor attached to the robot
+lidar = sens.ChLidarSensor(
+    robot.GetBody(),  # Attach to robot body
+    sensor_pos,
+    sensor_rot,
+    100,             # horizontal samples
+    math.pi * 2,     # horizontal field of view
+    10,              # max distance
+    0.5,             # frequency
+    0.2,             # vertical field of view
+    1.0,             # vertical resolution
+)
+# Configure filters (e.g., remove points below ground)
+lidar.AddFilter(sens.ChFilterPointRemoveBelowZ(0))
+sensor_manager.AddSensor(lidar)
+
+# Create and place 5 random boxes
+boxes = []
+for i in range(5):
+    pos_x = random.uniform(-5, 5)
+    pos_y = random.uniform(-5, 5)
+    pos_z = 0.5  # box height / 2 to sit on ground
+    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 500, True, True)
+    box.SetPos(chrono.ChVector3d(pos_x, pos_y, pos_z))
+    box.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+    system.Add(box)
+    boxes.append(box)
+
+# Motion control function for the Turtlebot
+def move(mode):
+    """
+    Controls the Turtlebot movement.
+    mode: 'straight', 'left', 'right'
+    """
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi/4, 0)  # Both wheels same speed
+        robot.SetMotorSpeed(math.pi/4, 1)
+    elif mode == 'left':
+        robot.SetMotorSpeed(math.pi/4, 0)
+        robot.SetMotorSpeed(-math.pi/4, 1)
+    elif mode == 'right':
+        robot.SetMotorSpeed(-math.pi/4, 0)
+        robot.SetMotorSpeed(math.pi/4, 1)
+    else:
+        robot.SetMotorSpeed(0, 0)
+
+# Simulation loop
+time = 0
+while vis.Run():
+    # Example movement: move straight for first second, turn left at 1s, turn right at 2s
+    if abs(time - 1.0) < 1e-4:
+        move('left')
+    elif abs(time - 2.0) < 1e-4:
+        move('right')
+    elif time > 3.0:
+        move('straight')
+
+    # Update sensor manager
+    sensor_manager.Update()
+
+    # Increment time
+    time += time_step
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)

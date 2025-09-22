@@ -1,0 +1,65 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.postprocess as postprocess
+
+# Initialize PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+# Create the HMMWV vehicle
+init_loc = chrono.ChVectorD(0, 0, 1.0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+vehicle = veh.HMMWV_Full()
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+# Set visualization type for vehicle components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+# Create the SCM terrain
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+terrain.SetSoilParameters(2e7,  # Bekker Kphi
+                           0,      # Bekker Kc
+                           1.1,    # Bekker n exponent
+                           0,      # Mohr cohesive limit (Pa)
+                           30,     # Mohr friction limit (degrees)
+                           0.01,   # Janosi shear coefficient (m)
+                           2e8,    # Elastic stiffness (Pa/m), before plastic yield
+                           3e4     # Damping (Pa.s/m), proportional to negative vertical speed (optional)
+                          )
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)
+
+# Enable moving patch feature
+terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 3, 1))
+
+# Create the Irrlicht application
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV on SCM Deformable Terrain')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle)
+
+# Create the interactive driver system
+driver = veh.ChIrrGuiDriver(vis)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+driver.Initialize()
+
+# Simulation loop
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    vehicle.Advance(time - vehicle.GetSystem().GetChTime())
+    terrain.Advance(time - vehicle.GetSystem().GetChTime())
+    vis.Advance(0.02)
+    vis.Render()

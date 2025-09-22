@@ -1,0 +1,66 @@
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.sensor as sens
+import rospy
+from std_msgs.msg import Int32
+
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+# Create a Chrono system with gravitational acceleration
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set physical material properties
+mat = chrono.ChMaterialSurfaceNSC()
+mat.SetFriction(0.5)
+
+# Add a fixed floor to the system
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetCollide(True)
+ground.GetCollisionModel().ClearModel()
+ground.GetCollisionModel().AddBox(mat, 10, 0.1, 10)
+ground.GetCollisionModel().BuildModel()
+sys.Add(ground)
+
+# Add a movable box to the system
+box = chrono.ChBody()
+box.SetMass(1.0)
+box.SetInertiaXX(chrono.ChVectorD(1.0, 1.0, 1.0))
+box.SetPos(chrono.ChVectorD(0, 0.5, 0))
+box.SetCollide(True)
+box.GetCollisionModel().ClearModel()
+box.GetCollisionModel().AddBox(mat, 0.5, 0.5, 0.5)
+box.GetCollisionModel().BuildModel()
+sys.Add(box)
+
+# Create a custom ROS handler to publish integer messages
+class CustomROSHandler:
+    def __init__(self):
+        self.pub = rospy.Publisher('/custom_topic', Int32, queue_size=10)
+
+    def Update(self, step):
+        msg = Int32()
+        msg.data = int(step * 1000)
+        self.pub.publish(msg)
+
+# Initialize ROS node
+rospy.init_node('chrono_ros_node', anonymous=True)
+
+# Create a ROS manager and configure handlers
+ros_manager = sens.ChROSManager(sys)
+ros_manager.RegisterClockHandler()
+ros_manager.RegisterBodyHandler(box)
+ros_manager.RegisterTransformHandler(box)
+custom_handler = CustomROSHandler()
+ros_manager.RegisterHandler(custom_handler)
+
+# Run the simulation loop
+step_size = 0.01
+while sys.GetChTime() < 10:
+    sys.DoStepDynamics(step_size)
+    ros_manager.Update()
+    rospy.sleep(step_size)
+```

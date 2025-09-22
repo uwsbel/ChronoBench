@@ -1,0 +1,96 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+
+# --- Simulation setup ---
+chrono.SetChronoDataPath("../chrono_data/")  # Adjust path if needed
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+
+# --- Beam properties ---
+beam_length = 1.0  # meters
+beam_height = 0.1  # meters
+beam_width = 0.05  # meters
+youngs_modulus = 2e11  # Pascals (Steel)
+poissons_ratio = 0.3
+density = 7850  # kg/m^3
+
+# --- Create the beam using FEA ---
+beam = fea.ChBeamSectionSteel(beam_width, beam_height)
+beam.SetYoungModulus(youngs_modulus)
+beam.SetPoissonRatio(poissons_ratio)
+beam.SetDensity(density)
+
+# Create a ChBody for the beam
+body = chrono.ChBodyEasy()
+body.SetBodyFixed(False)
+body.SetCollide(True)
+body.SetMass(density * beam_width * beam_height * beam_length)  # Approximate mass
+body.AddAsset(beam)
+
+# Create a ChLinkMateRevolute to constrain one end of the beam
+link_revolute = chrono.ChLinkMateRevolute()
+link_revolute.Initialize(body, None, chrono.ChCoordsys(chrono.ChVectorD(0, 0, 0)))
+system.AddLink(link_revolute)
+body.SetPos(chrono.ChVectorD(0, 0.05, 0)) # slightly above the ground
+
+# Add the beam to the system
+system.AddBody(body)
+
+# --- Custom motor function ---
+class AxialMotor(chrono.ChFunction):
+    def __init__(self, body, force):
+        chrono.ChFunction.__init__(self)
+        self.body = body
+        self.force = force
+
+    def Get_Force(self):
+        return chrono.ChVectorD(self.force, 0, 0)
+
+    def Get_Force_X(self):
+        return self.force
+
+    def Get_Force_Y(self):
+        return 0.0
+
+    def Get_Force_Z(self):
+        return 0.0
+
+# Create and apply the motor
+motor_force = 100.0  # Newtons
+motor = AxialMotor(body, motor_force)
+body.AddForce(motor.Get_Force()) # Apply force at the center of mass
+
+# --- Constraints ---
+# Add a ChLinkLock to fix the other end of the beam in all DOFs
+link_lock = chrono.ChLinkLock()
+link_lock.Initialize(body, None, chrono.ChCoordsys(chrono.ChVectorD(beam_length, 0.05, 0)))
+system.AddLink(link_lock)
+
+# --- Solver settings ---
+system.SetSolverType(chrono.ChSolver.Type_SOR)
+system.SetSolverMaxIterations(100)
+system.SetSolverTolerance(1e-6)
+
+# --- Timestepper settings ---
+timestepper = chrono.ChTimestepper.Type_EULER_IMPLICIT
+system.SetTimestepperType(timestepper)
+system.SetStep(0.001) # Time step size
+
+# --- Visualization ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Beam Buckling Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 1, -2))
+vis.AddTypicalLights()
+
+# --- Simulation loop ---
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(0.001)

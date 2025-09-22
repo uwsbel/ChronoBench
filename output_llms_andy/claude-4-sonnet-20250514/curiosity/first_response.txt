@@ -1,0 +1,266 @@
+Here's a comprehensive PyChrono simulation script for a Curiosity rover navigating on rigid terrain:
+
+```python
+import pychrono as chrono
+import pychrono.robot as robot
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+def main():
+    # Initialize the PyChrono environment
+    chrono.SetChronoDataPath('/path/to/chrono/data/')  # Set your Chrono data path
+    
+    # Create the physical system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+    
+    # Set solver parameters for better stability
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    # Create fixed ground with collision properties
+    ground_mat = chrono.ChMaterialSurfaceNSC()
+    ground_mat.SetFriction(0.8)
+    ground_mat.SetRestitution(0.1)
+    ground_mat.SetRollingFriction(0.1)
+    ground_mat.SetSpinningFriction(0.05)
+    
+    # Create ground body
+    ground = chrono.ChBodyEasyBox(50, 2, 50, 1000, True, True, ground_mat)
+    ground.SetPos(chrono.ChVectorD(0, -1, 0))
+    ground.SetBodyFixed(True)
+    ground.SetName("ground")
+    system.Add(ground)
+    
+    # Add some terrain features (rocks/obstacles)
+    rock_mat = chrono.ChMaterialSurfaceNSC()
+    rock_mat.SetFriction(0.9)
+    rock_mat.SetRestitution(0.3)
+    
+    # Create several rocks as obstacles
+    rock_positions = [
+        chrono.ChVectorD(5, 0.5, 3),
+        chrono.ChVectorD(-3, 0.8, 8),
+        chrono.ChVectorD(8, 0.6, -5),
+        chrono.ChVectorD(-7, 0.4, -2),
+        chrono.ChVectorD(12, 1.0, 10)
+    ]
+    
+    rocks = []
+    for i, pos in enumerate(rock_positions):
+        rock_size = np.random.uniform(0.3, 1.2)
+        rock = chrono.ChBodyEasyEllipsoid(
+            chrono.ChVectorD(rock_size, rock_size*0.8, rock_size*0.9),
+            2700, True, True, rock_mat
+        )
+        rock.SetPos(pos)
+        rock.SetBodyFixed(True)
+        rock.SetName(f"rock_{i}")
+        system.Add(rock)
+        rocks.append(rock)
+    
+    # Create Curiosity rover
+    rover = robot.Curiosity(system)
+    
+    # Set rover initial position and orientation
+    rover_pos = chrono.ChVectorD(0, 0.5, 0)
+    rover_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    rover.Initialize(chrono.ChFrameD(rover_pos, rover_rot))
+    
+    # Create motor control driver for real-time steering
+    driver = robot.CuriosityDCMotorControl()
+    rover.SetDriver(driver)
+    
+    # Initialize Irrlicht visualization
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Curiosity Rover Terrain Navigation")
+    vis.Initialize()
+    
+    # Set camera parameters
+    vis.AddCamera(chrono.ChVectorD(-8, 4, -8), chrono.ChVectorD(0, 0, 0))
+    vis.GetActiveCamera().SetAngle(chrono.CH_C_PI / 3)
+    
+    # Enable shadows and lighting
+    vis.EnableShadows()
+    vis.SetAmbientLight(chrono.ChColor(0.4, 0.4, 0.5))
+    
+    # Add directional light (sun)
+    vis.AddLight(chrono.ChVectorD(30, 100, 30), 290, chrono.ChColor(1, 1, 0.9))
+    
+    # Add point light for additional illumination
+    vis.AddPointLight(chrono.ChVectorD(0, 10, 0), 50, chrono.ChColor(0.8, 0.8, 1))
+    
+    # Customize ground texture and appearance
+    ground_texture = vis.GetVideoDriver().getTexture("textures/ground_mars.jpg")
+    if ground_texture:
+        ground.GetVisualShape(0).SetTexture(ground_texture)
+    
+    # Set ground color if texture not available
+    ground.GetVisualShape(0).SetColor(chrono.ChColor(0.7, 0.4, 0.2))  # Mars-like color
+    
+    # Customize rock appearances
+    for i, rock in enumerate(rocks):
+        color_variation = 0.3 + 0.4 * np.random.random()
+        rock.GetVisualShape(0).SetColor(chrono.ChColor(
+            0.4 + color_variation * 0.3,
+            0.3 + color_variation * 0.2,
+            0.2 + color_variation * 0.1
+        ))
+    
+    # Add logo (if available)
+    try:
+        vis.AddLogo("logo_pychrono_alpha.png")
+    except:
+        print("Logo file not found, continuing without logo")
+    
+    # Add sky box for better visual appeal
+    try:
+        vis.SetSkyBox("skybox/")
+    except:
+        vis.SetSkyBox()  # Default skybox
+    
+    # Simulation parameters
+    step_size = 0.005
+    simulation_time = 0
+    max_simulation_time = 60  # 60 seconds
+    
+    # Real-time factor for visualization
+    realtime_timer = chrono.ChRealtimeStepTimer()
+    
+    # Motor control variables
+    steering_angle = 0
+    motor_speed = 0
+    
+    print("Simulation started. Use the following controls:")
+    print("- Hold LEFT/RIGHT arrow keys to steer")
+    print("- Hold UP/DOWN arrow keys for forward/backward motion")
+    print("- ESC to exit")
+    
+    # Main simulation loop
+    while vis.Run() and simulation_time < max_simulation_time:
+        # Handle real-time input for rover control
+        receiver = vis.GetDevice().getCursorControl()
+        
+        # Simple keyboard-based control (you can enhance this)
+        steering_input = 0
+        throttle_input = 0
+        
+        # Get keyboard state
+        if vis.GetDevice().isKeyPressed(chronoirr.KEY_LEFT):
+            steering_input = -1
+        elif vis.GetDevice().isKeyPressed(chronoirr.KEY_RIGHT):
+            steering_input = 1
+            
+        if vis.GetDevice().isKeyPressed(chronoirr.KEY_UP):
+            throttle_input = 1
+        elif vis.GetDevice().isKeyPressed(chronoirr.KEY_DOWN):
+            throttle_input = -1
+        
+        # Apply smooth control transitions
+        steering_angle += (steering_input - steering_angle) * 0.1
+        motor_speed += (throttle_input - motor_speed) * 0.05
+        
+        # Set driver inputs
+        driver_inputs = robot.CuriosityDriverInputs()
+        driver_inputs.m_steering = steering_angle
+        driver_inputs.m_throttle = motor_speed
+        
+        # Update rover with driver inputs
+        rover.Update(simulation_time, driver_inputs)
+        
+        # Update camera to follow rover
+        rover_pos = rover.GetChassis().GetPos()
+        camera_pos = rover_pos + chrono.ChVectorD(-10, 6, -10)
+        look_at = rover_pos + chrono.ChVectorD(0, 0, 5)
+        vis.GetActiveCamera().setTarget(
+            chronoirr.vector3df(look_at.x, look_at.y, look_at.z)
+        )
+        vis.GetActiveCamera().setPosition(
+            chronoirr.vector3df(camera_pos.x, camera_pos.y, camera_pos.z)
+        )
+        
+        # Begin scene
+        vis.BeginScene()
+        vis.Render()
+        
+        # Render additional information
+        vis.GetGUIEnvironment().getBuiltInFont().draw(
+            f"Time: {simulation_time:.1f}s",
+            chronoirr.recti(10, 10, 200, 30),
+            chronoirr.SColor(255, 255, 255, 255)
+        )
+        
+        vis.GetGUIEnvironment().getBuiltInFont().draw(
+            f"Rover Speed: {rover.GetChassisVel().Length():.2f} m/s",
+            chronoirr.recti(10, 35, 300, 55),
+            chronoirr.SColor(255, 255, 255, 255)
+        )
+        
+        vis.GetGUIEnvironment().getBuiltInFont().draw(
+            f"Position: X={rover_pos.x:.1f}, Z={rover_pos.z:.1f}",
+            chronoirr.recti(10, 60, 400, 80),
+            chronoirr.SColor(255, 255, 255, 255)
+        )
+        
+        vis.EndScene()
+        
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        simulation_time += step_size
+        
+        # Maintain real-time execution
+        realtime_timer.Spin(step_size)
+    
+    print("Simulation completed successfully!")
+
+if __name__ == "__main__":
+    main()
+```
+
+This comprehensive PyChrono simulation script includes:
+
+## Key Features:
+
+1. **PyChrono Environment Initialization**:
+   - Proper system setup with gravity and solver parameters
+   - Material properties for realistic physics
+
+2. **Physical Systems and Objects**:
+   - Fixed ground with collision properties
+   - Curiosity rover model with proper initialization
+   - Terrain obstacles (rocks) with varying sizes and positions
+
+3. **Motor Control Driver**:
+   - Real-time steering input system
+   - Keyboard controls (arrow keys) for rover navigation
+   - Smooth control transitions for realistic movement
+
+4. **Advanced Irrlicht Visualization**:
+   - High-resolution window with custom title
+   - Dynamic camera that follows the rover
+   - Multiple lighting sources (ambient, directional, point lights)
+   - Shadow rendering for realistic appearance
+   - Custom textures and colors for Mars-like terrain
+   - Skybox for enhanced visual appeal
+   - Real-time information display (time, speed, position)
+
+5. **Customizable Parameters**:
+   - Adjustable simulation step size and duration
+   - Material properties for different friction/restitution values
+   - Camera positioning and movement
+   - Lighting and visual effects
+
+## Controls:
+- **Arrow Keys**: Steer (LEFT/RIGHT) and drive (UP/DOWN)
+- **ESC**: Exit simulation
+
+## Additional Features:
+- Real-time performance monitoring
+- Collision detection between rover and terrain
+- Realistic physics simulation with proper material interactions
+- Visual feedback with on-screen information display
+
+The script provides a complete simulation environment for testing rover navigation algorithms and visualizing rover behavior on challenging terrain.

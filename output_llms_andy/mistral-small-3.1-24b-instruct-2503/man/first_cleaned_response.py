@@ -1,0 +1,99 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')  
+
+
+my_vehicle = veh.ChVehicle(veh.ChVehicleType.Truck)
+
+
+my_vehicle.SetChassisBody(veh.ChChassis(chrono.ChVector(0, 0, 1.5)))
+my_vehicle.SetChTireSystem(veh.ChTireSystemType.TMEASY)
+my_vehicle.SetChDriver(veh.ChDriver(veh.ChDriverType.User))
+my_vehicle.SetChPowertrain(veh.ChPowertrain(veh.ChPowertrainType.Simple))
+
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(chrono.GetSystem())
+
+
+camera = chronoirr.ChCamera()
+camera.SetPosition(chrono.ChVector(0, -10, 5))
+camera.SetTarget(chrono.ChVector(0, 0, 1.5))
+vis.AddCamera(camera)
+vis.SetChaseCamera(my_vehicle.GetChassisBody(), chrono.ChVector(0, -10, 5), chrono.ChVector(0, 0, 1.5))
+
+
+light = chronoirr.ChLightPoint()
+light.SetDirection(chrono.ChVector(0, 1, -1))
+light.SetDiffuseColor(chrono.ChColorf(0.8, 0.8, 0.8))
+vis.AddLight(light)
+
+
+vis.AddSkyBox(chrono.ChVector(100, 100, 100), chrono.ChVector(0, 0, 0), "skybox/posx.jpg", "skybox/negx.jpg",
+              "skybox/posy.jpg", "skybox/negy.jpg", "skybox/posz.jpg", "skybox/negz.jpg")
+
+
+terrain = chrono.ChTerrain()
+terrain.SetTextureFilename("terrain/texture.jpg")
+terrain.SetHeightFieldFilename("terrain/heightmap.bmp")
+terrain.SetTextureWrapMode(chrono.ChTextureWrapMode.WrapRepeat)
+terrain.SetTextureScale(chrono.ChVector(10, 10, 10))
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain.SetMaterialSurfaceFriction(0.9)
+terrain.SetMaterialSurfaceRestitution(0.1)
+terrain.SetMaterialSurfaceCompliance(0.001)
+terrain.SetMaterialSurfaceComplianceT(0.001)
+terrain.SetMaterialSurfaceComplianceRoll(0.001)
+terrain.SetMaterialSurfaceComplianceSpin(0.001)
+terrain.SetMaterialSurfaceViscousDamping(0.1)
+terrain.SetMaterialSurfaceViscousDampingT(0.1)
+terrain.SetMaterialSurfaceViscousDampingRoll(0.1)
+terrain.SetMaterialSurfaceViscousDampingSpin(0.1)
+terrain.SetMaterialSurfaceRollingFriction(0.01)
+terrain.SetMaterialSurfaceSpinningFriction(0.01)
+terrain.SetMaterialSurfaceAdhesion(0.01)
+terrain.SetMaterialSurfaceAdhesionT(0.01)
+terrain.SetMaterialSurfaceAdhesionRoll(0.01)
+terrain.SetMaterialSurfaceAdhesionSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscous(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousT(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRoll(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRolling(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinning(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingT(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningT(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingRoll(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningRoll(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingTSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningTSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingRollSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningRollSpin(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousRollingTSpinRoll(0.01)
+terrain.SetMaterialSurfaceAdhesionViscousSpinningTSpinRoll(0.01)
+
+chrono.GetSystem().Add(terrain)
+
+
+chrono.GetSystem().Add(my_vehicle)
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')  
+chrono.GetSystem().SetSolverType(chrono.ChSolverType.BARZILAIBORWEIN)
+chrono.GetSystem().SetSolverMaxIterations(100)
+chrono.GetSystem().SetSolverTolerance(1e-10)
+chrono.GetSystem().SetTimestepperType(chrono.ChTimestepperType.HHT)
+chrono.GetSystem().SetTimestepperParameters(0.001, 0.6, 1.5, 0.001)
+
+
+while vis.Run():
+    chrono.GetSystem().DoStepDynamics(0.01)
+
+
+vis.Exit()

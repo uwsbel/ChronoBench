@@ -1,0 +1,663 @@
+Okay, I need to create a PyChrono simulation that includes a triangular mesh from an .obj file, a lidar sensor, and some dynamic updates. Let me start by recalling the steps required for initializing PyChrono and setting up the environment.
+
+First, I'll import the necessary modules. I'll need pychrono and its sensor module. Also, maybe chrono_py for some utilities. Wait, the user mentioned using a sensor manager, so I should check if the sensor module has a manager class. Oh right, chrono::sensor::SensorManager.
+
+Next, initialize the Chrono system. Usually, you start with creating a system object. Then, maybe a Irrlicht application for visualization. But the user wants to visualize the mesh as a fixed body, so I need to create a static body with the mesh.
+
+The mesh is loaded from a Wavefront .obj file. I should use chrono::geometry::ChTriangleMeshShape. I'll have to specify the file path. Let me make sure to include code that loads the mesh, creates a static body, and adds it to the system.
+
+Now, the lidar sensor. The sensor manager needs to be initialized. The lidar is attached to the body, but the position should orbit around the mesh. Wait, the sensor is on the fixed body? Or is the sensor moving around the mesh? The instruction says the lidar's position is dynamically updated in an orbit around the mesh. Hmm, the sensor is attached to the fixed body? Or maybe the sensor is part of a separate body that moves? Wait, the user says "Add a lidar sensor to the body using a sensor manager". The body here is the fixed mesh? Or maybe the sensor is placed on a separate object that moves around the mesh. Wait, the wording is a bit ambiguous. The instruction says "Add a lidar sensor to the body", so the body in question is the mesh's fixed body. But then it says "dynamically updating the lidar's position in an orbit around the mesh". That suggests that the lidar's position is changing over time, so perhaps the sensor is mounted on a moving platform, but the mesh itself is fixed. Alternatively, maybe the sensor is attached to the mesh's body but its position is updated each step. Hmm, perhaps the sensor is part of a separate object that orbits the mesh. But the instruction says "add a lidar sensor to the body", so maybe the sensor is attached to the mesh's body, but then its position is adjusted each step. Wait, perhaps the sensor is part of the fixed body but its position is changed each step to orbit the mesh. But since the body is fixed, maybe the sensor's frame is adjusted each step. Alternatively, maybe the sensor is part of a separate body that moves. Hmm, this needs clarification. Let me think again. The problem says "Add a lidar sensor to the body using a sensor manager". The body here is the fixed mesh. So the sensor is attached to that body, but then the position is dynamically updated in an orbit around the mesh. Wait, but if the body is fixed, how can the sensor's position be moving? Maybe the sensor's local frame is being adjusted each step to orbit around the mesh's origin. That makes sense. So the sensor is attached to the mesh's body, but its position relative to the body is changing each step, thus orbiting the mesh. So the sensor's frame is part of the body's frame but offset in a way that moves around.
+
+Alternatively, maybe the sensor is placed on a separate body that is moving around the mesh. But the user's instruction says to add the sensor to the body (the mesh's fixed body). Hmm. Alternatively, perhaps the sensor is placed in the scene, not attached to the body, but its position is updated each step. Let me proceed with the first approach where the sensor is attached to the mesh's body but its position is updated each step to orbit around the mesh's origin.
+
+So steps:
+
+1. Create the system and visualization.
+2. Load the mesh as a static body.
+3. Create a sensor manager.
+4. Create a lidar sensor, set parameters, add noise filters, visualization, and saving options.
+5. Set up the lidar's position to orbit around the mesh's position each step.
+6. In the simulation loop, update the sensor's position, update the sensor, and print buffer data.
+
+Wait, the sensor's position is part of its sensor setup. The sensor has a position and orientation. To orbit, perhaps each step we compute a new position based on an orbiting path. For example, using a circular path around the mesh's origin with some radius and angular speed.
+
+So in the simulation loop, before updating the sensor, we compute the new position of the sensor's frame. Let me structure this.
+
+First, the mesh's static body is at a certain position, say (0,0,0). The sensor's initial position is at (radius, 0, 0), then rotates around the origin. The sensor's frame is positioned at that point, with orientation facing towards the center perhaps, or some direction.
+
+Wait, the lidar sensor's orientation is important. The sensor manager's lidar requires a position and orientation. So each step, we need to set the sensor's position and orientation.
+
+Alternatively, maybe the sensor is part of a sensor manager that can be moved each step. The sensor manager has a function to update the sensor's position and orientation.
+
+So, in code:
+
+After creating the sensor, in each simulation step:
+
+- Compute the new position based on orbit (e.g., using a circular path with angle increasing each step)
+- Update the sensor's position and orientation (maybe facing towards the center)
+- Update the sensor manager (to capture the data)
+- Get the buffer data and print it.
+
+Now, the sensor setup. The lidar parameters: number of beams, field of view, etc. The user wants noise filters applied. So when creating the sensor, add noise filters. Also, visualization options and saving data.
+
+The sensor manager's add_lidar() function requires parameters like name, position, orientation, field of view, etc. Then, after adding, you can set noise filters via the sensor's methods.
+
+Wait, the code structure would be something like:
+
+manager = chrono.sensor.SensorManager(system)
+
+lidar = manager.AddLidar( ... )
+
+lidar.SetNoise( ... )
+
+lidar.SetSaveFrames(True, 'output/lidar_')
+
+manager.SetVizType(chrono.render.RendererType_IRR)
+
+Then, in the simulation loop, after moving the sensor's position, call manager.UpdateSensor(lidar, ...), then retrieve the data.
+
+Wait, perhaps the sensor's position and orientation are set each step before updating. Alternatively, maybe the sensor's position is updated via a function.
+
+Alternatively, the sensor's position can be set each step by modifying its frame.
+
+Hmm, perhaps the sensor's position is part of its parameters, so each step before updating the sensor, we set its position and orientation.
+
+Wait, looking at the PyChrono documentation for sensors:
+
+The AddLidar function takes parameters like:
+
+name, pos, dir, up, h_fov, v_fov, near_plane, far_plane, etc.
+
+But once added, to change its position/orientation, perhaps you need to set its frame.
+
+Wait, in the sensor class, there's a method to set the frame. For example, lidar.SetFrame(chrono.ChFrameD(position, rotation)).
+
+So each step, before updating the sensor, we can compute the new position and orientation, set the frame, then call the update.
+
+Alternatively, the sensor's position can be adjusted via a function each step.
+
+So, the steps in code:
+
+Initialize system, create static body with mesh.
+
+Create sensor manager.
+
+Create lidar sensor with initial position and orientation.
+
+Set noise parameters, saving options, etc.
+
+Then in the simulation loop:
+
+- Update the system (time step)
+- Update the sensor's position and orientation (orbit)
+- Update the sensor (manager.UpdateSensor(...))
+- Get the buffer data (lidar.GetBuffer())
+- Print the data (maybe just some stats like min/max distance)
+- Render the scene.
+
+Now, the orbit calculation. Let's say the mesh is at (0,0,0). The sensor orbits in a circle of radius 'radius' in the XY plane. The angular velocity is omega = angular_speed * time_step. Each step, the angle increases by delta_theta = omega * dt.
+
+Initialize angle = 0.
+
+At each step:
+
+angle += angular_speed * dt
+
+position_x = radius * cos(angle)
+
+position_y = radius * sin(angle)
+
+position_z = some height above the mesh, say 0 or 10.
+
+Orientation: perhaps facing towards the center. So the direction vector would be from the sensor's position to the center (0,0,0). So direction vector is (-position_x, -position_y, 0), normalized. The up vector is (0,0,1). So the orientation is set accordingly.
+
+Alternatively, maybe the lidar's direction is facing the center, so the direction vector is towards the origin.
+
+So the direction vector is ( -position_x, -position_y, 0 ), but normalized. The up vector is (0,0,1).
+
+To create the rotation matrix for the sensor's frame, we can compute it using the direction and up vectors.
+
+Alternatively, using ChFrameD, which can be constructed with position and rotation.
+
+Wait, perhaps using ChFrameD with the position and a rotation that aligns the lidar's forward direction towards the center.
+
+Alternatively, perhaps the lidar's orientation is set such that its 'look at' direction is towards the origin. So using a lookAt function.
+
+Hmm, perhaps the easiest way is to compute the rotation matrix using the desired direction and up vector.
+
+Alternatively, in code:
+
+import math
+
+angle = 0.0
+
+radius = 5.0  # example radius
+
+angular_speed = 0.1  # radians per second
+
+dt = system.GetChTimeStep()
+
+each step:
+
+angle += angular_speed * dt
+
+pos = chrono.ChVectorD(radius * math.cos(angle), radius * math.sin(angle), 0.0)
+
+# direction towards origin is (-pos.x, -pos.y, 0)
+
+dir = chrono.ChVectorD(-pos.x, -pos.y, 0.0).Get_normalized()
+
+up = chrono.ChVectorD(0,0,1)
+
+# create rotation from dir and up
+
+rot = chrono.Q_from_A_frame(dir, up)
+
+frame = chrono.ChFrameD(pos, rot)
+
+lidar.SetFrame(frame)
+
+Then, before updating the sensor, this is done each step.
+
+Wait, the SetFrame method is available in the sensor's class?
+
+Looking at the PyChrono documentation, perhaps the sensor has a SetFrame method. Alternatively, maybe the sensor's parameters are set via other methods.
+
+Alternatively, perhaps the sensor's position and orientation can be set through the UpdateSensor function. Let me check the API.
+
+Looking up the SensorManager's UpdateSensor function:
+
+manager.UpdateSensor(sensor, frame, time)
+
+So, in each step, before updating the sensor, we compute the frame (position and rotation) and pass it to UpdateSensor.
+
+Ah, that's probably the way. So the flow would be:
+
+In each simulation step:
+
+- Advance the system (system.DoStepDynamics(dt))
+
+- Compute the new frame for the sensor (position, rotation)
+
+- Call manager.UpdateSensor(lidar, frame, current_time)
+
+- Then, retrieve the buffer data from the sensor.
+
+So, the code steps would involve creating the frame each step and passing it.
+
+Now, the initial setup of the mesh:
+
+The static body needs to have the mesh loaded. The mesh file path must be provided. Let's assume the user has a file named 'my_mesh.obj'.
+
+So:
+
+mesh = chrono.ChTriangleMeshShape()
+
+mesh.SetMesh(chrono.import_obj("my_mesh.obj"))
+
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.AddAsset(mesh)
+system.Add(body)
+
+But also, set the position of the body. Maybe at (0,0,0).
+
+Wait, the mesh's position is part of the body's position. So if the body is at (0,0,0), then the mesh is there.
+
+Now, the sensor's initial position would be part of the orbit.
+
+Putting all together:
+
+The code outline would be:
+
+import pychrono as chrono
+import pychrono.sensor as csensor
+import math
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
+
+# Create Irrlicht visualizer
+vis = chrono.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Lidar Mesh Simulation')
+vis.SetSymbolscale(0.002)
+vis.SetShadowFBO(True)
+system.SetVisualSystem(vis)
+
+# Add a static body with the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.SetPos(chrono.ChVectorD(0,0,0))
+
+# Load the mesh (replace with actual file path)
+mesh = chrono.ChTriangleMeshShape()
+mesh.SetMesh(chrono.GetChronoDataFile('my_mesh.obj'))  # example path
+body.AddAsset(mesh)
+system.Add(body)
+
+# Create sensor manager
+sensor_mgr = csensor.ChSensorManager(system)
+sensor_mgr.SetRenderTarget(csensor.ChSensorManager.RT_OFFSCREEN)
+
+# Setup lidar parameters
+lidar_name = 'my_lidar'
+lidar_hfov = 90.0  # degrees
+lidar_vfov = 30.0
+lidar_near = 0.1
+lidar_far = 100.0
+lidar_width = 512
+lidar_height = 480
+
+# Initial position (before orbit starts)
+initial_pos = chrono.ChVectorD(radius, 0, 0)  # assuming radius is 5, for example
+initial_dir = chrono.ChVectorD(-1,0,0)  # pointing towards origin
+initial_up = chrono.ChVectorD(0,0,1)
+
+# Create rotation from direction and up
+initial_rot = chrono.Q_from_A_frame(initial_dir, initial_up)
+initial_frame = chrono.ChFrameD(initial_pos, initial_rot)
+
+# Create the lidar sensor
+lidar = sensor_mgr.AddLidar(lidar_name, initial_frame, lidar_hfov, lidar_vfov,
+                           lidar_near, lidar_far, lidar_width, lidar_height)
+
+# Configure noise filters (example Gaussian noise)
+noise = csensor.ChNoiseGaussian(0.05)  # 5% noise
+lidar.SetNoise(noise)
+
+# Enable saving frames to files
+lidar.SetSaveFrames(True, 'lidar_frames/frame_')
+
+# Visualization
+sensor_mgr.SetVizType(chrono.render.RendererType_IRR)
+
+# Simulation setup
+time_step = 0.01
+end_time = 10.0
+
+# Initialize simulation
+system.SetupVisualization()
+vis.SetCameraPosition(chrono.ChVectorD(10,10,10))
+vis.SetCameraLookatPoint(chrono.ChVectorD(0,0,0))
+
+# Simulation loop
+while system.GetChTime() < end_time:
+    # Update sensor position and orientation
+    current_time = system.GetChTime()
+    angle = angular_speed * current_time  # assuming angular_speed is defined
+    # Wait, angular_speed was mentioned earlier as 0.1 rad/s, so let's define it
+    angular_speed = 0.1  # radians per second
+    radius = 5.0
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    pos = chrono.ChVectorD(x, y, 0.0)
+    
+    # Compute direction towards origin
+    dir = chrono.ChVectorD(-x, -y, 0).Get_normalized()
+    up = chrono.ChVectorD(0,0,1)
+    rot = chrono.Q_from_A_frame(dir, up)
+    frame = chrono.ChFrameD(pos, rot)
+    
+    # Update the sensor's position and orientation
+    sensor_mgr.UpdateSensor(lidar, frame, current_time)
+    
+    # Update the sensor data
+    lidar.Update()
+    
+    # Get buffer data
+    buffer = lidar.GetBuffer()
+    # Print some data (maybe the first few points)
+    print(f"Time {current_time:.2f}: Points: {len(buffer)}")
+    # For example, print first point's distance
+    if buffer:
+        print("First point distance:", buffer[0].distance)
+    
+    # Advance the system
+    system.DoStepDynamics(time_step)
+    
+    # Render
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+Wait, but in the code above, angular_speed is defined inside the loop? No, it's better to define constants before the loop.
+
+Also, the initial parameters like radius and angular_speed should be defined outside the loop.
+
+Also, the mesh file path needs to be correct. The user should replace 'my_mesh.obj' with their actual file path.
+
+Additionally, the sensor's parameters like hfov, vfov, etc., may need adjustment based on the mesh's size.
+
+Also, the code needs to handle the sensor's frame correctly each step.
+
+Potential issues:
+
+- The rotation calculation: using Q_from_A_frame requires that the direction and up vectors are orthogonal. Since up is (0,0,1), and the direction is in the XY plane, that should be okay.
+
+- The sensor's orientation: if the lidar's direction is towards the center, then the lidar should be facing the mesh, which is necessary to capture points.
+
+- The noise filter is set, but maybe more parameters are needed.
+
+- The saving of frames is enabled, but the directory 'lidar_frames' must exist or be created.
+
+- The simulation time step must be consistent with the system's time step. The user should set system.SetTimestepper() if needed, but in the code above, the time_step variable is used in DoStepDynamics, so the system's time step is implicitly set by that.
+
+Wait, actually, the system's time step is controlled by the timestepper. To set it, perhaps:
+
+system.SetTimestepper(chrono.ChTimestepperHypoelastic(time_step))
+
+Wait, but maybe the default is okay. Alternatively, ensure that the time_step variable matches the system's time step.
+
+Alternatively, in the loop, the time_step is the variable used for DoStepDynamics, so that's okay.
+
+Another point: the lidar's Update() method might need to be called after setting the frame via the sensor manager's UpdateSensor. Wait, perhaps the UpdateSensor already handles that. Need to check the API.
+
+Looking at the PyChrono sensor manager documentation: the UpdateSensor function updates the sensor's position and orientation, and the sensor is updated. So perhaps after calling UpdateSensor, the data is available via GetBuffer.
+
+Wait, the code example in the documentation shows:
+
+manager.UpdateSensor(sensor, frame, time)
+data = sensor.GetBuffer()
+
+So perhaps the Update() method is not needed, but the GetBuffer is called after UpdateSensor.
+
+Thus, in the code, after calling sensor_mgr.UpdateSensor(...), then retrieve the buffer.
+
+Also, the sensor must be enabled. Maybe check if lidar.IsEnabled() is true.
+
+Putting all together, here's the code with proper variable initialization and structure.
+
+Wait, also, the mesh loading might require the actual file path. The user should provide the correct path, but in the code, I'll use a placeholder.
+
+Another thing: the initial position of the lidar is set in the AddLidar call, but then in each step, it's updated via UpdateSensor.
+
+Also, the sensor manager must be started: sensor_mgr.Init()
+
+Wait, perhaps the sensor manager needs initialization. Let me check the API.
+
+The sensor manager's Init() function should be called after adding all sensors.
+
+So after adding the lidar, call:
+
+sensor_mgr.Init()
+
+Otherwise, the sensors won't be initialized.
+
+Ah, that's an important step I missed earlier.
+
+So adding:
+
+sensor_mgr.Init()
+
+before the simulation loop.
+
+Putting all together, here's the code:
+
+```python
+import pychrono as chrono
+import pychrono.sensor as csensor
+import math
+
+# Simulation parameters
+time_step = 0.01
+end_time = 10.0
+angular_speed = 0.1  # radians per second
+radius = 5.0  # orbit radius
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
+
+# Create Irrlicht visualizer
+vis = chrono.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Lidar Mesh Simulation')
+vis.SetSymbolscale(0.002)
+vis.SetShadowFBO(True)
+system.SetVisualSystem(vis)
+
+# Add a static body with the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+
+# Load the mesh (replace with actual file path)
+mesh = chrono.ChTriangleMeshShape()
+mesh.SetName("mesh")
+mesh.SetMesh(chrono.import_obj("my_mesh.obj"))  # Replace with actual .obj file path
+body.AddAsset(mesh)
+system.Add(body)
+
+# Create sensor manager
+sensor_mgr = csensor.ChSensorManager(system)
+sensor_mgr.SetRenderTarget(csensor.ChSensorManager.RT_OFFSCREEN)
+
+# Lidar parameters
+lidar_name = 'my_lidar'
+lidar_hfov = 90.0  # degrees
+lidar_vfov = 30.0
+lidar_near = 0.1
+lidar_far = 100.0
+lidar_width = 512
+lidar_height = 480
+
+# Initial position (before orbit starts)
+initial_angle = 0.0
+initial_x = radius * math.cos(initial_angle)
+initial_y = radius * math.sin(initial_angle)
+initial_pos = chrono.ChVectorD(initial_x, initial_y, 0.0)
+
+# Direction towards origin
+initial_dir = chrono.ChVectorD(-initial_x, -initial_y, 0.0).Get_normalized()
+initial_up = chrono.ChVectorD(0, 0, 1)
+initial_rot = chrono.Q_from_A_frame(initial_dir, initial_up)
+initial_frame = chrono.ChFrameD(initial_pos, initial_rot)
+
+# Create the lidar sensor
+lidar = sensor_mgr.AddLidar(lidar_name, initial_frame, lidar_hfov, lidar_vfov,
+                           lidar_near, lidar_far, lidar_width, lidar_height)
+
+# Configure noise filter (Gaussian noise with 5% standard deviation)
+noise = csensor.ChNoiseGaussian(0.05)
+lidar.SetNoise(noise)
+
+# Enable saving frames to files
+lidar.SetSaveFrames(True, 'lidar_frames/frame_')
+
+# Initialize the sensor manager
+sensor_mgr.Init()
+
+# Visualization settings
+sensor_mgr.SetVizType(chrono.render.RendererType_IRR)
+
+# Setup visualization
+system.SetupVisualization()
+vis.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
+vis.SetCameraLookatPoint(chrono.ChVectorD(0, 0, 0))
+
+# Simulation loop
+while system.GetChTime() < end_time:
+    current_time = system.GetChTime()
+    
+    # Calculate current angle and position for the orbit
+    angle = angular_speed * current_time
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    pos = chrono.ChVectorD(x, y, 0.0)
+    
+    # Compute direction towards origin
+    dir = chrono.ChVectorD(-x, -y, 0.0).Get_normalized()
+    up = chrono.ChVectorD(0, 0, 1)
+    rot = chrono.Q_from_A_frame(dir, up)
+    frame = chrono.ChFrameD(pos, rot)
+    
+    # Update sensor position and orientation
+    sensor_mgr.UpdateSensor(lidar, frame, current_time)
+    
+    # Retrieve and print lidar buffer data
+    buffer = lidar.GetBuffer()
+    print(f"Time {current_time:.2f}: Lidar points = {len(buffer)}")
+    if buffer:
+        print(f"First point distance: {buffer[0].distance:.3f} m")
+    
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+    
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Cleanup
+chrono.GetLog() << "Simulation completed.\n"
+```
+
+Wait, but in the code above, the sensor's frame is updated each step, and the UpdateSensor is called with the new frame. The buffer is retrieved after that.
+
+Potential issues:
+
+- The mesh file path must exist. The user should replace "my_mesh.obj" with the actual path.
+
+- The sensor's field of view and parameters may need adjustment based on the mesh size and orbit radius.
+
+- The noise filter is set to Gaussian with 5% standard deviation. The user can adjust this.
+
+- The output directory 'lidar_frames' must be writable. The user may need to create it beforehand.
+
+- The visualization camera position may need adjustment for better view.
+
+- The lidar's orientation: the direction is towards the center, so the lidar is facing the mesh, which is necessary to capture points.
+
+- The orbit is in the XY plane. If the mesh is elevated, maybe adjust the Z position.
+
+This should fulfill the requirements: fixed mesh, lidar orbiting around, sensor manager with noise and saving, and printing buffer data each step.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.sensor as csensor
+import math
+
+# Simulation parameters
+time_step = 0.01
+end_time = 10.0
+angular_speed = 0.1  # radians per second
+radius = 5.0  # orbit radius
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity
+
+# Create Irrlicht visualizer
+vis = chrono.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Lidar Mesh Simulation')
+vis.SetSymbolscale(0.002)
+vis.SetShadowFBO(True)
+system.SetVisualSystem(vis)
+
+# Add a static body with the mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+
+# Load the mesh (replace with actual file path)
+mesh = chrono.ChTriangleMeshShape()
+mesh.SetName("mesh")
+mesh.SetMesh(chrono.import_obj("my_mesh.obj"))  # Replace with actual .obj file path
+body.AddAsset(mesh)
+system.Add(body)
+
+# Create sensor manager
+sensor_mgr = csensor.ChSensorManager(system)
+sensor_mgr.SetRenderTarget(csensor.ChSensorManager.RT_OFFSCREEN)
+
+# Lidar parameters
+lidar_name = 'my_lidar'
+lidar_hfov = 90.0  # degrees
+lidar_vfov = 30.0
+lidar_near = 0.1
+lidar_far = 100.0
+lidar_width = 512
+lidar_height = 480
+
+# Initial position (before orbit starts)
+initial_angle = 0.0
+initial_x = radius * math.cos(initial_angle)
+initial_y = radius * math.sin(initial_angle)
+initial_pos = chrono.ChVectorD(initial_x, initial_y, 0.0)
+
+# Direction towards origin
+initial_dir = chrono.ChVectorD(-initial_x, -initial_y, 0.0).Get_normalized()
+initial_up = chrono.ChVectorD(0, 0, 1)
+initial_rot = chrono.Q_from_A_frame(initial_dir, initial_up)
+initial_frame = chrono.ChFrameD(initial_pos, initial_rot)
+
+# Create the lidar sensor
+lidar = sensor_mgr.AddLidar(
+    lidar_name,
+    initial_frame,
+    lidar_hfov,
+    lidar_vfov,
+    lidar_near,
+    lidar_far,
+    lidar_width,
+    lidar_height
+)
+
+# Configure noise filter (Gaussian noise with 5% standard deviation)
+noise = csensor.ChNoiseGaussian(0.05)
+lidar.SetNoise(noise)
+
+# Enable saving frames to files
+lidar.SetSaveFrames(True, 'lidar_frames/frame_')
+
+# Initialize the sensor manager
+sensor_mgr.Init()
+
+# Visualization settings
+sensor_mgr.SetVizType(chrono.render.RendererType_IRR)
+
+# Setup visualization
+system.SetupVisualization()
+vis.SetCameraPosition(chrono.ChVectorD(10, 10, 10))
+vis.SetCameraLookatPoint(chrono.ChVectorD(0, 0, 0))
+
+# Simulation loop
+while system.GetChTime() < end_time:
+    current_time = system.GetChTime()
+    
+    # Calculate current angle and position for the orbit
+    angle = angular_speed * current_time
+    x = radius * math.cos(angle)
+    y = radius * math.sin(angle)
+    pos = chrono.ChVectorD(x, y, 0.0)
+    
+    # Compute direction towards origin
+    dir = chrono.ChVectorD(-x, -y, 0.0).Get_normalized()
+    up = chrono.ChVectorD(0, 0, 1)
+    rot = chrono.Q_from_A_frame(dir, up)
+    frame = chrono.ChFrameD(pos, rot)
+    
+    # Update sensor position and orientation
+    sensor_mgr.UpdateSensor(lidar, frame, current_time)
+    
+    # Retrieve and print lidar buffer data
+    buffer = lidar.GetBuffer()
+    print(f"Time {current_time:.2f}: Lidar points = {len(buffer)}")
+    if buffer:
+        print(f"First point distance: {buffer[0].distance:.3f} m")
+    
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+    
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+# Cleanup
+chrono.GetLog() << "Simulation completed.\n"
+```

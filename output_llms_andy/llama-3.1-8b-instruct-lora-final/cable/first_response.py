@@ -1,0 +1,100 @@
+import pychrono as ch
+    import pychrono.irrlicht as chir
+    import math
+
+    # Initialize the Chrono physical system
+    sys = ch.ChSystemNSC()
+
+    # Define the gravitational acceleration
+    g = ch.ChVector3d(0, -9.81, 0)
+
+    # Create a visualization window
+    vis = ch.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('ChBoundedBeam ANCF Cable Elements')
+    vis.Initialize()
+    vis.AddLogo(chir.ChLogo())
+    vis.AddSkyBox()
+    vis.AddCamera(chir.ChCamera(chrono.Vector3df(2, 3, 6), chrono.Vector3df(0.5, 0.6, 1)))
+    vis.AddTypicalLights()
+
+    # Create a ground body
+    ground = ch.ChBodyEasyBox(6, 2, 6, 1000, False, False)
+    ground.SetPos(ch.ChVector3d(0, 0, 0))
+    ground.SetFixed(True)
+    ground.GetVisualShape(0).SetTexture(ch.ChCoordsysColor(0.6, 0.3, 0.3))
+    sys.Add(ground)
+
+    # Create a beam body
+    mbeams = ch.ChBeamANCF()
+    mbeams.SetSystem(sys)
+    mbeams.SetNodes(20, 1)  # Number of nodes along the beam
+    mbeams.SetCrashTolerance(1e-4)
+    mbeams.SetGravitationalAcceleration(g)
+    mbeams.SetForceFunction(ch.ChFunctionTable().GetConstForce(100))
+    mbeams.SetDrawNodes(True)
+    mbeams.SetDrawBeam(True)
+
+    # Create nodes for the beam
+    for i in range(20):
+        x = -5 + (i * 0.1)
+        node = ch.ChNodeFEA()
+        node.SetCoords(ch.ChVector3d(x, 0, 0))
+        mbeams.AddNode(node)
+
+    # Create elements for the beam
+    for i in range(19):
+        mbeams.AddBeamElement(
+            ch.ChBeamElementANCF(
+                mbeams.GetNodes()[i],
+                mbeams.GetNodes()[i + 1],
+                0.1,  # Length of the element
+                0.01  # Diameter of the element
+            )
+        )
+
+    # Create a truss body
+    truss = ch.ChBody()
+    truss.SetPos(ch.ChVector3d(0, 0, 0))
+    truss.SetFixed(True)
+    sys.Add(truss)
+
+    # Create a constraint between the beam and the truss
+    constraint = ch.ChLinkMateGeneric()
+    constraint.Initialize(mbeams.GetBody(), truss, False, False, False, False, False, False)
+    constraint.SetConstrainedCoords(True, True, True, False, False, False, False, False, False)
+    sys.Add(constraint)
+
+    # Create a constraint between the beam and the ground
+    constraint = ch.ChLinkMateGeneric()
+    constraint.Initialize(mbeams.GetBody(), ground, False, False, False, False, False, False)
+    constraint.SetConstrainedCoords(True, True, True, False, False, False, False, False, False)
+    sys.Add(constraint)
+
+    # Attach the visual shape to the truss
+    box = ch.ChVisualShapeBox(1, 1, 1)
+    truss.AddVisualShape(box)
+
+    # Define the time step for the simulation
+    time_step = 0.001
+
+    # Simulation loop
+    time = 0
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Update the system
+        sys.DoStepDynamics(time_step)
+
+        # Update the FEA beam
+        mbeams.UpdateBeam()
+
+        # Print the nodal positions
+        print("Nodal positions at t = {:.4f}".format(time))
+        for i in range(20):
+            print("  Node {0:2d} : {1}".format(i, mbeams.GetNodes()[i].GetCoords()))
+
+        time += time_step

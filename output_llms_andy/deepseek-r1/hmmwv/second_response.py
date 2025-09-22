@@ -1,0 +1,161 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_PRIMITIVES
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrainHeight = 0      # terrain height
+terrainLength = 200.0  # Increased terrain length to 200.0
+terrainWidth = 100.0   # size in Y direction
+
+# Point tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the HMMWV vehicle, set parameters, and initialize
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Path Following Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create circular path (radius = 10m)
+radius = 10.0
+path = veh.CirclePath(initLoc, radius, 50)
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "circle_path", 0, 10.0)
+driver.GetSteeringController().SetGains(0.5, 0.0, 0.0)  # PID gains for steering
+driver.Initialize()
+
+# Create path visualization balls
+ball_radius = 0.5
+ball1 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball1.SetPos(path.Eval(0))
+ball1.SetFixed(True)
+ball1.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))
+vehicle.GetSystem().Add(ball1)
+
+ball2 = chrono.ChBodyEasySphere(ball_radius, 1000, True, True)
+ball2.SetPos(path.Eval(0.5))
+ball2.SetFixed(True)
+ball2.GetVisualShape(0).SetColor(chrono.ChColor(1, 0, 0))
+vehicle.GetSystem().Add(ball2)
+
+# Create controller visualization balls
+sentinel_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+sentinel_ball.SetFixed(True)
+sentinel_ball.GetVisualShape(0).SetColor(chrono.ChColor(0, 0, 1))  # Blue
+vehicle.GetSystem().Add(sentinel_ball)
+
+target_ball = chrono.ChBodyEasySphere(0.3, 1000, True, True)
+target_ball.SetFixed(True)
+target_ball.GetVisualShape(0).SetColor(chrono.ChColor(1, 1, 0))  # Yellow
+vehicle.GetSystem().Add(target_ball)
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between render frames
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Update driver and controller points
+    driver.Synchronize(time)
+    
+    # Update sentinel and target visualization
+    sentinel_ball.SetPos(driver.GetSteeringController().GetSentinelLocation())
+    target_ball.SetPos(driver.GetSteeringController().GetTargetLocation())
+
+    # Apply constant throttle (0.3) and zero braking
+    driver_inputs = driver.GetInputs()
+    driver_inputs.m_throttle = 0.3
+    driver_inputs.m_braking = 0.0
+
+    # Update modules
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin for real-time synchronization
+    realtime_timer.Spin(step_size)

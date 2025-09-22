@@ -1,0 +1,125 @@
+import pychrono.core as chrono
+import pychrono.sensor as sensor
+import time
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+
+# Create ground body
+ground = chrono.ChBodyEasyBox(10, 0.5, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+system.Add(ground)
+
+# Create a mesh object for visualization (e.g., a vehicle or object)
+mesh_body = chrono.ChBodyEasyMesh("path_to_mesh.obj", 1000, True, True)
+mesh_body.SetPos(chrono.ChVectorD(0, 0.5, 0))
+system.Add(mesh_body)
+
+# Set ground to move (for example, moving along X)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+ground.SetBodyFixed(False)
+ground.SetPos(chrono.ChVectorD(0, -0.25, 0))
+# Apply a constant velocity to ground for demonstration
+ground.SetVelocity(chrono.ChVectorD(1.0, 0, 0))  # 1 m/s along X
+
+# Initialize sensor manager
+sensor_manager = sensor.ChSensorManager()
+sensor_manager.scene = system
+
+# Define sensor positions relative to the ground body
+sensor_positions = {
+    "camera": chrono.ChVectorD(0.0, 1.5, 0.0),
+    "lidar": chrono.ChVectorD(0.0, 1.2, 0.0),
+    "gps": chrono.ChVectorD(0.0, 1.0, 0.0),
+    "accelerometer": chrono.ChVectorD(0.0, 1.0, 0.0),
+    "gyroscope": chrono.ChVectorD(0.0, 1.0, 0.0),
+    "magnetometer": chrono.ChVectorD(0.0, 1.0, 0.0),
+}
+
+# Create and register sensors
+
+# Camera Sensor
+camera_sensor = sensor.ChCameraSensor(
+    ground,  # attached to ground body
+    100,     # update rate (Hz)
+    sensor.ChFrameFCS(sensor_positions["camera"])  # position relative to ground
+)
+camera_sensor.SetName("CameraSensor")
+camera_sensor.PushFilter(sensor.ChFilterImageRGBA8())  # Example filter
+sensor_manager.AddSensor(camera_sensor)
+
+# LIDAR Sensor
+lidar_sensor = sensor.ChLidarSensor(
+    ground,
+    50,  # update rate
+    sensor.ChFrameFCS(sensor_positions["lidar"])
+)
+lidar_sensor.SetName("LidarSensor")
+sensor_manager.AddSensor(lidar_sensor)
+
+# GPS Sensor
+gps_sensor = sensor.ChGPSSensor(
+    ground,
+    1,  # update rate
+    sensor.ChFrameFCS(sensor_positions["gps"])
+)
+gps_sensor.SetName("GPSSensor")
+sensor_manager.AddSensor(gps_sensor)
+
+# Accelerometer Sensor
+accelerometer_sensor = sensor.ChAccelerometerSensor(
+    ground,
+    100,  # update rate
+    sensor.ChFrameFCS(sensor_positions["accelerometer"])
+)
+accelerometer_sensor.SetName("AccelerometerSensor")
+sensor_manager.AddSensor(accelerometer_sensor)
+
+# Gyroscope Sensor
+gyroscope_sensor = sensor.ChGyroscopeSensor(
+    ground,
+    100,
+    sensor.ChFrameFCS(sensor_positions["gyroscope"])
+)
+gyroscope_sensor.SetName("GyroscopeSensor")
+sensor_manager.AddSensor(gyroscope_sensor)
+
+# Magnetometer Sensor
+magnetometer_sensor = sensor.ChMagnetometerSensor(
+    ground,
+    50,
+    sensor.ChFrameFCS(sensor_positions["magnetometer"])
+)
+magnetometer_sensor.SetName("MagnetometerSensor")
+sensor_manager.AddSensor(magnetometer_sensor)
+
+# Placeholder for ROS manager registration (assuming a ROS integration exists)
+# For example:
+# ros_manager = YourROSManager()
+# ros_manager.RegisterSensor(camera_sensor)
+# ros_manager.RegisterSensor(lidar_sensor)
+# ros_manager.RegisterSensor(gps_sensor)
+# ros_manager.RegisterSensor(accelerometer_sensor)
+# ros_manager.RegisterSensor(gyroscope_sensor)
+# ros_manager.RegisterSensor(magnetometer_sensor)
+
+# Simulation parameters
+time_step = 1e-3  # 1 ms time step
+total_time = 10.0  # total simulation time in seconds
+num_steps = int(total_time / time_step)
+
+# Simulation loop
+for step in range(num_steps):
+    start_time = time.time()
+    
+    # Update sensors
+    sensor_manager.Update()
+    
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    
+    # Maintain real-time execution
+    elapsed = time.time() - start_time
+    sleep_time = time_step - elapsed
+    if sleep_time > 0:
+        time.sleep(sleep_time)

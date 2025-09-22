@@ -1,0 +1,86 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+from pychrono import ChVectorD, ChQuaternionD
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('PATH_TO_CHRONO_DATA')  # Set the path to Chrono data directory
+
+# Create the Chrono system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# 2. Add the required physical systems and objects
+# Create the terrain
+terrain = veh.RigidTerrain(my_system)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.SetContactMaterialProperties(2e7, 0.3)
+terrain.Initialize(100, 100)  # Size of the terrain
+my_system.Add(terrain)
+
+# 3. Initialize the Viper rover
+# Create the Viper rover
+viper = veh.Viper(my_system)
+viper.SetContactMethod(chrono.ChContactMethod_NSC)
+viper.SetChassisFixed(False)
+viper.SetInitPosition(chrono.ChCoorD(0, 0.5, 0))  # Position above terrain
+viper.Initialize()
+
+# Create the driver system
+driver = veh.ChDriver()
+driver.SetSteeringDelta(0.1)  # Steering change per step
+driver.SetThrottleDelta(0.1)  # Throttle change per step
+viper.SetDriver(driver)
+
+# 4. Set up visualization
+# Create the Irrlicht application
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper Rover Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 2, 0))  # Camera position
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), 3, 1, 10, 40, 512)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.AttachSystem(my_system)
+
+# 5. Simulation loop
+# Simulation parameters
+time_step = 0.01
+sim_time = 10.0
+current_time = 0
+
+# Set initial steering angle
+steering_angle = 0.0
+max_steering_angle = 0.5  # radians
+steering_rate = 0.1  # radians per second
+
+while current_time < sim_time:
+    # Update steering angle gradually
+    steering_angle += steering_rate * time_step
+    if steering_angle > max_steering_angle:
+        steering_angle = max_steering_angle
+    if steering_angle < -max_steering_angle:
+        steering_angle = -max_steering_angle
+
+    # Set driver inputs
+    driver.SetSteering(steering_angle)
+    driver.SetThrottle(0.5)  # Constant throttle
+
+    # Update the Viper rover
+    viper.Update(time_step)
+
+    # Advance simulation
+    my_system.DoStepDynamics(time_step)
+    current_time += time_step
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Print simulation time
+    print(f"Simulation time: {current_time:.2f}s")

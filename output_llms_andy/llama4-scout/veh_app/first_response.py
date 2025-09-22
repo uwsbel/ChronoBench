@@ -1,0 +1,94 @@
+import chrono as ch
+import chrono_vehicle as chv
+import chrono_sensor as chs
+
+# 1. Initialize the PyChrono environment and core components
+ch.ChronoEngine.Initialize()
+
+# Create the simulation system
+system = ch.ChSystem_EulerImplicit()
+
+# Create the collision system
+collision_system = ch.ChCollisionSystemNSC()
+system.Add(collision_system)
+
+# Create the solver
+solver = ch.ChSolverPSAI()
+system.SetSolver(solver)
+
+# Create the integrator
+integrator = ch.ChTimestepperIronsEuler()
+integrator.SetMaxIters(200)
+integrator.SetMaxTimeStep(0.01)
+system.SetTimestepper(integrator)
+
+# 2. Add the required physical systems and objects
+
+## Create the terrain
+terrain = chv.ChTerrain()
+terrain.SetSystem(system)
+terrain.SetThickness(0.1)
+terrain.EnableCollisions(True)
+terrain.Initialize(100, 100)
+
+## Create the Gator vehicle
+gator = chv.ChGator()
+gator.SetSystem(system)
+gator.EnableCollisions(True)
+gator.EnableWheelsCollisions(False)
+gator.Initialize(ch.ChVector3d(0, 0, 1))
+
+## Create the interactive driver system
+driver = chv.ChInteractiveDriver()
+driver.SetSystem(system)
+driver.Initialize(gator.GetChassis())
+
+## Add vehicle parts with different visualization types
+chassis_body = gator.GetChassis().GetBody()
+chassis_body.SetVisualizationType(ch.ChVisualSystem.Type.RAYTRACING)
+
+## Create a sensor manager
+sensor_manager = chs.ChSensorManager(system)
+sensor_manager.SetVerbose(True)
+
+## Add point lights
+light1 = chs.ChPointLight(ch.ChVector3d(0, 0, 10), ch.ChColor(1, 1, 1), 1000)
+light2 = chs.ChPointLight(ch.ChVector3d(10, 0, 10), ch.ChColor(1, 1, 1), 1000)
+sensor_manager.AddPointLight(light1)
+sensor_manager.AddPointLight(light2)
+
+## Add a camera attached to the vehicle's chassis
+camera = chs.ChCameraSensor(gator.GetChassis(), ch.ChVector3d(0, 0, 2), ch.ChQuaterniond(1, 0, 0, 0))
+camera.SetResolution(800, 600)
+camera.SetFOV(60)
+camera.SetNearPlaneDistance(0.01)
+camera.SetFarPlaneDistance(100)
+sensor_manager.AddSensor(camera)
+
+# 3. Set necessary default parameters
+
+## Set simulation parameters
+system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+
+## Set rendering parameters
+ch.ChVisualSystem.SetDefaultColors(ch.ChColor(1, 1, 1))
+
+# Run the simulation loop
+while system.GetChTime() < 10:
+    # Update the driver
+    driver.Update()
+
+    # Update the terrain
+    terrain.Update()
+
+    # Update the vehicle
+    gator.Update()
+
+    # Update the sensor manager
+    sensor_manager.Update()
+
+    # Synchronize and advance the simulation modules
+    system.DoStepDynamics(0.01)
+
+    # Render the camera images
+    camera.Render()

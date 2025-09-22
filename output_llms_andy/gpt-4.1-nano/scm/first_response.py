@@ -1,0 +1,104 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize Chrono and create the physical system
+chrono.SetChronoDataPath("path_to_chrono_data")  # Set your Chrono data path here
+system = chrono.ChSystemNSC()
+
+# Create the Irrlicht visualization application
+application = irr.ChIrrApp(system, "HMMWV on SCM Deformable Terrain", irr.dimension2d(1024, 768))
+application.GetDevice().file_read("/path/to/your/irrlicht_shaders")  # Optional: specify shader path if needed
+
+# Set camera position and look at
+application.GetCamera().SetPosition(chrono.ChVectorF32(0, 2, -10))
+application.GetCamera().SetTarget(chrono.ChVectorF32(0, 0.5, 0))
+application.SetTryRealtime(True)
+application.SetPaused(False)
+
+# Create the HMMWV vehicle
+# Initialize vehicle parameters
+vehicle = veh.HMMWV_Vehicle(system)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0.5, 0))
+vehicle.SetChassisRotation(chrono.Q_from_AngleAxis(0, chrono.VECT_Y))
+vehicle.Initialize()
+
+# Use mesh visualization for all vehicle components
+# Apply mesh visualization to chassis
+chassis = vehicle.GetChassis()
+chassis.GetMesh().SetWireframe(False)
+chassis.GetMesh().SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+chassis.GetMesh().SetTexture(vehicle.GetTexture())
+
+# Apply mesh visualization to wheels
+for wheel in vehicle.GetWheels():
+    wheel.GetMesh().SetWireframe(False)
+    wheel.GetMesh().SetColor(chrono.ChColor(0.2, 0.2, 0.2))
+    wheel.GetMesh().SetTexture(vehicle.GetTexture())
+
+# Create and configure the SCM deformable terrain
+terrain_params = veh.SCMDeformableTerrain.SCMDeformableTerrainInfo()
+terrain_params.m_friction = 0.8
+terrain_params.m_mu = 2.0
+terrain_params.m_sand_grain_size = 0.005
+terrain_params.m_K_phi = 20000
+terrain_params.m_K_d = 2000
+terrain_params.m_K_t = 20000
+terrain_params.m_K_c = 0
+terrain_params.m_K_q = 0
+terrain_params.m_K_y = 0
+terrain_params.m_bed_height = -0.2
+terrain_params.m_bed_friction = 0.8
+terrain_params.m_bed_mu = 2.0
+
+# Instantiate SCM terrain
+terrain = veh.SCMDeformableTerrain(system)
+terrain.Initialize(terrain_params)
+
+# Enable the moving patch to follow the vehicle
+terrain.SetMovingPatch(chrono.ChVectorD(0, 0, 0), 20, 20)  # Patch size 20x20 meters
+
+# Enable visualization of sinkage with false color
+terrain.SetSinkageVisualization(True)
+terrain.SetSinkageColorMap(veh.SCMDeformableTerrain.SinkageColorMapType.FALSE_COLOR)
+
+# Attach the terrain to the vehicle chassis for moving patch
+terrain.SetChassis(vehicle.GetChassis())
+
+# Add the terrain visualization
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Create driver controls
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize()
+
+# Set simulation parameters
+application.SetTimestep(0.02)  # 50 FPS
+application.SetTryRealtime(True)
+
+# Main simulation loop
+while application.GetDevice().run():
+    time = system.GetChTime()
+
+    # Get driver inputs
+    driver.BeginScene()
+    driver.Update()
+    driver.EndScene()
+
+    # Apply driver controls to vehicle
+    vehicle.GetPowertrain().GetThrottle()->Set(driver.GetThrottle());
+    vehicle.GetSteering().Set(driver.GetSteering());
+    vehicle.GetBrake()->Set(driver.GetBraking());
+
+    # Synchronize the terrain with the vehicle position (moving patch)
+    chassis_pos = vehicle.GetChassis().GetPos()
+    terrain.SetMovingPatch(chrono.ChVectorD(chassis_pos.x, 0, chassis_pos.z), 20, 20)
+
+    # Step the system
+    system.DoStepDynamics(application.GetTimestep())
+
+    # Render the scene
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

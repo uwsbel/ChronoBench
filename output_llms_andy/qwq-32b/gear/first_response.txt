@@ -1,0 +1,541 @@
+Okay, I need to create a PyChrono simulation of an epicyclic gear system. Let's start by recalling what an epicyclic gear setup looks like. There's usually a sun gear, planet gears, and a ring gear, but the user mentioned two gears with a motor. Maybe it's a simplified version with a central gear connected to a rotating bar, and another gear meshing with it, driven by a motor.
+
+First, I should initialize the PyChrono environment. That means importing chrono and chronoirrlicht, creating a system, and setting up the Irrlicht visualizer. Need to make sure the system is created with the right settings, like gravity.
+
+Next, the fixed truss. That's probably a static structure to hold the gears in place. Maybe a simple box or a frame. I'll use chrono's geometry primitives, like a chrono::ChBox, and set it as a fixed body.
+
+Then the rotating bar. This should be a dynamic body connected to the truss via a revolute joint. The bar will rotate around an axis, so I need to define its position and orientation. The motor will be attached to this joint to enforce rotation speed.
+
+For the gears, they need to mesh properly. Let's say the main gear is fixed on the rotating bar, and the other gear is on another body. Wait, maybe the setup is such that one gear is on the rotating bar, and another is connected via a gear constraint. Or perhaps a gear motor is applied to one of them. The user specified a gear motor to enforce rotation speed, so that motor should be part of the gear system.
+
+Wait, the instructions mention two gears. Let me think: maybe the rotating bar has a central gear (sun gear) and another gear (planet?) that meshes with it. The motor is on the central gear? Or on the rotating bar's joint?
+
+Alternatively, maybe the system has a sun gear fixed to the rotating bar, and a planet gear that meshes with it. The motor could be on the rotating bar's revolute joint to make it spin, and the planet gear is driven by that. But the user wants a gear motor specifically. Hmm.
+
+Alternatively, perhaps the two gears are meshed together, with one connected to a motor. The rotating bar might hold one gear, and the other is on a separate body connected via a gear constraint. Let me structure this step by step.
+
+First, create the truss as a static body. Then the rotating bar: create a body, attach a revolute joint to the truss. The rotating bar will have a gear attached to it. Then another gear meshing with it, perhaps on another body, connected via a gear constraint. The motor can be part of the joint or the gear constraint.
+
+Wait, the gear motor is to enforce rotation speed. So maybe the motor is applied to the joint (the revolute joint of the rotating bar), so that the bar spins at a constant speed, and the gears mesh accordingly.
+
+Alternatively, the gear motor could be part of the gear constraint between the two gears. But I need to check PyChrono's API for gear constraints and motors.
+
+Let me recall: In chrono, gear constraints can enforce a gear ratio between two bodies. A gear motor might be a torque or a speed control. Alternatively, the motor could be a rotational motor on the joint.
+
+The user wants a gear motor to enforce constant rotation speed. So perhaps the motor is on the joint connected to the rotating bar, making it spin at a set RPM.
+
+Let me outline the steps:
+
+1. Initialize the system and visualization.
+
+2. Create the truss: a static box or structure.
+
+3. Create the rotating bar: a cylinder or rod attached via a revolute joint to the truss. The joint allows rotation around an axis (say, the Y-axis if the bar is vertical). The motor will be on this joint.
+
+4. Create two gears: one on the rotating bar (fixed to it), and another gear meshing with it. The second gear could be on a separate body connected via a revolute joint to the truss, allowing it to rotate. The gear constraint between them would enforce the meshing.
+
+Wait, but how to set up the gear constraint? The gear constraint requires two bodies and a ratio. The ratio is teeth_count1 / teeth_count2. Let's assume the rotating bar's gear has 20 teeth, and the other gear has 30 teeth. Then the ratio is 20/30 = 2/3. The gear constraint would enforce that their angular velocities are in that ratio.
+
+Alternatively, if the motor is on the rotating bar's joint, then the second gear's rotation is driven by the meshing.
+
+But the user wants the gear motor to enforce rotation speed. Maybe the motor is on the gear constraint? Or perhaps the main motor is on the joint.
+
+Hmm. Let me think of a possible setup:
+
+- Truss is fixed.
+
+- Rotating bar (body1) connected via revolute joint to truss. The joint has a motor to rotate at a constant speed.
+
+- Body1 has a gear (gear1) attached to it. Gear1 has a certain radius.
+
+- Another body (body2) connected via another revolute joint to the truss, perhaps at a position where gear2 can mesh with gear1.
+
+- A gear constraint between body1 and body2, with the ratio based on their teeth.
+
+This way, when the rotating bar (body1) spins due to the joint motor, the gear constraint makes body2 rotate accordingly.
+
+Alternatively, the gear motor could be part of the gear constraint, but I think the motor is on the joint.
+
+Now, code steps:
+
+Initialize system:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity down Y
+
+Create visualization:
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Epicyclic Gears')
+vis.SetSymbolscale(0.01)
+vis.SetShadowAll(True)
+vis.SetCameraPosition(chrono.ChVectorD(0.5, 0.5, 0.5))
+sys.SetVisualSystem(vis)
+
+Add truss: maybe a box at the center, fixed.
+
+truss = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+truss.SetBodyFixed(True)
+truss.SetPos(chrono.ChVectorD(0,0,0))
+sys.Add(truss)
+
+Rotating bar: let's make it a cylinder. Create a body, set mass properties, then attach to truss via revolute joint.
+
+bar_length = 0.5
+bar_radius = 0.05
+bar = chrono.ChBodyEasyCylinder(bar_length, bar_radius, 1000, True, True)
+bar.SetPos(chrono.ChVectorD(0,0,0))  # Position at truss center?
+Wait, maybe the bar is attached at one end to the truss. Let me think: the rotating bar is connected via a revolute joint at the center of the truss. So the bar's position is at the truss's position. The joint is at (0,0,0), and the bar is a cylinder extending along, say, the X-axis. So the bar's COM is at (bar_length/2, 0,0), but maybe better to use a revolute joint with a link.
+
+Alternatively, perhaps the bar is a rod attached to the truss's center, and can rotate around the Y-axis (so the bar spins like a propeller). Let me set up the joint.
+
+The revolute joint between truss and bar:
+
+rev_joint = chrono.ChLinkLockRevolute()
+rev_joint.Initialize(truss, bar, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+sys.AddLink(rev_joint)
+
+Wait, the rotation axis here. Let's say the bar can rotate around the Y-axis. The rotation axis direction is (0,1,0). The joint is at (0,0,0). So the bar's position is at the joint's position.
+
+Then, the bar's orientation is such that its length is along the X-axis (since it's a cylinder with length along X). The joint allows rotation around Y.
+
+Now, add a motor to the revolute joint. The motor can enforce a rotational speed.
+
+rev_motor = chrono.ChLinkMotorRotationSpeed()
+rev_motor.SetName("bar_motor")
+rev_motor.Initialize(bar, truss, chrono.ChFrameD())  # Need to check the frame here.
+
+Wait, the motor is part of the joint? Or is it a separate link? Maybe I need to use a different approach. Alternatively, the joint's motor can be set via:
+
+rev_joint.GetMotor().SetVelocity(chrono.ChFunction.Constant(10))  # 10 rad/s?
+
+Wait, perhaps the ChLinkLockRevolute doesn't have a motor. Maybe I need to use a different type of joint, like ChLinkUniversal or ChLinkRevolute, which allows motors.
+
+Ah, right. The ChLinkLockRevolute is a locked joint, so maybe I need to use a ChLinkRevolute instead.
+
+Let me correct that. Let's create a revolute joint with a motor.
+
+joint = chrono.ChLinkRevolute()
+joint.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+sys.AddLink(joint)
+
+Then, set the motor:
+
+motor = joint.GetMotor()
+motor.SetVelocity(chrono.ChFunction.Constant(chrono.GetChronoSystem(), 10))  # 10 rad/s
+motor.SetTorqueMax(1e6)  # Max torque to ensure it can rotate.
+
+Wait, the motor is part of the joint. So setting the velocity function here would make the joint rotate at 10 rad/s.
+
+That's better.
+
+Now, the gears. Let's model them as cylinders with gear constraints.
+
+First, gear on the rotating bar. Let's say it's a cylinder attached to the end of the bar.
+
+Assuming the bar is along the X-axis, so the end is at (bar_length/2, 0,0). Let's create a gear body for the first gear (gear1):
+
+gear1_radius = 0.1
+gear1_teeth = 20
+
+gear1 = chrono.ChBodyEasyCylinder(gear1_radius*2, gear1_radius*0.1, 1000, True, True)
+Wait, no: the cylinder parameters are length and radius. Wait, for a gear, maybe it's a disk. So length is small, radius is the gear's radius. So:
+
+gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.01, 1000, True, True)  # A disk with radius 0.1 m, thickness 0.01 m.
+
+Position it at the end of the bar. The bar's end is at (bar_length/2, 0,0). Let's say bar_length is 0.5 m, so the end is at (0.25,0,0). But need to check the bar's orientation.
+
+Wait, the bar is a cylinder with length bar_length, so its COM is at the center. If the bar is attached at (0,0,0), then its COM is at (bar_length/2, 0,0). Wait, no: the cylinder's length is along the X-axis. The bar's position is at (0,0,0), so the cylinder extends from (-bar_length/2,0,0) to (bar_length/2,0,0). So the end is at (0.25,0,0) if bar_length is 0.5.
+
+So gear1 is placed at the end of the bar, attached there. So:
+
+gear1.SetPos(chrono.ChVectorD(0.25, 0,0))  # assuming bar_length is 0.5.
+
+But how to attach it to the bar? Maybe via a revolute joint that's locked, so they rotate together.
+
+Wait, the gear must rotate with the bar. So perhaps the gear is part of the bar's body? Or a separate body connected via a fixed joint.
+
+Alternatively, create a separate body for the gear and link it to the bar via a fixed joint, so they rotate together.
+
+Alternatively, since the gear is part of the bar's rotation, we can make it a separate body and connect it with a fixed link.
+
+Let me do that. Create gear1 as a separate body, then link it to the bar.
+
+Create gear1:
+
+gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.01, 1000, True, True)
+gear1.SetPos(chrono.ChVectorD(0.25, 0,0))
+sys.Add(gear1)
+
+Then, link it to the bar with a fixed constraint:
+
+link_gear1 = chrono.ChLinkLockRevolute()
+link_gear1.Initialize(bar, gear1, chrono.ChFrameD(gear1.GetPos(), chrono.QUNIT))
+sys.AddLink(link_gear1)
+
+This way, gear1 rotates with the bar.
+
+Now, the second gear (gear2). Let's say it's placed next to gear1 so they mesh. The gear2 needs to be on another body that can rotate.
+
+Assuming gear2 has a larger radius, say 0.15 m, and 30 teeth. The gear ratio is 20/30 = 2/3, so gear2 rotates slower.
+
+gear2_radius = 0.15
+gear2_teeth = 30
+
+gear2_body = chrono.ChBodyEasyCylinder(gear2_radius, 0.01, 1000, True, True)
+gear2_body.SetPos(chrono.ChVectorD(0.25 + gear1_radius + gear2_radius, 0,0))  # Position so centers are separated by sum of radii.
+
+Wait, the distance between centers should be equal to the sum of the radii for external meshing. So if gear1 is at (0.25,0,0), then gear2's center is at (0.25 + (gear1_radius + gear2_radius), 0,0).
+
+Wait, gear1_radius is 0.1, gear2_radius is 0.15, so total 0.25. So the center would be at 0.25 + 0.25 = 0.5. So gear2's position is (0.5,0,0).
+
+Wait, but the truss is at (0,0,0), so that's okay.
+
+Now, gear2 needs to be able to rotate. So it's connected to the truss via a revolute joint, allowing rotation around the Y-axis (same as the bar's rotation axis? Or perpendicular?).
+
+Wait, for meshing gears, their rotation axes must be parallel. So if gear1 is on the bar's end (rotating around Y), then gear2 must also rotate around Y. So the joint for gear2's body is also around Y-axis.
+
+So create a revolute joint for gear2_body attached to the truss at (0.5,0,0):
+
+joint_gear2 = chrono.ChLinkRevolute()
+joint_gear2.Initialize(truss, gear2_body, chrono.ChCoordsysD(chrono.ChVectorD(0.5,0,0), chrono.Q_from_AngAxis(CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+sys.AddLink(joint_gear2)
+
+This allows gear2_body to rotate around Y-axis at its position.
+
+Now, the gear constraint between gear1 and gear2. The gear constraint will enforce the rotation ratio.
+
+Create a gear constraint between the two bodies. The ratio is teeth1/teeth2 = 20/30 = 2/3.
+
+gear_constr = chrono.ChLinkGear()
+gear_constr.Initialize(gear1, gear2_body, chrono.ChFrameD(), chrono.ChFrameD())
+gear_constr.SetGearRatio(gear1_teeth / gear2_teeth)
+sys.AddLink(gear_constr)
+
+Wait, the frames here are important. The gear constraint uses the frames of the two bodies to define the rotation axes and positions. Since both gears are rotating around their Y-axes (since their joints are around Y), perhaps the frames can be default.
+
+Alternatively, maybe the gear constraint requires the rotation axes to be aligned. Since both are around Y, that's okay.
+
+Now, the gear motor: the user wants a gear motor to enforce a constant rotation speed. Wait, the initial motor is on the bar's joint, which is already set to 10 rad/s. That should drive the system. But maybe the gear motor is part of the gear constraint?
+
+Alternatively, perhaps the gear constraint can have a motor? Or maybe the motor is on the gear2's joint?
+
+Hmm. The user specifies "a gear motor to enforce a constant rotation speed". The bar's joint already has a motor. Maybe that's sufficient. But perhaps the gear motor is part of the gear constraint. Let me check.
+
+Alternatively, maybe the gear motor is the one on the bar's joint. Since the bar's rotation is enforced, the gear constraint will drive the other gear.
+
+Alternatively, maybe the user wants the gear motor to be on the gear pair. Let me see.
+
+Looking at the ChLinkGear class, it has a GetMotor() function. The motor can be set to enforce a relative speed. But perhaps the user wants the main motor on the bar's joint.
+
+In any case, the current setup with the bar's joint motor should drive the system. Let's proceed.
+
+Now, materials and visualization.
+
+Set materials for the bodies. The truss can have a different color. The gears can have another color.
+
+truss.GetVisualShape(0).SetMaterialTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+bar.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.5,0.5,0.5))  # gray
+gear1.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.8,0,0))  # red
+gear2_body.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0,0.8,0))  # green
+
+Also, add lighting to the visualization. The Irrlicht system usually has default lighting, but maybe set some lights.
+
+vis.SetLightIntensity(1.5)
+vis.AddPointLight(chrono.ChVectorD(1,1,1), 2, chrono.ChColor(1,1,1))
+
+Wait, perhaps create a point light at a position.
+
+light = chrono.ChPointLight()
+light.SetIntensity(2)
+light.SetColor(chrono.ChColor(1,1,1))
+light.SetPos(chrono.ChVectorD(2,2,2))
+vis.GetSystem().AddPointLight(light)
+
+Hmm, not sure about the exact API for adding lights in Irrlicht. Maybe better to use the visual system's methods.
+
+Alternatively, just proceed with the basic setup.
+
+Now, the simulation loop. Create a timer and run the simulation.
+
+# Create the Irrlicht application
+application = chronoirr.ChIrrApp(sys, 'Epicyclic Gears', chronoirr.dimension2du(1024,768))
+application.SetCamera(chronoirr.CameraPosition(chrono.ChVectorD(1,1,1), chrono.ChVectorD(0,0,0)))
+application.AssetBind()
+application.AssetUpdate()
+application.AddTypicalLights()
+application.AddTypicalLogo()
+
+Wait, perhaps better to set up the Irrlicht application properly.
+
+Wait, earlier code had vis as the visual system. But maybe the standard approach is to create the ChIrrApp with the system and then set up the camera and lights.
+
+Putting it all together:
+
+After creating the system and adding all bodies and constraints, create the application:
+
+application = chronoirr.ChIrrApp(sys, 'Epicyclic Gears', chronoirr.dimension2du(1024,768))
+application.SetCamera(chronoirr.CameraParams(chronoirr.CameraPosition(chrono.ChVectorD(1,1,1), chrono.ChVectorD(0,0,0))))
+application.AssetBind()
+application.AssetUpdate()
+application.AddTypicalLights()
+application.AddTypicalLogo()
+
+Wait, perhaps the camera position needs to be adjusted for better viewing. Maybe position at (1,1,1) looking at the origin.
+
+Then, the main loop:
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+But need to set the step time.
+
+Wait, the simulation time step needs to be set. Also, the simulation should run for some time, but in the Irrlicht loop, it's real-time.
+
+Alternatively, set the step size:
+
+sys.SetTimestepper(timestep=0.001)
+
+But in the code, after creating the system, we can set that.
+
+Putting all steps together in code:
+
+Wait, I need to make sure all variables are properly named and the code is coherent.
+
+Now, let me structure the code step by step, making sure all components are included.
+
+First, imports:
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+Then, create the system:
+
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+Create the truss:
+
+truss = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+truss.SetBodyFixed(True)
+truss.SetPos(chrono.ChVectorD(0,0,0))
+sys.Add(truss)
+
+Rotating bar setup:
+
+bar_length = 0.5
+bar_radius = 0.05
+bar = chrono.ChBodyEasyCylinder(bar_length, bar_radius, 1000, True, True)
+bar.SetPos(chrono.ChVectorD(0,0,0))  # Position at joint center
+sys.Add(bar)
+
+Create the revolute joint for the bar:
+
+joint = chrono.ChLinkRevolute()
+joint.Initialize(truss, bar, chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+sys.AddLink(joint)
+
+Set the motor on the joint:
+
+motor = joint.GetMotor()
+motor.SetVelocity(chrono.ChFunction.Constant(chrono.GetChronoSystem(), 10))  # 10 rad/s
+motor.SetTorqueMax(1e6)
+
+Gear1:
+
+gear1_radius = 0.1
+gear1_teeth = 20
+gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.01, 1000, True, True)
+gear1.SetPos(chrono.ChVectorD(0.25, 0,0))  # Assuming bar_length is 0.5, so end at 0.25
+sys.Add(gear1)
+
+Link gear1 to the bar:
+
+link_gear1 = chrono.ChLinkLockRevolute()
+link_gear1.Initialize(bar, gear1, chrono.ChFrameD(gear1.GetPos(), chrono.QUNIT))
+sys.AddLink(link_gear1)
+
+Gear2:
+
+gear2_radius = 0.15
+gear2_teeth = 30
+gear2_body = chrono.ChBodyEasyCylinder(gear2_radius, 0.01, 1000, True, True)
+gear2_pos_x = 0.25 + gear1_radius + gear2_radius  # 0.25 +0.1+0.15=0.5
+gear2_body.SetPos(chrono.ChVectorD(gear2_pos_x, 0,0))
+sys.Add(gear2_body)
+
+Joint for gear2:
+
+joint_gear2 = chrono.ChLinkRevolute()
+joint_gear2.Initialize(truss, gear2_body, chrono.ChCoordsysD(chrono.ChVectorD(gear2_pos_x,0,0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+sys.AddLink(joint_gear2)
+
+Gear constraint between gear1 and gear2:
+
+gear_constr = chrono.ChLinkGear()
+gear_constr.Initialize(gear1, gear2_body, chrono.ChFrameD(), chrono.ChFrameD())
+gear_constr.SetGearRatio(gear1_teeth / gear2_teeth)
+sys.AddLink(gear_constr)
+
+Materials and visualization:
+
+truss.GetVisualShape(0).SetMaterialTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+bar.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.5,0.5,0.5))
+gear1.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.8,0,0))
+gear2_body.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0,0.8,0))
+
+Visual system setup:
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024,768)
+vis.SetWindowTitle('Epicyclic Gears')
+vis.SetSymbolscale(0.01)
+vis.SetShadowAll(True)
+vis.SetCameraPosition(chrono.ChVectorD(0.5, 0.5, 0.5))
+sys.SetVisualSystem(vis)
+
+Wait, but in the standard approach, the Irrlicht application is created with the system. Maybe I should use the application approach instead of setting the visual system directly.
+
+Perhaps better to use the application:
+
+application = chronoirr.ChIrrApp(sys, 'Epicyclic Gears', chronoirr.dimension2du(1024,768))
+application.SetCamera(chronoirr.CameraPosition(chrono.ChVectorD(1,1,1), chrono.ChVectorD(0,0,0)))
+application.AssetBind()
+application.AssetUpdate()
+application.AddTypicalLights()
+application.AddTypicalLogo()
+
+Then the main loop:
+
+application.SetTimestep(0.001)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+
+Wait, but need to make sure the camera is positioned correctly. Maybe adjust the camera position to better view the gears.
+
+Alternatively, set the camera position to (1,1,1) looking at (0,0,0).
+
+Putting all together, here's the code:
+
+Wait, also, I should check if the gear constraint is correctly oriented. The frames in the gear constraint may need to be adjusted. The ChLinkGear requires the rotation axes to be aligned. Since both gears are rotating around Y-axis, their frames are okay.
+
+Also, the gear ratio is teeth1/teeth2 = 20/30 = 2/3. So gear2 will rotate slower (since it has more teeth).
+
+Testing this setup should show the bar spinning, gear1 rotating with it, and gear2 rotating in the opposite direction (since it's external gear) at a slower speed.
+
+Potential issues: Maybe the gear positions are not correctly placed. Let me recalculate gear2's position:
+
+gear1 is at (0.25,0,0), radius 0.1. gear2's center must be at 0.25 + 0.1 + 0.15 = 0.5. So yes, that's correct.
+
+Another thing: the gear constraint's frames. The Initialize function takes two frames, which are the local frames of the two bodies. Since both gears are aligned along Y-axis, their rotation axes are Y, so the default frames (identity) should be okay.
+
+Alternatively, maybe the gear constraint needs to have the rotation axes aligned. Since both are rotating around Y, the frames are correct.
+
+Now, compiling all this into code with proper syntax.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+def main():
+    # Create the Chrono system
+    sys = chrono.ChSystemNSC()
+    sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Gravity
+
+    # Visualization setup
+    application = chronoirr.ChIrrApp(sys, 'Epicyclic Gears', chronoirr.dimension2du(1024,768))
+    application.SetCamera(chronoirr.CameraPosition(chrono.ChVectorD(1,1,1), chrono.ChVectorD(0,0,0)))
+    application.AssetBind()
+    application.AssetUpdate()
+    application.AddTypicalLights()
+    application.AddTypicalLogo()
+
+    # Create the fixed truss
+    truss = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True)
+    truss.SetBodyFixed(True)
+    truss.SetPos(chrono.ChVectorD(0,0,0))
+    sys.Add(truss)
+    truss.GetVisualShape(0).SetMaterialTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+
+    # Rotating bar setup
+    bar_length = 0.5
+    bar_radius = 0.05
+    bar = chrono.ChBodyEasyCylinder(bar_length, bar_radius, 1000, True, True)
+    bar.SetPos(chrono.ChVectorD(0,0,0))
+    sys.Add(bar)
+    bar.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.5,0.5,0.5))
+
+    # Revolute joint for the bar with motor
+    joint = chrono.ChLinkRevolute()
+    joint.Initialize(truss, bar, chrono.ChCoordsysD(
+        chrono.ChVectorD(0,0,0),
+        chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))
+    ))
+    sys.AddLink(joint)
+    motor = joint.GetMotor()
+    motor.SetVelocity(chrono.ChFunction.Constant(chrono.GetChronoSystem(), 10))  # 10 rad/s
+    motor.SetTorqueMax(1e6)
+
+    # Gear 1 attached to the rotating bar
+    gear1_radius = 0.1
+    gear1_teeth = 20
+    gear1 = chrono.ChBodyEasyCylinder(gear1_radius, 0.01, 1000, True, True)
+    gear1.SetPos(chrono.ChVectorD(0.25, 0,0))  # End of bar (bar_length=0.5)
+    sys.Add(gear1)
+    gear1.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0.8,0,0))
+
+    # Link gear1 to the bar
+    link_gear1 = chrono.ChLinkLockRevolute()
+    link_gear1.Initialize(bar, gear1, chrono.ChFrameD(gear1.GetPos(), chrono.QUNIT))
+    sys.AddLink(link_gear1)
+
+    # Gear 2 on a separate rotating body
+    gear2_radius = 0.15
+    gear2_teeth = 30
+    gear2_body = chrono.ChBodyEasyCylinder(gear2_radius, 0.01, 1000, True, True)
+    gear2_pos_x = 0.25 + gear1_radius + gear2_radius  # Center separation
+    gear2_body.SetPos(chrono.ChVectorD(gear2_pos_x, 0,0))
+    sys.Add(gear2_body)
+    gear2_body.GetVisualShape(0).SetMaterialColor(chrono.ChColor(0,0.8,0))
+
+    # Revolute joint for gear2 body
+    joint_gear2 = chrono.ChLinkRevolute()
+    joint_gear2.Initialize(truss, gear2_body, chrono.ChCoordsysD(
+        chrono.ChVectorD(gear2_pos_x,0,0),
+        chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))
+    ))
+    sys.AddLink(joint_gear2)
+
+    # Gear constraint between gear1 and gear2
+    gear_constr = chrono.ChLinkGear()
+    gear_constr.Initialize(gear1, gear2_body, chrono.ChFrameD(), chrono.ChFrameD())
+    gear_constr.SetGearRatio(gear1_teeth / gear2_teeth)  # 20/30 = 2/3
+    sys.AddLink(gear_constr)
+
+    # Simulation settings
+    application.SetTimestep(0.001)
+    application.SetTryRealtime(True)
+
+    # Main loop
+    while application.GetDevice().run():
+        application.BeginScene()
+        application.DrawAll()
+        application.DoStep()
+        application.EndScene()
+
+if __name__ == '__main__':
+    main()
+```

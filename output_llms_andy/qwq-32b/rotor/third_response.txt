@@ -1,0 +1,540 @@
+Okay, let's tackle this problem step by step. First, I need to go through the provided code and identify any potential errors before making the requested modifications. Let me start by reading through the original code carefully.
+
+Starting with the imports: the user has imported necessary modules like pychrono, fea, pardisomkl, and irrlicht. That looks okay.
+
+Looking at the system setup: they create a ChSystemSMC and a mesh, then add the mesh to the system. The SetAutomaticGravity is called with two parameters. Wait, the method signature for SetAutomaticGravity might not take those parameters. Let me check the Chrono documentation. Oh right, SetAutomaticGravity probably takes a boolean and an integer for integration points. The code here does that, so maybe that's okay. Wait, the method might be part of the ChMesh class. Let me confirm. Yes, ChMesh has SetAutomaticGravity which takes a boolean and an integer. So that line is okay.
+
+Next, setting gravitational acceleration: the semicolon at the end is unnecessary in Python, but it's allowed. So that's not an error.
+
+The beam parameters: beam_L is 6 meters, beam_ro and ri are radii. CH_PI is set to 3.1456 instead of using math.pi. That's a possible error if precision matters, but maybe acceptable. The user might want to use m.pi since they imported math as m. Wait, in the code, they have CH_PI = 3.1456, but in the code, they also imported math as m. So maybe replacing that with m.pi would be better. But the problem says to fix errors, so this might be an oversight. The current code uses CH_PI, so unless it's a typo, but maybe it's intentional. Let's note that as a possible improvement but not an error unless the value is wrong.
+
+Moving on to the inertia setup: minertia is a ChInertiaCosseratSimple. The SetDensity, SetArea, SetIyy, SetIzz methods. The area calculation uses (beam_ro^2 - beam_ri^2) multiplied by CH_PI. That's correct for the area of an annular cross-section. The moments of inertia calculations also look correct, using the formulas for a circular annulus.
+
+Then the elasticity: melasticity is set with Young's modulus and shear modulus via Poisson's ratio. The moments of inertia are set again here. Wait, the code has SetIyy and SetIzz again, but maybe that's okay since it's part of the elasticity parameters. The J is set to (pi/2)*(r^4 - ri^4), which is the polar moment of inertia for a circular annulus. That formula is correct.
+
+Creating the section and setting it as circular. The line msection.SetCircular(True) and then SetDrawCircularRadius. Wait, the comment says that SetAsCircularSection would overwrite Ixx etc., but maybe the code is okay here. The method names might be correct.
+
+Next, the ChBuilderBeamIGA. The builder.BuildBeam parameters: the order is given as 1. The comment says order 3 is cubic. The user might have intended cubic (order 3?), but the code uses 1. Let me check the parameters. The BuildBeam function's last parameter is the order. The user's code uses 1, but the comment mentions cubic (order 3). That might be an error. The instruction says "at least 2 integration points per element when using cubic IGA", so maybe the order should be 3 instead of 1 here. That's a possible error. So the order parameter should be 3 instead of 1.
+
+Then, getting the midpoint node. The code uses m.floor(builder.GetLastBeamNodes().size() / 2.0). However, in Python, the .size() method might not exist for a list; perhaps it's a vector in C++. Since this is PyChrono, maybe it's a list, so the correct way would be len(builder.GetLastBeamNodes()) instead of .size(). So that's an error. The code would throw an error here because .size() is not a list method. So need to fix that.
+
+Next, creating the flywheel: the ChBodyEasyCylinder uses ChAxis_Y, which is a valid parameter. The coordinates are set with a ChCoordsysd. The position is node_mid.GetPos() plus a vector. The rotation is using QuatFromAngleAxis with CH_PI/2 around Z. That seems okay.
+
+The joint between node_mid and the flywheel is using ChLinkMateFix, which is correct for a fixed joint.
+
+The truss is created as a fixed body. The bearing is a ChLinkMateGeneric with constraints. The parameters for the bearing's initialization: the frame is built from the node's position, which is okay.
+
+The motor: the rotmotor1 is a ChLinkMotorRotationSpeed. The initialization uses builder.GetLastBeamNodes().front() as body A (slave), and truss as master. The frame is set with a rotation around Y by pi/2. The motor function is a sine function with frequency 40 and phase 0.2. The user needs to replace this with a custom function.
+
+Now, the visualization parts: adding ChVisualShapeFEA objects. The first one uses DataType_SURFACE, the second glyph type. Those look okay.
+
+The Irrlicht setup: camera position and target. The solver is set to PardisoMKL. Then DoStaticLinear() is called before the simulation loop. That's correct for static initialization.
+
+The simulation loop uses vis.Run(), which is okay. The time step is 0.002 seconds.
+
+Now, the errors I noticed so far:
+
+1. In the builder.BuildBeam call, the order parameter is 1, but the comment suggests cubic (order 3). Since the instruction mentions "at least 2 integration points per element when using cubic IGA", perhaps the order should be 3. So changing that to 3 would be necessary.
+
+2. The line getting the midpoint node: using .size() on a list (assuming builder.GetLastBeamNodes() returns a list), which in Python would be len(...). So node_mid should be:
+
+node_mid = builder.GetLastBeamNodes()[int(len(builder.GetLastBeamNodes())/2)]
+
+Wait, but the original code uses m.floor, which is from math. So perhaps they intended to use integer division. Alternatively, using floor division in Python with //.
+
+Wait, the original code is:
+
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
+
+But in Python, the .size() method is not available. The correct way would be to get the length via len(...). So replacing .size() with len(...) and using m.floor, but since it's in Python, perhaps better to use integer division.
+
+Alternatively, the code might be a translation from C++ where .size() is valid, but in Python, the list's len() is needed. So this is an error. The code will crash here because of .size().
+
+So that's a critical error to fix.
+
+Another possible error: the motor's initialization. The ChLinkMotorRotationSpeed requires that the motor is initialized with two bodies and a frame. The code seems okay, but the parameters are correct?
+
+Also, in the motor's SetMotorFunction, the function is a sine function. But the user wants to replace that with a custom function.
+
+Now, moving to the modifications required.
+
+First modification: replace the sine motor function with a custom class.
+
+The user needs to define a class ChFunctionMyFun inheriting from chrono.ChFunction. The GetVal method must take x (time) and return a value based on the parameters A1, A2, T1, T2, T3, w.
+
+The parameters are to be specified, but the problem says "using specified parameters (A1, A2, T1, T2, T3, w)". Wait, the instruction says to implement the GetVal method using those parameters. The user probably needs to define these parameters in the class. So the class should have __init__ that takes those parameters, stores them, and then GetVal uses them.
+
+The piecewise conditions based on time x. The problem says "piecewise conditions based on time x". The exact conditions aren't specified, so perhaps the user expects a sample implementation. Since the problem doesn't specify the exact conditions, I'll have to make a reasonable assumption. Maybe something like:
+
+- For t < T1: A1*sin(w*t)
+- Between T1 and T2: A2*sin(w*t)
+- After T3: constant or another function?
+
+Alternatively, maybe a more complex function. Since the problem states "varying motor speed using specified parameters", perhaps the function is a combination of different sine waves or step functions based on time intervals.
+
+The problem says "piecewise conditions based on time x". Let's suppose that the function is defined as follows (as an example):
+
+def GetVal(self, x):
+    if x < self.T1:
+        return self.A1 * m.sin(self.w * x)
+    elif self.T1 <= x < self.T2:
+        return self.A2 * m.sin(self.w * x)
+    elif self.T2 <= x < self.T3:
+        return self.A1 * self.A2 * m.cos(self.w * x)
+    else:
+        return 0.0
+
+But the exact conditions are not specified, so the code should implement a sample. The parameters A1, A2, T1, T2, T3, w need to be passed to the class constructor.
+
+So the class would look like:
+
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def Get_val(self, x):
+        if x < self.T1:
+            return self.A1 * m.sin(self.w * x)
+        elif x < self.T2:
+            return self.A2 * m.sin(self.w * x)
+        elif x < self.T3:
+            return (self.A1 + self.A2) * m.cos(self.w * x)
+        else:
+            return 0.0
+
+Wait, but in Python, the method name should match what Chrono expects. The base class ChFunction has a Get_y method, not Get_val. Wait, checking the PyChrono documentation: the ChFunction class requires overriding the Get_y function. So the correct method name is Get_y.
+
+Ah, that's an important point. The user's custom function must override the Get_y method. So the method should be named Get_y, not Get_val. So the code must use:
+
+def Get_y(self, x):
+
+Therefore, the class should have:
+
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def Get_y(self, x):
+        # Implement the piecewise function here based on parameters
+
+So in the code, replace the existing sine function with an instance of this class.
+
+The parameters for the custom function need to be set. Let's pick some example values for the parameters (since the problem doesn't specify, but requires using them). For example:
+
+A1 = 1.0
+A2 = 2.0
+T1 = 1.0
+T2 = 2.0
+T3 = 3.0
+w = 2.0 * m.pi * 40  # same frequency as before, but perhaps different
+
+Then, create an instance:
+
+myfun = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
+
+Then, set rotmotor1.SetMotorFunction(myfun)
+
+Second modification: visualization and settings. The user wants to retain the existing visual settings. So that part is okay. The additional step is to optionally set up a more precise HHT timestepper. The original code uses DoStepDynamics with a fixed time step. To use HHT, we need to set the integrator to ChTimestepperHHT and configure it.
+
+The problem says to "set up a more precise HHT timestepper by commenting or uncommenting the relevant line." So perhaps the code should include that. Since the current code uses DoStepDynamics, which uses the default integrator (probably ChTimestepperDense), to switch to HHT:
+
+sys.SetTimestepper(chrono.ChTimestepperHHT(sys))
+hht = sys.GetTimestepper()
+hht.SetAlpha(-0.2)  # typical value for HHT
+hht.SetMaxiters(5)
+hht.SetAbsTolerances(1e-5)
+hht.SetRelTolerances(1e-5)
+
+Alternatively, maybe the user wants to comment out the existing line and add these. The problem says "optionally, set up a more precise HHT timestepper by commenting or uncommenting the relevant line." So perhaps the code should include the HHT setup, but commented, or as an option. But since the problem says to modify the script based on instructions, the correct approach is to include the HHT setup, but the user might want to leave it as an option. Alternatively, the problem says to "set up a more precise HHT timestepper by commenting or uncommenting the relevant line." So perhaps the code should have a commented section for HHT, but the user's instruction is to modify the script to include it. Wait, the instruction says "optionally, set up...", so it's optional. But since the user is to modify the script, perhaps adding the HHT code is part of the modification.
+
+Alternatively, maybe the problem expects that the user adds the HHT code, but leaves it as an option (commented). Let me see the original code. The original code has:
+
+sys.DoStaticLinear()
+
+then the loop uses DoStepDynamics(0.002). To switch to HHT, we need to set the timestepper before the loop. So the steps would be:
+
+After creating the system:
+
+# Set HHT timestepper
+hht = chrono.ChTimestepperHHT(sys)
+hht.SetAlpha(-0.2)
+hht.SetMaxiters(5)
+hht.SetAbsTolerances(1e-5)
+hht.SetRelTolerances(1e-5)
+sys.SetTimestepper(hht)
+
+Then, in the loop, use DoStepDynamics with the same time step, but the timestepper is HHT now. Alternatively, the problem says "set up a more precise HHT timestepper by commenting or uncommenting the relevant line." So maybe the original code has a line that can be uncommented. Since the original code doesn't have HHT, adding it as an option would be better.
+
+Alternatively, the problem might expect that the user adds the HHT code but comments it out. But the problem says "modify the script based on the following instructions", so the instructions include that part. Since the user is to modify the script to meet the requirements, the HHT setup should be added. But the problem says "optionally", so perhaps it's optional, but since the instruction says to modify the script, perhaps it's better to include it.
+
+Putting it all together, the steps are:
+
+1. Fix the builder.BuildBeam order parameter (change from 1 to 3? Because the comment mentions cubic IGA which requires order 3).
+
+Wait, the original code's comment says "for max precision in gravity of FE, at least 2 integration points per element when using cubic IGA". The SetAutomaticGravity is called with 2 as the second parameter (number of integration points). The cubic IGA would require order 3 (since cubic is order 3). The current code's BuildBeam call uses order 1 (linear?), so that's an error. The order should be 3. So changing the last parameter from 1 to 3.
+
+2. Fix the node_mid line to use len instead of .size().
+
+Original line:
+
+node_mid = builder.GetLastBeamNodes()[m.floor(builder.GetLastBeamNodes().size() / 2.0)]
+
+Change to:
+
+nodes = builder.GetLastBeamNodes()
+mid_index = int(len(nodes) / 2)
+node_mid = nodes[mid_index]
+
+Alternatively, using integer division.
+
+3. Fix the CH_PI value. The code uses CH_PI = 3.1456. Maybe that's a typo (should be CH_PI = m.pi). But the problem says to fix errors. Since 3.1456 is a rough approximation, but perhaps the user intended to use math.pi. So replacing CH_PI with m.pi in all places where CH_PI is used.
+
+Looking at the code, CH_PI is used in several places:
+
+- minertia.SetArea(CH_PI * ...)
+- minertia.SetIyy(...)
+- melasticity.SetIyy(...)
+- melasticity.SetIzz(...)
+- melasticity.SetJ(...)
+- the QuatFromAngleAxis uses CH_PI/2.0.
+
+So replacing all CH_PI with m.pi would be better. So changing CH_PI to m.pi in those lines.
+
+4. The motor function replacement: create the custom function class.
+
+Implement the ChFunctionMyFun class as described, then replace the existing sine function with an instance of this class.
+
+5. Adding HHT timestepper.
+
+Now, putting all corrections and modifications into the code.
+
+Additional notes:
+
+- The existing motor uses a ChLinkMotorRotationSpeed, which requires a function that returns angular speed. The custom function must return the desired angular speed at time x.
+
+- The existing code has:
+
+f_ramp = chrono.ChFunctionSine(40,0.2)
+rotmotor1.SetMotorFunction(f_ramp)
+
+Replace this with creating an instance of ChFunctionMyFun and setting that as the motor's function.
+
+Now, let's write the corrected code with all these changes.
+
+Also, check for other possible errors:
+
+In the inertia and elasticity setup:
+
+The SetIyy and SetIzz for the elasticity might be redundant since the section's inertia is already set. Wait, the ChBeamSectionCosserat takes minertia and melasticity, which both have their own inertia and elasticity parameters. So perhaps the elasticity's Iyy and Izz are not needed? Wait, looking at the code:
+
+minertia is for inertia properties (mass, area, moments), and melasticity has Young's modulus, shear modulus, and also moments of inertia? Maybe that's incorrect. Because the elasticity's moments might not be necessary if they are part of the inertia. Wait, checking the documentation for ChElasticityCosseratSimple: perhaps the moments of inertia are part of the elasticity parameters? Or maybe they are part of the section's inertia. This could be a problem.
+
+Wait, the ChBeamSectionCosserat takes an inertia and an elasticity. The inertia includes the moments (Iyy, Izz, J), and the elasticity's parameters like Young's modulus, shear modulus, etc. But the elasticity's SetIyy and SetIzz might be incorrect. Wait, looking at the code:
+
+melasticity.SetIyy(...) and SetIzz(...) and SetJ(...). Are those parameters part of the elasticity? Or are they part of the inertia?
+
+Possibly, this is an error. The elasticity parameters should not include moments of inertia. The moments of inertia belong to the inertia object. So the lines where melasticity.SetIyy etc. are called might be incorrect. The user might have mistakenly set those parameters on the elasticity instead of the inertia. Let me check the ChElasticityCosseratSimple documentation.
+
+Looking up the ChElasticityCosseratSimple class: The elasticity properties include Young's modulus, shear modulus, Poisson's ratio, but not moments of inertia. The moments of inertia are part of the inertia object (ChInertiaCosseratSimple). Therefore, the code's lines where melasticity.SetIyy, etc., are incorrect. Those parameters should be set on the inertia, which they are already done. So those lines are errors and should be removed.
+
+Ah, this is a critical error. The elasticity parameters shouldn't have moments of inertia. The code mistakenly sets them on the elasticity instead of the inertia. So removing those lines.
+
+So, in the original code:
+
+melasticity.SetIyy(...)
+melasticity.SetIzz(...)
+melasticity.SetJ(...)
+
+These lines are incorrect and should be removed. The inertia's Iyy, Izz, J are already set in minertia, and passed to the section. The elasticity doesn't need those parameters.
+
+That's a major error. So need to remove those lines.
+
+This is an important fix. So in the code, after setting melasticity's Young and shear modulus, we should not set the moments of inertia there. Removing those lines.
+
+Another possible error: the SetCircular and SetDrawCircularRadius. The comment says that SetAsCircularSection would overwrite Ixx etc. But in the code, msection.SetCircular(True) is called, then SetDrawCircularRadius. The SetCircular might set the section as circular, but perhaps the Ixx/Iyy/J are already set via the inertia. So that's okay, but the order might matter. The code seems okay here.
+
+Another possible error: the bearing's initialization. The bearing is a ChLinkMateGeneric with constraints (False, True, True, False, True, True). The parameters are (rotate_x, rotate_y, rotate_z, translate_x, translate_y, translate_z). So the bearing allows rotation around x and z, and translation in y? Not sure, but perhaps that's intended.
+
+Now, compiling all these fixes:
+
+1. Replace CH_PI with m.pi.
+
+2. Fix the order parameter in builder.BuildBeam to 3 (cubic).
+
+3. Fix the node_mid line using len.
+
+4. Remove the melasticity.SetIyy, SetIzz, SetJ lines.
+
+5. Create the custom motor function class and replace the sine function.
+
+6. Add HHT timestepper.
+
+Now, modifying the code accordingly.
+
+Let's proceed step by step.
+
+First, replacing CH_PI with m.pi:
+
+Original code:
+
+CH_PI = 3.1456
+
+Replace with:
+
+CH_PI = m.pi  # or remove CH_PI and use m.pi directly where needed?
+
+Wait, the code uses CH_PI in several places. Let me see:
+
+minertia.SetArea(CH_PI * (pow(beam_ro, 2) - pow(beam_ri, 2)));
+
+minertia.SetIyy((CH_PI / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)));
+
+Similarly for Izz and J.
+
+The angle for the flywheel's rotation is CH_PI / 2.0.
+
+So changing all instances of CH_PI to m.pi.
+
+Alternatively, perhaps better to just use m.pi directly instead of defining CH_PI. Let me remove the CH_PI line and replace all CH_PI with m.pi.
+
+So:
+
+Remove the line:
+
+CH_PI = 3.1456
+
+And in all places where CH_PI is used, replace with m.pi.
+
+Next, the builder.BuildBeam parameters:
+
+The last parameter (order) is 1. Change to 3 for cubic.
+
+builder.BuildBeam(..., 3) instead of 1.
+
+Then, the node_mid line:
+
+nodes = builder.GetLastBeamNodes()
+mid_index = len(nodes) // 2  # integer division
+node_mid = nodes[mid_index]
+
+Alternatively, using m.floor(len(nodes)/2), but len(nodes) is an integer, so dividing by 2.0 and flooring would give the same as integer division.
+
+Next, remove the elasticity's Iyy, Izz, J settings:
+
+Comment or remove these lines:
+
+melasticity.SetIyy(...)
+melasticity.SetIzz(...)
+melasticity.SetJ(...)
+
+So the elasticity code becomes:
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+# Removed the following lines:
+# melasticity.SetIyy(...)
+# melasticity.SetIzz(...)
+# melasticity.SetJ(...)
+
+Next, creating the custom motor function:
+
+Define the class ChFunctionMyFun as discussed.
+
+Then, replace the existing sine function with an instance of this class. Let's pick some example parameters:
+
+A1 = 1.0
+A2 = 2.0
+T1 = 1.0
+T2 = 2.0
+T3 = 3.0
+w = 2 * m.pi * 40  # same frequency as before, but adjusted.
+
+Then, create the function and set it to the motor.
+
+Finally, adding HHT timestepper:
+
+After creating the system, add:
+
+# Set up HHT timestepper for better precision
+hht = chrono.ChTimestepperHHT(sys)
+hht.SetAlpha(-0.2)  # typical value for HHT
+hht.SetMaxiters(5)
+hht.SetAbsTolerances(1e-5)
+hht.SetRelTolerances(1e-5)
+sys.SetTimestepper(hht)
+
+This replaces the default timestepper with HHT.
+
+Putting all these changes into the code.
+</think>
+
+```python
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+sys = chrono.ChSystemSMC()
+
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+mesh.SetAutomaticGravity(True, 2)  # Set integration points for cubic IGA
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
+
+beam_L = 6
+beam_ro = 0.050
+beam_ri = 0.045
+
+# Correct CH_PI to use math.pi
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800)
+minertia.SetArea(m.pi * (pow(beam_ro, 2) - pow(beam_ri, 2)))
+minertia.SetIyy((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetIzz((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)
+
+# Use cubic IGA (order 3)
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(
+    mesh,
+    msection,
+    20,
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(beam_L, 0, 0),
+    chrono.VECT_Y,
+    3  # Changed order to 3 for cubic IGA
+)
+
+# Correct node_mid calculation using len()
+nodes = builder.GetLastBeamNodes()
+mid_index = len(nodes) // 2
+node_mid = nodes[mid_index]
+
+# Flywheel setup
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.24, 0.1, 7800)
+mbodyflywheel.SetCoord(chrono.ChCoordsysD(
+    node_mid.GetPos() + chrono.ChVectorD(0, 0.05, 0),
+    chrono.Q_from_AngAxis(m.pi / 2.0, chrono.VECT_Z)
+))
+sys.Add(mbodyflywheel)
+
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+# Truss and bearing
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes()[-1], truss, chrono.ChFrameD(builder.GetLastBeamNodes()[-1].GetPos()))
+sys.Add(bearing)
+
+# Custom motor function class
+class ChFunctionMyFun(chrono.ChFunction):
+    def __init__(self, A1, A2, T1, T2, T3, w):
+        super().__init__()
+        self.A1 = A1
+        self.A2 = A2
+        self.T1 = T1
+        self.T2 = T2
+        self.T3 = T3
+        self.w = w
+
+    def Get_y(self, x):
+        if x < self.T1:
+            return self.A1 * m.sin(self.w * x)
+        elif self.T1 <= x < self.T2:
+            return self.A2 * m.sin(self.w * x)
+        elif self.T2 <= x < self.T3:
+            return (self.A1 + self.A2) * m.cos(self.w * x)
+        else:
+            return 0.0
+
+# Motor setup with custom function
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+rotmotor1.Initialize(
+    builder.GetLastBeamNodes()[0],
+    truss,
+    chrono.ChFrameD(
+        builder.GetLastBeamNodes()[0].GetPos(),
+        chrono.Q_from_AngAxis(m.pi / 2.0, chrono.VECT_Y)
+    )
+)
+sys.Add(rotmotor1)
+
+# Parameters for custom motor function
+A1 = 1.0
+A2 = 2.0
+T1 = 1.0
+T2 = 2.0
+T3 = 3.0
+w = 2 * m.pi * 40  # Frequency similar to original sine function
+custom_fun = ChFunctionMyFun(A1, A2, T1, T2, T3, w)
+rotmotor1.SetMotorFunction(custom_fun)
+
+# Visualization setup
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
+
+# Irrlicht setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Test FEA: Jeffcott Rotor with IGA Beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 1, 4), chrono.ChVectorD(beam_L / 2, 0, 0))
+vis.AddTypicalLights()
+
+# Use HHT timestepper for better precision
+hht = chrono.ChTimestepperHHT(sys)
+hht.SetAlpha(-0.2)
+hht.SetMaxiters(5)
+hht.SetAbsTolerances(1e-5)
+hht.SetRelTolerances(1e-5)
+sys.SetTimestepper(hht)
+
+sys.DoStaticLinear()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)
+```

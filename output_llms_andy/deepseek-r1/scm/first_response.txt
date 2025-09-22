@@ -1,0 +1,113 @@
+
+```python
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+
+# Set path to Chrono data directory
+chrono.SetChronoDataPath(os.path.join(os.environ.get('CHRONO_DATA_DIR', ''), ''))
+
+def main():
+    # 1. Initialize simulation system
+    system = chrono.ChSystemNSC()
+    system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+    
+    # 2. Create HMMWV vehicle
+    vehicle = veh.HMMWV_Full(system)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.0), chrono.Q_from_AngZ(0)))
+    vehicle.SetTireType(veh.TireModelType_RIGID)
+    vehicle.Initialize()
+    
+    # Set visualization modes
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    # 3. Configure SCM terrain
+    terrain = veh.SCMDeformableTerrain(system)
+    terrain.SetSoilParameters(
+        Kphi = 4.41e6,    # Bekker phi
+        Kc = 1.06e4,      # Bekker c
+        n = 1.1,          # Bekker n exponent
+        K = 2.15e7,       # Mohr cohesive (Pa)
+        G = 1.52e7,       # Mohr friction (Pa)
+        coh = 1.8e4,      # Moisture related cohesion (Pa)
+        coh_angle = 29,   # Moisture friction angle (deg)
+        sinkage = 0.18    # Exponent in pressure-sinkage
+    )
+    terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.2)  # False color sinkage plot
+    terrain.Initialize(20, 30, 0.1)  # Length, width, resolution (m)
+    
+    # Enable moving patch that follows the vehicle
+    patch_material = chrono.ChMaterialSurfaceNSC()
+    terrain.AddMovingPatch(vehicle.GetChassisBody(), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(5, 3, 1))
+    
+    # 4. Set up Irrlicht visualization
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('HMMWV on SCM Terrain')
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVectorD(6, 6, 1.5))
+    vis.AddTypicalLights()
+    
+    # 5. Create interactive driver
+    driver = veh.ChIrrGuiDriver(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    # 6. Configure simulation parameters
+    step_size = 0.002
+    render_step = 1.0 / 50  # 50 FPS
+
+    # Real-time simulation loop
+    time = 0
+    while vis.Run():
+        # Update driver inputs
+        driver_inputs = driver.GetInputs()
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        terrain.Synchronize(time)
+        
+        # Advance simulation
+        system.DoStepDynamics(step_size)
+        
+        # Update visualization
+        if time >= render_step:
+            vis.BeginScene()
+            vis.Render()
+            vis.EndScene()
+            time = 0
+        
+        time += step_size
+
+if __name__ == '__main__':
+    main()
+```
+```
+
+This script:
+1. Initializes the PyChrono environment with gravity
+2. Creates a full HMMWV vehicle with rigid tires at position (0,0,1) with mesh visualization
+3. Configures SCM terrain with custom soil parameters and moving patch
+4. Enables sinkage visualization with false color plotting
+5. Sets up Irrlicht visualization with camera and lighting
+6. Implements interactive driver controls (steering/throttle/braking)
+7. Runs simulation in real-time at 50 FPS rendering rate
+
+Key features:
+- Rigid tire model with full mesh visualization
+- Dynamic terrain patch following the vehicle
+- Soil parameters optimized for deformable terrain simulation
+- Interactive controls through Irrlicht GUI
+- Real-time performance with fixed rendering frequency
+
+Note: Ensure you have Chrono::Vehicle module compiled with SCM support and Irrlicht enabled. Adjust the CHRONO_DATA_DIR environment variable if needed for asset loading.

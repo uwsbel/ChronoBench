@@ -1,0 +1,52 @@
+from PyChrono and Irrlicht as the simulation's visualizer.
+3. Add the Kraz vehicle to the simulation's visualizer.
+4. Define the Kraz vehicle to the simulation's visualizer.
+5. Set the Kraz vehicle's visualizer.
+6. Add the Kraz vehicle to the visualizer.
+7. Set the Kraz vehicle's visualizer.
+8. Add the Kraz vehicle's visualizer.
+9. Set the Kraz vehicle's visualizer.
+10. Add the Kraz vehicle's visualizer.
+11. Set the Kraz vehicle's visualizer.
+12. Add the Kraz vehicle's visualizer.
+13. Set the Kraz vehicle's visualizer.
+14. Add the Kraz vehicle's visualizer.
+15. Set the Kraz vehicle's visualizer.
+16. Add the Kraz vehicle's visualizer.
+17. Set the Kraz vehicle's visualizer.
+18. Add the Kraz vehicle's visualizer.
+19. Set the Kraz vehicle's visualizer.
+20. Add the Kraz vehicle's visualizer.
+21. Set the Kraz vehicle's visualizer.
+22. Add the Kraz vehicle's visualizer.
+23. Set the Kraz vehicle's visualizer.
+24. Add the Kraz vehicle's visualizer.
+25. Set the Kraz vehicle's visualizer.
+26. Add the Kraz vehicle's visualizer.
+27. Set the Kraz vehicle's visualizer.
+28. Add the Kraz vehicle's visualizer.
+29. Set the Kraz vehicle's visualizer.
+30. Add the Kraz vehicle's visualizer.
+31. Set the Kraz vehicle's visualizer.
+32. Add the Kraz vehicle's visualizer.
+33. Set the Kraz vehicle's visualizer.
+34. Add the Kraz vehicle's visualizer.
+35. Set the Kraz vehicle's visualizer.
+36. Add the Kraz vehicle's visualizer.
+37. Set the Kraz vehicle's visualizer.
+38. Add the Kraz vehicle's visualizer.
+39. Set the Kraz vehicle's visualizer.
+40. Add the Kraz vehicle's visualizer.
+41. Set the Kraz vehicle's visualizer.
+42. Add the Kraz vehicle's visualizer.
+43. Set the Kraz vehicle's visualizer.
+44. Add the Kraz vehicle's visualizer.
+45. Set the Kraz vehicle's visualizer.
+46. Add the Kraz vehicle's visualizer.
+47. Set the Kraz vehicle's visualizer.
+48. Add the Kraz vehicle's visualizer.
+49. Set the Kraz vehicle's visualizer.
+50. Add the Kraz vehicle's visualizer.
+51. Set the Kraz vehicle's visualizer.
+52. Add the Kraz vehicle's visualizer.
+53. Set the Kraz vehicle's visualizer.

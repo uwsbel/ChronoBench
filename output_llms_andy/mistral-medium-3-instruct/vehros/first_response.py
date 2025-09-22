@@ -1,0 +1,108 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.ros as ros
+import pychrono.irrlicht as irr
+import math
+
+# ==============================================================================
+# Initialize PyChrono and ROS
+# ==============================================================================
+
+# Create the Chrono::Engine physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create the vehicle system
+vehicle = veh.HMMWV()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)  # Contact method
+vehicle.SetEngineType(veh.ChEngineModelSimpleMAP)     # Engine type
+vehicle.SetTireType(veh.ChTireRigidMesh)              # Tire model
+
+# Initialize vehicle at specified location and orientation
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0), chrono.Q_from_AngZ(chrono.CH_C_PI_2)))
+
+# Add vehicle to the system
+system.Add(vehicle.GetSystem())
+
+# ==============================================================================
+# Terrain setup
+# ==============================================================================
+
+# Create a rigid terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoefficient(0.8)  # Friction coefficient
+terrain.SetContactRestitutionCoefficient(0.1)  # Restitution coefficient
+
+# Create and add a flat patch
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 0, 100))
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 200, 200)
+
+# ==============================================================================
+# Driver system
+# ==============================================================================
+
+# Create a driver system
+driver = veh.ChDriverHMMWV()
+driver.Initialize()
+
+# ==============================================================================
+# ROS Integration
+# ==============================================================================
+
+# Create ROS manager
+ros_manager = ros.ChROSManager()
+ros_manager.Initialize()
+
+# Register ROS handlers
+ros_manager.RegisterHandler(chrono.ChROSClockSyncHandler())
+ros_manager.RegisterHandler(veh.ChROSDriverInputHandler(driver))
+ros_manager.RegisterHandler(veh.ChROSVehicleStateHandler(vehicle))
+
+# ==============================================================================
+# Visualization setup
+# ==============================================================================
+
+# Create Irrlicht application
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 2, 0), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+vis.AssetBindAll()
+vis.AssetUpdateAll()
+
+# ==============================================================================
+# Simulation loop
+# ==============================================================================
+
+# Simulation parameters
+step_size = 0.01  # 10ms
+sim_time = 0
+max_time = 10.0   # Simulation duration
+
+while vis.Run() and sim_time < max_time:
+    # Synchronize systems
+    driver.Synchronize(sim_time)
+    terrain.Synchronize(sim_time)
+    vehicle.Synchronize(sim_time, driver.GetInputs())
+
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+
+    # Update ROS manager
+    ros_manager.Synchronize(sim_time)
+
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update simulation time
+    sim_time += step_size
+
+# Cleanup
+ros_manager.Shutdown()

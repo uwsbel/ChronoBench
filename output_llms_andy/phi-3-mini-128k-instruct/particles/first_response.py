@@ -1,0 +1,54 @@
+# Import necessary PyChrono and Irrlicht libraries
+from pychrono.pychrono import *
+from pychrono.irrlicht import *
+
+# Initialize the PyChrono environment
+chrono_arena = ChronoArena()
+chrono_arena.SetGravity(chrono_arena.GetGravity())
+
+# Set up the Irrlicht engine
+application = Application(chrono_arena, True, 'ParticleSimulation')
+application.SetWindowSize(800, 600)
+application.SetGamma(0.25)
+application.SetGammaBlack()
+
+# Create a particle emitter
+particle_emitter = ParticleEmitter()
+
+# Add a particle system to the simulation
+particle_system = chrono_arena.GetParticleSystem()
+particle_system.SetEmitter(particle_emitter)
+
+# Define a custom gravitational force
+def custom_gravitational_force(particle, acceleration):
+    # Assuming G = 6.67430e-11 m^3 kg^-1 s^-2, and particles have mass m
+    G = 6.67430e-11
+    mass = 1.0  # mass of the particles, you can change this as needed
+    acceleration = G * mass / (particle.GetPosition().LengthSquared() * 1e-3)  # Convert to appropriate units
+    return chrono_arena.GetGravitation
+
+
+def custom_gravitational_force(particle, acceleration):
+    G = 6.67430e-11  # gravitational constant in m^3 kg^-1 s^-2
+    mass = 1.0  # mass of the particles, you can change this as needed
+    distance_squared = particle.GetPosition().LengthSquared()
+    if distance_squared > 0:  # Avoid division by zero
+        acceleration = G * mass / distance_squared * particle.GetPosition().Unit()
+    return acceleration
+
+
+# Set the custom force for the particle system
+chrono_arena.SetCustomGravity(custom_gravitational_force)
+
+# Run the simulation
+application.SetSimulate(True)
+application.SetStep(1e-3)
+application.BeginScene()
+application.AddLogicalDevice(chrono_arena.GetDevice())
+
+while application.GetIsRunning():
+    application.DoStep(1e-3)
+    # Here you can add visualization code using Irrlicht
+    # For example, draw particles with their positions and velocities
+
+application.EndScene()

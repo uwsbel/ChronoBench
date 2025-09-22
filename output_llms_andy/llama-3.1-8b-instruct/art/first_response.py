@@ -1,0 +1,59 @@
+import chrono as ch
+import chrono.irrlicht as ir
+import numpy as np
+
+# Initialize the PyChrono environment
+ch.init()
+
+# Create a RigidTerrain object with specified dimensions and add a custom texture
+terrain = ch.RigidTerrain(
+    name="terrain",
+    size=[100, 100, 1],
+    texture="path/to/terrain_texture.png"
+)
+
+# Create an ARTcar vehicle object with specific parameters
+vehicle = ch.ARTcar(
+    name="vehicle",
+    mass=1000,
+    location=[0, 0, 0],
+    orientation=[0, 0, 0],
+    contact_method=ch.ContactMethod.STANDARD,
+    visualization_type=ch.VisualizationType.STANDARD,
+    driver_system=ch.DriverSystem(
+        steering_gain=1.0,
+        throttle_gain=1.0,
+        braking_gain=1.0
+    )
+)
+
+# Add the vehicle to the terrain
+terrain.add(vehicle)
+
+# Create an Irrlicht visualizer object
+visualizer = ir.IrrlichtVisualizer(
+    terrain=terrain,
+    vehicle=vehicle,
+    title="ARTcar Simulation",
+    width=800,
+    height=600,
+    frames_per_second=50
+)
+
+# Run the simulation loop
+while True:
+    # Update the vehicle dynamics
+    vehicle.update()
+
+    # Update the visualization
+    visualizer.update()
+
+    # Display the simulation
+    visualizer.display()
+
+    # Check for user input (e.g., to exit the simulation)
+    if visualizer.is_closed():
+        break
+
+# Clean up the PyChrono environment
+ch.finalize()

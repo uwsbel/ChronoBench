@@ -1,0 +1,227 @@
+I'll create a comprehensive PyChrono simulation of a MAN 10t truck with the specifications you've outlined. Here's the complete script:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+import numpy as np
+
+def main():
+    # Initialize PyChrono environment
+    chrono.SetChronoDataPath("data/")
+    
+    # Create the Chrono system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set solver parameters for better performance
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetSolverMaxIterations(150)
+    system.SetMaxPenetrationRecoverySpeed(4.0)
+    
+    # Create the terrain
+    terrain = veh.RigidTerrain(system)
+    
+    # Create terrain patch with texture
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    
+    patch = terrain.AddPatch(patch_mat, 
+                           chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), 
+                                            chrono.QUNIT),
+                           200, 200)  # 200m x 200m terrain
+    
+    # Set terrain texture
+    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.jpg"), 200, 200)
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
+    
+    # Create the MAN 10t truck vehicle
+    vehicle = veh.MAN_10t()
+    
+    # Set initial vehicle position and orientation
+    init_pos = chrono.ChVectorD(0, 0.5, 0)
+    init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    vehicle.SetInitPosition(chrono.ChCoordsysD(init_pos, init_rot))
+    
+    # Initialize vehicle with TMEASY tire model
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    # Set collision types
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetWheelCollisionType(veh.CollisionType_NONE)
+    
+    # Initialize the vehicle
+    vehicle.Initialize(system)
+    
+    # Create and initialize TMEASY tires
+    tire_FL = veh.TMeasyTire("FL")
+    tire_FR = veh.TMeasyTire("FR")
+    tire_RL = veh.TMeasyTire("RL")
+    tire_RR = veh.TMeasyTire("RR")
+    
+    # Set tire parameters for heavy truck
+    tire_FL.SetTMeasyParams(veh.GetDataFile("vehicle/hmmwv/tire/HMMWV_TMeasy.json"))
+    tire_FR.SetTMeasyParams(veh.GetDataFile("vehicle/hmmwv/tire/HMMWV_TMeasy.json"))
+    tire_RL.SetTMeasyParams(veh.GetDataFile("vehicle/hmmwv/tire/HMMWV_TMeasy.json"))
+    tire_RR.SetTMeasyParams(veh.GetDataFile("vehicle/hmmwv/tire/HMMWV_TMeasy.json"))
+    
+    tire_FL.Initialize(vehicle.GetWheelBody(veh.FRONT_LEFT), veh.LEFT)
+    tire_FR.Initialize(vehicle.GetWheelBody(veh.FRONT_RIGHT), veh.RIGHT)
+    tire_RL.Initialize(vehicle.GetWheelBody(veh.REAR_LEFT), veh.LEFT)
+    tire_RR.Initialize(vehicle.GetWheelBody(veh.REAR_RIGHT), veh.RIGHT)
+    
+    tire_FL.SetVisualizationType(veh.VisualizationType_MESH)
+    tire_FR.SetVisualizationType(veh.VisualizationType_MESH)
+    tire_RL.SetVisualizationType(veh.VisualizationType_MESH)
+    tire_RR.SetVisualizationType(veh.VisualizationType_MESH)
+    
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR()
+    
+    # Set driver input controls
+    driver.SetSteeringDelta(0.02)  # Steering sensitivity
+    driver.SetThrottleDelta(0.02)  # Throttle sensitivity
+    driver.SetBrakingDelta(0.02)   # Braking sensitivity
+    
+    # Initialize driver
+    driver.Initialize()
+    
+    # Create Irrlicht visualization system
+    vis = veh.ChWheeledVehicleIrrApp(vehicle, 'MAN 10t Truck Simulation')
+    
+    # Set window size
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle('MAN 10t Truck - PyChrono Simulation')
+    
+    # Set up chase camera
+    vis.SetChaseCamera(chrono.ChVectorD(-8.0, 3.0, 0.0),  # Camera offset from vehicle
+                       6.0,                                 # Distance
+                       0.5)                                 # Height
+    
+    # Enable camera controls
+    vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+    
+    # Add directional lighting
+    vis.AddTypicalLights()
+    vis.AddLight(chrono.ChVectorD(30, 100, 30), 290, chrono.ChColor(0.7, 0.7, 0.7))
+    vis.AddLight(chrono.ChVectorD(-30, 100, -30), 190, chrono.ChColor(0.7, 0.7, 0.7))
+    
+    # Set skybox
+    vis.AddSkyBox(veh.GetDataFile("skybox/"))
+    
+    # Add logo
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+    
+    # Simulation parameters
+    time_step = 1e-3
+    time_end = 60.0  # Simulation time in seconds
+    
+    # Initialize the visualization
+    vis.Initialize()
+    vis.AddTypicalCamera(irr.vector3df(0, 5, -10))
+    
+    # Print vehicle information
+    print(f"Vehicle mass: {vehicle.GetVehicle().GetMass():.2f} kg")
+    print("Controls:")
+    print("  W/S - Throttle/Brake")
+    print("  A/D - Steering left/right")
+    print("  Space - Emergency brake")
+    
+    # Simulation loop
+    time = 0
+    while vis.GetDevice().run() and time < time_end:
+        # Update time
+        time = system.GetChTime()
+        
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+        
+        # Synchronize vehicle subsystems
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        vehicle.Synchronize(time, driver_inputs, terrain)
+        tire_FL.Synchronize(time, terrain)
+        tire_FR.Synchronize(time, terrain)
+        tire_RL.Synchronize(time, terrain)
+        tire_RR.Synchronize(time, terrain)
+        vis.Synchronize(time, driver_inputs)
+        
+        # Advance system dynamics
+        driver.Advance(time_step)
+        terrain.Advance(time_step)
+        vehicle.Advance(time_step)
+        tire_FL.Advance(time_step)
+        tire_FR.Advance(time_step)
+        tire_RL.Advance(time_step)
+        tire_RR.Advance(time_step)
+        system.DoStepDynamics(time_step)
+        vis.Advance(time_step)
+        
+        # Update visualization
+        vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+        vis.DrawAll()
+        
+        # Display real-time information
+        if int(time * 10) % 10 == 0:  # Update every 0.1 seconds
+            speed = vehicle.GetVehicle().GetPointVelocity(chrono.ChVectorD(0, 0, 0)).Length() * 3.6  # km/h
+            pos = vehicle.GetVehicle().GetPos()
+            
+            info_text = f"Time: {time:.1f}s | Speed: {speed:.1f} km/h | Position: ({pos.x:.1f}, {pos.y:.1f}, {pos.z:.1f})"
+            print(info_text)
+        
+        vis.EndScene()
+    
+    print("Simulation completed!")
+
+if __name__ == "__main__":
+    main()
+```
+
+This comprehensive PyChrono simulation script includes:
+
+## Key Features:
+
+1. **PyChrono Environment Initialization**: 
+   - Creates a Chrono system with NSC contact method
+   - Sets gravity and solver parameters
+
+2. **MAN 10t Truck Vehicle**:
+   - Configurable visualization (mesh for chassis, wheels, tires)
+   - Proper collision settings
+   - TMEASY tire model for all four wheels
+
+3. **Rigid Terrain**:
+   - 200m x 200m terrain patch
+   - Realistic friction and restitution properties
+   - Grass texture for visual appeal
+
+4. **Interactive Driver Controls**:
+   - Real-time steering, throttle, and braking
+   - Configurable sensitivity settings
+   - Keyboard controls (W/S for throttle/brake, A/D for steering)
+
+5. **Irrlicht Visualization**:
+   - Chase camera following the vehicle
+   - Directional lighting for realistic shadows
+   - Skybox for immersive environment
+   - Company logo display
+   - Real-time information display
+
+6. **Simulation Parameters**:
+   - 1ms time step for accurate dynamics
+   - 60-second simulation duration
+   - Real-time performance monitoring
+
+## Controls:
+- **W/S**: Throttle/Brake
+- **A/D**: Steering left/right
+- **Space**: Emergency brake
+
+The simulation provides realistic truck dynamics with proper tire-terrain interaction, making it suitable for vehicle dynamics studies, driver training simulations, or general vehicle behavior analysis.

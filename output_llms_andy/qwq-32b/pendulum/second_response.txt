@@ -1,0 +1,378 @@
+Okay, let's tackle this problem step by step. First, I need to go through the original code and see if there are any existing errors before making the modifications. 
+
+Starting with the original code. Let me look at the imports. The user has imported pychrono.core as chrono and pychrono.irrlicht as chronoirr, which is correct. 
+
+Looking at the ground setup. The ground is created as a ChBody, added to the system, set fixed, and collision disabled. Then there's a visual shape added. The line ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1))). Wait, the ChFramed might be a typo. Because in Chrono, the correct class is ChFrame, not ChFramed. So that's an error. The same mistake is present in the pendulum's visual shape where they used chrono.ChFramed. So that's a syntax error. Need to correct those to ChFrame.
+
+Next, the pendulum's inertia tensor is set using SetInertiaXX with (0.2, 1, 1). Wait, the inertia for a cylinder is typically (1/2)mr² for the axis perpendicular to the length. But maybe the user just wants to set it as per the original code, but the problem says to change it later. But the original code might have an error here, but perhaps that's intentional for the initial setup. However, the problem says to adjust the inertia to 0.4, 1.5, 1.5, so that's part of the modifications.
+
+Now, looking at the revolute joint. The code uses chrono.ChLinkLockRevolute. But the problem says to replace it with a spherical joint. So we need to replace that with ChLinkLockSpherical instead. That's a key change.
+
+Another thing: in the visualization cylinder for the pendulum, the original code uses ChVisualShapeCylinder(0.2, 2). The problem says to change the pendulum's cylinder to radius 0.1 and height 1.5, so that needs adjustment.
+
+The problem also mentions changing the joint visualization to a sphere with radius 2. The original code doesn't have a visual shape for the joint. So we need to add a visual shape to the joint, probably using AddVisualShape with a sphere. Since the joint is a spherical one now, maybe adding a sphere at the joint point.
+
+The mass is to be changed to 2 kg, so pend_1.SetMass(2).
+
+The inertia tensor is to be chrono.ChVector3d(0.4, 1.5, 1.5), so pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5)).
+
+Gravitational acceleration needs to be set to (0, -1.62, 0) for the moon. So sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0)).
+
+Initial angular velocity: the problem says to set an initial angular velocity. The original code doesn't have that. The pendulum's initial position is set with SetPos, but angular velocity is set via SetWvel_par or SetWvel_loc. Since it's a spherical joint, the angular velocity would be around some axis. The problem says to set an initial angular velocity, but doesn't specify which axis. Let's assume around the Z-axis, which was the revolute's axis. So perhaps pend_1.SetWvel_par(chrono.ChVector3d(0, 0, 5)) or similar. The exact value isn't specified, but the user probably expects a value. Let's pick 5 rad/s as an example.
+
+Now, checking for other possible errors in the original code:
+
+In the pendulum's visual shape, the frame is passed as chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)). The ChFramed is again wrong; should be ChFrame. Also, QuatFromAngleY is a function, but perhaps it's from chrono, so maybe chrono.Q_from_AngY? Wait, the correct method for creating a quaternion from angle-axis might be different. Let me recall: In Chrono, the function is chrono.ChQuaternionD::From_yaxis_rotation(angle). Or maybe there's a helper function. Alternatively, using chrono.Q_from_AngAxis(angle, direction). Wait, the original code uses chrono.QuatFromAngleY(chrono.CH_PI_2). But I'm not sure if that function exists. Let me check the Chrono API. The correct way to create a quaternion from an angle around Y-axis would be using chrono.ChQuaternionD(chrono.Q_from_AngY(chrono.CH_PI_2)). Alternatively, perhaps the user made a typo here. Let me see. The original code uses chrono.QuatFromAngleY, but the correct function might be chrono.Q_from_AngY. Let me check. 
+
+Wait, in the original code, the line is:
+
+cyl_1.AddVisualShape(..., chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+The function QuatFromAngleY might not exist. The correct function is probably chrono.Q_from_AngY. So that's an error. The correct way would be chrono.ChQuaternionD(chrono.Q_from_AngY(chrono.CH_PI_2)). Alternatively, perhaps the user intended to rotate the cylinder so that its height is along the Y-axis? The original cylinder has height 2, which was along the Z-axis perhaps. Wait, the cylinder's orientation might need adjustment. Since the cylinder's default orientation might be along Z-axis, so rotating it 90 degrees around Y-axis would align it along X? Maybe that's intended. But the function call is incorrect. So need to correct that part.
+
+So, in the pendulum's visual shape, the frame should be created with a correct quaternion. Let me adjust that.
+
+Other possible issues: the camera position in the visualization. The original code uses vis.AddCamera(chrono.ChVector3d(0, 3, 6)), which might be okay, but maybe after changing the pendulum length, the camera might need adjustment for better view. However, the problem doesn't mention that, so perhaps leave it as is.
+
+Now, the steps to modify the code according to the instructions:
+
+First, fix the ChFramed to ChFrame in all instances. So wherever ChFramed is used, change to ChFrame.
+
+Second, correct the quaternion creation in the pendulum's visual shape. The original code uses QuatFromAngleY, which is probably wrong. Let's use chrono.Q_from_AngY(chrono.CH_PI_2) to create the rotation.
+
+Third, replace the revolute joint with a spherical joint. So instead of ChLinkLockRevolute, use ChLinkLockSpherical. Also, the initialization for the spherical joint might require different parameters. The revolute joint's Initialize function had two bodies and a frame. The spherical joint's Initialize function might require similar parameters but perhaps different. Let me check the API for ChLinkLockSpherical. 
+
+Looking up, the ChLinkLockSpherical class has an Initialize function that takes two bodies and a frame on each body. So perhaps:
+
+rev_1.Initialize(ground, pend_1, chrono.ChFrameD(chrono.ChVectorD(0,0,1)), chrono.ChFrameD(chrono.ChVectorD(0,0,0)) )
+
+Wait, the spherical joint requires the frames on both bodies. The first frame is the position on the ground, and the second is the position on the pendulum. The ground's frame would be at (0,0,1) (since the cylinder's center is at (0,0,1)), and the pendulum's position is at (1,0,1). Wait, the pendulum's initial position is SetPos(1,0,1). The joint is supposed to connect the pendulum's end to the ground. Wait, the original revolute was at (0,0,1), which is the top of the ground cylinder. The pendulum's initial position is (1,0,1), so the joint's position is (0,0,1). So the spherical joint's frame on the ground is at (0,0,1), and on the pendulum, perhaps at (0,0,0) relative to the pendulum's COM? Because the pendulum's COM is at (1,0,1), so the joint is at (0,0,1), which is the COM minus (1,0,0). Wait, the pendulum's cylinder is along the Y-axis (since it was rotated by CH_PI_2 around Y). The cylinder's length is 2, so its COM is at the center. Wait, the original code's pendulum's cylinder has a height of 2, so its COM is at the center along its length. But when rotated, the cylinder's length is along the X-axis (since rotated around Y by 90 degrees). So the cylinder's COM is at the position set by SetPos, which is (1,0,1). The joint is at (0,0,1), so the pendulum's COM is 1 meter along X from the joint. 
+
+Therefore, for the spherical joint, the frame on the pendulum should be at (-1,0,0) relative to the pendulum's COM? Or perhaps the frame on the pendulum is at the joint position relative to the body's frame. 
+
+Alternatively, the spherical joint's initialization would need the frames for both bodies. The ground's frame is at (0,0,1), and the pendulum's frame is at (pendulum's position relative to its COM). Wait, the pendulum's COM is at (1,0,1). The joint is at (0,0,1), so the offset from the pendulum's COM is (-1,0,0). Therefore, the frame on the pendulum's side would be a ChFrameD with position (-1,0,0) and orientation identity. 
+
+So, the Initialize function would be:
+
+rev_1.Initialize(ground, pend_1, 
+                chrono.ChFrameD(chrono.ChVectorD(0,0,1)),  # ground's frame
+                chrono.ChFrameD(chrono.ChVectorD(-1,0,0)) ) # pendulum's frame (relative to its COM)
+
+Wait, the parameters for Initialize are (body1, body2, frame1, frame2). So the first frame is the position on body1 (ground), the second frame is the position on body2 (pendulum). 
+
+Therefore, the ground's frame is at (0,0,1), and the pendulum's frame is at (-1,0,0) relative to its COM (since the COM is at (1,0,1), so the joint is at (0,0,1) which is (1,0,1) minus (1,0,0)). 
+
+Therefore, the initialization would be as above. 
+
+But I need to confirm the exact parameters for ChLinkLockSpherical's Initialize. 
+
+Assuming that, the code for the joint becomes:
+
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, 
+                chrono.ChFrameD(chrono.ChVectorD(0,0,1)), 
+                chrono.ChFrameD(chrono.ChVectorD(-1,0,0)) )
+sys.AddLink(sph_1)
+
+Wait, the variable name was rev_1 before, now it's a spherical joint, so perhaps rename to sph_1.
+
+Also, the problem says to visualize the joint as a sphere with radius 2. So adding a visual shape to the spherical joint. The joint is between the ground and pendulum at position (0,0,1). So we can add a visual shape to either body, but perhaps better to add it to the ground or the pendulum. Alternatively, since the joint is a link, maybe adding a visual shape to the link itself. 
+
+But in Chrono, links can have visual shapes. So perhaps:
+
+sph_1.AddVisualShape(chrono.ChVisualShapeSphere(2))  # radius 2
+
+But need to set the position. The joint's position is at (0,0,1). So the visual shape's frame is at that position. 
+
+Wait, the visual shape's position is relative to the link's coordinate system. Since the link is a spherical joint, its position is at the joint point. So adding the sphere at the joint's position. 
+
+Alternatively, perhaps the sphere should be added to the ground or pendulum. Let me think. Since the joint is at (0,0,1), which is part of the ground's position. The ground's cylinder is at (0,0,1), so adding a sphere there. 
+
+Alternatively, adding a visual shape to the ground at that point. But perhaps it's better to add to the joint. 
+
+Alternatively, create a separate body for the joint visualization. But perhaps the simplest way is to add a sphere visual shape to the ground at (0,0,1), but with radius 2. 
+
+Wait, the instruction says to change the visualization of the joint to a sphere with radius 2. So the original revolute joint didn't have a visual shape, so adding a sphere there. 
+
+So in the code, after creating the spherical joint, add a visual shape to it. 
+
+Wait, the joint itself (sph_1) can have a visual shape. So:
+
+sphere_vis = chrono.ChVisualShapeSphere(2)  # radius 2
+sphere_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # some color
+sph_1.AddVisualShape(sphere_vis)
+
+Alternatively, maybe the sphere is part of the ground. Let me see. The ground's cylinder is at (0,0,1) with radius 0.2 and height 0.4. Adding a sphere of radius 2 there would be big. But perhaps that's what the user wants. 
+
+Alternatively, the joint's visualization is the sphere. Since the joint is a spherical one, maybe the sphere is at the joint point. 
+
+So adding the sphere to the joint's link. 
+
+Now, the problem also says to modify the pendulum's cylinder to radius 0.1 and height 1.5. So in the pendulum's visual shape creation:
+
+cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)
+
+Also, the inertia tensor needs to be set to (0.4, 1.5, 1.5). 
+
+The mass is set to 2 kg. 
+
+Gravitational acceleration is changed to 1.62 m/s² on moon. 
+
+Initial angular velocity: the pendulum's angular velocity. Since it's a spherical joint, the angular velocity can be set via SetWvel_par or using SetFrameAcc. Wait, the angular velocity is the rotational velocity. The SetWvel_par is for the body's angular velocity. So:
+
+pend_1.SetWvel_par(chrono.ChVectorD(0, 0, 5))  # assuming angular velocity around Z-axis
+
+But need to confirm the correct axis. Since the pendulum is now shorter, perhaps the axis is along Y or another. Wait, the pendulum's cylinder is oriented along X (since rotated by 90 degrees around Y). So the length is along X. So the rotation axis for swinging would be around Y or Z? Let me think. If the pendulum is swinging in a plane, say the XY plane, then the angular velocity would be around the Z axis. 
+
+Alternatively, maybe the initial angular velocity is around the Y-axis. Hmm, but the problem just says to set an initial angular velocity, so perhaps any non-zero value. Let's pick 5 rad/s around Z-axis as an example. 
+
+Now, putting all these changes together.
+
+First, fix the ChFramed to ChFrame. 
+
+In the ground's visual shape:
+
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,1)))
+
+Wait, the original code had chrono.ChFramed(chrono.ChVector3d(0,0,1)), so changing to ChFrameD (since the Vector is double precision). Wait, in Chrono, the default is ChVectorD, so ChFrameD is correct. 
+
+Similarly, in the pendulum's visual shape:
+
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngY(chrono.CH_PI_2)))
+
+Wait, the original code had chrono.QuatFromAngleY(chrono.CH_PI_2). The correct function is chrono.Q_from_AngY(chrono.CH_PI_2). So the quaternion is created via Q_from_AngY.
+
+So that line becomes:
+
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngY(chrono.CH_PI_2)))
+
+Wait, the position is VNULL (0,0,0) relative to the body's COM? Because the cylinder's center is at the body's COM. So the position part is (0,0,0), and the rotation is around Y by 90 degrees. 
+
+Now, modifying the cylinder dimensions:
+
+cyl_1 = chrono.ChVisualShapeCylinder(0.1, 1.5)
+
+Mass and inertia:
+
+pend_1.SetMass(2)
+pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))
+
+Gravity:
+
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -1.62, 0))
+
+The spherical joint:
+
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, 
+                chrono.ChFrameD(chrono.ChVectorD(0,0,1)), 
+                chrono.ChFrameD(chrono.ChVectorD(-1,0,0)) )
+sys.AddLink(sph_1)
+
+Wait, the second frame's position is (-1,0,0) because the pendulum's COM is at (1,0,1). The joint is at (0,0,1), so relative to the pendulum's COM, it's (0,0,1) - (1,0,1) = (-1,0,0). 
+
+Adding the sphere visualization to the joint:
+
+sphere_vis = chrono.ChVisualShapeSphere(2)
+sphere_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+sph_1.AddVisualShape(sphere_vis)
+
+Wait, but the joint's position is at (0,0,1), so the sphere should be centered there. The visual shape added to the link will be placed at the link's position. Since the link is a spherical joint, its position is at the joint point, so the sphere is correctly placed. 
+
+Initial angular velocity:
+
+pend_1.SetWvel_par(chrono.ChVectorD(0, 0, 5))  # assuming angular velocity around Z-axis
+
+Wait, the pendulum's orientation is along X, so rotating around Z would cause it to swing in the XY plane. 
+
+Putting all these changes into the code. Also, need to ensure that all the variable names are updated, like replacing rev_1 with sph_1. 
+
+Also, check for any other possible errors. For example, in the original code, the revolute joint's frame was initialized with a quaternion (1,0,0,0), which is identity. The spherical joint's frames don't need rotation since their orientation is identity unless specified otherwise. 
+
+Another point: the camera position might need adjustment because the pendulum is shorter now (height 1.5 instead of 2), but maybe it's okay. 
+
+Now, compiling all these changes into the corrected code.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2) for the Moon
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -1.62, 0))
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)
+ground.EnableCollision(False)
+
+# Add a visualization cylinder to the ground
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Radius 0.2, height 0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
+
+# Create a pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.Add(pend_1)
+pend_1.SetFixed(False)
+pend_1.EnableCollision(False)
+pend_1.SetMass(2)  # 2 kg mass
+pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))  # New inertia tensor
+
+# Add a visualization cylinder to the pendulum with adjusted dimensions
+cyl_pend = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Radius 0.1, height 1.5
+cyl_pend.SetColor(chrono.ChColor(0.6, 0, 0))
+# Rotate cylinder along Y-axis by 90 degrees to align with X-axis
+pend_1.AddVisualShape(cyl_pend, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_PI_2)))
+
+# Set initial position (center of mass at (1,0,1))
+pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+
+# Set initial angular velocity (around Z-axis)
+pend_1.SetWvel_par(chrono.ChVectorD(0, 0, 5))  # 5 rad/s
+
+# Create a spherical joint to connect the pendulum to the ground
+sph_1 = chrono.ChLinkLockSpherical()
+# Ground's frame at (0,0,1), pendulum's offset from COM is (-1,0,0) to reach joint position (0,0,1)
+sph_1.Initialize(ground, pend_1, 
+                chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)),  # Ground frame
+                chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0)))  # Pendulum frame (offset from COM)
+sys.AddLink(sph_1)
+
+# Add visualization sphere for the joint
+sphere_vis = chrono.ChVisualShapeSphere(2)  # Radius 2
+sphere_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+sph_1.AddVisualShape(sphere_vis)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Modified Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+log_info = True
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+    # Log information after 1 second of simulation time
+    if log_info and sys.GetChTime() > 1:
+        pos = pend_1.GetPos()
+        print(f"t = {sys.GetChTime():.2f}")
+        print(f"Position: {pos.x:.2f}, {pos.y:.2f}")
+        lin_vel = pend_1.GetPos_dt()
+        print(f"Linear Velocity: {lin_vel.x:.2f}, {lin_vel.y:.2f}")
+        log_info = False
+```
+
+### Key Changes and Fixes:
+1. **Corrected Frame Class**: Replaced `ChFramed` with `ChFrameD` for proper frame definitions.
+2. **Quaternion Initialization**: Fixed quaternion creation using `chrono.Q_from_AngY` instead of incorrect `QuatFromAngleY`.
+3. **Spherical Joint Replacement**: Replaced revolute joint with `ChLinkLockSpherical`, adjusting frames for proper connection.
+4. **Visualizations**:
+   - Added a sphere of radius 2 at the joint location.
+   - Adjusted pendulum cylinder dimensions to radius 0.1 and height 1.5.
+5. **Physics Parameters**:
+   - Set mass to 2 kg and inertia tensor as specified.
+   - Changed gravitational acceleration to lunar gravity (1.62 m/s²).
+6. **Initial Angular Velocity**: Introduced an initial angular velocity of 5 rad/s around the Z-axis.
+7. **Code Cleanup**: Fixed typos and ensured all parameters align with requirements.
+8. **Logging**: Improved output formatting for clarity.
+
+This simulation should now run smoothly with the specified modifications, showing a pendulum under lunar gravity with adjusted parameters and visualizations.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2) for the Moon
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -1.62, 0))
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)
+ground.EnableCollision(False)
+
+# Add a visualization cylinder to the ground
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Radius 0.2, height 0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)))
+
+# Create a pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.Add(pend_1)
+pend_1.SetFixed(False)
+pend_1.EnableCollision(False)
+pend_1.SetMass(2)  # 2 kg mass
+pend_1.SetInertiaXX(chrono.ChVectorD(0.4, 1.5, 1.5))  # New inertia tensor
+
+# Add a visualization cylinder to the pendulum with adjusted dimensions
+cyl_pend = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Radius 0.1, height 1.5
+cyl_pend.SetColor(chrono.ChColor(0.6, 0, 0))
+# Rotate cylinder along Y-axis by 90 degrees to align with X-axis
+pend_1.AddVisualShape(cyl_pend, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_AngY(chrono.CH_PI_2)))
+
+# Set initial position (center of mass at (1,0,1))
+pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+
+# Set initial angular velocity (around Z-axis)
+pend_1.SetWvel_par(chrono.ChVectorD(0, 0, 5))  # 5 rad/s
+
+# Create a spherical joint to connect the pendulum to the ground
+sph_1 = chrono.ChLinkLockSpherical()
+# Ground's frame at (0,0,1), pendulum's offset from COM is (-1,0,0) to reach joint position (0,0,1)
+sph_1.Initialize(ground, pend_1, 
+                chrono.ChFrameD(chrono.ChVectorD(0, 0, 1)),  # Ground frame
+                chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0)))  # Pendulum frame (offset from COM)
+sys.AddLink(sph_1)
+
+# Add visualization sphere for the joint
+sphere_vis = chrono.ChVisualShapeSphere(2)  # Radius 2
+sphere_vis.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+sph_1.AddVisualShape(sphere_vis)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Modified Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+log_info = True
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+    # Log information after 1 second of simulation time
+    if log_info and sys.GetChTime() > 1:
+        pos = pend_1.GetPos()
+        print(f"t = {sys.GetChTime():.2f}")
+        print(f"Position: {pos.x:.2f}, {pos.y:.2f}")
+        lin_vel = pend_1.GetPos_dt()
+        print(f"Linear Velocity: {lin_vel.x:.2f}, {lin_vel.y:.2f}")
+        log_info = False
+```

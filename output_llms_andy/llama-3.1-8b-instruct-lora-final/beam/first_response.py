@@ -1,0 +1,103 @@
+import pychrono as ch
+    import pychrono.fea as fea
+    import pychrono.irrlicht as chrig
+    import math
+
+    # Define the number of elements in the mesh
+    nbelements = 20
+
+    # Define the length of each element
+    L = 1.0
+
+    # Define the number of nodes in the mesh
+    n_nodes = nbelements + 1
+
+    # Define the mesh dimensions
+    mesh_width = nbelements * L
+    mesh_height = 0.2
+
+    # Define the beam section properties
+    beam_wy = 0.1  # Width of the beam
+    beam_wz = 0.1  # Depth of the beam
+    beam_rho = 2700  # Density of the beam material
+    beam_E = 73e9  # Young's modulus of the beam material
+    beam_ro = beam_E / (2 * math.pi)
+
+    # Define the mesh grid spacing
+    mesh_grid_sp = L / nbelements
+
+    # Create the physical system
+    sys = ch.ChSystemNSC()
+
+    # Create the mesh
+    mesh = fea.ChMesh()
+
+    # Create the mesh body
+    mesh_body = ch.ChBody()
+    mesh_body.SetMesh(mesh)
+    mesh_body.SetFixed(False)
+    mesh_body.SetMassless(True)
+    sys.Add(mesh_body)
+
+    # Create nodes
+    nodes = []
+    for i in range(n_nodes):
+        node = fea.ChNodeFEA()
+        mesh.AddNode(node)
+        nodes.append(node)
+
+    # Create beam elements
+    for i in range(nbelements):
+        start_node = nodes[i]
+        end_node = nodes[i + 1]
+        beam = fea.ChElementBeamGNSA()
+        beam.SetNodes(beam, start_node, end_node)
+        beam.SetSectionProperties(beam, fea.ChBeamSectionEulerAdvanced())
+        beam.SetMaterialProperties(beam, fea.ChBeamMaterialSMC())
+        mesh.AddElement(beam)
+
+    # Define the mesh collision shape
+    boxcoll = ch.ChBoxCollisionShape(mesh_width, mesh_height, mesh_height)
+    boxcoll.SetOffset(ch.ChVector3d(mesh_width / 2, mesh_height / 2, 0))
+    mesh_body.AddCollisionShape(boxcoll)
+
+    # Add visualization for the mesh
+    visualizemesh = ch.ChVisualShapeFEA(mesh)
+    visualizemesh.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MX)
+    visualizemesh.SetColor(ch.ChColor(0.6, 0.1, 0.4))
+    mesh_body.AddVisualShape(visualizemesh)
+
+    # Add visualization for nodes
+    visualizenode = ch.ChVisualShapeFEA(mesh)
+    visualizenode.SetFEMglyphType(fea.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+    visualizenode.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NONE)
+    visualizenode.SetZbufferHide(False)
+    visualizenode.SetSymbolsThickness(0.006)
+    visualizenode.SetSymbolsScale(0.01)
+    mesh_body.AddVisualShape(visualizenode)
+
+    # Create the Irrlicht visualization system
+    vis = ch.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle('FEA beams')
+    vis.Initialize()
+    vis.AddLogo(ch.ChLogoType_NONE)
+    vis.AddSkyBox()
+    vis.AddCamera(ch.ChVector3d(0, 0.6, 1.5))
+    vis.AddTypicalLights()
+
+    # Set solver type
+    solver = ch.ChSolverPardiso()
+    sys.SetSolver(solver)
+
+    # Define the time step for the simulation
+    timestepper = ch.ChTimestepperEulerImplicitLinearized(sys)
+    timestepper.SetStepControl(ch.ChStepControl(0.001, 0.001, 0.001))
+
+    # Run the simulation loop
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        sys.DoStepDynamics(0.01)

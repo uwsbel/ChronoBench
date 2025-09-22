@@ -1,0 +1,69 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+
+chrono.SetChronoDataPath("/path/to/chrono/data")  
+chrono.SetChronoDataPath("/path/to/irrlicht/data")  
+
+
+physics_system = chrono.ChSystemNSC()
+
+
+ground = chrono.ChBodyEasyBox(width=10, height=0.1, length=10, density=1000)
+ground.SetPos(chrono.ChVectorD(0, -1, 0))
+ground.SetBodyFixed(True)
+physics_system.Add(ground)
+
+
+pendulum_mass = 1
+pendulum_radius = 0.1
+pendulum_inertia = chrono.ChVectorD(1/12 * pendulum_mass * (3 * pendulum_radius**2),
+                                   1/12 * pendulum_mass * (3 * pendulum_radius**2),
+                                   1/2 * pendulum_mass * pendulum_radius**2)
+pendulum = chrono.ChBodyEasySphere(radius=pendulum_radius, density=pendulum_mass)
+pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
+pendulum.SetInertiaXX(pendulum_inertia)
+physics_system.Add(pendulum)
+
+
+joint = chrono.ChLinkLockRevolute()
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+physics_system.Add(joint)
+
+
+pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
+pendulum.SetWvel_loc(chrono.ChVectorD(0, 0.1, 0))
+
+
+visualization_system = chronoirr.ChVisualSystemIrrlicht()
+visualization_system.SetWindowSize(800, 600)
+visualization_system.SetWindowTitle("Simple Pendulum Simulation")
+visualization_system.Initialize()
+visualization_system.AddLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+visualization_system.AddSkyBox()
+visualization_system.AddCamera(chrono.ChVectorD(0, 0, 2), chrono.ChVectorD(0, 0, 0))
+visualization_system.AddTypicalLights()
+
+
+visualization_system.AddBody(ground, chrono.ChColor(0.5, 0.5, 0.5))
+visualization_system.AddBody(pendulum, chrono.ChColor(0.8, 0.2, 0.2))
+
+
+step_size = 1e-3
+total_time = 10
+num_steps = int(total_time / step_size)
+
+for i in range(num_steps):
+    physics_system.DoStepDynamics(step_size)
+
+    
+    print(f"Step: {i}, Position: {pendulum.GetPos()}, Velocity: {pendulum.GetPos_dt()}")
+
+    
+    visualization_system.BeginScene()
+    visualization_system.DrawAll()
+    visualization_system.EndScene()
+
+
+visualization_system.Close()

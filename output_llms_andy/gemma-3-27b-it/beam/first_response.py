@@ -1,0 +1,72 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# ---
+#  Create the simulation system and add items
+# ---
+
+# Create a physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# ---
+# Create a simple beam structure
+# ---
+
+# Create a mesh representing the beam structure
+mesh = chrono.ChMesh()
+
+# Define nodes
+mesh.AddNode(chrono.ChVectorD(0, 0, 0))  # Node 0
+mesh.AddNode(chrono.ChVectorD(1, 0, 0))  # Node 1
+mesh.AddNode(chrono.ChVectorD(2, 0, 0))  # Node 2
+mesh.AddNode(chrono.ChVectorD(0, 1, 0))  # Node 3
+mesh.AddNode(chrono.ChVectorD(1, 1, 0))  # Node 4
+mesh.AddNode(chrono.ChVectorD(2, 1, 0))  # Node 5
+
+# Define beam elements (connecting nodes)
+mesh.AddBeam(0, 1, 0.1, chrono.ChVectorD(1, 0, 0))  # Beam 0-1
+mesh.AddBeam(1, 2, 0.1, chrono.ChVectorD(1, 0, 0))  # Beam 1-2
+mesh.AddBeam(0, 3, 0.1, chrono.ChVectorD(0, 1, 0))  # Beam 0-3
+mesh.AddBeam(3, 4, 0.1, chrono.ChVectorD(1, 0, 0))  # Beam 3-4
+mesh.AddBeam(4, 5, 0.1, chrono.ChVectorD(1, 0, 0))  # Beam 4-5
+mesh.AddBeam(3, 0, 0.1, chrono.ChVectorD(0, -1, 0)) # Beam 3-0
+mesh.AddBeam(4, 1, 0.1, chrono.ChVectorD(0, -1, 0)) # Beam 4-1
+mesh.AddBeam(5, 2, 0.1, chrono.ChVectorD(0, -1, 0)) # Beam 5-2
+
+
+
+# Create a ChBody from the mesh
+body = chrono.ChBodyEasy(mesh)
+body.SetMass(1)
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(body)
+
+# Fix the first node (node 0)
+body.SetFixed(True)
+
+# ---
+# Visualization
+# ---
+
+# Create an Irrlicht application to visualize the system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('PyChrono Beam Example')
+vis.Initialize()
+vis.AddTypicalCamera(chrono.ChVectorD(2, 1.5, -3))
+vis.AddTypicalLights()
+
+# ---
+# Simulation loop
+# ---
+
+system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+system.SetStep(0.01)
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics()

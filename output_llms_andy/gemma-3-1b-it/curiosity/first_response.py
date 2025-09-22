@@ -1,0 +1,88 @@
+import pychrono
+import pychrono.core as pc
+import pychrono.visuals as v
+import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visuals import Scene, Camera, Texture
+
+# --- Simulation Parameters ---
+terrain_width = 100
+terrain_height = 50
+terrain_depth = 10
+ground_level = 20
+rover_mass = 100  # kg
+rover_speed = 0.5  # m/s
+motor_speed = 0.2  # m/s
+simulation_duration = 60  # seconds
+num_steps = 100
+
+# --- Physical Systems ---
+ground_material = "grass"
+rover_model = "rover"
+
+# --- Initial Conditions ---
+rover_x = 0
+rover_y = 0
+rover_z = ground_level
+rover_velocity = 0
+rover_angle = 0  # Initial orientation
+rover_torque = 0 # Initial torque
+
+# --- Visualization Setup ---
+scene = Scene(
+    width=terrain_width,
+    height=terrain_height,
+    depth=terrain_depth,
+    camera_position=[0, 0, terrain_depth/2],  # Center of the terrain
+    camera_rotation=pc.Euler(0, 0, 0) # No rotation
+)
+
+camera = Camera(scene, camera_position, camera_rotation)
+
+# --- Texture Setup ---
+texture = Texture("texture.png")  # Replace with your texture file
+scene.texture = texture
+
+# --- Initial Ground Texture ---
+scene.ground_texture = texture
+
+# --- Simulation Loop ---
+for step in range(simulation_duration):
+    # Update Rover Position
+    rover_x += rover_velocity * step
+    rover_y += rover_velocity * step
+    rover_z += rover_velocity * step
+
+    # Apply Ground Forces (Simplified - can be expanded)
+    ground_force = np.array([0, 0, 0])
+    ground_force[0] += terrain_width * rover_mass / 1000  # Simulate gravity
+    ground_force[1] += terrain_width * rover_mass / 1000
+    ground_force[2] += terrain_depth * rover_mass / 1000
+
+    # Apply Motor Torque
+    rover_torque += motor_speed * step
+
+    # Collision Detection (Simple - can be improved)
+    if (rover_x < 0 or rover_x > terrain_width or
+        rover_y < 0 or rover_y > terrain_height or
+        rover_z < 0 or rover_z > terrain_depth):
+        print("Collision detected!")
+        # Add a simple collision response (e.g., stop the rover)
+        rover_velocity = 0
+        rover_angle = 0  # Reset angle
+        break
+
+    # Update Visualization
+    scene.update()
+
+    # Update Camera
+    scene.update_camera()
+
+    # Render the Scene
+    scene.render()
+
+    # Optional:  Add a delay for visualization speed
+    # time.sleep(0.01)
+
+# --- End of Simulation ---
+print("Simulation complete.")

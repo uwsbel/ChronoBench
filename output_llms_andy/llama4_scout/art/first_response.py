@@ -1,0 +1,63 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+
+# 1. Initialize the PyChrono environment and core components
+chrono.ChEngine.Initialize()
+
+# 2. Create the Irrlicht application
+app = irr.ChIrrApp()
+
+# 3. Set up the simulation parameters
+SIMULATION_FPS = 50
+
+# 4. Create the vehicle
+vehicle = veh.ChARTcar()
+
+# 5. Set vehicle parameters
+vehicle.SetLocation(chrono.ChVector3d(0, 0, 1))
+vehicle.SetOrientation(chrono.ChQuaterniond(1, 0, 0, 0))
+
+# 6. Set contact method and visualization type
+vehicle.SetContactMethod(veh.ChContactMethod_SMC)
+vehicle.SetVisualizationType(veh.ChVehicleVisualization_Type_PRIMITIVES)
+
+# 7. Create the terrain
+terrain = chrono.ChRigidTerrain(vehicle.GetSystem())
+terrain.SetTerrainDimensions(chrono.ChVector3d(100, 100, 10))
+terrain.SetTexture(chrono.ChTexture("chrono_textures/sand.jpg"))
+
+# 8. Add vehicle to the system and terrain
+vehicle.Initialize(terrain)
+
+# 9. Create the interactive driver system
+driver = veh.ChInteractiveDriverIRR(vehicle, app.GetDevice())
+
+# 10. Set up the simulation loop
+def Simulate():
+    system = vehicle.GetSystem()
+    system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+    # Set simulation parameters
+    system.SetSolverType(chrono.ChSolverType_PCG)
+    system.SetSolverPCG_Tolerance(0.001)
+
+    # Initialize the Irrlicht application
+    app.SetCameraVertical(chrono.ChVector3d(0, -1, 0))
+    app.SetCameraTarget(chrono.ChVector3d(0, 0, 0))
+    app.SetCameraDistance(20)
+
+    # Simulation loop
+    while app.Run():
+        time = system.GetChTime()
+        driver.Update(time)
+
+        system.DoStepDynamics(1.0 / SIMULATION_FPS)
+
+        app.BeginScene()
+        terrain.Update()
+        vehicle.Update()
+        app.EndScene()
+
+# Run the simulation
+Simulate()

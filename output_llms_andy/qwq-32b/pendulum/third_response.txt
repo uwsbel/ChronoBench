@@ -1,0 +1,450 @@
+Okay, let's tackle this problem step by step. The user wants me to modify the existing single pendulum simulation into a double pendulum system. Plus, I need to fix any errors in the original code first.
+
+First, I'll look at the original code to see if there are any obvious issues. Let's start from the top.
+
+The first thing I notice is the line where the ground's visual shape is added. The code uses chrono.ChFramed(chrono.ChVector3d(0, 0, +1))). Wait, ChFramed might be a typo. Because in Chrono, the correct class for frames is ChFrame, not ChFramed. So that's a syntax error. The 'd' suffix is probably incorrect here. I'll need to change that to chrono.ChFrame.
+
+Next, looking at the pendulum's visual shape addition: chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2))). Again, ChFramed is wrong. Also, chrono.VNULL is a vector, but the frame needs a position and rotation. The parameters here might be okay, but again, the class name is wrong. So changing ChFramed to ChFrame is necessary here too.
+
+Then, the revolute joint's initialization: the second parameter is pend_1. The ChLinkLockRevolute's Initialize function requires a reference body and a body to link, but perhaps the frames need to be set correctly. Wait, the frame for the joint is set with a position of (0,0,1) and identity quaternion. That might be okay, but maybe the rotation is needed? The first pendulum is attached at (0,0,1) as its position?
+
+Now, moving on to the double pendulum part. The current code has one pendulum. To make it a double pendulum, we need a second pendulum attached to the first one. So I need to create another ChBody for the second pendulum, set its properties, attach it via another revolute joint, and add visualization.
+
+Let me outline the steps needed for the double pendulum:
+
+1. Create a second pendulum body (pend_2).
+2. Set its mass, inertia, and other properties.
+3. Position it relative to the first pendulum. Since it's attached at the end, maybe the initial position is the end of pend_1. But since pend_1's initial position is (1,0,1), and its cylinder is of height 2, the center is at 1,0,1, so the end along the x-axis (since the cylinder is oriented along x because of the rotation?) Wait, the first pendulum's cylinder is rotated by CH_PI_2 around Y-axis. Let me think: the cylinder's default orientation is along Z-axis, but with a rotation of PI/2 around Y, so it points along X. So the length is 2 meters, so the center is at (1,0,1), so the end would be at (1 + 1, 0, 1) since the cylinder's half-length is 1 (height is 2, so radius 0.2, height 2). Wait, the cylinder parameters in the code are (radius, height). So the cylinder's length is along its axis. The visual shape is added with a rotation so that the cylinder is pointing along X. Therefore, the center of the cylinder is at (1,0,1), so the end of the pendulum is at (1 + 1, 0, 1), since the height is 2, so half is 1. So the second pendulum should be attached at that point. But since the second pendulum's center of mass is at its own position, perhaps we need to set its initial position to be at the end of the first pendulum. But since the first pendulum is a cylinder, maybe the second pendulum is attached at the end of the first's cylinder. So pend_2's initial position would be (pend_1's position.x + 1, 0, 1). Wait, but the first pendulum's position is (1,0,1), so adding the half-length (1) along X gives (2,0,1). But the second pendulum's own cylinder might have a certain length. Let's say the second pendulum has a cylinder of height 2 as well. Then its center would be at (2,0,1), so its own cylinder extends from (2-1, 0,1) to (2+1, 0,1). Wait, but that would make them overlapping. Hmm, perhaps the second pendulum's initial position should be at the end of the first pendulum's cylinder. So if the first pendulum's cylinder is along X from (0,0,1) to (2,0,1), then the end is at (2,0,1). Wait, no, the first pendulum's position is (1,0,1), so the cylinder is centered there, so from (1 -1, 0,1) to (1 +1, 0,1). So the end is at (2,0,1). Therefore, the second pendulum's center should be at (2,0,1). But then its own cylinder would be oriented along X as well, so the second pendulum's cylinder would start at (2,0,1) and extend another 2 meters, but that would overlap. Maybe the second pendulum is attached at the end of the first, so its center is at the end of the first's cylinder. Wait, perhaps the second pendulum's length is shorter? Or maybe the first pendulum's cylinder is positioned such that the joint is at the end. Alternatively, perhaps the second pendulum's joint is at the end of the first's cylinder. So the second pendulum's center is offset by half its length from the joint point.
+
+Alternatively, maybe the second pendulum's initial position is set to (pend_1's position.x + 1, 0, 1), assuming the first pendulum's cylinder is pointing along X, so adding the half-length (since the cylinder's height is 2, so half is 1). So the joint between the two pendulums would be at that point.
+
+But for the joints, the second pendulum needs to be connected via a revolute joint to the first pendulum. So the first joint connects ground to pend_1 at (0,0,1) (since the ground's cylinder is at (0,0,1)), and the second joint connects pend_1 to pend_2 at the end of pend_1's cylinder.
+
+Wait, the first pendulum's position is (1,0,1). The cylinder is of length 2, so its center is at that position, so the end is at (1 + 1, 0,1) = (2,0,1). So the second pendulum's revolute joint should be at (2,0,1). The second pendulum's center would then be at (2,0,1) plus some offset? Or maybe the second pendulum's center is at that point. Let me think.
+
+The second pendulum's cylinder should be attached at its end to the first's end. So the second pendulum's joint is at its own end, so the center is offset by half its length. For example, if the second pendulum's cylinder is also length 2, then its center is 1 meter away from the joint point. So the joint between pend_1 and pend_2 would be at (2,0,1), and the second pendulum's center is at (2,0,1) plus (1,0,0) (assuming it's pointing along X again). Wait, but then the second pendulum's cylinder would extend from (2,0,1) to (4,0,1), which would be okay. Alternatively, maybe it's better to have the second pendulum's cylinder oriented along the same axis. But perhaps the orientation needs to be considered.
+
+Alternatively, maybe the second pendulum's cylinder is oriented along the same direction as the first, so the revolute joint is at the end of the first, and the second pendulum's cylinder extends from there. So the second pendulum's center is at the joint point plus half its length. Let me proceed with that.
+
+So steps to add the second pendulum:
+
+- Create pend_2 as a ChBody, add to the system.
+
+- Set its mass and inertia. Let's mirror the first pendulum's properties for simplicity unless instructed otherwise. The original code sets pend_1's mass to 1, inertia tensor as (0.2,1,1). Maybe the second pendulum should have similar properties. But perhaps the inertia needs to be recalculated based on its dimensions. Wait, the cylinder's inertia for a solid cylinder is (1/2)mr² for the axis perpendicular to the cylinder's length. Since the cylinder is oriented along X, the inertia tensor's XX component would be (1/12)*m*L² (for the length), and the YY and ZZ would be (1/2)*m*r². Wait, maybe the original code's inertia is incorrect. Let me check.
+
+The first pendulum's inertia is set to chrono.ChVector3d(0.2, 1, 1). But for a cylinder of radius 0.2 and length 2, the moments of inertia:
+
+Along the cylinder's axis (X here), the moment is (1/12)*m*L², where L is the length (2m). So (1/12)*1*(2)^2 = 0.333... So the XX component should be 0.333, but the code uses 0.2. That's an error. So this is a mistake. The user's original code has an incorrect inertia tensor for the pendulum. So I need to fix that.
+
+Wait, the problem says to fix any potential bugs. So that's an important correction. The inertia tensor for a cylinder around its central axis is (1/12)*m*L² for the axis along the cylinder (X here), and (1/2)*m*r² for the other axes. So for the first pendulum:
+
+L = 2m, radius 0.2m, mass 1kg.
+
+IXX = (1/12)*1*(2)^2 = 0.3333...
+
+IYY and IZZ: (1/2)*1*(0.2)^2 = 0.02 each. Wait, but the cylinder's inertia about the Y and Z axes (perpendicular to the length) would be (1/2)*m*r². But in the code, they set IYY and IZZ to 1 each, which is way too high. That's a big mistake. So the inertia tensor is wrong. So that's a critical error to fix.
+
+Therefore, the correct inertia for the first pendulum should be:
+
+pend_1.SetInertiaXX(chrono.ChVector3d( (1/12)*1*(2)**2, 0.5*1*(0.2)**2, 0.5*1*(0.2)**2 )).
+
+Wait, but the original code uses (0.2, 1,1). That's wrong. So this needs to be fixed.
+
+Similarly for the second pendulum, we need to compute its inertia correctly.
+
+So that's an important correction.
+
+Now, moving back to the double pendulum setup.
+
+After fixing the inertia, the next step is to add the second pendulum.
+
+So, creating pend_2:
+
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)  # same mass as first?
+pend_2.SetInertiaXX(chrono.ChVector3d( (1/12)*1*(2)**2, 0.5*1*(0.2)**2, 0.5*1*(0.2)**2 ))  # same as first?
+
+Wait, but maybe the second pendulum has different dimensions? The problem says "additional pendulum attached to the first one with appropriate joints and visualization". It doesn't specify different dimensions, so perhaps same as first.
+
+But the original code's cylinder for pend_1 is radius 0.2 and height 2. So the second should have the same. So same inertia.
+
+Then, setting its initial position. The first pendulum's initial position is (1,0,1). Its cylinder is along X, so the end is at (1+1,0,1) = (2,0,1). So the second pendulum's joint is at (2,0,1). The second pendulum's center is at that point plus half its length along X (assuming it's oriented the same way). So the second pendulum's position should be (2,0,1) + (1,0,0) = (3,0,1). Wait, no. Because the cylinder's length is 2, so the center is at (2,0,1) plus (1,0,0) would make the center at (3,0,1), so the cylinder extends from (2,0,1) to (4,0,1). But the joint is at (2,0,1), so the second pendulum's center is offset by +1 in X.
+
+Alternatively, the joint is at the end of the first pendulum's cylinder (position (2,0,1)), so the second pendulum's joint is at its own end, so its center is at (2,0,1) plus (1,0,0), since the cylinder's length is 2. So the center is at (3,0,1).
+
+Wait, but then the second pendulum's initial position would be (3,0,1). But when we create the revolute joint between pend_1 and pend_2, the joint's frames need to be set correctly.
+
+The revolute joint between pend_1 and pend_2 would be at (2,0,1). So the joint's frame for pend_1 is at (2,0,1), and the frame for pend_2 is at its own joint point (which is its end, so (2,0,1)), but the pend_2's center is at (3,0,1). So the frame for pend_2 would be at (2,0,1), but relative to pend_2's body frame.
+
+Hmm, perhaps the revolute joint between pend_1 and pend_2 is created with the following:
+
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(2,0,1), chrono.QIDENTITY), chrono.ChFrameD(chrono.ChVectorD(-1,0,0), chrono.QIDENTITY))
+
+Wait, not sure. Let me think again.
+
+The ChLinkLockRevolute's Initialize function takes two bodies and their respective frames. The first frame is the reference body's frame (pend_1), and the second frame is the body to link (pend_2). The joint is formed by aligning these two frames.
+
+So for the joint between pend_1 and pend_2:
+
+The joint is located at the end of pend_1's cylinder, which is (2,0,1). So in pend_1's frame, that point is (2-1,0,1) since pend_1's center is at (1,0,1). Wait no, the pend_1's position is (1,0,1), so the end is at (2,0,1). The frame for the joint on pend_1 is at (2,0,1) in global coordinates. So in pend_1's local frame, that point is (1,0,0) because the pend_1's position is (1,0,1). Wait, no. The pend_1's position is its center. The end of the cylinder is at (pend_1.GetPos().x + 1, ...). So the joint's position in pend_1's frame is (1,0,0) (since the cylinder's half-length is 1 along X). So the frame for pend_1's side is chrono.ChFrameD(chrono.ChVectorD(1,0,0), ...).
+
+But to express this in global coordinates, it's (pend_1 position) + (local point). Wait, maybe it's better to use absolute coordinates for the frames. Alternatively, perhaps it's easier to set the frames in global coordinates.
+
+Alternatively, the joint between pend_1 and pend_2 is at (2,0,1). So for pend_1's frame, the joint point is at (2,0,1) in global, which is (1,0,0) in pend_1's local frame (since pend_1's position is (1,0,1)). Wait, the local coordinates of the pend_1 body would have its own center at (0,0,0). So the point (1,0,0) in local would be (pend_1's global position + local coordinates). So to get the joint at (2,0,1), the local point on pend_1 is (1,0,0).
+
+Similarly, for pend_2's side, the joint is at its own end, which is the point (2,0,1). Since pend_2's center is at (3,0,1), the local coordinates of that point would be (-1,0,0). So the frame on pend_2's side is at (-1,0,0) in its local frame.
+
+Therefore, the frames for the joint would be:
+
+For pend_1's frame: position (1,0,0) local (which translates to global (2,0,1)), and orientation identity (since the joint's axis is along Z? Or the rotation needs to be considered. Wait, the revolute joint's axis is along which direction?
+
+The original first joint's axis is Z-axis (since the frame's rotation is identity, so Z is the axis). Wait, the first joint's Initialize has a frame with rotation identity, so the joint's axis is along the Z-axis of the frame's coordinate system. The first joint's frame is at (0,0,1) in ground's frame (since ground is fixed at (0,0,0?), wait the ground's cylinder is at (0,0,1). Wait, the ground's cylinder is created with a visual shape at ChFrameD(ChVectorD(0,0,1)), so the cylinder is centered at (0,0,1). The ground's position is probably at (0,0,0), but the visual shape is placed at (0,0,1). Wait, perhaps the ground's position is at (0,0,0), but the visual shape is offset.
+
+Hmm, maybe the ground's position isn't important since it's fixed. The first joint's frame is set to chrono.ChFrameD(chrono.ChVectorD(0,0,1), chrono.ChQuaternionD(1,0,0,0)), so the joint's position is (0,0,1), which is the center of the ground's cylinder. The axis is along Z (since the rotation is identity, so the default Z axis).
+
+The second joint between pend_1 and pend_2 should have its axis also along Z, but in the local frame of the joint's frames.
+
+Wait, perhaps for simplicity, the second joint's axis is along the same direction as the first, so that the pendulums can swing in the same plane.
+
+Therefore, the frames for the second joint would be:
+
+For pend_1's side: position (1,0,0) in local (so global (2,0,1)), orientation identity (so axis is Z).
+
+For pend_2's side: position (-1,0,0) in local (so global (2,0,1)), orientation identity.
+
+Therefore, the Initialize call would be:
+
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(1,0,0), chrono.QIDENTITY), chrono.ChFrameD(chrono.ChVectorD(-1,0,0), chrono.QIDENTITY))
+
+Wait, but the ChLinkLockRevolute's Initialize function takes the two bodies and their respective frames. The first frame is the reference body's frame (pend_1's frame), and the second is the body to link (pend_2's frame). So the frames are expressed in their own body's local coordinates.
+
+Alternatively, perhaps it's better to use global coordinates for both frames. Wait, the documentation says that the Initialize function takes the two bodies and two frames, which are expressed in their respective bodies' frames. So the first frame is relative to pend_1's frame, and the second is relative to pend_2's frame.
+
+So for the joint between pend_1 and pend_2:
+
+The joint's position in global is (2,0,1). So in pend_1's local frame, that point is (1,0,0) (since pend_1's center is at (1,0,1)). So the frame for pend_1 is ChFrameD(ChVectorD(1,0,0), Qidentity).
+
+For pend_2's side, the joint is at its own end, which is at (2,0,1). Since pend_2's center is at (3,0,1), the local position is (-1,0,0). So the frame for pend_2 is ChFrameD(ChVectorD(-1,0,0), Qidentity).
+
+Therefore, the Initialize call would be:
+
+rev_2.Initialize(pend_1, pend_2, chrono.ChFrameD(chrono.ChVectorD(1,0,0), chrono.QIDENTITY), chrono.ChFrameD(chrono.ChVectorD(-1,0,0), chrono.QIDENTITY))
+
+Then, adding the revolute link to the system.
+
+Additionally, the second pendulum needs a visual shape. So create a cylinder similar to the first.
+
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # Different color for distinction
+pend_2.AddVisualShape(cyl_2, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngY(chrono.CH_C_PI_2)))  # same rotation as first pendulum
+
+Wait, the rotation is needed so the cylinder points along X. The original code used QuatFromAngleY(chrono.CH_PI_2). The correct function might be chrono.Q_from_AngAxis or something else. Wait, in Chrono, the function to create a quaternion from an angle and axis is chrono.Q_from_AngAxis(angle, axis). Alternatively, using the function QuatFromAngleY as in the original code may be incorrect. Let me check.
+
+Looking at the original code: pend_1's visual shape is added with chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2))). But since we corrected ChFramed to ChFrame, perhaps the function QuatFromAngleY is a typo. The correct function might be chrono.Q_from_AngY or similar.
+
+Wait, in Chrono, the correct way to create a rotation is using the Q_from_AngAxis function, or the Q_from_AngY function if available. Alternatively, perhaps the original code used a function that's not properly named. Let me confirm.
+
+In the current Chrono versions, quaternions are created using chrono.Q_from_AngAxis(angle, axis). So to rotate around Y-axis by 90 degrees (PI/2 radians), the code should be:
+
+chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))
+
+Alternatively, there might be a helper function like Q_from_AngY, but I'm not sure. To be safe, better to use Q_from_AngAxis.
+
+So in the original code for the first pendulum's visual shape:
+
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.VNULL, chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+
+Wait, the original code had chrono.QuatFromAngleY(chrono.CH_PI_2). The constant CH_PI_2 is probably CH_C_PI_2 (since constants in Chrono often have a 'C' for constant). So the correct function is Q_from_AngAxis with the angle and axis.
+
+Therefore, the original code has errors in the quaternion creation. So that's another correction needed.
+
+So in the original code, all instances of QuatFromAngleY should be replaced with the appropriate Q_from_AngAxis call.
+
+Putting this together, the steps are:
+
+First, fix the original code's errors:
+
+1. Replace all instances of ChFramed with ChFrame (since the correct class is ChFrame, not ChFramed).
+
+2. Fix the quaternion creation functions. The original code uses QuatFromAngleY which is likely incorrect. The correct way is to use chrono.Q_from_AngAxis(angle, axis).
+
+3. Fix the inertia tensors for the pendulums to have correct values based on their dimensions.
+
+Now, adding the second pendulum:
+
+After creating pend_2, set its properties:
+
+pend_2.SetMass(1)
+
+pend_2.SetInertiaXX(chrono.ChVectorD( (1/12)*1*(2)**2, 0.5*1*(0.2)**2, 0.5*1*(0.2)**2 )) 
+
+Wait, but in Python, division is done with /, and since the code uses math, maybe better to use variables. Alternatively, compute numerically.
+
+Then, set its initial position to (3,0,1), since its center is 1 meter away from the joint point (2,0,1) along X.
+
+pend_2.SetPos(chrono.ChVectorD(3,0,1))
+
+Add the visual shape with cylinder parameters and correct rotation.
+
+Then create the revolute joint between pend_1 and pend_2 as discussed.
+
+Also, ensure that both pendulums have their collision detection disabled (as in the original code).
+
+Additionally, the original code had an error in the inertia tensor, which must be fixed for both pendulums.
+
+Now, looking back at the original code's simulation loop: the camera is set at (0,3,6). Maybe that's okay, but perhaps the view needs to be adjusted for the double pendulum, but the problem doesn't mention that.
+
+Another possible error: the ground's visualization frame was created with chrono.ChFramed(chrono.ChVector3d(0,0, +1))). So after correcting to ChFrame, that line becomes:
+
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,1), chrono.QIDENTITY)))
+
+Wait, the original code's ground's visual shape was added with a frame. The cylinder is placed at (0,0,1), and the rotation is identity? Because the cylinder's default orientation is along Z-axis, so placing it at (0,0,1) with no rotation would have it pointing along Z. But the ground's cylinder is supposed to be a base. Wait, perhaps the ground's cylinder is meant to be a horizontal cylinder? Or maybe the original code intended it to be vertical. The original code's ground cylinder has radius 0.2 and height 0.4. Maybe it's a small base. The rotation might not be needed here, so the frame can be identity.
+
+Now, putting all corrections together.
+
+Let me list all the corrections:
+
+1. Replace all instances of ChFramed with ChFrame.
+
+2. Replace all instances of QuatFromAngleY with Q_from_AngAxis.
+
+3. Fix the inertia tensors.
+
+4. Add the second pendulum and its joint.
+
+Now, let's go through each part step by step.
+
+First, the ground's visual shape:
+
+Original code:
+
+ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+
+Corrected:
+
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,1), chrono.QIDENTITY))
+
+Wait, the original uses ChVector3d, but in the code, since it's Python, perhaps the correct is ChVectorD (double precision). Because in Chrono, the default is ChVectorD. So using ChVectorD instead of ChVector3d (the latter might be a typo, as the class is ChVector<double>).
+
+So the ground's line becomes:
+
+ground.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,1), chrono.QIDENTITY))
+
+Similarly, the first pendulum's visual shape:
+
+Original line:
+
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+Corrected:
+
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+
+Wait, the VNULL is a vector, so chrono.ChVectorD(0,0,0). The angle is CH_PI_2, but perhaps it's CH_C_PI_2 (constant). Also, the axis is Y-axis (0,1,0).
+
+So that's the corrected quaternion.
+
+Now, the inertia tensors:
+
+Original pend_1's inertia:
+
+pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))
+
+Corrected to:
+
+pend_1.SetInertiaXX(chrono.ChVectorD( (1/12)*1*(2)**2, 0.5*1*(0.2)**2, 0.5*1*(0.2)**2 ))
+
+Wait, but in Python, the ChVectorD takes three arguments. So:
+
+pend_1.SetInertiaXX(chrono.ChVectorD( ( (1/12)*1*(2)**2 ), (0.5*1*(0.2)**2 ), (0.5*1*(0.2)**2 )) )
+
+Calculating numerically:
+
+IXX = (1/12)*1*(4) = 0.333333...
+
+IYY = IZZ = 0.5*1*(0.04) = 0.02
+
+So the inertia vector should be (0.333..., 0.02, 0.02). The original code had (0.2, 1, 1), which is wrong. So this is fixed.
+
+Now, the second pendulum's code:
+
+Create pend_2:
+
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)
+pend_2.SetInertiaXX(chrono.ChVectorD( ( (1/12)*1*(2)**2 ), (0.5*1*(0.2)**2 ), (0.5*1*(0.2)**2 )) )
+pend_2.SetPos(chrono.ChVectorD(3,0,1))
+
+Add its visual shape:
+
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))  # different color
+pend_2.AddVisualShape(cyl_2, chrono.ChFrameD(chrono.ChVectorD(0,0,0), chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0,1,0))))
+
+Then create the revolute joint between pend_1 and pend_2:
+
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(pend_1, pend_2, 
+                chrono.ChFrameD(chrono.ChVectorD(1,0,0), chrono.QIDENTITY), 
+                chrono.ChFrameD(chrono.ChVectorD(-1,0,0), chrono.QIDENTITY))
+sys.AddLink(rev_2)
+
+Wait, the frames for the joint. For pend_1's side, the local point is (1,0,0) (since the joint is at (2,0,1) which is 1 unit from pend_1's center along X). The orientation is identity (so axis Z).
+
+For pend_2's side, the local point is (-1,0,0) (since pend_2's center is at (3,0,1), so the joint is at (2,0,1), which is -1 in X from the center). The orientation is identity.
+
+So the Initialize call is as above.
+
+Now, check if there are other errors in the original code.
+
+Another possible error: in the simulation loop, the line sys.DoStepDynamics(1e-3). The time step is 0.001 seconds, which might be too small? Or is it okay? Probably okay, but maybe the user intended a larger step, but the problem doesn't mention that. So leave as is.
+
+The log_info part: the code logs after 1 second. That's okay.
+
+Now, compiling all these corrections and additions into the code.
+
+Also, note that in the original code, the ground's collision is disabled, and the pendulum's collision is disabled. Since it's a double pendulum, collisions between the pendulums might not be needed, so keeping them disabled is okay.
+
+Another thing: the original code uses ChLinkLockRevolute, which is a locked revolute joint, but actually, ChLinkLockRevolute is a type of constraint that allows rotation around an axis but is "locked" in other DOFs. Wait, no, perhaps it's better to use ChLinkRevolute instead of ChLinkLockRevolute. Wait, checking the Chrono documentation:
+
+ChLinkLockRevolute is a locked revolute joint, which means it's a constraint that allows rotation around the axis but doesn't allow any translation or other rotations. However, for a pendulum, that's exactly what we want. Alternatively, perhaps using ChLinkRevolute would be better. Wait, perhaps the original code uses ChLinkLockRevolute correctly. Let me confirm.
+
+The ChLinkLockRevolute is a type of constraint that allows rotation about an axis but does not allow any other motion. So for a revolute joint, that's correct. So the code is okay here.
+
+Therefore, the corrections and additions should be as outlined.
+
+Now, putting all together into the code.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2)
+sys.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))  # g = 9.81 m/s^2
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)  # The ground is fixed and does not move
+ground.EnableCollision(False)  # Disable collision detection for the ground
+
+# Add a visualization cylinder to the ground
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.QIDENTITY))
+
+# Create first pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)  # The pendulum can move
+pend_1.EnableCollision(False)  # Disable collision detection for the pendulum
+pend_1.SetMass(1)  # Set the mass of the pendulum (in kg)
+# Correct inertia tensor calculation for a cylinder (radius 0.2, length 2)
+pend_1.SetInertiaXX(chrono.ChVectorD(
+    (1/12)*1*(2)**2,  # Ixx (moment around cylinder axis)
+    0.5*1*(0.2)**2,   # Iyy (perpendicular to cylinder axis)
+    0.5*1*(0.2)**2    # Izz (perpendicular to cylinder axis)
+))
+
+# Add a visualization cylinder to the first pendulum
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 2)  # Cylinder with radius 0.2 and height 2
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Set the color of the cylinder (RGB)
+pend_1.AddVisualShape(cyl_1, chrono.ChFrameD(
+    chrono.ChVectorD(0, 0, 0),
+    chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))  # Rotate around Y-axis by 90 degrees
+))
+
+# Set the initial position of the first pendulum (center of mass)
+pend_1.SetPos(chrono.ChVectorD(1, 0, 1))
+
+# Create a revolute joint to connect the first pendulum to the ground
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(
+    ground,
+    pend_1,
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 1), chrono.QIDENTITY),  # Position in ground frame
+    chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0), chrono.QIDENTITY)  # Position relative to pend_1 (center at (1,0,1))
+)
+sys.AddLink(rev_1)
+
+# Create the second pendulum body and add it to the simulation
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)
+# Correct inertia tensor calculation for the second pendulum (same as first)
+pend_2.SetInertiaXX(chrono.ChVectorD(
+    (1/12)*1*(2)**2,
+    0.5*1*(0.2)**2,
+    0.5*1*(0.2)**2
+))
+
+# Set the initial position of the second pendulum (center of mass)
+pend_2.SetPos(chrono.ChVectorD(3, 0, 1))  # Offset by 2m along X from first pendulum's end
+
+# Add a visualization cylinder to the second pendulum
+cyl_2 = chrono.ChVisualShapeCylinder(0.2, 2)
+cyl_2.SetColor(chrono.ChColor(0, 0.6, 0))
+pend_2.AddVisualShape(cyl_2, chrono.ChFrameD(
+    chrono.ChVectorD(0, 0, 0),
+    chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 1, 0))
+))
+
+# Create revolute joint between first and second pendulums
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(
+    pend_1,
+    pend_2,
+    chrono.ChFrameD(chrono.ChVectorD(1, 0, 0), chrono.QIDENTITY),  # Position relative to pend_1 (end point)
+    chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0), chrono.QIDENTITY)  # Position relative to pend_2 (end point)
+)
+sys.AddLink(rev_2)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Double Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 3, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+log_info = True
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)  # Time step of 0.001 seconds
+
+    if log_info and sys.GetChTime() > 1:
+        print(f"t = {sys.GetChTime():.2f}")
+        print(f"Pendulum 1 Position: ({pend_1.GetPos().x:.2f}, {pend_1.GetPos().y:.2f})")
+        print(f"Pendulum 1 Velocity: ({pend_1.GetPos_dt().x:.2f}, {pend_1.GetPos_dt().y:.2f})")
+        print(f"Pendulum 2 Position: ({pend_2.GetPos().x:.2f}, {pend_2.GetPos().y:.2f})")
+        print(f"Pendulum 2 Velocity: ({pend_2.GetPos_dt().x:.2f}, {pend_2.GetPos_dt().y:.2f})")
+        log_info = False
+```
+
+Key corrections and additions made:
+1. **Fixed ChFramed to ChFrameD**: Correct class name for frames.
+2. **Corrected quaternion creation**: Replaced `QuatFromAngleY` with `Q_from_AngAxis` for proper rotation.
+3. **Fixed inertia tensors**: Calculated using correct formulas for cylinder moments of inertia.
+4. **Added second pendulum**: Including body, joints, and visualization.
+5. **Adjusted joint initialization**: Ensured joints are positioned correctly relative to each pendulum's local frames.
+6. **Improved logging**: Added logging for both pendulums' positions and velocities.
+7. **Fixed initial positions**: Positioned the second pendulum correctly relative to the first.

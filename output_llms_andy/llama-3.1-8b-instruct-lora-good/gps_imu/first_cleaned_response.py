@@ -1,0 +1,9 @@
+chrono.SetChrono().Initialize()
+    core = chrono.ChSystem()
+    core.SetSolverType(chrono.ChSolver.Type_Spiv)
+    core.SetSolver(chrono.timesteprStep(0.01)
+    core.SetSolver(chrono solver.choleser)
+    core.Add(chrono(chrono.terrain.terrain(chrono.terrainmodel.terrain, chrono.terrain.terrain.terrain.terrainMeshData
+    core.Add(chrono.vehiwicle(chrono.vehiicle.hmmv(chrono.veiclemmvmmw.vehmmwmm.ve)
+    core.Add(chrono.vevdriver.ve.vevdriver(chrono.ve.ve.ve.veve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve.ve
+print("error happened with only start ```python")

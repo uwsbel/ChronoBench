@@ -1,0 +1,122 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chronovehicle
+
+# ---------------------------------------------------------------------
+#
+#  Create the simulation system and add items
+#
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('BMW E90 Simulation')
+vis.Initialize()
+
+# Create a directional light source
+light = chronoirr.ChLight(chrono.ChVectorD(0, 5, 0), chrono.ChColor(1, 1, 1))
+vis.AddLight(light)
+
+# Create a skybox
+vis.AddSkyBox('textures/skybox/')
+
+# Create the terrain
+terrain = chrono.ChBodyEasyBox(100, 100, 0.1)
+terrain.SetBodyFixed(True)
+system.Add(terrain)
+
+# Set the terrain texture
+terrain_texture = chronoirr.ChTexture()
+terrain_texture.SetFilename('textures/terrain.png')
+terrain_texture.SetApplyMode(chrono.irrlicht.ChTexture.eApplyMode.eRepeat)
+vis.AddTexture(terrain_texture)
+terrain.AddVisualShape(chrono.ChVisualShapeBox(100, 100, 0.1), chrono.ChMaterialSurface.Default)
+terrain.GetVisualShape(0).SetTexture(terrain_texture)
+
+# ---------------------------------------------------------------------
+#
+#  Create the vehicle
+#
+
+# Create the vehicle system
+vehicle = chronovehicle.ChVehicle(system)
+
+# Set vehicle chassis
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 1, 0))
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(4, 1.5, 1))
+
+# Add wheels
+wheel_radius = 0.3
+wheel_width = 0.15
+vehicle.AddWheel(chrono.ChVectorD(1.5, -0.75, 0), wheel_radius, wheel_width)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, -0.75, 0), wheel_radius, wheel_width)
+vehicle.AddWheel(chrono.ChVectorD(1.5, 0.75, 0), wheel_radius, wheel_width)
+vehicle.AddWheel(chrono.ChVectorD(-1.5, 0.75, 0), wheel_radius, wheel_width)
+
+# Set tire model
+for wheel in vehicle.GetWheels():
+    wheel.SetTireModel(chronovehicle.TMeasyTire(wheel.GetRadius(), wheel.GetWidth()))
+
+# Set suspension
+for wheel in vehicle.GetWheels():
+    vehicle.SetSuspension(wheel, chronovehicle.ChSuspensionSpringDamper(10000, 1000))
+
+# Set steering
+vehicle.SetSteering(chronovehicle.ChSteering(chrono.ChVectorD(0, 0, 0)))
+
+# ---------------------------------------------------------------------
+#
+#  Create the driver system
+#
+
+# Create the driver system
+driver = chronovehicle.ChDriver(vehicle)
+
+# Set driver input
+driver.SetSteeringAngle(0)
+driver.SetThrottle(0)
+driver.SetBraking(0)
+
+# ---------------------------------------------------------------------
+#
+#  Set visualization and camera
+#
+
+# Create the chase camera
+camera = chronoirr.ChCamera(vis.GetDevice())
+camera.SetEyepoint(chrono.ChVectorD(0, 2, 5))
+camera.SetLookAt(chrono.ChVectorD(0, 1, 0))
+
+# Set camera to follow the vehicle
+vis.SetCamera(camera)
+
+# ---------------------------------------------------------------------
+#
+#  Simulation loop
+#
+
+while vis.Run():
+    # Update driver input (replace with your desired control scheme)
+    driver.SetSteeringAngle(chrono.ChFunction_Const(0.1))  # Example: constant steering angle
+    driver.SetThrottle(chrono.ChFunction_Const(0.5))     # Example: constant throttle
+
+    # Update the simulation
+    system.DoStepDynamics(0.01)
+
+    # Render the scene
+    vis.Render()
+
+# ---------------------------------------------------------------------
+#
+#  Clean up
+#
+
+vis.Shutdown()

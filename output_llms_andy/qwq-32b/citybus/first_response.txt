@@ -1,0 +1,536 @@
+Okay, I need to create a PyChrono simulation script based on the user's instructions. Let me start by recalling the key points from the problem statement. The user wants a CityBus vehicle on a rigid terrain with Irrlicht visualization. They specified initializing the environment, adding physical systems, setting parameters like location and orientation, using a combination of mesh and primitive visuals, a camera that follows the vehicle, a RigidTerrain with a custom texture, an interactive driver system for controls, and a simulation loop at 50 FPS.
+
+First, I'll start by importing the necessary modules. PyChrono's vehicle and Irrlicht modules are essential here. I'll need chrono, pychrono, pychrono.vehicle, and pychrono_irrlicht.
+
+Next, setting up the environment. The user mentioned initializing the PyChrono environment. That usually involves creating a VehicleSystem and a terrain. But maybe I should start by initializing the Irrlicht application. The IrrlichtApp class can handle the visualization. The camera needs to follow the vehicle, so I should set up a camera that tracks the vehicle's position.
+
+Wait, the user also wants a RigidTerrain with a custom texture. The RigidTerrain in PyChrono's vehicle module can be used here. The terrain needs a texture, so I'll have to specify a texture file. Maybe the user expects a default texture path, but perhaps I should include a placeholder or note to replace it.
+
+The vehicle is a CityBus. The PyChrono vehicle models have different types, like the SimpleVehicle or more complex ones. The CityBus might be part of the standard vehicle models, so I'll check the available models. The Chrono::Vehicle::CityBus class exists, so I can create an instance of that.
+
+For the vehicle parameters: location and orientation. The default might be (0,0,1) to place it above the terrain. The orientation could be identity, so the vehicle is facing forward. The tire model: maybe the user expects a specific tire model like the Pacejka or a simpler one. Since it's not specified, I'll choose a default, perhaps the Pacejka tire model, but need to set it up correctly.
+
+The visualization part: using a combination of mesh and primitives. The vehicle parts might have their own visualization types. For example, the chassis could use a mesh, while the wheels use cylinders. I'll need to set the visualization types accordingly. The user might want some parts to use meshes (like the bus body) and others as primitives (like tires or suspension parts).
+
+The interactive driver system: that's the driver input. PyChrono's vehicle module has driver classes, like the PID driver or manual driver. The user wants control over steering, throttle, and braking, so probably using the ManualDriver which allows keyboard inputs. The Irrlicht application can handle keyboard events, so I'll need to set up the driver to respond to keys like left/right for steering, up/down for throttle/brake.
+
+The simulation loop needs to run at 50 FPS. That means the time step should be 1/50 = 0.02 seconds. The IrrlichtApp typically has a main loop that runs at a certain frame rate, so I'll set the step size accordingly and update the simulation each frame.
+
+Putting this together step by step:
+
+1. Import modules.
+2. Create the Irrlicht application for visualization.
+3. Create the terrain with a texture.
+4. Initialize the vehicle (CityBus) with position and orientation.
+5. Set up the driver (ManualDriver) for user input.
+6. Configure visualization types for vehicle parts.
+7. Set up the camera to follow the vehicle.
+8. Enter the simulation loop, updating simulation and rendering each frame.
+
+Potential issues to consider:
+
+- The texture path: the user might need to have a texture file, so I'll use a placeholder like 'path/to/texture.jpg' and mention it in comments.
+- The vehicle's position: ensuring it's placed correctly above the terrain to avoid initial collision.
+- The camera settings: setting the initial position and target to follow the vehicle.
+- The driver controls: mapping keyboard keys properly in the Irrlicht app.
+
+Now, writing the code step by step.
+
+First, imports:
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+Then create the vehicle system:
+
+my_system = chrono.ChSystemSMC()
+vehicle = veh.CityBus(my_system)
+
+Set the vehicle's initial position and orientation. Let's place it at (0,0,1) with identity rotation.
+
+vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+
+Tire model setup. Let's use the Pacejka tire model. Need to set the tire parameters. The CityBus might have default tires, but perhaps need to specify:
+
+for axle in vehicle.GetAxles():
+    for tire in axle.tires:
+        tire.Initialize(veh.PacejkaTire(), my_system)
+
+Wait, maybe the CityBus already has tires initialized, but maybe I need to ensure they're set. Alternatively, perhaps the user expects a specific tire model, but since it's not specified, using the default might be okay.
+
+Next, the terrain. Create a RigidTerrain with a plane and texture.
+
+terrain = veh.RigidTerrain(my_system)
+patch_mat = chrono.ChMaterialSurfaceNSC()
+terrain.SetContactMaterial(patch_mat)
+
+# Define terrain dimensions and texture
+terrain_height = 0  # since vehicle is at z=1, terrain at z=0
+terrain.SetPlane(chrono.ChVectorD(0,0,terrain_height), chrono.ChVectorD(0,1,0))
+texture_path = 'path/to/texture.jpg'  # user should replace this
+terrain.GetPlaneGeometry().SetTexture(chrono.GetChronoDataFile(texture_path), 20, 20)
+
+Add the terrain to the system.
+
+my_system.Add(terrain.GetRigidTerrain())
+
+Next, the visualization. Create the Irrlicht app.
+
+app = irr.ChIrrApp(my_system, 'CityBus Simulation', irr.dimension2du(1024,768))
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddTypicalSky()
+
+# Add vehicle and terrain visualization
+app.SetAssetRewrite(veh.GetChronoDataFile('vehicle/'), '')  # for mesh files
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)  # chassis as mesh
+for axle in vehicle.GetAxles():
+    axle.wheels[0].SetVisualizationType(veh.VisualizationType_PRIMITIVES)  # wheels as primitives
+terrain.Initialize(app.GetVideoDriver())
+
+# Set camera to follow the vehicle
+camera_distance = 20
+camera_height = 5
+app.SetChaseCamera( vehicle.GetChassis(), camera_distance, camera_height )
+
+Now, the driver setup. Use ManualDriver.
+
+driver = veh.ManualDriver()
+vehicle.SetDriver(driver)
+
+The simulation loop. The Irrlicht app's main loop will handle this. The user wants 50 FPS, so time step is 0.02.
+
+app.SetTimestep(0.02)
+app.SetVsync(True)  # to sync with vsync for consistent FPS
+
+Then, in the main loop, we need to update the driver based on keyboard inputs.
+
+def main():
+    while app.GetDevice().run():
+        time = my_system.GetChTime()
+        
+        # Update driver inputs
+        driver.SetThrottle(app.GetDriver().keyReleased(irr.KEY_KEY_UP))
+        driver.SetBrake(app.GetDriver().keyReleased(irr.KEY_KEY_DOWN))
+        driver.SetSteering(-1 if app.GetDriver().isKeyDown(irr.KEY_KEY_LEFT) else 1 if app.GetDriver().isKeyDown(irr.KEY_KEY_RIGHT) else 0)
+        
+        # Update vehicle
+        vehicle.Synchronize(driver, terrain)
+        vehicle.Update(time)
+        
+        # Update terrain
+        terrain.Synchronize(vehicle)
+        
+        # Advance simulation
+        my_system.DoStepDynamics(app.GetDT())
+        
+        # Render
+        app.Render()
+        
+if __name__ == '__main__':
+    main()
+
+Wait, but the driver inputs might need more precise handling. For example, throttle and brake are typically set between 0 and 1. Maybe using keyDown instead of keyReleased. Let me think:
+
+Perhaps:
+
+driver.SetThrottle(1 if app.GetDriver().isKeyDown(irr.KEY_KEY_UP) else 0)
+driver.SetBrake(1 if app.GetDriver().isKeyDown(irr.KEY_KEY_DOWN) else 0)
+driver.SetSteering(-1 if app.GetDriver().isKeyDown(irr.KEY_KEY_LEFT) else 1 if app.GetDriver().isKeyDown(irr.KEY_KEY_RIGHT) else 0)
+
+That way, pressing up gives full throttle, down full brake, left/right steering.
+
+Also, the vehicle's synchronization with the driver and terrain is important. The vehicle's Update() function and Synchronize() steps need to be properly called each frame.
+
+Additionally, the camera setup. The chase camera parameters might need adjustment. The current settings are distance and height, but maybe the initial position can be set.
+
+Wait, the SetChaseCamera function is called with the vehicle's chassis, distance, and height. That should track the vehicle.
+
+Putting all together, the code structure would be as outlined. Need to make sure all components are added to the system and visualized properly.
+
+Possible missing parts:
+
+- Adding the vehicle's assets. The vehicle's visualization might require mesh files, so the asset rewrite path is set correctly. The user might need to have the mesh files in the correct directory, but the code includes a rewrite to Chrono's data files, assuming they have the vehicle meshes.
+
+- The simulation loop's main function structure. The IrrlichtApp's main loop is handled via app.Execute(), but in the code above, perhaps using app.Execute() with a custom callback. Alternatively, the code provided earlier uses a while loop, but the IrrlichtApp might have its own loop. Wait, the correct way to use ChIrrApp is to call app.Execute(), which runs the main loop, and you can define a custom function via app.SetEventCallbacks().
+
+Hmm, perhaps I need to adjust the code to use the standard approach with event callbacks. Maybe the initial approach with the while loop is not correct. Let me think again.
+
+The correct way to handle the simulation loop with Irrlicht is to use the app.Execute() method, which runs the main loop. To update the simulation each frame, you need to set up a callback function. Alternatively, you can use a custom class that inherits from irr.ChIrrApp and overrides Update. Alternatively, use the app.SetTimestep and let the IrrlichtApp handle the stepping.
+
+Wait, perhaps the code should be structured as follows:
+
+After setting up the app, you can set the driver, then call app.Execute() which will run the simulation loop. But to handle the driver inputs, you need to use event callbacks.
+
+Alternatively, here's a standard approach:
+
+The driver inputs can be handled via keyboard events. To do that, the IrrlichtApp can have event callbacks. So perhaps the code should set up a custom class that inherits from irr.ChIrrApp and overrides the OnKeyDown and OnKeyUp methods to set the driver's throttle, brake, steering.
+
+Alternatively, in the main loop, you can check the keyboard state each frame.
+
+Alternatively, using the existing driver setup with the code I had earlier but structured properly.
+
+Wait, perhaps the initial code I wrote is okay, but the IrrlichtApp's main loop is entered via app.Execute(), which calls the simulation step each frame.
+
+Wait, maybe the correct approach is to use the following structure:
+
+After setting up everything, call app.Execute() which runs the simulation loop. The simulation's time step is set with app.SetTimestep(), and the vehicle is updated each frame via the IrrlichtApp's internal steps.
+
+But to handle the driver inputs, you need to set up event callbacks. For example, using the ManualDriver, which can be linked to the keyboard via the IrrlichtApp's event functions.
+
+Alternatively, the ManualDriver can be controlled via the IrrlichtApp's keyboard events. The user might need to use the IrrlichtApp's event functions to update the driver's inputs each frame.
+
+Hmm, perhaps the code I wrote earlier with the while loop is incorrect because the IrrlichtApp's main loop is managed by the app.Execute() function. Let me check the PyChrono documentation.
+
+Looking up, in PyChrono, the standard way to set up a simulation with Irrlicht is:
+
+app = irr.ChIrrApp(...)
+app.SetTimestep(dt)
+app.SetTryRealtime(True)  # or False, depending on real-time vs. simulation speed
+
+Then, app.Execute() runs the loop. To handle user inputs, you can set up a custom class that inherits from irr.ChIrrApp and overrides the keyboard event functions, or use the app.SetEventCallbacks() method with a custom callback class.
+
+Alternatively, here's an example from the PyChrono tutorials:
+
+In the vehicle examples, they often do something like:
+
+app = irr.ChIrrApp(...)
+app.SetEventCallbacks(MyCallbacksClass())  # where MyCallbacksClass has event handlers
+
+So perhaps the driver's inputs should be handled via event callbacks. Let me adjust the code accordingly.
+
+Let me restructure the code with that in mind.
+
+First, define a class that handles the events:
+
+class DriverCallbacks( irr.IrrlichtDriver ):
+    def __init__(self, driver):
+        super().__init__()
+        self.driver = driver
+
+    def OnKeyDown(self, key):
+        if key == irr.KEY_KEY_UP:
+            self.driver.SetThrottle(1)
+        elif key == irr.KEY_KEY_DOWN:
+            self.driver.SetBrake(1)
+        elif key == irr.KEY_KEY_LEFT:
+            self.driver.SetSteering(-1)
+        elif key == irr.KEY_KEY_RIGHT:
+            self.driver.SetSteering(1)
+
+    def OnKeyUp(self, key):
+        if key == irr.KEY_KEY_UP:
+            self.driver.SetThrottle(0)
+        elif key == irr.KEY_KEY_DOWN:
+            self.driver.SetBrake(0)
+        elif key == irr.KEY_KEY_LEFT or key == irr.KEY_KEY_RIGHT:
+            self.driver.SetSteering(0)
+
+Wait, but in PyChrono's Irrlicht, the event handling might be done through the IrrlichtApp's methods. Alternatively, perhaps the driver can be updated each frame by checking the keyboard state.
+
+Alternatively, in the main loop, every frame, check the current key states.
+
+Alternatively, perhaps the code can be structured as follows, using the IrrlichtApp's main loop and updating the driver each frame:
+
+But to do that, perhaps in the main loop, the app.Execute() runs the loop, and inside the simulation step, the driver is updated.
+
+Alternatively, here's a possible approach:
+
+The code I initially wrote with the while loop might not be correct because the IrrlichtApp's main loop is managed by app.Execute(), so instead of using a while loop, we can use the app's own loop and update the driver each frame.
+
+Wait, perhaps the correct way is to use the following code structure:
+
+After setting up the vehicle, terrain, and driver, set up the IrrlichtApp and then call app.Execute().
+
+Inside the simulation loop (managed by app.Execute()), each frame, the driver's inputs are updated based on keyboard, then the vehicle is updated.
+
+To do this, the app needs to have access to the driver and vehicle. So perhaps we can define a custom class that inherits from ChIrrApp and overrides the OnUpdate function, which is called each frame.
+
+Alternatively, here's an example from the PyChrono documentation:
+
+class DriverCallbacks( irr.IrrlichtDriver ):
+    def __init__(self, driver):
+        self.driver = driver
+
+    def OnKeyUp(self, key):
+        if key == irr.KEY_KEY_UP:
+            self.driver.SetThrottle(0)
+        elif key == irr.KEY_KEY_DOWN:
+            self.driver.SetBrake(0)
+        elif key == irr.KEY_KEY_LEFT or key == irr.KEY_KEY_RIGHT:
+            self.driver.SetSteering(0)
+
+    def OnKeyDown(self, key):
+        if key == irr.KEY_KEY_UP:
+            self.driver.SetThrottle(1)
+        elif key == irr.KEY_KEY_DOWN:
+            self.driver.SetBrake(1)
+        elif key == irr.KEY_KEY_LEFT:
+            self.driver.SetSteering(-1)
+        elif key == irr.KEY_KEY_RIGHT:
+            self.driver.SetSteering(1)
+
+Then, set the event callbacks:
+
+callbacks = DriverCallbacks(driver)
+app.SetEventCallbacks(callbacks)
+
+Then, in the simulation loop, the driver's inputs are handled via these events.
+
+Additionally, the vehicle needs to be updated each frame. The IrrlichtApp's OnUpdate function can be used for that.
+
+Alternatively, perhaps the vehicle's update and step are handled automatically if the system is added to the app.
+
+Wait, the standard approach in PyChrono's vehicle examples is to set up the driver and vehicle, then call app.Execute(), and the simulation runs with the default settings. The driver's inputs are managed via the event callbacks.
+
+Putting this together, the code would look like:
+
+Initialize everything as before, then:
+
+# Setup driver callbacks
+driver = veh.ManualDriver()
+vehicle.SetDriver(driver)
+
+callbacks = DriverCallbacks(driver)
+app.SetEventCallbacks(callbacks)
+
+# Set camera
+app.SetChaseCamera( vehicle.GetChassis(), camera_distance, camera_height )
+
+# Simulation parameters
+app.SetTimestep(0.02)
+app.SetVsync(True)  # to enforce 50 FPS (since 1/0.02 = 50 steps per second)
+
+# Run the simulation
+app.Execute()
+
+Wait, but the vehicle's Update and Synchronize steps would need to be handled. However, in the PyChrono vehicle module, when you set the driver and terrain, the vehicle's Update is automatically called during the simulation step, perhaps. Or maybe the vehicle needs to be explicitly updated each step.
+
+Alternatively, perhaps the vehicle's Update is handled by the system's DoStepDynamics. Hmm, this is getting a bit unclear. Maybe I need to look at a sample code from the PyChrono vehicle examples.
+
+Looking at the "vehicle_IRRLICHT_template.py" example, the typical structure is:
+
+After creating the vehicle and driver:
+
+my_system = vehicle.GetSystem()
+app = irr.ChIrrApp(my_system, ...)
+app.SetTimestep(dt)
+app.SetVsync(True)
+app.SetTryRealtime(True)
+
+# Setup driver and terrain
+vehicle.SetDriver(driver)
+terrain = veh.RigidTerrain(...)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+...
+
+Then, they set up the camera and callbacks, then call app.Execute().
+
+In that example, the driver's inputs are handled via the event callbacks, and the simulation runs with the vehicle automatically updated each step.
+
+Therefore, perhaps the code I'm writing can follow that structure, and the main loop is handled by the app.Execute().
+
+Thus, the code structure would be:
+
+Import statements.
+
+Initialize the vehicle and terrain.
+
+Set up the driver and callbacks.
+
+Configure visualization and camera.
+
+Call app.Execute().
+
+So, the code would look like:
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemSMC()
+
+    # Create the vehicle
+    vehicle = veh.CityBus(my_system)
+    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+
+    # Create the terrain
+    terrain = veh.RigidTerrain(my_system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    terrain.SetContactMaterial(patch_mat)
+    terrain.SetPlane(chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,1,0))  # terrain at z=0
+    texture_path = 'path/to/texture.jpg'  # replace with actual path
+    terrain.GetPlaneGeometry().SetTexture(texture_path, 20, 20)
+
+    # Visualization setup
+    app = irr.ChIrrApp(my_system, 'CityBus Simulation', irr.dimension2du(1024,768))
+    app.AddTypicalLights()
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+
+    # Vehicle visualization
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    for axle in vehicle.GetAxles():
+        for wheel in axle.wheels:
+            wheel.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+    terrain.Initialize(app.GetVideoDriver())
+
+    # Driver setup
+    driver = veh.ManualDriver()
+    vehicle.SetDriver(driver)
+
+    # Camera setup
+    camera_distance = 20
+    camera_height = 5
+    app.SetChaseCamera(vehicle.GetChassis(), camera_distance, camera_height)
+
+    # Event callbacks for driver controls
+    class DriverCallbacks(irr.IrrlichtDriver):
+        def __init__(self, driver):
+            super().__init__()
+            self.driver = driver
+
+        def OnKeyDown(self, key):
+            if key == irr.KEY_KEY_UP:
+                self.driver.SetThrottle(1)
+            elif key == irr.KEY_KEY_DOWN:
+                self.driver.SetBrake(1)
+            elif key == irr.KEY_KEY_LEFT:
+                self.driver.SetSteering(-1)
+            elif key == irr.KEY_KEY_RIGHT:
+                self.driver.SetSteering(1)
+
+        def OnKeyUp(self, key):
+            if key == irr.KEY_KEY_UP:
+                self.driver.SetThrottle(0)
+            elif key == irr.KEY_KEY_DOWN:
+                self.driver.SetBrake(0)
+            elif key == irr.KEY_KEY_LEFT or key == irr.KEY_KEY_RIGHT:
+                self.driver.SetSteering(0)
+
+    callbacks = DriverCallbacks(driver)
+    app.SetEventCallbacks(callbacks)
+
+    # Simulation settings
+    app.SetTimestep(0.02)  # 50 FPS
+    app.SetVsync(True)
+    app.SetTryRealtime(True)  # real-time simulation
+
+    # Run the simulation
+    app.Execute()
+
+if __name__ == '__main__':
+    main()
+
+Wait, but in the terrain setup, the plane's normal is (0,1,0), which is the y-axis. That would make the terrain vertical, which is incorrect. The terrain should be a horizontal plane, so the normal should be (0,0,1). Let me correct that:
+
+terrain.SetPlane(chrono.ChVectorD(0,0,0), chrono.ChVectorD(0,0,1))  # normal along z-axis
+
+Yes, that's right. The plane equation is Ax + By + Cz + D = 0. The normal vector (0,0,1) means the plane is horizontal (z=0).
+
+Also, the texture path needs to be a valid path. The user should replace 'path/to/texture.jpg' with an actual file.
+
+Another thing: the tire model setup. The CityBus might already have tires initialized, but maybe they need to be explicitly set. Let me check the CityBus documentation.
+
+Looking at the PyChrono CityBus class, it's part of the vehicle models. The Initialize method takes position and orientation. The tires are part of the axles, so perhaps they are initialized automatically. So maybe no need to set them unless changing parameters.
+
+Thus, the code should be okay.
+
+Potential issues:
+
+- The texture path must exist; the user should provide a valid path.
+
+- The camera's chase distance and height might need adjustment for better view.
+
+- The steering is set to -1 or 1 when left/right is pressed. That might be too abrupt, but it's a starting point.
+
+- The simulation might run in real-time (SetTryRealtime(True)), but with 50 FPS, it should be okay.
+
+This should fulfill the user's requirements: environment setup, terrain with texture, vehicle with mesh and primitives, camera following, driver controls via keyboard, and 50 FPS simulation.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+def main():
+    # Create the Chrono system
+    my_system = chrono.ChSystemSMC()
+
+    # Create the CityBus vehicle
+    vehicle = veh.CityBus(my_system)
+    vehicle.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.QUNIT))
+
+    # Create rigid terrain with custom texture
+    terrain = veh.RigidTerrain(my_system)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    terrain.SetContactMaterial(patch_mat)
+    terrain.SetPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1))  # Horizontal plane
+    texture_path = 'path/to/terrain_texture.jpg'  # Replace with actual texture path
+    terrain.GetPlaneGeometry().SetTexture(texture_path, 20, 20)
+
+    # Initialize Irrlicht visualization
+    app = irr.ChIrrApp(my_system, 'CityBus Simulation', irr.dimension2du(1024, 768))
+    app.AddTypicalLights()
+    app.AddTypicalLogo()
+    app.AddTypicalSky()
+
+    # Configure vehicle visualization
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    for axle in vehicle.GetAxles():
+        for wheel in axle.wheels:
+            wheel.SetVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+    terrain.Initialize(app.GetVideoDriver())
+
+    # Setup interactive driver
+    driver = veh.ManualDriver()
+    vehicle.SetDriver(driver)
+
+    # Configure chase camera
+    camera_distance = 20
+    camera_height = 5
+    app.SetChaseCamera(vehicle.GetChassis(), camera_distance, camera_height)
+
+    # Event callbacks for driver controls
+    class DriverCallbacks(irr.IrrlichtDriver):
+        def __init__(self, driver):
+            super().__init__()
+            self.driver = driver
+
+        def OnKeyDown(self, key):
+            if key == irr.KEY_KEY_UP:
+                self.driver.SetThrottle(1)
+            elif key == irr.KEY_KEY_DOWN:
+                self.driver.SetBrake(1)
+            elif key == irr.KEY_KEY_LEFT:
+                self.driver.SetSteering(-1)
+            elif key == irr.KEY_KEY_RIGHT:
+                self.driver.SetSteering(1)
+
+        def OnKeyUp(self, key):
+            if key == irr.KEY_KEY_UP:
+                self.driver.SetThrottle(0)
+            elif key == irr.KEY_KEY_DOWN:
+                self.driver.SetBrake(0)
+            elif key == irr.KEY_KEY_LEFT or key == irr.KEY_KEY_RIGHT:
+                self.driver.SetSteering(0)
+
+    callbacks = DriverCallbacks(driver)
+    app.SetEventCallbacks(callbacks)
+
+    # Simulation settings
+    app.SetTimestep(0.02)  # 50 FPS
+    app.SetVsync(True)
+    app.SetTryRealtime(True)  # Real-time simulation
+
+    # Run the simulation
+    app.Execute()
+
+if __name__ == '__main__':
+    main()
+```

@@ -1,0 +1,137 @@
+Here is a self‐contained Python script that sets up a Chrono::Engine SMC system, adds a rigid terrain, instantiates the Viper rover, and drives its steering from 0 up to a maximum over a fixed ramp time.  It uses Irrlicht for real‐time 3D visualization.  You can copy–paste and run this directly (assuming you have `pychrono` and its vehicle modules installed, and that your `CHRONO_DATA_DIR` environment variable is set so that `chrono.GetChronoDataPath()` finds the vehicle JSON files).
+
+```python
+import math
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.vehicle.viper as viper_mod
+import pychrono.irrlicht as irr
+
+# ------------------------------------------------------------------------------
+# 1)  Initialize Chrono system and gravity
+# ------------------------------------------------------------------------------
+chrono.SetChronoDataPath('/path/to/Chrono/data/')   # set this to your Chrono data folder
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# ------------------------------------------------------------------------------
+# 2)  Create a rigid ground (terrain)
+# ------------------------------------------------------------------------------
+terrain = veh.RigidTerrain(system)
+
+# Default material for the terrain patch
+patch_mat = veh.RigidTerrain.PatchMaterialData()
+patch_mat.mu   = 0.9
+patch_mat.cr   = 0.01
+patch_mat.Y    = 2e7
+patch_mat.cr_mu = 0.3
+
+# Add a single infinite patch at height 0
+terrain.AddPatch(patch_mat, chrono.CSYSNORM, 20, 10)
+terrain.Initialize()
+
+# ------------------------------------------------------------------------------
+# 3)  Instantiate the Viper rover and set visualization types
+# ------------------------------------------------------------------------------
+# Note: ViperVehicle will look for JSONs in CHRONO_DATA_DIR/vehicle/viper/
+viper = viper_mod.ViperVehicle()
+viper.SetContactMethod(chrono.ChMaterialSurface.SMC)
+viper.SetChassisFixed(False)
+viper.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0.5, 0)))
+viper.Initialize()
+
+# Visualization
+viper.SetChassisVisualizationType(veh.VisualizationType_MESH)
+viper.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+viper.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+viper.SetWheelVisualizationType(veh.VisualizationType_MESH)
+viper.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# ------------------------------------------------------------------------------
+# 4)  (Optional)  Create a simple driver that ramps steering over time
+# ------------------------------------------------------------------------------
+class SimpleRampingDriver:
+    def __init__(self, max_steering, ramp_time):
+        self.max_steer = max_steering
+        self.ramp_time = ramp_time
+        # constant throttle / braking
+        self.throttle = 0.5
+        self.braking  = 0.0
+
+    def GetInputs(self, time):
+        # linear ramp of steering from 0 to max over ramp_time
+        if time < self.ramp_time:
+            steer = self.max_steer * time / self.ramp_time
+        else:
+            steer = self.max_steer
+        # DriverInputs takes (steering, throttle, braking)
+        return veh.DriverInputs(steer, self.throttle, self.braking)
+
+# Create your driver: ramp steering to 30 degrees (0.52 rad) over 5 seconds
+driver = SimpleRampingDriver(max_steering=0.52, ramp_time=5.0)
+
+# ------------------------------------------------------------------------------
+# 5)  Create an Irrlicht application for real-time visualization
+# ------------------------------------------------------------------------------
+app = veh.ChVehicleIrrApp(viper,                         # the vehicle object
+                          "Viper Rover on Rigid Terrain")  # window title
+
+# Add typical lights, skybox, and attach assets
+app.AddTypicalLights()
+app.AddSkyBox()
+app.AddLogo()
+app.SetChaseCamera(chrono.ChCoordsysD(chrono.ChVectorD(-6, 2, 0),
+                                      chrono.Q_from_AngAxis(0.25, chrono.VECT_Y)))
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Set the step sizes
+timestep = 1.0 / 200.0
+app.SetTimestep(timestep)
+system.SetStep(timestep)
+
+# ------------------------------------------------------------------------------
+# 6)  Simulation loop
+# ------------------------------------------------------------------------------
+time = 0.0
+end_time = 20.0
+
+while app.GetDevice().run() and time < end_time:
+    # 1) Get driver inputs for this time
+    inputs = driver.GetInputs(time)
+
+    # 2) Synchronize modules
+    viper.Synchronize(time, inputs, terrain)
+    terrain.Synchronize(time)
+    app.Synchronize("",  # no additional text in title bar
+                    {})
+
+    # 3) Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # 4) Advance all modules by one timestep
+    driver_inputs = inputs  # not advancing the driver object itself here
+    viper.Advance(timestep)
+    terrain.Advance(timestep)
+    app.Advance(timestep)
+
+    # 5) Increment time
+    time += timestep
+```
+
+Explanation of the key steps:
+
+1. We initialize a `ChSystemSMC` and set gravity.
+2. We build a flat, rigid terrain patch using the `RigidTerrain` helper, setting friction, restitution, etc.
+3. We instantiate the Viper rover (`ViperVehicle`) and configure its visualization (mesh for chassis/wheels).
+4. We create a minimal driver class that linearly ramps the steering input from 0 to a maximum angle over a given time, holding throttle and brake fixed.
+5. We attach an Irrlicht application (`ChVehicleIrrApp`), add lights, skybox, and set a chase camera.
+6. In the main loop we:
+   a. Query new driver inputs.
+   b. Call `Synchronize(...)` on the vehicle, terrain, and application.
+   c. Draw the scene.
+   d. Advance each module by one timestep.
+
+You can tweak the `max_steering`, `ramp_time`, throttle, braking or other visual and physical parameters to taste.

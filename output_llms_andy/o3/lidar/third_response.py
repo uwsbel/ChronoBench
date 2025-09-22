@@ -1,0 +1,257 @@
+# =============================================================================
+# Chrono::Sensor demo
+#
+#    - vehicle:     ARTcar (Chrono::Vehicle module)
+#    - terrain:     simple rigid patch
+#    - sensors:     3-D lidar, 2-D lidar, third-person colour camera
+#
+# =============================================================================
+
+import math
+import time
+import numpy as np
+
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import pychrono.vehicle as veh
+
+
+# ----------------------------------------------------------------------------- 
+# Global parameters
+# -----------------------------------------------------------------------------
+#
+# (kept outside *main()* so that they can be used as globals everywhere) 
+#
+
+# -------------  Lidar parameters
+noise_model        = "NONE"                                 # ("NONE", "CONST_NORMAL_XYZI")
+return_mode        = sens.LidarReturnMode_STRONGEST_RETURN  # strongest return
+update_rate        = 5.0                                    # Hz
+horizontal_samples = 800
+vertical_samples   = 300                                    # 1 for the 2-D lidar – see below
+horizontal_fov     = 2 * chrono.CH_PI                       # 360°
+max_vert_angle     =  chrono.CH_PI / 12
+min_vert_angle     = -chrono.CH_PI / 6
+lag                = 0.0                                    # sensor lag
+collection_time    = 1.0 / update_rate
+sample_radius      = 2                                      # super-sampling kernel radius
+divergence_angle   = 0.003                                  # velodyne spec (≈3 mm @ 1 m)
+
+# -------------  Simulation parameters
+step_size  = 1e-3                                           # s
+end_time   = 40.0                                           # s
+vis        = True                                           # on-screen visualisation (sensor filters)
+out_dir    = "SENSOR_OUTPUT/"                               # not used here, but left for completeness
+
+
+# =============================================================================
+# main
+# =============================================================================
+def main():
+    # -------------------------------------------------------------------------
+    # Create and initialise an ARTcar vehicle
+    # -------------------------------------------------------------------------
+    contact_method = chrono.ChContactMethod_NSC
+
+    # Chrono vehicle JSON files (shipped with Chrono installation)
+    # ------------------------------------------------------------
+    # NOTE:
+    # If the ARTcar JSONs are installed in a different folder,
+    # update the paths below accordingly.
+    # ------------------------------------------------------------
+    vehicle_json     = chrono.GetChronoDataFile("sensor/ARTcar/ARTcar_Vehicle.json")
+    powertrain_json  = chrono.GetChronoDataFile("sensor/ARTcar/ARTcar_SimplePowertrain.json")
+    tire_json        = chrono.GetChronoDataFile("sensor/ARTcar/ARTcar_RigidTire.json")
+
+    vehicle = veh.ArticulatedVehicle(vehicle_json,
+                                     powertrain_json,
+                                     tire_json,
+                                     contact_method)
+
+    init_pos = chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0),
+                                  chrono.QUNIT)
+    vehicle.Initialize(init_pos, 0.0)             # 0 m/s initial forward speed
+
+    # Fetch the Chrono system from the vehicle – everything lives in here
+    sys = vehicle.GetSystem()
+
+    # -------------------------------------------------------------------------
+    # Create a simple rigid terrain
+    # -------------------------------------------------------------------------
+    terrain = veh.RigidTerrain(sys)
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+
+    patch_size = 200.0
+    patch = terrain.AddPatch(patch_mat,
+                             chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT),
+                             patch_size, patch_size)
+
+    patch.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"),
+                     patch_size, patch_size)
+    patch.SetColor(chrono.ChColor(0.2, 0.5, 0.3))
+    terrain.Initialize()
+
+    # -------------------------------------------------------------------------
+    # Add a (dummy) driver
+    # -------------------------------------------------------------------------
+    driver = veh.ChDriver(vehicle)      # dummy driver – zero inputs
+    driver.Initialize()
+
+    # -------------------------------------------------------------------------
+    # Sensor manager
+    # -------------------------------------------------------------------------
+    manager = sens.ChSensorManager(sys)
+
+    # Optional: add a point light so visualisation filters have something to show
+    manager.scene.AddPointLight(chrono.ChVectorF(10, 10, 10), chrono.ChColor(1, 1, 1), 500.0)
+
+    # -------------------------------------------------------------------------
+    # Create and attach sensors to the vehicle chassis
+    # -------------------------------------------------------------------------
+    chassis = vehicle.GetChassisBody()
+
+    # Common offset pose for both lidars (re-positioned as requested)
+    lidar_pose = chrono.ChFrameD(
+        chrono.ChVectorD(1.0, 0.0, 1.0),                 # from (-12,0,1)  --->  (1,0,1)
+        chrono.Q_from_AngAxis(0.0, chrono.ChVectorD(0, 1, 0))
+    )
+
+    # -----------------------  3-D lidar  -------------------------------------
+    lidar = sens.ChLidarSensor(
+        parent          = chassis,
+        update_rate     = update_rate,
+        offset_pose     = lidar_pose,
+        h_samples       = horizontal_samples,
+        v_samples       = vertical_samples,
+        h_fov           = horizontal_fov,
+        v_fov_upper     = max_vert_angle,
+        v_fov_lower     = min_vert_angle,
+        max_distance    = 100.0,
+        beam_shape      = sens.LidarBeamShape_RECTANGULAR,
+        sample_radius   = sample_radius,
+        divergence      = divergence_angle,
+        gain            = divergence_angle,
+        return_mode     = return_mode
+    )
+    lidar.SetName("3-D Lidar")
+    lidar.SetLag(lag)
+    lidar.SetCollectionWindow(collection_time)
+
+    # 3-D lidar filter graph
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples,
+                                                "Raw 3-D Lidar Depth"))
+
+    lidar.PushFilter(sens.ChFilterDIAccess())       # depth+intensity
+    lidar.PushFilter(sens.ChFilterPCfromDepth())    # -> point cloud
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0,
+                                                          "3-D Lidar Point Cloud"))
+
+    xyzi_access = sens.ChFilterXYZIAccess()
+    lidar.PushFilter(xyzi_access)
+
+    manager.AddSensor(lidar)
+
+    # -----------------------  2-D lidar  -------------------------------------
+    lidar2d = sens.ChLidarSensor(
+        parent          = chassis,
+        update_rate     = update_rate,
+        offset_pose     = lidar_pose,
+        h_samples       = horizontal_samples,
+        v_samples       = 1,                        # single scan line
+        h_fov           = horizontal_fov,
+        v_fov_upper     = 0.0,
+        v_fov_lower     = 0.0,
+        max_distance    = 100.0,
+        beam_shape      = sens.LidarBeamShape_RECTANGULAR,
+        sample_radius   = sample_radius,
+        divergence      = divergence_angle,
+        gain            = divergence_angle,
+        return_mode     = return_mode
+    )
+    lidar2d.SetName("2-D Lidar")
+    lidar2d.SetLag(lag)
+    lidar2d.SetCollectionWindow(collection_time)
+
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+
+    if vis:
+        lidar2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1,
+                                                  "Raw 2-D Lidar Depth"))
+
+    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
+
+    manager.AddSensor(lidar2d)
+
+    # --------------------  Third-person camera  ------------------------------
+    cam_pose = chrono.ChFrameD(chrono.ChVectorD(-10, 0, 3),   # behind & above vehicle
+                               chrono.QUNIT)
+
+    camera = sens.ChCameraSensor(
+        parent       = chassis,
+        update_rate  = update_rate,
+        offset_pose  = cam_pose,
+        width        = 1280,
+        height       = 720,
+        fov          = chrono.CH_C_PI / 4
+    )
+    camera.SetName("Chase Camera")
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+    manager.AddSensor(camera)
+
+    # -------------------------------------------------------------------------
+    # Simulation loop
+    # -------------------------------------------------------------------------
+    print("\n*** Simulation start ***\n")
+    t_start_wall = time.time()
+
+    while sys.GetChTime() < end_time:
+
+        sim_time = sys.GetChTime()
+
+        # Driver (dummy -> zero inputs)
+        driver.Synchronize(sim_time)
+
+        # Vehicle & terrain
+        driver_inputs = veh.DriverInputs()     # all zeros
+        vehicle.Synchronize(sim_time, driver_inputs, terrain)
+        terrain.Synchronize(sim_time)
+
+        # Advance modules
+        driver.Advance(step_size)
+        vehicle.Advance(step_size)
+
+        # Sensor manager
+        manager.Update()
+
+        # Physics step
+        sys.DoStepDynamics(step_size)
+
+        # Access most recent point cloud from 3-D lidar (optional print)
+        xyzi = xyzi_access.GetMostRecentBuffer()
+        if xyzi and xyzi.HasData():
+            data = xyzi.GetXYZIData()
+            print("t = {:7.3f}  |  3-D lidar cloud   {}x{}   max-val {:> .3f}"
+                  .format(sim_time,
+                          xyzi.GetWidth(), xyzi.GetHeight(),
+                          np.max(data)))
+
+    wall_time = time.time() - t_start_wall
+    print("\n*** Simulation completed ***")
+    print("Simulated time: {:.2f} s | wall-clock time: {:.2f} s".format(end_time, wall_time))
+
+
+# =============================================================================
+# Run main
+# =============================================================================
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,74 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+
+# Set gravity
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+# Pendulum parameters
+L = 1.0           # Length (m)
+mass = 1.0        # Mass (kg)
+width = 0.1       # Width (m)
+height = 0.1      # Height (m)
+
+# Create pendulum body
+pendulum = chrono.ChBody()
+
+# Set mass and inertia
+Ixx = (1/12) * mass * (height**2 + width**2)
+Iyy = (1/12) * mass * (L**2 + height**2)
+Izz = (1/12) * mass * (L**2 + width**2)
+pendulum.SetInertiaXX(chrono.ChVectorD(Ixx, Iyy, Izz))
+pendulum.SetMass(mass)
+
+# Position and orientation (center of mass at (0, -L/2, 0))
+pendulum.SetPos(chrono.ChVectorD(0, -L/2, 0))
+pendulum.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))  # No initial rotation
+
+# Add visualization shape (box)
+pendulum_shape = chrono.ChBoxShape()
+pendulum_shape.GetBoxGeometry().Size = chrono.ChVectorD(width/2, L/2, height/2)
+pendulum.GetAssets().push_back(pendulum_shape)
+
+# Add pendulum to the system
+system.Add(pendulum)
+
+# Create revolute joint between ground and pendulum at (0,0,0)
+joint = chrono.ChRevoluteJoint()
+system.Add(joint)
+joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)))
+
+# Set up Irrlicht visualization
+application = chronoirr.ChIrrApp(system, 'Pendulum Simulation', chronoirr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, 3), chronoirr.vector3df(0, 0, 0))
+application.AddLightWithShadow(chronoirr.vector3df(2, 5, 2), chronoirr.vector3df(0, 0, 0), 3, 1, 10, 40, 512, chronoirr.SColorf(1, 1, 1))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+next_log_time = 0.0
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    
+    # Advance simulation
+    application.DoStep()
+    
+    # Log data periodically
+    time = system.GetChTime()
+    if time >= next_log_time:
+        theta = joint.GetAngle()  # Joint rotation angle (radians)
+        omega = joint.GetSpeed()  # Joint angular velocity (rad/s)
+        print(f"Time: {time:.3f}s, Theta: {theta:.4f} rad, Omega: {omega:.4f} rad/s")
+        next_log_time += 0.1  # Log every 0.1 seconds
+    
+    application.EndScene()

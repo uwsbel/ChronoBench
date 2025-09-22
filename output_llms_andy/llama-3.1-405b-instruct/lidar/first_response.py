@@ -1,0 +1,71 @@
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+my_system = chrono.ChSystemNSC()
+
+# Add the required physical systems and objects
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("/path/to/mesh.obj")
+body = chrono.ChBodyEasyMesh(mesh, 1000, True, True, 0.5)
+body.SetBodyFixed(True)
+my_system.Add(body)
+
+# Set necessary default parameters
+body.SetPos(chrono.ChVectorD(0, 0, 0))
+body.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Create a sensor manager
+manager = sens.ChSensorManager(my_system)
+
+# Create a lidar sensor
+lidar = sens.ChLidarSensor(
+    body,  # body lidar is attached to
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),  # offset pose
+    100,  # number of horizontal samples
+    100,  # number of vertical channels
+    -chrono.CH_C_PI_2,  # vertical FOV
+    100.0,  # max range
+    0.1,  # scanning rate
+    0.01  # timestamp increment
+)
+
+# Add noise filter to the lidar
+lidar.AddNoiseFilter(sens.ChNoiseFilterGaussian(0.1, 0.1))
+
+# Add visualization to the lidar
+lidar.AddVisualization(chronoirr.ChVisualSystemIrrlicht())
+
+# Add saving options to the lidar
+lidar.SetSaveData(True)
+lidar.SetSavePath("/path/to/lidar/data/")
+
+# Add lidar to the sensor manager
+manager.AddSensor(lidar)
+
+# Simulate the system
+my_system.SetSolverType(chrono.ChSolver.Type_APGD)
+my_system.SetTimestep(0.01)
+my_system.SetEndTime(10.0)
+
+while my_system.GetChTime() < my_system.GetEndTime():
+    # Update lidar position in an orbit around the mesh
+    lidar.SetOffsetPose(
+        chrono.ChFrameD(
+            chrono.ChVectorD(5 * chrono.ChMath.cos(my_system.GetChTime()), 0, 5 * chrono.ChMath.sin(my_system.GetChTime())),
+            chrono.ChQuaternionD(1, 0, 0, 0)
+        )
+    )
+
+    # Print lidar buffer data
+    buffer = lidar.GetMostRecentBuffer()
+    if buffer:
+        print("Lidar Buffer Data:")
+        print(buffer.GetPoints())
+        print(buffer.GetRanges())
+        print(buffer.GetIntensities())
+
+    # Advance simulation
+    my_system.DoStepDynamics()

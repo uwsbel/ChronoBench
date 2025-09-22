@@ -1,0 +1,69 @@
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.postprocess as post
+
+# 1. Initialize the PyChrono environment and core components
+ch.ChGlobalSettings.SetChronoVerbose(False)
+
+# Create the Chrono systems
+sys = ch.ChSystemNSC()
+
+# Create and set the solver
+solver = ch.ChSolverPSAI()
+solver.SetTolerance(1e-4)
+sys.SetSolver(solver)
+
+# Create and set the integrator
+integrator = ch.ChTimestepperEulerImplicitLinearized()
+integrator.SetMaxIters(200)
+sys.SetIntegrator(integrator)
+
+# 2. Add the required physical systems and objects
+
+# Create the IGA beam
+beam = ch.ChBeamIGA()
+beam.SetPos_mm(ch.ChVector3d(0, 0, 0))
+beam.SetRotQ(ch.ChQuaterniond(1, 0, 0, 0))
+beam.SetLength(1.0)  # Length in meters
+beam.SetSectionWidth(0.05)  # Section width in meters
+beam.SetSectionHeight(0.05)  # Section height in meters
+beam.SetNumElements(10)  # Number of finite elements
+beam.SetMaterial(ch.ChBeamMaterialSection(0.785e9, 0.3e9, 7850))  # Material properties
+sys.Add(beam)
+
+# Create the flywheel
+flywheel = ch.ChBody()
+flywheel.SetPos_mm(beam.GetPos_mm() + ch.ChVector3d(0.5, 0, 0))
+flywheel.SetMass(10)  # Mass in kg
+flywheel.SetInertiaXX(ch.ChVector3d(1, 1, 1))
+sys.Add(flywheel)
+
+# Create a joint to attach the flywheel to the beam
+joint = ch.ChLinkLockSpherical()
+joint.Init(beam, flywheel, beam.GetPos_mm(), flywheel.GetPos_mm())
+sys.Add(joint)
+
+# Create the rotational motor
+motor = ch.ChLinkMotorRotation()
+motor.Init(beam, ch.ChBodyFixed(), ch.ChFrame3d(beam.GetPos_mm() + ch.ChVector3d(0, 0, 0), ch.ChQuaterniond(1, 0, 0, 0)))
+motor.SetMotorFunction(ch.ChFunction_Const(0.1))  # Rotation speed in rad/s
+sys.Add(motor)
+
+# 3. Set necessary default parameters
+
+# Set gravity
+sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+
+# Create the Irrlicht application
+app = irr.IrrlichtApplication(sys)
+app.SetTimestep(0.01)
+
+# Enable FEM visualization
+post.FemVisualization(beam, 0.01)
+
+# Show the Irrlicht window
+app.Show()
+
+# Run the simulation
+while app.Run():
+    pass

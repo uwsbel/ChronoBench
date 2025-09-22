@@ -1,0 +1,67 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+
+# Create a Chrono::Engine physical system
+my_system = chrono.ChSystemNSC()
+
+# Create the M113 vehicle
+my_vehicle = chrono.ChM113()
+my_vehicle.SetInitialPosition(chrono.ChVectorD(0, 0.5, 0))
+my_vehicle.SetInitialSpeed(chrono.ChVectorD(0, 0, 0))
+my_vehicle.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+my_system.Add(my_vehicle)
+
+# Create a rigid terrain
+terrain = chrono.ChBodyEasyBox(
+    10,  # length
+    10,  # width
+    1,   # height
+    1000,  # density
+    True,  # fixed
+    chrono.ChVectorD(0, -0.5, 0)  # initial position
+)
+terrain.SetFriction(0.9)
+terrain.SetRestitution(0.2)
+my_system.Add(terrain)
+
+# Create a driver system
+driver = chrono.ChIrrNodeAssetDriver()
+my_vehicle.AddDriver(driver)
+
+# Create an Irrlicht application
+myapplication = chronoirr.ChIrrApp(
+    my_system,
+    'PyChrono example',
+    chronoirr.dimension2du(1024, 768),
+    False,  # fullscreen
+    True   # shadow
+)
+
+# Add a camera
+myapplication.AddCamera(
+    chronoirr.vector3df(0, 1.5, -5),
+    chronoirr.vector3df(0, 0, 0)
+)
+
+# Add a light
+myapplication.AddLight(
+    chronoirr.vector3df(0, 5, 0),
+    chronoirr.vector3df(0, 0, 0),
+    3,  # range
+    0,  # red
+    0,  # green
+    1,  # blue
+    1,  # alpha
+    True  # enabled
+)
+
+# Simulation loop
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()

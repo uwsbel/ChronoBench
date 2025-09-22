@@ -1,0 +1,74 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+import os
+
+# Initialize PyChrono environment and core components
+chrono.SetChronoDataPath(os.environ['CHRONO_DATA_DIR'])
+chrono.SetChronoDataPath(os.environ['CHRONO_DATA_DIR'])
+application = chronoirr.ChIrrApp(chronoirr.ChIrrApp.Type.ChIrrApp_SHARED, "PyChrono Lidar Simulation", chronoirr.dimension2du(800, 600), False, False)
+application.AddTypicalSky()
+application.AddTypicalLogo(chronoirr.GetChronoDataFile('logo_pychrono.png'))
+application.AddTypicalCamera(chronoirr.vector3df(0, 0, -10))
+
+# Create a physical system
+system = chrono.ChSystemNSC()
+
+# Create a mesh shape from Wavefront .obj file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefront(chrono.GetChronoDataFile('fea_block.obj'))
+
+# Create a fixed body and attach the mesh shape
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+body.AddAsset(chrono.ChTriangleMeshShape(mesh))
+system.Add(body)
+
+# Create a sensor manager and add a lidar sensor
+manager = chrono.ChSensorManager()
+manager.AddSensor(chrono.ChLidarSensor(system, 1000, 0.01, 360, 20))
+
+# Set lidar sensor parameters
+lidar = manager.GetSensor(0)
+lidar.SetName("Lidar")
+lidar.SetEnableContact(False)
+lidar.SetFilter(chrono.ChFilterAccess::F_POINTS, chrono.ChFilterAccess::FILTER_NONE)
+lidar.SetFilter(chrono.ChFilterAccess::F_POINTS, chrono.ChFilterAccess::FILTER_NOISE, 0.01)
+lidar.SetFilter(chrono.ChFilterAccess::F_POINTS, chrono.ChFilterAccess::FILTER_MEDIAN, 3)
+lidar.SetFilter(chrono.ChFilterAccess::F_POINTS, chrono.ChFilterAccess::FILTER_REMOVE_OUTLIERS, 0.05)
+lidar.SetFilter(chrono.ChFilterAccess::F_POINTS, chrono.ChFilterAccess::FILTER_SMOOTH, 0.05)
+
+# Set lidar visualization and saving options
+lidar.SetVisualizationType(chrono.ChLidarSensor::VisualizationType::SPHERE)
+lidar.SetSaveBuffer(True)
+lidar.SetSaveBufferToFile(True)
+lidar.SetSaveBufferToFileFormat(chrono.ChLidarSensor::BufferFileFormat::XYZ)
+
+# Set initial position and velocity for the lidar
+lidar_pos = np.array([0, 0, 5])
+lidar_vel = np.array([0, 0, 0])
+
+# Simulate the system
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+
+    # Update lidar position in an orbit around the mesh
+    angle = np.radians(application.GetTimer().GetTime() * 45)
+    lidar_pos[0] = np.cos(angle) * 5
+    lidar_pos[1] = np.sin(angle) * 5
+    lidar_pos[2] = 5
+    lidar.SetPos(chrono.ChVectorD(lidar_pos[0], lidar_pos[1], lidar_pos[2]))
+    lidar.SetPos_dt(chrono.ChVectorD(lidar_vel[0], lidar_vel[1], lidar_vel[2]))
+
+    # Print lidar buffer data at each simulation step
+    lidar_buffer = lidar.GetBuffer()
+    print(lidar_buffer)
+
+    # Update the sensor manager and system
+    manager.Update()
+    system.DoStepDynamics(0.01)
+
+    application.EndScene()
+
+application.Close()

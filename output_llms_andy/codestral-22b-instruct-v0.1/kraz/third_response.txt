@@ -1,0 +1,170 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Initial vehicle location and orientation for truck
+initLoc_truck = chrono.ChVector3d(0, 0, 0.5)
+initRot_truck = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Initial vehicle location and orientation for sedan
+initLoc_sedan = chrono.ChVector3d(5, 0, 0.5)
+initRot_sedan = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model_truck = veh.TireModelType_RIGID
+tire_model_sedan = veh.TireModelType_TMEASY
+
+# Predefined highway mesh
+terrain_mesh = veh.GetDataFile("terrain/meshes/highway.obj")
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the kraz vehicle (truck) and set parameters, and initialize
+truck = veh.Kraz()
+truck.SetContactMethod(contact_method)
+truck.SetChassisCollisionType(chassis_collision_type)
+truck.SetChassisFixed(False)
+truck.SetInitPosition(chrono.ChCoordsysd(initLoc_truck, initRot_truck))
+truck.Initialize()
+
+truck.SetChassisVisualizationType(vis_type, vis_type)
+truck.SetSteeringVisualizationType(vis_type)
+truck.SetSuspensionVisualizationType(vis_type, vis_type)
+truck.SetWheelVisualizationType(vis_type, vis_type)
+truck.SetTireVisualizationType(vis_type, vis_type)
+
+# Create the sedan vehicle and set parameters, and initialize
+sedan = veh.Sedan()
+sedan.SetContactMethod(contact_method)
+sedan.SetChassisCollisionType(chassis_collision_type)
+sedan.SetChassisFixed(False)
+sedan.SetInitPosition(chrono.ChCoordsysd(initLoc_sedan, initRot_sedan))
+sedan.Initialize()
+
+sedan.SetChassisVisualizationType(vis_type, vis_type)
+sedan.SetSteeringVisualizationType(vis_type)
+sedan.SetSuspensionVisualizationType(vis_type, vis_type)
+sedan.SetWheelVisualizationType(vis_type, vis_type)
+sedan.SetTireVisualizationType(vis_type, vis_type)
+
+truck.GetSystem().Add(sedan.GetSystem())
+
+truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(truck.GetSystem())
+patch = terrain.AddPatch(patch_mat, terrain_mesh, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Kraz and Sedan Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(initLoc_truck, 25.0, 1.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(truck.GetTractor())
+vis.AttachVehicle(sedan.GetTractor())
+
+# Create the driver system for truck
+driver_truck = veh.ChInteractiveDriverIRR(vis)
+
+# Create the driver system for sedan
+driver_sedan = veh.ChPathFollowerDriver(sedan.GetVehicle(), "", 0.5, 0.5, 0.0)
+
+# Set the time response for steering and throttle keyboard inputs.
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time = 0.3   # time to go from 0 to +1
+driver_truck.SetSteeringDelta(render_step_size / steering_time)
+driver_truck.SetThrottleDelta(render_step_size / throttle_time)
+driver_truck.SetBrakingDelta(render_step_size / braking_time)
+
+driver_truck.Initialize()
+driver_sedan.Initialize()
+
+# output vehicle mass
+print("TRUCK MASS: ", truck.GetTractor().GetMass())
+print("SEDAN MASS: ", sedan.GetTractor().GetMass())
+
+# Number of simulation steps between miscellaneous events
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter s
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+# Lists to store the state of the truck's tractor and trailer
+tractor_states = []
+trailer_states = []
+
+while vis.Run():
+    time = truck.GetSystem().GetChTime()
+
+    # Render scene and output POV-Ray data
+    if (step_number % render_steps == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs for truck
+    driver_inputs_truck = driver_truck.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver_truck.Synchronize(time)
+    driver_sedan.Synchronize(time)
+    terrain.Synchronize(time)
+    truck.Synchronize(time, driver_inputs_truck, terrain)
+    sedan.Synchronize(time, driver_sedan.GetInputs(), terrain)
+    vis.Synchronize(time, driver_inputs_truck)
+
+    # Advance simulation for one timestep for all modules
+    driver_truck.Advance(step_size)
+    driver_sedan.Advance(step_size)
+    terrain.Advance(step_size)
+    truck.Advance(step_size)
+    sedan.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Store the state of the truck's tractor and trailer
+    tractor_states.append(truck.GetTractor().GetPos())
+    trailer_states.append(truck.GetTrailer().GetPos())
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```
+
+In the modified script, the initial location and orientation for the truck and sedan are set separately. The tire model type for the truck is changed to rigid. The terrain is updated to use a predefined highway mesh. A sedan vehicle is created and initialized with its own parameters. A second driver system for the sedan is added, and it is controlled to move forward with fixed throttle and steering. The state of the truck's tractor and trailer is stored during the simulation in the `tractor_states` and `trailer_states` lists, respectively.

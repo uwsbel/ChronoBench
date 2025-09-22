@@ -1,0 +1,44 @@
+# Import necessary PyChrono modules
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono system
+chrono.Ch纪元.initialize()
+
+# Create the terrain
+terrain = chrono.ChTerrain()
+terrain.Set_size(chrono.ChVectorD(100, 100, 1))  # Size of the terrain
+terrain.Set_texture(chrono.ChTexture(chrono.ChTexture.TextureType.TEXTURE_GRASS))
+terrain.Set_gravity(chrono.ChVectorD(0, -9.81, 0))  # Gravity vector
+
+# Create the HMMWV vehicle
+vehicle = chrono.ChVehicle()
+vehicle.Set_position(chrono.ChVectorD(0, 0, 0))  # Initial position
+vehicle.Set_rotation(chrono.ChQuaternionD(1, 0, 0, 0))  # Initial orientation
+vehicle.Set_contact_method(chrono.ChVehicle::CONTACT_METHOD_TMEASY)  # Contact method
+vehicle.Set_tire_model(chrono.ChVehicle::TMEASY)  # Tire model
+vehicle.Set_visual_model(chrono.ChVisualModel())  # Visual model
+
+# Create the interactive driver system
+driver = chrono.ChDriverSteeringThrottleBrake()
+driver.Set_vehicle(vehicle)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV Simulation")
+vis.AttachSystem(terrain)
+vis.AttachSystem(vehicle)
+vis.SetTimestep(1.0/50)  # Set the frame rate to 50 FPS
+vis.Initialize()
+
+# Start the simulation loop
+while vis.Run():
+    # Update the vehicle dynamics
+    vehicle.DoStepDynamics()
+
+    # Render the scene
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    vis.FastForward()

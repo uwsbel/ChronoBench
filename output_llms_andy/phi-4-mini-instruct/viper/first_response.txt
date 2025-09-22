@@ -1,0 +1,2768 @@
+```python
+import pychrono
+from pychrono import World, Body, BodyManager, WorldManager, World, BodyManager, Body, and WorldManager.
+3. Set up the Viper rover and the terrain.
+4. Implement the Viper rover and its driver.
+5. Set up the Viper rover and its driver.
+6. Set up the Viper rover and its driver.
+7. Implement the Viper rover and its driver.
+8. Set up the Viper rover and its driver.
+9. Implement the Viper rover and its driver.
+10. Set up the Viper rover and its driver.
+11. Implement the Viper rover and its driver.
+12. Set up the Viper rover and its driver.
+13. Implement the Viper rover and its driver.
+14. Set up the Viper rover and its driver.
+15. Implement the Viper rover and its driver.
+16. Set up the Viper rover and its driver.
+
+1. Initialize the Viper rover and its driver.
+2. Set up the Viper rover and its driver.
+
+3. Implement the Viper rover and its driver.
+
+4. Implement the Viper rover and its driver.
+
+5. Set up the Viper rover and its driver.
+
+6. Set up the Viper rover and its driver.
+
+7. Implement the Viper rover and its driver.
+
+8. Implement the Viper rover and its driver.
+
+9. Set up the Viper rover and its driver.
+
+10. Implement the Viper rover and its driver.
+
+11. Implement the Viper rover and its driver.
+
+12. Set up the Viper rover and its driver.
+
+13. Implement the Viper rover and its driver.
+
+14. Set up the Viper rover and its driver.
+
+15. Implement the Viper rover and its driver.
+
+16. Set up the Viper rover and its driver.
+
+17. Implement the Viper rover and its driver.
+
+17. Set up the Viper rover and its driver.
+
+18. Implement the Viper rover and its driver.
+
+19. Set up the Viper rover and its driver.
+
+20. Implement the Viper rover and its driver.
+
+21. Set up the Viper rover and its driver.
+
+22. Implement the Viper rover and its driver.
+
+23. Set up the Viper rover and its driver.
+
+24. Implement the Viper rover and its driver.
+
+25. Set up the Viper rover and its driver.
+
+26. Implement the Viper rover and its driver.
+
+27. Set up the Viper rover and its driver.
+
+28. Implement the Viper rover and its driver.
+
+29. Set up the Viper rover and its driver.
+
+30. Implement the Viper rover and its driver.
+
+31. Set up the Viper rover and its driver.
+
+32. Implement the Viper rover and its driver.
+
+33. Set up the Viper rover and its driver.
+
+34. Implement the Viper rover and its driver.
+
+35. Set up the Viper rover and its driver.
+
+36. Implement the Viper rover and its driver.
+
+37. Set up the Viper rover and its driver.
+
+38. Implement the Viper rover and its driver.
+
+39. Set up the Viper rover and its driver.
+
+40. Implement the Viper rover and its driver.
+
+41. Set up the Viper rover and its driver.
+
+42. Implement the Viper rover and its driver.
+
+43. Set up the Viper rover and its driver.
+
+44. Implement the Viper rover and its driver.
+
+45. Implement the Viper rover and its driver.
+
+46. Set up the Viper rover and its driver.
+
+47. Implement the Viper rover and its driver.
+
+48. Implement the Viper rover and its driver.
+
+49. Set up the Viper rover and its driver.
+
+50. Implement the Viper rover and its driver.
+
+51. Set up the Viper rover and its driver.
+
+52. Implement the Viper rover and its driver.
+
+53. Set up the Viper rover and its driver.
+
+54. Implement the Viper rover and its driver.
+
+55. Set up the Viper rover and its driver.
+
+56. Implement the Viper rover and its driver.
+
+57. Set up the Viper rover and its driver.
+
+58. Implement the Viper rover and its driver.
+
+59. Set up the Viper rover and its driver.
+
+60. Implement the Viper rover and its driver.
+
+61. Implement the Viper rover and its driver.
+
+62. Set up the Viper rover and its driver.
+
+63. Implement the Viper rover and its driver.
+
+64. Set up the Viper rover and its driver.
+
+65. Implement the Viper rover and its driver.
+
+66. Set up the Viper rover and its driver.
+
+67. Implement the Viper rover and its driver.
+
+68. Set up the Viper rover and its driver.
+
+69. Implement the Viper rover and its driver.
+
+70. Set up the Viper rover and its driver.
+
+71. Implement the Viper rover and its driver.
+
+72. Set up the Viper rover and its driver.
+
+73. Implement the Viper rover and its driver.
+
+74. Set up the Viper rover and its driver.
+
+75. Implement the Viper rover and its driver.
+
+76. Set up the Viper rover and its driver.
+
+77. Implement the Viper rover and its driver.
+
+78. Set up the Viper rover and its driver.
+
+79. Implement the Viper rover and its driver.
+
+80. Set up the Viper rover and its driver.
+
+81. Implement the Viper rover and its driver.
+
+82. Set up the Viper rover and its driver.
+
+83. Implement the Viper rover and its driver.
+
+84. Set up the Viper rover and its driver.
+
+85. Implement the Viper rover and its driver.
+
+86. Set up the Viper rover and its driver.
+
+87. Implement the Viper rover and its driver.
+
+88. Set up the Viper rover and its driver.
+
+89. Implement the Viper rover and its driver.
+
+90. Set up the Viper rover and its driver.
+
+91. Implement the Viper rover and its driver.
+
+92. Set up the Viper rover and its driver.
+
+93. Implement the Viper rover and its driver.
+
+94. Set up the Viper rover and its driver.
+
+95. Implement the Viper rover and its driver.
+
+96. Set up the Viper rover and its driver.
+
+97. Implement the Viper rover and its driver.
+
+98. Set up the Viper rover and its driver.
+
+99. Implement the Viper rover and its driver.
+
+100. Set up the Viper rover and its driver.
+
+101. Implement the Viper rover and its driver.
+
+102. Set up the Viper rover and its driver.
+
+103. Implement the Viper rover and its driver.
+
+104. Set up the Viper rover and its driver.
+
+105. Implement the Viper rover and its driver.
+
+106. Set up the Viper rover and its driver.
+
+107. Implement the Viper rover and its driver.
+
+108. Set up the Viper rover and its driver.
+
+109. Implement the Viper rover and its driver.
+
+110. Set up the Viper rover and its driver.
+
+111. Implement the Viper rover and its driver.
+
+112. Set up the Viper rover and its driver.
+
+113. Implement the Viper rover and its driver.
+
+114. Set up the Viper rover and its driver.
+
+115. Implement the Viper rover and its driver.
+
+116. Set up the Viper rover and its driver.
+
+117. Implement the Viper rover and its driver.
+
+118. Set up the Viper rover and its driver.
+
+119. Implement the Viper rover and its driver.
+
+120. Set up the Viper rover and its driver.
+
+121. Implement the Viper rover and its driver.
+
+122. Set up the Viper rover and its driver.
+
+123. Implement the Viper rover and its driver.
+
+124. Set up the Viper rover and its driver.
+
+125. Implement the Viper rover and its driver.
+
+126. Set up the Viper rover and its driver.
+
+127. Implement the Viper rover and its driver.
+
+128. Set up the Viper rover and its driver.
+
+129. Implement the Viper rover and its driver.
+
+130. Set up the Viper rover and its driver.
+
+131. Implement the Viper rover and its driver.
+
+132. Set up the Viper rover and its driver.
+
+133. Implement the Viper rover and its driver.
+
+134. Set up the Viper rover and its driver.
+
+135. Implement the Viper rover and its driver.
+
+136. Set up the Viper rover and its driver.
+
+137. Implement the Viper rover and its driver.
+
+138. Set up the Viper rover and its driver.
+
+139. Implement the Viper rover and its driver.
+
+140. Set up the Viper rover and its driver.
+
+141. Implement the Viper rover and its driver.
+
+142. Set up the Viper rover and its driver.
+
+143. Implement the Viper rover and its driver.
+
+144. Set up the Viper rover and its driver.
+
+145. Implement the Viper rover and its driver.
+
+146. Set up the Viper rover and its driver.
+
+147. Implement the Viper rover and its driver.
+
+148. Set up the Viper rover and its driver.
+
+149. Implement the Viper rover and its driver.
+
+150. Set up the Viper rover and its driver.
+
+151. Implement the Viper rover and its driver.
+
+152. Set up the Viper rover and its driver.
+
+153. Implement the Viper rover and its driver.
+
+154. Set up the Viper rover and its driver.
+
+155. Implement the Viper rover and its driver.
+
+156. Set up the Viper rover and its driver.
+
+157. Implement the Viper rover and its driver.
+
+158. Set up the Viper rover and its driver.
+
+159. Implement the Viper rover and its driver.
+
+160. Set up the Viper rover and its driver.
+
+161. Implement the Viper rover and its driver.
+
+162. Set up the Viper rover and its driver.
+
+163. Implement the Viper rover and its driver.
+
+164. Set up the Viper rover and its driver.
+
+165. Implement the Viper rover and its driver.
+
+166. Set up the Viper rover and its driver.
+
+167. Implement the Viper rover and its driver.
+
+168. Set up the Viper rover and its driver.
+
+169. Implement the Viper rover and its driver.
+
+170. Set up the Viper rover and its driver.
+
+171. Implement the Viper rover and its driver.
+
+172. Set up the Viper rover and its driver.
+
+173. Implement the Viper rover and its driver.
+
+174. Set up the Viper rover and its driver.
+
+175. Implement the Viper rover and its driver.
+
+176. Set up the Viper rover and its driver.
+
+177. Implement the Viper rover and its driver.
+
+178. Set up the Viper rover and its driver.
+
+179. Implement the Viper rover and its driver.
+
+180. Set up the Viper rover and its driver.
+
+181. Implement the Viper rover and its driver.
+
+182. Set up the Viper rover and its driver.
+
+183. Implement the Viper rover and its driver.
+
+184. Set up the Viper rover and its driver.
+
+185. Implement the Viper rover and its driver.
+
+186. Set up the Viper rover and its driver.
+
+187. Implement the Viper rover and its driver.
+
+188. Set up the Viper rover and its driver.
+
+189. Implement the Viper rover and its driver.
+
+190. Set up the Viper rover and its driver.
+
+191. Implement the Viper rover and its driver.
+
+192. Set up the Viper rover and its driver.
+
+193. Implement the Viper rover and its driver.
+
+194. Set up the Viper rover and its driver.
+
+195. Implement the Viper rover and its driver.
+
+196. Set up the Viper rover and its driver.
+
+197. Implement the Viper rover and its driver.
+
+198. Set up the Viper rover and its driver.
+
+199. Implement the Viper rover and its driver.
+
+200. Set up the Viper rover and its driver.
+
+201. Implement the Viper rover and its driver.
+
+202. Set up the Viper rover and its driver.
+
+203. Implement the Viper rover and its driver.
+
+204. Set up the Viper rover and its driver.
+
+205. Implement the Viper rover and its driver.
+
+206. Set up the Viper rover and its driver.
+
+207. Implement the Viper rover and its driver.
+
+208. Set up the Viper rover and its driver.
+
+209. Implement the Viper rover and its driver.
+
+210. Set up the Viper rover and its driver.
+
+211. Implement the Viper rover and its driver.
+
+212. Set up the Viper rover and its driver.
+
+213. Implement the Viper rover and its driver.
+
+214. Set up the Viper rover and its driver.
+
+215. Implement the Viper rover and its driver.
+
+216. Set up the Viper rover and its driver.
+
+217. Implement the Viper rover and its driver.
+
+218. Set up the Viper rover and its driver.
+
+219. Implement the Viper rover and its driver.
+
+220. Set up the Viper rover and its driver.
+
+221. Implement the Viper rover and its driver.
+
+222. Set up the Viper rover and its driver.
+
+223. Implement the Viper rover and its driver.
+
+224. Set up the Viper rover and its driver.
+
+225. Implement the Viper rover and its driver.
+
+226. Set up the Viper rover and its driver.
+
+227. Implement the Viper rover and its driver.
+
+228. Set up the Viper rover and its driver.
+
+229. Implement the Viper rover and its driver.
+
+230. Set up the Viper rover and its driver.
+
+231. Implement the Viper rover and its driver.
+
+232. Set up the Viper rover and its driver.
+
+233. Implement the Viper rover and its driver.
+
+234. Set up the Viper rover and its driver.
+
+235. Implement the Viper rover and its driver.
+
+236. Set up the Viper rover and its driver.
+
+237. Implement the Viper rover and its driver.
+
+238. Set up the Viper rover and its driver.
+
+239. Implement the Viper rover and its driver.
+
+240. Set up the Viper rover and its driver.
+
+241. Implement the Viper rover and its driver.
+
+242. Set up the Viper rover and its driver.
+
+243. Implement the Viper rover and its driver.
+
+244. Set up the Viper rover and its driver.
+
+245. Implement the Viper rover and its driver.
+
+246. Set up the Viper rover and its driver.
+
+247. Implement the Viper rover and its driver.
+
+248. Set up the Viper rover and its driver.
+
+249. Implement the Viper rover and its driver.
+
+250. Set up the Viper rover and its driver.
+
+251. Implement the Viper rover and its driver.
+
+252. Set up the Viper rover and its driver.
+
+253. Implement the Viper rover and its driver.
+
+254. Set up the Viper rover and its driver.
+
+255. Implement the Viper rover and its driver.
+
+256. Set up the Viper rover and its driver.
+
+257. Implement the Viper rover and its driver.
+
+258. Set up the Viper rover and its driver.
+
+259. Implement the Viper rover and its driver.
+
+260. Set up the Viper rover and its driver.
+
+261. Implement the Viper rover and its driver.
+
+262. Set up the Viper rover and its driver.
+
+263. Implement the Viper rover and its driver.
+
+264. Set up the Viper rover and its driver.
+
+265. Implement the Viper rover and its driver.
+
+266. Set up the Viper rover and its driver.
+
+267. Implement the Viper rover and its driver.
+
+268. Set up the Viper rover and its driver.
+
+269. Implement the Viper rover and its driver.
+
+270. Set up the Viper rover and its driver.
+
+271. Implement the Viper rover and its driver.
+
+272. Set up the Viper rover and its driver.
+
+273. Implement the Viper rover and its driver.
+
+274. Set up the Viper rover and its driver.
+
+275. Implement the Viper rover and its driver.
+
+276. Set up the Viper rover and its driver.
+
+277. Implement the Viper rover and its driver.
+
+278. Set up the Viper rover and its driver.
+
+279. Implement the Viper rover and its driver.
+
+280. Set up the Viper rover and its driver.
+
+281. Implement the Viper rover and its driver.
+
+282. Set up the Viper rover and its driver.
+
+283. Implement the Viper rover and its driver.
+
+284. Set up the Viper rover and its driver.
+
+285. Implement the Viper rover and its driver.
+
+286. Set up the Viper rover and its driver.
+
+287. Implement the Viper rover and its driver.
+
+288. Set up the Viper rover and its driver.
+
+289. Implement the Viper rover and its driver.
+
+290. Set up the Viper rover and its driver.
+
+291. Implement the Viper rover and its driver.
+
+292. Set up the Viper rover and its driver.
+
+293. Implement the Viper rover and its driver.
+
+294. Set up the Viper rover and its driver.
+
+295. Implement the Viper rover and its driver.
+
+296. Set up the Viper rover and its driver.
+
+297. Implement the Viper rover and its driver.
+
+298. Set up the Viper rover and its driver.
+
+299. Implement the Viper rover and its driver.
+
+300. Set up the Viper rover and its driver.
+
+301. Implement the Viper rover and its driver.
+
+302. Set up the Viper rover and its driver.
+
+303. Implement the Viper rover and its driver.
+
+304. Set up the Viper rover and its driver.
+
+305. Implement the Viper rover and its driver.
+
+306. Set up the Viper rover and its driver.
+
+307. Implement the Viper rover and its driver.
+
+308. Set up the Viper rover and its driver.
+
+309. Implement the Viper rover and its driver.
+
+310. Set up the Viper rover and its driver.
+
+311. Implement the Viper rover and its driver.
+
+312. Set up the Viper rover and its driver.
+
+313. Implement the Viper rover and its driver.
+
+314. Set up the Viper rover and its driver.
+
+315. Implement the Viper rover and its driver.
+
+316. Set up the Viper rover and its driver.
+
+317. Implement the Viper rover and its driver.
+
+318. Set up the Viper rover and its driver.
+
+319. Implement the Viper rover and its driver.
+
+320. Set up the Viper rover and its driver.
+
+321. Implement the Viper rover and its driver.
+
+322. Set up the Viper rover and its driver.
+
+323. Implement the Viper rover and its driver.
+
+324. Set up the Viper rover and its driver.
+
+325. Implement the Viper rover and its driver.
+
+326. Set up the Viper rover and its driver.
+
+327. Implement the Viper rover and its driver.
+
+328. Set up the Viper rover and its driver.
+
+329. Implement the Viper rover and its driver.
+
+330. Set up the Viper rover and its driver.
+
+331. Implement the Viper rover and its driver.
+
+332. Set up the Viper rover and its driver.
+
+333. Implement the Viper rover and its driver.
+
+334. Set up the Viper rover and its driver.
+
+335. Implement the Viper rover and its driver.
+
+336. Set up the Viper rover and its driver.
+
+337. Implement the Viper rover and its driver.
+
+338. Set up the Viper rover and its driver.
+
+339. Implement the Viper rover and its driver.
+
+340. Set up the Viper rover and its driver.
+
+341. Implement the Viper rover and its driver.
+
+342. Set up the Viper rover and its driver.
+
+343. Implement the Viper rover and its driver.
+
+344. Set up the Viper rover and its driver.
+
+345. Implement the Viper rover and its driver.
+
+346. Set up the Viper rover and its driver.
+
+347. Implement the Viper rover and its driver.
+
+348. Set up the Viper rover and its driver.
+
+349. Implement the Viper rover and its driver.
+
+350. Set up the Viper rover and its driver.
+
+351. Implement the Viper rover and its driver.
+
+352. Set up the Viper rover and its driver.
+
+353. Implement the Viper rover and its driver.
+
+354. Set up the Viper rover and its driver.
+
+355. Implement the Viper rover and its driver.
+
+356. Set up the Viper rover and its driver.
+
+357. Implement the Viper rover and its driver.
+
+358. Set up the Viper rover and its driver.
+
+359. Implement the Viper rover and its driver.
+
+360. Set up the Viper rover and its driver.
+
+361. Implement the Viper rover and its driver.
+
+362. Set up the Viper rover and its driver.
+
+363. Implement the Viper rover and its driver.
+
+364. Set up the Viper rover and its driver.
+
+365. Implement the Viper rover and its driver.
+
+366. Set up the Viper rover and its driver.
+
+367. Implement the Viper rover and its driver.
+
+368. Set up the Viper rover and its driver.
+
+369. Implement the Viper rover and its driver.
+
+370. Set up the Viper rover and its driver.
+
+371. Implement the Viper rover and its driver.
+
+372. Set up the Viper rover and its driver.
+
+373. Implement the Viper rover and its driver.
+
+374. Set up the Viper rover and its driver.
+
+375. Implement the Viper rover and its driver.
+
+376. Set up the Viper rover and its driver.
+
+377. Implement the Viper rover and its driver.
+
+378. Set up the Viper rover and its driver.
+
+379. Implement the Viper rover and its driver.
+
+380. Set up the Viper rover and its driver.
+
+381. Implement the Viper rover and its driver.
+
+382. Set up the Viper rover and its driver.
+
+383. Implement the Viper rover and its driver.
+
+384. Set up the Viper rover and its driver.
+
+385. Implement the Viper rover and its driver.
+
+386. Set up the Viper rover and its driver.
+
+387. Implement the Viper rover and its driver.
+
+388. Set up the Viper rover and its driver.
+
+389. Implement the Viper rover and its driver.
+
+390. Set up the Viper rover and its driver.
+
+391. Implement the Viper rover and its driver.
+
+392. Set up the Viper rover and its driver.
+
+393. Implement the Viper rover and its driver.
+
+394. Set up the Viper rover and its driver.
+
+395. Implement the Viper rover and its driver.
+
+396. Set up the Viper rover and its driver.
+
+397. Implement the Viper rover and its driver.
+
+398. Set up the Viper rover and its driver.
+
+399. Implement the Viper rover and its driver.
+
+400. Set up the Viper rover and its driver.
+
+401. Implement the Viper rover and its driver.
+
+402. Set up the Viper rover and its driver.
+
+403. Implement the Viper rover and its driver.
+
+404. Set up the Viper rover and its driver.
+
+405. Implement the Viper rover and its driver.
+
+406. Set up the Viper rover and its driver.
+
+407. Implement the Viper rover and its driver.
+
+408. Set up the Viper rover and its driver.
+
+409. Implement the Viper rover and its driver.
+
+410. Set up the Viper rover and its driver.
+
+411. Implement the Viper rover and its driver.
+
+412. Set up the Viper rover and its driver.
+
+413. Implement the Viper rover and its driver.
+
+414. Set up the Viper rover and its driver.
+
+415. Implement the Viper rover and its driver.
+
+416. Set up the Viper rover and its driver.
+
+417. Implement the Viper rover and its driver.
+
+418. Set up the Viper rover and its driver.
+
+419. Implement the Viper rover and its driver.
+
+420. Set up the Viper rover and its driver.
+
+421. Implement the Viper rover and its driver.
+
+422. Set up the Viper rover and its driver.
+
+423. Implement the Viper rover and its driver.
+
+424. Set up the Viper rover and its driver.
+
+425. Implement the Viper rover and its driver.
+
+426. Set up the Viper rover and its driver.
+
+427. Implement the Viper rover and its driver.
+
+428. Set up the Viper rover and its driver.
+
+429. Implement the Viper rover and its driver.
+
+430. Set up the Viper rover and its driver.
+
+431. Implement the Viper rover and its driver.
+
+432. Set up the Viper rover and its driver.
+
+433. Implement the Viper rover and its driver.
+
+434. Set up the Viper rover and its driver.
+
+435. Implement the Viper rover and its driver.
+
+436. Set up the Viper rover and its driver.
+
+437. Implement the Viper rover and its driver.
+
+438. Set up the Viper rover and its driver.
+
+439. Implement the Viper rover and its driver.
+
+440. Set up the Viper rover and its driver.
+
+441. Implement the Viper rover and its driver.
+
+442. Set up the Viper rover and its driver.
+
+443. Implement the Viper rover and its driver.
+
+444. Set up the Viper rover and its driver.
+
+445. Implement the Viper rover and its driver.
+
+446. Set up the Viper rover and its driver.
+
+447. Implement the Viper rover and its driver.
+
+448. Set up the Viper rover and its driver.
+
+449. Implement the Viper rover and its driver.
+
+450. Set up the Viper rover and its driver.
+
+451. Implement the Viper rover and its driver.
+
+452. Set up the Viper rover and its driver.
+
+453. Implement the Viper rover and its driver.
+
+454. Set up the Viper rover and its driver.
+
+455. Implement the Viper rover and its driver.
+
+456. Set up the Viper rover and its driver.
+
+457. Implement the Viper rover and its driver.
+
+458. Set up the Viper rover and its driver.
+
+459. Implement the Viper rover and its driver.
+
+460. Set up the Viper rover and its driver.
+
+461. Implement the Viper rover and its driver.
+
+462. Set up the Viper rover and its driver.
+
+463. Implement the Viper rover and its driver.
+
+464. Set up the Viper rover and its driver.
+
+465. Implement the Viper rover and its driver.
+
+466. Set up the Viper rover and its driver.
+
+467. Implement the Viper rover and its driver.
+
+468. Set up the Viper rover and its driver.
+
+469. Implement the Viper rover and its driver.
+
+470. Set up the Viper rover and its driver.
+
+471. Implement the Viper rover and its driver.
+
+472. Set up the Viper rover and its driver.
+
+473. Implement the Viper rover and its driver.
+
+474. Set up the Viper rover and its driver.
+
+475. Implement the Viper rover and its driver.
+
+476. Set up the Viper rover and its driver.
+
+477. Implement the Viper rover and its driver.
+
+478. Set up the Viper rover and its driver.
+
+479. Implement the Viper rover and its driver.
+
+480. Set up the Viper rover and its driver.
+
+481. Implement the Viper rover and its driver.
+
+482. Set up the Viper rover and its driver.
+
+483. Implement the Viper rover and its driver.
+
+484. Set up the Viper rover and its driver.
+
+485. Implement the Viper rover and its driver.
+
+486. Set up the Viper rover and its driver.
+
+487. Implement the Viper rover and its driver.
+
+488. Set up the Viper rover and its driver.
+
+489. Implement the Viper rover and its driver.
+
+490. Set up the Viper rover and its driver.
+
+491. Implement the Viper rover and its driver.
+
+492. Set up the Viper rover and its driver.
+
+493. Implement the Viper rover and its driver.
+
+494. Set up the Viper rover and its driver.
+
+495. Implement the Viper rover and its driver.
+
+496. Set up the Viper rover and its driver.
+
+497. Implement the Viper rover and its driver.
+
+498. Set up the Viper rover and its driver.
+
+499. Implement the Viper rover and its driver.
+
+500. Set up the Viper rover and its driver.
+
+501. Implement the Viper rover and its driver.
+
+502. Set up the Viper rover and its driver.
+
+503. Implement the Viper rover and its driver.
+
+504. Set up the Viper rover and its driver.
+
+505. Implement the Viper rover and its driver.
+
+506. Set up the Viper rover and its driver.
+
+507. Implement the Viper rover and its driver.
+
+508. Set up the Viper rover and its driver.
+
+509. Implement the Viper rover and its driver.
+
+510. Set up the Viper rover and its driver.
+
+511. Implement the Viper rover and its driver.
+
+512. Set up the Viper rover and its driver.
+
+513. Implement the Viper rover and its driver.
+
+514. Set up the Viper rover and its driver.
+
+515. Implement the Viper rover and its driver.
+
+516. Set up the Viper rover and its driver.
+
+517. Implement the Viper rover and its driver.
+
+518. Set up the Viper rover and its driver.
+
+519. Implement the Viper rover and its driver.
+
+520. Set up the Viper rover and its driver.
+
+521. Implement the Viper rover and its driver.
+
+522. Set up the Viper rover and its driver.
+
+523. Implement the Viper rover and its driver.
+
+524. Set up the Viper rover and its driver.
+
+525. Implement the Viper rover and its driver.
+
+526. Set up the Viper rover and its driver.
+
+527. Implement the Viper rover and its driver.
+
+528. Set up the Viper rover and its driver.
+
+529. Implement the Viper rover and its driver.
+
+530. Set up the Viper rover and its driver.
+
+531. Implement the Viper rover and its driver.
+
+532. Set up the Viper rover and its driver.
+
+533. Implement the Viper rover and its driver.
+
+534. Set up the Viper rover and its driver.
+
+535. Implement the Viper rover and its driver.
+
+536. Set up the Viper rover and its driver.
+
+537. Implement the Viper rover and its driver.
+
+538. Set up the Viper rover and its driver.
+
+539. Implement the Viper rover and its driver.
+
+540. Set up the Viper rover and its driver.
+
+541. Implement the Viper rover and its driver.
+
+542. Set up the Viper rover and its driver.
+
+543. Implement the Viper rover and its driver.
+
+544. Set up the Viper rover and its driver.
+
+545. Implement the Viper rover and its driver.
+
+546. Set up the Viper rover and its driver.
+
+547. Implement the Viper rover and its driver.
+
+548. Set up the Viper rover and its driver.
+
+549. Implement the Viper rover and its driver.
+
+550. Set up the Viper rover and its driver.
+
+551. Implement the Viper rover and its driver.
+
+552. Set up the Viper rover and its driver.
+
+553. Implement the Viper rover and its driver.
+
+554. Set up the Viper rover and its driver.
+
+555. Implement the Viper rover and its driver.
+
+556. Set up the Viper rover and its driver.
+
+557. Implement the Viper rover and its driver.
+
+558. Set up the Viper rover and its driver.
+
+559. Implement the Viper rover and its driver.
+
+560. Set up the Viper rover and its driver.
+
+561. Implement the Viper rover and its driver.
+
+562. Set up the Viper rover and its driver.
+
+563. Implement the Viper rover and its driver.
+
+564. Set up the Viper rover and its driver.
+
+565. Implement the Viper rover and its driver.
+
+566. Set up the Viper rover and its driver.
+
+567. Implement the Viper rover and its driver.
+
+568. Set up the Viper rover and its driver.
+
+569. Implement the Viper rover and its driver.
+
+570. Set up the Viper rover and its driver.
+
+571. Implement the Viper rover and its driver.
+
+572. Set up the Viper rover and its driver.
+
+573. Implement the Viper rover and its driver.
+
+574. Set up the Viper rover and its driver.
+
+575. Implement the Viper rover and its driver.
+
+576. Set up the Viper rover and its driver.
+
+577. Implement the Viper rover and its driver.
+
+578. Set up the Viper rover and its driver.
+
+579. Implement the Viper rover and its driver.
+
+580. Set up the Viper rover and its driver.
+
+581. Implement the Viper rover and its driver.
+
+582. Set up the Viper rover and its driver.
+
+583. Implement the Viper rover and its driver.
+
+584. Set up the Viper rover and its driver.
+
+585. Implement the Viper rover and its driver.
+
+586. Set up the Viper rover and its driver.
+
+587. Implement the Viper rover and its driver.
+
+588. Set up the Viper rover and its driver.
+
+589. Implement the Viper rover and its driver.
+
+590. Set up the Viper rover and its driver.
+
+591. Implement the Viper rover and its driver.
+
+592. Set up the Viper rover and its driver.
+
+593. Implement the Viper rover and its driver.
+
+594. Set up the Viper rover and its driver.
+
+595. Implement the Viper rover and its driver.
+
+596. Set up the Viper rover and its driver.
+
+597. Implement the Viper rover and its driver.
+
+598. Set up the Viper rover and its driver.
+
+599. Implement the Viper rover and its driver.
+
+600. Set up the Viper rover and its driver.
+
+601. Implement the Viper rover and its driver.
+
+602. Set up the Viper rover and its driver.
+
+603. Implement the Viper rover and its driver.
+
+604. Set up the Viper rover and its driver.
+
+605. Implement the Viper rover and its driver.
+
+606. Set up the Viper rover and its driver.
+
+607. Implement the Viper rover and its driver.
+
+608. Set up the Viper rover and its driver.
+
+609. Implement the Viper rover and its driver.
+
+610. Set up the Viper rover and its driver.
+
+611. Implement the Viper rover and its driver.
+
+612. Set up the Viper rover and its driver.
+
+613. Implement the Viper rover and its driver.
+
+614. Set up the Viper rover and its driver.
+
+615. Implement the Viper rover and its driver.
+
+616. Set up the Viper rover and its driver.
+
+617. Implement the Viper rover and its driver.
+
+618. Set up the Viper rover and its driver.
+
+619. Implement the Viper rover and its driver.
+
+620. Set up the Viper rover and its driver.
+
+621. Implement the Viper rover and its driver.
+
+622. Set up the Viper rover and its driver.
+
+623. Implement the Viper rover and its driver.
+
+624. Set up the Viper rover and its driver.
+
+625. Implement the Viper rover and its driver.
+
+626. Set up the Viper rover and its driver.
+
+627. Implement the Viper rover and its driver.
+
+628. Set up the Viper rover and its driver.
+
+629. Implement the Viper rover and its driver.
+
+630. Set up the Viper rover and its driver.
+
+631. Implement the Viper rover and its driver.
+
+632. Set up the Viper rover and its driver.
+
+633. Implement the Viper rover and its driver.
+
+634. Set up the Viper rover and its driver.
+
+635. Implement the Viper rover and its driver.
+
+636. Set up the Viper rover and its driver.
+
+637. Implement the Viper rover and its driver.
+
+638. Set up the Viper rover and its driver.
+
+639. Implement the Viper rover and its driver.
+
+640. Set up the Viper rover and its driver.
+
+641. Implement the Viper rover and its driver.
+
+642. Set up the Viper rover and its driver.
+
+643. Implement the Viper rover and its driver.
+
+644. Set up the Viper rover and its driver.
+
+645. Implement the Viper rover and its driver.
+
+646. Set up the Viper rover and its driver.
+
+647. Implement the Viper rover and its driver.
+
+648. Set up the Viper rover and its driver.
+
+649. Implement the Viper rover and its driver.
+
+650. Set up the Viper rover and its driver.
+
+651. Implement the Viper rover and its driver.
+
+652. Set up the Viper rover and its driver.
+
+653. Implement the Viper rover and its driver.
+
+654. Set up the Viper rover and its driver.
+
+655. Implement the Viper rover and its driver.
+
+656. Set up the Viper rover and its driver.
+
+657. Implement the Viper rover and its driver.
+
+658. Set up the Viper rover and its driver.
+
+659. Implement the Viper rover and its driver.
+
+660. Set up the Viper rover and its driver.
+
+661. Implement the Viper rover and its driver.
+
+662. Set up the Viper rover and its driver.
+
+663. Implement the Viper rover and its driver.
+
+664. Set up the Viper rover and its driver.
+
+665. Implement the Viper rover and its driver.
+
+666. Set up the Viper rover and its driver.
+
+667. Implement the Viper rover and its driver.
+
+668. Set up the Viper rover and its driver.
+
+669. Implement the Viper rover and its driver.
+
+670. Set up the Viper rover and its driver.
+
+671. Implement the Viper rover and its driver.
+
+672. Set up the Viper rover and its driver.
+
+673. Implement the Viper rover and its driver.
+
+674. Set up the Viper rover and its driver.
+
+675. Implement the Viper rover and its driver.
+
+676. Set up the Viper rover and its driver.
+
+677. Implement the Viper rover and its driver.
+
+678. Set up the Viper rover and its driver.
+
+679. Implement the Viper rover and its driver.
+
+680. Set up the Viper rover and its driver.
+
+681. Implement the Viper rover and its driver.
+
+682. Set up the Viper rover and its driver.
+
+683. Implement the Viper rover and its driver.
+
+684. Set up the Viper rover and its driver.
+
+685. Implement the Viper rover and its driver.
+
+686. Set up the Viper rover and its driver.
+
+687. Implement the Viper rover and its driver.
+
+688. Set up the Viper rover and its driver.
+
+689. Implement the Viper rover and its driver.
+
+690. Set up the Viper rover and its driver.
+
+691. Implement the Viper rover and its driver.
+
+692. Set up the Viper rover and its driver.
+
+693. Implement the Viper rover and its driver.
+
+694. Set up the Viper rover and its driver.
+
+695. Implement the Viper rover and its driver.
+
+696. Set up the Viper rover and its driver.
+
+697. Implement the Viper rover and its driver.
+
+698. Set up the Viper rover and its driver.
+
+699. Implement the Viper rover and its driver.
+
+700. Set up the Viper rover and its driver.
+
+701. Implement the Viper rover and its driver.
+
+702. Set up the Viper rover and its driver.
+
+703. Implement the Viper rover and its driver.
+
+704. Set up the Viper rover and its driver.
+
+705. Implement the Viper rover and its driver.
+
+706. Set up the Viper rover and its driver.
+
+707. Implement the Viper rover and its driver.
+
+708. Set up the Viper rover and its driver.
+
+709. Implement the Viper rover and its driver.
+
+710. Set up the Viper rover and its driver.
+
+711. Implement the Viper rover and its driver.
+
+712. Set up the Viper rover and its driver.
+
+713. Implement the Viper rover and its driver.
+
+714. Set up the Viper rover and its driver.
+
+715. Implement the Viper rover and its driver.
+
+716. Set up the Viper rover and its driver.
+
+717. Implement the Viper rover and its driver.
+
+718. Set up the Viper rover and its driver.
+
+719. Implement the Viper rover and its driver.
+
+720. Set up the Viper rover and its driver.
+
+721. Implement the Viper rover and its driver.
+
+722. Set up the Viper rover and its driver.
+
+723. Implement the Viper rover and its driver.
+
+724. Set up the Viper rover and its driver.
+
+725. Implement the Viper rover and its driver.
+
+726. Set up the Viper rover and its driver.
+
+727. Implement the Viper rover and its driver.
+
+728. Set up the Viper rover and its driver.
+
+729. Implement the Viper rover and its driver.
+
+730. Set up the Viper rover and its driver.
+
+731. Implement the Viper rover and its driver.
+
+732. Set up the Viper rover and its driver.
+
+733. Implement the Viper rover and its driver.
+
+734. Set up the Viper rover and its driver.
+
+735. Implement the Viper rover and its driver.
+
+736. Set up the Viper rover and its driver.
+
+737. Implement the Viper rover and its driver.
+
+738. Set up the Viper rover and its driver.
+
+739. Implement the Viper rover and its driver.
+
+740. Set up the Viper rover and its driver.
+
+741. Implement the Viper rover and its driver.
+
+742. Set up the Viper rover and its driver.
+
+743. Implement the Viper rover and its driver.
+
+744. Set up the Viper rover and its driver.
+
+745. Implement the Viper rover and its driver.
+
+746. Set up the Viper rover and its driver.
+
+747. Implement the Viper rover and its driver.
+
+748. Set up the Viper rover and its driver.
+
+749. Implement the Viper rover and its driver.
+
+750. Set up the Viper rover and its driver.
+
+751. Implement the Viper rover and its driver.
+
+752. Set up the Viper rover and its driver.
+
+753. Implement the Viper rover and its driver.
+
+754. Set up the Viper rover and its driver.
+
+755. Implement the Viper rover and its driver.
+
+756. Set up the Viper rover and its driver.
+
+757. Implement the Viper rover and its driver.
+
+758. Set up the Viper rover and its driver.
+
+759. Implement the Viper rover and its driver.
+
+760. Set up the Viper rover and its driver.
+
+761. Implement the Viper rover and its driver.
+
+762. Set up the Viper rover and its driver.
+
+763. Implement the Viper rover and its driver.
+
+764. Set up the Viper rover and its driver.
+
+765. Implement the Viper rover and its driver.
+
+766. Set up the Viper rover and its driver.
+
+767. Implement the Viper rover and its driver.
+
+768. Set up the Viper rover and its driver.
+
+769. Implement the Viper rover and its driver.
+
+770. Set up the Viper rover and its driver.
+
+771. Implement the Viper rover and its driver.
+
+772. Set up the Viper rover and its driver.
+
+773. Implement the Viper rover and its driver.
+
+774. Set up the Viper rover and its driver.
+
+775. Implement the Viper rover and its driver.
+
+776. Set up the Viper rover and its driver.
+
+777. Implement the Viper rover and its driver.
+
+778. Set up the Viper rover and its driver.
+
+779. Implement the Viper rover and its driver.
+
+780. Set up the Viper rover and its driver.
+
+781. Implement the Viper rover and its driver.
+
+782. Set up the Viper rover and its driver.
+
+783. Implement the Viper rover and its driver.
+
+784. Set up the Viper rover and its driver.
+
+785. Implement the Viper rover and its driver.
+
+786. Set up the Viper rover and its driver.
+
+787. Implement the Viper rover and its driver.
+
+788. Set up the Viper rover and its driver.
+
+789. Implement the Viper rover and its driver.
+
+790. Set up the Viper rover and its driver.
+
+791. Implement the Viper rover and its driver.
+
+792. Set up the Viper rover and its driver.
+
+793. Implement the Viper rover and its driver.
+
+794. Set up the Viper rover and its driver.
+
+795. Implement the Viper rover and its driver.
+
+796. Set up the Viper rover and its driver.
+
+797. Implement the Viper rover and its driver.
+
+798. Set up the Viper rover and its driver.
+
+799. Implement the Viper rover and its driver.
+
+800. Set up the Viper rover and its driver.
+
+801. Implement the Viper rover and its driver.
+
+802. Set up the Viper rover and its driver.
+
+803. Implement the Viper rover and its driver.
+
+804. Set up the Viper rover and its driver.
+
+805. Implement the Viper rover and its driver.
+
+806. Set up the Viper rover and its driver.
+
+807. Implement the Viper rover and its driver.
+
+808. Set up the Viper rover and its driver.
+
+809. Implement the Viper rover and its driver.
+
+810. Set up the Viper rover and its driver.
+
+811. Implement the Viper rover and its driver.
+
+812. Set up the Viper rover and its driver.
+
+813. Implement the Viper rover and its driver.
+
+814. Set up the Viper rover and its driver.
+
+815. Implement the Viper rover and its driver.
+
+816. Set up the Viper rover and its driver.
+
+817. Implement the Viper rover and its driver.
+
+818. Set up the Viper rover and its driver.
+
+819. Implement the Viper rover and its driver.
+
+820. Set up the Viper rover and its driver.
+
+821. Implement the Viper rover and its driver.
+
+822. Set up the Viper rover and its driver.
+
+823. Implement the Viper rover and its driver.
+
+824. Set up the Viper rover and its driver.
+
+825. Implement the Viper rover and its driver.
+
+826. Set up the Viper rover and its driver.
+
+827. Implement the Viper rover and its driver.
+
+828. Set up the Viper rover and its driver.
+
+829. Implement the Viper rover and its driver.
+
+830. Set up the Viper rover and its driver.
+
+831. Implement the Viper rover and its driver.
+
+832. Set up the Viper rover and its driver.
+
+833. Implement the Viper rover and its driver.
+
+834. Set up the Viper rover and its driver.
+
+835. Implement the Viper rover and its driver.
+
+836. Set up the Viper rover and its driver.
+
+837. Implement the Viper rover and its driver.
+
+838. Set up the Viper rover and its driver.
+
+839. Implement the Viper rover and its driver.
+
+840. Set up the Viper rover and its driver.
+
+841. Implement the Viper rover and its driver.
+
+842. Set up the Viper rover and its driver.
+
+843. Implement the Viper rover and its driver.
+
+844. Set up the Viper rover and its driver.
+
+845. Implement the Viper rover and its driver.
+
+846. Set up the Viper rover and its driver.
+
+847. Implement the Viper rover and its driver.
+
+848. Set up the Viper rover and its driver.
+
+849. Implement the Viper rover and its driver.
+
+850. Set up the Viper rover and its driver.
+
+851. Implement the Viper rover and its driver.
+
+852. Set up the Viper rover and its driver.
+
+853. Implement the Viper rover and its driver.
+
+854. Set up the Viper rover and its driver.
+
+855. Implement the Viper rover and its driver.
+
+856. Set up the Viper rover and its driver.
+
+857. Implement the Viper rover and its driver.
+
+858. Set up the Viper rover and its driver.
+
+859. Implement the Viper rover and its driver.
+
+860. Set up the Viper rover and its driver.
+
+861. Implement the Viper rover and its driver.
+
+862. Set up the Viper rover and its driver.
+
+863. Implement the Viper rover and its driver.
+
+864. Set up the Viper rover and its driver.
+
+865. Implement the Viper rover and its driver.
+
+866. Set up the Viper rover and its driver.
+
+867. Implement the Viper rover and its driver.
+
+868. Set up the Viper rover and its driver.
+
+869. Implement the Viper rover and its driver.
+
+870. Set up the Viper rover and its driver.
+
+871. Implement the Viper rover and its driver.
+
+872. Set up the Viper rover and its driver.
+
+873. Implement the Viper rover and its driver.
+
+874. Set up the Viper rover and its driver.
+
+875. Implement the Viper rover and its driver.
+
+876. Set up the Viper rover and its driver.
+
+877. Implement the Viper rover and its driver.
+
+878. Set up the Viper rover and its driver.
+
+879. Implement the Viper rover and its driver.
+
+880. Set up the Viper rover and its driver.
+
+881. Implement the Viper rover and its driver.
+
+882. Set up the Viper rover and its driver.
+
+883. Implement the Viper rover and its driver.
+
+884. Set up the Viper rover and its driver.
+
+885. Implement the Viper rover and its driver.
+
+886. Set up the Viper rover and its driver.
+
+887. Implement the Viper rover and its driver.
+
+888. Set up the Viper rover and its driver.
+
+889. Implement the Viper rover and its driver.
+
+890. Set up the Viper rover and its driver.
+
+891. Implement the Viper rover and its driver.
+
+892. Set up the Viper rover and its driver.
+
+893. Implement the Viper rover and its driver.
+
+894. Set up the Viper rover and its driver.
+
+895. Implement the Viper rover and its driver.
+
+896. Set up the Viper rover and its driver.
+
+897. Implement the Viper rover and its driver.
+
+898. Set up the Viper rover and its driver.
+
+899. Implement the Viper rover and its driver.
+
+900. Set up the Viper rover and its driver.
+
+901. Implement the Viper rover and its driver.
+
+902. Set up the Viper rover and its driver.
+
+903. Implement the Viper rover and its driver.
+
+904. Set up the Viper rover and its driver.
+
+905. Implement the Viper rover and its driver.
+
+906. Set up the Viper rover and its driver.
+
+907. Implement the Viper rover and its driver.
+
+908. Set up the Viper rover and its driver.
+
+909. Implement the Viper rover and its driver.
+
+910. Set up the Viper rover and its driver.
+
+911. Implement the Viper rover and its driver.
+
+912. Set up the Viper rover and its driver.
+
+913. Implement the Viper rover and its driver.
+
+914. Set up the Viper rover and its driver.
+
+915. Implement the Viper rover and its driver.
+
+916. Set up the Viper rover and its driver.
+
+917. Implement the Viper rover and its driver.
+
+918. Set up the Viper rover and its driver.
+
+919. Implement the Viper rover and its driver.
+
+920. Set up the Viper rover and its driver.
+
+921. Implement the Viper rover and its driver.
+
+922. Set up the Viper rover and its driver.
+
+923. Implement the Viper rover and its driver.
+
+924. Set up the Viper rover and its driver.
+
+925. Implement the Viper rover and its driver.
+
+926. Set up the Viper rover and its driver.
+
+927. Implement the Viper rover and its driver.
+
+928. Set up the Viper rover and its driver.
+
+929. Implement the Viper rover and its driver.
+
+930. Set up the Viper rover and its driver.
+
+931. Implement the Viper rover and its driver.
+
+932. Set up the Viper rover and its driver.
+
+933. Implement the Viper rover and its driver.
+
+934. Set up the Viper rover and its driver.
+
+935. Implement the Viper rover and its driver.
+
+936. Set up the Viper rover and its driver.
+
+937. Implement the Viper rover and its driver.
+
+938. Set up the Viper rover and its driver.
+
+939. Implement the Viper rover and its driver.
+
+940. Set up the Viper rover and its driver.
+
+941. Implement the Viper rover and its driver.
+
+942. Set up the Viper rover and its driver.
+
+943. Implement the Viper rover and its driver.
+
+944. Set up the Viper rover and its driver.
+
+945. Implement the Viper rover and its driver.
+
+946. Set up the Viper rover and its driver.
+
+947. Implement the Viper rover and its driver.
+
+948. Set up the Viper rover and its driver.
+
+949. Implement the Viper rover and its driver.
+
+950. Set up the Viper rover and its driver.
+
+951. Implement the Viper rover and its driver.
+
+952. Set up the Viper rover and its driver.
+
+953. Implement the Viper rover and its driver.
+
+954. Set up the Viper rover and its driver.
+
+955. Implement the Viper rover and its driver.
+
+956. Set up the Viper rover and its driver.
+
+957. Implement the Viper rover and its driver.
+
+958. Set up the Viper rover and its driver.
+
+959. Implement the Viper rover and its driver.
+
+960. Set up the Viper rover and its driver.
+
+961. Implement the Viper rover and its driver.
+
+962. Set up the Viper rover and its driver.
+
+963. Implement the Viper rover and its driver.
+
+964. Set up the Viper rover and its driver.
+
+965. Implement the Viper rover and its driver.
+
+966. Set up the Viper rover and its driver.
+
+967. Implement the Viper rover and its driver.
+
+968. Set up the Viper rover and its driver.
+
+969. Implement the Viper rover and its driver.
+
+970. Set up the Viper rover and its driver.
+
+971. Implement the Viper rover and its driver.
+
+972. Set up the Viper rover and its driver.
+
+973. Implement the Viper rover and its driver.
+
+974. Set up the Viper rover and its driver.
+
+975. Implement the Viper rover and its driver.
+
+976. Set up the Viper rover and its driver.
+
+977. Implement the Viper rover and its driver.
+
+978. Set up the Viper rover and its driver.
+
+979. Implement the Viper rover and its driver.
+
+980. Set up the Viper rover and its driver.
+
+981. Implement the Viper rover and its driver.
+
+982. Set up the Viper rover and its driver.
+
+983. Implement the Viper rover and its driver.
+
+984. Set up the Viper rover and its driver.
+
+985. Implement the Viper rover and its driver.
+
+986. Set up the Viper rover and its driver.
+
+987. Implement the Viper rover and its driver.
+
+988. Set up the Viper rover and its driver.
+
+989. Implement the Viper rover and its driver.
+
+990. Set up the Viper rover and its driver.
+
+991. Implement the Viper rover and its driver.
+
+992. Set up the Viper rover and its driver.
+
+993. Implement the Viper rover and its driver.
+
+994. Set up the Viper rover and its driver.
+
+995. Implement the Viper rover and its driver.
+
+996. Set up the Viper rover and its driver.
+
+997. Implement the Viper rover and its driver.
+
+998. Set up the Viper rover and its driver.
+
+999. Implement the Viper rover and its driver.
+
+1000. Set up the Viper rover and its driver.
+
+1011. Implement the Viper rover and its driver.
+
+1012. Set up the Viper rover and its driver.
+
+1013. Implement the Viper rover and its driver.
+
+1014. Set up the Viper rover and its driver.
+
+1015. Implement the Viper rover and its driver.
+
+1016. Set up the Viper rover and its driver.
+
+1017. Implement the Viper rover and its driver.
+
+1018. Set up the Viper rover and its driver.
+
+1019. Implement the Viper rover and its driver.
+
+1020. Set up the Viper rover and its driver.
+
+1021. Implement the Viper rover and its driver.
+
+1022. Set up the Viper rover and its driver.
+
+1023. Implement the Viper rover and its driver.
+
+1024. Set up the Viper rover and its driver.
+
+1025. Implement the Viper rover and its driver.
+
+1026. Set up the Viper rover and its driver.
+
+1027. Implement the Viper rover and its driver.
+
+1028. Set up the Viper rover and its driver.
+
+1029. Implement the Viper rover and its driver.
+
+1030. Set up the Viper rover and its driver.
+
+1031. Implement the Viper rover and its driver.
+
+1032. Set up the Viper rover and its driver.
+
+1033. Implement the Viper rover and its driver.
+
+1034. Set up the Viper rover and its driver.
+
+1035. Implement the Viper rover and its driver.
+
+1036. Set up the Viper rover and its driver.
+
+1037. Implement the Viper rover and its driver.
+
+1038. Set up the Viper rover and its driver.
+
+1039. Implement the Viper rover and its driver.
+
+1040. Set up the Viper rover and its driver.
+
+1041. Implement the Viper rover and its driver.
+
+1042. Set up the Viper rover and its driver.
+
+1043. Implement the Viper rover and its driver.
+
+1044. Set up the Viper rover and its driver.
+
+1045. Implement the Viper rover and its driver.
+
+1046. Set up the Viper rover and its driver.
+
+1047. Implement the Viper rover and its driver.
+
+1048. Set up the Viper rover and its driver.
+
+1049. Implement the Viper rover and its driver.
+
+1050. Set up the Viper rover and its driver.
+
+1051. Implement the Viper rover and its driver.
+
+1052. Set up the Viper rover and its driver.
+
+1053. Implement the Viper rover and its driver.
+
+1054. Set up the Viper rover and its driver.
+
+1055. Implement the Viper rover and its driver.
+
+1056. Set up the Viper rover and its driver.
+
+1057. Implement the Viper rover and its driver.
+
+1058. Set up the Viper rover and its driver.
+
+1059. Implement the Viper rover and its driver.
+
+1060. Set up the Viper rover and its driver.
+
+1061. Implement the Viper rover and its driver.
+
+1062. Set up the Viper rover and its driver.
+
+1063. Implement the Viper rover and its driver.
+
+1064. Set up the Viper rover and its driver.
+
+1065. Implement the Viper rover and its driver.
+
+1066. Set up the Viper rover and its driver.
+
+1067. Implement the Viper rover and its driver.
+
+1068. Set up the Viper rover and its driver.
+
+1069. Implement the Viper rover and its driver.
+
+1070. Set up the Viper rover and its driver.
+
+1071. Implement the Viper rover and its driver.
+
+1072. Set up the Viper rover and its driver.
+
+1073. Implement the Viper rover and its driver.
+
+1074. Set up the Viper rover and its driver.
+
+1075. Implement the Viper rover and its driver.
+
+1076. Set up the Viper rover and its driver.
+
+1077. Implement the Viper rover and its driver.
+
+1078. Set up the Viper rover and its driver.
+
+1079. Implement the Viper rover and its driver.
+
+1080. Set up the Viper rover and its driver.
+
+1081. Implement the Viper rover and its driver.
+
+1082. Set up the Viper rover and its driver.
+
+1083. Implement the Viper rover and its driver.
+
+1084. Set up the Viper rover and its driver.
+
+1085. Implement the Viper rover and its driver.
+
+1086. Set up the Viper rover and its driver.
+
+1087. Implement the Viper rover and its driver.
+
+1088. Set up the Viper rover and its driver.
+
+1089. Implement the Viper rover and its driver.
+
+1090. Set up the Viper rover and its driver.
+
+1091. Implement the Viper rover and its driver.
+
+1092. Set up the Viper rover and its driver.
+
+1093. Implement the Viper rover and its driver.
+
+1094. Set up the Viper rover and its driver.
+
+1095. Implement the Viper rover and its driver.
+
+1096. Set up the Viper rover and its driver.
+
+1097. Implement the Viper rover and its driver.
+
+1098. Set up the Viper rover and its driver.
+
+1099. Implement the Viper rover and its driver.
+
+1100. Set up the Viper rover and its driver.
+
+1101. Implement the Viper rover and its driver.
+
+1102. Set up the Viper rover and its driver.
+
+1103. Implement the Viper rover and its driver.
+
+1104. Set up the Viper rover and its driver.
+
+1105. Implement the Viper rover and its driver.
+
+1106. Set up the Viper rover and its driver.
+
+1107. Implement the Viper rover and its driver.
+
+1108. Set up the Viper rover and its driver.
+
+1109. Implement the Viper rover and its driver.
+
+1110. Set up the Viper rover and its driver.
+
+1111. Implement the Viper rover and its driver.
+
+1112. Set up the Viper rover and its driver.
+
+1113. Implement the Viper rover and its driver.
+
+1114. Set up the Viper rover and its driver.
+
+1115. Implement the Viper rover and its driver.
+
+1116. Set up the Viper rover and its driver.
+
+1117. Implement the Viper rover and its driver.
+
+1118. Set up the Viper rover and its driver.
+
+1119. Implement the Viper rover and its driver.
+
+1120. Set up the Viper rover and its driver.
+
+1121. Implement the Viper rover and its driver.
+
+1122. Set up the Viper rover and its driver.
+
+1123. Implement the Viper rover and its driver.
+
+1124. Set up the Viper rover and its driver.
+
+1125. Implement the Viper rover and its driver.
+
+1126. Set up the Viper rover and its driver.
+
+1127. Implement the Viper rover and its driver.
+
+1128. Set up the Viper rover and its driver.
+
+1129. Implement the Viper rover and its driver.
+
+1130. Set up the Viper rover and its driver.
+
+1131. Implement the Viper rover and its driver.
+
+1132. Set up the Viper rover and its driver.
+
+1133. Implement the Viper rover and its driver.
+
+1134. Set up the Viper rover and its driver.
+
+1135. Implement the Viper rover and its driver.
+
+1136. Set up the Viper rover and its driver.
+
+1137. Implement the Viper rover and its driver.
+
+1138. Set up the Viper rover and its driver.
+
+1139. Implement the Viper rover and its driver.
+
+1140. Set up the Viper rover and its driver.
+
+1141. Implement the Viper rover and its driver.
+
+1142. Set up the Viper rover and its driver.
+
+1143. Implement the Viper rover and its driver.
+
+1144. Set up the Viper rover and its driver.
+
+1145. Implement the Viper rover and its driver.
+
+1146. Set up the Viper rover and its driver.
+
+1147. Implement the Viper rover and its driver.
+
+1148. Set up the Viper rover and its driver.
+
+1149. Implement the Viper rover and its driver.
+
+1150. Set up the Viper rover and its driver.
+
+1151. Implement the Viper rover and its driver.
+
+1152. Set up the Viper rover and its driver.
+
+1153. Implement the Viper rover and its driver.
+
+1154. Set up the Viper rover and its driver.
+
+1155. Implement the Viper rover and its driver.
+
+1156. Set up the Viper rover and its driver.
+
+1157. Implement the Viper rover and its driver.
+
+1158. Set up the Viper rover and its driver.
+
+1159. Implement the Viper rover and its driver.
+
+1160. Set up the Viper rover and its driver.
+
+1161. Implement the Viper rover and its driver.
+
+1162. Set up the Viper rover and its driver.
+
+1163. Implement the Viper rover and its driver.
+
+1164. Set up the Viper rover and its driver.
+
+1165. Implement the Viper rover and its driver.
+
+1166. Set up the Viper rover and its driver.
+
+1167. Implement the Viper rover and its driver.
+
+1168. Set up the Viper rover and its driver.
+
+1169. Implement the Viper rover and its driver.
+
+1170. Set up the Viper rover and its driver.
+
+1171. Implement the Viper rover and its driver.
+
+1172. Set up the Viper rover and its driver.
+
+1173. Implement the Viper rover and its driver.
+
+1174. Set up the Viper rover and its driver.
+
+1175. Implement the Viper rover and its driver.
+
+1176. Set up the Viper rover and its driver.
+
+1177. Implement the Viper rover and its driver.
+
+1178. Set up the Viper rover and its driver.
+
+1179. Implement the Viper rover and its driver.
+
+1180. Set up the Viper rover and its driver.
+
+1181. Implement the Viper rover and its driver.
+
+1182. Set up the Viper rover and its driver.
+
+1183. Implement the Viper rover and its driver.
+
+1184. Set up the Viper rover and its driver.
+
+1185. Implement the Viper rover and its driver.
+
+1186. Set up the Viper rover and its driver.
+
+1187. Implement the Viper rover and its driver.
+
+1188. Set up the Viper rover and its driver.
+
+1189. Implement the Viper rover and its driver.
+
+1190. Set up the Viper rover and its driver.
+
+1191. Implement the Viper rover and its driver.
+
+1192. Set up the Viper rover and its driver.
+
+1193. Implement the Viper rover and its driver.
+
+1194. Set up the Viper rover and its driver.
+
+1195. Implement the Viper rover and its driver.
+
+1196. Set up the Viper rover and its driver.
+
+1197. Implement the Viper rover and its driver.
+
+1198. Set up the Viper rover and its driver.
+
+1199. Implement the Viper rover and its driver.
+
+1200. Set up the Viper rover and its driver.
+
+1201. Implement the Viper rover and its driver.
+
+1202. Set up the Viper rover and its driver.
+
+1203. Implement the Viper rover and its driver.
+
+1204. Set up the Viper rover and its driver.
+
+1205. Implement the Viper rover and its driver.
+
+1206. Set up the Viper rover and its driver.
+
+1207. Implement the Viper rover and its driver.
+
+1208. Set up the Viper rover and its driver.
+
+1209. Implement the Viper rover and its driver.
+
+1210. Set up the Viper rover and its driver.
+
+1211. Implement the Viper rover and its driver.
+
+1212. Set up the Viper rover and its driver.
+
+1213. Implement the Viper rover and its driver.
+
+1214. Set up the Viper rover and its driver.
+
+1215. Implement the Viper rover and its driver.
+
+1216. Set up the Viper rover and its driver.
+
+1217. Implement the Viper rover and its driver.
+
+1218. Set up the Viper rover and its driver.
+
+1219. Implement the Viper rover and its driver.
+
+1220. Set up the Viper rover and its driver.
+
+1221. Implement the Viper rover and its driver.
+
+1222. Set up the Viper rover and its driver.
+
+1223. Implement the Viper rover and its driver.
+
+1224. Set up the Viper rover and its driver.
+
+1225. Implement the Viper rover and its driver.
+
+1226. Set up the Viper rover and its driver.
+
+1227. Implement the Viper rover and its driver.
+
+1228. Set up the Viper rover and its driver.
+
+1229. Implement the Viper rover and its driver.
+
+1230. Set up the Viper rover and its driver.
+
+1231. Implement the Viper rover and its driver.
+
+1232. Set up the Viper rover and its driver.
+
+1233. Implement the Viper rover and its driver.
+
+1234. Set up the Viper rover and its driver.
+
+1235. Implement the Viper rover and its driver.
+
+1236. Set up the Viper rover and its driver.
+
+1237. Implement the Viper rover and its driver.
+
+1238. Set up the Viper rover and its driver.
+
+1239. Implement the Viper rover and its driver.
+
+1240. Set up the Viper rover and its driver.
+
+1241. Implement the Viper rover and its driver.
+
+1242. Set up the Viper rover and its driver.
+
+1243. Implement the Viper rover and its driver.
+
+1244. Set up the Viper rover and its driver.
+
+1245. Implement the Viper rover and its driver.
+
+1246. Set up the Viper rover and its driver.
+
+1247. Implement the Viper rover and its driver.
+
+1248. Set up the Viper rover and its driver.
+
+1249. Implement the Viper rover and its driver.
+
+1250. Set up the Viper rover and its driver.
+
+1251. Implement the Viper rover and its driver.
+
+1252. Set up the Viper rover and its driver.
+
+1253. Implement the Viper rover and its driver.
+
+1254. Set up the Viper rover and its driver.
+
+1255. Implement the Viper rover and its driver.
+
+1256. Set up the Viper rover and its driver.
+
+1257. Implement the Viper rover and its driver.
+
+1258. Set up the Viper rover and its driver.
+
+1259. Implement the Viper rover and its driver.
+
+1260. Set up the Viper rover and its driver.
+
+1261. Implement the Viper rover and its driver.
+
+1262. Set up the Viper rover and its driver.
+
+1263. Implement the Viper rover and its driver.
+
+1264. Set up the Viper rover and its driver.
+
+1265. Implement the Viper rover and its driver.
+
+1266. Set up the Viper rover and its driver.
+
+1267. Implement the Viper rover and its driver.
+
+1268. Set up the Viper rover and its driver.
+
+1269. Implement the Viper rover and its driver.
+
+1270. Set up the Viper rover and its driver.
+
+1271. Implement the Viper rover and its driver.
+
+1272. Set up the Viper rover and its driver.
+
+1273. Implement the Viper rover and its driver.
+
+1274. Set up the Viper rover and its driver.
+
+1275. Implement the Viper rover and its driver.
+
+1276. Set up the Viper rover and its driver.
+
+1277. Implement the Viper rover and its driver.
+
+1278. Set up the Viper rover and its driver.
+
+1279. Implement the Viper rover and its driver.
+
+1280. Set up the Viper rover and its driver.
+
+1281. Implement the Viper rover and its driver.
+
+1282. Set up the Viper rover and its driver.
+
+1283. Implement the Viper rover and its driver.
+
+1284. Set up the Viper rover and its driver.
+
+1285. Implement the Viper rover and its driver.
+
+1286. Set up the Viper rover and its driver.
+
+1287. Implement the Viper rover and its driver.
+
+1288. Set up the Viper rover and its driver.
+
+1289. Implement the Viper rover and its driver.
+
+1290. Set up the Viper rover and its driver.
+
+1291. Implement the Viper rover and its driver.
+
+1292. Set up the Viper rover and its driver.
+
+1293. Implement the Viper rover and its driver.
+
+1294. Set up the Viper rover and its driver.
+
+1295. Implement the Viper rover and its driver.
+
+1296. Set up the Viper rover and its driver.
+
+1297. Implement the Viper rover and its driver.
+
+1298. Set up the Viper rover and its driver.
+
+1299. Implement the Viper rover and its driver.
+
+1300. Set up the Viper rover and its driver.
+
+1301. Implement the Viper rover and its driver.
+
+1302. Set up the Viper rover and its driver.
+
+1303. Implement the Viper rover and its driver.
+
+1304. Set up the Viper rover and its driver.
+
+1305. Implement the Viper rover and its driver.
+
+1306. Set up the Viper rover and its driver.
+
+1307. Implement the Viper rover and its driver.
+
+1308. Set up the Viper rover and its driver.
+
+1309. Implement the Viper rover and its driver.
+
+1310. Set up the Viper rover and its driver.
+
+1311. Implement the Viper rover and its driver.
+
+1312. Set up the Viper rover and its driver.
+
+1313. Implement the Viper rover and its driver.
+
+1314. Set up the Viper rover and its driver.
+
+1315. Implement the Viper rover and its driver.
+
+1316. Set up the Viper rover and its driver.
+
+1317. Implement the Viper rover and its driver.
+
+1318. Set up the Viper rover and its driver.
+
+1319. Implement the Viper rover and its driver.
+
+1320. Set up the Viper rover and its driver.
+
+1321. Implement the Viper rover and its driver.
+
+1322. Set up the Viper rover and its driver.
+
+1323. Implement the Viper rover and its driver.
+
+1324. Set up the Viper rover and its driver.
+
+1325. Implement the Viper rover and its driver.
+
+1326. Set up the Viper rover and its driver.
+
+1327. Implement the Viper rover and its driver.
+
+1328. Set up the Viper rover and its driver.
+
+1329. Implement the Viper rover and its driver.
+
+1330. Set up the Viper rover and its driver.
+
+1331. Implement the Viper rover and its driver.
+
+1332. Set up the Viper rover and its driver.
+
+1333. Implement the Viper rover and its driver.
+
+1334. Set up the Viper rover and its driver.
+
+1335. Implement the Viper rover and its driver.
+
+1336. Set up the Viper rover and its driver.
+
+1337. Implement the Viper rover and its driver.
+
+1338. Set up the Viper rover and its driver.
+
+1339. Implement the Viper rover and its driver.
+
+1340. Set up the Viper rover and its driver.
+
+1341. Implement the Viper rover and its driver.
+
+1342. Set up the Viper rover and its driver.
+
+1343. Implement the Viper rover and its driver.
+
+1344. Set up the Viper rover and its driver.
+
+1345. Implement the Viper rover and its driver.
+
+1346. Set up the Viper rover and its driver.
+
+1347. Implement the Viper rover and its driver.
+
+1348. Set up the Viper rover and its driver.
+
+1349. Implement the Viper rover and its driver.
+
+1350. Set up the Viper rover and its driver.
+
+1351. Implement the Viper rover and its driver.
+
+1352. Set up the Viper rover and its driver.
+
+1353. Implement the Viper rover and its driver.
+
+1354. Set up the Viper rover and its driver.
+
+1355. Implement the Viper rover and its driver.
+
+1356. Set up the Viper rover and its driver.
+
+1357. Implement the Viper rover and its driver.
+
+1358. Set up the Viper rover and its driver.
+
+1359. Implement the Viper rover and its driver.
+
+1360. Set up the Viper rover and its driver.
+
+1361. Implement the Viper rover and its driver.
+
+1362. Set up the Viper rover and its driver.
+
+1363. Implement the Viper rover and its driver.
+
+1364. Set up the Viper rover and its driver.
+
+1365. Implement the Viper rover and its driver.
+
+1366. Set up the Viper rover and its driver.
+
+1367. Implement the Viper rover and its driver.
+
+1368. Set up the Viper rover and its driver.
+
+1369. Implement the Viper rover and its driver.
+
+1370. Set up the Viper rover and its driver.
+
+1371. Implement the Viper rover and its driver.
+
+1372. Set up the Viper rover and its driver.
+
+1373. Implement the Viper rover and its driver.
+
+1374. Set up the Viper rover and its driver.
+
+1375. Implement the Viper rover and its driver.
+
+1376. Set up the Viper rover and its driver.
+
+1377. Implement the Viper rover and its driver.
+
+1378. Set up the Viper rover and its driver.
+
+1379. Implement the Viper rover and its driver.
+
+1380. Set up the Viper rover and its driver.
+
+1381. Implement the Viper rover and its driver.
+
+1382. Set up the Viper rover and its driver.
+
+1383. Implement the Viper rover and its driver.
+
+1384. Set up the Viper rover and its driver.
+
+1385. Implement the

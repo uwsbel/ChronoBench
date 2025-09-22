@@ -1,0 +1,96 @@
+import chrono
+import chrono.irrlicht as chronoirr
+import chrono.vehicle as veh
+
+# ---
+#  Initialize the PyChrono environment and core components.
+# ---
+
+# Create a Chrono physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# ---
+#  Add the required physical systems and objects as specified.
+# ---
+
+# Create the terrain
+terrain = chrono.ChRigidBody()
+terrain.SetBodyFixed(True)
+terrain.SetMass(0)
+terrain.AddAsset(chrono.ChTriangleMeshConnected())
+terrain.GetMesh().LoadFromFile("terrain.obj")  # Replace with your terrain file
+terrain.SetCollide(True)
+system.Add(terrain)
+
+# Create the vehicle (CityBus)
+bus = veh.ChCityBus()
+bus.SetVehicleModel("data/vehicle/citybus") # Path to the CityBus vehicle model
+bus.SetInitialPosition(chrono.ChVectorD(0, 1, 0))
+bus.SetInitialOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+bus.SetTireModel(veh.ChTireModel_TMeasy) # Use a simple tire model
+system.Add(bus)
+
+# ---
+# Set necessary default parameters such as positions, forces, and interactions.
+# ---
+
+# Set visualization parameters for the terrain
+terrain.SetMaterialTexture(chrono.ChTexture("data/terrain/texture.png")) # Replace with your terrain texture
+
+# Set visualization parameters for the vehicle
+bus.SetBodyFixed(False)
+bus.SetCollide(True)
+bus.SetVisualizationType(veh.ChVehicleVisualizationType.MESH)
+
+# ---
+# Implement an interactive driver system that allows for control of the vehicle’s steering, throttle, and braking.
+# ---
+
+# Create a driver system
+driver = veh.ChDriver()
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.1)
+driver.SetBrakingDelta(0.1)
+bus.SetDriver(driver)
+
+# ---
+# Create an Irrlicht application for visualization
+# ---
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('CityBus Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(0, 5, -10))
+vis.AddTypicalLights()
+
+# ---
+# Simulation loop
+# ---
+
+time_step = 1.0 / 50.0  # 50 frames per second
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Get input from the user (keyboard)
+    if vis.GetSystem().GetKeyEvent(chrono.ChEventKey.KEY_UP).GetPressed():
+        driver.SetThrottle(1.0)
+    elif vis.GetSystem().GetKeyEvent(chrono.ChEventKey.KEY_DOWN).GetPressed():
+        driver.SetBraking(1.0)
+    else:
+        driver.SetThrottle(0.0)
+        driver.SetBraking(0.0)
+
+    if vis.GetSystem().GetKeyEvent(chrono.ChEventKey.KEY_LEFT).GetPressed():
+        driver.SetSteering(-1.0)
+    elif vis.GetSystem().GetKeyEvent(chrono.ChEventKey.KEY_RIGHT).GetPressed():
+        driver.SetSteering(1.0)
+    else:
+        driver.SetSteering(0.0)
+
+    system.DoStepDynamics(time_step)

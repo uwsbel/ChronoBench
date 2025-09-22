@@ -1,0 +1,55 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# 1. Initialize the PyChrono environment and core components.
+chrono.SetChronoDataPath("/path/to/chrono/data/")  # Update this path
+
+# 2. Create the system and add the required physical systems and objects.
+sys = chrono.ChSystemNSC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# Create the ground body
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+# Create the pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetMass(1.0)
+pendulum.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+pendulum.SetPos(chrono.ChVectorD(0, 1, 0))
+pendulum.SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+sys.Add(pendulum)
+
+# Create the revolute joint between ground and pendulum
+rev_joint = chrono.ChLinkRevolute()
+rev_joint.Initialize(ground, pendulum, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0)))
+sys.Add(rev_joint)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+# (Positions are set above)
+
+# Visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle('Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'logo_pychrono_alpha.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 3))
+vis.AddTypicalLights()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Log pendulum's position and velocity periodically
+    if sys.GetChTime() % 0.1 < 0.01:
+        print(f"Time: {sys.GetChTime()}, Pendulum Pos: {pendulum.GetPos()}, Vel: {pendulum.GetPos_dt()}")
+    
+    sys.DoStepDynamics(0.01)
+

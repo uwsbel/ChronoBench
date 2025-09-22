@@ -1,0 +1,137 @@
+
+Based on the instructions and error analysis, here's the corrected and modified script:
+
+```python
+import math as m
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+sys = chrono.ChSystemSMC()
+
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+mesh.SetAutomaticGravity(True, 2)  # Enable gravity with precision settings
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -3.71, 0))  # Modified gravity
+
+beam_L = 10  # Modified beam length
+beam_ro = 0.060  # Modified outer radius
+beam_ri = 0.055  # Modified inner radius
+
+# Create beam section properties
+minertia = fea.ChInertiaCosseratSimple()
+minertia.SetDensity(7800)
+minertia.SetArea(m.pi * (pow(beam_ro, 2) - pow(beam_ri, 2)))
+minertia.SetIyy((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+minertia.SetIzz((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+melasticity = fea.ChElasticityCosseratSimple()
+melasticity.SetYoungModulus(210e9)
+melasticity.SetShearModulusFromPoisson(0.3)
+melasticity.SetIyy((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetIzz((m.pi / 4.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+melasticity.SetJ((m.pi / 2.0) * (pow(beam_ro, 4) - pow(beam_ri, 4)))
+
+msection = fea.ChBeamSectionCosserat(minertia, melasticity)
+msection.SetCircular(True)
+msection.SetDrawCircularRadius(beam_ro)
+
+# Build beam with IGA elements
+builder = fea.ChBuilderBeamIGA()
+builder.BuildBeam(mesh, msection, 20, 
+                  chrono.ChVector3d(0, 0, 0), 
+                  chrono.ChVector3d(beam_L, 0, 0), 
+                  chrono.VECT_Y, 1)
+
+# Get center node using integer division
+nodes = builder.GetLastBeamNodes()
+node_mid = nodes[len(nodes) // 2]
+
+# Create modified flywheel (larger radius)
+mbodyflywheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.30, 0.1, 7800)  # Modified radius
+mbodyflywheel.SetCoordsys(
+    chrono.ChCoordsysd(node_mid.GetPos() + chrono.ChVector3d(0, 0.05, 0),
+                       chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Z))
+sys.Add(mbodyflywheel)
+
+# Attach flywheel to beam
+myjoint = chrono.ChLinkMateFix()
+myjoint.Initialize(node_mid, mbodyflywheel)
+sys.Add(myjoint)
+
+# Create fixed truss
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+# Create end bearing
+bearing = chrono.ChLinkMateGeneric(False, True, True, False, True, True)
+bearing.Initialize(builder.GetLastBeamNodes().back(),
+                   truss,
+                   chrono.ChFramed(builder.GetLastBeamNodes().back().GetPos()))
+sys.Add(bearing)
+
+# Create rotation motor with modified function
+rotmotor1 = chrono.ChLinkMotorRotationSpeed()
+rotmotor1.Initialize(
+    builder.GetLastBeamNodes().front(), 
+    truss,
+    chrono.ChFramed(builder.GetLastBeamNodes().front().GetPos(),
+                    chrono.QuatFromAngleAxis(m.pi / 2.0, chrono.VECT_Y))
+)
+f_ramp = chrono.ChFunctionSine(60, 0.1)  # Modified motor function
+rotmotor1.SetMotorFunction(f_ramp)
+sys.Add(rotmotor1)
+
+# Visualization settings
+mvisualizebeamA = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_SURFACE)
+mvisualizebeamA.SetSmoothFaces(True)
+mesh.AddVisualShapeFEA(mvisualizebeamA)
+
+mvisualizebeamC = chrono.ChVisualShapeFEA(mesh)
+mvisualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+mvisualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mvisualizebeamC.SetSymbolsThickness(0.006)
+mvisualizebeamC.SetSymbolsScale(0.01)
+mvisualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(mvisualizebeamC)
+
+# Setup visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Modified Jeffcott Rotor Simulation')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2, 8), chrono.ChVector3d(beam_L / 2, 0, 0))  # Modified camera position
+vis.AddTypicalLights()
+
+# Setup solver
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# Simulation loop
+sys.DoStaticLinear()
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.002)
+```
+
+Key changes made:
+1. Fixed PI constant usage (replaced approximate value with math.pi)
+2. Corrected node indexing (using integer division instead of floor)
+3. Applied all requested modifications:
+   - Beam length increased to 10
+   - Beam radii changed to 0.060/0.055
+   - Flywheel radius increased to 0.30
+   - Gravity reduced to -3.71 m/s²
+   - Motor function updated to Sine(60, 0.1)
+   - Camera position adjusted to (0, 2, 8)
+4. Improved code formatting and comments
+5. Maintained all original functionality while implementing requested changes

@@ -23,7 +23,7 @@ logging.basicConfig(
 
 # Paths
 BASE_DIR = Path("/home/hongyu/Documents/andy_simbench/SimBench")
-OUTPUT_DIR = BASE_DIR / "output_llms"
+OUTPUT_DIR = BASE_DIR / "output_llms_justin"
 STAT_DIR = BASE_DIR / "statistic"
 STATISTICS_DIR = BASE_DIR / "statistics"  # Alternative location
 
@@ -45,14 +45,12 @@ TARGET_MODELS = [
     # Microsoft Phi Models (4)
     "phi-3-mini-128k-instruct",
     "phi-3-medium-128k-instruct",
-    "phi-4-mini-instruct",
 
     # Google Gemma Models (5)
     "gemma-2-9b-it",
     "gemma-2-27b-it",
     "gemma-2-2b-it",
     "gemma-3-1b-it",
-    "gemma-3-27b-it",
 
     # Mistral Models (8)
     "mistral-nemo-12b-instruct",
@@ -60,13 +58,9 @@ TARGET_MODELS = [
     "mixtral-8x7b-instruct-v0.1",
     "codestral-22b-instruct-v0.1",
     "mamba-codestral-7b-v0.1",
-    "mistral-small-3.1-24b-instruct-2503",
-    "mistral-medium-3-instruct",
 
     # Qwen Models (2)
     "qwen3-235b-a22b",  # Temporarily disabled - returns invalid response structure
-    "qwq-32b",
-    "qwen2-7b-instruct",
 ]
 
 # Systems to evaluate

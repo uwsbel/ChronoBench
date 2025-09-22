@@ -1,0 +1,59 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+
+# 1. Initialize the PyChrono environment and core components.
+chrono.ChEngine.Initialize()
+
+# 2. Add the required physical systems and objects as specified.
+system = chrono.ChSystemNSC()
+
+# Create a Kraz vehicle
+vehicle = chrono.ChVehicle()
+
+# Create a rigid terrain
+terrain = chrono.ChTerrain()
+terrain.SetGridSize(100, 100)
+terrain.SetFrictionCoefficient(0.8)
+terrain.SetRestitutionCoefficient(0.3)
+
+# Add terrain to the system
+system.Add(terrain.GetGroundBody())
+
+# 3. Set necessary default parameters such as positions, forces, and interactions.
+
+# Set initial position of the vehicle
+vehicle.SetInitialPosition(chrono.ChVector3d(0, 0, 1))
+
+# Create a driver system for vehicle control
+driver = chrono.ChDriver()
+driver.SetVehicle(vehicle)
+driver.SetMode(chrono.DriverMode.TORQUE)
+
+# Create a real-time visualization using Irrlicht
+vis = irr.ChIrrApp(system, 'Kraz Vehicle Simulation', chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(0, -1, 0), True)
+
+# Set camera settings and lighting
+vis.SetCameraDistance(10)
+vis.SetCameraPosition(chrono.ChVector3d(0, -10, 5))
+vis.SetLightPosition(chrono.ChVector3d(10, 10, 10))
+
+# Simulation parameters
+step_size = 0.01
+end_time = 10.0
+
+# Simulation loop
+while vis.GetChTime() < end_time:
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
+    system.DoStepDynamics(step_size)
+    driver.ComputeControl()
+    vis.Synchronize(chrono.ChTimeIncrement())
+    vis.Render()
+    vis.UpdateCamera()
+
+    # Maintain real-time execution
+    chrono.ChTimeIncrement()  # Ensure time progresses
+    vis.SpinEventLoop(chrono.ChTimeIncrement())
+
+# Cleanup
+vis.EndScene()
+chrono.ChEngine.Finalize()

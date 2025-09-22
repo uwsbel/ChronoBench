@@ -1,0 +1,75 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+# Create the physical system
+sys = chrono.ChSystemNSC()
+
+# Create the ground (truss)
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+sys.Add(ground)
+
+# Create the crankshaft
+crankshaft = chrono.ChBody()
+crankshaft.SetMass(1)
+crankshaft.SetInertiaXX(chrono.ChVector3(0.1, 0.1, 0.1))
+crankshaft.SetPos(chrono.ChVector3(0, 0, 0))
+sys.Add(crankshaft)
+
+# Create the connecting rod
+connecting_rod = chrono.ChBody()
+connecting_rod.SetMass(1)
+connecting_rod.SetInertiaXX(chrono.ChVector3(0.1, 0.1, 0.1))
+connecting_rod.SetPos(chrono.ChVector3(1, 0, 0))
+sys.Add(connecting_rod)
+
+# Create the piston
+piston = chrono.ChBody()
+piston.SetMass(1)
+piston.SetInertiaXX(chrono.ChVector3(0.1, 0.1, 0.1))
+piston.SetPos(chrono.ChVector3(2, 0, 0))
+sys.Add(piston)
+
+# Create joints between bodies
+crankshaft_ground_rev = chrono.ChLinkRevolute()
+crankshaft_ground_rev.Initialize(ground, crankshaft, chrono.ChCoordsys(chrono.ChVector3(0, 0, 0)))
+sys.Add(crankshaft_ground_rev)
+
+crankshaft_connecting_rod_rev = chrono.ChLinkRevolute()
+crankshaft_connecting_rod_rev.Initialize(crankshaft, connecting_rod, chrono.ChCoordsys(chrono.ChVector3(1, 0, 0)))
+sys.Add(crankshaft_connecting_rod_rev)
+
+connecting_rod_piston_rev = chrono.ChLinkRevolute()
+connecting_rod_piston_rev.Initialize(connecting_rod, piston, chrono.ChCoordsys(chrono.ChVector3(2, 0, 0)))
+sys.Add(connecting_rod_piston_rev)
+
+piston_ground_lin = chrono.ChLinkLinActuator()
+piston_ground_lin.Initialize(ground, piston, chrono.ChCoordsys(chrono.ChVector3(2, 0, 0)))
+sys.Add(piston_ground_lin)
+
+# Create a motor to drive the crankshaft
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(crankshaft, ground, chrono.ChCoordsys(chrono.ChVector3(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunction_Const(chrono.CH_C_PI))  # 0.5 rad/s
+sys.Add(motor)
+
+# Create the Irrlicht visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank-Slider Mechanism')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataPath() + 'chrono_logo.png')
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3(0, 2, -3))
+vis.AddTypicalLights()
+
+# Run the simulation
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.01)

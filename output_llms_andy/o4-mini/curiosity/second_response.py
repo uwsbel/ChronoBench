@@ -1,0 +1,101 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as robot
+from pychrono import irrlicht as chronoirr
+
+# -------------------------------------------------------------------------
+# 1) Create Chrono system
+# -------------------------------------------------------------------------
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# -------------------------------------------------------------------------
+# 2) Create ground
+# -------------------------------------------------------------------------
+# Use a single contact material for all static objects
+static_mat = chrono.ChMaterialSurfaceNSC()
+
+ground = chrono.ChBodyEasyBox(
+    20,   # x‐size
+    20,   # y‐size
+    1,    # z‐size
+    1000, # density
+    True, # visualization
+    True, # collision
+    static_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(
+    chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# -------------------------------------------------------------------------
+# 3) Add a long box obstacle for the rover to cross
+# -------------------------------------------------------------------------
+obst_mat = chrono.ChMaterialSurfaceNSC()
+obstacle = chrono.ChBodyEasyBox(
+    5.0,  # length in x
+    1.0,  # width in y
+    0.5,  # height in z
+    1000, # density
+    True, # visualization
+    True, # collision
+    obst_mat)
+# place its top surface at z = 0.25 so rover wheels hit it
+obstacle.SetPos(chrono.ChVector3d(0, 0, 0.25))
+obstacle.SetFixed(True)
+system.Add(obstacle)
+
+# -------------------------------------------------------------------------
+# 4) Create the Curiosity rover and install a simple DC‐motor driver
+# -------------------------------------------------------------------------
+rover = robot.Curiosity(system)
+driver = robot.CuriosityDCMotorControl()
+rover.SetDriver(driver)
+
+# Initialize the rover at (–5, 0, 0) with no rotation
+init_pos = chrono.ChVector3d(-5.0, 0.0, 0.0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+# Use ChCoordsysD (not ChFramed) for initialization
+rover.Initialize(chrono.ChCoordsysD(init_pos, init_rot))
+
+# -------------------------------------------------------------------------
+# 5) Set up the Irrlicht visualizer
+# -------------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Curiosity rover – obstacle crossing')
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(-2, -6, 3),    # camera pos
+              chrono.ChVector3d(0, 0, 0))      # aim point
+vis.AddTypicalLights()
+vis.AddLightWithShadow(
+    chrono.ChVector3d(5, -5, 7),
+    chrono.ChVector3d(0, 0, 0),
+    3, 4, 10, 40, 512)
+
+# vis.EnableShadows()  # if you want shadows
+
+# -------------------------------------------------------------------------
+# 6) Driver settings – constant forward throttle, zero steering
+# -------------------------------------------------------------------------
+time_step = 1e-3
+driver.SetThrottle(1.0)  # full forward
+driver.SetSteering(0.0)  # no steering
+
+# -------------------------------------------------------------------------
+# 7) Simulation loop
+# -------------------------------------------------------------------------
+while vis.Run():
+    rover.Update()             # let driver feed inputs to the rover
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

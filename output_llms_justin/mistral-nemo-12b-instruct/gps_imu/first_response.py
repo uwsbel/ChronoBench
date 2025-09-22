@@ -1,0 +1,73 @@
+import pychrono as chrono
+from pychrono.irrlicht import *
+from pychrono.sensors import *
+from pychrono.vehicles import *
+from pychrono.terrain import *
+
+# Initialize PyChrono environment and core components
+simulation = chrono.ChSimulation()
+irrlicht = chrono.ChIrrlichtApplication(simulation, "PyChrono Simulation")
+simulation.SetTimestepper(chrono.ChTimestepper.RungeKutta())
+
+# Add terrain
+terrain = chrono.ChTerrain()
+terrain.SetTexture(chrono.ChTexture(chrono.ChFile("grass.png")))
+terrain.SetColor(chrono.ChColor(0.3, 0.8, 0.2))
+terrain.SetBumpMapping(chrono.ChTexture(chrono.ChFile("grass_bump.png")))
+terrain.SetBumpScale(0.05)
+terrain.SetHeightMap(chrono.ChHeightMap(chrono.ChFile("heightmap.png")))
+terrain.SetMaterial(chrono.ChMaterial())
+terrain.GetMaterial().SetKs(chrono.ChVectorD(0.5, 0.5, 0.5))
+terrain.GetMaterial().SetKd(chrono.ChVectorD(0.8, 0.8, 0.8))
+terrain.GetMaterial().SetShininess(0.1)
+terrain.Initialize()
+simulation.Add(terrain)
+
+# Add HMMWV vehicle
+hmmwv = chrono.ChVehicle()
+hmmwv.SetChassis(chrono.ChBodyEasyBox(1.5, 3, 2, 1000, True))
+hmmwv.SetChassisBodyFixed(False)
+hmmwv.SetChassisPos(chrono.ChVectorD(0, 0, 1))
+hmmwv.SetChassisColor(chrono.ChColor(0.5, 0.3, 0))
+hmmwv.SetWheel(chrono.ChWheel(chrono.ChBodyEasyCylinder(0.2, 0.6, 100, True)))
+hmmwv.SetWheelPos(chrono.ChVectorD(1.5, 1.5, 0.6))
+hmmwv.SetWheelDir(chrono.ChVectorD(0, 1, 0))
+hmmwv.SetWheelSteering(chrono.ChWheelSteering(chrono.ChLinkLockRevolute()))
+hmmwv.SetWheelDrive(chrono.ChWheelDrive(chrono.ChLinkLockRevolute()))
+hmmwv.SetWheelBrake(chrono.ChWheelBrake(chrono.ChLinkLockRevolute()))
+hmmwv.Initialize()
+simulation.Add(hmmwv)
+
+# Add IMU and GPS sensors to the vehicle's chassis
+imu = chrono.ChIMUSensor()
+gps = chrono.ChGPSsensor()
+hmmwv.GetChassis().AddSensor(imu)
+hmmwv.GetChassis().AddSensor(gps)
+
+# Set driver inputs
+driver_inputs = chrono.ChVehicleDriverXU()
+driver_inputs.SetSteeringInput(0)
+driver_inputs.SetAccelerationInput(0)
+driver_inputs.SetBrakeInput(0)
+hmmwv.SetDriver(driver_inputs)
+
+# Set up visual interface using Irrlicht
+irrlicht.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChColor(1, 1, 1))
+irrlicht.AddCamera(chrono.ChVectorD(1, 1, 3), chrono.ChVectorD(0, 0, 0))
+irrlicht.AttachCamera(chrono.ChIrrlichtCamera(irrlicht.GetVideoDriver(), irrlicht.GetSceneManager()))
+irrlicht.SetChaseCamera(hmmwv.GetChassis(), 5.0, 1.5)
+
+# Simulation loop
+while irrlicht.GetDevice().run():
+    # Advance simulation
+    simulation.DoStepDynamics(0.01)
+
+    # Process and update sensor data
+    imu.Update()
+    gps.Update()
+
+    # Output vehicle mass
+    print(f"Vehicle mass: {hmmwv.GetChassis().GetMass()}")
+
+    # Render scene
+    irrlicht.DoStep()

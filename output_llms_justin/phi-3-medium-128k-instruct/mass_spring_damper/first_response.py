@@ -1,0 +1,59 @@
+from pychron import *
+
+from pychron.physics import Mass, SpringDamper
+from pychron.irrlicht import IrrlichtVisualizer, IrrlichtPhysics
+from pychron.physics.visuals import Visual, SphereVisual, CylinderVisual
+
+# Initialize PyChrono
+
+chrono = Chrono()
+
+# Create the physics engine
+
+engine = IrrlichtPhysics(chrono)
+
+# Create the ground body
+
+ground = ChronoSphere(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
+
+# Create the mass body
+
+mass = Mass(chrono, 1.0, 0.0, 0.0, 0.0, 0.0)
+
+# Create the spring damper system
+
+spring_damper = SpringDamper(chrono, 100.0, 0.1)
+
+# Connect the mass to the ground using ChLinkTSDA
+
+spring_damper.create_link(mass, ground, ChLinkTSDA(100.0, 0.1))
+
+# Add visuals for the mass and spring
+
+mass_visual = SphereVisual(chrono, 0.2, mass.get_shape())
+
+spring_visual = CylinderVisual(chrono, 0.1, spring_damper.get_shape())
+
+# Add visuals to the Irrlicht visualizer
+
+visualizer = IrrlichtVisualizer(chrono)
+
+visualizer.add_visual(mass_visual)
+
+visualizer.add_visual(spring_visual)
+
+# Set camera settings
+
+visualizer.set_light_position(0, 10, 0)
+
+visualizer.set_camera_position(0, 10, 10)
+
+visualizer.set_camera_lookat(0, 0, 0)
+
+# Run the simulation
+
+while True:
+
+    chrono.run()
+
+    visualizer.render()

@@ -1,0 +1,68 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the PyChrono environment
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.001)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.001)
+
+# Create the simulation system
+system = chrono.ChSystemNSC()
+
+# Create the terrain (rigid ground)
+terrain = chrono.ChBodyEasyBox(100.0, 0.1, 100.0, 3000, True, True)
+terrain.SetPos(chrono.ChVectorD(0, -0.05, 0))
+terrain.SetCollide(True)
+system.Add(terrain)
+
+# Create the MAN 10t truck model
+truck = chrono.ChBody()
+truck.SetMass(10000)  # mass of the truck
+truck.SetInertiaXX(chrono.ChVectorD(1000, 1000, 1000))
+truck.SetPos(chrono.ChVectorD(0, 0.5, 0))  # initial position
+truck.SetCollide(True)
+system.Add(truck)
+
+# Create wheels and tires using TMEASY tire model
+tire_radius = 0.5
+for i in range(2):  # Assuming 2 front wheels
+    wheel = chrono.ChBodyEasyCylinder(tire_radius, 0.2, 1000, True, True)
+    wheel.SetPos(chrono.ChVectorD(-1.0 + i * 2.0, 0.5 - tire_radius, 0.6))
+    wheel.SetCollide(True)
+    system.Add(wheel)
+    
+    # Attach tire model (TMEASY)
+    tire = chrono.ChTMeasy()
+    tire.SetWheelRadius(tire_radius)
+    tire.SetWheelWidth(0.2)
+    tire.SetTireMass(10.0)
+    tire.SetFriction(0.9)
+    wheel.AddAsset(tire)
+
+# Setup the Irrlicht visualization
+app = chronoirr.ChIrrApp(system, "MAN 10t Truck Simulation", chronoirr.dimension2d(800, 600))
+app.AddSkyBox()
+app.AddLight(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), chrono.ChColor(1, 1, 1))
+app.SetChaseCamera(chrono.ChVectorD(0, 1, -5), chrono.ChVectorD(0, 0.5, 0))
+app.SetShowContactPoints(True)
+
+# Real-time driver controls
+throttle = 0.0
+steering = 0.0
+braking = 0.0
+
+# Simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Update vehicle controls (this is a placeholder for real controls)
+    throttle = 1.0  # Full throttle
+    steering = 0.0  # No steering
+    braking = 0.0   # No braking
+
+    # Update the simulation
+    system.DoStepDynamics(0.01)
+
+# Clean up
+app.GetDevice().drop()

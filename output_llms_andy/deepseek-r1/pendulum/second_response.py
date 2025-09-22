@@ -1,0 +1,72 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the moon
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -1.62, 0))
+
+# Create the ground body
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)
+ground.EnableCollision(False)
+
+# Add visualization SPHERE to the ground (joint representation)
+sphere_ground = chrono.ChVisualShapeSphere(2.0)  # Sphere with radius 2
+ground.AddVisualShape(sphere_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
+
+# Create a pendulum body
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)
+pend_1.EnableCollision(False)
+
+# Set pendulum mass properties
+pend_1.SetMass(2)  # Mass = 2 kg
+pend_1.SetInertiaXX(chrono.ChVector3d(0.4, 1.5, 1.5))  # Modified inertia
+
+# Add visualization cylinder to pendulum (with new dimensions)
+cyl_pend = chrono.ChVisualShapeCylinder(0.1, 1.5)  # Radius 0.1, Height 1.5
+cyl_pend.SetColor(chrono.ChColor(0.6, 0, 0))
+pend_1.AddVisualShape(cyl_pend, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Set initial position (adjusted for new pendulum length)
+pend_1.SetPos(chrono.ChVector3d(0.75, 0, 1))  # COM at midpoint of 1.5m rod
+
+# Set initial angular velocity (Z-axis rotation)
+pend_1.SetAngVelParent(chrono.ChVector3d(0, 0, 1))  # 1 rad/s around global Z
+
+# Create SPHERICAL joint to connect pendulum to ground
+sph_1 = chrono.ChLinkLockSpherical()
+sph_1.Initialize(ground, pend_1, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1)))
+sys.AddLink(sph_1)
+
+# Create visualization system
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Modified Pendulum Demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 6))
+vis.AddTypicalLights()
+
+# Simulation loop
+log_info = True
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()
+        print("t = ", sys.GetChTime())
+        print("Position:", pos_1.x, pos_1.y, pos_1.z)
+        lin_vel_1 = pend_1.GetPosDt()
+        print("Linear Velocity:", lin_vel_1.x, lin_vel_1.y, lin_vel_1.z)
+        log_info = False

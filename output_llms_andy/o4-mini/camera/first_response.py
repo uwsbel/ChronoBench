@@ -1,0 +1,101 @@
+import pychrono.core as chrono
+import pychrono.sensor as sensor
+import math
+
+# 1) Initialize Chrono system
+sys = chrono.ChSystemSMC()
+sys.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2) Load a triangular mesh and create a fixed body
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("mesh.obj",   # your .obj file
+                       False,        # no welding of close vertices
+                       True)         # compute normals
+
+fixed_body = chrono.ChBody()
+fixed_body.SetBodyFixed(True)
+
+# attach mesh purely as visual asset
+mesh_asset = chrono.ChTriangleMeshShape()
+mesh_asset.SetMesh(mesh)
+mesh_asset.SetStatic(True)
+fixed_body.AddAsset(mesh_asset)
+
+sys.Add(fixed_body)
+
+# 3) Create a "ghost" body for the camera (no gravity, can be moved by code)
+cam_body = chrono.ChBody()
+cam_body.SetMass(1.0)
+cam_body.SetInertiaXX(chrono.ChVectorD(1,1,1))
+cam_body.SetNoGravity(True)
+cam_body.SetBodyFixed(False)
+sys.Add(cam_body)
+
+# 4) Create sensor manager
+manager = sensor.ChSensorManager(sys)
+
+# 5) Create and configure a camera sensor
+update_rate  = 30                # Hz
+w, h         = 640, 480
+fov          = chrono.CH_C_PI/3  # 60 deg
+
+camera = sensor.ChCameraSensor(
+    parent=cam_body,
+    updateRate=update_rate,
+    width=w,
+    height=h,
+    fov=fov)
+# no offset needed here (identity)
+camera.SetOffsetPose(chrono.ChFrameD())
+
+# add a mild RGB noise filter
+camera.PushFilter(sensor.ChFilterNoiseRGB(0.02))
+# add a real‐time OpenGL window to visualize
+camera.PushFilter(sensor.ChFilterVisualize(w, h, "Camera View"))
+
+manager.AddSensor(camera)
+
+# helper: build a quaternion so camera "looks at" the origin
+def look_at_q(fromP, toP, up=chrono.ChVectorD(0,0,1)):
+    dir = toP - fromP
+    dir.Normalize()
+    right = up.Cross(dir)
+    right.Normalize()
+    new_up = dir.Cross(right)
+    # build a 3×3 rotation matrix whose columns are (right, new_up, dir)
+    M = chrono.ChMatrix33D(
+        right.x,   new_up.x,   dir.x,
+        right.y,   new_up.y,   dir.y,
+        right.z,   new_up.z,   dir.z)
+    q = chrono.ChQuaternionD()
+    q.Q_from_RotationMatrix(M)
+    return q
+
+# 6) Main simulation loop: move camera in a circle
+dt        = 1.0/100.0
+n_steps   = 300
+radius    = 2.0
+center     = chrono.ChVectorD(0,0,0)
+
+for i in range(n_steps):
+    theta = 2*math.pi * (i / n_steps)
+    pos   = chrono.ChVectorD(radius*math.cos(theta),
+                             radius*math.sin(theta),
+                             1.0)
+    # update our camera body's pose
+    cam_body.SetPos(pos)
+    cam_body.SetRot(look_at_q(pos, center))
+
+    # step physics + sensors
+    sys.DoStepDynamics(dt)
+    manager.Update()
+
+    # grab the most recent RGBA buffer
+    buf = camera.GetMostRecentRGBA8Buffer()
+    # print a little info
+    print(f"Step {i:3d} t={sys.GetChTime():.3f}  buffer_len={len(buf)}  first 8 bytes={list(buf[:8])}")
+
+# keep the window alive if you like
+while True:
+    sys.DoStepDynamics(dt)
+    manager.Update()

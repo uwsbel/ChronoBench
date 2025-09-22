@@ -1,0 +1,513 @@
+Let's evaluate the **MODEL CODE** against the **REFERENCE CODE** and the **API documentation**, highlighting differences, correctness, and best practices.
+
+---
+
+## 1. **Imports**
+
+- MODEL imports:
+  ```python
+  import math as m
+  import pychrono as chrono
+  import pychrono.fea as fea
+  import pychrono.pardisomkl as mklsolver
+  import pychrono.irrlicht as chronicls
+  import os
+  ```
+- REFERENCE imports:
+  ```python
+  import math as m
+  import pychrono as chrono
+  import pychrono.fea as fea
+  import pychrono.pardisomkl as pardiso
+  import pychrono.irrlicht as chronoirr
+  import os
+  ```
+
+**Comments:**
+
+- The MODEL uses `mklsolver` and `chronicls` as aliases, while REFERENCE uses `pardiso` and `chronoirr`.
+- Both are valid, but the REFERENCE uses more descriptive aliases consistent with the module names.
+- No functional issue here, just naming preference.
+
+---
+
+## 2. **Custom Function Class**
+
+- MODEL:
+  ```python
+  class ChFunctionMyFun(chrono.ChFunction):
+      def __init__(self):
+          super().__init__()
+      def GetVal(self, x):
+          if x > 0.5:
+              return chrono.CH_PI
+          else:
+              return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.3)) / 2.0
+  ```
+- REFERENCE:
+  ```python
+  class ChFunctionMyFun(chrono.ChFunction):
+      def __init__(self):
+          chrono.ChFunction.__init__(self)
+      def GetVal(self, x):
+          if x > 0.4:
+              return chrono.CH_PI
+          else:
+              return -chrono.CH_PI * (1.0 - m.cos(chrono.CH_PI * x / 0.4)) / 2.0
+  ```
+
+**Comments:**
+
+- MODEL uses `super().__init__()` which is correct Python 3 style.
+- REFERENCE uses explicit base class constructor call, also valid.
+- The threshold and denominator differ: MODEL uses 0.5 and 0.3, REFERENCE uses 0.4 and 0.4.
+- This changes the function shape and behavior; MODEL's function is different from REFERENCE's.
+- Both are valid but represent different motor speed/angle profiles.
+
+---
+
+## 3. **Output Directory**
+
+- MODEL:
+  ```python
+  out_dir = chrono.GetChronoOutputPath() + "BEAM_FAILED"
+  ```
+- REFERENCE:
+  ```python
+  out_dir = chrono.GetChronoOutputPath() + "BEAM_BUCKLING"
+  ```
+
+**Comments:**
+
+- Different output folder names; no functional impact unless used later.
+- MODEL does not use `os.path.join` or add a trailing slash, which may cause path issues on some OS.
+- REFERENCE also concatenates strings directly, so both are consistent.
+
+---
+
+## 4. **System Initialization**
+
+- Both use:
+  ```python
+  sys = chrono.ChSystemSMC()
+  ```
+- Correct usage per API.
+
+---
+
+## 5. **Geometry Parameters**
+
+- MODEL:
+  ```python
+  L = 1.2
+  H = 0.4
+  K = 0.07
+  ```
+- REFERENCE:
+  ```python
+  L = 1.2
+  H = 0.3
+  K = 0.07
+  ```
+
+**Comments:**
+
+- MODEL uses a taller height (H=0.4 vs 0.3).
+- This affects geometry and simulation results but is not an error.
+
+---
+
+## 6. **Points Definition**
+
+- MODEL:
+  ```python
+  vA = chrono.ChVector3d(0, 0, 0)
+  vC = chrono.ChVector3d(L, 0, 0)
+  vB = chrono.ChVector3d(L, -H, 0)
+  vG = chrono.ChVector3d(L - K, -H, 0)
+  vd = chrono.ChVector3d(0, 0, 0.0001)
+  ```
+- REFERENCE: same points, same values except H=0.3.
+
+---
+
+## 7. **Body Truss**
+
+- MODEL:
+  ```python
+  body_truss = chrono.ChBody()
+  body_truss.SetFixed(True)
+  sys.AddBody(body_truss)
+
+  boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.15)
+  body_truss.AddVisualShape(boxtruss, chrono.ChFrame(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+  ```
+- REFERENCE:
+  ```python
+  body_truss = chrono.ChBody()
+  body_truss.SetFixed(True)
+  sys.AddBody(body_truss)
+
+  boxtruss = chrono.ChVisualShapeBox(0.03, 0.25, 0.12)
+  body_truss.AddVisualShape(boxtruss, chrono.ChFramed(chrono.ChVector3d(-0.01, 0, 0), chrono.QUNIT))
+  ```
+
+**Comments:**
+
+- MODEL uses `ChFrame`, REFERENCE uses `ChFramed`.
+- According to API, the correct class is `chrono.ChFrame` (no 'd' suffix in Python API).
+- So MODEL is correct here; REFERENCE likely has a typo or outdated name.
+- Dimensions differ slightly (0.15 vs 0.12 in Z).
+- MODEL's box is slightly thicker.
+
+---
+
+## 8. **Body Crank**
+
+- MODEL:
+  ```python
+  body_crank = chrono.ChBody()
+  body_crank.SetPos((vC + vG) * 0.5)
+  sys.AddBody(body_crank)
+
+  boxcrank = chrono.ChVisualShapeBox(K, 0.05, 0.03)
+  body_crank.AddVisualShape(boxcrank)
+  ```
+- REFERENCE:
+  ```python
+  body_crank = chrono.ChBody()
+  body_crank.SetPos((vB + vG) * 0.5)
+  sys.AddBody(body_crank)
+
+  boxcrank = chrono.ChVisualShapeBox(K, 0.03, 0.03)
+  body_crank.AddVisualShape(boxcrank)
+  ```
+
+**Comments:**
+
+- MODEL positions crank at midpoint of vC and vG; REFERENCE uses vB and vG.
+- This changes crank location.
+- MODEL's box is taller in Y (0.05 vs 0.03).
+- Both valid but different geometry.
+
+---
+
+## 9. **Motor**
+
+- MODEL:
+  ```python
+  motor = chrono.ChLinkMotorRotationSpeed()
+  motor.Initialize(body_truss, body_crank, chrono.ChFrame(vG))
+  myfun = ChFunctionMyFun()
+  motor.SetSpeedFunction(myfun)
+  sys.Add(motor)
+  ```
+- REFERENCE:
+  ```python
+  motor = chrono.ChLinkMotorRotationAngle()
+  motor.Initialize(body_truss, body_crank, chrono.ChFramed(vG))
+  myfun = ChFunctionMyFun()
+  motor.SetAngleFunction(myfun)
+  sys.Add(motor)
+  ```
+
+**Comments:**
+
+- MODEL uses `ChLinkMotorRotationSpeed` with `SetSpeedFunction`.
+- REFERENCE uses `ChLinkMotorRotationAngle` with `SetAngleFunction`.
+- Both are valid but represent different motor control modes:
+  - `RotationSpeed` controls angular velocity.
+  - `RotationAngle` controls angular position.
+- The choice depends on simulation goals.
+- MODEL uses `chrono.ChFrame` (correct), REFERENCE uses `chrono.ChFramed` (likely outdated or typo).
+- MODEL is consistent with API.
+
+---
+
+## 10. **Mesh and Beam Sections**
+
+- MODEL defines beam widths:
+  ```python
+  beam_wy = 0.12
+  beam_wz = 0.15
+  ```
+- REFERENCE:
+  ```python
+  beam_wy = 0.12
+  beam_wz = 0.012
+  ```
+- MODEL uses a much thicker beam in Z.
+
+- MODEL creates Cosserat inertia and elasticity sections with:
+  ```python
+  minertia = fea.ChInertiaCosseratSimple()
+  minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+  melasticity = fea.ChElasticityCosseratSimple()
+  melasticity.SetYoungModulus(72.0e9)
+  melasticity.SetShearModulusFromPoisson(0.35)
+  melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+  msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
+  msection1.SetDrawThickness(beam_wy * 0.5, beam_wz)
+  ```
+- REFERENCE uses:
+  ```python
+  minertia = fea.ChInertiaCosseratSimple()
+  minertia.SetAsRectangularSection(beam_wy, beam_wz, 2700)
+  melasticity = fea.ChElasticityCosseratSimple()
+  melasticity.SetYoungModulus(73.0e9)
+  melasticity.SetShearModulusFromPoisson(0.3)
+  melasticity.SetAsRectangularSection(beam_wy, beam_wz)
+  msection1 = fea.ChBeamSectionCosserat(minertia, melasticity)
+  msection1.SetDrawThickness(beam_wy, beam_wz)
+  ```
+
+**Comments:**
+
+- MODEL uses slightly different material properties (Young's modulus 72e9 vs 73e9, Poisson 0.35 vs 0.3).
+- MODEL sets draw thickness to half beam_wy, REFERENCE uses full beam_wy.
+- These are parameter choices, not errors.
+
+---
+
+## 11. **Beam Building**
+
+- MODEL:
+  ```python
+  builder_iga = fea.ChBuilderBeamIGA()
+  builder_iga.BuildBeam(mesh, msection1, 30, vA, vC, chrono.VECT_X, 3)
+  ```
+- REFERENCE:
+  ```python
+  builder_iga = fea.ChBuilderBeamIGA()
+  builder_iga.BuildBeam(mesh, msection1, 32, vA, vC, chrono.VECT_Y, 3)
+  ```
+
+**Comments:**
+
+- MODEL builds beam along X axis, REFERENCE along Y.
+- Number of elements differ (30 vs 32).
+- Both valid but different beam orientation and discretization.
+
+---
+
+## 12. **Fixing Nodes**
+
+- MODEL:
+  ```python
+  builder_iga.GetLastBeamNodes().front().SetFixed(True)
+  node_tip = builder_iga.GetLastBeamNodes()[29]
+  node_mid = builder_iga.GetLastBeamNodes()[15]
+  ```
+- REFERENCE:
+  ```python
+  builder_iga.GetLastBeamNodes().front().SetFixed(True)
+  node_tip = builder_iga.GetLastBeamNodes()[-1]
+  node_mid = builder_iga.GetLastBeamNodes()[17]
+  ```
+
+**Comments:**
+
+- MODEL uses `.front()` which is not a Python list method; it should be `.front()` only if the object supports it.
+- In Python, `list.front()` is invalid; use `[0]`.
+- REFERENCE uses `.front()` which is also invalid Python.
+- This is likely a carryover from C++ API.
+- Correct Python usage should be:
+  ```python
+  builder_iga.GetLastBeamNodes()[0].SetFixed(True)
+  ```
+- So MODEL and REFERENCE both have a minor API misuse here.
+- Indexing nodes by integer is correct.
+
+---
+
+## 13. **Second Beam Section**
+
+- MODEL:
+  ```python
+  section2 = fea.ChBeamSectionEulerAdvanced()
+  hbeam_d = 0.05
+  section2.SetDensity(2500)
+  section2.SetYoungModulus(75.0e9)
+  section2.SetShearModulusFromPoisson(0.25)
+  section2.SetRayleighDamping(0.000)
+  section2.SetAsCircularSection(hbeam_d)
+  ```
+- REFERENCE:
+  ```python
+  section2 = fea.ChBeamSectionEulerAdvanced()
+  hbeam_d = 0.03
+  section2.SetDensity(2700)
+  section2.SetYoungModulus(73.0e9)
+  section2.SetShearModulusFromPoisson(0.3)
+  section2.SetRayleighDamping(0.000)
+  section2.SetAsCircularSection(hbeam_d)
+  ```
+
+**Comments:**
+
+- MODEL uses larger diameter, lower density, higher Young's modulus, lower Poisson.
+- Parameter differences, no API issues.
+
+---
+
+## 14. **Second Beam Building**
+
+- MODEL:
+  ```python
+  builderA = fea.ChBuilderBeamEuler()
+  builderA.BuildBeam(mesh, section2, 10, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
+  ```
+- REFERENCE:
+  ```python
+  builderA = fea.ChBuilderBeamEuler()
+  builderA.BuildBeam(mesh, section2, 6, vC + vd, vB + vd, chrono.ChVector3d(1, 0, 0))
+  ```
+
+**Comments:**
+
+- MODEL uses 10 elements, REFERENCE 6.
+- Both valid.
+
+---
+
+## 15. **Nodes for Constraints**
+
+- MODEL:
+  ```python
+  node_top = builderA.GetLastBeamNodes()[0]
+  node_down = builderA.GetLastBeamNodes()[-1]
+  ```
+- REFERENCE same.
+
+---
+
+## 16. **Constraint Between Beams**
+
+- MODEL:
+  ```python
+  constr_bb = chrono.ChLinkMateParallel()
+  constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_tip.Frame())
+  sys.Add(constr_bb)
+  constr_bb.SetConstrainedCoords(True, False, True, False, False, False)
+  ```
+- REFERENCE:
+  ```python
+  constr_bb = chrono.ChLinkMateGeneric()
+  constr_bb.Initialize(node_top, node_tip, False, node_top.Frame(), node_top.Frame())
+  sys.Add(constr_bb)
+  constr_bb.SetConstrainedCoords(True, True, True, False, False, False)
+  ```
+
+**Comments:**
+
+- MODEL uses `ChLinkMateParallel`, REFERENCE uses `ChLinkMateGeneric`.
+- `ChLinkMateParallel` constrains two axes to be parallel; `ChLinkMateGeneric` is more general.
+- MODEL constrains x and z translation (True, False, True), REFERENCE constrains x,y,z translation (True, True, True).
+- MODEL uses `node_tip.Frame()` as second frame, REFERENCE uses `node_top.Frame()` twice.
+- According to API, frames should be consistent; MODEL's usage is valid if the frames differ.
+- MODEL adds a visual shape to the constraint:
+  ```python
+  sphereconstr2 = chrono.ChVisualShapeSphere(0.02)
+  constr_bb.AddVisualShape(sphereconstr2)
+  ```
+- REFERENCE adds a smaller sphere (0.012).
+- MODEL's use of `ChLinkMateParallel` is valid but changes constraint type and behavior.
+
+---
+
+## 17. **Third Beam Section**
+
+- MODEL:
+  ```python
+  section3 = fea.ChBeamSectionEulerAdvanced()
+  crankbeam_d = 0.06
+  section3.SetDensity(2800)
+  section3.SetYoungModulus(75.0e9)
+  section3.SetShearModulusFromPoisson(0.25)
+  section3.SetRayleighDamping(0.000)
+  section3.SetAsCircularSection(crankbeam_d)
+  ```
+- REFERENCE:
+  ```python
+  section3 = fea.ChBeamSectionEulerAdvanced()
+  crankbeam_d = 0.054
+  section3.SetDensity(2700)
+  section3.SetYoungModulus(73.0e9)
+  section3.SetShearModulusFromPoisson(0.3)
+  section3.SetRayleighDamping(0.000)
+  section3.SetAsCircularSection(crankbeam_d)
+  ```
+
+**Comments:**
+
+- Parameter differences, no API issues.
+
+---
+
+## 18. **Third Beam Building**
+
+- MODEL:
+  ```python
+  builderB = fea.ChBuilderBeamEuler()
+  builderB.BuildBeam(mesh, section3, 4, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
+  ```
+- REFERENCE:
+  ```python
+  builderB = fea.ChBuilderBeamEuler()
+  builderB.BuildBeam(mesh, section3, 5, vG + vd, vB + vd, chrono.ChVector3d(0, 1, 0))
+  ```
+
+**Comments:**
+
+- MODEL uses 4 elements, REFERENCE 5.
+- Both valid.
+
+---
+
+## 19. **Nodes for Constraints**
+
+- MODEL:
+  ```python
+  node_crnkG = builderB.GetLastBeamNodes()[0]
+  node_crankB = builderB.GetLastBeamNodes()[-1]
+  ```
+- REFERENCE same.
+
+---
+
+## 20. **Constraints Between Crank Beam and Body**
+
+- MODEL:
+  ```python
+  constr_cbd = chrono.ChLinkMateCoincident()
+  constr_cbd.Initialize(node_crnkG, body_crank, False, node_crnkG.Frame(), node_crnkG.Frame())
+  sys.Add(constr_cbd)
+  ```
+- REFERENCE:
+  ```python
+  constr_cbd = chrono.ChLinkMateGeneric()
+  constr_cbd.Initialize(node_crankG, body_crank, False, node_crankG.Frame(), node_crankG.Frame())
+  sys.Add(constr_cbd)
+  constr_cbd.SetConstrainedCoords(True, True, True, True, True, True)
+  ```
+
+**Comments:**
+
+- MODEL uses `ChLinkMateCoincident` without setting constrained coords.
+- REFERENCE uses `ChLinkMateGeneric` and sets all coords constrained.
+- According to API, `ChLinkMateCoincident` constrains points to coincide but may not constrain rotations.
+- MODEL misses `SetConstrainedCoords` call, which may lead to incomplete constraint.
+- This is a functional difference and likely an error or omission in MODEL.
+
+---
+
+## 21. **Constraint Between Vertical Beam and Crank Beam**
+
+- MODEL:
+  ```python
+  constr_bc = chrono.ChLinkMateCoincident()
+  constr_bc.Initialize(node_down, node_crankB, False, node_down.Frame(), node_crankB.Frame())
+  sys.Add(constr_bc)
+  ```
+- REFERENCE:
+  ```python

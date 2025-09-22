@@ -1,0 +1,80 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import pychrono.driver as driver
+
+# Initialize PyChrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create Irrlicht visualization
+app = irr.ChIrrApp(system, 'HMMWV on SCM Terrain', irr.dimension2du(1280, 720))
+app.AddTypicalLights()
+app.AddCamera(chrono.ChVectorD(0, 3, -5), chrono.ChVectorD(0, 0, 0))
+
+# Create HMMWV vehicle
+vehicle = veh.HMMWV_Full(system)
+vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 1.0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))))
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.Initialize()
+
+# Configure SCM terrain
+terrain = veh.SCMTerrain(system)
+terrain.SetSoilParameters(2e6,    # Bekker K (N/m^2)
+                          0.2,    # Bekker n (non-dimensional)
+                          0.01,   # Mohr-Coulomb cohesion (Pa)
+                          30,     # Mohr-Coulomb friction angle (degrees)
+                          0.01,   # Janosi shear coefficient (m)
+                          2000)   # Soil density (kg/m^3)
+# Add moving patch that follows the chassis
+terrain.AddMovingPatch(vehicle.GetChassisBody(), 
+                      chrono.ChVectorD(0, 0, 0), 
+                      chrono.ChVectorD(10, 2, 10))
+# Enable sinkage visualization
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE_COLOR)
+terrain.Initialize()
+
+# Setup driver system
+driver = veh.ChDriver(vehicle)
+driver.Initialize()
+
+# Bind visualization assets
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Real-time simulation loop
+step_size = 1.0 / 50.0
+rt_timer = chrono.ChRealtimeStepTimer()
+
+while app.GetDevice().run():
+    time = system.GetChTime()
+    
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+    
+    # Synchronize modules
+    vehicle.Synchronize(time, driver_inputs)
+    terrain.Synchronize(time)
+    driver.Synchronize(time)
+    
+    # Advance simulation
+    system.DoStepDynamics(step_size)
+    
+    # Render scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    # Maintain real-time execution
+    rt_timer.Spin(step_size)
+```

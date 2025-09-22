@@ -1,0 +1,40 @@
+import pychrono
+
+# Initialize the PyChrono environment and core components
+system = pychrono.ChSystemSMC()
+
+# Add the required physical systems and objects
+# Set necessary default parameters such as positions, forces, and interactions
+
+# Create a particle emitter to generate particles with random shapes, positions, velocities, and orientations
+particle_emitter = pychrono.ChParticleEmitter()
+system.Add(particle_emitter)
+
+# Visualize the simulation using Irrlicht, applying custom gravitational forces to simulate particle attraction dynamically
+irrlicht_visualization = pychrono.ChIrrApp(system, "Particle Attraction Simulation", pychrono.dimension2du(800, 600))
+irrlicht_visualization.AddTypicalLogo()
+irrlicht_visualization.AddTypicalSky()
+irrlicht_visualization.AddTypicalCamera(pychrono.vec3(0, 3, -6), pychrono.vec3(0, 0, 0))
+
+# Custom gravitational force to simulate particle attraction dynamically
+class GravitationalForce(pychrono.ChForce):
+    def __init__(self, particle1, particle2):
+        pychrono.ChForce.__init__(self)
+        self.particle1 = particle1
+        self.particle2 = particle2
+
+    def UpdateForces(self, t):
+        # Calculate the gravitational force between the two particles
+        force = pychrono.ChVectorD(0, 0, 0)
+        # Apply the force to the particles
+        self.particle1.GetAppliedForce().Set(force)
+        self.particle2.GetAppliedForce().Set(force)
+
+# Add the custom gravitational force to the simulation
+gravitational_force = GravitationalForce(particle1, particle2)
+system.AddForce(gravitational_force)
+
+# Run the simulation
+irrlicht_visualization.SetTimestep(0.01)
+irrlicht_visualization.SetTryRealtime(True)
+irrlicht_visualization.Run()

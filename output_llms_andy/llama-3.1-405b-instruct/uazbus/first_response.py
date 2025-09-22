@@ -1,0 +1,53 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+
+# Create a Chrono::Engine physical system
+my_system = chrono.ChSystemNSC()
+
+# Create the ground body
+ground = chrono.ChBodyEasyBox(my_system,  # Parent system
+                              100, 100, 2,  # x, y, z dimensions
+                              1000,  # Density
+                              True,  # Visualization
+                              True,  # Collision
+                              chrono.ChMaterialSurfaceNSC())  # Material
+ground.SetPos(chrono.ChVectorD(0, -2, 0))
+ground.SetBodyFixed(True)
+
+# Create the vehicle
+my_vehicle = veh.ChUAZBUS()
+my_vehicle.Initialize(my_system, chrono.ChContactMethod_NSC)
+my_vehicle.SetChassisPosition(chrono.ChVectorD(0, 1.5, 0))
+my_vehicle.SetChassisRot(chrono.Q_from_AngY(0))
+my_vehicle.SetInitVehicleSpeed(10)
+
+# Create the driver system
+my_driver = veh.ChIrrlichtDriver(my_vehicle)
+my_driver.Initialize()
+
+# Create the Irrlicht application
+my_app = irr.ChIrrApp(my_system, 'UAZBUS Simulation', irr.dimension2du(800, 600))
+my_app.AddTypicalSky()
+my_app.AddTypicalLights()
+my_app.AddCamera(chrono.ChVectorD(0, 10, -30))
+my_app.AssetBindAll()
+my_app.AssetUpdateAll()
+
+# Simulation loop
+while my_app.GetDevice().run():
+    my_app.BeginScene()
+    my_app.DrawAll()
+    my_app.EndScene()
+
+    # Advance the simulation
+    my_system.DoStepDynamics(0.01)
+
+    # Synchronize the vehicle and driver
+    my_driver.Synchronize()
+
+    # Update the application
+    my_app.AssetUpdateAll()

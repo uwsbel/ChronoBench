@@ -1,0 +1,158 @@
+# =============================================================================
+# Basic Turtlebot-like differential–drive robot in Project Chrono (PyChrono)
+#
+# – A rigid ground is created.
+# – A very simplified “Turtlebot” has one rigid chassis and two wheels.
+# – Each wheel is driven by a ChLinkMotorRotationSpeed.
+# – Motor speeds are changed in real time to make the robot go straight,
+#   turn left, then turn right.
+# – Irrlicht is used for real-time 3-D rendering.
+# =============================================================================
+import math
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# ----------------------------------------------------
+# 1. Create the simulation system
+# ----------------------------------------------------
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# ----------------------------------------------------
+# 2. Add a rigid ground
+# ----------------------------------------------------
+ground = chrono.ChBodyEasyBox(5, 0.2, 5, 1000, True, True)   # sizeX, sizeY, sizeZ
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))                  # top face sits at y=0
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+# Optional: give the ground an asset so we can see it
+ground_texture = chrono.ChTexture()
+ground_texture.SetTextureFilename(chrono.GetChronoDataFile("textures/cubetexture_plywood.jpg"))
+ground.GetAssets().push_back(ground_texture)
+
+# ----------------------------------------------------
+# 3. Build a very simplified Turtlebot
+# ----------------------------------------------------
+# Geometry / mass parameters
+wheel_radius   = 0.1      # 10 cm
+wheel_thick    = 0.05     # 5 cm
+wheel_mass     = 1.0
+chassis_size   = chrono.ChVectorD(0.4, 0.05, 0.3) # x, y, z (half-extents for box constructor)
+chassis_mass   = 5.0
+axle_y         = wheel_radius                       # axle height above ground
+
+start_pos      = chrono.ChVectorD(0, axle_y + chassis_size.y, 0)
+
+# ---- chassis ----
+chassis = chrono.ChBodyEasyBox(chassis_size.x*2,   # full extents
+                               chassis_size.y*2,
+                               chassis_size.z*2,
+                               chassis_mass,
+                               True, True)
+chassis.SetPos(start_pos)
+system.Add(chassis)
+
+# ---- wheels ----
+def make_wheel(offset_z, name="wheel"):
+    wheel = chrono.ChBodyEasyCylinder(wheel_radius,  # radius
+                                      wheel_thick,   # height
+                                      wheel_mass,
+                                      True, True)
+    wheel.SetRot(chrono.Q_from_AngAxis(math.pi / 2, chrono.ChVectorD(0, 0, 1)))  # cylinders need 90°
+    wheel.SetPos(start_pos + chrono.ChVectorD(0, 0, offset_z))
+    wheel.SetCollide(True)
+    system.Add(wheel)
+    return wheel
+
+wheel_L = make_wheel(+chassis_size.z, "wheel_L")  # left
+wheel_R = make_wheel(-chassis_size.z, "wheel_R")  # right
+
+# ---- revolute joints + motors ----
+# Helper conversion
+rpm2rad = 2.0 * math.pi / 60.0
+
+def add_motor(wheel, pos, direction):
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(wheel,          # 1st body (rotates)
+                     chassis,        # 2nd body (carrier)
+                     chrono.ChFrameD(pos,            # joint location
+                                     chrono.Q_from_AngAxis(
+                                         math.pi/2, chrono.ChVectorD(0, 0, 1))))  # z-axis becomes +X
+    motor.SetSpindleConstraint(True)        # keep wheel on the axle
+    system.AddLink(motor)
+    return motor
+
+motor_L = add_motor(wheel_L, start_pos + chrono.ChVectorD(0, 0, +chassis_size.z), chrono.ChVectorD(1,0,0))
+motor_R = add_motor(wheel_R, start_pos + chrono.ChVectorD(0, 0, -chassis_size.z), chrono.ChVectorD(1,0,0))
+
+# Convenience: a function to set a target speed (rad/s) on a motor
+def set_speed(motor, omega):
+    fun = chrono.ChFunction_Const(omega)
+    motor.SetSpeedFunction(fun)
+
+# Initial straight-line speed 10 rpm
+straight_omega = 10 * rpm2rad
+set_speed(motor_L, straight_omega)
+set_speed(motor_R, straight_omega)
+
+# ----------------------------------------------------
+# 4. Real-time rendering with Irrlicht
+# ----------------------------------------------------
+app = chronoirr.ChIrrApp(system,
+                         "PyChrono Turtlebot demo",
+                         chronoirr.dimension2du(1024, 768))
+app.AddTypicalLogo()
+app.AddTypicalSky()
+app.AddLightWithShadow(chrono.ChVectorD(2, 4, 2),
+                       chrono.ChVectorD(0, 0, 0),
+                       3, 1, 7, 40)
+app.AddCamera(chrono.ChVectorD(1, 0.7, 1),      # camera position
+              chrono.ChVectorD(0, 0.2, 0))      # look-at
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Real-time step sync helper
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# ----------------------------------------------------
+# 5. Simulation loop with simple high-level control
+# ----------------------------------------------------
+step_size = 1.0 / 200.0    # 200 Hz
+
+print("Simulation running. ESC to quit.")
+
+while app.GetDevice().run():
+    # ----- Controller logic -----
+    t = system.GetChTime()
+
+    if t < 3.0:
+        # Go straight
+        set_speed(motor_L, straight_omega)
+        set_speed(motor_R, straight_omega)
+
+    elif t < 6.0:
+        # Turn LEFT (right wheel faster)
+        set_speed(motor_L, 5 * rpm2rad)
+        set_speed(motor_R, 15 * rpm2rad)
+
+    elif t < 9.0:
+        # Turn RIGHT (left wheel faster)
+        set_speed(motor_L, 15 * rpm2rad)
+        set_speed(motor_R, 5 * rpm2rad)
+
+    else:
+        # Stop the robot after 9 s
+        set_speed(motor_L, 0.0)
+        set_speed(motor_R, 0.0)
+
+    # ----- Rendering -----
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # ----- Physics step -----
+    system.DoStepDynamics(step_size)
+
+    # ----- Real-time synchronization -----
+    realtime_timer.Spin(step_size)

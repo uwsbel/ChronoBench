@@ -1,0 +1,62 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
+
+def main():
+    # Initialize the PyChrono environment
+    chrono.SetChronoDataPath('./chrono_data/')
+    sys = chrono.ChSystemNSC()
+
+    # Create a fixed body with a triangular mesh
+    mesh = chrono.ChTriangleMeshConnected()
+    mesh.LoadWavefrontMesh(chrono.GetChronoDataPath() + 'robot.obj')
+    mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+    mesh_asset = chrono.ChTriangleMeshShape()
+    mesh_asset.SetMesh(mesh)
+    body = chrono.ChBody()
+    body.SetBodyFixed(True)
+    body.AddAsset(mesh_asset)
+    sys.Add(body)
+
+    # Create a camera sensor
+    offset_pose = chrono.ChFrameD(chrono.ChVectorD(-1, 0, 0), chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0)))
+    cam = sens.ChCameraSensor(
+        body, 
+        10,  # update rate
+        offset_pose, 
+        640,  # image width
+        480,  # image height
+        90  # FOV
+    )
+    cam.SetName("Camera Sensor")
+    cam.PushFilter(sens.ChFilterRGBA8())
+    cam.PushFilter(sens.ChFilterGrayscale())
+    cam.PushFilter(sens.ChFilterNoiseSaltPepper(0.1))
+    cam.PushFilter(sens.ChFilterVisualize(640, 480, "Camera Output"))
+    cam.PushFilter(sens.ChFilterSave(chrono.GetChronoOutputPath() + "cam_salt_pepper/"))
+
+    # Add the camera to the sensor manager
+    manager = sens.ChSensorManager(sys)
+    manager.AddSensor(cam)
+
+    # Simulation loop
+    angle = 0
+    while sys.GetChTime() < 10:
+        # Update the camera's position
+        angle += 0.01
+        offset_pose = chrono.ChFrameD(chrono.ChVectorD(2 * np.cos(angle), 0, 2 * np.sin(angle)), chrono.Q_from_AngAxis(angle, chrono.ChVectorD(0, 1, 0)))
+        cam.SetOffsetPose(offset_pose)
+
+        # Update the simulation
+        manager.Update()
+
+        # Get the camera buffer data
+        buffer = cam.GetMostRecentBuffer()
+        if buffer.HasData():
+            print(buffer.GetRGBA8().shape)
+
+        # Step the simulation
+        sys.DoStepDynamics(0.01)
+
+if __name__ == "__main__":
+    main()

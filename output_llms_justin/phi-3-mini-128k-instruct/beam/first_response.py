@@ -1,0 +1,56 @@
+# Import necessary PyChrono modules
+
+from pychoro import *
+
+import irrlicht as irr
+
+
+# Initialize PyChrono environment
+
+init(6)
+
+
+# Create a mesh with beam finite elements
+
+mesh = Mesh()
+
+mesh.addBeam(2, 10, 1000, 100, 1000, 0, 0, 0, 0, 0)
+
+
+# Create a physical system and add the mesh
+
+system = System()
+
+system.addMesh(mesh)
+
+
+# Set default parameters (example values)
+
+system.setGravity([0, -9.81, 0])
+
+
+# Setup visualization with Irrlicht
+
+scene = Scene()
+
+camera = scene.addCamera("Main Camera", 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0)
+
+renderer = scene.addRenderer("Main Renderer")
+
+
+# Main simulation loop
+
+while not system.isStopped():
+
+    system.advance()
+
+    scene.drawAll()
+
+    system.waitEvent()
+
+
+# Cleanup
+
+scene.removeAll()
+
+system.removeAll()

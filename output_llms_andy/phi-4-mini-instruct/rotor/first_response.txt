@@ -1,0 +1,2470 @@
+```python
+from PyChrono and IGA to simulate the Jeffcott rotor.
+2. Set up the simulation environment and the rotor.
+3. Define the rotor and its properties.
+4. Set the boundary conditions and the rotor's properties.
+5. Define the rotor's properties and the rotor's properties.
+6. Set the rotor's properties and the rotor's properties.
+7. Set the rotor's properties and the rotor's properties.
+8. Set the rotor's properties and the rotor's properties.
+9. Set the rotor's properties and the rotor's properties.
+10. Set the rotor's properties and the rotor's properties.
+11. Set the rotor's properties and the rotor's properties.
+12. Set the rotor's properties and the rotor's properties.
+13. Set the rotor's properties and the rotor's properties.
+14. Set the rotor's properties and the rotor's properties.
+15. Set the rotor's properties and the rotor's properties.
+
+16. Set the rotor's properties and the rotor's properties.
+
+17. Set the rotor's properties and the rotor's properties.
+
+18. Set the rotor's properties and the rotor's properties.
+
+19. Set the rotor's properties and the rotor's properties.
+
+20. Set the rotor's properties and the rotor's properties.
+
+21. Define the rotor's properties and the rotor's properties.
+
+22. Set the rotor's properties and the rotor's properties.
+
+23. Set the rotor's properties and the rotor's properties.
+
+24. Set the rotor's properties and the rotor's properties.
+
+25. Set the rotor's properties and the rotor's properties.
+
+26. Set the rotor's properties and the rotor's properties.
+
+27. Set the rotor's properties and the rotor's properties.
+
+28. Set the rotor's properties and the rotor's properties.
+
+29. Set the rotor's properties and the rotor's properties.
+
+30. Set the rotor's properties and the rotor's properties.
+
+31. Set the rotor's properties and the rotor's properties.
+
+32. Set the rotor's properties and the rotor's properties.
+
+33. Set the rotor's properties and the rotor's properties.
+
+34. Set the rotor's properties and the rotor's properties.
+
+35. Set the rotor's properties and the rotor's properties.
+
+36. Set the rotor's properties and the rotor's properties.
+
+37. Set the rotor's properties and the rotor's properties.
+
+38. Set the rotor's properties and the rotor's properties.
+
+39. Set the rotor's properties and the rotor's properties.
+
+40. Set the rotor's properties and the rotor's properties.
+
+41. Set the rotor's properties and the rotor's properties.
+
+42. Set the rotor's properties and the rotor's properties.
+
+43. Set the rotor's properties and the rotor's properties.
+
+44. Set the rotor's properties and the rotor's properties.
+
+45. Set the rotor's properties and the rotor's properties.
+
+46. Set the rotor's properties and the rotor's properties.
+
+47. Set the rotor's properties and the rotor's properties.
+
+48. Set the rotor's properties and the rotor's properties.
+
+49. Set the rotor's properties and the rotor's properties.
+
+50. Set the rotor's properties and the rotor's properties.
+
+51. Set the rotor's properties and the rotor's properties.
+
+52. Set the rotor's properties and the rotor's properties.
+
+53. Set the rotor's properties and the rotor's properties.
+
+54. Set the rotor's properties and the rotor's properties.
+
+55. Set the rotor's properties and the rotor's properties.
+
+56. Set the rotor's properties and the rotor's properties.
+
+57. Set the rotor's properties and the rotor's properties.
+
+58. Set the rotor's properties and the rotor's properties.
+
+59. Set the rotor's properties and the rotor's properties.
+
+60. Set the rotor's properties and the rotor's properties.
+
+61. Set the rotor's properties and the rotor's properties.
+
+62. Set the rotor's properties and the rotor's properties.
+
+63. Set the rotor's properties and the rotor's properties.
+
+64. Set the rotor's properties and the rotor's properties.
+
+65. Set the rotor's properties and the rotor's properties.
+
+66. Set the rotor's properties and the rotor's properties.
+
+67. Set the rotor's properties and the rotor's properties.
+
+68. Set the rotor's properties and the rotor's properties.
+
+69. Set the rotor's properties and the rotor's properties.
+
+70. Set the rotor's properties and the rotor's properties.
+
+71. Set the rotor's properties and the rotor's properties.
+
+72. Set the rotor's properties and the rotor's properties.
+
+73. Set the rotor's properties and the rotor's properties.
+
+74. Set the rotor's properties and the rotor's properties.
+
+75. Set the rotor's properties and the rotor's properties.
+
+76. Set the rotor's properties and the rotor's properties.
+
+77. Set the rotor's properties and the rotor's properties.
+
+78. Set the rotor's properties and the rotor's properties.
+
+79. Set the rotor's properties and the rotor's properties.
+
+80. Set the rotor's properties and the rotor's properties.
+
+81. Set the rotor's properties and the rotor's properties.
+
+82. Set the rotor's properties and the rotor's properties.
+
+83. Set the rotor's properties and the rotor's properties.
+
+84. Set the rotor's properties and the rotor's properties.
+
+85. Set the rotor's properties and the rotor's properties.
+
+86. Set the rotor's properties and the rotor's properties.
+
+87. Set the rotor's properties and the rotor's properties.
+
+88. Set the rotor's properties and the rotor's properties.
+
+89. Set the rotor's properties and the rotor's properties.
+
+90. Set the rotor's properties and the rotor's properties.
+
+91. Set the rotor's properties and the rotor's properties.
+
+92. Set the rotor's properties and the rotor's properties.
+
+93. Set the rotor's properties and the rotor's properties.
+
+94. Set the rotor's properties and the rotor's properties.
+
+95. Set the rotor's properties and the rotor's properties.
+
+96. Set the rotor's properties and the rotor's properties.
+
+97. Set the rotor's properties and the rotor's properties.
+
+98. Set the rotor's properties and the rotor's properties.
+
+99. Set the rotor's properties and the rotor's properties.
+
+100. Set the rotor's properties and the rotor's properties.
+
+101. Set the rotor's properties and the rotor's properties.
+
+102. Set the rotor's properties and the rotor's properties.
+
+103. Set the rotor's properties and the rotor's properties.
+
+104. Set the rotor's properties and the rotor's properties.
+
+105. Set the rotor's properties and the rotor's properties.
+
+106. Set the rotor's properties and the rotor's properties.
+
+107. Set the rotor's properties and the rotor's properties.
+
+108. Set the rotor's properties and the rotor's properties.
+
+109. Set the rotor's properties and the rotor's properties.
+
+110. Set the rotor's properties and the rotor's properties.
+
+111. Set the rotor's properties and the rotor's properties.
+
+112. Set the rotor's properties and the rotor's properties.
+
+113. Set the rotor's properties and the rotor's properties.
+
+114. Set the rotor's properties and the rotor's properties.
+
+115. Set the rotor's properties and the rotor's properties.
+
+116. Set the rotor's properties and the rotor's properties.
+
+117. Set the rotor's properties and the rotor's properties.
+
+118. Set the rotor's properties and the rotor's properties.
+
+119. Set the rotor's properties and the rotor's properties.
+
+120. Set the rotor's properties and the rotor's properties.
+
+121. Set the rotor's properties and the rotor's properties.
+
+122. Set the rotor's properties and the rotor's properties.
+
+123. Set the rotor's properties and the rotor's properties.
+
+124. Set the rotor's properties and the rotor's properties.
+
+125. Set the rotor's properties and the rotor's properties.
+
+126. Set the rotor's properties and the rotor's properties.
+
+127. Set the rotor's properties and the rotor's properties.
+
+128. Set the rotor's properties and the rotor's properties.
+
+129. Set the rotor's properties and the rotor's properties.
+
+130. Set the rotor's properties and the rotor's properties.
+
+131. Set the rotor's properties and the rotor's properties.
+
+132. Set the rotor's properties and the rotor's properties.
+
+133. Set the rotor's properties and the rotor's properties.
+
+134. Set the rotor's properties and the rotor's properties.
+
+135. Set the rotor's properties and the rotor's properties.
+
+136. Set the rotor's properties and the rotor's properties.
+
+137. Set the rotor's properties and the rotor's properties.
+
+138. Set the rotor's properties and the rotor's properties.
+
+139. Set the rotor's properties and the rotor's properties.
+
+140. Set the rotor's properties and the rotor's properties.
+
+141. Set the rotor's properties and the rotor's properties.
+
+142. Set the rotor's properties and the rotor's properties.
+
+143. Set the rotor's properties and the rotor's properties.
+
+144. Set the rotor's properties and the rotor's properties.
+
+145. Set the rotor's properties and the rotor's properties.
+
+146. Set the rotor's properties and the rotor's properties.
+
+147. Set the rotor's properties and the rotor's properties.
+
+148. Set the rotor's properties and the rotor's properties.
+
+149. Set the rotor's properties and the rotor's properties.
+
+150. Set the rotor's properties and the rotor's properties.
+
+151. Set the rotor's properties and the rotor's properties.
+
+152. Set the rotor's properties and the rotor's properties.
+
+153. Set the rotor's properties and the rotor's properties.
+
+154. Set the rotor's properties and the rotor's properties.
+
+155. Set the rotor's properties and the rotor's properties.
+
+156. Set the rotor's properties and the rotor's properties.
+
+157. Set the rotor's properties and the rotor's properties.
+
+158. Set the rotor's properties and the rotor's properties.
+
+159. Set the rotor's properties and the rotor's properties.
+
+160. Set the rotor's properties and the rotor's properties.
+
+161. Set the rotor's properties and the rotor's properties.
+
+162. Set the rotor's properties and the rotor's properties.
+
+163. Set the rotor's properties and the rotor's properties.
+
+164. Set the rotor's properties and the rotor's properties.
+
+165. Set the rotor's properties and the rotor's properties.
+
+166. Set the rotor's properties and the rotor's properties.
+
+167. Set the rotor's properties and the rotor's properties.
+
+168. Set the rotor's properties and the rotor's properties.
+
+169. Set the rotor's properties and the rotor's properties.
+
+170. Set the rotor's properties and the rotor's properties.
+
+171. Set the rotor's properties and the rotor's properties.
+
+172. Set the rotor's properties and the rotor's properties.
+
+173. Set the rotor's properties and the rotor's properties.
+
+174. Set the rotor's properties and the rotor's properties.
+
+175. Set the rotor's properties and the rotor's properties.
+
+176. Set the rotor's properties and the rotor's properties.
+
+177. Set the rotor's properties and the rotor's properties.
+
+178. Set the rotor's properties and the rotor's properties.
+
+179. Set the rotor's properties and the rotor's properties.
+
+180. Set the rotor's properties and the rotor's properties.
+
+181. Set the rotor's properties and the rotor's properties.
+
+182. Set the rotor's properties and the rotor's properties.
+
+183. Set the rotor's properties and the rotor's properties.
+
+184. Set the rotor's properties and the rotor's properties.
+
+185. Set the rotor's properties and the rotor's properties.
+
+186. Set the rotor's properties and the rotor's properties.
+
+187. Set the rotor's properties and the rotor's properties.
+
+188. Set the rotor's properties and the rotor's properties.
+
+189. Set the rotor's properties and the rotor's properties.
+
+190. Set the rotor's properties and the rotor's properties.
+
+191. Set the rotor's properties and the rotor's properties.
+
+192. Set the rotor's properties and the rotor's properties.
+
+193. Set the rotor's properties and the rotor's properties.
+
+194. Set the rotor's properties and the rotor's properties.
+
+195. Set the rotor's properties and the rotor's properties.
+
+196. Set the rotor's properties and the rotor's properties.
+
+197. Set the rotor's properties and the rotor's properties.
+
+198. Set the rotor's properties and the rotor's properties.
+
+199. Set the rotor's properties and the rotor's properties.
+
+200. Set the rotor's properties and the rotor's properties.
+
+201. Set the rotor's properties and the rotor's properties.
+
+202. Set the rotor's properties and the rotor's properties.
+
+203. Set the rotor's properties and the rotor's properties.
+
+204. Set the rotor's properties and the rotor's properties.
+
+205. Set the rotor's properties and the rotor's properties.
+
+206. Set the rotor's properties and the rotor's properties.
+
+207. Set the rotor's properties and the rotor's properties.
+
+208. Set the rotor's properties and the rotor's properties.
+
+209. Set the rotor's properties and the rotor's properties.
+
+210. Set the rotor's properties and the rotor's properties.
+
+211. Set the rotor's properties and the rotor's properties.
+
+212. Set the rotor's properties and the rotor's properties.
+
+213. Set the rotor's properties and the rotor's properties.
+
+214. Set the rotor's properties and the rotor's properties.
+
+215. Set the rotor's properties and the rotor's properties.
+
+216. Set the rotor's properties and the rotor's properties.
+
+217. Set the rotor's properties and the rotor's properties.
+
+218. Set the rotor's properties and the rotor's properties.
+
+219. Set the rotor's properties and the rotor's properties.
+
+220. Set the rotor's properties and the rotor's properties.
+
+221. Set the rotor's properties and the rotor's properties.
+
+222. Set the rotor's properties and the rotor's properties.
+
+223. Set the rotor's properties and the rotor's properties.
+
+224. Set the rotor's properties and the rotor's properties.
+
+225. Set the rotor's properties and the rotor's properties.
+
+226. Set the rotor's properties and the rotor's properties.
+
+227. Set the rotor's properties and the rotor's properties.
+
+228. Set the rotor's properties and the rotor's properties.
+
+229. Set the rotor's properties and the rotor's properties.
+
+230. Set the rotor's properties and the rotor's properties.
+
+231. Set the rotor's properties and the rotor's properties.
+
+232. Set the rotor's properties and the rotor's properties.
+
+233. Set the rotor's properties and the rotor's properties.
+
+234. Set the rotor's properties and the rotor's properties.
+
+235. Set the rotor's properties and the rotor's properties.
+
+236. Set the rotor's properties and the rotor's properties.
+
+237. Set the rotor's properties and the rotor's properties.
+
+238. Set the rotor's properties and the rotor's properties.
+
+239. Set the rotor's properties and the rotor's properties.
+
+240. Set the rotor's properties and the rotor's properties.
+
+241. Set the rotor's properties and the rotor's properties.
+
+242. Set the rotor's properties and the rotor's properties.
+
+243. Set the rotor's properties and the rotor's properties.
+
+244. Set the rotor's properties and the rotor's properties.
+
+245. Set the rotor's properties and the rotor's properties.
+
+246. Set the rotor's properties and the rotor's properties.
+
+247. Set the rotor's properties and the rotor's properties.
+
+248. Set the rotor's properties and the rotor's properties.
+
+249. Set the rotor's properties and the rotor's properties.
+
+250. Set the rotor's properties and the rotor's properties.
+
+251. Set the rotor's properties and the rotor's properties.
+
+252. Set the rotor's properties and the rotor's properties.
+
+253. Set the rotor's properties and the rotor's properties.
+
+254. Set the rotor's properties and the rotor's properties.
+
+255. Set the rotor's properties and the rotor's properties.
+
+256. Set the rotor's properties and the rotor's properties.
+
+257. Set the rotor's properties and the rotor's properties.
+
+258. Set the rotor's properties and the rotor's properties.
+
+259. Set the rotor's properties and the rotor's properties.
+
+260. Set the rotor's properties and the rotor's properties.
+
+261. Set the rotor's properties and the rotor's properties.
+
+262. Set the rotor's properties and the rotor's properties.
+
+263. Set the rotor's properties and the rotor's properties.
+
+264. Set the rotor's properties and the rotor's properties.
+
+265. Set the rotor's properties and the rotor's properties.
+
+266. Set the rotor's properties and the rotor's properties.
+
+267. Set the rotor's properties and the rotor's properties.
+
+268. Set the rotor's properties and the rotor's properties.
+
+269. Set the rotor's properties and the rotor's properties.
+
+270. Set the rotor's properties and the rotor's properties.
+
+271. Set the rotor's properties and the rotor's properties.
+
+272. Set the rotor's properties and the rotor's properties.
+
+273. Set the rotor's properties and the rotor's properties.
+
+274. Set the rotor's properties and the rotor's properties.
+
+275. Set the rotor's properties and the rotor's properties.
+
+276. Set the rotor's properties and the rotor's properties.
+
+277. Set the rotor's properties and the rotor's properties.
+
+278. Set the rotor's properties and the rotor's properties.
+
+279. Set the rotor's properties and the rotor's properties.
+
+280. Set the rotor's properties and the rotor's properties.
+
+281. Set the rotor's properties and the rotor's properties.
+
+282. Set the rotor's properties and the rotor's properties.
+
+283. Set the rotor's properties and the rotor's properties.
+
+284. Set the rotor's properties and the rotor's properties.
+
+285. Set the rotor's properties and the rotor's properties.
+
+286. Set the rotor's properties and the rotor's properties.
+
+287. Set the rotor's properties and the rotor's properties.
+
+288. Set the rotor's properties and the rotor's properties.
+
+289. Set the rotor's properties and the rotor's properties.
+
+290. Set the rotor's properties and the rotor's properties.
+
+291. Set the rotor's properties and the rotor's properties.
+
+292. Set the rotor's properties and the rotor's properties.
+
+293. Set the rotor's properties and the rotor's properties.
+
+294. Set the rotor's properties and the rotor's properties.
+
+295. Set the rotor's properties and the rotor's properties.
+
+296. Set the rotor's properties and the rotor's properties.
+
+297. Set the rotor's properties and the rotor's properties.
+
+298. Set the rotor's properties and the rotor's properties.
+
+299. Set the rotor's properties and the rotor's properties.
+
+300. Set the rotor's properties and the rotor's properties.
+
+301. Set the rotor's properties and the rotor's properties.
+
+302. Set the rotor's properties and the rotor's properties.
+
+303. Set the rotor's properties and the rotor's properties.
+
+304. Set the rotor's properties and the rotor's properties.
+
+305. Set the rotor's properties and the rotor's properties.
+
+306. Set the rotor's properties and the rotor's properties.
+
+307. Set the rotor's properties and the rotor's properties.
+
+308. Set the rotor's properties and the rotor's properties.
+
+309. Set the rotor's properties and the rotor's properties.
+
+310. Set the rotor's properties and the rotor's properties.
+
+311. Set the rotor's properties and the rotor's properties.
+
+312. Set the rotor's properties and the rotor's properties.
+
+313. Set the rotor's properties and the rotor's properties.
+
+314. Set the rotor's properties and the rotor's properties.
+
+315. Set the rotor's properties and the rotor's properties.
+
+316. Set the rotor's properties and the rotor's properties.
+
+317. Set the rotor's properties and the rotor's properties.
+
+318. Set the rotor's properties and the rotor's properties.
+
+319. Set the rotor's properties and the rotor's properties.
+
+320. Set the rotor's properties and the rotor's properties.
+
+321. Set the rotor's properties and the rotor's properties.
+
+322. Set the rotor's properties and the rotor's properties.
+
+323. Set the rotor's properties and the rotor's properties.
+
+324. Set the rotor's properties and the rotor's properties.
+
+325. Set the rotor's properties and the rotor's properties.
+
+326. Set the rotor's properties and the rotor's properties.
+
+327. Set the rotor's properties and the rotor's properties.
+
+328. Set the rotor's properties and the rotor's properties.
+
+329. Set the rotor's properties and the rotor's properties.
+
+330. Set the rotor's properties and the rotor's properties.
+
+331. Set the rotor's properties and the rotor's properties.
+
+332. Set the rotor's properties and the rotor's properties.
+
+333. Set the rotor's properties and the rotor's properties.
+
+334. Set the rotor's properties and the rotor's properties.
+
+335. Set the rotor's properties and the rotor's properties.
+
+336. Set the rotor's properties and the rotor's properties.
+
+337. Set the rotor's properties and the rotor's properties.
+
+338. Set the rotor's properties and the rotor's properties.
+
+339. Set the rotor's properties and the rotor's properties.
+
+340. Set the rotor's properties and the rotor's properties.
+
+341. Set the rotor's properties and the rotor's properties.
+
+342. Set the rotor's properties and the rotor's properties.
+
+343. Set the rotor's properties and the rotor's properties.
+
+344. Set the rotor's properties and the rotor's properties.
+
+345. Set the rotor's properties and the rotor's properties.
+
+346. Set the rotor's properties and the rotor's properties.
+
+347. Set the rotor's properties and the rotor's properties.
+
+348. Set the rotor's properties and the rotor's properties.
+
+349. Set the rotor's properties and the rotor's properties.
+
+350. Set the rotor's properties and the rotor's properties.
+
+351. Set the rotor's properties and the rotor's properties.
+
+352. Set the rotor's properties and the rotor's properties.
+
+353. Set the rotor's properties and the rotor's properties.
+
+354. Set the rotor's properties and the rotor's properties.
+
+355. Set the rotor's properties and the rotor's properties.
+
+356. Set the rotor's properties and the rotor's properties.
+
+357. Set the rotor's properties and the rotor's properties.
+
+358. Set the rotor's properties and the rotor's properties.
+
+359. Set the rotor's properties and the rotor's properties.
+
+360. Set the rotor's properties and the rotor's properties.
+
+361. Set the rotor's properties and the rotor's properties.
+
+362. Set the rotor's properties and the rotor's properties.
+
+363. Set the rotor's properties and the rotor's properties.
+
+364. Set the rotor's properties and the rotor's properties.
+
+365. Set the rotor's properties and the rotor's properties.
+
+366. Set the rotor's properties and the rotor's properties.
+
+367. Set the rotor's properties and the rotor's properties.
+
+368. Set the rotor's properties and the rotor's properties.
+
+369. Set the rotor's properties and the rotor's properties.
+
+370. Set the rotor's properties and the rotor's properties.
+
+371. Set the rotor's properties and the rotor's properties.
+
+372. Set the rotor's properties and the rotor's properties.
+
+373. Set the rotor's properties and the rotor's properties.
+
+374. Set the rotor's properties and the rotor's properties.
+
+375. Set the rotor's properties and the rotor's properties.
+
+376. Set the rotor's properties and the rotor's properties.
+
+377. Set the rotor's properties and the rotor's properties.
+
+378. Set the rotor's properties and the rotor's properties.
+
+379. Set the rotor's properties and the rotor's properties.
+
+380. Set the rotor's properties and the rotor's properties.
+
+381. Set the rotor's properties and the rotor's properties.
+
+382. Set the rotor's properties and the rotor's properties.
+
+383. Set the rotor's properties and the rotor's properties.
+
+384. Set the rotor's properties and the rotor's properties.
+
+385. Set the rotor's properties and the rotor's properties.
+
+386. Set the rotor's properties and the rotor's properties.
+
+387. Set the rotor's properties and the rotor's properties.
+
+388. Set the rotor's properties and the rotor's properties.
+
+389. Set the rotor's properties and the rotor's properties.
+
+390. Set the rotor's properties and the rotor's properties.
+
+391. Set the rotor's properties and the rotor's properties.
+
+392. Set the rotor's properties and the rotor's properties.
+
+393. Set the rotor's properties and the rotor's properties.
+
+394. Set the rotor's properties and the rotor's properties.
+
+395. Set the rotor's properties and the rotor's properties.
+
+396. Set the rotor's properties and the rotor's properties.
+
+397. Set the rotor's properties and the rotor's properties.
+
+398. Set the rotor's properties and the rotor's properties.
+
+399. Set the rotor's properties and the rotor's properties.
+
+400. Set the rotor's properties and the rotor's properties.
+
+401. Set the rotor's properties and the rotor's properties.
+
+402. Set the rotor's properties and the rotor's properties.
+
+403. Set the rotor's properties and the rotor's properties.
+
+404. Set the rotor's properties and the rotor's properties.
+
+405. Set the rotor's properties and the rotor's properties.
+
+406. Set the rotor's properties and the rotor's properties.
+
+407. Set the rotor's properties and the rotor's properties.
+
+408. Set the rotor's properties and the rotor's properties.
+
+409. Set the rotor's properties and the rotor's properties.
+
+410. Set the rotor's properties and the rotor's properties.
+
+411. Set the rotor's properties and the rotor's properties.
+
+412. Set the rotor's properties and the rotor's properties.
+
+413. Set the rotor's properties and the rotor's properties.
+
+414. Set the rotor's properties and the rotor's properties.
+
+415. Set the rotor's properties and the rotor's properties.
+
+416. Set the rotor's properties and the rotor's properties.
+
+417. Set the rotor's properties and the rotor's properties.
+
+418. Set the rotor's properties and the rotor's properties.
+
+419. Set the rotor's properties and the rotor's properties.
+
+420. Set the rotor's properties and the rotor's properties.
+
+421. Set the rotor's properties and the rotor's properties.
+
+422. Set the rotor's properties and the rotor's properties.
+
+423. Set the rotor's properties and the rotor's properties.
+
+424. Set the rotor's properties and the rotor's properties.
+
+425. Set the rotor's properties and the rotor's properties.
+
+426. Set the rotor's properties and the rotor's properties.
+
+427. Set the rotor's properties and the rotor's properties.
+
+428. Set the rotor's properties and the rotor's properties.
+
+429. Set the rotor's properties and the rotor's properties.
+
+430. Set the rotor's properties and the rotor's properties.
+
+431. Set the rotor's properties and the rotor's properties.
+
+432. Set the rotor's properties and the rotor's properties.
+
+433. Set the rotor's properties and the rotor's properties.
+
+434. Set the rotor's properties and the rotor's properties.
+
+435. Set the rotor's properties and the rotor's properties.
+
+436. Set the rotor's properties and the rotor's properties.
+
+437. Set the rotor's properties and the rotor's properties.
+
+438. Set the rotor's properties and the rotor's properties.
+
+439. Set the rotor's properties and the rotor's properties.
+
+440. Set the rotor's properties and the rotor's properties.
+
+441. Set the rotor's properties and the rotor's properties.
+
+442. Set the rotor's properties and the rotor's properties.
+
+443. Set the rotor's properties and the rotor's properties.
+
+444. Set the rotor's properties and the rotor's properties.
+
+445. Set the rotor's properties and the rotor's properties.
+
+446. Set the rotor's properties and the rotor's properties.
+
+447. Set the rotor's properties and the rotor's properties.
+
+448. Set the rotor's properties and the rotor's properties.
+
+449. Set the rotor's properties and the rotor's properties.
+
+450. Set the rotor's properties and the rotor's properties.
+
+451. Set the rotor's properties and the rotor's properties.
+
+452. Set the rotor's properties and the rotor's properties.
+
+453. Set the rotor's properties and the rotor's properties.
+
+454. Set the rotor's properties and the rotor's properties.
+
+455. Set the rotor's properties and the rotor's properties.
+
+456. Set the rotor's properties and the rotor's properties.
+
+457. Set the rotor's properties and the rotor's properties.
+
+458. Set the rotor's properties and the rotor's properties.
+
+459. Set the rotor's properties and the rotor's properties.
+
+460. Set the rotor's properties and the rotor's properties.
+
+461. Set the rotor's properties and the rotor's properties.
+
+462. Set the rotor's properties and the rotor's properties.
+
+463. Set the rotor's properties and the rotor's properties.
+
+464. Set the rotor's properties and the rotor's properties.
+
+465. Set the rotor's properties and the rotor's properties.
+
+466. Set the rotor's properties and the rotor's properties.
+
+467. Set the rotor's properties and the rotor's properties.
+
+468. Set the rotor's properties and the rotor's properties.
+
+469. Set the rotor's properties and the rotor's properties.
+
+470. Set the rotor's properties and the rotor's properties.
+
+471. Set the rotor's properties and the rotor's properties.
+
+472. Set the rotor's properties and the rotor's properties.
+
+473. Set the rotor's properties and the rotor's properties.
+
+474. Set the rotor's properties and the rotor's properties.
+
+475. Set the rotor's properties and the rotor's properties.
+
+476. Set the rotor's properties and the rotor's properties.
+
+477. Set the rotor's properties and the rotor's properties.
+
+478. Set the rotor's properties and the rotor's properties.
+
+479. Set the rotor's properties and the rotor's properties.
+
+480. Set the rotor's properties and the rotor's properties.
+
+481. Set the rotor's properties and the rotor's properties.
+
+482. Set the rotor's properties and the rotor's properties.
+
+483. Set the rotor's properties and the rotor's properties.
+
+484. Set the rotor's properties and the rotor's properties.
+
+485. Set the rotor's properties and the rotor's properties.
+
+486. Set the rotor's properties and the rotor's properties.
+
+487. Set the rotor's properties and the rotor's properties.
+
+488. Set the rotor's properties and the rotor's properties.
+
+489. Set the rotor's properties and the rotor's properties.
+
+490. Set the rotor's properties and the rotor's properties.
+
+491. Set the rotor's properties and the rotor's properties.
+
+492. Set the rotor's properties and the rotor's properties.
+
+493. Set the rotor's properties and the rotor's properties.
+
+494. Set the rotor's properties and the rotor's properties.
+
+495. Set the rotor's properties and the rotor's properties.
+
+496. Set the rotor's properties and the rotor's properties.
+
+497. Set the rotor's properties and the rotor's properties.
+
+498. Set the rotor's properties and the rotor's properties.
+
+499. Set the rotor's properties and the rotor's properties.
+
+500. Set the rotor's properties and the rotor's properties.
+
+501. Set the rotor's properties and the rotor's properties.
+
+502. Set the rotor's properties and the rotor's properties.
+
+503. Set the rotor's properties and the rotor's properties.
+
+504. Set the rotor's properties and the rotor's properties.
+
+505. Set the rotor's properties and the rotor's properties.
+
+506. Set the rotor's properties and the rotor's properties.
+
+507. Set the rotor's properties and the rotor's properties.
+
+508. Set the rotor's properties and the rotor's properties.
+
+509. Set the rotor's properties and the rotor's properties.
+
+510. Set the rotor's properties and the rotor's properties.
+
+511. Set the rotor's properties and the rotor's properties.
+
+512. Set the rotor's properties and the rotor's properties.
+
+513. Set the rotor's properties and the rotor's properties.
+
+514. Set the rotor's properties and the rotor's properties.
+
+515. Set the rotor's properties and the rotor's properties.
+
+516. Set the rotor's properties and the rotor's properties.
+
+517. Set the rotor's properties and the rotor's properties.
+
+518. Set the rotor's properties and the rotor's properties.
+
+519. Set the rotor's properties and the rotor's properties.
+
+520. Set the rotor's properties and the rotor's properties.
+
+521. Set the rotor's properties and the rotor's properties.
+
+522. Set the rotor's properties and the rotor's properties.
+
+523. Set the rotor's properties and the rotor's properties.
+
+524. Set the rotor's properties and the rotor's properties.
+
+525. Set the rotor's properties and the rotor's properties.
+
+526. Set the rotor's properties and the rotor's properties.
+
+527. Set the rotor's properties and the rotor's properties.
+
+528. Set the rotor's properties and the rotor's properties.
+
+529. Set the rotor's properties and the rotor's properties.
+
+530. Set the rotor's properties and the rotor's properties.
+
+531. Set the rotor's properties and the rotor's properties.
+
+532. Set the rotor's properties and the rotor's properties.
+
+533. Set the rotor's properties and the rotor's properties.
+
+534. Set the rotor's properties and the rotor's properties.
+
+535. Set the rotor's properties and the rotor's properties.
+
+536. Set the rotor's properties and the rotor's properties.
+
+537. Set the rotor's properties and the rotor's properties.
+
+538. Set the rotor's properties and the rotor's properties.
+
+539. Set the rotor's properties and the rotor's properties.
+
+540. Set the rotor's properties and the rotor's properties.
+
+541. Set the rotor's properties and the rotor's properties.
+
+542. Set the rotor's properties and the rotor's properties.
+
+543. Set the rotor's properties and the rotor's properties.
+
+544. Set the rotor's properties and the rotor's properties.
+
+545. Set the rotor's properties and the rotor's properties.
+
+546. Set the rotor's properties and the rotor's properties.
+
+547. Set the rotor's properties and the rotor's properties.
+
+548. Set the rotor's properties and the rotor's properties.
+
+549. Set the rotor's properties and the rotor's properties.
+
+550. Set the rotor's properties and the rotor's properties.
+
+551. Set the rotor's properties and the rotor's properties.
+
+552. Set the rotor's properties and the rotor's properties.
+
+553. Set the rotor's properties and the rotor's properties.
+
+554. Set the rotor's properties and the rotor's properties.
+
+555. Set the rotor's properties and the rotor's properties.
+
+556. Set the rotor's properties and the rotor's properties.
+
+557. Set the rotor's properties and the rotor's properties.
+
+558. Set the rotor's properties and the rotor's properties.
+
+559. Set the rotor's properties and the rotor's properties.
+
+560. Set the rotor's properties and the rotor's properties.
+
+561. Set the rotor's properties and the rotor's properties.
+
+562. Set the rotor's properties and the rotor's properties.
+
+563. Set the rotor's properties and the rotor's properties.
+
+564. Set the rotor's properties and the rotor's properties.
+
+565. Set the rotor's properties and the rotor's properties.
+
+566. Set the rotor's properties and the rotor's properties.
+
+567. Set the rotor's properties and the rotor's properties.
+
+568. Set the rotor's properties and the rotor's properties.
+
+569. Set the rotor's properties and the rotor's properties.
+
+570. Set the rotor's properties and the rotor's properties.
+
+571. Set the rotor's properties and the rotor's properties.
+
+572. Set the rotor's properties and the rotor's properties.
+
+573. Set the rotor's properties and the rotor's properties.
+
+574. Set the rotor's properties and the rotor's properties.
+
+575. Set the rotor's properties and the rotor's properties.
+
+576. Set the rotor's properties and the rotor's properties.
+
+577. Set the rotor's properties and the rotor's properties.
+
+578. Set the rotor's properties and the rotor's properties.
+
+579. Set the rotor's properties and the rotor's properties.
+
+580. Set the rotor's properties and the rotor's properties.
+
+581. Set the rotor's properties and the rotor's properties.
+
+582. Set the rotor's properties and the rotor's properties.
+
+583. Set the rotor's properties and the rotor's properties.
+
+584. Set the rotor's properties and the rotor's properties.
+
+585. Set the rotor's properties and the rotor's properties.
+
+586. Set the rotor's properties and the rotor's properties.
+
+587. Set the rotor's properties and the rotor's properties.
+
+588. Set the rotor's properties and the rotor's properties.
+
+589. Set the rotor's properties and the rotor's properties.
+
+590. Set the rotor's properties and the rotor's properties.
+
+591. Set the rotor's properties and the rotor's properties.
+
+592. Set the rotor's properties and the rotor's properties.
+
+593. Set the rotor's properties and the rotor's properties.
+
+594. Set the rotor's properties and the rotor's properties.
+
+595. Set the rotor's properties and the rotor's properties.
+
+596. Set the rotor's properties and the rotor's properties.
+
+597. Set the rotor's properties and the rotor's properties.
+
+598. Set the rotor's properties and the rotor's properties.
+
+599. Set the rotor's properties and the rotor's properties.
+
+600. Set the rotor's properties and the rotor's properties.
+
+601. Set the rotor's properties and the rotor's properties.
+
+602. Set the rotor's properties and the rotor's properties.
+
+603. Set the rotor's properties and the rotor's properties.
+
+604. Set the rotor's properties and the rotor's properties.
+
+605. Set the rotor's properties and the rotor's properties.
+
+606. Set the rotor's properties and the rotor's properties.
+
+607. Set the rotor's properties and the rotor's properties.
+
+608. Set the rotor's properties and the rotor's properties.
+
+609. Set the rotor's properties and the rotor's properties.
+
+610. Set the rotor's properties and the rotor's properties.
+
+611. Set the rotor's properties and the rotor's properties.
+
+612. Set the rotor's properties and the rotor's properties.
+
+613. Set the rotor's properties and the rotor's properties.
+
+614. Set the rotor's properties and the rotor's properties.
+
+615. Set the rotor's properties and the rotor's properties.
+
+616. Set the rotor's properties and the rotor's properties.
+
+617. Set the rotor's properties and the rotor's properties.
+
+618. Set the rotor's properties and the rotor's properties.
+
+619. Set the rotor's properties and the rotor's properties.
+
+620. Set the rotor's properties and the rotor's properties.
+
+621. Set the rotor's properties and the rotor's properties.
+
+622. Set the rotor's properties and the rotor's properties.
+
+623. Set the rotor's properties and the rotor's properties.
+
+624. Set the rotor's properties and the rotor's properties.
+
+625. Set the rotor's properties and the rotor's properties.
+
+626. Set the rotor's properties and the rotor's properties.
+
+627. Set the rotor's properties and the rotor's properties.
+
+628. Set the rotor's properties and the rotor's properties.
+
+629. Set the rotor's properties and the rotor's properties.
+
+630. Set the rotor's properties and the rotor's properties.
+
+631. Set the rotor's properties and the rotor's properties.
+
+632. Set the rotor's properties and the rotor's properties.
+
+633. Set the rotor's properties and the rotor's properties.
+
+634. Set the rotor's properties and the rotor's properties.
+
+635. Set the rotor's properties and the rotor's properties.
+
+636. Set the rotor's properties and the rotor's properties.
+
+637. Set the rotor's properties and the rotor's properties.
+
+638. Set the rotor's properties and the rotor's properties.
+
+639. Set the rotor's properties and the rotor's properties.
+
+640. Set the rotor's properties and the rotor's properties.
+
+641. Set the rotor's properties and the rotor's properties.
+
+642. Set the rotor's properties and the rotor's properties.
+
+643. Set the rotor's properties and the rotor's properties.
+
+644. Set the rotor's properties and the rotor's properties.
+
+645. Set the rotor's properties and the rotor's properties.
+
+646. Set the rotor's properties and the rotor's properties.
+
+647. Set the rotor's properties and the rotor's properties.
+
+648. Set the rotor's properties and the rotor's properties.
+
+649. Set the rotor's properties and the rotor's properties.
+
+650. Set the rotor's properties and the rotor's properties.
+
+651. Set the rotor's properties and the rotor's properties.
+
+652. Set the rotor's properties and the rotor's properties.
+
+653. Set the rotor's properties and the rotor's properties.
+
+654. Set the rotor's properties and the rotor's properties.
+
+655. Set the rotor's properties and the rotor's properties.
+
+656. Set the rotor's properties and the rotor's properties.
+
+657. Set the rotor's properties and the rotor's properties.
+
+658. Set the rotor's properties and the rotor's properties.
+
+659. Set the rotor's properties and the rotor's properties.
+
+660. Set the rotor's properties and the rotor's properties.
+
+661. Set the rotor's properties and the rotor's properties.
+
+662. Set the rotor's properties and the rotor's properties.
+
+663. Set the rotor's properties and the rotor's properties.
+
+664. Set the rotor's properties and the rotor's properties.
+
+665. Set the rotor's properties and the rotor's properties.
+
+666. Set the rotor's properties and the rotor's properties.
+
+667. Set the rotor's properties and the rotor's properties.
+
+668. Set the rotor's properties and the rotor's properties.
+
+669. Set the rotor's properties and the rotor's properties.
+
+670. Set the rotor's properties and the rotor's properties.
+
+671. Set the rotor's properties and the rotor's properties.
+
+672. Set the rotor's properties and the rotor's properties.
+
+673. Set the rotor's properties and the rotor's properties.
+
+674. Set the rotor's properties and the rotor's properties.
+
+675. Set the rotor's properties and the rotor's properties.
+
+676. Set the rotor's properties and the rotor's properties.
+
+677. Set the rotor's properties and the rotor's properties.
+
+678. Set the rotor's properties and the rotor's properties.
+
+679. Set the rotor's properties and the rotor's properties.
+
+680. Set the rotor's properties and the rotor's properties.
+
+681. Set the rotor's properties and the rotor's properties.
+
+682. Set the rotor's properties and the rotor's properties.
+
+683. Set the rotor's properties and the rotor's properties.
+
+684. Set the rotor's properties and the rotor's properties.
+
+685. Set the rotor's properties and the rotor's properties.
+
+686. Set the rotor's properties and the rotor's properties.
+
+687. Set the rotor's properties and the rotor's properties.
+
+688. Set the rotor's properties and the rotor's properties.
+
+689. Set the rotor's properties and the rotor's properties.
+
+690. Set the rotor's properties and the rotor's properties.
+
+691. Set the rotor's properties and the rotor's properties.
+
+692. Set the rotor's properties and the rotor's properties.
+
+693. Set the rotor's properties and the rotor's properties.
+
+694. Set the rotor's properties and the rotor's properties.
+
+695. Set the rotor's properties and the rotor's properties.
+
+696. Set the rotor's properties and the rotor's properties.
+
+697. Set the rotor's properties and the rotor's properties.
+
+698. Set the rotor's properties and the rotor's properties.
+
+699. Set the rotor's properties and the rotor's properties.
+
+700. Set the rotor's properties and the rotor's properties.
+
+701. Set the rotor's properties and the rotor's properties.
+
+702. Set the rotor's properties and the rotor's properties.
+
+703. Set the rotor's properties and the rotor's properties.
+
+704. Set the rotor's properties and the rotor's properties.
+
+705. Set the rotor's properties and the rotor's properties.
+
+706. Set the rotor's properties and the rotor's properties.
+
+707. Set the rotor's properties and the rotor's properties.
+
+708. Set the rotor's properties and the rotor's properties.
+
+709. Set the rotor's properties and the rotor's properties.
+
+710. Set the rotor's properties and the rotor's properties.
+
+711. Set the rotor's properties and the rotor's properties.
+
+712. Set the rotor's properties and the rotor's properties.
+
+713. Set the rotor's properties and the rotor's properties.
+
+714. Set the rotor's properties and the rotor's properties.
+
+715. Set the rotor's properties and the rotor's properties.
+
+716. Set the rotor's properties and the rotor's properties.
+
+717. Set the rotor's properties and the rotor's properties.
+
+718. Set the rotor's properties and the rotor's properties.
+
+719. Set the rotor's properties and the rotor's properties.
+
+720. Set the rotor's properties and the rotor's properties.
+
+721. Set the rotor's properties and the rotor's properties.
+
+722. Set the rotor's properties and the rotor's properties.
+
+723. Set the rotor's properties and the rotor's properties.
+
+724. Set the rotor's properties and the rotor's properties.
+
+725. Set the rotor's properties and the rotor's properties.
+
+726. Set the rotor's properties and the rotor's properties.
+
+727. Set the rotor's properties and the rotor's properties.
+
+728. Set the rotor's properties and the rotor's properties.
+
+729. Set the rotor's properties and the rotor's properties.
+
+730. Set the rotor's properties and the rotor's properties.
+
+731. Set the rotor's properties and the rotor's properties.
+
+732. Set the rotor's properties and the rotor's properties.
+
+733. Set the rotor's properties and the rotor's properties.
+
+734. Set the rotor's properties and the rotor's properties.
+
+735. Set the rotor's properties and the rotor's properties.
+
+736. Set the rotor's properties and the rotor's properties.
+
+737. Set the rotor's properties and the rotor's properties.
+
+738. Set the rotor's properties and the rotor's properties.
+
+739. Set the rotor's properties and the rotor's properties.
+
+740. Set the rotor's properties and the rotor's properties.
+
+741. Set the rotor's properties and the rotor's properties.
+
+742. Set the rotor's properties and the rotor's properties.
+
+743. Set the rotor's properties and the rotor's properties.
+
+744. Set the rotor's properties and the rotor's properties.
+
+745. Set the rotor's properties and the rotor's properties.
+
+746. Set the rotor's properties and the rotor's properties.
+
+747. Set the rotor's properties and the rotor's properties.
+
+748. Set the rotor's properties and the rotor's properties.
+
+749. Set the rotor's properties and the rotor's properties.
+
+750. Set the rotor's properties and the rotor's properties.
+
+751. Set the rotor's properties and the rotor's properties.
+
+752. Set the rotor's properties and the rotor's properties.
+
+753. Set the rotor's properties and the rotor's properties.
+
+754. Set the rotor's properties and the rotor's properties.
+
+755. Set the rotor's properties and the rotor's properties.
+
+756. Set the rotor's properties and the rotor's properties.
+
+757. Set the rotor's properties and the rotor's properties.
+
+758. Set the rotor's properties and the rotor's properties.
+
+759. Set the rotor's properties and the rotor's properties.
+
+760. Set the rotor's properties and the rotor's properties.
+
+761. Set the rotor's properties and the rotor's properties.
+
+762. Set the rotor's properties and the rotor's properties.
+
+763. Set the rotor's properties and the rotor's properties.
+
+764. Set the rotor's properties and the rotor's properties.
+
+765. Set the rotor's properties and the rotor's properties.
+
+766. Set the rotor's properties and the rotor's properties.
+
+767. Set the rotor's properties and the rotor's properties.
+
+768. Set the rotor's properties and the rotor's properties.
+
+769. Set the rotor's properties and the rotor's properties.
+
+770. Set the rotor's properties and the rotor's properties.
+
+771. Set the rotor's properties and the rotor's properties.
+
+772. Set the rotor's properties and the rotor's properties.
+
+773. Set the rotor's properties and the rotor's properties.
+
+774. Set the rotor's properties and the rotor's properties.
+
+775. Set the rotor's properties and the rotor's properties.
+
+776. Set the rotor's properties and the rotor's properties.
+
+777. Set the rotor's properties and the rotor's properties.
+
+778. Set the rotor's properties and the rotor's properties.
+
+779. Set the rotor's properties and the rotor's properties.
+
+780. Set the rotor's properties and the rotor's properties.
+
+781. Set the rotor's properties and the rotor's properties.
+
+782. Set the rotor's properties and the rotor's properties.
+
+783. Set the rotor's properties and the rotor's properties.
+
+784. Set the rotor's properties and the rotor's properties.
+
+785. Set the rotor's properties and the rotor's properties.
+
+786. Set the rotor's properties and the rotor's properties.
+
+787. Set the rotor's properties and the rotor's properties.
+
+788. Set the rotor's properties and the rotor's properties.
+
+789. Set the rotor's properties and the rotor's properties.
+
+790. Set the rotor's properties and the rotor's properties.
+
+791. Set the rotor's properties and the rotor's properties.
+
+792. Set the rotor's properties and the rotor's properties.
+
+793. Set the rotor's properties and the rotor's properties.
+
+794. Set the rotor's properties and the rotor's properties.
+
+795. Set the rotor's properties and the rotor's properties.
+
+796. Set the rotor's properties and the rotor's properties.
+
+797. Set the rotor's properties and the rotor's properties.
+
+798. Set the rotor's properties and the rotor's properties.
+
+799. Set the rotor's properties and the rotor's properties.
+
+800. Set the rotor's properties and the rotor's properties.
+
+801. Set the rotor's properties and the rotor's properties.
+
+802. Set the rotor's properties and the rotor's properties.
+
+803. Set the rotor's properties and the rotor's properties.
+
+804. Set the rotor's properties and the rotor's properties.
+
+805. Set the rotor's properties and the rotor's properties.
+
+806. Set the rotor's properties and the rotor's properties.
+
+807. Set the rotor's properties and the rotor's properties.
+
+808. Set the rotor's properties and the rotor's properties.
+
+809. Set the rotor's properties and the rotor's properties.
+
+810. Set the rotor's properties and the rotor's properties.
+
+811. Set the rotor's properties and the rotor's properties.
+
+812. Set the rotor's properties and the rotor's properties.
+
+813. Set the rotor's properties and the rotor's properties.
+
+814. Set the rotor's properties and the rotor's properties.
+
+815. Set the rotor's properties and the rotor's properties.
+
+816. Set the rotor's properties and the rotor's properties.
+
+817. Set the rotor's properties and the rotor's properties.
+
+818. Set the rotor's properties and the rotor's properties.
+
+819. Set the rotor's properties and the rotor's properties.
+
+820. Set the rotor's properties and the rotor's properties.
+
+821. Set the rotor's properties and the rotor's properties.
+
+822. Set the rotor's properties and the rotor's properties.
+
+823. Set the rotor's properties and the rotor's properties.
+
+824. Set the rotor's properties and the rotor's properties.
+
+825. Set the rotor's properties and the rotor's properties.
+
+826. Set the rotor's properties and the rotor's properties.
+
+827. Set the rotor's properties and the rotor's properties.
+
+828. Set the rotor's properties and the rotor's properties.
+
+829. Set the rotor's properties and the rotor's properties.
+
+830. Set the rotor's properties and the rotor's properties.
+
+831. Set the rotor's properties and the rotor's properties.
+
+832. Set the rotor's properties and the rotor's properties.
+
+833. Set the rotor's properties and the rotor's properties.
+
+834. Set the rotor's properties and the rotor's properties.
+
+835. Set the rotor's properties and the rotor's properties.
+
+836. Set the rotor's properties and the rotor's properties.
+
+837. Set the rotor's properties and the rotor's properties.
+
+838. Set the rotor's properties and the rotor's properties.
+
+839. Set the rotor's properties and the rotor's properties.
+
+840. Set the rotor's properties and the rotor's properties.
+
+841. Set the rotor's properties and the rotor's properties.
+
+842. Set the rotor's properties and the rotor's properties.
+
+843. Set the rotor's properties and the rotor's properties.
+
+844. Set the rotor's properties and the rotor's properties.
+
+845. Set the rotor's properties and the rotor's properties.
+
+846. Set the rotor's properties and the rotor's properties.
+
+847. Set the rotor's properties and the rotor's properties.
+
+848. Set the rotor's properties and the rotor's properties.
+
+849. Set the rotor's properties and the rotor's properties.
+
+850. Set the rotor's properties and the rotor's properties.
+
+851. Set the rotor's properties and the rotor's properties.
+
+852. Set the rotor's properties and the rotor's properties.
+
+853. Set the rotor's properties and the rotor's properties.
+
+854. Set the rotor's properties and the rotor's properties.
+
+855. Set the rotor's properties and the rotor's properties.
+
+856. Set the rotor's properties and the rotor's properties.
+
+857. Set the rotor's properties and the rotor's properties.
+
+858. Set the rotor's properties and the rotor's properties.
+
+859. Set the rotor's properties and the rotor's properties.
+
+860. Set the rotor's properties and the rotor's properties.
+
+861. Set the rotor's properties and the rotor's properties.
+
+862. Set the rotor's properties and the rotor's properties.
+
+863. Set the rotor's properties and the rotor's properties.
+
+864. Set the rotor's properties and the rotor's properties.
+
+865. Set the rotor's properties and the rotor's properties.
+
+866. Set the rotor's properties and the rotor's properties.
+
+867. Set the rotor's properties and the rotor's properties.
+
+868. Set the rotor's properties and the rotor's properties.
+
+869. Set the rotor's properties and the rotor's properties.
+
+870. Set the rotor's properties and the rotor's properties.
+
+871. Set the rotor's properties and the rotor's properties.
+
+872. Set the rotor's properties and the rotor's properties.
+
+873. Set the rotor's properties and the rotor's properties.
+
+874. Set the rotor's properties and the rotor's properties.
+
+875. Set the rotor's properties and the rotor's properties.
+
+876. Set the rotor's properties and the rotor's properties.
+
+877. Set the rotor's properties and the rotor's properties.
+
+878. Set the rotor's properties and the rotor's properties.
+
+879. Set the rotor's properties and the rotor's properties.
+
+880. Set the rotor's properties and the rotor's properties.
+
+881. Set the rotor's properties and the rotor's properties.
+
+882. Set the rotor's properties and the rotor's properties.
+
+883. Set the rotor's properties and the rotor's properties.
+
+884. Set the rotor's properties and the rotor's properties.
+
+885. Set the rotor's properties and the rotor's properties.
+
+886. Set the rotor's properties and the rotor's properties.
+
+887. Set the rotor's properties and the rotor's properties.
+
+888. Set the rotor's properties and the rotor's properties.
+
+889. Set the rotor's properties and the rotor's properties.
+
+890. Set the rotor's properties and the rotor's properties.
+
+891. Set the rotor's properties and the rotor's properties.
+
+892. Set the rotor's properties and the rotor's properties.
+
+893. Set the rotor's properties and the rotor's properties.
+
+894. Set the rotor's properties and the rotor's properties.
+
+895. Set the rotor's properties and the rotor's properties.
+
+896. Set the rotor's properties and the rotor's properties.
+
+897. Set the rotor's properties and the rotor's properties.
+
+898. Set the rotor's properties and the rotor's properties.
+
+899. Set the rotor's properties and the rotor's properties.
+
+900. Set the rotor's properties and the rotor's properties.
+
+901. Set the rotor's properties and the rotor's properties.
+
+902. Set the rotor's properties and the rotor's properties.
+
+903. Set the rotor's properties and the rotor's properties.
+
+904. Set the rotor's properties and the rotor's properties.
+
+905. Set the rotor's properties and the rotor's properties.
+
+906. Set the rotor's properties and the rotor's properties.
+
+907. Set the rotor's properties and the rotor's properties.
+
+908. Set the rotor's properties and the rotor's properties.
+
+909. Set the rotor's properties and the rotor's properties.
+
+910. Set the rotor's properties and the rotor's properties.
+
+911. Set the rotor's properties and the rotor's properties.
+
+912. Set the rotor's properties and the rotor's properties.
+
+913. Set the rotor's properties and the rotor's properties.
+
+914. Set the rotor's properties and the rotor's properties.
+
+915. Set the rotor's properties and the rotor's properties.
+
+916. Set the rotor's properties and the rotor's properties.
+
+917. Set the rotor's properties and the rotor's properties.
+
+918. Set the rotor's properties and the rotor's properties.
+
+919. Set the rotor's properties and the rotor's properties.
+
+920. Set the rotor's properties and the rotor's properties.
+
+921. Set the rotor's properties and the rotor's properties.
+
+922. Set the rotor's properties and the rotor's properties.
+
+923. Set the rotor's properties and the rotor's properties.
+
+924. Set the rotor's properties and the rotor's properties.
+
+925. Set the rotor's properties and the rotor's properties.
+
+926. Set the rotor's properties and the rotor's properties.
+
+927. Set the rotor's properties and the rotor's properties.
+
+928. Set the rotor's properties and the rotor's properties.
+
+929. Set the rotor's properties and the rotor's properties.
+
+930. Set the rotor's properties and the rotor's properties.
+
+931. Set the rotor's properties and the rotor's properties.
+
+932. Set the rotor's properties and the rotor's properties.
+
+933. Set the rotor's properties and the rotor's properties.
+
+934. Set the rotor's properties and the rotor's properties.
+
+935. Set the rotor's properties and the rotor's properties.
+
+936. Set the rotor's properties and the rotor's properties.
+
+937. Set the rotor's properties and the rotor's properties.
+
+938. Set the rotor's properties and the rotor's properties.
+
+939. Set the rotor's properties and the rotor's properties.
+
+940. Set the rotor's properties and the rotor's properties.
+
+941. Set the rotor's properties and the rotor's properties.
+
+942. Set the rotor's properties and the rotor's properties.
+
+943. Set the rotor's properties and the rotor's properties.
+
+944. Set the rotor's properties and the rotor's properties.
+
+945. Set the rotor's properties and the rotor's properties.
+
+946. Set the rotor's properties and the rotor's properties.
+
+947. Set the rotor's properties and the rotor's properties.
+
+948. Set the rotor's properties and the rotor's properties.
+
+949. Set the rotor's properties and the rotor's properties.
+
+950. Set the rotor's properties and the rotor's properties.
+
+951. Set the rotor's properties and the rotor's properties.
+
+952. Set the rotor's properties and the rotor's properties.
+
+953. Set the rotor's properties and the rotor's properties.
+
+954. Set the rotor's properties and the rotor's properties.
+
+955. Set the rotor's properties and the rotor's properties.
+
+956. Set the rotor's properties and the rotor's properties.
+
+957. Set the rotor's properties and the rotor's properties.
+
+958. Set the rotor's properties and the rotor's properties.
+
+959. Set the rotor's properties and the rotor's properties.
+
+960. Set the rotor's properties and the rotor's properties.
+
+961. Set the rotor's properties and the rotor's properties.
+
+962. Set the rotor's properties and the rotor's properties.
+
+963. Set the rotor's properties and the rotor's properties.
+
+964. Set the rotor's properties and the rotor's properties.
+
+965. Set the rotor's properties and the rotor's properties.
+
+966. Set the rotor's properties and the rotor's properties.
+
+967. Set the rotor's properties and the rotor's properties.
+
+968. Set the rotor's properties and the rotor's properties.
+
+969. Set the rotor's properties and the rotor's properties.
+
+970. Set the rotor's properties and the rotor's properties.
+
+971. Set the rotor's properties and the rotor's properties.
+
+972. Set the rotor's properties and the rotor's properties.
+
+973. Set the rotor's properties and the rotor's properties.
+
+974. Set the rotor's properties and the rotor's properties.
+
+975. Set the rotor's properties and the rotor's properties.
+
+976. Set the rotor's properties and the rotor's properties.
+
+977. Set the rotor's properties and the rotor's properties.
+
+978. Set the rotor's properties and the rotor's properties.
+
+979. Set the rotor's properties and the rotor's properties.
+
+980. Set the rotor's properties and the rotor's properties.
+
+981. Set the rotor's properties and the rotor's properties.
+
+982. Set the rotor's properties and the rotor's properties.
+
+983. Set the rotor's properties and the rotor's properties.
+
+984. Set the rotor's properties and the rotor's properties.
+
+985. Set the rotor's properties and the rotor's properties.
+
+986. Set the rotor's properties and the rotor's properties.
+
+987. Set the rotor's properties and the rotor's properties.
+
+988. Set the rotor's properties and the rotor's properties.
+
+989. Set the rotor's properties and the rotor's properties.
+
+990. Set the rotor's properties and the rotor's properties.
+
+991. Set the rotor's properties and the rotor's properties.
+
+992. Set the rotor's properties and the rotor's properties.
+
+993. Set the rotor's properties and the rotor's properties.
+
+994. Set the rotor's properties and the rotor's properties.
+
+995. Set the rotor's properties and the rotor's properties.
+
+996. Set the rotor's properties and the rotor's properties.
+
+997. Set the rotor's properties and the rotor's properties.
+
+998. Set the rotor's properties and the rotor's properties.
+
+999. Set the rotor's properties and the rotor's properties.
+
+1000. Set the rotor's properties and the rotor's properties.
+
+1001. Set the rotor's properties and the rotor's properties.
+
+1002. Set the rotor's properties and the rotor's properties.
+
+1003. Set the rotor's properties and the rotor's properties.
+
+1004. Set the rotor's properties and the rotor's properties.
+
+1005. Set the rotor's properties and the rotor's properties.
+
+1006. Set the rotor's properties and the rotor's properties.
+
+1007. Set the rotor's properties and the rotor's properties.
+
+1008. Set the rotor's properties and the rotor's properties.
+
+1009. Set the rotor's properties and the rotor's properties.
+
+1010. Set the rotor's properties and the rotor's properties.
+
+1011. Set the rotor's properties and the rotor's properties.
+
+1012. Set the rotor's properties and the rotor's properties.
+
+1013. Set the rotor's properties and the rotor's properties.
+
+1014. Set the rotor's properties and the rotor's properties.
+
+1015. Set the rotor's properties and the rotor's properties.
+
+1016. Set the rotor's properties and the rotor's properties.
+
+1017. Set the rotor's properties and the rotor's properties.
+
+1018. Set the rotor's properties and the rotor's properties.
+
+1019. Set the rotor's properties and the rotor's properties.
+
+1020. Set the rotor's properties and the rotor's properties.
+
+1021. Set the rotor's properties and the rotor's properties.
+
+1022. Set the rotor's properties and the rotor's properties.
+
+1023. Set the rotor's properties and the rotor's properties.
+
+1024. Set the rotor's properties and the rotor's properties.
+
+1025. Set the rotor's properties and the rotor's properties.
+
+1026. Set the rotor's properties and the rotor's properties.
+
+1027. Set the rotor's properties and the rotor's properties.
+
+1028. Set the rotor's properties and the rotor's properties.
+
+1029. Set the rotor's properties and the rotor's properties.
+
+1030. Set the rotor's properties and the rotor's properties.
+
+1031. Set the rotor's properties and the rotor's properties.
+
+1032. Set the rotor's properties and the rotor's properties.
+
+1033. Set the rotor's properties and the rotor's properties.
+
+1034. Set the rotor's properties and the rotor's properties.
+
+1035. Set the rotor's properties and the rotor's properties.
+
+1036. Set the rotor's properties and the rotor's properties.
+
+1037. Set the rotor's properties and the rotor's properties.
+
+1038. Set the rotor's properties and the rotor's properties.
+
+1039. Set the rotor's properties and the rotor's properties.
+
+1040. Set the rotor's properties and the rotor's properties.
+
+1041. Set the rotor's properties and the rotor's properties.
+
+1042. Set the rotor's properties and the rotor's properties.
+
+1043. Set the rotor's properties and the rotor's properties.
+
+1044. Set the rotor's properties and the rotor's properties.
+
+1045. Set the rotor's properties and the rotor's properties.
+
+1046. Set the rotor's properties and the rotor's properties.
+
+1047. Set the rotor's properties and the rotor's properties.
+
+1048. Set the rotor's properties and the rotor's properties.
+
+1049. Set the rotor's properties and the rotor's properties.
+
+1050. Set the rotor's properties and the rotor's properties.
+
+1051. Set the rotor's properties and the rotor's properties.
+
+1052. Set the rotor's properties and the rotor's properties.
+
+1053. Set the rotor's properties and the rotor's properties.
+
+1054. Set the rotor's properties and the rotor's properties.
+
+1055. Set the rotor's properties and the rotor's properties.
+
+1056. Set the rotor's properties and the rotor's properties.
+
+1057. Set the rotor's properties and the rotor's properties.
+
+1058. Set the rotor's properties and the rotor's properties.
+
+1059. Set the rotor's properties and the rotor's properties.
+
+1060. Set the rotor's properties and the rotor's properties.
+
+1061. Set the rotor's properties and the rotor's properties.
+
+1062. Set the rotor's properties and the rotor's properties.
+
+1063. Set the rotor's properties and the rotor's properties.
+
+1064. Set the rotor's properties and the rotor's properties.
+
+1065. Set the rotor's properties and the rotor's properties.
+
+1066. Set the rotor's properties and the rotor's properties.
+
+1067. Set the rotor's properties and the rotor's properties.
+
+1068. Set the rotor's properties and the rotor's properties.
+
+1069. Set the rotor's properties and the rotor's properties.
+
+1070. Set the rotor's properties and the rotor's properties.
+
+1071. Set the rotor's properties and the rotor's properties.
+
+1072. Set the rotor's properties and the rotor's properties.
+
+1073. Set the rotor's properties and the rotor's properties.
+
+1074. Set the rotor's properties and the rotor's properties.
+
+1075. Set the rotor's properties and the rotor's properties.
+
+1076. Set the rotor's properties and the rotor's properties.
+
+1077. Set the rotor's properties and the rotor's properties.
+
+1078. Set the rotor's properties and the rotor's properties.
+
+1079. Set the rotor's properties and the rotor's properties.
+
+1080. Set the rotor's properties and the rotor's properties.
+
+1081. Set the rotor's properties and the rotor's properties.
+
+1082. Set the rotor's properties and the rotor's properties.
+
+1083. Set the rotor's properties and the rotor's properties.
+
+1084. Set the rotor's properties and the rotor's properties.
+
+1085. Set the rotor's properties and the rotor's properties.
+
+1086. Set the rotor's properties and the rotor's properties.
+
+1087. Set the rotor's properties and the rotor's properties.
+
+1088. Set the rotor's properties and the rotor's properties.
+
+1089. Set the rotor's properties and the rotor's properties.
+
+1090. Set the rotor's properties and the rotor's properties.
+
+1091. Set the rotor's properties and the rotor's properties.
+
+1092. Set the rotor's properties and the rotor's properties.
+
+1093. Set the rotor's properties and the rotor's properties.
+
+1094. Set the rotor's properties and the rotor's properties.
+
+1095. Set the rotor's properties and the rotor's properties.
+
+1096. Set the rotor's properties and the rotor's properties.
+
+1097. Set the rotor's properties and the rotor's properties.
+
+1098. Set the rotor's properties and the rotor's properties.
+
+1099. Set the rotor's properties and the rotor's properties.
+
+1100. Set the rotor's properties and the rotor's properties.
+
+1101. Set the rotor's properties and the rotor's properties.
+
+1102. Set the rotor's properties and the rotor's properties.
+
+1103. Set the rotor's properties and the rotor's properties.
+
+1104. Set the rotor's properties and the rotor's properties.
+
+1105. Set the rotor's properties and the rotor's properties.
+
+1106. Set the rotor's properties and the rotor's properties.
+
+1107. Set the rotor's properties and the rotor's properties.
+
+1108. Set the rotor's properties and the rotor's properties.
+
+1109. Set the rotor's properties and the rotor's properties.
+
+1110. Set the rotor's properties and the rotor's properties.
+
+1111. Set the rotor's properties and the rotor's properties.
+
+1112. Set the rotor's properties and the rotor's properties.
+
+1113. Set the rotor's properties and the rotor's properties.
+
+1114. Set the rotor's properties and the rotor's properties.
+
+1115. Set the rotor's properties and the rotor's properties.
+
+1116. Set the rotor's properties and the rotor's properties.
+
+1117. Set the rotor's properties and the rotor's properties.
+
+1118. Set the rotor's properties and the rotor's properties.
+
+1119. Set the rotor's properties and the rotor's properties.
+
+1120. Set the rotor's properties and the rotor's properties.
+
+1121. Set the rotor's properties and the rotor's properties.
+
+1122. Set the rotor's properties and the rotor's properties.
+
+1123. Set the rotor's properties and the rotor's properties.
+
+1124. Set the rotor's properties and the rotor's properties.
+
+1125. Set the rotor's properties and the rotor's properties.
+
+1126. Set the rotor's properties and the rotor's properties.
+
+1127. Set the rotor's properties and the rotor's properties.
+
+1128. Set the rotor's properties and the rotor's properties.
+
+1129. Set the rotor's properties and the rotor's properties.
+
+1130. Set the rotor's properties and the rotor's properties.
+
+1131. Set the rotor's properties and the rotor's properties.
+
+1132. Set the rotor's properties and the rotor's properties.
+
+1133. Set the rotor's properties and the rotor's properties.
+
+1134. Set the rotor's properties and the rotor's properties.
+
+1135. Set the rotor's properties and the rotor's properties.
+
+1136. Set the rotor's properties and the rotor's properties.
+
+1137. Set the rotor's properties and the rotor's properties.
+
+1138. Set the rotor's properties and the rotor's properties.
+
+1139. Set the rotor's properties and the rotor's properties.
+
+1140. Set the rotor's properties and the rotor's properties.
+
+1141. Set the rotor's properties and the rotor's properties.
+
+1142. Set the rotor's properties and the rotor's properties.
+
+1143. Set the rotor's properties and the rotor's properties.
+
+1144. Set the rotor's properties and the rotor's properties.
+
+1145. Set the rotor's properties and the rotor's properties.
+
+1146. Set the rotor's properties and the rotor's properties.
+
+1147. Set the rotor's properties and the rotor's properties.
+
+1148. Set the rotor's properties and the rotor's properties.
+
+1149. Set the rotor's properties and the rotor's properties.
+
+1150. Set the rotor's properties and the rotor's properties.
+
+1151. Set the rotor's properties and the rotor's properties.
+
+1152. Set the rotor's properties and the rotor's properties.
+
+1153. Set the rotor's properties and the rotor's properties.
+
+1154. Set the rotor's properties and the rotor's properties.
+
+1155. Set the rotor's properties and the rotor's properties.
+
+1156. Set the rotor's properties and the rotor's properties.
+
+1157. Set the rotor's properties and the rotor's properties.
+
+1158. Set the rotor's properties and the rotor's properties.
+
+1159. Set the rotor's properties and the rotor's properties.
+
+1160. Set the rotor's properties and the rotor's properties.
+
+1161. Set the rotor's properties and the rotor's properties.
+
+1162. Set the rotor's properties and the rotor's properties.
+
+1163. Set the rotor's properties and the rotor's properties.
+
+1164. Set the rotor's properties and the rotor's properties.
+
+1165. Set the rotor's properties and the rotor's properties.
+
+1166. Set the rotor's properties and the rotor's properties.
+
+1167. Set the rotor's properties and the rotor's properties.
+
+1168. Set the rotor's properties and the rotor's properties.
+
+1169. Set the rotor's properties and the rotor's properties.
+
+1170. Set the rotor's properties and the rotor's properties.
+
+1171. Set the rotor's properties and the rotor's properties.
+
+1172. Set the rotor's properties and the rotor's properties.
+
+1173. Set the rotor's properties and the rotor's properties.
+
+1174. Set the rotor's properties and the rotor's properties.
+
+1175. Set the rotor's properties and the rotor's properties.
+
+1176. Set the rotor's properties and the rotor's properties.
+
+1177. Set the rotor's properties and the rotor's properties.
+
+1178. Set the rotor's properties and the rotor's properties.
+
+1179. Set the rotor's properties and the rotor's properties.
+
+1180. Set the rotor's properties and the rotor's properties.
+
+1181. Set the rotor's properties and the rotor's properties.
+
+1182. Set the rotor's properties and the rotor's properties.
+
+1183. Set the rotor's properties and the rotor's properties.
+
+1184. Set the rotor's properties and the rotor's properties.
+
+1185. Set the rotor's properties and the rotor's properties.
+
+1186. Set the rotor's properties and the rotor's properties.
+
+1187. Set the rotor's properties and the rotor's properties.
+
+1188. Set the rotor's properties and the rotor's properties.
+
+1189. Set the rotor's properties and the rotor's properties.
+
+1190. Set the rotor's properties and the rotor's properties.
+
+1191. Set the rotor's properties and the rotor's properties.
+
+1192. Set the rotor's properties and the rotor's properties.
+
+1193. Set the rotor's properties and the rotor's properties.
+
+1194. Set the rotor's properties and the rotor's properties.
+
+1195. Set the rotor's properties and the rotor's properties.
+
+1196. Set the rotor's properties and the rotor's properties.
+
+1197. Set the rotor's properties and the rotor's properties.
+
+1198. Set the rotor's properties and the rotor's properties.
+
+1199. Set the rotor's properties and the rotor's properties.
+
+1200. Set the rotor's properties and the rotor's properties.
+
+1201. Set the rotor's properties and the rotor's properties.
+
+1202. Set the rotor's properties and the rotor's properties.
+
+1203. Set the rotor's properties and the rotor's properties.
+
+1204. Set the rotor's properties and the rotor's properties.
+
+1205. Set the rotor's properties and the rotor's properties.
+
+1206. Set the rotor's properties and the rotor's properties.
+
+1207. Set the rotor's properties and the rotor's properties.
+
+1208. Set the rotor's properties and the rotor's properties.
+
+1209. Set the rotor's properties and the rotor's properties.
+
+1210. Set the rotor's properties and the rotor's properties.
+
+1211. Set the rotor's properties and the rotor's properties.
+
+1212. Set the rotor's properties and the rotor's properties.
+
+1213. Set the rotor's properties and the rotor's properties.
+
+1214. Set the rotor's properties and the rotor's properties.
+
+1215. Set the rotor's properties and the rotor's properties.
+
+1216. Set the rotor's properties and the rotor's properties.
+
+1217. Set the rotor's properties and the rotor's properties.
+
+1218. Set the rotor's properties and the rotor's properties.
+
+1219. Set the rotor's properties and the rotor's properties.
+
+1220. Set the rotor's properties and the rotor's properties.
+
+1221. Set the rotor's properties and the rotor's properties.
+
+1222. Set the rotor's properties and the rotor's properties.
+
+1223. Set the rotor's properties and the rotor's properties.
+
+1224. Set the rotor's properties and the rotor's properties.
+
+1225. Set the rotor's properties and the rotor's properties.
+
+1226. Set the rotor's properties and the rotor's properties.
+
+1227. Set the rotor's properties and the rotor's properties.
+
+1228. Set the rotor's properties and the rotor's properties.
+
+1229. Set the rotor's properties and the rotor's properties.
+
+1230. Set the rotor's properties and the rotor's properties.
+
+1231. Set the rotor's properties and the rotor's properties.
+
+1232. Set the rotor's properties and the rotor's properties.
+
+1233. Set the rotor's properties and the rotor's properties.
+
+1234. Set the rotor's properties and the rotor's properties.
+
+1235. Set the rotor's properties and the rotor's properties.
+
+1236. Set the rotor's properties and the rotor's properties.
+
+1237. Set the rotor's properties and the rotor's properties.
+
+1238. Set the rotor's properties and the rotor's properties.
+
+1239. Set the rotor's properties and the rotor's properties.
+
+1240. Set the rotor's properties and the rotor's properties.
+
+1241. Set the rotor's properties and the rotor's properties.
+
+1242. Set the rotor's properties and the rotor's

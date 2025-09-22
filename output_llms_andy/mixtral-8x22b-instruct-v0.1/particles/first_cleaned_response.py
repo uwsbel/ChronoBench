@@ -1,0 +1,53 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  
+
+
+class ParticleEmitter:
+    def __init__(self):
+        self.shapes = [chrono.ChBodyEasySphere(1, 1000), chrono.ChBodyEasyCylinder(1, 1, 1000), chrono.ChBodyEasyBox(1, 1, 1, 1000)]
+
+    def emit_particle(self):
+        particle = self.shapes[np.random.randint(0, len(self.shapes))].Copy()
+        particle.SetPos(chrono.ChVectorD(np.random.uniform(-5, 5), 10, np.random.uniform(-5, 5)))
+        particle.SetRot(chrono.ChQuaternionD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)).Normalized())
+        particle.SetPos_dt(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 0), np.random.uniform(-1, 1)))
+        particle.SetWvel_par(chrono.ChVectorD(np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)))
+        return particle
+
+
+emitter = ParticleEmitter()
+
+
+for _ in range(10):
+    my_system.Add(emitter.emit_particle())
+
+
+for body1 in my_system.Get_bodylist():
+    for body2 in my_system.Get_bodylist():
+        if body1 != body2:
+            force = chrono.ChForceGravity()
+            force.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+            force.Set_mass(body1.GetMass())
+            force.Set_mass(body2.GetMass())
+            force.Set_point(body1.GetPos())
+            force.Set_point(body2.GetPos())
+            my_system.AddForce(force)
+
+
+visualizer = chronoirr.ChIrrApp(my_system, 'PyChrono Particle Simulation', chronoirr.dimension2du(800, 600))
+visualizer.AddTypicalSky()
+visualizer.AddTypicalLogo()
+visualizer.AddTypicalCamera(chrono.ChVectorD(0, 0, -10))
+visualizer.AddLightWithShadow(chrono.ChVectorD(0, 10, -10), chrono.ChVectorD(0, 10, -10), 10)
+
+
+while visualizer.Run():
+    my_system.DoStepDynamics(0.01)
+    visualizer.BeginScene()
+    visualizer.DrawAll()
+    visualizer.EndScene()

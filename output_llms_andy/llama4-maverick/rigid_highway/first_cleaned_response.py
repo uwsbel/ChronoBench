@@ -1,0 +1,64 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+
+print('Copyright (c) 2023 Project Chrono')
+
+
+init_loc = chrono.ChVectorD(0, 0, 1.0)
+init_orient = chrono.ChQuaternionD(1, 0, 0, 0)
+contact_method = chrono.ChContactMethod_NSC
+vehicle = veh.HMMWV_Full(init_loc, init_orient, contact_method)
+
+
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_orient))
+vehicle.SetTireType(veh.TireModelType_TMEASY)
+vehicle.SetTireStepSize(1e-3)
+vehicle.SetInitFwdVel(0.0)
+
+
+vehicle.Initialize()
+
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+mesh_file = chrono.GetChronoDataFile("models/HMMWV/terrain/Highway_col.obj")
+mesh_mat = chrono.ChMaterialSurfaceNSC()
+mesh_mat.SetFriction(0.9)
+terrain.AddMesh(mesh_mat, mesh_file, 1.0, chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+
+
+terrain.SetPlotType(veh.RigidTerrain.PlotType_MESH, 0.5, 0)
+vis_mesh_file = chrono.GetChronoDataFile("models/HMMWV/terrain/Highway_vis.obj")
+terrain.AddVisualizationMesh(vis_mesh_file)
+
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('HMMWV on Custom Mesh Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AttachSystem(vehicle.GetSystem())
+
+
+driver = veh.ChIrrGuiDriver(vis, vehicle.GetVehicle())
+
+
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.06)
+
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    vehicle.Advance(driver_inputs)
+    terrain.Advance(time)
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    vis.Render()
+    vis.EndScene()
+    driver.Synchronize(time)
+    driver.Advance(1 / 50.0)

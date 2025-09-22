@@ -1,0 +1,53 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import numpy as np
+
+
+mysystem = chrono.ChSystemNSC()
+myvehicle = veh.HMMWV(mysystem)
+
+
+myvehicle.SetChassisFixed(False)
+myvehicle.SetInitPosition(chrono.ChVectorD(0, 0, 0.5))
+myvehicle.SetInitRotation(chrono.Q_from_AngX(0 * chrono.CH_C_PI / 180))
+
+
+terrain = veh.SCMDeformableTerrain(mysystem)
+terrain.SetPlane(chrono.ChPlane(chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 0, 1)))
+terrain.SetNormalK(4e8)
+terrain.SetDampingF(2e6)
+terrain.SetFriction(0.75)
+terrain.SetLength(100)
+terrain.SetWidth(100)
+terrain.SetHeight(2)
+terrain.SetCellSize(0.5)
+terrain.SetBucketSize(0.5)
+terrain.SetMaxSlope(60)
+terrain.SetMaxHeight(10)
+terrain.SetMinHeight(-10)
+terrain.SetStep(0.01)
+terrain.SetUpdateRate(100)
+
+
+height_map = np.random.rand(200, 200)
+terrain.SetHeightfieldData(height_map)
+
+
+driver = veh.ChIrrGuiDriver(myvehicle.GetPart(0))
+
+
+vis = chronoirr.ChVisualSystemIrrlicht(mysystem)
+vis.SetWindowSize(800, 600)
+vis.SetWindowTitle("HMMWV on deformable terrain")
+vis.AddSkyBox()
+vis.AddTypicalLights()
+vis.AddCamera(chrono.ChVectorD(0, 0, 1.5), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraUp(chrono.ChVectorD(0, 0, 1))
+
+
+while vis.Run():
+    mysystem.DoStepDynamics(0.01)
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()

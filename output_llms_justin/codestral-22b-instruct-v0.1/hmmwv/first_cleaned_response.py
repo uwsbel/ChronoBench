@@ -1,0 +1,54 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+
+chrono.SetChronoDataPath("../../data/")
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+
+
+
+hmmwv = veh.HMMWV(my_system)
+hmmwv.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1), chrono.ChQuaternionD(1, 0, 0, 0)))
+hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+hmmwv.SetTireType(veh.TireModelType_TMEASY)
+hmmwv.SetTireVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+
+terrain = veh.RigidTerrain(my_system)
+terrain.Initialize(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0)),
+                   chrono.ChVectorD(100, 100, 1),
+                   chrono.ChVectorD(50, 50, 1),
+                   chrono.ChVectorD(0.8, 0.9, 0.3))
+terrain.SetTexture(chrono.GetChronoDataFile("terrain/textures/tile4.jpg"))
+
+
+
+
+driver = veh.ChDriver(hmmwv)
+driver.SetSteeringControllerType(veh.SteeringControllerType_PID)
+driver.SetSpeedControllerType(veh.SpeedControllerType_PID)
+driver.Initialize()
+
+
+application = irr.ChIrrApp(my_system, 'HMMWV on Rigid Terrain', irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(irr.vector3df(0, 3, -6))
+application.AddLightWithShadow(irr.vector3df(3, 10, -10), irr.vector3df(0, 0, 0), 15, 10, 70, 512, irr.SColorf(0.8, 0.8, 1))
+application.AddShadowAll()
+
+application.SetTimestep(0.02)
+application.SetTryRealtime(True)
+application.SetFrameRate(50)
+
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

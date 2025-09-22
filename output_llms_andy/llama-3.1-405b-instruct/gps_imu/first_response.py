@@ -1,0 +1,65 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.sensor as sens
+import pychrono.irrlicht as irr
+
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('/path/to/chrono/data/')
+myapplication = veh.ChVehicleIrrApp()
+
+# Create the HMMWV vehicle
+myvehicle = veh.ChPart('HMMWV')
+myvehicle.SetMass(3000)
+myvehicle.SetInertiaXX(1000)
+myvehicle.SetInertiaYY(1000)
+myvehicle.SetInertiaZZ(1000)
+
+# Create the terrain
+terrain = veh.ChTerrain()
+terrain.SetTexture(veh.GetDataFile("terrain/textures/terrain.jpg"))
+terrain.SetNormalMap(veh.GetDataFile("terrain/textures/terrain_nm.jpg"))
+
+# Create the driver system
+driver = veh.ChIrrNodeApplicationDriver()
+driver.Initialize()
+
+# Create the IMU sensor
+imu = sens.ChIMUSensor()
+imu.SetOffsetPosition(chrono.ChVectorD(0, 0, 1))
+imu.SetOffsetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+myvehicle.AddSensor(imu)
+
+# Create the GPS sensor
+gps = sens.ChGPSSensor()
+gps.SetOffsetPosition(chrono.ChVectorD(0, 0, 1))
+gps.SetOffsetRotation(chrono.ChQuaternionD(1, 0, 0, 0))
+myvehicle.AddSensor(gps)
+
+# Create the Irrlicht interface
+myapplication.SetTimestep(0.01)
+myapplication.SetSolverType(chrono.ChSolver.Type_APO)
+myapplication.AddTypicalLights()
+myapplication.AddSkyBox()
+myapplication.AddCamera(chrono.ChVectorD(0, 0, 5))
+myapplication.AddTypicalLights()
+myapplication.SetWindowTitle("HMMWV Simulation")
+
+# Simulation loop
+while myapplication.GetDevice().run():
+    # Synchronize and advance the vehicle, terrain, driver, and visual system modules
+    driver.Synchronize()
+    myvehicle.Advance(0.01)
+    terrain.Advance(0.01)
+    myapplication.Advance(0.01)
+
+    # Process and update sensor data
+    imu.Update()
+    gps.Update()
+
+    # Output vehicle mass
+    print("Vehicle Mass:", myvehicle.GetMass())
+
+    # Render the scene
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.EndScene()

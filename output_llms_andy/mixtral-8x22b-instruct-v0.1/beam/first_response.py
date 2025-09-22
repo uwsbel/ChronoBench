@@ -1,0 +1,48 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# 1. Initialize the PyChrono environment and core components
+my_system = chrono.ChSystemNSC()
+
+# 2. Add the required physical systems and objects as specified
+# Create a mesh composed of beams and nodes with specific properties
+num_beams = 5
+node_mass = 1
+beam_length = 1
+beam_radius = 0.1
+beam_density = 7850  # steel density
+beam_young_modulus = 2.1e11  # steel Young's modulus
+beam_poisson_ratio = 0.3  # steel Poisson's ratio
+
+# Create nodes
+nodes = []
+for i in range(num_beams + 1):
+    node = chrono.ChNodeFEAxyzD(my_system)
+    node.SetMass(node_mass)
+    nodes.append(node)
+
+# Create beams
+beams = []
+for i in range(num_beams):
+    beam = chrono.ChElementBeamEuler(nodes[i], nodes[i + 1], beam_radius, beam_length, beam_density, beam_young_modulus, beam_poisson_ratio)
+    beams.append(beam)
+
+# 3. Set necessary default parameters such as positions, forces, and interactions
+# Set initial positions
+for i in range(num_beams + 1):
+    nodes[i].SetPos(chrono.ChVectorD(i * beam_length, 0, 0))
+
+# Add visualization
+myapplication = chronoirr.ChIrrApp(my_system, 'PyChrono Beam Simulation', chronoirr.dimension2du(1024, 768))
+
+# Run the simulation loop using the Irrlicht engine for real-time rendering
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLogo()
+myapplication.AddTypicalCamera(chronoirr.vector3df(0, 10, -20))
+
+while myapplication.GetDevice().run():
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    myapplication.DoStep()
+    myapplication.EndScene()

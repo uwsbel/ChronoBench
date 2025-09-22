@@ -1,0 +1,80 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import numpy as np
+
+# --- Initialize the PyChrono environment and core components ---
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravity
+
+# --- Create the terrain ---
+terrain = chrono.ChTerrain()
+terrain.Create(system, "terrain", chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(100, 2, 100), 10, 10)
+terrain.SetTexture("textures/grass.png", chrono.ChVectorD(10, 10))
+
+# Add a bump patch using a mesh
+bump_mesh = chrono.ChTriangleMeshConnected()
+bump_mesh.LoadWavefront("models/bump.obj")  # Replace with your bump mesh file
+bump_patch = chrono.ChTerrain.Patch()
+bump_patch.SetMesh(bump_mesh)
+bump_patch.SetTransform(chrono.ChFrameD(chrono.ChVectorD(50, 0, 50), chrono.Q_from_Ang3(0, 0, 0)))
+terrain.AddPatch(bump_patch)
+
+# Add a heightmap patch
+heightmap_data = np.random.rand(50, 50)  # Example heightmap data
+heightmap_patch = chrono.ChTerrain.Patch()
+heightmap_patch.SetHeightmap(heightmap_data)
+heightmap_patch.SetTransform(chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.Q_from_Ang3(0, 0, 0)))
+terrain.AddPatch(heightmap_patch)
+
+terrain.AddAsset(chrono.ChTerrain.PatchAsset())
+
+# --- Create the HMMWV vehicle ---
+hmmwv = chrono.vehicle.HMMWV()
+hmmwv.SetVehicleModel(chrono.vehicle.HMMWV.Model.WV)
+hmmwv.SetEngineType(chrono.vehicle.HMMWV.EngineModel.FOUR_STROKE)
+hmmwv.SetDrivetrainType(chrono.vehicle.HMMWV.DrivetrainModel.FOUR_WHEEL_DRIVE)
+hmmwv.SetTireType(chrono.vehicle.HMMWV.TireModel.RIGID)
+hmmwv.SetInitialPosition(chrono.ChVectorD(10, 2, 10))
+hmmwv.SetInitialRotation(chrono.Q_from_Ang3(0, 0, 0))
+system.Add(hmmwv)
+
+# Set mesh visualization for vehicle components
+for i in range(hmmwv.GetWheelCount()):
+    wheel = hmmwv.GetWheel(i)
+    wheel.SetMeshFile("models/wheel.obj")  # Replace with your wheel mesh file
+    wheel.SetCollide(True)
+
+hmmwv.GetChassis().SetMeshFile("models/hmmwv_chassis.obj") # Replace with your chassis mesh file
+hmmwv.GetChassis().SetCollide(True)
+
+# --- Create an interactive driver system ---
+driver = chrono.vehicle.Driver()
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
+driver.SetVehicle(hmmwv)
+system.Add(driver)
+
+# --- Create the Irrlicht application for visualization ---
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('HMMWV Simulation')
+vis.Initialize()
+vis.AddCamera(chrono.ChVectorD(10, 5, -10))
+vis.AddTypicalLights()
+
+# --- Simulation loop ---
+timestep = 0.01
+while vis.Run():
+    vis.BeginScene(True, True, chrono.ChColor(0.2, 0.2, 0.3))
+    vis.Render()
+    vis.EndScene()
+
+    # Update the system
+    system.DoStepDynamics(timestep)
+
+    # Update the driver input (example: simple forward movement)
+    driver.SetThrottle(0.5)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)

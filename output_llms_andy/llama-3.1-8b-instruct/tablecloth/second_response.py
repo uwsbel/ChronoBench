@@ -1,0 +1,123 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import errno
+import os
+
+# Output directory setup
+out_dir = chrono.GetChronoOutputPath() + "FEA_SHELLS_BST"
+try:
+    os.mkdir(out_dir)
+except OSError as exc:
+    if exc.errno != errno.EEXIST:
+        print("Error creating output directory")
+
+# Create Chrono physical system
+sys = chrono.ChSystemSMC()
+
+# Create and add mesh to the system
+mesh = fea.ChMesh()
+sys.Add(mesh)
+
+# Material properties
+density = 100
+E = 6e4
+nu = 0.0
+thickness = 0.01
+
+# Create material
+melasticity = fea.ChElasticityKirchhoffIsothropic(E, nu)
+material = fea.ChMaterialShellKirchhoff(melasticity)
+material.SetDensity(density)
+
+# Mesh dimensions
+L_x, L_z = 1, 1
+nsections_x, nsections_z = 40, 40
+
+# Create nodes
+mynodes = []
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        p = chrono.ChVector3d(ix * (L_x / nsections_x), 0, iz * (L_z / nsections_z))
+        mnode = fea.ChNodeFEAxyz(p)
+        mesh.AddNode(mnode)
+        mynodes.append(mnode)
+
+# Create interpolation functions for reference tracking
+def ref_X(iz, ix):
+    return iz * (L_z / nsections_z)
+
+def ref_Y(iz, ix):
+    return ix * (L_x / nsections_x)
+
+# Create node variables for plotting and loading setup
+nodePlotA = mynodes[0]
+nodePlotB = mynodes[0]
+nodesLoad = []
+
+# Create load force vector
+load_force = chrono.ChVector3d(0, -100, 0)
+
+# Create monitoring nodes and elements
+mnodemonitor = mynodes[0]
+melementmonitor = mesh.GetElement(0)
+
+# Construct boundary nodes with conditional checks
+for iz in range(nsections_z + 1):
+    for ix in range(nsections_x + 1):
+        if ix > 0:
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+            boundary_2 = mynodes[(iz + 1) * (nsections_x + 1) + ix - 1]
+        else:
+            boundary_1 = mynodes[(iz + 1) * (nsections_x + 1) + ix]
+            boundary_2 = None
+
+        if iz > 0:
+            boundary_3 = mynodes[(iz - 1) * (nsections_x + 1) + ix + 1]
+        else:
+            boundary_3 = None
+
+# Element monitoring
+ementmonitor = None
+if (iz == 0 and ix == 1):
+    ementmonitor = melementA
+
+# Fix upper nodes
+for j in range(30):
+    for k in range(30):
+        mynodes[j * (nsections_x + 1) + k].SetFixed(True)
+
+# Adjust visualization shapes
+mvisualizeshellA = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellA.SetShellResolution(2)
+# mvisualizeshellA.SetSmoothFaces(True)
+# mvisualizeshellA.SetWireframe(True)
+# mvisualizeshellA.SetBackfaceCulling(True)
+mesh.AddVisualShapeFEA(mvisualizeshellA)
+
+mvisualizeshellB = chrono.ChVisualShapeFEA(mesh)
+mvisualizeshellB.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+mvisualizeshellB.SetSymbolsThickness(0.006)
+mvisualizeshellB.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+mesh.AddVisualShapeFEA(mvisualizeshellB)
+
+# Solver adjustment
+mkl_solver = mkl.ChSolverPardisoMKL()
+mkl_solver.LockSparsityPattern(True)
+sys.SetSolver(mkl_solver)
+
+# Time step adjustment
+timestep = 0.005
+
+# Define time step for simulation
+# Final setup and system updates
+sys.Setup()
+sys.Update()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(timestep)

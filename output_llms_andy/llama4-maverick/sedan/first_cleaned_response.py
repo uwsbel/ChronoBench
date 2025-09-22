@@ -1,0 +1,64 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+
+veh_sys = veh.ChVehicleSystem(veh.ChVehicleSystem.SHAFTS)
+
+
+vehicle = veh.ChVehicle(veh_sys)
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType_NONE)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(chrono.ChVector3d(0, 0, 1), chrono.ChQuaterniond(1, 0, 0, 0)))
+
+
+powertrain = veh.ChSimplePowertrain("Powertrain")
+vehicle.SetPowertrain(powertrain)
+
+
+tire_front_left = veh.ChTMeasyTire("TireFL")
+tire_front_right = veh.ChTMeasyTire("TireFR")
+tire_rear_left = veh.ChTMeasyTire("TireRL")
+tire_rear_right = veh.ChTMeasyTire("TireRR")
+vehicle.SetTire(0, 0, tire_front_left)
+vehicle.SetTire(0, 1, tire_front_right)
+vehicle.SetTire(1, 0, tire_rear_left)
+vehicle.SetTire(1, 1, tire_rear_right)
+
+
+terrain = veh.ChTerrain(chrono.ChContactMethod_SMC)
+terrain.SetContactFrictionCoefficient(0.9)
+terrain.SetContactRestitutionCoefficient(0.01)
+terrain.SetContactMaterial(chrono.ChMaterialSurface.SMC)
+
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowTitle("BMW E90 Sedan Simulation")
+vis.SetWindowSize(1280, 720)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetChaseCamera(chrono.ChVector3d(0, 0, 1), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddDirectionalLight(chrono.ChVector3d(-3, -3, 4), 1.0, chrono.ChColor(0.8, 0.8, 0.8))
+vis.AttachVehicle(vehicle)
+
+
+driver = veh.ChIrrGuiDriver(vis, vehicle)
+driver.SetSteeringDelta(0.02)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
+
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+    driver_inputs = driver.GetInputs()
+    vehicle.SetDriverInputs(driver_inputs)
+    vehicle.DoStepDynamics(chrono.ChTimeStep(1e-3))
+    vis.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    vis.Render()
+    vis.EndScene()

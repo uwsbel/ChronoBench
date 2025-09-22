@@ -1,0 +1,70 @@
+```python
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
+
+# Initialize the PyChrono environment
+chrono.SetChronoDataPath("/path/to/chrono/data/")
+
+# Create a Chrono system
+sys = chrono.ChSystemNSC()
+
+# Create a fixed body from a triangular mesh
+body = chrono.ChBody()
+body.SetBodyFixed(True)
+
+# Load the mesh from a Wavefront .obj file
+mesh = chrono.ChTriangleMeshConnected()
+mesh.LoadWavefrontMesh("mesh.obj")
+mesh.Transform(chrono.ChVectorD(0, 0, 0), chrono.ChMatrix33D(1))
+
+# Create a visual asset from the mesh
+visual_asset = chrono.ChTriangleMeshShape()
+visual_asset.SetMesh(mesh)
+body.AddVisualShape(visual_asset)
+
+# Add the body to the system
+sys.Add(body)
+
+# Create a sensor manager
+manager = sens.ChSensorManager(sys)
+
+# Create a lidar sensor and add it to the manager
+lidar = sens.ChLidarSensor(
+    body,  # parent body
+    10,    # update rate
+    chrono.ChFrameD(chrono.ChVectorD(0, 0, 2), chrono.Q_from_AngZ(0)),  # offset pose
+    100,   # number of horizontal samples
+    10,    # number of vertical channels
+    chrono.CH_C_PI,  # horizontal field of view
+    chrono.CH_C_PI / 10,  # vertical field of view
+    0.1,   # near clip distance
+    10     # far clip distance
+)
+
+# Add noise filters to the lidar
+lidar.PushFilter(sens.ChFilterDIAccess())
+lidar.PushFilter(sens.ChFilterVisualize(640, 480, "Lidar Data"))
+lidar.PushFilter(sens.ChFilterSave("lidar_data/"))
+
+# Add the lidar to the manager
+manager.AddSensor(lidar)
+
+# Simulation loop
+while sys.GetChTime() < 10:
+    # Update the lidar's position in an orbit around the mesh
+    angle = sys.GetChTime() * chrono.CH_C_PI / 5
+    lidar.SetOffsetPose(chrono.ChFrameD(chrono.ChVectorD(2 * np.cos(angle), 2 * np.sin(angle), 2), chrono.Q_from_AngZ(angle)))
+
+    # Update the sensor manager
+    manager.Update()
+
+    # Print lidar buffer data
+    buffer = lidar.GetMostRecentBuffer()
+    if buffer.HasData():
+        print("Lidar Buffer Data:")
+        print(buffer.GetRangeImage())
+
+    # Step the simulation
+    sys.DoStepDynamics(0.01)
+```

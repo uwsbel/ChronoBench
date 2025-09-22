@@ -1,0 +1,51 @@
+import chrono
+from chrono import ChMaterial, ChSystem, ChBody, ChLinkMate, ChVisualization, ChShapes, ChFunctions, ChTimestepperODE
+from chrono.irrlicht import ChIrrApp
+from chrono.fea import ChMesh, ChElementShell, ChLoaderMSH
+
+
+chrono.SetChronoDataPath('path/to/chrono/data')
+
+
+my_system = ChSystem()
+my_system.Set_G_acc(ChVectorD(0, 0, -9.81))
+my_system.SetSolverType(ChSolver.Type_PARDISO_MKL)
+
+
+tablecloth_mesh = ChMesh()
+tablecloth_loader = ChLoaderMSH()
+tablecloth_loader.Load('path/to/tablecloth/mesh.msh', tablecloth_mesh)
+
+tablecloth_material = ChMaterialSurfaceShell()
+tablecloth_material.SetYoungModulus(130e6)
+tablecloth_material.SetPoissonRatio(0.35)
+tablecloth_material.SetThickness(0.001)
+
+for e in tablecloth_mesh.Elements:
+    if isinstance(e, ChElementShell):
+        e.SetMaterialSurface(tablecloth_material)
+
+tablecloth_body = ChBody()
+tablecloth_body.SetMass(1)
+tablecloth_body.SetInertiaXX(ChMatrix33D(1, 0, 0, 0, 1, 0, 0, 0, 1))
+tablecloth_body.AddAsset(tablecloth_mesh)
+my_system.AddBody(tablecloth_body)
+
+
+my_vis = ChVisualization()
+my_vis.AddSystem(my_system)
+my_vis.SetWindowSize(800, 600)
+my_vis.SetWindowTitle('Tablecloth Folding Simulation')
+
+
+my_stepper = ChTimestepperODE()
+my_stepper.SetSolverType(ChSolver.Type_PARDISO_MKL)
+my_stepper.SetMaxIterations(100)
+my_stepper.SetAbsTol(1e-12)
+my_stepper.SetRelTol(1e-12)
+my_system.SetTimestepper(my_stepper)
+
+
+while my_vis.Run():
+    my_stepper.DoStepDynamics(1 / 240.0)
+    my_vis.WaitForNextFrame()

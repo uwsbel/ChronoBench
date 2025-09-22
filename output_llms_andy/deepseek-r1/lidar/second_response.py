@@ -1,0 +1,182 @@
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import numpy as np
+import time
+import math
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # ----------------------------------
+    # Add a box to be sensed by lidars
+    # ----------------------------------
+    box_body = chrono.ChBodyEasyBox(side, side, side, 1000)  # Create box with specified side length
+    box_body.SetPos(chrono.ChVector3d(0, 0, 0))
+    box_body.SetFixed(True)
+    
+    # Add texture to the box
+    box_visual = chrono.ChVisualShapeBox(side, side, side)
+    box_visual.SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+    box_body.AddVisualShape(box_visual)
+    
+    mphysicalSystem.Add(box_body)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # ------------------------------------------------
+    # Create a lidar and add it to the sensor manager
+    # ------------------------------------------------
+    offset_pose = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    lidar = sens.ChLidarSensor(
+        box_body,              # Attach to box body
+        update_rate,           # Scanning rate in Hz
+        offset_pose,           # Offset pose
+        horizontal_samples,    # Number of horizontal samples
+        vertical_samples,      # Number of vertical channels
+        horizontal_fov,        # Horizontal field of view
+        max_vert_angle,        # Maximum vertical field of view
+        min_vert_angle,        # Minimum vertical field of view
+        100.0,                 # Maximum lidar range
+        sens.LidarBeamShape_RECTANGULAR,  # Beam shape
+        sample_radius,         # Sample radius
+        divergence_angle,      # Divergence angle
+        divergence_angle,      # Divergence angle (again)
+        return_mode            # Return mode
+    )
+    lidar.SetName("3D Lidar Sensor")
+    lidar.SetLag(lag)
+    lidar.SetCollectionWindow(collection_time)
+
+    # -----------------------------------------------------------------
+    # Create a filter graph for post-processing the data from the lidar
+    # -----------------------------------------------------------------
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    elif noise_model == "NONE":
+        pass  # No noise model
+
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualize(horizontal_samples, vertical_samples, "3D Lidar Depth Data"))
+
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
+
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar)
+
+    # -----------------------------------------------
+    # Create a 2D lidar (single vertical channel)
+    # -----------------------------------------------
+    offset_pose_2d = chrono.ChFramed(
+        chrono.ChVector3d(-10, 0, 2),  # Different position
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar_2d = sens.ChLidarSensor(
+        box_body,              # Attach to box body
+        update_rate,           # Scanning rate in Hz
+        offset_pose_2d,        # Offset pose
+        horizontal_samples,    # Horizontal samples
+        1,                     # Single vertical channel (2D lidar)
+        horizontal_fov,        # Horizontal FOV
+        0,                     # Max vertical angle (0 for planar)
+        0,                     # Min vertical angle (0 for planar)
+        100.0,                 # Maximum range
+        sens.LidarBeamShape_RECTANGULAR,  # Beam shape
+        sample_radius,         # Sample radius
+        divergence_angle,      # Divergence angle
+        divergence_angle,      # Divergence angle
+        return_mode            # Return mode
+    )
+    lidar_2d.SetName("2D Lidar Sensor")
+    lidar_2d.SetLag(lag)
+    lidar_2d.SetCollectionWindow(collection_time)
+
+    # Filters for 2D lidar
+    if noise_model == "CONST_NORMAL_XYZI":
+        lidar_2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+
+    if vis:
+        lidar_2d.PushFilter(sens.ChFilterVisualize(horizontal_samples, 1, "2D Lidar Depth Data"))
+
+    lidar_2d.PushFilter(sens.ChFilterDIAccess())
+    lidar_2d.PushFilter(sens.ChFilterPCfromDepth())
+
+    if vis:
+        lidar_2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+
+    lidar_2d.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar_2d)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        # Update 3D lidar position (orbiting)
+        lidar.SetOffsetPose(
+            chrono.ChFramed(
+                chrono.ChVector3d(
+                    -orbit_radius * math.cos(ch_time * orbit_rate),
+                    -orbit_radius * math.sin(ch_time * orbit_rate),
+                    1
+                ),
+                chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+            )
+        )
+
+        # Update sensor manager
+        manager.Update()
+
+        # Perform step of dynamics
+        mphysicalSystem.DoStepDynamics(step_size)
+
+        # Get current simulation time
+        ch_time = mphysicalSystem.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+# -----------------
+# Lidar parameters
+# -----------------
+noise_model = "NONE"
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+update_rate = 5.0
+horizontal_samples = 800
+vertical_samples = 300
+horizontal_fov = 2 * chrono.CH_PI
+max_vert_angle = chrono.CH_PI / 12
+min_vert_angle = -chrono.CH_PI / 6
+lag = 0
+collection_time = 1. / update_rate
+sample_radius = 2
+divergence_angle = 0.003
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+step_size = 1e-3
+end_time = 40.0
+save = False
+vis = True
+out_dir = "SENSOR_OUTPUT/"
+
+# Box parameters
+side = 2.0  # Side length of the box
+
+main()

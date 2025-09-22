@@ -1,0 +1,56 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoIrr
+import pychrono.vehicle as chronoVehicle
+
+# Initialize the PyChrono environment
+chrono.ChSystemNSC()
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Update with your actual path
+
+# Create the Irrlicht application for visualization
+app = chronoIrr.ChIrrApp(chrono.ChSystemNSC(), "Gator Vehicle Simulation", chronoIrr.dimension2d(800, 600))
+app.AddSkyBox()
+app.AddTypicalLights()
+app.SetCamera(chrono.ChVectorD(0, 5, -15))
+
+# Create a RigidTerrain
+terrain = chronoVehicle.ChRigidTerrain(chrono.ChSystemNSC())
+terrain.Initialize(chrono.ChVectorD(0, 0, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.SetContactMaterial(chrono.ChMaterialSurfaceNSC())
+terrain.SetTexture(chrono.ChTexture("/path/to/your/texture.jpg"))  # Update with your actual texture path
+terrain.SetGround(chrono.ChVectorD(10, 0, 10), chrono.ChVectorD(-10, 0, -10))
+
+# Create the Gator vehicle
+gator = chronoVehicle.ChGator()
+gator.SetContactMethod(chrono.ChContactMethod.NSC)
+gator.SetChassisVisualizationType(chronoVehicle.VisualizationType.MESH)
+gator.SetTireVisualizationType(chronoVehicle.VisualizationType.MESH)
+gator.SetWheelVisualizationType(chronoVehicle.VisualizationType.MESH)
+
+# Initialize the vehicle with position and orientation
+gator.Initialize(chrono.ChVectorD(0, 0.5, 0), chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Add the vehicle to the system
+chrono.ChSystemNSC().Add(gator)
+
+# Set up the interactive driver system
+driver = chronoVehicle.ChDriver()
+driver.Initialize(gator)
+
+# Set the simulation parameters
+step_size = 1 / 50.0  # 50 FPS
+chrono.ChSystemNSC().SetSolverType(chrono.ChSolver.Type_SOR)
+
+# Simulation loop
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    
+    # Update the driver inputs (steering, throttle, brake)
+    driver.UpdateInputs()
+    
+    # Update vehicle dynamics
+    chrono.ChSystemNSC().DoStepDynamics(step_size)
+    
+    app.EndScene()
+
+app.Close()

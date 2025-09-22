@@ -1,0 +1,536 @@
+Okay, let's tackle this problem step by step. First, I need to understand the original code and the modifications required. The user wants to change certain joints in the simulation from revolute to spherical and adjust the piston's joint to a planar one. Let me go through the code carefully.
+
+Starting with the joints:
+
+The original code has mjointA as a ChLinkLockRevolute between the rod and crank. The instruction says to change this to a spherical joint. So I need to replace ChLinkLockRevolute with ChLinkLockSpherical. Same for mjointB between the rod and piston.
+
+Then, the piston's prismatic joint (mjointC) needs to be replaced with a plane-plane joint. The description says it should constrain the piston to move and rotate in the x-y plane. Looking at Chrono's documentation, a planar joint (ChLinkLockPlane) might be appropriate here. Alternatively, maybe a prismatic with rotation? Wait, the planar joint allows movement in two directions and rotation around the third axis. Since the piston is supposed to move along the x-axis (as per the original code's position), but constrained to the x-y plane, perhaps a plane joint is correct. The plane joint allows movement in two axes and rotation around the third. But the piston's original prismatic joint only allowed movement along the x-axis. Hmm, maybe the planar joint here allows movement in x and y, but since the piston is connected to the rod, maybe the constraints are such that it can only move along x. Alternatively, perhaps the user wants the piston to be constrained in the x-y plane, allowing rotation in-plane. The exact parameters might need adjusting.
+
+Now, checking for errors in the original code:
+
+Looking at the original code:
+
+First, in the creation of mcrank's rotation, the line uses chrono.Q_ROTATE_Y_TO_Z. Wait, in Chrono, the rotation functions might have different names. Let me recall: ChQuaternion constants like Q_ROTATE_Y_TO_Z might not be correct. Wait, the actual constants are named like Q_from_y_to_z? Maybe it's a typo. Wait, in the Chrono documentation, the predefined quaternions are like QROT_Y_to_Z, perhaps? Let me check. For example, chrono.Q_from_y_to_z? Or maybe the user made a typo here. Because in the code, it's written as chrono.Q_ROTATE_Y_TO_Z, which might not be the correct name. That's a possible error.
+
+Similarly, for the piston's rotation: chrono.Q_ROTATE_Y_TO_X. Same issue here. So these quaternions might be misspelled. The correct might be using the actual functions or constants provided by Chrono. Alternatively, perhaps the user intended to rotate the cylinder's orientation. For example, the ChBodyEasyCylinder creates a cylinder along the Y axis, so to align it along Z, you need to rotate. But the exact quaternion might be incorrect here.
+
+Another possible error is in the initialization of the joints. For example, the ChLinkMotorRotationSpeed requires that the two bodies are connected properly. Also, when creating the joints, the frame parameters might be incorrect. For example, in the motor's initialization, the frame is set as chrono.ChFramed(crank_center). Wait, ChFramed is a typo? Because the correct class is ChFrame<double>, so maybe it should be chrono.ChFrame<>(crank_center). The 'd' in ChFramed might be a typo. The same applies to other joints where ChFramed is used. That's a syntax error. Oh right, because ChFrame is a template class, so you need to write chrono.ChFrame<>(position, rotation). So all instances of ChFramed should be replaced with ChFrame<>(...).
+
+Looking at the code:
+
+my_motor.Initialize(mcrank, mfloor, chrono.ChFramed(crank_center)) → should be ChFrame<>(crank_center)
+
+Similarly for mjointA and mjointB and mjointC.
+
+That's a critical error. The class name is misspelled as ChFramed instead of ChFrame. So that's a syntax error causing the code to fail.
+
+Another possible issue: the prismatic joint mjointC is using a frame with a rotation. The current code for mjointC has:
+
+chrono.ChFramed(crank_center + ... , chrono.Q_ROTATE_Z_TO_X)
+
+Again, using ChFramed and misspelled quaternion.
+
+So first, I need to correct all instances of ChFramed to ChFrame<>(...).
+
+Now, moving to the joint modifications:
+
+First, for the crank-rod joint (mjointA):
+
+Original code uses ChLinkLockRevolute. Need to change to ChLinkLockSpherical.
+
+Similarly, mjointB (rod-piston) also becomes ChLinkLockSpherical.
+
+For the piston-floor joint (mjointC), replace ChLinkLockPrismatic with ChLinkLockPlane.
+
+Wait, the instruction says to replace the prismatic with a plane-plane (planar) joint. So the correct joint is ChLinkLockPlane.
+
+Now, setting up the parameters for the plane joint. The plane joint allows movement in two directions and rotation around the third. The frame's coordinate system defines which axes are free. The piston should be constrained to move in the x-y plane, so perhaps the plane is aligned with the x-y plane, meaning movement along x and y, and rotation around z. But since the piston is connected to the rod, maybe the rotation is constrained? Wait, the problem says "constrain the piston to move and rotate in the x-y plane". Hmm, perhaps the planar joint allows movement in x and y, and rotation around the z-axis. But the original prismatic joint only allowed movement along x. So the planar joint might be more permissive, but perhaps that's what the user wants.
+
+The initialization for the plane joint would need to set the frame's position and orientation. The original prismatic joint was initialized with a frame at the piston's position, with rotation Q_ROTATE_Z_TO_X. Wait, the rotation here might have been to align the prismatic axis along x. For the plane joint, the local coordinate system defines which axes are constrained. The plane joint's local frame should be set so that the plane is the x-y plane of the piston's frame.
+
+Alternatively, the planar joint's parameters might need to be set to allow movement in x and y, but perhaps the piston's movement is constrained by the rod's connection, so the plane joint's orientation is important here.
+
+In any case, replacing the prismatic with plane joint requires using ChLinkLockPlane and initializing it properly.
+
+Now, putting all these changes together.
+
+Also, correcting the quaternion names. For example, instead of Q_ROTATE_Y_TO_Z, the correct might be chrono.Q_from_y_to_z? Let me check the Chrono API. For example, the predefined quaternions in Chrono are like QROT_Y_to_Z, perhaps. Wait, looking at the documentation, the class ChQuaternion has static methods for predefined rotations. For example:
+
+chrono.ChQuaternion().Q_from_y_to_z() ?
+
+Alternatively, perhaps the user intended to rotate the cylinder's orientation so that the cylinder's axis (originally Y) is aligned with Z. To do that, you can use a rotation of 90 degrees around the X axis. The quaternion for rotating Y to Z is a rotation around X by 90 degrees. So maybe the correct way is to construct the quaternion manually.
+
+Alternatively, perhaps the original code had a typo and the correct name is QROT_Y_to_Z. Let me check. The actual code might have a mistake here. Let me think: the ChQuaternion class has static functions like QROT_X_to_Y etc. For example, in the Chrono documentation, the function names are like QROT_X_to_Y, so perhaps the correct is chrono.ChQuaternion_DQ_ROTATE_Y_TO_Z? Not sure. Alternatively, perhaps the user intended to use a rotation around the X axis by 90 degrees. For example, the rotation from Y axis to Z axis can be achieved with a rotation of 90 degrees around X.
+
+So for mcrank.SetRot(chrono.Q_from_y_to_z()), but I'm not sure. Alternatively, perhaps the original code's Q_ROTATE_Y_TO_Z is a typo and should be replaced with the correct method. Alternatively, maybe the user should use a rotation matrix.
+
+Alternatively, perhaps the correct way is to use the rotation constructor. For example, mcrank.SetRot(chrono.Q_from_y_to_z()) but I need to confirm the actual function name. Since I can't look it up right now, perhaps it's better to construct the rotation manually. For instance, rotating the cylinder so that its axis (originally Y) points along Z. That would be a rotation of 90 degrees around the X axis. So the quaternion can be created as:
+
+rot = chrono.ChQuaternionD()
+rot.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0))
+
+So for mcrank, the rotation is around X by 90 degrees. So replacing the line with that.
+
+Same for the piston's rotation: Q_ROTATE_Y_TO_X. That would be a rotation of 90 degrees around the Z axis, perhaps? To rotate the cylinder's Y axis to X. So the rotation axis would be Z, angle 90 degrees.
+
+Alternatively, perhaps the original code's quaternions are incorrect and need to be replaced with correct rotation quaternions.
+
+But given that the user's code may have errors in the quaternion names, I need to correct those.
+
+Putting all this together, here's the plan for corrections and modifications:
+
+First, fix all instances of ChFramed to ChFrame<>(position, rotation). So every place where ChFramed is used, replace with ChFrame<>(pos, rot).
+
+Second, correct the quaternion names. For example, mcrank's rotation:
+
+Instead of:
+
+mcrank.SetRot(chrono.Q_ROTATE_Y_TO_Z)
+
+should be something like:
+
+mcrank.SetRot(chrono.Q_from_y_to_z()) or constructing the rotation manually.
+
+Wait, perhaps the correct way is to use the rotation around X by 90 degrees. Let me think: to rotate the cylinder's Y axis to Z, you rotate around X by 90 degrees. The quaternion for that is:
+
+rot = chrono.ChQuaternionD()
+rot.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0))
+
+So the code should be:
+
+mcrank.SetRot(chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0)))
+
+Wait, but the function is a static method of ChQuaternionD, so perhaps:
+
+mcrank.SetRot(chrono.ChQuaternionD(chrono.Q_from_AngAxis(...)) ?
+
+Alternatively, perhaps using the constructor:
+
+mcrank.SetRot(chrono.ChQuaternionD(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0)))
+
+Wait, no, the Q_from_AngAxis is a method. Let me check the correct syntax. The method is called on a ChQuaternion object. So perhaps:
+
+rot = chrono.ChQuaternionD()
+rot.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(1,0,0))
+mcrank.SetRot(rot)
+
+Alternatively, perhaps there's a static method to create it directly. Alternatively, perhaps the original code's Q_ROTATE_Y_TO_Z is intended to be a predefined constant, but it's misspelled. Let me see: perhaps the correct is chrono.QROT_Y_to_Z. So maybe it's a typo in the name. For example, maybe the correct is chrono.ChQuaternionD.QROT_Y_to_Z.
+
+Alternatively, perhaps the user intended to use a rotation from Y to Z, but the code has a typo. Let me think that maybe the correct is to use the rotation functions properly. Let me proceed by replacing the Q_ROTATE_Y_TO_Z with the correct rotation.
+
+Alternatively, perhaps the original code's quaternion is incorrect and needs to be fixed. Let's assume that the user intended to rotate the cylinder's Y axis to Z, so the rotation is around X by 90 degrees. So the code for mcrank's rotation would be:
+
+mcrank.SetRot(chrono.Q_from_y_to_z())
+
+But if that function doesn't exist, then we have to construct it manually.
+
+Alternatively, perhaps the code can use the rotation matrix. Alternatively, maybe the original code's quaternion was a typo and the correct is chrono.QROT_Y_to_Z. Let me assume that the correct is to use QROT_Y_to_Z, so the code should be:
+
+mcrank.SetRot(chrono.ChQuaternionD.QROT_Y_to_Z())
+
+Wait, perhaps the correct way is to use the predefined constants. For example, in Chrono, there are predefined quaternions like QROT_Y_to_Z. Let me check the API.
+
+Looking up Chrono's ChQuaternion documentation:
+
+The ChQuaternion class has static methods like QROT_X_to_Y, QROT_Y_to_Z, etc. So the correct way is to use chrono.ChQuaternionD.QROT_Y_to_Z(). So the line should be:
+
+mcrank.SetRot(chrono.ChQuaternionD.QROT_Y_to_Z())
+
+Similarly for the piston's rotation: chrono.ChQuaternionD.QROT_Y_to_X()
+
+So correcting those lines.
+
+Now, moving to the joint changes:
+
+For mjointA (crank-rod):
+
+Original code uses ChLinkLockRevolute. Need to change to ChLinkLockSpherical.
+
+So:
+
+mjointA = chrono.ChLinkLockSpherical()
+
+Similarly for mjointB.
+
+Then, mjointC is replaced with a plane joint:
+
+mjointC = chrono.ChLinkLockPlane()
+
+Now, initializing the plane joint.
+
+The original prismatic joint's initialization was:
+
+mjointC.Initialize(mpiston,
+                   mfloor,
+                   chrono.ChFramed(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0),
+                                   chrono.Q_ROTATE_Z_TO_X)
+                   )
+
+So replacing with plane joint:
+
+mjointC.Initialize(mpiston,
+                   mfloor,
+                   chrono.ChFrameD(chrono.ChVectorD(crank_center.x + crank_rad + rod_length, 0, 0),
+                                  chrono.ChQuaternionD.QROT_Z_to_X())  # or whatever rotation is needed
+
+Wait, the rotation here might need to be adjusted. The plane joint's frame defines the local coordinate system where the plane is. The plane allows movement in the local x and y, and rotation around local z. So the frame's orientation should be set so that the plane is aligned with the desired direction.
+
+The original prismatic joint had a rotation Q_ROTATE_Z_TO_X. Let me see: perhaps that was to align the prismatic axis along the X direction. For the plane joint, perhaps the rotation is needed to set the plane's axes.
+
+Alternatively, perhaps the plane's local coordinate system should have its z-axis along the piston's movement direction (X), so that the plane allows movement in x and y, but since the piston is constrained by the rod, it's okay. The exact rotation might require setting the frame's orientation so that the plane is in the X-Y plane.
+
+Alternatively, the position is at the piston's connection point. The rotation for the plane joint's frame needs to be set such that the plane is aligned with the desired movement.
+
+Alternatively, perhaps the rotation for the plane joint can be the same as the original prismatic's rotation. The original code had Q_ROTATE_Z_TO_X, which might have been intended to rotate the local Z axis to X, so that the prismatic's axis is along X. For the plane joint, the rotation might be similar.
+
+But since the plane allows movement in two axes, perhaps the rotation is set so that the local x and y axes align with the desired movement. The exact parameters might need to be set as per the original intention.
+
+Alternatively, perhaps the rotation can be left as identity if the piston is moving along X. But I'm not sure. Let me proceed by keeping the rotation as in the original code, but using the correct quaternion name.
+
+Wait, the original code's rotation for the prismatic joint was chrono.Q_ROTATE_Z_TO_X. Assuming that the correct is chrono.ChQuaternionD.QROT_Z_to_X(), then the rotation is applied.
+
+So the corrected initialization for mjointC would be:
+
+mjointC.Initialize(mpiston,
+                   mfloor,
+                   chrono.ChFrameD(
+                       chrono.ChVectorD(crank_center.x + crank_rad + rod_length, 0, 0),
+                       chrono.ChQuaternionD.QROT_Z_to_X()
+                   )
+)
+
+Wait, but the position in the frame needs to be correct. The original code had crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0). Since crank_center is a ChVector3d, adding the vector would be:
+
+position = crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0)
+
+Wait, but crank_center is a ChVector3d, so adding a ChVector3d. The crank_center's x component plus crank_rad + rod_length would be the x coordinate.
+
+Alternatively, perhaps the position is correct as written.
+
+Now, putting all corrections and modifications together.
+
+Also, the simulation loop has sys.DoStepDynamics(1e-3). The step size is 1e-3 seconds. But the stopping condition is if sys.GetChTime() > 20. Wait, 20 seconds is a long time. The user probably intended to stop at 2 seconds. The original code has if sys.GetChTime() > 20: which would run for 20 seconds. The instruction says "stop simulation after 2 seconds", so that line should be changed to 2 instead of 20.
+
+Wait, looking at the original code's comment:
+
+# stop simulation after 2 seconds
+if sys.GetChTime() > 20:
+
+That's a logical error. The condition is set to 20, but the comment says 2. So that needs to be fixed.
+
+So changing that line to:
+
+if sys.GetChTime() > 2:
+
+Alright, that's another correction.
+
+Now, compiling all the changes:
+
+First, fix all instances of ChFramed to ChFrameD (since it's a double precision frame).
+
+For example:
+
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
+
+Similarly for the joints.
+
+Then, the quaternion corrections for mcrank and mpiston.
+
+Then, changing the joint types.
+
+Replacing the prismatic with plane.
+
+Adjusting the stopping condition.
+
+Also, in the plotting part, the x-axis is angle, which is in radians. The original code's xticks are set from 0 to 2pi, but since the angular speed is set to CH_PI (pi radians per second), over 2 seconds, the total angle would be 2*pi*1 (since CH_PI is pi, so angular speed is pi rad/s, so 2 seconds gives 2pi). That's okay.
+
+Now, putting it all together into code.
+
+Let me start writing the corrected code step by step.
+
+First, the imports are okay.
+
+Then, the system creation.
+
+The crank setup:
+
+mcrank.SetRot(chrono.ChQuaternionD.QROT_Y_to_Z())
+
+Wait, the original code had Q_ROTATE_Y_TO_Z, which I think should be QROT_Y_to_Z.
+
+Similarly for the piston's rotation: QROT_Y_to_X.
+
+The joints:
+
+mjointA = chrono.ChLinkLockSpherical()
+
+mjointB = chrono.ChLinkLockSpherical()
+
+mjointC = chrono.ChLinkLockPlane()
+
+The initialization of mjointC with the frame.
+
+Also, the motor's frame is initialized with ChFrameD.
+
+Now, let's go through each part.
+
+Here's the corrected code:
+
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import matplotlib.pyplot as plt
+import numpy as np
+
+sys = chrono.ChSystemNSC()
+
+crank_center = chrono.ChVectorD(-1, 0.5, 0)
+crank_rad = 0.4
+crank_thick = 0.1
+rod_length = 1.5
+
+# Create floor truss
+mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
+mfloor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+mfloor.SetFixed(True)
+sys.Add(mfloor)
+
+# Create crank
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+mcrank.SetPos(crank_center + chrono.ChVectorD(0, 0, -0.1))
+# Rotate cylinder's Y axis to Z (assuming QROT_Y_to_Z is correct)
+mcrank.SetRot(chrono.ChQuaternionD.QROT_Y_to_Z())
+sys.Add(mcrank)
+
+# Create rod
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
+mrod.SetPos(crank_center + chrono.ChVectorD(crank_rad + rod_length / 2, 0, 0))
+sys.Add(mrod)
+
+# Create piston
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+piston_pos = crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0)
+mpiston.SetPos(piston_pos)
+mpiston.SetRot(chrono.ChQuaternionD.QROT_Y_to_X())  # rotating Y to X axis
+sys.Add(mpiston)
+
+# Motor joint between crank and floor
+my_motor = chrono.ChLinkMotorRotationSpeed()
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)  # ang speed: pi rad/s
+my_motor.SetMotorFunction(my_angularspeed)
+sys.Add(my_motor)
+
+# Crank-rod joint (spherical)
+mjointA = chrono.ChLinkLockSpherical()
+# Position where crank and rod connect: crank_center + (crank_rad in x direction)
+posA = crank_center + chrono.ChVectorD(crank_rad, 0, 0)
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(posA))
+sys.Add(mjointA)
+
+# Rod-piston joint (spherical)
+mjointB = chrono.ChLinkLockSpherical()
+posB = piston_pos  # or crank_center + (crank_rad + rod_length, 0, 0)
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(posB))
+sys.Add(mjointB)
+
+# Piston-floor joint (planar)
+mjointC = chrono.ChLinkLockPlane()
+# Position at piston's connection point
+posC = piston_pos
+# The rotation here was originally Q_ROTATE_Z_TO_X, so use the correct quaternion
+rotationC = chrono.ChQuaternionD.QROT_Z_to_X()
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(posC, rotationC))
+sys.Add(mjointC)
+
+# Visualization setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 1, 3), chrono.ChVectorD(0, 1, 0))
+vis.AddTypicalLights()
+
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+while vis.Run():
+    array_time.append(sys.GetChTime())
+    array_angle.append(my_motor.GetMotorAngle())
+    array_pos.append(mpiston.GetPos().x)
+    array_speed.append(mpiston.GetPos_dt().x)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)  # time step 1ms
+    if sys.GetChTime() > 2:  # stop after 2 seconds
+        vis.GetDevice().closeDevice()
+
+# Plotting
+fig, (ax1, ax2) = plt.subplots(2, sharex=True)
+ax1.plot(array_angle, array_pos)
+ax1.set(ylabel='Position [m]')
+ax1.grid()
+ax2.plot(array_angle, array_speed, 'r--')
+ax2.set(ylabel='Speed [m/s]', xlabel='Angle [rad]')
+plt.xticks(np.linspace(0, 2*np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+plt.show()
+
+Wait, but I need to make sure all the ChFrameD are correctly used.
+
+Also, in the motor's frame, the position is crank_center, which is a ChVectorD, so that's okay.
+
+Another thing: the piston's rotation. The original code had Q_ROTATE_Y_TO_X, which I replaced with QROT_Y_to_X. But the piston is a cylinder along Y, and rotating Y to X would align its axis along X. So that's okay.
+
+In the rod's position, the original code had crank_center + chrono.ChVector3d(crank_rad + rod_length / 2, 0, 0). Since crank_center is a ChVectorD, adding a ChVectorD is okay. I kept that.
+
+For the joints:
+
+mjointA connects mrod and mcrank. The order in Initialize is (body1, body2, frame). The frame is the position where the joint is attached. For a spherical joint between rod and crank, the position is at the end of the crank (crank_rad in x direction from crank_center).
+
+Similarly for mjointB between piston and rod, the position is at the end of the rod.
+
+For the plane joint, the frame's rotation is set to QROT_Z_to_X. Let me think: the original prismatic had Q_ROTATE_Z_TO_X, so perhaps the plane's rotation should be the same. The rotation would align the local coordinate system such that the plane allows movement in the desired axes.
+
+Another thing: in the DoStepDynamics, the time step is 1e-3, which is 1 ms, so the simulation steps are small enough.
+
+Also, in the stopping condition, changed to 2 seconds.
+
+Now, checking for other possible errors:
+
+In the original code, the piston's position was set as:
+
+mpiston.SetPos(crank_center + chrono.ChVector3d(crank_rad + rod_length, 0, 0))
+
+But since crank_center is a ChVectorD, adding a ChVector3d might cause a type error. Wait, in the original code, the variables were using ChVector3d, but in the corrected code, I switched to ChVectorD (since Chrono uses double precision by default). So in the corrected code, all positions are using ChVectorD. That should be okay.
+
+Also, in the original code, the ChBodyEasyCylinder uses chrono.ChAxis_Y, which is okay.
+
+Another point: the ChLinkLockPlane joint's initialization parameters. The order is (body1, body2, frame). The frame is in the body1's coordinate system? Or in absolute? The documentation says that the frame is in the absolute coordinate system. So the frame's position is where the joint is attached between the two bodies.
+
+The plane joint allows movement in two directions and rotation around the third. The frame's orientation defines which axes are free. For example, if the rotation is QROT_Z_to_X, then the local Z axis points along X. So the plane's axes would be local X and Y, which are aligned with the rotated system.
+
+Alternatively, perhaps the rotation is not necessary, but the original code had it, so keeping it as per the user's original intention.
+
+Another possible issue: the piston's rotation. The original code set rotation to Q_ROTATE_Y_TO_X. Assuming that's correct to align the cylinder's axis along X.
+
+Finally, in the plotting, the speed is labeled as 'speed [m]', which should be 'm/s'.
+
+Also, in the code above, I used ChFunction_Const instead of ChFunctionConst. Because in Chrono, the class name is ChFunction_Const.
+
+Wait, in the original code, it was chrono.ChFunctionConst(chrono.CH_PI). The correct class name is ChFunction_Const. So that line should be:
+
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)
+
+Because CH_PI is a constant in Chrono, but I think it's CH_C_PI (pi in radians). Wait, the original code had chrono.CH_PI, but in Chrono, the constant is CH_C_PI. Let me confirm. The standard pi is CH_C_PI. So the code should use CH_C_PI.
+
+So correcting that line.
+
+Putting all these together, the final code should have these changes.
+</think>
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import matplotlib.pyplot as plt
+import numpy as np
+
+sys = chrono.ChSystemNSC()
+
+crank_center = chrono.ChVectorD(-1, 0.5, 0)
+crank_rad = 0.4
+crank_thick = 0.1
+rod_length = 1.5
+
+# Create floor truss
+mfloor = chrono.ChBodyEasyBox(3, 1, 3, 1000)
+mfloor.SetPos(chrono.ChVectorD(0, -0.5, 0))
+mfloor.SetFixed(True)
+sys.Add(mfloor)
+
+# Create crank
+mcrank = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, crank_rad, crank_thick, 1000)
+mcrank.SetPos(crank_center + chrono.ChVectorD(0, 0, -0.1))
+mcrank.SetRot(chrono.ChQuaternionD.QROT_Y_to_Z())  # Correct quaternion name
+sys.Add(mcrank)
+
+# Create rod
+mrod = chrono.ChBodyEasyBox(rod_length, 0.1, 0.1, 1000)
+mrod.SetPos(crank_center + chrono.ChVectorD(crank_rad + rod_length / 2, 0, 0))
+sys.Add(mrod)
+
+# Create piston
+mpiston = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.2, 0.3, 1000)
+piston_pos = crank_center + chrono.ChVectorD(crank_rad + rod_length, 0, 0)
+mpiston.SetPos(piston_pos)
+mpiston.SetRot(chrono.ChQuaternionD.QROT_Y_to_X())  # Correct quaternion name
+sys.Add(mpiston)
+
+# Motor joint between crank and floor
+my_motor = chrono.ChLinkMotorRotationSpeed()
+my_motor.Initialize(mcrank, mfloor, chrono.ChFrameD(crank_center))  # Correct ChFrameD
+my_angularspeed = chrono.ChFunction_Const(chrono.CH_C_PI)  # Use correct constant name
+my_motor.SetMotorFunction(my_angularspeed)
+sys.Add(my_motor)
+
+# Crank-rod joint (spherical)
+mjointA = chrono.ChLinkLockSpherical()
+posA = crank_center + chrono.ChVectorD(crank_rad, 0, 0)
+mjointA.Initialize(mrod, mcrank, chrono.ChFrameD(posA))
+sys.Add(mjointA)
+
+# Rod-piston joint (spherical)
+mjointB = chrono.ChLinkLockSpherical()
+posB = piston_pos
+mjointB.Initialize(mpiston, mrod, chrono.ChFrameD(posB))
+sys.Add(mjointB)
+
+# Piston-floor joint (planar)
+mjointC = chrono.ChLinkLockPlane()
+posC = piston_pos
+rotationC = chrono.ChQuaternionD.QROT_Z_to_X()  # Correct quaternion name
+mjointC.Initialize(mpiston, mfloor, chrono.ChFrameD(posC, rotationC))
+sys.Add(mjointC)
+
+# Visualization setup
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Crank demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 1, 3), chrono.ChVectorD(0, 1, 0))
+vis.AddTypicalLights()
+
+array_time = []
+array_angle = []
+array_pos = []
+array_speed = []
+
+while vis.Run():
+    array_time.append(sys.GetChTime())
+    array_angle.append(my_motor.GetMotorAngle())
+    array_pos.append(mpiston.GetPos().x)
+    array_speed.append(mpiston.GetPos_dt().x)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)
+    if sys.GetChTime() > 2:  # Correct stop condition to 2 seconds
+        vis.GetDevice().closeDevice()
+
+# Plotting
+fig, (ax1, ax2) = plt.subplots(2, sharex=True)
+ax1.plot(array_angle, array_pos)
+ax1.set(ylabel='Position [m]')
+ax1.grid()
+ax2.plot(array_angle, array_speed, 'r--')
+ax2.set(ylabel='Speed [m/s]', xlabel='Angle [rad]')
+plt.xticks(np.linspace(0, 2 * np.pi, 5), ['0', r'$\pi/2$', r'$\pi$', r'$3\pi/2$', r'$2\pi$'])
+plt.show()
+```

@@ -1,0 +1,206 @@
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import numpy as np
+import time
+import math
+
+class ARTcar:
+    def __init__(self, wheel_diameter, wheel_separation, wheel_radius, max_speed, max_acc, max_steering_angle):
+        self.wheel_diameter = wheel_diameter
+        self.wheel_separation = wheel_separation
+        self.wheel_radius = wheel_radius
+        self.max_speed = max_speed
+        self.max_acc = max_acc
+        self.max_steering_angle = max_steering_angle
+        self.speed = 0
+        self.steering_angle = 0
+
+    def update(self, dt):
+        self.speed += self.max_acc * dt
+        self.speed = min(self.speed, self.max_speed)
+        self.steering_angle += self.max_steering_angle * dt
+        self.steering_angle = min(self.steering_angle, self.max_steering_angle)
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    system = chrono.ChSystemNSC()
+
+    # Initialize the ARTcar vehicle
+    car = ARTcar(0.25, 0.5, 0.05, 20.0, 1.0, math.pi / 6)
+    car_pos = chrono.ChVectorD(0, 0, 0)
+    car_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    car_body = chrono.ChBody()
+    car_body.SetPos(car_pos)
+    car_body.SetRot(car_rot)
+    car_body.SetBodyFixed(False)
+    car_body.SetCollide(True)
+    car_body.SetMass(1000)
+    car_body.SetInertiaXX(chrono.ChVectorD(10, 10, 10))
+    car_body.SetBodyType(chrono.ChBodyType.DYNAMIC)
+    system.Add(car_body)
+
+    # Add the vehicle driver
+    driver = chrono.ChDriverSteeringWheelsDynamics()
+    driver.Initialize(car_body, chrono.ChFrameD(chrono.ChVectorD(0.25, 0, 0), chrono.Q_from_AngAxis(math.pi / 6, chrono.ChVectorD(0, 1, 0))))
+    driver.SetMaxSteeringAngle(math.pi / 6)
+    driver.SetMaxSpeed(20.0)
+    driver.SetMaxAcceleration(1.0)
+    system.Add(driver)
+
+    # Create terrain
+    terrain = chrono.ChTerrain()
+    terrain.SetMaterial(chrono.ChMaterialSurfaceNSC())
+    terrain.SetTexture(chrono.GetChronoDataFile("textures/terrain.png"))
+    terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    terrain.SetHeight(0.05)
+    terrain.SetWidth(10.0)
+    terrain.SetLength(10.0)
+    terrain.SetOffset(0.0)
+    terrain.SetDensity(1000)
+    terrain.SetViscosity(0.0)
+    terrain.SetFriction(0.8)
+    terrain.SetRestitution(0.0)
+    system.Add(terrain)
+
+    # Create lidar sensors
+    lidar3d = sens.ChLidarSensor()
+    lidar3d.Initialize(car_body, 5.0, chrono.ChFramed(chrono.ChVectorD(1.0, 0, 1), chrono.Q_from_Angle(math.pi / 6)), 800, 300, 2 * math.pi, -math.pi / 6, math.pi / 6, 100.0, sens.LidarBeamShape_RECTANGULAR, 1, 0.003, sens.LidarReturnMode_STRONGEST_RETURN)
+    lidar3d.SetName("Lidar Sensor 3D")
+    lidar3d.SetLag(0)
+    lidar3d.SetCollectionWindow(1.0 / 5.0)
+    lidar3d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar3d.PushFilter(sens.ChFilterVisualize(800, 300, "Raw Lidar Depth Data"))
+    lidar3d.PushFilter(sens.ChFilterDIAccess())
+    lidar3d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar3d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "Lidar Point Cloud"))
+    lidar3d.PushFilter(sens.ChFilterXYZIAccess())
+    system.AddSensor(lidar3d)
+
+    lidar2d = sens.ChLidarSensor()
+    lidar2d.Initialize(car_body, 5.0, chrono.ChFramed(chrono.ChVectorD(1.0, 0, 1), chrono.Q_from_Angle(math.pi / 6)), 800, 1, 2 * math.pi, 0, 0, 100.0, sens.LidarBeamShape_RECTANGULAR, 1, 0.003, sens.LidarReturnMode_STRONGEST_RETURN)
+    lidar2d.SetName("Lidar Sensor 2D")
+    lidar2d.SetLag(0)
+    lidar2d.SetCollectionWindow(1.0 / 5.0)
+    lidar2d.PushFilter(sens.ChFilterLidarNoiseXYZI(0.01, 0.001, 0.001, 0.01))
+    lidar2d.PushFilter(sens.ChFilterVisualize(800, 1, "Raw 2D Lidar Depth Data"))
+    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
+    system.AddSensor(lidar2d)
+
+    # Create third person camera sensor
+    camera = sens.ChCameraSensor()
+    camera.Initialize(car_body, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0)
+    camera.SetName("Camera Sensor")
+    camera.SetLag(0)
+    camera.SetCollectionWindow(1.0)
+    system.AddSensor(camera)
+
+    # ---------------
+    # Simulate system
+    # ---------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    ch_time = 0.0
+
+    render_time = 0
+    t1 = time.time()
+
+    while ch_time < end_time:
+        # Update the ARTcar vehicle
+        dt = 1e-3
+        car.update(dt)
+
+        # Set lidar to orbit around the vehicle
+        lidar3d.SetOffsetPose(chrono.ChFramed(chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1), chrono.Q_from_Angle(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))))
+        lidar2d.SetOffsetPose(chrono.ChFramed(chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1), chrono.Q_from_Angle(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))))
+
+        # Update the camera sensor
+        camera.SetOffsetPose(chrono.ChFramed(chrono.ChVectorD(-orbit_radius * math.cos(ch_time * orbit_rate), -orbit_radius * math.sin(ch_time * orbit_rate), 1.5), chrono.Q_from_Angle(ch_time * orbit_rate, chrono.ChVectorD(0, 0, 1))))
+
+        # Access the XYZI buffer from lidar
+        xyzi_buffer_3d = lidar3d.GetMostRecentXYZIBuffer()
+        xyzi_buffer_2d = lidar2d.GetMostRecentXYZIBuffer()
+        if xyzi_buffer_3d.HasData():
+            xyzi_data_3d = xyzi_buffer_3d.GetXYZIData()
+            print('XYZI buffer received from lidar 3D. Lidar resolution: {0}x{1}'.format(xyzi_buffer_3d.Width, xyzi_buffer_3d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_3d)))
+
+        if xyzi_buffer_2d.HasData():
+            xyzi_data_2d = xyzi_buffer_2d.GetXYZIData()
+            print('XYZI buffer received from lidar 2D. Lidar resolution: {0}x{1}'.format(xyzi_buffer_2d.Width, xyzi_buffer_2d.Height))
+            print('Max Value: {0}'.format(np.max(xyzi_data_2d)))
+
+        # Update sensor manager (will render/save/filter automatically)
+        system.DoStepDynamics(step_size)
+
+        # Get the current time of the simulation
+        ch_time = system.GetChTime()
+
+    print("Sim time:", end_time, "Wall time:", time.time() - t1)
+
+
+# -----------------
+# Lidar parameters
+# -----------------
+
+# Noise model attached to the sensor
+noise_model = "NONE"  # No noise model
+
+# Lidar return mode
+return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+# return_mode = sens.MEAN_RETURN
+# return_mode = sens.FIRST_RETURN
+# return_mode = sens.LAST_RETURN
+
+# Update rate in Hz
+update_rate = 5.0
+
+# Number of horizontal and vertical samples
+horizontal_samples = 800
+vertical_samples = 300
+
+# Horizontal and vertical field of view (radians)
+horizontal_fov = 2 * math.pi  # 360 degrees
+max_vert_angle = math.pi / 12
+min_vert_angle = -math.pi / 6
+
+# Lag time
+lag = 0
+
+# Collection window for the lidar
+collection_time = 1. / update_rate  # typically 1/update rate
+
+# Radius of samples to use, 1->1 sample, 2->9 samples, 3->25 samples...
+sample_radius = 2
+
+# 3mm radius (as cited by velodyne)
+divergence_angle = 0.003
+
+# ---------------------
+# Simulation parameters
+# ---------------------
+
+# Simulation step size
+step_size = 1e-3
+
+# Simulation end time
+end_time = 40.0
+
+# Save camera images
+save = False
+
+# Render camera images
+vis = True
+
+# Output directory
+out_dir = "SENSOR_OUTPUT/"
+
+# The path to the Chrono data directory containing various assets (meshes, textures, data files)
+# is automatically set, relative to the default location of this demo.
+# If running from a different directory, you must change the path to the data directory with:
+# chrono.SetChronoDataPath('path/to/data')
+
+main()

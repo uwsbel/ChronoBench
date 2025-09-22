@@ -1,0 +1,164 @@
+```python
+# =============================================================================
+#   PyChrono HMMWV – custom mesh-terrain, Irrlicht visualization
+#   Real–time interactive demo (≈ 50 FPS render rate, fixed 0.001 s dynamics)
+# =============================================================================
+#   Requirements:
+#   * PyChrono 7.0+  (core, irrlicht, vehicle modules built)
+#   * “Highway_col.obj”  – collision mesh
+#   * “Highway_vis.obj”  – visual mesh (+ associated .mtl/.png if any)
+# =============================================================================
+
+import math
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+
+
+# -------------------------------------------------------------------------
+# 1. Global parameters
+# -------------------------------------------------------------------------
+contact_method      = chrono.ChContactMethod_NSC      # rigid-body contact
+chassis_fixed       = False                           # free vehicle
+step_size_dynamics  = 1.0e-3                          # integrator step
+step_size_render    = 1.0/50.0                        # 50 FPS rendering
+render_steps        = math.ceil(step_size_render / step_size_dynamics)
+
+# Driver response times [s] (approx. 1 second full-scale)
+steering_time       = 1.0
+throttle_time       = 1.0
+braking_time        = 0.3
+
+initial_loc         = chrono.ChVectorD(0, 0, 0.5)     # x,y,z [m]
+initial_yaw         = 0.0                             # [rad]
+
+
+# -------------------------------------------------------------------------
+# 2. Chrono system & vehicle
+# -------------------------------------------------------------------------
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Create the full HMMWV
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(contact_method)
+hmmwv.SetChassisFixed(chassis_fixed)
+hmmwv.SetInitPosition( chrono.ChCoordsysD(initial_loc,
+                        chrono.Q_from_AngZ(initial_yaw)) )
+hmmwv.SetTireType(veh.TireModelType.TMEASY)
+hmmwv.SetTireStepSize(step_size_dynamics)
+# Mesh visualization for all components
+vis = veh.VisualizationType.MESH
+hmmwv.SetChassisVisualizationType(vis)
+hmmwv.SetSuspensionVisualizationType(vis)
+hmmwv.SetSteeringVisualizationType(vis)
+hmmwv.SetWheelVisualizationType(vis)
+hmmwv.SetTireVisualizationType(vis)
+hmmwv.Initialize()
+
+# -------------------------------------------------------------------------
+# 3. Custom mesh terrain (collision + visual)
+# -------------------------------------------------------------------------
+terrain = veh.RigidTerrain(system)
+
+contact_mat = chrono.ChContactMaterialNSC()
+
+# NOTE: the mesh OBJ must be watertight for collision ⎯ if not, use height-map
+patch = terrain.AddPatch( contact_mat,
+                          veh.RigidTerrain.PatchType.MESH,        # collision from mesh
+                          "Highway_col.obj",                      # collision mesh
+                          chrono.ChVectorD(0, 0, 0),              # position
+                          chrono.ChQuaternionD(1,0,0,0) )         # rotation
+
+patch.SetMeshTexture("Highway_vis.obj")        # visual mesh
+patch.SetColor(chrono.ChColor(0.8,0.8,0.8))
+patch.SetThickness(0.1)                        # outward collision shell thickness
+terrain.Initialize()
+
+# -------------------------------------------------------------------------
+# 4. Irrlicht visualization
+# -------------------------------------------------------------------------
+app = veh.ChVehicleIrrApp(hmmwv.GetVehicle(),
+                          "HMMWV  |  Mesh terrain  |  TMeasy",
+                          irr.dimension2du(1280,720))
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.SetHUDLocation(500, 20)
+app.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 0.4), 4.0, 0.5)  # (trackPt, dist, h)
+app.SetTimestep(step_size_dynamics)
+app.AssetBindAll()
+app.AssetUpdateAll()
+app.AddLightWithShadow( chrono.ChVectorD(30, 30, 60),
+                        chrono.ChVectorD(0, 0, 0),
+                        300, 1, 20, 40 )
+
+# -------------------------------------------------------------------------
+# 5. Interactive driver (keyboard: W/S/A/D & SPACE)
+# -------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta( math.radians(1.0) )         # smallest keyboard step
+driver.SetThrottleDelta( 0.05 )
+driver.SetBrakingDelta( 0.2 )
+driver.SetSteeringTime( steering_time )
+driver.SetThrottleTime( throttle_time )
+driver.SetBrakingTime( braking_time )
+driver.Initialize()
+
+# Real-time step timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# -------------------------------------------------------------------------
+# 6. Simulation loop
+# -------------------------------------------------------------------------
+frame = 0
+while app.GetDevice().run():
+
+    # Irrlicht events (keyboard, mouse, GUI)
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Render only at the prescribed FPS
+    if frame % render_steps == 0:
+        app.BeginScene()
+        app.DrawAll()
+        app.EndScene()
+
+    # Current time
+    time = system.GetChTime()
+
+    # 1. Collect driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # 2. Update modules (synchronize)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize("HMMWV demo", driver_inputs)
+
+    # 3. Advance simulation
+    hmmwv.Advance(step_size_dynamics)
+    terrain.Advance(step_size_dynamics)
+    driver.Advance(step_size_dynamics)
+    app.Advance(step_size_dynamics)
+
+    # Real-time pace
+    realtime_timer.Spin(step_size_dynamics)
+
+    frame += 1
+
+print("Simulation finished.")
+```
+
+How to run
+----------
+1. Ensure `Highway_col.obj`, `Highway_vis.obj` (and their `.mtl`/textures) are in the working directory or provide absolute paths.
+2. Adjust `step_size_dynamics` if the solver becomes unstable (smaller = more stable).
+3. Keys:  
+   • W/S – throttle ±  
+   • A/D – steering ±  
+   • SPACE – brake  
+   • C – cycle cameras (Irrlicht default)
+
+The script starts a fully-visualized HMMWV with TMeasy tires driving over a custom OBJ-mesh highway, running in real-time at 50 FPS.

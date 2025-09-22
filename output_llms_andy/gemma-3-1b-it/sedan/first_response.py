@@ -1,0 +1,60 @@
+import pychrono
+import pychrono.core as pc
+import pychrono.visuals as v
+import pychrono.visuals.irrlicht as irrlicht
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --- Simulation Parameters ---
+simulation_time = 100  # Seconds
+time_step = 0.1    # Seconds
+terrain_size = 100  # Meters
+vehicle_mass = 1500  # kg
+tire_radius = 0.4  # Meters
+tire_mass = 10.0  # kg
+vehicle_speed = 10.0  # m/s
+acceleration = 2.0  # m/s^2
+brake_force = -500.0 # N (Negative for braking)
+steering_angle_min = 0.0
+steering_angle_max = 90.0
+collision_threshold = 0.05  # Meters
+
+# --- Terrain Setup ---
+terrain = pc.Terrain(
+    size=terrain_size,
+    heightmap=pc.HeightMap(
+        resolution=100,
+        color_scale=(0.0, 1.0),
+    )
+)
+
+# --- Vehicle Setup ---
+vehicle = pc.Vehicle(
+    mass=vehicle_mass,
+    speed=vehicle_speed,
+    acceleration=acceleration,
+    steering_angle_min=steering_angle_min,
+    steering_angle_max=steering_angle_max,
+    tire_radius=tire_radius,
+    tire_mass=tire_mass
+)
+
+# --- Visualization ---
+irrlicht.init(width=800, height=600)
+irrlicht.create_skybox(
+    skybox="skybox.png"  # Replace with your skybox image path
+)
+
+# --- Simulation Loop ---
+simulation = pc.Simulation(
+    time=simulation_time,
+    vehicle=vehicle,
+    terrain=terrain,
+    irrlicht=irrlicht
+)
+
+simulation.run()
+
+# --- Visualization and Data Collection ---
+simulation.plot()
+irrlicht.close()

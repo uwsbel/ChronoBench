@@ -1,0 +1,85 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Set your Chrono data path here
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))  # Set gravity
+
+# 2. Add the required physical systems and objects
+
+# Create a fixed truss (ground body)
+truss = chrono.ChBodyEasyBox(4, 0.5, 0.1, 1000, True, True)
+truss.SetPos(chrono.ChVectorD(0, 0, 0))
+truss.SetBodyFixed(True)
+system.Add(truss)
+
+# Create the rotating bar (carrier)
+bar_length = 2.0
+bar = chrono.ChBodyEasyBox(bar_length, 0.2, 0.1, 10, True, True)
+bar.SetPos(chrono.ChVectorD(0, 0, 0.2))
+system.Add(bar)
+
+# Create the sun gear (fixed to ground)
+sun_gear_radius = 0.5
+sun_gear = chrono.ChBodyEasyCylinder(sun_gear_radius, 0.2, 1000, True, True)
+sun_gear.SetPos(chrono.ChVectorD(0, 0, 0.3))
+sun_gear.SetBodyFixed(True)
+system.Add(sun_gear)
+
+# Create the planet gear (mounted on the rotating bar)
+planet_gear_radius = 0.3
+planet_gear = chrono.ChBodyEasyCylinder(planet_gear_radius, 0.2, 5, True, True)
+planet_gear.SetPos(chrono.ChVectorD(bar_length/2, 0, 0.3))
+system.Add(planet_gear)
+
+# Create a revolute joint between the bar and planet gear
+link_bar_planet = chrono.ChLinkLockRevolute()
+link_bar_planet.Initialize(planet_gear, bar, chrono.ChCoordsysD(chrono.ChVectorD(bar_length/2, 0, 0.3)))
+system.Add(link_bar_planet)
+
+# Create a gear joint between sun and planet gears
+gear_ratio = sun_gear_radius / planet_gear_radius
+link_gear = chrono.ChLinkGear()
+link_gear.Initialize(sun_gear, planet_gear, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.3)),
+                     chrono.ChCoordsysD(chrono.ChVectorD(bar_length/2, 0, 0.3)), gear_ratio)
+system.Add(link_gear)
+
+# Create a revolute joint between ground and bar (at center)
+link_ground_bar = chrono.ChLinkLockRevolute()
+link_ground_bar.Initialize(bar, truss, chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.2)))
+system.Add(link_ground_bar)
+
+# Add a motor to rotate the bar
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(bar, truss, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0.2)))
+motor.SetMotorSpeed(1.0)  # 1 rad/s
+system.Add(motor)
+
+# 3. Set up visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Epicyclic Gear System")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(5, 0, 2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(5, 5, 5), chrono.ChVectorD(0, 0, 0), 10, 1, 10, 40, 512)
+
+# Set materials for visualization
+truss.GetVisualModel().SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.5, 0.5, 0.5)))
+bar.GetVisualModel().SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.2, 0.2, 0.8)))
+sun_gear.GetVisualModel().SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.8, 0.2, 0.2)))
+planet_gear.GetVisualModel().SetMaterial(chrono.ChVisualMaterial(chrono.ChColor(0.2, 0.8, 0.2)))
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(0.01)

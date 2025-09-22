@@ -1,0 +1,180 @@
+Below is a self-contained Python script that follows your specifications.  
+It builds and runs a Chrono::Vehicle “Gator” model on a flat rigid terrain, uses Irrlicht for real-time interactive visualization, equips the wheels with TMeasy tires, and lets the user drive with the keyboard.  The simulation is rendered at 50 FPS and advanced in real time.
+
+```python
+# =============================================================================
+# Gator on rigid terrain – interactive demo
+#
+# Requirements
+#   • PyChrono (core, vehicle, irrlicht modules)
+#     2.0.0 or newer is recommended
+#   • Irrlicht shared library (comes with the PyChrono binary packages)
+#
+# Steering / throttle / braking keys (default ChIrrGuiDriver mapping)
+#   SPACE       = toggle parking brake
+#   ↑ / ↓       = throttle / brake
+#   ← / →       = steer left / right
+#   T / G       = increase / decrease throttle gain
+#   F1          = show help overlay
+# =============================================================================
+import pychrono            as chrono
+import pychrono.vehicle    as veh
+import pychrono.irrlicht   as irr
+import math
+import os
+
+# -------------------------------------------------------------------------
+# 1. Global simulation parameters
+# -------------------------------------------------------------------------
+contact_method     = chrono.ChContactMethod_NSC           # NSC = non-smooth
+step_size          = 1.0e-3                               # integrator step
+render_fps         = 50.0                                 # target FPS
+render_step        = 1.0 / render_fps                     # time between frames
+tire_step_size     = 1.0e-3                               # internal tire step
+
+# -------------------------------------------------------------------------
+# 2. Chrono system and application
+# -------------------------------------------------------------------------
+chrono.SetChronoDataPath( chrono.GetChronoDataPath() )    # texture, mesh, etc.
+
+system = chrono.ChSystemNSC()
+system.Set_G_acc( chrono.ChVectorD(0, 0, -9.81) )
+
+# Create the Irrlicht application
+app = veh.ChVehicleIrrAppInterface(
+            "Gator – TMeasy tires on rigid terrain",
+            system,
+            irr.dimension2du(1280, 720),
+            False,     # fullscreen?
+            False )    # doShadow?
+
+# -------------------------------------------------------------------------
+# 3. Terrain (single rigid patch)
+# -------------------------------------------------------------------------
+terrain = veh.RigidTerrain(system)
+
+length = 200.0          # in meters
+width  = 200.0
+thick  = 0.2
+patch  = terrain.AddPatch(
+            chrono.ChCoordsysD( chrono.ChVectorD(0, 0, 0), chrono.QUNIT ),
+            veh.RigidTerrain.BrickMaterial(chrono.ChContactMethod_NSC),
+            length, width, thick )
+
+patch.SetTexture( chrono.GetChronoDataFile("vehicle/terrain/grass.jpg"), 10, 10 )
+terrain.Initialize()
+
+# -------------------------------------------------------------------------
+# 4. The Gator vehicle
+# -------------------------------------------------------------------------
+# Initial location & orientation
+init_loc = chrono.ChVectorD(0.0, 0.0, 0.25)                # chassis COM approx.
+init_rot = chrono.Q_from_AngY( math.radians(10.0) )        # heading 10°
+init_pos = chrono.ChCoordsysD(init_loc, init_rot)
+
+vehicle = veh.Gator( system,                              # associate with system
+                     False,                               # fixed chassis?
+                     veh.ChassisCollisionType.NONE )      # visualization only
+
+vehicle.SetContactMethod( contact_method )
+vehicle.SetInitPosition( init_pos )
+vehicle.SetTireType( veh.TireModelType.TMEASY )
+vehicle.SetTireStepSize( tire_step_size )
+vehicle.SetChassisVisualizationType( veh.VisualizationType.MESH )
+vehicle.SetSuspensionVisualizationType( veh.VisualizationType.MESH )
+vehicle.SetSteeringVisualizationType  ( veh.VisualizationType.MESH )
+vehicle.SetWheelVisualizationType     ( veh.VisualizationType.MESH )
+
+vehicle.Initialize()
+
+# Attach an “easy” powertrain (engine + 2-speed gearbox)
+powertrain = veh.Gator_SimplePowertrain( "GatorPowertrain" )
+vehicle.InitializePowertrain( powertrain )
+
+# -------------------------------------------------------------------------
+# 5. Interactive driver (keyboard GUI)
+# -------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver( app )
+
+# Driver ergonomic parameters (seconds)
+driver.SetSteeringGain( 1.0 )          # how fast steering wheel reacts
+driver.SetThrottleDelta( 0.02 )        # increment per key press
+driver.SetBrakeDelta   ( 0.02 )
+
+driver.Initialize()
+
+# -------------------------------------------------------------------------
+# 6. Bind everything to the Irrlicht visualizer
+# -------------------------------------------------------------------------
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddTypicalCamera( chrono.ChVectorD(1.5, -3, 1.2),
+                      chrono.ChVectorD(0, 0, 0.5) )
+
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# For real-time pacing
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# -------------------------------------------------------------------------
+# 7. Simulation loop
+# -------------------------------------------------------------------------
+time = 0.0
+render_accumulator = 0.0
+
+print("Interactive Gator demo. Press ESC to quit.")
+
+while app.GetDevice().run():
+
+    # Irrlicht GUI / event handling ------------------------------
+    app.BeginScene(True, True, irr.SColor(255, 140, 161, 192))
+    driver.Draw   ( app.GetDevice() )   # help overlay
+    app.DrawAll()
+
+    # ----- Collect inputs & advance subsystems -----
+    time = system.GetChTime()
+
+    driver_inputs = driver.GetInputs()
+
+    driver.Synchronize ( time )
+    terrain.Synchronize( time )
+    vehicle.Synchronize( time, driver_inputs, terrain )
+    app.Synchronize    ( "", driver_inputs )
+
+    # ----- Dynamics step -----
+    system.DoStepDynamics( step_size )
+
+    # Real-time pacing (busy-wait loop)
+    realtime_timer.Spin( step_size )
+
+    app.EndScene()
+
+    # Quit when ESC is pressed
+    if app.IsKeyDown( irr.KEY_KEY_ESCAPE ):
+        break
+
+# -------------------------------------------------------------------------
+# 8. Clean up (Irrlicht device will be dropped automatically)
+# -------------------------------------------------------------------------
+print("Simulation terminated.")
+
+```
+
+Explanation of the key sections
+• Lines 17-29 – Global parameters: contact method, integrator step, render frequency, etc.  
+• System & Irrlicht app – a single Chrono system is created and handed to the specialized vehicle Irrlicht interface.  
+• Terrain – one RigidTerrain “patch” (brick) of 200 × 200 m with a grass texture.  
+• Vehicle – a `veh.Gator` object is instantiated, placed at the given pose, and asked to use TMEASY tires and mesh visualization for every component.  
+• Powertrain – the supplied simple engine/gearbox class is enough for interactive driving.  
+• Driver – `ChIrrGuiDriver` automatically binds the keyboard; its gains (how quickly the controls react) can be tuned.  
+• Simulation loop – the driver, terrain, vehicle, and Irrlicht application are synchronized each step; `ChRealtimeStepTimer` keeps everything running in real time at ≈50 FPS.
+
+Run the script with:
+
+```bash
+python3 gator_rigid_terrain.py
+```
+
+Use the arrow keys to steer/throttle/brake and SPACE to toggle the parking brake.

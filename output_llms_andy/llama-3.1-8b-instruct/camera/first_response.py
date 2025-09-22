@@ -1,0 +1,59 @@
+import chrono as ch
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Initialize the PyChrono environment
+ch.initialize()
+
+# Create a world object
+world = ch.ChWorld()
+
+# Create a fixed body with a triangular mesh loaded from a Wavefront .obj file
+body = ch.ChBody()
+body.LoadWavefrontMesh("mesh.obj")
+body.SetBodyFixed(True)
+world.Add(body)
+
+# Create a camera sensor
+camera = ch.ChCamera()
+camera.SetBody(body)
+camera.SetSensor(True)
+camera.SetSensorMode(ch.ChSensorMode.CAMERA)
+camera.SetSensorType(ch.ChSensorType.CAMERA)
+camera.SetSensorResolution(640, 480)
+camera.SetSensorFOV(60)
+
+# Create a sensor manager
+sensor_manager = ch.ChSensorManager()
+sensor_manager.AddSensor(camera)
+
+# Create a noise filter
+noise_filter = ch.ChNoiseFilter()
+noise_filter.SetSigma(0.1)
+noise_filter.SetMu(0.5)
+camera.SetSensorNoiseFilter(noise_filter)
+
+# Create a visualization
+visualization = ch.ChVisualization()
+visualization.SetMode(ch.ChVisualizationMode.CAMERA)
+camera.SetSensorVisualization(visualization)
+
+# Set the initial camera position
+camera.SetPosition(1, 1, 1)
+
+# Set the simulation parameters
+world.SetGravity(0, 0, -9.81)
+world.SetTimeStep(0.01)
+world.SetMaxStep(0.1)
+world.SetIterations(10)
+
+# Simulate the system
+for i in range(1000):
+    world.DoStep()
+    camera_buffer = camera.GetCameraBuffer()
+    print(camera_buffer)
+    # Update the camera position in an orbit around the mesh
+    camera.SetPosition(np.cos(i * 0.01), np.sin(i * 0.01), 1)
+
+# Clean up the PyChrono environment
+ch.finalize()

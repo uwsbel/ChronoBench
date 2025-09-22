@@ -1,0 +1,147 @@
+```python
+# =============================================================================
+# PyChrono demo: Full HMMWV on a rigid (flat) terrain + Irrlicht visualization
+#
+# The script shows how to:
+#   • build the complete HMMWV vehicle (chassis, suspensions, steering, tires…)
+#   • place it on a rigid‐body terrain patch
+#   • create an Irrlicht window, lights, camera, skybox, etc.
+#   • attach an interactive GUI driver (keyboard: throttle / brake / steering)
+#   • advance the dynamics in real-time and render at 50 FPS
+# =============================================================================
+# Author:  <your-name>
+# =============================================================================
+#
+# Tested with Chrono 8.0+,   python -m pip install pychrono
+# =============================================================================
+
+import math
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# ----------------------------------------------------------------------------- 
+# 1. Chrono initialisation
+# ----------------------------------------------------------------------------- 
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())        # data files
+chrono.SetCollisionEnvelope(0.03)                           # default collision envelope
+
+# Global simulation parameters -------------------------------------------------
+contact_method   = chrono.ChContactMethod_NSC               # (NSC or SMC)
+step_size        = 1.0e-3                                   # integrator step size [s]
+render_FPS       = 50                                       # Irrlicht frames per second
+render_steps     = int(math.floor(1.0 / (render_FPS*step_size)))  # sim steps per render
+realtime_timer   = chrono.ChRealtimeStepTimer()             # helper for real-time loop
+
+# ----------------------------------------------------------------------------- 
+# 2. Construct the physical system components
+# ----------------------------------------------------------------------------- 
+
+# 2-A) HMMWV (complete vehicle)
+init_loc         = chrono.ChVectorD(0.0, 0.0, 0.8)          # initial CM position
+init_rot         = chrono.ChQuaternionD(1,0,0,0)            # no initial rotation
+chassis_fixed    = False
+
+# Create the vehicle (using the convenience wrapper inside veh.hmmwv)
+vehicle = veh.hmmwv.HMMWV_Full()                            # default constructor
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisFixed(chassis_fixed)
+vehicle.SetChassisCollisionType(veh.ChassisCollisionType.PRIMITIVES)
+vehicle.SetInitPosition(chrono.ChCoordsysD(init_loc, init_rot))
+vehicle.SetPowertrainType(veh.PowertrainModelType.SHAFTS)
+vehicle.SetTireType(veh.TireModelType.TMEASY)               # requested in brief
+vehicle.SetTireStepSize(step_size)
+vehicle.Initialize()
+
+# Pick cheap primitive visualisation for all subsystems
+visPRIM = veh.VisualizationType.PRIMITIVES
+vehicle.SetVisualizationTypeChassis(visPRIM)
+vehicle.SetVisualizationTypeSuspension(visPRIM)
+vehicle.SetVisualizationTypeSteering(visPRIM)
+vehicle.SetVisualizationTypeWheels(visPRIM)
+vehicle.SetVisualizationTypeTires(visPRIM)
+
+# 2-B) Rigid terrain
+system  = vehicle.GetSystem()                               # handy pointer
+terrain = veh.RigidTerrain(system)
+
+# material for terrain patch ---------------------------------------------------
+if contact_method == chrono.ChContactMethod_NSC:
+    patch_mat = chrono.ChMaterialSurfaceNSC()
+else:
+    patch_mat = chrono.ChMaterialSurfaceSMC()
+
+length = 400.0                                              # patch size (x)
+width  = 400.0                                              # patch size (y)
+patch  = terrain.AddPatch(patch_mat,
+                          chrono.ChCoordsysD(chrono.ChVectorD(0,0,0), chrono.QUNIT),
+                          length, width)
+patch.SetTexture(chrono.GetChronoDataFile("terrain/textures/concrete.jpg"), 8.0, 8.0)
+patch.SetColor(chrono.ChColor(0.6,0.6,0.6))
+terrain.Initialize()
+
+# ----------------------------------------------------------------------------- 
+# 3. Visualisation ‑ Irrlicht
+# ----------------------------------------------------------------------------- 
+app = veh.ChVehicleIrrApp(vehicle,                            # Irrlicht helper
+                          "HMMWV ‑ Full ‑ Rigid terrain",
+                          irr.dimension2du(1280,720))
+
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.SetChaseCamera( chrono.ChVectorD(-6.0, 0.0, 1.5), 6.0, 0.5)    # (pos, distance, height)
+app.SetTimestep(step_size)
+
+# 3-A) GUI driver (keyboard)
+driver = veh.ChIrrGuiDriver(app)
+driver.SetThrottleDelta(0.02)
+driver.SetSteeringDelta(0.03)
+driver.SetBrakingDelta (0.1)
+driver.Initialize()
+
+# ----------------------------------------------------------------------------- 
+# 4. Simulation loop
+# ----------------------------------------------------------------------------- 
+step_number = 0
+while app.GetDevice().run():
+
+    # 4-A) Render scene every N steps -----------------------------------------
+    if step_number % render_steps == 0:
+        app.BeginScene(True, True, chrono.SColor(255,140,161,192))
+        app.DrawAll()
+        app.EndScene()
+
+    # 4-B) Collect current time and driver inputs -----------------------------
+    time      = system.GetChTime()
+    driver_inputs = driver.GetInputs()                       # (steering, throttle, braking)
+
+    # 4-C) Synchronization of all modules -------------------------------------
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    app.Synchronize("HMMWV demo", driver_inputs)
+
+    # 4-D) Advance dynamics ----------------------------------------------------
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    app.Advance(step_size)
+
+    # 4-E) Spin in real time ---------------------------------------------------
+    realtime_timer.Spin(step_size)
+    step_number += 1
+```
+
+How to use
+----------
+Run the script with a standard Python interpreter (`python demo_hmmwv.py`).  
+Keyboard controls (default Chrono GUI driver bindings):
+
+    W / S – throttle up / down
+    SPACE  – toggle brake
+    A / D – steering left / right
+    Q / Z – steering fine control (smaller increments)
+    ESC   – quit Irrlicht window
+
+The program steps the Chrono system at 1 ms while rendering at 50 fps, respecting real-time pacing through `ChRealtimeStepTimer`.

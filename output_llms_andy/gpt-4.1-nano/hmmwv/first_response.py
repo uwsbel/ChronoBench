@@ -1,0 +1,86 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize the Chrono system
+chrono.SetChronoDataPath("data/")  # Adjust path if necessary
+system = chrono.ChSystemNSC()  # Use Non-Smooth Contact for realistic contact modeling
+
+# Create the Irrlicht visualization application
+application = irr.ChIrrApp(system, "HMMWV on Flat Terrain", irr.dimension2du(1024, 768))
+application.GetDevice().setWindowTitle('PyChrono HMMWV Simulation')
+application.addSkyBox()
+application.addTypicalLights()
+application.addCamera(irr.vector3df(0, 10, -20))
+application.assetBindAll()
+application.assetUpdateAll()
+
+# Create a flat terrain
+terrain = veh.RigidTerrain(system)
+terrain.Initialize()
+
+# Set terrain parameters
+terrain.GetGround().SetTexture(veh.GetChronoDataFile("textures/concrete.jpg"))
+terrain.GetGround().SetTextureScale(20, 20)
+
+# Define terrain dimensions
+terrain_dims = chrono.ChVector<>(50, 0.2, 50)  # 50m x 50m ground with 0.2m thickness
+# (The terrain is already initialized as flat; dimensions are for reference)
+
+# Create the vehicle
+vehicle = veh.HMMWV(
+    system,
+    veh.VehicleSide::LEFT,
+    veh.POV_DIRECTION::FORWARD,
+    veh.MESH_VISUALIZATION::PRIMITIVES,
+    false  # no collision mesh
+)
+
+# Set vehicle initial position and orientation
+initial_pos = chrono.ChVector<>(0, 0.5, 0)  # Slightly above ground to avoid initial penetration
+initial_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No rotation
+vehicle.GetChassisBody().SetPos(initial_pos)
+vehicle.GetChassisBody().SetRot(initial_rot)
+
+# Set contact method and tire model
+vehicle.GetSystem().SetContactMethod(chrono.ChContactMethod::NSC)
+vehicle.SetTireModelType(veh.TireModelType::TMEASY)
+
+# Use primitive visualization for all vehicle components
+vehicle.SetVisualizationType(veh.VisualizationType::PRIMITIVES)
+
+# Initialize the vehicle
+vehicle.Initialize(initial_pos)
+
+# Create the driver system for interaction
+driver = veh.ChIrrGuiDriver(application)
+driver.Initialize()
+
+# Add vehicle to the physical system
+system.Add(vehicle.GetChassisBody())
+
+# Set simulation parameters
+application.SetTimestep(1.0 / 50)  # 50 FPS
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+while application.GetDevice().run():
+    # Begin scene rendering
+    application.BeginScene()
+    application.DrawAll()
+
+    # Handle user inputs for steering, throttle, and braking
+    driver.Update()
+    driver.GetInputMode()  # To process inputs
+
+    # Apply driver inputs to vehicle
+    vehicle.GetSteering().SetInput(driver.GetSteering());
+    vehicle.GetThrottle().SetInput(driver.GetThrottle());
+    vehicle.GetBrake().SetInput(driver.GetBraking());
+
+    # Advance the system
+    system.DoStepDynamics(application.GetTimestep())
+
+    # End scene rendering
+    application.EndScene()

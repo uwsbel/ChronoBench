@@ -1,0 +1,82 @@
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.mkl as mkl
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+
+# Set up the PardisoMKL solver for efficient dynamics
+solver = mkl.ChSolverPardisoMKL()
+system.SetSolver(solver)
+
+# Create a mesh for the tablecloth
+mesh = chrono.ChMesh()
+
+# Define tablecloth parameters
+Lx = 1.0  # Length in x-direction
+Ly = 1.0  # Length in y-direction
+Nx = 10   # Number of elements in x
+Ny = 10   # Number of elements in y
+thickness = 0.001  # Thickness of the shell
+density = 1000     # Density (kg/m^3)
+E = 2.1e9          # Young's modulus (Pa)
+nu = 0.3           # Poisson's ratio
+
+# Create nodes with rotational degrees of freedom
+nodes = []
+for i in range(Nx + 1):
+    row = []
+    for j in range(Ny + 1):
+        x = Lx * i / Nx
+        y = Ly * j / Ny
+        z = 0.0
+        node = chrono.ChNodeFEAxyzrot(chrono.ChFrameD(chrono.ChVectorD(x, y, z)))
+        # Fix corner nodes to simulate support points
+        if (i == 0 and j == 0) or (i == Nx and j == 0) or \
+           (i == 0 and j == Ny) or (i == Nx and j == Ny):
+            node.SetFixed(True)
+        row.append(node)
+        mesh.AddNode(node)
+    nodes.append(row)
+
+# Create Kirchhoff shell elements
+for i in range(Nx):
+    for j in range(Ny):
+        n1 = nodes[i][j]
+        n2 = nodes[i+1][j]
+        n3 = nodes[i+1][j+1]
+        n4 = nodes[i][j+1]
+        element = chrono.ChElementShellKirchhoff()
+        element.SetNodes(n1, n2, n3, n4)
+        material = chrono.ChMaterialShellKirchhoff(E, nu, thickness, density)
+        element.SetMaterial(material)
+        mesh.AddElement(element)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Visualization assets for the mesh
+visual_asset = chrono.ChVisualizationFEAmesh(mesh)
+visual_asset.SetFEMdataType(chrono.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+visual_asset.SetWireframe(True)
+mesh.AddAsset(visual_asset)
+mesh.AddAsset(chrono.ChColorAsset(0.8, 0.2, 0.2))  # Reddish color
+
+# Set up Irrlicht visualization
+application = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', irr.dimension2du(1024, 768))
+application.AddTypicalLogo()
+application.AddTypicalCamera(irr.vector3df(0, 0, 2), irr.vector3df(0, 0, 0))
+application.AddTypicalLights()
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Simulation loop
+application.SetTimestep(0.01)
+application.SetTryRealtime(True)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

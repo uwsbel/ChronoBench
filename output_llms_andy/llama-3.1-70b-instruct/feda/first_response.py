@@ -1,0 +1,71 @@
+# Import necessary modules
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as chrono_vehicle
+import numpy as np
+
+# Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('./data/')
+
+# Create the simulation
+sim = chrono.ChSystemNSC()
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEDA Vehicle Simulation')
+vis.SetCamera(chrono.ChVectorD(0, 0, 6), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+
+# Create the FEDA vehicle
+vehicle = chrono_vehicle.ChFedaVehicle(sim)
+
+# Set vehicle parameters
+vehicle.SetContactMethod(chrono_vehicle.ContactMethod_ELLIPSOID)
+vehicle.SetTireModel(chrono_vehicle.TireModel_RIGID_RING)
+vehicle.SetChassisVisualization(chrono_vehicle.VisualizationType_MESH)
+vehicle.SetSuspensionVisualization(chrono_vehicle.VisualizationType_MESH)
+vehicle.SetSteeringVisualization(chrono_vehicle.VisualizationType_MESH)
+vehicle.SetWheelVisualization(chrono_vehicle.VisualizationType_MESH)
+
+# Set vehicle location and orientation
+vehicle.SetChassisPosition(chrono.ChVectorD(0, 0, 0.5))
+vehicle.SetChassisOrientation(chrono.ChQuaternionD(1, 0, 0, 0))
+
+# Create the rigid terrain
+terrain = chrono.ChBodyEasyBox(sim, 10, 10, 1, 1000, True, True)
+terrain.SetBodyFixed(True)
+terrain.SetMaterialSurface(chrono.ChMaterialSurfaceNSC())
+terrain.SetVisualizationType(chrono.ChVisualizationType_MESH)
+terrain.SetMesh(chrono.ChTriangleMesh())
+terrain.GetMesh().LoadWavefrontMesh('data/terrain.obj')
+terrain.SetTexture(chrono.ChTexture('data/terrain.jpg'))
+
+# Add the vehicle and terrain to the simulation
+sim.Add(vehicle.GetPart(0))
+sim.Add(terrain)
+
+# Create an interactive driver system
+driver = chrono_vehicle.ChIrrlichtDriver()
+driver.SetVehicle(vehicle)
+driver.SetSteeringRange(-0.5, 0.5)
+driver.SetThrottleRange(0, 100)
+driver.SetBrakingRange(0, 100)
+
+# Set the camera to follow the vehicle
+vis.SetCameraFollowMode(chrono.ChVectorD(0, 0, 6), chrono.ChVectorD(0, 0, 0), chrono.ChVectorD(0, 1, 0))
+
+# Simulation loop
+while sim.GetChTime() < 10:
+    sim.DoStepDynamics(0.02)
+    vis.Render()
+    vis.PollEvents()
+    driver.Synchronize(0.02)
+
+    # Update the vehicle dynamics
+    vehicle.Update(0.02)
+
+    # Render the scene
+    vis.Render()
+
+    # Update the simulation time
+    sim.GetChTime()

@@ -1,0 +1,116 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# -----------------------------------------------------------------------------
+# 1. Initialize PyChrono and core components
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# -----------------------------------------------------------------------------
+# 2. Create the vehicle
+# -----------------------------------------------------------------------------
+# Vehicle initial position and orientation
+initLoc = chrono.ChVectorD(0, 0, 1.0)  # X, Y, Z
+initYaw = chrono.CH_C_PI / 6            # 30 degrees
+
+# Create the HMMWV vehicle
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(chrono.ChContactMethod_SMC)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysD(initLoc, chrono.Q_from_AngZ(initYaw)))
+vehicle.SetPowertrainType(veh.PowertrainModelType_SHAFTS)
+vehicle.SetDriveType(veh.DrivelineTypeWV_AWD)
+vehicle.SetTireType(veh.TireModelType_RIGID)
+vehicle.SetTireStepSize(1e-3)
+vehicle.Initialize()
+
+# Mesh visualization for all components
+vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+# -----------------------------------------------------------------------------
+# 3. Create the SCM deformable terrain
+# -----------------------------------------------------------------------------
+terrain = veh.SCMDeformableTerrain(vehicle.GetSystem())
+
+# Terrain dimensions and location
+terrain.SetPlane(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+terrain.SetMeshResolution(0.04)  # 4cm grid
+
+# Custom soil parameters (example values, adjust as needed)
+terrain.SetSoilParameters(2e6,   # Bekker Kphi
+                          0,     # Bekker Kc
+                          1.1,   # Bekker n exponent
+                          0,     # Mohr cohesive limit (Pa)
+                          30,    # Mohr friction limit (degrees)
+                          0.01,  # Janosi shear coefficient (m)
+                          4e7,   # Elastic stiffness (Pa/m), before plastic yield
+                          3e4)   # Damping (Pa*s/m)
+
+# Enable moving patch that follows the chassis
+terrain.AddMovingPatch(vehicle.GetChassis(), chrono.ChVectorD(0, 0, 0), 5, 3)  # 5x3m patch
+
+# Enable sinkage visualization with false color
+terrain.SetPlotType(veh.SCMDeformableTerrain.PLOT_SINKAGE, 0, 0.1)  # min/max sinkage in meters
+
+# -----------------------------------------------------------------------------
+# 4. Create the Irrlicht visualization
+# -----------------------------------------------------------------------------
+app = veh.ChWheeledVehicleIrrApp(vehicle, 'HMMWV on SCM Terrain', irr.dimension2du(1024,768))
+app.SetSkyBox()
+app.AddTypicalLights()
+app.AddTypicalLogo()
+app.AddTypicalCamera(chrono.ChVectorD(0, 2, 1.75), chrono.ChVectorD(0, 0, 0))
+app.SetChaseCamera(chrono.ChVectorD(0.0, 0.0, 1.75), 6.0, 0.5)
+app.SetTimestep(0.01)
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# -----------------------------------------------------------------------------
+# 5. Interactive driver system
+# -----------------------------------------------------------------------------
+driver = veh.ChIrrGuiDriver(app)
+driver.SetSteeringDelta(1.0 / 50)   # how fast steering reacts [1/sec]
+driver.SetThrottleDelta(1.0 / 50)   # how fast throttle reacts [1/sec]
+driver.SetBrakingDelta(1.0 / 50)    # how fast braking reacts [1/sec]
+driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# 6. Simulation loop
+# -----------------------------------------------------------------------------
+step_size = 0.01
+render_steps = int(math.ceil(1.0 / (step_size * 50)))  # 50 FPS
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules
+    driver.Synchronize(vehicle.GetSystem().GetChTime())
+    terrain.Synchronize(vehicle.GetSystem().GetChTime())
+    vehicle.Synchronize(vehicle.GetSystem().GetChTime(), driver_inputs, terrain)
+    app.Synchronize('HMMWV on SCM Terrain', driver_inputs)
+
+    # Advance simulation
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    app.Advance(step_size)
+
+    # Render at 50 FPS
+    if vehicle.GetSystem().GetChTime() % (1.0 / 50) < step_size:
+        pass  # Already rendering every loop due to app.DrawAll()
+
+    # Optionally, break after some time
+    # if vehicle.GetSystem().GetChTime() > 60:
+    #     break

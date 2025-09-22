@@ -1,0 +1,162 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import math
+
+# -------------------------------------------------------------------
+# Chrono data paths (make sure CHRONO_DATA is set, or hard‐code your path)
+# -------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+
+# -------------------------------------------------------------------
+# Parameters
+# -------------------------------------------------------------------
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-15, 0, 1.2)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Tire model
+tire_model = veh.TireModelType_RIGID
+
+# Rigid‐terrain parameters
+terrainHeight = 0.0
+terrainLength = 100.0
+terrainWidth  = 100.0
+terrainPatchThickness = 0.0   # flat plate
+
+# Point on chassis to track with the camera
+trackPoint = chrono.ChVector3d(0, 0, 1.71)
+
+# Contact method: NSC (non‐smooth)
+contact_method = chrono.ChContactMethod_NSC
+
+# Integration step sizes
+step_size       = 1e-3
+tire_step_size  = step_size
+render_step_size = 1.0 / 20.0  # 20 FPS
+
+# -------------------------------------------------------------------
+# 1) Create and initialize the vehicle
+# -------------------------------------------------------------------
+vehicle = veh.HMMWV_Full()  # or HMMWV_Reduced()
+
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+# Visualization for the various vehicle sub‐systems
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# Optional: choose the underlying Chrono collision engine
+# For NSC you can leave the default (Chrono collision).
+# Here we force Bullet if you prefer, but it's not required.
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# -------------------------------------------------------------------
+# 2) Rigid terrain with a single patch
+# -------------------------------------------------------------------
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# Position the patch so its top surface is at z = terrainHeight
+patch_csys = chrono.ChCoordsysd(
+    chrono.ChVector3d(0, 0, terrainHeight),
+    chrono.ChQuaterniond(1, 0, 0, 0)
+)
+patch = terrain.AddPatch(
+    patch_csys,
+    terrainLength,     # X‐size
+    terrainWidth,      # Y‐size
+    terrainPatchThickness
+)
+
+# If you really want to map a height‐map bmp to the rigid object, you
+# would have to generate a mesh externally.  Here we simply use a flat
+# patch and apply the BMP as a texture for visual effect.
+patch.SetTexture(
+    veh.GetDataFile("terrain/textures/dirt.jpg"),
+    6.0, 6.0
+)
+
+terrain.Initialize()
+
+# -------------------------------------------------------------------
+# 3) Irrlicht visualization
+# -------------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("HMMWV on Rigid Terrain (NSC)")
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# -------------------------------------------------------------------
+# 4) Driver (interactive keyboard)
+# -------------------------------------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# steering/throttle/brake time response (sec to go from 0→1)
+steering_time = 1.0
+throttle_time = 1.0
+braking_time  = 0.3
+
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# -------------------------------------------------------------------
+# 5) Simulation loop
+# -------------------------------------------------------------------
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# how many steps to advance between renders
+render_steps = math.ceil(render_step_size / step_size)
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene at specified rate
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Get interactive driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize all modules
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance all modules by one time step
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    step_number += 1
+    realtime_timer.Spin(step_size)

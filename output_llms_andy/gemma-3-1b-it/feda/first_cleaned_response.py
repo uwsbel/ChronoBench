@@ -1,0 +1,83 @@
+import pychrono
+import pychrono.core as pc
+import pychrono.visual as v
+import numpy as np
+import matplotlib.pyplot as plt
+from pychrono.visual import Camera
+import pychrono.simulation as cs
+
+
+vehicle_id = 1
+terrain_width = 100
+terrain_height = 50
+vehicle_speed = 0.5
+tire_model = "tire_model_dynamic" 
+contact_method = "contact_method_dynamic" 
+camera_position = (0, 0, 5)  
+camera_rotation = (0, 0, 0) 
+camera_frame_rate = 50
+rigid_terrain_texture = "rigid_terrain_texture.png" 
+simulation_duration = 60  
+
+
+try:
+    chrono = pc.chrono.Chronos()
+    chrono.init()
+except Exception as e:
+    print(f"Error initializing Chronos: {e}")
+    exit()
+
+
+vehicle = vehicle_id
+vehicle.location = (0, 0, 0)
+vehicle.orientation = (0, 0, 0)
+vehicle.speed = vehicle_speed
+vehicle.contact_method = contact_method
+vehicle.tire_model = tire_model
+
+
+try:
+    terrain = pc.terrain.Terrain(
+        width=terrain_width,
+        height=terrain_height,
+        texture=rigid_terrain_texture
+    )
+except Exception as e:
+    print(f"Error creating terrain: {e}")
+    exit()
+
+
+camera = Camera(camera_position, camera_rotation)
+camera.frame_rate = camera_frame_rate
+camera.set_camera_type(pc.visual.Camera)
+
+
+try:
+    cs.Simulation(vehicle, terrain, camera)
+except Exception as e:
+    print(f"Error creating simulation: {e}")
+    exit()
+
+
+try:
+    v.render(vehicle, camera,  camera_frame_rate)
+except Exception as e:
+    print(f"Error rendering: {e}")
+    exit()
+
+
+try:
+    while True:
+        chrono.update()
+        chrono.update_time()
+        chrono.render()
+        print(f"Simulation time: {chrono.time()}")
+
+        
+        
+        
+
+except KeyboardInterrupt:
+    print("Simulation stopped by user.")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")

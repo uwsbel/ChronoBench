@@ -1,0 +1,49 @@
+import chrono as ch
+import chrono.vehicle as ch_veh
+import chrono.irrlicht as ch_irr
+
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
+
+# 2. Create the M113 vehicle
+veh = ch_veh.ChM113()
+
+# Set initial conditions
+veh.SetPos(ch.ChVector3d(0, 0, 1))
+veh.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+
+# 3. Create a rigid terrain
+terrain = ch_veh.ChRigidTerrain(veh.GetSystem())
+terrain.SetFrictionCoefficient(0.8)
+terrain.SetRestitutionCoefficient(0.3)
+terrain.SetPlane(ch.ChPlane(0, 0, 1, 0))
+
+# Set terrain size and position
+terrain.SetSize(ch.ChVector3d(100, 100, 0))
+terrain.SetOrigin(ch.ChVector3d(0, 0, 0))
+
+# 4. Initialize a driver system for vehicle control
+driver = ch_veh.ChDriver(veh)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
+
+# 5. Create a real-time visualization using Irrlicht
+vis = ch_irr.ChIrrApp(veh.GetSystem(), "M113 Vehicle Simulation")
+
+# Set camera settings and lighting
+vis.SetCameraVerticalFOV(60)
+vis.SetCameraDistance(20)
+vis.SetLightDirection(ch.ChVector3d(-1, -1, -1))
+
+# 6. Simulation loop
+while vis.Run():
+    # Synchronize and advance the vehicle, terrain, driver, and visual system
+    veh.GetSystem().ComputeDynamicStep()
+    veh.GetSystem().Advance(veh.GetSystem().GetChTimeStep())
+
+    # Update the driver inputs
+    driver.Update(veh.GetSystem().GetChTimeStep())
+
+    # Update the visualization
+    vis.Synchronize("", veh.GetSystem().GetChTimeStep())
+    vis.Render(veh.GetSystem().GetChTimeStep())

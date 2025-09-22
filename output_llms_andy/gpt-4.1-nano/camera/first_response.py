@@ -1,0 +1,95 @@
+import pychrono as chrono
+import pychrono.sensor as sens
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+
+# Load the triangular mesh from an .obj file
+# Replace 'path/to/your/model.obj' with the actual path to your mesh file
+mesh_filename = 'path/to/your/model.obj'
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.LoadWavefrontMesh(mesh_filename, True, True)
+
+# Create a fixed body for the mesh
+mesh_body = chrono.ChBodyEasyMesh(mesh_filename, 1000, True, True)
+mesh_body.SetBodyFixed(True)
+system.Add(mesh_body)
+
+# Set initial position of the mesh (if needed)
+mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+mesh_body.SetRot(chrono.Q_from_AngX(0))
+
+# Create a sensor manager
+sensor_manager = sens.ChSensorManager()
+sensor_manager.scene = system
+
+# Create a camera sensor attached to the mesh body
+# Define camera parameters
+cam_width = 640
+cam_height = 480
+cam_fov = 60  # degrees
+cam_pos = chrono.ChVectorD(2, 2, 2)
+cam_dir = chrono.VECT_Z  # pointing towards the origin or mesh
+cam_up = chrono.VECT_Y
+
+# Create the camera sensor
+camera = sens.ChCameraSensor(
+    mesh_body,
+    cam_width,
+    cam_height,
+    cam_fov,
+    cam_pos,
+    cam_dir,
+    cam_up
+)
+
+# Add noise filter to the camera
+noise_filter = sens.ChFilterVisualNoise()
+noise_filter.SetStdDev(0.5)
+camera.AddFilter(noise_filter)
+
+# Enable visualization for the camera
+camera.PushFilter(sens.ChFilterVisualize())
+
+# Add the camera sensor to the sensor manager
+sensor_manager.AddSensor(camera)
+
+# Simulation parameters
+step_size = 0.01
+total_time = 2.0
+num_steps = int(total_time / step_size)
+
+# Function to update camera position in an orbit around the mesh
+def update_camera_position(step_num):
+    angle = step_num * 2 * chrono.CH_C_PI / num_steps  # full circle over total steps
+    radius = 2.0
+    x = radius * chrono.Cos(angle)
+    y = radius * chrono.Sin(angle)
+    z = 1.0  # keep some height
+    camera.SetPos(chrono.ChVectorD(x, y, z))
+    camera.SetLookAt(chrono.ChVectorD(0, 0, 0))  # look at the origin or mesh position
+
+# Run the simulation
+for step in range(num_steps):
+    # Update camera position
+    update_camera_position(step)
+
+    # Perform scene visualization (if using a viewer, optional)
+    # For this script, we focus on sensor data and printing
+
+    # Step the system
+    system.DoStepDynamics(step_size)
+
+    # Update sensor manager (captures images, applies filters)
+    sensor_manager.Update()
+
+    # Retrieve and print camera buffer data
+    buffer = camera.GetMostRecentBuffer()
+    if buffer:
+        # For demonstration, print buffer info
+        print(f"Step {step}: Camera buffer timestamp = {buffer.GetTime()}")
+        # Optionally, access image data
+        # image = buffer.GetImage()
+        # print(f"Image size: {image.GetWidth()}x{image.GetHeight()}")
+    else:
+        print(f"Step {step}: No camera buffer available.")

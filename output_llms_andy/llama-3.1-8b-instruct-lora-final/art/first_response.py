@@ -1,0 +1,85 @@
+import pychrono as ch
+    import pychrono.vehicle as veh
+    import pychrono.terrain as chterrain
+    import pychrono.irrlicht as marea
+
+    # -----------------
+    # Create systems
+    # -----------------
+
+    # Create the ARTcar vehicle and set its parameters.
+    # The vehicle is initially placed at (5, 10, 0.5) with a specified orientation.
+    # The contact method is set to NSC (Non-Smooth Contact), and the vehicle is visualized using
+    # a mesh type of PRC (Polygonal Representation of Curves).
+    vehicle = veh.ARTcar()
+    vehicle.SetContactMethod(ch.ChContactMethod_NSC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(veh.ChVector3d(0, 0, 0.5))
+    vehicle.SetInitOrientation(veh.ChQuaterniond(1, 0, 0, 0))
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+
+    # Create the terrain and set its parameters.
+    # The terrain is a rigid surface with dimensions 100x100x100, and a custom texture is applied.
+    terrain = chterrain.RigidTerrain(vehicle.GetSystem())
+    setup = chterrain.SampleTerrainSetup()
+    patch_mat = ch.ChTriangleMeshConnected().ImportWavefrontMesh(
+        veh.GetChronoDataFile("vehicle/terrain/meshes/tile4_mesh.obj"), False, True)
+    patch_mat.SetTexture(veh.GetChronoDataFile("terrain/textures/tile4.jpg"), 200, 200)
+    patch_mat.SetAllTextureChannelsVisible(True)
+    terrain.AddPatch(patch_mat, ch.ChCoordsysD(ch.ChVector3d(-20, 0, 0), ch.Quat()), 40, 40)
+    terrain.SetTextureUpdateFalse()
+    terrain.SetGraphVisualizationType(ch.VisualizationType_MESH)
+    terrain.SetCollisionType(chterrain.Terrain.CollisionType_NONE)
+
+    # Create the interactive driver system for the vehicle.
+    driver = veh.ChDriver(vehicle, 0)
+
+    # -----------------
+    # Create visualization
+    # -----------------
+
+    # Attach the Irrlicht visualization system to the physical system.
+    vis = marea.ChVisualSystemIrrlicht()
+    vis.AttachSystem(vehicle.GetSystem())
+    vis.SetWindowSize(1280, 1024)
+    vis.SetWindowTitle('Rigid terrain demo')
+    vis.Initialize()
+    vis.AddLogo(ch.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddSkyBox()
+    vis.AddCamera(veh.ChVector3d(12, 3, -2), veh.ChVector3d(0, 2, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(veh.ChVector3d(10, -8, -12), veh.ChVector3d(0, 0, 0), 3, 4, 10, 40, 512)
+
+    # -----------------
+    # Create and start the solver
+    # -----------------
+
+    # Set the solver type to NSC (Non-Smooth Contact) and set the time step for the simulation.
+    ch.ChSystemNSC().SetSolverType(ch.ChSolver.Type_PSOR)
+    vehicle.GetSystem().SetSolverType(ch.ChSolver.Type_PSOR)
+    time_step = 1e-3
+    time_end = 30
+
+    # Use the Irrlicht visualization system to render the simulation.
+    vis.AttachVehicle(vehicle.GetVehicle())
+
+    # Run the simulation loop.
+    time = 0
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        time += time_step
+        vehicle.GetSystem().DoStepDynamics(time_step)
+        if (ch.GetChTime() < time_end):
+            driver.Spin(time_step)
+
+    veh.DrawVectorXY(vis, "GPS", chrono.ChFramed(veh.GetGPS().GetGroundFrame()))
+
+    veh.DrawLogo()
+    print("VEHICLE ROBUSTNESS TEST: RIGID TERRAIN")
+    print("Reference:  https://api.projectchrono.org/development/vehicle.html")

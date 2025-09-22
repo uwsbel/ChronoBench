@@ -1,0 +1,62 @@
+import pychrono
+import pychrono.core as pc
+import irlicht as lr
+import numpy as np
+
+class ViperRover:
+    def __init__(self, x, y, z, initial_speed=1.0, initial_steering=0.0):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.speed = initial_speed
+        self.steering = initial_steering
+        self.time = 0.0
+        self.is_moving = False
+
+    def update(self, dt):
+        if not self.is_moving:
+            self.speed += self.speed * dt
+            self.steering = self.steering + self.speed * dt
+            self.time += dt
+            self.is_moving = True
+
+    def rotate(self, angle):
+        self.steering = self.steering + angle * dt
+        self.time += dt
+
+    def __repr__(self):
+        return f"ViperRover(x={self.x}, y={self.y}, z={self.z}, speed={self.speed}, steering={self.steering})"
+
+
+def create_simulation_scene(x, y, z, initial_speed=1.0, initial_steering=0.0):
+    """Creates the simulation scene."""
+    scene = pc.Scene()
+    scene.add_object(pc.Object(x=x, y=y, z=z, name="ViperRover", initial_speed=initial_speed, initial_steering=initial_steering))
+    scene.add_object(pc.Object(x=x, y=y, z=z, name="RigidTerrain", initial_speed=1.0, initial_steering=0.0))
+    return scene
+
+def visualize_simulation(scene, camera_position, camera_fov=60):
+    """Visualizes the simulation using Irrlicht."""
+    try:
+        lr.init(scene)
+        camera = lr.Camera(position=camera_position, fov=camera_fov)
+        lr.render(scene, camera)
+    except Exception as e:
+        print(f"Error rendering Irrlicht: {e}")
+    finally:
+        lr.destroy()
+
+
+if __name__ == '__main__':
+    # Simulation parameters
+    x_position = 0.0
+    y_position = 0.0
+    z_position = 0.0
+    initial_speed = 1.0
+    initial_steering = 0.0
+
+    # Create the simulation scene
+    simulation_scene = create_simulation_scene(x_position, y_position, z_position, initial_speed, initial_steering)
+
+    # Visualize the simulation
+    visualize_simulation(simulation_scene, (0.0, 0.0, 0.0))

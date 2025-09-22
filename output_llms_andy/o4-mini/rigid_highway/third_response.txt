@@ -1,0 +1,173 @@
+Below is a self‐contained, corrected and modified PyChrono script.  
+I have called out two minor “fixes” you may not have noticed in the original demo (the mesh‐loader call and the visual‐shape class), and I have applied your requested changes to the contact material and the patch pose.
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr   # imported but not strictly used below
+import pychrono.vehicle as veh
+import math
+
+# ----------------------------------------------------------------
+# 1) Set data paths
+# ----------------------------------------------------------------
+# Make sure CHRONO_DATA environment variable is set,
+# or hard‐code your path here, e.g. "C:/chrono/data/"
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+
+# ----------------------------------------------------------------
+# 2) Initial vehicle position/orientation
+# ----------------------------------------------------------------
+initLoc = chrono.ChVector3d(6, -70, 0.5)
+initRot = chrono.QuatFromAngleZ(1.57)
+
+# ----------------------------------------------------------------
+# 3) Visualization and collision settings
+# ----------------------------------------------------------------
+vis_type              = veh.VisualizationType_MESH
+chassis_collision_type= veh.CollisionType_NONE
+tire_model            = veh.TireModelType_TMEASY
+contact_method        = chrono.ChContactMethod_NSC
+contact_vis           = False
+
+step_size       = 1e-3
+tire_step_size  = step_size
+render_step_size= 1.0/50.0
+
+# ----------------------------------------------------------------
+# 4) Create and initialize the HMMWV vehicle
+# ----------------------------------------------------------------
+vehicle = veh.HMMWV_Full()   # or HMMWV_Reduced()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+vehicle.Initialize()
+
+# turn on mesh‐based visualization
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+# use the Bullet collision system
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# ----------------------------------------------------------------
+# 5) Create the terrain and patch
+# ----------------------------------------------------------------
+# -- Contact material for the patch:
+patch_mat = chrono.ChMaterialSurfaceNSC()
+# your requested changes:
+patch_mat.SetFriction(0.4)     # was 0.9
+patch_mat.SetRestitution(0.05) # was 0.01
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+# build a coordinate system for the mesh‐patch:
+#   - position at (6, -70, 0)
+#   - rotated -90° about Z
+patch_frame = chrono.ChCoordsysd(
+    chrono.ChVector3d(6, -70, 0),
+    chrono.QuatFromAngleZ(-math.pi/2)
+)
+
+# add the mesh patch (collision mesh + optional sweep)
+patch = terrain.AddPatch(
+    patch_mat,
+    patch_frame,
+    chrono.GetChronoDataFile("vehicle/terrain/meshes/Highway_col.obj"),
+    True,     # use mesh for collision
+    0.01,     # collision sweep sphere radius
+    False     # not smooth (no subdivision)
+)
+
+# 5b) add the visual mesh onto the patch body
+#    (two small corrections vs. the original)
+vis_mesh = chrono.ChTriangleMeshConnected()
+vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"),
+                           True, True)
+
+# in pychrono v6+ the shape class is ChTriangleMeshShape
+tri_shape = chrono.ChTriangleMeshShape()
+tri_shape.SetMesh(vis_mesh)
+tri_shape.SetName("terrain")
+tri_shape.SetStatic(True)
+
+patch.GetGroundBody().AddVisualShape(tri_shape)
+
+terrain.Initialize()
+
+# ----------------------------------------------------------------
+# 6) Create the Irrlicht application
+# ----------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("HMMWV Demo")
+vis.SetWindowSize(1280, 1024)
+# a track‐point just behind the chassis
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# ----------------------------------------------------------------
+# 7) Create the interactive driver
+# ----------------------------------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+steering_time = 1.0
+throttle_time = 1.0
+braking_time  = 0.3
+
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+driver.Initialize()
+
+# ----------------------------------------------------------------
+# 8) Simulation loop
+# ----------------------------------------------------------------
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
+
+render_steps   = math.ceil(render_step_size / step_size)
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number    = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize all modules
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance all modules by one step
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Spin to keep real time
+    realtime_timer.Spin(step_size)
+    step_number += 1
+```
+
+Key changes / fixes  
+1) **Contact material**: `SetFriction(0.4)`, `SetRestitution(0.05)` instead of 0.9/0.01.  
+2) **Patch pose**: moved to (6,−70,0) and rotated −90° about Z via `QuatFromAngleZ(−π/2)`.  
+3) Mesh loader call changed to `LoadWavefrontMesh`, and visual‐shape class updated to `ChTriangleMeshShape` to match current PyChrono Python bindings.

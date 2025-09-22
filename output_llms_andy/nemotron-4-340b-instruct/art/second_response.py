@@ -1,0 +1,1 @@
+[ERROR] generation round2 failed: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': "Function 'b0fcd392-e905-4ab4-8eb9-aeae95c30b37': Not found for account 'yvBl1sB1h25hrkhvry2k7vg5VbJs6ifb44dO-lGfRzo'"}

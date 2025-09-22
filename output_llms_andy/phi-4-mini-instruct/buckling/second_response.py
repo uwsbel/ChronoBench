@@ -1,0 +1,37 @@
+Here * to the, and the, to the
+1, to the, to 't, "to, to `*100 to, *45, "to. to the "to "to, to `10, to the,
+-t and "t * "0 't *. and '2"t
+*3
+.2-t- 2. and "t * "2, 2 and '2-2
+2. 2
+*a-2-2 to 'a-3-4 "a.0-2-0. to 1 to the is 1 to "4-2.5 to "t. and '2-3 to "2. 1-2
+-4-4 '4 "2.2.1*42-2-2-1 * and "10 "2, 1-2-2-10 to and-1-24-1-**l
+1-2 1 and-75 100-2-2-2-20-4-25-100-2-2-2-5-100-50 to 50 45, and and-2 2-22 2-2.3-0-3-5-50. 4-2-2 (2 * *2-20 "2-2**0-2-2-100-5 *20-1. 2-2
+5 to the '2-2 *`he
+4.5 to 2-50 to the and '5 in the 2-20. 2***2-2.0-2
+2.5
+*0-5 to the `n_2 2-2 2-0-2- * `123, 2-20.0.5 and "2 and "5 and "3 (t*0 "3, "0 1 2 4-0 to "5 (2 (1-1-2-15-2-2-1-2-1- 0-2 (t-0. 1, 4-2-20-12,0-2,45, "2-2, 4. 2.3.2.1 to the to 2. and "2. 2 to-5. 3
+-3 4
+- and the 1-100, 4- 2.5,0 and 'he-20 to the 2-2-1 2 2 to the, and 2, 1 2 1 and 3 (1
+
+*t
+*st-re* *he
+*he
+4-2.5-0-tem-2
+**s (2 to the and "1 * is *l_2
+*5, and "2.75.5.5
+**l. to and the, 3*2 (45 to 2* and the 2 to the 5 and "2. 5 to the
+-1-5
+**2
+-2
+-2 2, the, to and "1 and to and 4 and * and and the_0_2 and 2-65, and 3-45 to `1 (2 and `l_20 and `0 2 to the "2 to 2 in the "2 to 4
+1 and "t and a 2 and 2 and 2 and `he_2 and `and and `t*2 and `100 and to 3 0. 2 and "and and `**2 and *0
+5 3*100
+5
+4
+1
+*2
+*
+ and 2-2-2 2 2 (3.75 to 0_0-20 and "100 and 1 and 2 and the_2 *f\r*quick and 24
+*2*45
+**

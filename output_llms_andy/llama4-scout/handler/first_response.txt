@@ -1,0 +1,101 @@
+### PyChrono Simulation with ROS Integration
+
+Below is a Python script that sets up a PyChrono simulation integrated with ROS as per your instructions. This script initializes the PyChrono environment, adds a fixed floor and a movable box, and sets up a custom ROS handler to publish messages.
+
+```python
+import os
+import rospy
+from rospy.topics import Publisher
+from chrono import chrono
+from chrono.irrlicht import irrlicht
+from chrono.pyomegaconst import *
+from chrono_ros import chrono_ros
+
+# Initialize PyChrono environment
+chrono.ChronoEngine.Initialize()
+
+# Initialize ROS node
+rospy.init_node('chrono_ros_integration')
+
+# Create a Chrono system with gravitational acceleration
+system = chrono.ChronoSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3(0, -9.81, 0))
+
+# Create a fixed floor body
+floor_body = chrono.ChBodyEasyFloor(chrono.ChCoordsys(chrono.ChVector3(0, -10, 0)))
+floor_body.SetPosDt(chrono.ChVector3(0, 0, 0))
+system.Add(floor_body)
+
+# Create a movable box body
+box_body = chrono.ChBodyEasyBox(1, 1, 1, 1000)
+box_body.SetPosDt(chrono.ChVector3(0, 0, 5))
+box_body.SetRotDt(chrono.ChQuaternion(1, 0, 0, 0))
+system.Add(box_body)
+
+# Create a custom ROS handler to publish integer messages
+class CustomROSHandler(chrono_ros.ChronoROSHandler):
+    def __init__(self, topic_name, publish_frequency):
+        super(CustomROSHandler, self).__init__()
+        self.publisher = Publisher(topic_name, rospy.msg.AnyMsg, 10)
+        self.publish_frequency = publish_frequency
+
+    def OnInitialize(self):
+        pass
+
+    def OnUpdate(self, step):
+        msg = rospy.msg.Int32()
+        msg.data = int(chrono.ChTime())
+        self.publisher.publish(msg)
+
+# Create a ROS manager
+ros_manager = chrono_ros.ChronoROSMgr(chrono.ChTime())
+
+# Add clock handler
+ros_manager.RegisterHandler(chrono_ros.ChronoROS_ClockHandler(ros_manager, 0.01))
+
+# Add body handler
+ros_manager.RegisterHandler(chrono_ros.ChronoROS_BodyHandler(ros_manager, box_body, "box_body"))
+
+# Add transform handler
+ros_manager.RegisterHandler(chrono_ros.ChronoROS_TransformHandler(ros_manager, box_body, "box_body_tf"))
+
+# Add custom handler
+custom_handler = CustomROSHandler("/chrono_sim/time", 10.0)
+ros_manager.RegisterHandler(custom_handler)
+
+# Simulation loop
+while not rospy.is_shutdown():
+    # Advance the Chrono system
+    system.DoStepDynamics(0.01)
+
+    # Update ROS communication
+    ros_manager.SpinOnce(0.01)
+
+    # Maintain real-time execution
+    rate = rospy.Rate(100)
+    rate.sleep()
+```
+
+### Explanation
+
+This script performs the following tasks:
+
+1.  Initializes the PyChrono environment and a ROS node.
+2.  Creates a Chrono system with gravitational acceleration and adds a fixed floor and a movable box body.
+3.  Defines a custom ROS handler to publish integer messages to a specified topic.
+4.  Configures the ROS manager with clock, body, and transform handlers, and registers the custom handler.
+5.  Runs a simulation loop, advancing the Chrono system and updating ROS communication at each timestep, while maintaining real-time execution.
+
+### Usage
+
+To run this script, make sure you have PyChrono and ROS installed on your system. You can run the script using Python:
+
+```bash
+python chrono_ros_integration.py
+```
+
+This will start the simulation and begin publishing messages to the `/chrono_sim/time` topic. You can use tools like `rostopic echo` to view the published messages.
+
+```bash
+rostopic echo /chrono_sim/time
+```

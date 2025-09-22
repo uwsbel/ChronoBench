@@ -1,0 +1,523 @@
+Okay, I need to create a PyChrono simulation for a tablecloth folding using shell elements with an isotropic Kirchhoff material. Let me start by recalling the steps required.
+
+First, I'll initialize the PyChrono environment. That usually involves importing the necessary modules and creating a Chrono system. I'll need the core, collision, and visualization modules, as well as the PardisoMKL solver for better performance.
+
+Next, setting up the physical systems. The user mentioned shell elements, so I should use the chrono.shell module. The tablecloth will be a shell mesh. I need to create a mesh grid. How to do that? Maybe by defining nodes in a grid pattern and then connecting them with elements. The material is isotropic Kirchhoff, so I'll look for the appropriate material class in PyChrono, perhaps chrono.KirchhoffMaterialIsotropic.
+
+Wait, I should check the available material classes. Let me think: maybe chrono.KirchhoffMaterialIsotropic exists. Alternatively, maybe it's part of the shell module. I'll need to define parameters like thickness, Young's modulus, Poisson's ratio, etc.
+
+The mesh grid needs nodes arranged in rows and columns. Let's say the tablecloth is a rectangular grid with, say, 10x10 nodes. Each node's position will be in a plane, probably lying on the XY plane. Then, each shell element connects four nodes (quadrilaterals?), so I have to loop through the nodes to create elements.
+
+Adding the visualization with Irrlicht. That requires creating an Irrlicht application, setting the camera position, and adding the shell mesh to the scene.
+
+Using the PardisoMKL solver: I remember that Chrono allows setting the solver type. So after creating the system, set the solver to PardisoMKL via system.SetSolverType(ChSolverType.PARDISO_MKL).
+
+Wait, but the shell elements are part of the shell module. So I need to import chrono.shell and create a ChMesh object. Then add nodes and elements to it. Each node is a ChNodeFEAxyzrot, and each element is a ChElementShellKIR. The material parameters will be applied to the elements.
+
+Let me outline the steps:
+
+1. Import necessary modules: chrono, chrono.shell, chrono irrlicht.
+2. Create the system and set the solver.
+3. Create the mesh grid:
+   a. Define parameters: number of elements in x and y directions (nx, ny), spacing between nodes (dx, dy).
+   b. Create nodes in a grid. Each node has a position (x, y, z). Maybe z=0 for the tablecloth lying flat initially.
+   c. Assign nodes to the mesh.
+4. Create shell elements between the nodes. For each element, connect four nodes.
+5. Define the material properties: thickness, Young's modulus, Poisson's ratio, density.
+6. Apply the material to each element.
+7. Add constraints: maybe pin some nodes to simulate folding. Or perhaps apply forces? Wait, the problem says folding, maybe just gravity and initial conditions. Or maybe the user expects some initial displacement? The problem says to model folding, but the exact setup isn't specified. Maybe just let gravity cause it to fall? Hmm, perhaps the tablecloth is initially flat and then gravity pulls it down. So maybe the simulation is of a tablecloth being dropped?
+
+Wait, the problem says "folding of a tablecloth". Maybe the setup requires some initial displacement or constraints to induce folding. But perhaps the user just wants the basic setup, so I'll proceed with a flat tablecloth under gravity.
+
+Adding visualization: create an Irrlicht window, add the mesh, set camera position above the tablecloth.
+
+Wait, also need to add collision shapes? Or is the shell mesh sufficient for visualization? Since it's a shell element simulation, the visualization should handle it.
+
+Now, code structure:
+
+Start with imports:
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.shell as shell
+
+Then create the system:
+
+system = chrono.ChSystemMyChrono()
+system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+
+Then create the mesh:
+
+my_mesh = shell.ChMesh()
+
+Define grid parameters. Let's say nx=10, ny=10, dx=0.1, dy=0.1, thickness=0.001.
+
+Wait, maybe better to use variables:
+
+nx = 10
+ny = 10
+dx = 0.1
+dy = 0.1
+thickness = 0.001  # meters
+
+Then create nodes:
+
+for i in range(nx):
+    for j in range(ny):
+        x = i * dx
+        y = j * dy
+        z = 0.0
+        node = shell.ChNodeFEAxyzrot()
+        node.SetPos(chrono.ChVectorD(x, y, z))
+        my_mesh.AddNode(node)
+
+Wait, but the nodes are arranged in a grid. Wait, actually, for nx nodes in x direction, there are nx+1 points? Or maybe nx elements, so nodes are (nx+1)x(ny+1). Hmm, need to clarify. Suppose nx is the number of divisions in x, so nodes are (nx+1) in x direction. Let me adjust variables:
+
+nx = 10
+ny = 10
+dx = 0.1
+dy = 0.1
+
+num_nodes_x = nx + 1
+num_nodes_y = ny + 1
+
+Then loops:
+
+for i in range(num_nodes_x):
+    for j in range(num_nodes_y):
+        x = i * dx
+        y = j * dy
+        z = 0.0
+        node = shell.ChNodeFEAxyzrot()
+        node.SetPos(chrono.ChVectorD(x, y, z))
+        my_mesh.AddNode(node)
+
+Wait, but this would create a grid with spacing dx between nodes. So total length in x is nx*dx, etc.
+
+Then elements. Each element is a quadrilateral. For each element, we need four nodes. So loop over elements:
+
+for i in range(nx):
+    for j in range(ny):
+        # Find the four nodes for this element
+        node0 = my_mesh.GetNode((i)*num_nodes_y + j)
+        node1 = my_mesh.GetNode((i)*num_nodes_y + j + 1)
+        node2 = my_mesh.GetNode((i+1)*num_nodes_y + j + 1)
+        node3 = my_mesh.GetNode((i+1)*num_nodes_y + j)
+        # Create element and add to mesh
+        elem = shell.ChElementShellKIR()
+        elem.SetNodes(node0, node1, node2, node3)
+        # Set material properties
+        mat = shell.ChMaterialShellKIR()
+        mat.SetYoungModulus(1e6)  # example value
+        mat.SetPoissRatio(0.3)
+        mat.SetThickness(thickness)
+        mat.SetDensity(1000)  # kg/m³, maybe?
+        elem.SetMaterial(mat)
+        my_mesh.AddElement(elem)
+
+Wait, but how to get the nodes in the right order? The numbering here might be incorrect. Maybe the indices need to be calculated properly. Let me think of the node indices. Suppose the nodes are stored in row-major order, so for each row i (in x direction), the nodes are arranged in y direction. So for node (i,j), its index is i*num_nodes_y + j. So when moving along x, each row has num_nodes_y nodes.
+
+Wait, but in the loops above, the nodes are added in order of i and j. So for i from 0 to nx, and j from 0 to ny, each node is added in the order of increasing i and j. So the first row (i=0) has nodes 0 to ny, then i=1 has next, etc. So the indices are correct.
+
+But when creating the elements, each element is a quadrilateral between four nodes. The indices for a element at (i,j) would be:
+
+node0: (i,j)
+node1: (i,j+1)
+node2: (i+1,j+1)
+node3: (i+1,j)
+
+Wait, maybe that's the correct order for the shell element. Alternatively, maybe it's node0, node1, node2, node3 arranged in a counterclockwise order when viewed from above.
+
+Alternatively, perhaps the order is important for the element's orientation. I might need to confirm the correct node ordering for ChElementShellKIR. But for the sake of time, I'll proceed with this.
+
+Once all elements are added, the mesh is created. Then, add the mesh to the system:
+
+system.Add(my_mesh)
+
+Then, add gravity:
+
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+Now, visualization setup. Create an Irrlicht application:
+
+visualizer = irr.ChIrrApp(system, 'Tablecloth Simulation', irr.dimension2du(800,600))
+visualizer.AddTypicalLights()
+visualizer.AddTypicalCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0,0,0))
+visualizer.AddAsset(my_mesh.GetVisualShape())
+
+Wait, but how to get the visual shape for the shell mesh? Maybe the mesh has a built-in visual asset. Alternatively, perhaps need to create a visualization asset for the mesh.
+
+Wait, in PyChrono, for FEA meshes, you can create a visual shape by using ChVisualizationFEAmesh. So perhaps:
+
+my_mesh_shape = chrono.ChVisualizationFEAmesh()
+my_mesh_shape.SetFEMMesh(my_mesh)
+my_mesh.AddAsset(my_mesh_shape)
+
+Then add the mesh to the visualizer:
+
+visualizer.Add(my_mesh)
+
+Wait, but the visualizer.Add() requires a body or a mesh. Since the mesh is part of the system, maybe it's sufficient. Alternatively, perhaps the mesh needs to be added to the visualizer. Let me check.
+
+Alternatively, perhaps the code should be:
+
+my_mesh.SetVisualization(chrono.ChVisualizationFEAmesh(my_mesh))
+
+Wait, maybe the correct way is to add a visualization asset to the mesh. Let me think:
+
+my_mesh.AddAsset(chrono.ChVisualizationFEAmesh(my_mesh))
+
+Wait, perhaps the ChVisualizationFEAmesh needs to be initialized with the mesh. So:
+
+visual_asset = chrono.ChVisualizationFEAmesh()
+visual_asset.SetFEMMesh(my_mesh)
+my_mesh.AddAsset(visual_asset)
+
+Yes, that's probably right. So adding that to the mesh's assets.
+
+Then, when adding to the visualizer, since the mesh is part of the system, the visualizer should display it automatically. Or maybe need to explicitly add it via visualizer.Add(my_mesh).
+
+Hmm, perhaps better to do both: set the visualization asset and then add the mesh to the visualizer.
+
+Putting it all together:
+
+After creating the mesh and adding nodes and elements, set up visualization:
+
+visualizer = irr.ChIrrApp(system, 'Tablecloth Simulation', irr.dimension2du(800,600))
+visualizer.AddCamera(chrono.ChVectorD(0,0,3), chrono.ChVectorD(0,0,0))
+visualizer.AddTypicalLights()
+
+# Create visualization for the mesh
+visual_asset = chrono.ChVisualizationFEAmesh()
+visual_asset.SetFEMMesh(my_mesh)
+my_mesh.AddAsset(visual_asset)
+
+visualizer.Add(my_mesh)  # Ensure the mesh is part of the visualization scene
+
+Then, run the simulation loop:
+
+visualizer.Run()
+
+Wait, but the simulation needs to be updated. The Run() function handles the main loop, so as long as the system is integrated, it should work. But need to set the timestep and integrate.
+
+Wait, the system's integrator is set by default, but maybe need to adjust the step size. Alternatively, the user might want to set the step size. Let me see. The default integrator is ChTimestepperHHT, but maybe for this problem, an explicit integrator would be better? Or perhaps the default is okay. Since the user didn't specify, proceed with defaults.
+
+Putting all together, the code would look like this. But I need to check for possible errors.
+
+Wait, also, the nodes are of type ChNodeFEAxyzrot, which is correct for shell elements. The ChElementShellKIR requires these nodes.
+
+Another thing: the material parameters. The example values I used (Young's modulus 1e6 Pa, density 1000 kg/m³) are just placeholders. The user might need to adjust them, but the problem says to set default parameters, so that's okay.
+
+Now, putting all code together step by step.
+
+Wait, also, the mesh needs to be added to the system. So after creating my_mesh, do system.Add(my_mesh).
+
+Now, let me write the code with all these steps.
+
+Wait, let me also think about the camera position. The tablecloth is on the XY plane, so the camera should be looking down from above. So position (0,0,3) looking at (0,0,0) makes sense.
+
+Another thing: the PardisoMKL solver is set via system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL). Need to confirm that this is the correct way. The enum might be ChSolver.Type_PARDISO_MKL. Alternatively, maybe it's ChSolver.Type_PARDISO. Let me check.
+
+Looking up the Chrono documentation: The solver types include ChSolver.Type_PARDISO_MKL, so that's correct.
+
+Now, putting all together.
+
+Wait, also, the nodes are initialized with positions on the tablecloth. But initially, they are flat. When the simulation runs, gravity will pull them down. So the tablecloth will fall under gravity, but perhaps with some constraints. Wait, but if all nodes are free, the entire mesh will just fall. To simulate a tablecloth on a table, maybe the bottom nodes (those at z=0) are fixed? Or perhaps the table is represented by some fixed nodes.
+
+The problem statement says "folding of a tablecloth", so perhaps the tablecloth is initially lying on a table (so some nodes are fixed), and then maybe lifted or disturbed to cause folding. Since the user didn't specify constraints, maybe just let it fall. Alternatively, perhaps the problem expects the tablecloth to be fixed at the edges. Let me think: in a typical tablecloth simulation, the edges might be pinned to the table's edges. So perhaps we should fix the nodes along the edges (like the perimeter nodes) to simulate being attached to the table. That way, when the simulation runs, the cloth can fold but the edges stay fixed.
+
+Ah, that's an important detail. So I need to add constraints to fix the boundary nodes.
+
+How to do that? For FEA nodes, you can apply fixed constraints by setting their coordinates to be fixed.
+
+For example, for nodes on the edges (i=0 or i=num_nodes_x-1, or j=0 or j=num_nodes_y-1), set their positions as fixed.
+
+So loop through all nodes and fix their positions if they are on the boundary.
+
+Wait, but how to access all nodes. The mesh has nodes stored in my_mesh.GetNodes().
+
+Alternatively, iterate through all nodes and check their indices.
+
+Alternatively, after creating all nodes, loop through them and fix the boundary nodes.
+
+Wait, but in the current setup, nodes are added in a grid. Let me see:
+
+Suppose the total nodes are (nx+1)*(ny+1). The first and last rows (i=0 and i=nx) are along the edges in x direction. Similarly for columns.
+
+So, for each node:
+
+for node in my_mesh.GetNodes():
+    pos = node.GetPos()
+    if (pos.x == 0 or pos.x == nx*dx) or (pos.y == 0 or pos.y == ny*dy):
+        # Fix the position
+        node.SetFixed(True)
+
+Wait, but in code, the positions are set as x = i*dx, so for i from 0 to nx (since num_nodes_x = nx+1). So the maximum x is nx*dx, similarly for y.
+
+But in code, the nodes are stored in a list. So perhaps:
+
+for node in my_mesh.GetNodes():
+    pos = node.GetPos()
+    if (abs(pos.x) < 1e-6 or abs(pos.x - nx*dx) < 1e-6) or (abs(pos.y) < 1e-6 or abs(pos.y - ny*dy) < 1e-6):
+        node.SetFixed(True)
+
+Alternatively, checking the indices. Since nodes are stored in order, the first row (i=0) has j from 0 to ny, so those are edge nodes. Similarly, last row (i = nx) and first and last columns (j=0 and j=ny).
+
+Alternatively, perhaps it's easier to iterate over the nodes and check their coordinates.
+
+But for code brevity, perhaps better to do that.
+
+Adding this after creating all nodes and before adding elements.
+
+Wait, but in the current code outline, the nodes are added first, then elements. So after adding all nodes, loop through them and fix the boundary ones.
+
+Yes. So inserting that code:
+
+for node in my_mesh.GetNodes():
+    pos = node.GetPos()
+    # Check if on boundary edges
+    if (pos.x <= 1e-6 or pos.x >= nx*dx - 1e-6) or (pos.y <= 1e-6 or pos.y >= ny*dy - 1e-6):
+        node.SetFixed(True)
+
+This way, nodes on the edges are fixed, so the tablecloth is pinned at the edges and can fold in the middle.
+
+That's an important addition to make the simulation realistic.
+
+Putting all together, the code now includes constraints on the edges.
+
+Now, compiling all the steps into code.
+
+Also, the material parameters. Let me choose reasonable values. For example, Young's modulus for fabric could be around 1e6 Pa (but depends on the material), Poisson's ratio 0.3, thickness 0.001 m (1mm), density maybe 500 kg/m³ (since fabric is lighter than water). So adjusting those.
+
+Now, writing the code step by step.
+
+Wait, also, the shell elements need to be part of the mesh, which is added to the system.
+
+Now, putting it all into code:
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.shell as shell
+
+def main():
+    # Create the Chrono system
+    system = chrono.ChSystemMyChrono()
+    system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+    # Parameters for the tablecloth mesh
+    nx = 10  # number of elements in x direction
+    ny = 10  # number of elements in y direction
+    dx = 0.1  # spacing between nodes in x
+    dy = 0.1  # spacing between nodes in y
+    thickness = 0.001  # thickness of the shell elements
+    young_modulus = 1e6  # Young's modulus (Pa)
+    poisson_ratio = 0.3  # Poisson's ratio
+    density = 500  # density (kg/m³)
+
+    # Create the shell mesh
+    my_mesh = shell.ChMesh()
+    my_mesh.SetName("tablecloth")
+
+    # Create nodes in a grid
+    num_nodes_x = nx + 1
+    num_nodes_y = ny + 1
+
+    for i in range(num_nodes_x):
+        for j in range(num_nodes_y):
+            x = i * dx
+            y = j * dy
+            z = 0.0  # initial position on table
+            node = shell.ChNodeFEAxyzrot()
+            node.SetPos(chrono.ChVectorD(x, y, z))
+            my_mesh.AddNode(node)
+
+    # Fix boundary nodes (edges)
+    for node in my_mesh.GetNodes():
+        pos = node.GetPos()
+        if (abs(pos.x) < 1e-6 or abs(pos.x - nx * dx) < 1e-6) or \
+           (abs(pos.y) < 1e-6 or abs(pos.y - ny * dy) < 1e-6):
+            node.SetFixed(True)
+
+    # Create shell elements
+    for i in range(nx):
+        for j in range(ny):
+            # Get the four nodes for this element
+            node0 = my_mesh.GetNode(i * num_nodes_y + j)
+            node1 = my_mesh.GetNode(i * num_nodes_y + j + 1)
+            node2 = my_mesh.GetNode((i + 1) * num_nodes_y + j + 1)
+            node3 = my_mesh.GetNode((i + 1) * num_nodes_y + j)
+            elem = shell.ChElementShellKIR()
+            elem.SetNodes(node0, node1, node2, node3)
+
+            # Set material properties
+            mat = shell.ChMaterialShellKIR()
+            mat.SetYoungModulus(young_modulus)
+            mat.SetPoissRatio(poisson_ratio)
+            mat.SetThickness(thickness)
+            mat.SetDensity(density)
+            elem.SetMaterial(mat)
+
+            my_mesh.AddElement(elem)
+
+    # Add the mesh to the system
+    system.Add(my_mesh)
+
+    # Visualization setup
+    visualizer = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', irr.dimension2du(800, 600))
+    visualizer.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+    visualizer.AddTypicalLights()
+
+    # Create visualization asset for the mesh
+    visual_asset = chrono.ChVisualizationFEAmesh()
+    visual_asset.SetFEMMesh(my_mesh)
+    my_mesh.AddAsset(visual_asset)
+
+    # Run the simulation
+    visualizer.Run()
+
+if __name__ == '__main__':
+    main()
+
+Hmm, but wait, in the element creation loop, the indices for node0 to node3 might be incorrect. Let me recheck:
+
+For each element (i,j), which is in the x and y element indices. The nodes are arranged as follows:
+
+The first node (node0) is at (i,j), node1 is next in y (same x, next y), node2 is next in x and y (i+1, j+1), node3 is next in x (i+1, j). So the quadrilateral is formed in a way that the element is a rectangle.
+
+But in terms of indices:
+
+The nodes are stored in row-major order. For node (i,j), its index is i*num_nodes_y + j. So for i and j in their ranges.
+
+Wait, for example, when i=0 and j=0:
+
+node0 is at (0,0) → index 0*ny +0 =0
+
+node1 is (0,1) → index 0*ny +1 =1
+
+node2 is (1,1) → index 1*ny +1 → (i+1)*num_nodes_y + j+1 → (0+1)*ny + (0+1) → but num_nodes_y is ny+1. Wait, maybe I made a mistake here.
+
+Wait, num_nodes_y is ny +1. So for j from 0 to ny, the indices in y are 0 to ny.
+
+Wait, let me think of an example: nx=2, ny=2.
+
+Then num_nodes_x=3, num_nodes_y=3.
+
+For i=0, j=0:
+
+node0 is at (0,0) → index 0*3 +0=0
+
+node1 is (0,1) → index 0*3 +1=1
+
+node2 is (1,2) → (i+1)*3 + (j+1) → 1*3 +2=5?
+
+Wait, perhaps I need to re-express the indices.
+
+Wait, the nodes are stored in row-major order. For each row i (along x direction), the nodes are ordered from j=0 to j=num_nodes_y-1 (since num_nodes_y is ny+1). So for node at (i,j), its index is i*num_nodes_y + j.
+
+Thus, for element (i,j):
+
+node0 is (i,j) → index i*num_nodes_y +j
+
+node1 is (i,j+1) → index i*num_nodes_y +j+1
+
+node2 is (i+1,j+1) → (i+1)*num_nodes_y +j+1
+
+node3 is (i+1,j) → (i+1)*num_nodes_y +j
+
+Yes, that's correct.
+
+So the code for getting the nodes is correct.
+
+Another possible issue: in the loop over elements, the indices for i and j are up to nx-1 and ny-1, since there are nx elements in x and ny in y.
+
+Yes, since nx is the number of elements in x, so the loop for i in range(nx) is correct.
+
+Now, testing the code for possible errors.
+
+Wait, in the visualization setup, the code uses chrono.ChVisualizationFEAmesh, which is correct. The mesh is added as an asset to the mesh itself, so when added to the system, the visualizer should display it.
+
+The camera is positioned at (0,0,3), looking at (0,0,0), which should give a top-down view.
+
+The simulation should run with the Pardiso solver for efficiency.
+
+I think this should work. The user can adjust parameters like nx, ny, dx, etc., as needed.
+</think>
+
+```python
+import pychrono as chrono
+import pychrono.irrlicht as irr
+import pychrono.shell as shell
+
+def main():
+    # Initialize the Chrono system with Pardiso MKL solver
+    system = chrono.ChSystemMyChrono()
+    system.SetSolverType(chrono.ChSolver.Type_PARDISO_MKL)
+    system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+    # Tablecloth parameters
+    nx = 10  # elements in x direction
+    ny = 10  # elements in y direction
+    dx = 0.1  # node spacing (m)
+    dy = 0.1
+    thickness = 0.001  # shell thickness (m)
+    young_modulus = 1e6  # Young's modulus (Pa)
+    poisson_ratio = 0.3
+    density = 500  # kg/m³
+
+    # Create the shell mesh
+    my_mesh = shell.ChMesh()
+    num_nodes_x = nx + 1
+    num_nodes_y = ny + 1
+
+    # Add nodes in a grid pattern
+    for i in range(num_nodes_x):
+        for j in range(num_nodes_y):
+            x = i * dx
+            y = j * dy
+            node = shell.ChNodeFEAxyzrot()
+            node.SetPos(chrono.ChVectorD(x, y, 0.0))
+            my_mesh.AddNode(node)
+
+    # Fix boundary nodes (edges)
+    for node in my_mesh.GetNodes():
+        pos = node.GetPos()
+        if (abs(pos.x) < 1e-6 or abs(pos.x - nx * dx) < 1e-6) or \
+           (abs(pos.y) < 1e-6 or abs(pos.y - ny * dy) < 1e-6):
+            node.SetFixed(True)
+
+    # Create shell elements with Kirchhoff material
+    for i in range(nx):
+        for j in range(ny):
+            node0 = my_mesh.GetNode(i * num_nodes_y + j)
+            node1 = my_mesh.GetNode(i * num_nodes_y + j + 1)
+            node2 = my_mesh.GetNode((i + 1) * num_nodes_y + j + 1)
+            node3 = my_mesh.GetNode((i + 1) * num_nodes_y + j)
+            elem = shell.ChElementShellKIR()
+            elem.SetNodes(node0, node1, node2, node3)
+
+            mat = shell.ChMaterialShellKIR()
+            mat.SetYoungModulus(young_modulus)
+            mat.SetPoissRatio(poisson_ratio)
+            mat.SetThickness(thickness)
+            mat.SetDensity(density)
+            elem.SetMaterial(mat)
+            my_mesh.AddElement(elem)
+
+    system.Add(my_mesh)
+
+    # Visualization setup
+    visualizer = irr.ChIrrApp(system, 'Tablecloth Folding Simulation', irr.dimension2du(800, 600))
+    visualizer.AddCamera(chrono.ChVectorD(0, 0, 3), chrono.ChVectorD(0, 0, 0))
+    visualizer.AddTypicalLights()
+
+    # Add visualization for the mesh
+    visual_asset = chrono.ChVisualizationFEAmesh()
+    visual_asset.SetFEMMesh(my_mesh)
+    my_mesh.AddAsset(visual_asset)
+
+    visualizer.Run()
+
+if __name__ == '__main__':
+    main()
+```

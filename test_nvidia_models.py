@@ -40,7 +40,7 @@ MODEL_REGISTRY = {
     "mamba-codestral-7b-v0.1":       ("nvidia", "mistralai/mamba-codestral-7b-v0.1"),
     "deepseek-r1-8b":                ("nvidia", "deepseek-ai/deepseek-r1-distill-llama-8b"),
     "deepseek-r1-32b":               ("nvidia", "deepseek-ai/deepseek-r1-distill-qwen-32b"),
-    "deepseek-r1":                   ("nvidia", "deepseek-ai/deepseek-r1-0528"),
+    "deepseek-r1":                   ("nvidia", "deepseek-ai/deepseek-r1"),
     "phi-3-mini-128k-instruct":      ("nvidia", "microsoft/phi-3-mini-128k-instruct"),
     "phi-3-medium-128k-instruct":    ("nvidia", "microsoft/phi-3-medium-128k-instruct"),  # FIXED: Lowercase phi
 

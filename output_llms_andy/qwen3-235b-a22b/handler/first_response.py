@@ -1,0 +1,64 @@
+import pychrono as chrono
+import rospy
+from std_msgs.msg import Int32
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create material properties
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.2)
+
+# Add fixed floor
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.SetCollide(True)
+floor.GetCollisionModel().AddBox(material, 5, 0.1, 5)
+floor.GetVisualShape().AddBox(chrono.ChVectorD(5, 0.1, 5))
+system.Add(floor)
+
+# Add movable box
+box = chrono.ChBody()
+box.SetMass(1.0)
+box.SetInertiaXX(chrono.ChVectorD(0.1, 0.1, 0.1))
+box.SetCollide(True)
+box.GetCollisionModel().AddBox(material, 0.5, 0.5, 0.5)
+box.GetVisualShape().AddBox(chrono.ChVectorD(0.5, 0.5, 0.5))
+box.SetPos(chrono.ChVectorD(0, 1, 0))
+system.Add(box)
+
+# Initialize ROS manager
+ros_manager = chrono.ChROSManager()
+ros_manager.AddHandler(chrono.ChROSClockHandler())  # Clock publisher
+ros_manager.AddHandler(chrono.ChROSBodyHandler())   # Body state publisher
+ros_manager.AddHandler(chrono.ChROSTransformHandler())  # Transform publisher
+
+# Custom ROS handler for integer messages
+class CustomIntHandler(chrono.ChROSHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        self.topic = topic_name
+        self.publisher = None
+
+    def Initialize(self, manager):
+        self.publisher = manager.GetNodeHandle().advertise(self.topic, Int32, queue_size=10)
+        return True
+
+    def Tick(self, time):
+        msg = Int32()
+        msg.data = 42  # Example integer value
+        self.publisher.publish(msg)
+
+# Register custom handler
+int_handler = CustomIntHandler("chrono_int_topic")
+ros_manager.AddHandler(int_handler)
+ros_manager.Initialize()
+
+# Simulation loop with real-time control
+step_size = 0.01
+timer = chrono.ChRealtimeStepTimer()
+while system.GetChTime() < 10.0:  # Run for 10 seconds
+    system.DoStepDynamics(step_size)
+    ros_manager.Update()
+    timer.Spin(step_size)

@@ -1,0 +1,125 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import pychrono.driver as driver
+
+# =============================================================================
+# Initialize the PyChrono environment and core components
+# =============================================================================
+
+# Set the path to the Chrono data directory
+chrono.SetChronoDataPath("PATH_TO_CHRONO_DATA")  # Update this path
+
+# Create the physical system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # Set gravitational acceleration
+
+# =============================================================================
+# Create the terrain
+# =============================================================================
+
+# Terrain dimensions
+terrain_length = 100.0  # meters
+terrain_width = 50.0    # meters
+
+# Create a rigid terrain
+terrain = veh.RigidTerrain(system)
+terrain.SetContactFrictionCoefficient(0.8)  # Friction coefficient
+terrain.SetContactRestitutionCoefficient(0.1)  # Restitution coefficient
+terrain.SetContactMaterialProperties(2e7, 0.3)  # Young's modulus and Poisson ratio
+
+# Create a flat terrain patch
+patch = terrain.AddPatch(chrono.ChVectorD(0, 0, 0),
+                         chrono.ChVectorD(terrain_length, 0, terrain_width))
+patch.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 20, 20)
+patch.SetColor(chrono.ChColor(0.8, 0.7, 0.5))
+
+# =============================================================================
+# Create the M113 vehicle
+# =============================================================================
+
+# Vehicle parameters
+vehicle_pos = chrono.ChVectorD(0, 0.5, 0)
+vehicle_rot = chrono.ChQuaternionD(1, 0, 0, 0)  # No initial rotation
+
+# Create the M113 vehicle
+m113 = veh.M113()
+m113.SetContactMethod(chrono.ChContactMethod_NSC)
+m113.SetChassisFixed(False)
+m113.SetInitPosition(chrono.CoordSysD(vehicle_pos, vehicle_rot))
+m113.SetTireType(veh.TireModelType::RIGID)
+m113.Initialize()
+
+# Add the vehicle to the system
+m113.GetSystem().Add(m113.GetChassis())
+for axle in m113.GetAxles():
+    for wheel in axle.GetWheels():
+        m113.GetSystem().Add(wheel.GetWheelBody())
+
+# =============================================================================
+# Create the driver system
+# =============================================================================
+
+# Create a simple path-following driver
+driver_input = driver.ChPathFollowerDriver(m113, "PATH_TO_DRIVER_DATA")  # Update path
+driver_input.Initialize()
+
+# =============================================================================
+# Create the visualization system
+# =============================================================================
+
+# Create the Irrlicht application
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("M113 Vehicle Simulation")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(10, 5, 0), chrono.ChVectorD(0, 0, 0))
+vis.SetCameraMovementMode(chronoirr.CameraMovementMode::FOLLOW)
+vis.SetCameraTarget(m113.GetChassisBody())
+vis.SetCameraDistance(15)
+vis.SetCameraHeight(3)
+vis.SetCameraAngle(chrono.ChVectorD(0, chrono.CH_C_PI/6, 0))
+
+# Add lights
+vis.AddLight(chrono.ChVectorD(10, 20, 10), chrono.ChVectorD(0, 0, 0), 100)
+vis.AddLight(chrono.ChVectorD(-10, 20, -10), chrono.ChVectorD(0, 0, 0), 100)
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+# Simulation parameters
+time_step = 0.01  # seconds
+sim_time = 10.0   # seconds
+
+# Main simulation loop
+while vis.Run():
+    # Get current simulation time
+    time = system.GetChTime()
+
+    # Exit simulation when reaching the end time
+    if time >= sim_time:
+        break
+
+    # Synchronize the systems
+    terrain.Synchronize(time)
+    m113.Synchronize(time, driver_input.GetSteering(), driver_input.GetThrottle(), driver_input.GetBraking())
+
+    # Advance simulation for one timestep for all modules
+    driver_input.Advance(time_step)
+    terrain.Advance(time_step)
+    m113.Advance(time_step)
+    vis.Advance(time_step)
+
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Increment simulation time
+    system.DoStepDynamics(time_step)
+
+# Clean up
+vis.Close()

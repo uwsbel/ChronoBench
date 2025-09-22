@@ -1,0 +1,139 @@
+# =============================================================================
+#  Turtlebot on rigid terrain – simple steering demo
+#
+#  This script was obtained by fixing a few problems that prevented the
+#  original file from running and by introducing the changes requested in the
+#  assignment text (ground height, motion scheduler, etc.).
+# =============================================================================
+
+import math
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+
+# ----------------------------------------------------------------------------- 
+# Chrono system
+# -----------------------------------------------------------------------------
+system = chrono.ChSystemNSC()
+
+# collision system and gravity
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))            # <- correct API call
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# ----------------------------------------------------------------------------- 
+# Ground (a simple box used as an infinite rigid terrain)
+# -----------------------------------------------------------------------------
+ground_mat = chrono.ChContactMaterialNSC()
+ground      = chrono.ChBodyEasyBox(20, 20, 1,           # size  (x,y,z)
+                                   1000,                # density
+                                   True, True, ground_mat)
+
+ground.SetPos(chrono.ChVectorD(0, 0, -0.6))              # <- height changed
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetTexture(
+    chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# ----------------------------------------------------------------------------- 
+# Turtlebot
+# -----------------------------------------------------------------------------
+init_pos = chrono.ChVectorD(0, 0.2, 0)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+robot    = turtlebot.TurtleBot(system, init_pos, init_rot)
+robot.Initialize()
+
+# Wheel identifiers used by TurtleBot – they are simple integers (0/1)
+LEFT_DRIVE_WHEEL  = 0
+RIGHT_DRIVE_WHEEL = 1
+
+# ----------------------------------------------------------------------------- 
+# Irrlicht visualisation
+# -----------------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chronoirr.CameraVerticalDir_Z)      # <- correct enum scope
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot – Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 1.5, 0.2),
+              chrono.ChVectorD(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVectorD(1.5, -2.5, 5.5),
+                       chrono.ChVectorD(0, 0, 0.5),
+                       3, 4, 10, 40, 512)
+
+# (The line "vis.EnableShadows()" was removed as required.)
+
+# ----------------------------------------------------------------------------- 
+# Helper function – motion scheduler
+# -----------------------------------------------------------------------------
+def move(mode: str):
+    """
+    Control the robot according to the required motion mode.
+
+    Parameters
+    ----------
+    mode : str
+        One of 'straight', 'left', 'right'.
+
+    Raises
+    ------
+    ValueError
+        If *mode* is not a valid keyword.
+    """
+
+    if mode == 'straight':
+        # forward – both wheels spin in the same direction
+        robot.SetMotorSpeed( 1.0 * math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed( 1.0 * math.pi, RIGHT_DRIVE_WHEEL)
+
+    elif mode == 'left':
+        # pivot left  (right wheel backward, left wheel stopped)
+        robot.SetMotorSpeed( 0.0,           LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(-1.0 * math.pi, RIGHT_DRIVE_WHEEL)
+
+    elif mode == 'right':
+        # pivot right (left wheel backward, right wheel stopped)
+        robot.SetMotorSpeed(-1.0 * math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed( 0.0,           RIGHT_DRIVE_WHEEL)
+
+    else:
+        raise ValueError("Unknown mode '{}'. Use: straight | left | right"
+                         .format(mode))
+
+
+# ----------------------------------------------------------------------------- 
+# Simulation loop
+# -----------------------------------------------------------------------------
+time_step  = 2.0e-3
+time       = 0.0
+current_mode = None      # track the last command to avoid spamming prints
+
+while vis.Run():
+
+    # choose the mode according to the current simulated time
+    if time < 5.0:
+        desired_mode = 'straight'
+    elif time < 10.0:
+        desired_mode = 'left'
+    else:
+        desired_mode = 'right'
+
+    # only send a new command when the mode changes
+    if desired_mode != current_mode:
+        move(desired_mode)
+        print("[{:.2f} s] robot is now moving {}".format(time, desired_mode))
+        current_mode = desired_mode
+
+    # rendering
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # dynamics step
+    system.DoStepDynamics(time_step)
+    time += time_step

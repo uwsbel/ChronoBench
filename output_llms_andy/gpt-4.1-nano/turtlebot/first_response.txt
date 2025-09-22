@@ -1,0 +1,136 @@
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))  # gravity in negative Y direction
+
+# Create a ground body (rigid terrain)
+ground = chrono.ChBodyEasyBox(10, 0.2, 10, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground.SetBodyFixed(True)
+system.Add(ground)
+
+# Initialize the Turtlebot robot
+# For simplicity, represent the robot as a box with differential drive wheels
+robot_body = chrono.ChBodyEasyBox(0.3, 0.2, 0.4, 1000, True, True)
+robot_body.SetPos(chrono.ChVectorD(0, 0.1, 0))
+robot_body.SetMass(2.0)
+system.Add(robot_body)
+
+# Create left and right wheels as cylinders
+wheel_radius = 0.05
+wheel_width = 0.02
+
+left_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 10, True, True)
+right_wheel = chrono.ChBodyEasyCylinder(wheel_radius, wheel_width, 10, True, True)
+
+# Position wheels relative to robot body
+left_wheel_offset = chrono.ChVectorD(0, 0, 0.15)
+right_wheel_offset = chrono.ChVectorD(0, 0, -0.15)
+
+left_wheel.SetPos(robot_body.GetPos() + left_wheel_offset)
+right_wheel.SetPos(robot_body.GetPos() + right_wheel_offset)
+
+# Set wheels' orientation
+left_wheel.SetRot(chrono.Q_from_AngZ(0))
+right_wheel.SetRot(chrono.Q_from_AngZ(0))
+
+system.Add(left_wheel)
+system.Add(right_wheel)
+
+# Create joints (revolute) to connect wheels to robot body
+left_joint = chrono.ChLinkRevolute()
+left_joint.Initialize(left_wheel, robot_body, chrono.ChCoordsysD(left_wheel.GetPos(), chrono.Q_from_AngX(0)))
+system.Add(left_joint)
+
+right_joint = chrono.ChLinkRevolute()
+right_joint.Initialize(right_wheel, robot_body, chrono.ChCoordsysD(right_wheel.GetPos(), chrono.Q_from_AngX(0)))
+system.Add(right_joint)
+
+# For simplicity, create motors as torque actuators on the wheels
+# Store motors for control during simulation
+left_motor = chrono.ChLinkMotorRotationAngle()
+right_motor = chrono.ChLinkMotorRotationAngle()
+
+# Initialize motors
+left_motor.Initialize(left_wheel, robot_body, chrono.ChCoordsysD(left_wheel.GetPos(), chrono.Q_from_AngX(0)))
+right_motor.Initialize(right_wheel, robot_body, chrono.ChCoordsysD(right_wheel.GetPos(), chrono.Q_from_AngX(0)))
+
+system.Add(left_motor)
+system.Add(right_motor)
+
+# Set initial motor parameters
+# We'll control the motors via target angular velocity
+left_motor.SetAngleFunction(chrono.ChFunction_Const(0))
+right_motor.SetAngleFunction(chrono.ChFunction_Const(0))
+
+# Initialize Irrlicht visualization
+application = irr.ChIrrApp(system, "Turtlebot Simulation", irr.dimension2du(800, 600))
+application.GetSceneManager().AddCamera(irr.ChCameraFPS())
+application.GetSceneManager().AddLight(irr.ChLightSceneNode(irr.VECT(0, 10, 0), irr.VECT(1, 1, 1), 100))
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# Set camera position and target
+application.GetCameraSceneNode().setPosition(chrono.ChVectorD(2, 2, 2))
+application.GetCameraSceneNode().setTarget(chrono.ChVectorD(0, 0, 0))
+application.GetLightSceneNode().setPosition(chrono.ChVectorD(0, 10, 0))
+
+# Simulation parameters
+time_step = 0.005
+total_time = 20  # seconds
+current_time = 0
+
+# Define motor control commands at specific times
+# For example: move forward for 5 seconds, turn right for 3 seconds, move forward again, etc.
+def get_motor_commands(t):
+    # Default: no movement
+    left_speed = 0
+    right_speed = 0
+
+    if 0 <= t < 5:
+        # move forward
+        left_speed = 10  # rad/sec
+        right_speed = 10
+    elif 5 <= t < 8:
+        # turn right
+        left_speed = 10
+        right_speed = -10
+    elif 8 <= t < 15:
+        # move forward
+        left_speed = 10
+        right_speed = 10
+    elif 15 <= t < 18:
+        # turn left
+        left_speed = -10
+        right_speed = 10
+    else:
+        # stop
+        left_speed = 0
+        right_speed = 0
+    return left_speed, right_speed
+
+# Run the simulation
+while application.GetDevice():
+    # Get current motor commands
+    left_speed, right_speed = get_motor_commands(current_time)
+
+    # Update motor target angles (assuming simple angular velocity control)
+    # For simplicity, set angular velocity directly
+    left_motor.SetSpeed(chrono.ChFunction_Const(left_speed))
+    right_motor.SetSpeed(chrono.ChFunction_Const(right_speed))
+
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+
+    # Update visualization
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()
+
+    current_time += time_step
+
+# End of script
+```

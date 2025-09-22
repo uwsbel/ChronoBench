@@ -1,0 +1,70 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+
+# Initialize the physical system
+system = chrono.ChSystemNSC()
+
+# Set gravity (if needed)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Create a mesh of beam finite elements
+# For simplicity, we'll create a linear chain of nodes connected by beam elements
+
+# Parameters
+num_nodes = 5
+node_spacing = 0.2  # spacing between nodes
+beam_length = node_spacing
+beam_radius = 0.01
+beam_density = 7800  # kg/m^3 (steel)
+beam_material = chrono.ChMaterialBeam()
+
+# Lists to hold nodes and beams
+nodes = []
+beams = []
+
+# Create nodes
+for i in range(num_nodes):
+    node_position = chrono.ChVectorD(i * node_spacing, 0, 0)
+    node = chrono.ChNodeFEAxyz(chrono.ChVectorD(node_position))
+    node.SetMass(beam_density * (4/3)*3.1415*beam_radius**3)  # approximate mass
+    system.Add(node)
+    nodes.append(node)
+
+# Create beam elements connecting consecutive nodes
+for i in range(num_nodes - 1):
+    node_a = nodes[i]
+    node_b = nodes[i + 1]
+
+    # Define beam section
+    section = chrono.ChBeamSectionCircular()
+    section.SetRadius(beam_radius)
+    section.SetMaterial(beam_material)
+
+    # Create the beam element
+    beam = chrono.ChElementBeam()
+    beam.SetNodes(node_a, node_b)
+    beam.SetSection(section)
+    beam.SetDensity(beam_density)
+    system.Add(beam)
+    beams.append(beam)
+
+# Optional: Fix the first node to simulate a fixed end
+fixed_node = nodes[0]
+fixed_node.SetFixed(True)
+
+# Initialize the system
+system.Initialize()
+
+# Set up visualization
+application = irr.ChIrrApp(system, 'Beam Finite Element Simulation', irr.dimension2d(1024, 768))
+application.GetSceneManager().AddCamera(irr.ChCameraSceneNode(application.GetSceneManager(), 
+                                    irr.ChVectorD(0.5, 0.2, 1.0),  # camera position
+                                    irr.ChVectorD(0.5, 0, 0)))   # look at point
+application.AddTypicalLights()
+
+# Main simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

@@ -1,0 +1,64 @@
+import chrono as ch
+import chrono.irrlicht as irr
+import chrono.postprocess as post
+
+# 1. Initialize the PyChrono environment and core components
+ch.ChEngine.Initialize()
+
+# 2. Create the simulation system
+system = ch.ChSystemDofs()
+
+# 3. Set gravity
+system.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+
+# 4. Create the IGA beam
+beam = ch.ChBeamIGA()
+beam.SetPos(ch.ChVector3d(0, 0, 0))
+beam.SetRot(ch.ChQuaterniond(1, 0, 0, 0))
+beam.SetLength(1.0)
+beam.SetNumElements(10)
+beam.SetSection(ch.ChBeamSectionIGA(ch.ChVector3d(0.1, 0.1, 0.1), 7850, 2e8, 0.3))
+beam.AddSectionMass(10)
+
+# 5. Add beam to the system
+system.Add(beam)
+
+# 6. Create a flywheel
+flywheel = ch.ChBody()
+flywheel.SetMass(10)
+flywheel.SetInertiaXX(ch.ChVector3d(1, 1, 1))
+flywheel.SetPos(ch.ChVector3d(0.5, 0, 0))
+
+# 7. Add flywheel to the system
+system.Add(flywheel)
+
+# 8. Attach flywheel at the center of the beam
+link = ch.ChLinkLockPrizmaticPrizmatic()
+link.SetName('link')
+link.SetBody1(beam.GetBody())
+link.SetBody2(flywheel)
+link.SetFrame1Pnt(ch.ChVector3d(0, 0, 0))
+link.SetFrame2Pnt(ch.ChVector3d(0, 0, 0))
+system.Add(link)
+
+# 9. Create a rotational motor
+motor = ch.ChLinkMotorRotation()
+motor.SetName('motor')
+motor.SetBody1(beam.GetBody())
+motor.SetBody2(None)  # Ground
+motor.SetModulusOfTwist(1e4)
+motor.SetMotorFunction(ch.ChFunction_Sine(0, 1, 0))
+
+# 10. Add motor to the system
+system.Add(motor)
+
+# 11. Create the Irrlicht application
+app = irr.ChIrrApp(system, 'Jeffcott Rotor Simulation', 800, 600)
+
+# 12. Visualize FEM elements
+app.SetFEMVisible(True)
+
+# 13. Show Irrlicht window
+app.AssetBindAll()
+app.AssetUpdateAll()
+app.Run()
