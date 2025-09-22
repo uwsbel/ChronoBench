@@ -1,8 +1,0 @@
-```python
-import pychrono.core as chrono
-import pychrono.sensor as sens
-
-import math
-import time
-
-def main():

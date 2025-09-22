@@ -1,4 +1,0 @@
-Here, the, the,, in the, the (the 2. 1 and the the: 100, and to the:
-
-* after the a a (st and the 'k and the "st- to the  to the. to the to the to the: 1um and the to the
- 1 (in*sthea 2owstau and 2he** 1- and the and the and the and the that: 1 (in:

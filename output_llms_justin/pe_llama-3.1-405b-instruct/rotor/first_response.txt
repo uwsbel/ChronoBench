@@ -1,1 +1,0 @@
-Error code: 429 - {'status': 429, 'title': 'Too Many Requests'}
