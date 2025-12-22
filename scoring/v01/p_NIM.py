@@ -4,6 +4,13 @@ import json
 import concurrent.futures
 from tqdm import tqdm
 
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/v01/p_NIM.py, so go up 2 levels
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
 nvidia_api_key = os.getenv("NVIDIA_API_KEY")
 if not nvidia_api_key:
     raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")
@@ -193,9 +200,15 @@ def main():
                    "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
     # system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
     system_do_list = system_list
-    dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-    output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
-    output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
+    
+    # Auto-detected paths based on project root
+    dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+    output_path  = os.path.join(PROJECT_ROOT, "output_llms")
+    output_conv  = os.path.join(PROJECT_ROOT, "output_conversion")
+    
+    print(f"[*] Project root: {PROJECT_ROOT}")
+    print(f"[*] Dataset path: {dataset_path}")
+    print(f"[*] Output path:  {output_path}")
     test_model_list = ["deepseek-r1"]
 
     MAX_WORKERS = 5
