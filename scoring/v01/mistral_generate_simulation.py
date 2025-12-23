@@ -3,6 +3,13 @@ from mistralai import Mistral
 import json
 from tqdm import tqdm
 
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/v01/mistral_generate_simulation.py, so go up 2 levels
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
 
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -120,10 +127,10 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
-# data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+# Auto-detected paths based on project root
+dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+Output_path = os.path.join(PROJECT_ROOT, "output")
+Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 test_model_list = ["mistral-large-latest"]

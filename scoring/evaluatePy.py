@@ -8,6 +8,13 @@ import logging
 import io
 import subprocess
 
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/evaluatePy.py, so go up 1 level
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+
 
 def run_python_file(python_file_path, log_file):
     logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -67,10 +74,10 @@ opensource_model_links = {
     "mamba-codestral-7b-v0.1": "mistralai/mamba-codestral-7b-v0.1",
 }
 
-# data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_conversation_path = 'D:\SimBench\output_conversion'
+# Auto-detected paths based on project root
+dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+Output_path = os.path.join(PROJECT_ROOT, "output")
+Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 #test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
@@ -105,10 +112,10 @@ VEH_list = set(VEH_list)
 difference = system_list - MBS_list - FEA_list - SEN_list - RBT_list - VEH_list
 
 print(difference)
-# data set path
-dataset_path = 'D:\SimBench\demo_data'
-Output_path = 'D:\SimBench\output'
-Output_statistic_path = 'D:\SimBench\statistic'
+# Auto-detected paths based on project root
+dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+Output_path = os.path.join(PROJECT_ROOT, "output")
+Output_statistic_path = os.path.join(PROJECT_ROOT, "statistic")
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

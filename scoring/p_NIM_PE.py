@@ -5,9 +5,16 @@ import concurrent.futures
 from tqdm import tqdm
 
 # -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/p_NIM_PE.py, so go up 1 level
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+
+# -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-CONTEXT_FILE = r"C:\Users\jingquanw\SimBench\api\api.txt"
+CONTEXT_FILE = os.path.join(PROJECT_ROOT, "api", "api.txt")
 
 try:
     with open(CONTEXT_FILE, "r", encoding="utf-8") as f:
@@ -196,9 +203,10 @@ def main():
         "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper",
     ]
 
-    dataset_root = r"C:\Users\jingquanw\SimBench\demo_data"
-    output_root = r"C:\Users\jingquanw\SimBench\output_llms"
-    conv_root = r"C:\Users\jingquanw\SimBench\output_conversion"
+    # Auto-detected paths based on project root
+    dataset_root = os.path.join(PROJECT_ROOT, "demo_data")
+    output_root = os.path.join(PROJECT_ROOT, "output_llms")
+    conv_root = os.path.join(PROJECT_ROOT, "output_conversion")
 
     test_models = ["gemma-2-9b-it","gemma-2-27b-it","gemma-2-2b-it","llama-3.1-405b-instruct"
         ,"llama4_scout","llama4_maverick"]

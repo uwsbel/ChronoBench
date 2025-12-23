@@ -17,12 +17,19 @@ import re
 import numpy as np
 import pandas as pd
 
-# ---------- FIXED PATHS (edit these if your files move) ----------
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = Path(__file__).resolve().parent
+# Script is at: <PROJECT_ROOT>/scoring/rank_llm.py, so go up 1 level
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+# ---------- Auto-detected paths ----------
 INPUTS = [
-    Path("C:/Users/jingquanw/SimBench/output_llms/combined_evaluation_scores.csv"),
-    Path("C:/Users/jingquanw/SimBench/statistic/evaluation_results.csv"),
+    PROJECT_ROOT / "output_llms" / "combined_evaluation_scores.csv",
+    PROJECT_ROOT / "statistic" / "evaluation_results.csv",
 ]
-OUT_DIR = Path("./out")   # change if you want a different output folder
+OUT_DIR = SCRIPT_DIR / "out"   # output folder under scoring/
 MAKE_PLOT = True          # set False to skip the plot
 # -----------------------------------------------------------------
 

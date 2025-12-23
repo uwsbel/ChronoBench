@@ -7,6 +7,13 @@ from tqdm import tqdm
 import time
 from typing import Tuple
 
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = Path(__file__).resolve().parent
+# Script is at: <PROJECT_ROOT>/scoring/v01/p_vllm_generation.py, so go up 2 levels
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+
 # ---------------- Config ----------------
 MAX_WORKERS = 8           # change to 10/20/etc
 RETRIES     = 3
@@ -24,10 +31,10 @@ opensource_model_links = {
     "codestral-22b-f1":"codestral-22b-instruct-v0.1",
 }
 
-DATA_ROOT                  = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/SimBench")
-dataset_path               = DATA_ROOT / "demo_data"
-Output_path                = DATA_ROOT / "output_llms"
-Output_conversation_path   = DATA_ROOT / "output_conversion"
+# Auto-detected paths based on project root
+dataset_path = PROJECT_ROOT / "demo_data"
+Output_path = PROJECT_ROOT / "output_llms"
+Output_conversation_path = PROJECT_ROOT / "output_conversion"
 test_model_list            = ["llama3.3-70b-lora1"]
 Output_path.mkdir(exist_ok=True, parents=True)
 Output_conversation_path.mkdir(exist_ok=True, parents=True)

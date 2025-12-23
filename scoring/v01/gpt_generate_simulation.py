@@ -2,6 +2,14 @@ from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
+
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/v01/gpt_generate_simulation.py, so go up 2 levels
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
 nvidia_api_key = os.getenv("OPENAI_API_KEY")
 print(nvidia_api_key)
 def read_script(file_path):
@@ -126,10 +134,10 @@ system_do_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus"
                   "mass_spring_damper", "particles", "pendulum",
                   "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                   "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
-# data set path
-dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-output_path  = r"C:\Users\jingquanw\SimBench\output_llms"
-output_conv  = r"C:\Users\jingquanw\SimBench\output_conversion"
+# Auto-detected paths based on project root
+dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+output_path = os.path.join(PROJECT_ROOT, "output_llms")
+output_conv = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
 test_model_list = ["gpt-4o-mini-f3"]

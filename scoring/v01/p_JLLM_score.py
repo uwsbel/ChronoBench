@@ -1,6 +1,14 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Script is at: <PROJECT_ROOT>/scoring/v01/p_JLLM_score.py, so go up 2 levels
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+
 nvidia_api_key = os.getenv("OPENAI_API_KEY")
 print(nvidia_api_key)
 import evaluate
@@ -374,11 +382,11 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
         writer.writerows(csv_data)
 
     print(f"Scores saved to {csv_output_path}")
-# data set path
-dataset_path = r"C:\Users\jingquanw\SimBench\demo_data"
-Output_path = r"C:\Users\jingquanw\SimBench\output_llms"
-Output_conversation_path =  r"C:\Users\jingquanw\SimBench\output_conversion"
-Output_statistic_path = r"C:\Users\jingquanw\SimBench\statistic"
+# Auto-detected paths based on project root
+dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
+Output_path = os.path.join(PROJECT_ROOT, "output_llms")
+Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
+Output_statistic_path = os.path.join(PROJECT_ROOT, "statistic")
 merge_csv_files(Output_path)
 all_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
 "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
@@ -423,7 +431,7 @@ def process_model_system(test_model, system_folder, dataset_path, Output_path, O
         second_reference = read_script(second_reference_path)
         third_reference = read_script(third_reference_path)
 
-        api_path = read_script(os.path.join(r'C:\Users\jingquanw\SimBench\api', 'api.txt'))
+        api_path = read_script(os.path.join(PROJECT_ROOT, 'api', 'api.txt'))
 
         # Example usage for first, second, and third rounds
         evaluate_and_save_results("first", first_prediction, first_reference, api_path, output_system_path)

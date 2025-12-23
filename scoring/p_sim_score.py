@@ -6,15 +6,21 @@ from tqdm import tqdm
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-import logging, os
+import logging
 logging.getLogger("evaluate").setLevel(logging.ERROR)
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
-# Define paths
-DATA_ROOT                  = Path("C:/Users/jingquanw/SimBench/")
-dataset_path               = DATA_ROOT / "demo_data"
-output_path                = DATA_ROOT / "output_llms"
-output_statistic_path      = DATA_ROOT / "statistic"
+# -----------------------------------------------------------------------------
+# Auto-detect project root based on script location
+# -----------------------------------------------------------------------------
+SCRIPT_DIR = Path(__file__).resolve().parent
+# Script is at: <PROJECT_ROOT>/scoring/p_sim_score.py, so go up 1 level
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+# Define paths (auto-detected)
+dataset_path = PROJECT_ROOT / "demo_data"
+output_path = PROJECT_ROOT / "output_llms"
+output_statistic_path = PROJECT_ROOT / "statistic"
 # List of models and systems to evaluate
 test_model_list = [
     "gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
@@ -24,9 +30,9 @@ test_model_list = [
  "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro",
 "llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
 "deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
-"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
+"claude-4-sonnet-20250514","Gemini-2.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
 "gpt-4.1","o4-mini","llama3.1-8b-f1","gpt-4o-mini-f1","llama3.3-70b-sft1","gpt-4o-mini-f3","pe_gpt-4o-mini","llama3.1-8b-lora1",
-"pe_llama-3.3-70b-instruct","pe_llama-3.1-405b-instruct","pe_deepseek-r1-32b","pe_llama-3.1-8b-instruct","pe_llama4_scout","llama4-109b-lora1",
+"pe_llama-3.3-70b-instruct","pe_llama-3.1-405b-instruct","pe_deepseek-r1-32b","pe_llama-3.1-8b-instruct","pe_llama4_scout","llama4-109b-lora1","pe_llama4_maverick",
 "llama3.3-70b-lora1"
 ]
 
