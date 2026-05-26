@@ -133,7 +133,7 @@ Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
                    #$"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini",
                    #"gpt-4.1-nano","gpt-4.1","o4-mini"]
 #test_model_list = ["pe_deepseek-r1-8b","pe_deepseek-r1-32b","pe_llama-3.1-405b-instruct","pe_llama-3.1-70b-instruct","pe_llama-3.3-70b-instruct","pe_llama4_maverick","pe_llama4_scout"]
-test_model_list = ["llama3.3-70b-lora1"]
+test_model_list = ["llama3.3-70b-lora1", "pe_chrono-code"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -343,7 +343,7 @@ Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
                    #$"claude-4-sonnet-20250514","Gemini-2.5-pro","Gemini-1.5-pro","gpt-4.1-mini",
                    #"gpt-4.1-nano","gpt-4.1","o4-mini"]
 #test_model_list = ["pe_deepseek-r1-8b","pe_deepseek-r1-32b","pe_llama-3.1-405b-instruct","pe_llama-3.1-70b-instruct","pe_llama-3.3-70b-instruct","pe_llama4_maverick","pe_llama4_scout"]
-test_model_list = ["gpt-4o-mini-f3","pe_gpt-4o-mini"]
+test_model_list = ["gpt-4o-mini-f3","pe_gpt-4o-mini", "pe_chrono-code"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

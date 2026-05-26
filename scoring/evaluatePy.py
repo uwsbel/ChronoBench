@@ -87,7 +87,7 @@ All_model_list= ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-
  "mixtral-8x7b-instruct-v0.1", "mistral-large-latest", "mamba-codestral-7b-v0.1",
  "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro","gpt-4o-mini-f1"]
 #                  "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1", "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini-1.5-pro"]
-test_model_list = ["gpt-4o-mini-f2"]
+test_model_list = ["gpt-4o-mini-f2", "pe_chrono-code"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 
