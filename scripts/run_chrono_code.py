@@ -37,6 +37,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -217,6 +218,70 @@ def harvest_responses(out_dir: Path, started_wall: float, log: logging.Logger) -
     return results
 
 
+def watch_history(
+    system: str,
+    out_dir: Path,
+    history_dir: Path,
+    started_wall: float,
+    stop_event: threading.Event,
+    log: logging.Logger,
+    poll_interval_s: float = 5.0,
+) -> None:
+    """Background watcher: while chrono-agent is running, poll its global
+    ``history/`` directory every ``poll_interval_s`` and incrementally
+    update SimBench-side state:
+
+      1. Emit a driver-log line for every newly-arrived ``iteration_NNN``
+         (gives the user real-time visibility into agent position —
+         which step + iteration is currently active).
+      2. Copy that iteration's ``simulation.py`` into the matching
+         response.txt under ``out_dir`` (later iterations of the same
+         step overwrite — so the response file always reflects the
+         model's latest attempt on that turn).
+
+    Stops when ``stop_event`` is set.
+    """
+    seen: set[str] = set()
+    while not stop_event.is_set():
+        try:
+            if history_dir.exists():
+                for it in sorted(history_dir.iterdir(), key=lambda p: p.name):
+                    if not it.is_dir() or not it.name.startswith("iteration_"):
+                        continue
+                    if it.name in seen:
+                        continue
+                    if it.stat().st_mtime < started_wall:
+                        continue
+                    ctx_path = it / "step_context.json"
+                    sim_path = it / "simulation.py"
+                    if not (ctx_path.exists()
+                            and sim_path.exists()
+                            and sim_path.stat().st_size > 0):
+                        continue
+                    try:
+                        ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
+                        step_index = int(ctx.get("step_index", -1))
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        continue
+                    if step_index not in RESPONSE_FILES:
+                        continue
+                    fname = RESPONSE_FILES[step_index]
+                    try:
+                        (out_dir / fname).write_text(
+                            sim_path.read_text(encoding="utf-8"),
+                            encoding="utf-8",
+                        )
+                    except OSError as exc:
+                        log.warning("%s: failed writing %s: %s", system, fname, exc)
+                        continue
+                    log.info("%s: %s landed step_index=%d → %s",
+                             system, it.name, step_index, fname)
+                    seen.add(it.name)
+        except Exception as exc:
+            log.debug("%s: watcher transient error: %s", system, exc)
+        stop_event.wait(poll_interval_s)
+
+
 def run_one_system(system: str, log: logging.Logger) -> Dict[int, str]:
     out_dir = SIMBENCH_ROOT / "output_llms" / MODEL_NAME / system
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -251,42 +316,66 @@ def run_one_system(system: str, log: logging.Logger) -> Dict[int, str]:
 
     work_logs = out_dir / ".chrono_work"
     work_logs.mkdir(exist_ok=True)
+    stdout_log_path = work_logs / "stdout.log"
+    stderr_log_path = work_logs / "stderr.log"
+
+    # Background watcher: surface real-time progress into SimBench's
+    # driver log AND incrementally write response.txt files as each
+    # iteration lands.
+    stop_event = threading.Event()
+    watcher = threading.Thread(
+        target=watch_history,
+        args=(system, out_dir, history_dir, started_wall, stop_event, log),
+        name=f"watcher-{system}",
+        daemon=True,
+    )
+    watcher.start()
+
+    # Stream chrono-agent's stdout/stderr line-by-line to disk so the
+    # user can `tail -f` .chrono_work/stdout.log in real time.
     timed_out = False
     proc_rc: Optional[int] = None
-    proc_stdout = ""
-    proc_stderr = ""
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(CHRONO_ROOT),
-            capture_output=True,
-            text=True,
-            # run-from-plan skips PlanningAgent so the parameter / approval
-            # gates don't fire — but feed empty newlines just in case any
-            # unexpected typer.prompt() pops up.
-            input="\n" * 32,
-            timeout=PER_SYSTEM_TIMEOUT_S,
-            check=False,
-        )
-        proc_rc = proc.returncode
-        proc_stdout = proc.stdout or ""
-        proc_stderr = proc.stderr or ""
-    except subprocess.TimeoutExpired as exc:
-        timed_out = True
-        if isinstance(exc.stdout, bytes):
-            proc_stdout = exc.stdout.decode("utf-8", errors="ignore")
-        elif exc.stdout:
-            proc_stdout = exc.stdout
-        if isinstance(exc.stderr, bytes):
-            proc_stderr = exc.stderr.decode("utf-8", errors="ignore")
-        elif exc.stderr:
-            proc_stderr = exc.stderr
-        log.warning("%s: timeout after %ds — harvesting whatever is in history/",
-                    system, PER_SYSTEM_TIMEOUT_S)
+        with open(stdout_log_path, "w", encoding="utf-8", buffering=1) as fout, \
+             open(stderr_log_path, "w", encoding="utf-8", buffering=1) as ferr:
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=str(CHRONO_ROOT),
+                    stdin=subprocess.PIPE,
+                    stdout=fout,
+                    stderr=ferr,
+                    text=True,
+                    bufsize=1,
+                )
+            except FileNotFoundError as exc:
+                log.error("%s: chrono-agent binary not found: %s", system, exc)
+                stop_event.set()
+                watcher.join(timeout=10)
+                return {1: "crashed", 2: "crashed", 3: "crashed"}
+
+            try:
+                proc.stdin.write("\n" * 32)
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+
+            try:
+                proc_rc = proc.wait(timeout=PER_SYSTEM_TIMEOUT_S)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                log.warning("%s: timeout after %ds — killing chrono-agent",
+                            system, PER_SYSTEM_TIMEOUT_S)
+                proc.kill()
+                try:
+                    proc_rc = proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc_rc = -9
+    finally:
+        stop_event.set()
+        watcher.join(timeout=15)
 
     elapsed = time.monotonic() - started
-    (work_logs / "stdout.log").write_text(proc_stdout, encoding="utf-8")
-    (work_logs / "stderr.log").write_text(proc_stderr, encoding="utf-8")
     log.info("%s: subprocess done in %.1fs (rc=%s, timed_out=%s)",
              system, elapsed, proc_rc, timed_out)
 
