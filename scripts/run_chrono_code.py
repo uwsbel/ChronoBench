@@ -53,6 +53,22 @@ DEFAULT_CMD = os.environ.get(
 PER_SYSTEM_TIMEOUT_S = int(os.environ.get("CHRONO_SYSTEM_TIMEOUT", "1800"))
 PER_EXEC_TIMEOUT_S = int(os.environ.get("CHRONO_EXEC_TIMEOUT", "60"))
 
+# Route chrono-agent's ExecutionAgent to spawn simulation.py via the
+# ``chrono-agent`` conda env's python, NOT the ``chrono-code`` env's. The
+# two envs ship different libvsg builds:
+#   * chrono-agent env: libvsg 1.1.13 (soversion 15) — VSG init works
+#   * chrono-code  env: libvsg 1.1.11 (soversion 14) — VSG init SIGABRTs at
+#     ``vis.Initialize()`` with a misleading "VSG not compiled with GLSLang"
+# We keep chrono-agent (the CLI/agent code) running in the chrono-code env
+# because that env's site-packages has the chrono_agent package (with our
+# pychrono_api skill) editable-installed. But the SUBPROCESS that actually
+# runs generated simulation.py is redirected via this env override to the
+# chrono-agent env's python so VSG works.
+os.environ.setdefault(
+    "CHRONO_AGENT_EXEC_PYTHON",
+    "/home/hongyu/anaconda3/envs/chrono-agent/bin/python",
+)
+
 SYSTEMS: List[str] = [
     "art", "beam", "buckling", "cable", "camera", "citybus", "curiosity",
     "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar",
