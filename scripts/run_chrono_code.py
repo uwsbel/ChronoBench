@@ -166,6 +166,150 @@ def build_plan(system: str) -> dict:
     }
 
 
+def build_single_step_plan(system: str, turn: int) -> dict:
+    """Author a 1-step plan for a single SimBench turn, used by --fill-missing.
+
+    Turn 1: step description is input1.txt verbatim.
+    Turn 2/3: step description embeds the canonical demo_data/pyinput{N}.py
+    as the code-to-modify, following SimBench's turn-2/3 prompt template
+    (scoring/p_NIM_PE.py). This pins the starting point to the standard
+    checkpoint (paper PE condition) instead of chrono-agent's own prior turn.
+    """
+    sdir = SIMBENCH_ROOT / "demo_data" / system
+    instr = (sdir / f"input{turn}.txt").read_text(encoding="utf-8").strip()
+    if turn == 1:
+        desc = (
+            "You are a PyChrono expert. Generate a complete PyChrono simulation "
+            "script for the following task.\n\nInstructions:\n\"\"\"\n"
+            f"{instr}\n\"\"\""
+        )
+    else:
+        prev_code = (sdir / f"pyinput{turn}.py").read_text(encoding="utf-8").strip()
+        desc = (
+            "You are a PyChrono expert. Here is an existing PyChrono script that "
+            "may contain errors:\n```python\n"
+            f"{prev_code}\n```\n\n"
+            "Identify and fix any errors, then modify it to meet these instructions:\n"
+            "\"\"\"\n"
+            f"{instr}\n\"\"\"\n\n"
+            "Provide the corrected and modified script."
+        )
+    time_step = extract_canonical_time_step(sdir / "cleaned_truth1.py")
+    asset_name = f"{system}_system"
+    return {
+        "plan_type": "mbs_in_scene",
+        "simulation_parameters": {"time_step": time_step, "simulation_duration": 10.0},
+        "objectives": [f"SimBench {system} turn {turn} (fill-missing single-step)."],
+        "topology": {"gravity_axis": "-y"},
+        "assets": [{
+            "name": asset_name, "type": "placeholder",
+            "description": f"Primary {system} setup; CodeGen derives structure from step description.",
+        }],
+        "implementation_steps": [{
+            "description": desc,
+            "assets": [asset_name],
+            "scene_objects": [],
+            "objects": [],
+            "cameras": _default_cameras(),
+            "constraints": [],
+            "motion_expectations": [],
+        }],
+    }
+
+
+def fill_one_missing(system: str, turn: int, log: logging.Logger) -> str:
+    """Generate one missing (system, turn) via codegen-from-plan (no execution).
+
+    Guaranteed to produce a code artifact: CodeGenerationAgent writes
+    iteration_NNN/simulation.py regardless of review/execution outcome.
+    """
+    out_dir = SIMBENCH_ROOT / "output_llms" / MODEL_NAME / system
+    out_dir.mkdir(parents=True, exist_ok=True)
+    resp_name = RESPONSE_FILES[turn - 1]
+    resp_path = out_dir / resp_name
+
+    work = out_dir / ".fill_work" / f"turn{turn}"
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True, exist_ok=True)
+    plan_path = work / "plan.json"
+    plan_path.write_text(json.dumps(build_single_step_plan(system, turn), indent=2), encoding="utf-8")
+
+    history_dir = CHRONO_ROOT / "history"
+    if history_dir.exists():
+        shutil.rmtree(history_dir, ignore_errors=True)
+
+    cmd = _cmd_argv() + [
+        "codegen-from-plan",
+        "--plan-file", str(plan_path),
+        "--detail-level", "minimal",
+    ]
+    started_wall = time.time()
+    log.info("%s turn%d: codegen-from-plan", system, turn)
+    try:
+        with open(work / "stdout.log", "w", encoding="utf-8", buffering=1) as fout, \
+             open(work / "stderr.log", "w", encoding="utf-8", buffering=1) as ferr:
+            proc = subprocess.Popen(
+                cmd, cwd=str(CHRONO_ROOT), stdin=subprocess.PIPE,
+                stdout=fout, stderr=ferr, text=True, bufsize=1,
+            )
+            try:
+                proc.stdin.write("\n" * 16)
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+            proc.wait(timeout=600)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        log.warning("%s turn%d: codegen timeout", system, turn)
+    except FileNotFoundError as exc:
+        log.error("%s turn%d: chrono-agent not found: %s", system, turn, exc)
+        return "crashed"
+
+    # Harvest the single produced simulation.py (highest iteration, this run).
+    sim = None
+    if history_dir.exists():
+        for it in sorted(history_dir.iterdir(), key=lambda p: p.name, reverse=True):
+            if not it.is_dir() or not it.name.startswith("iteration_"):
+                continue
+            if it.stat().st_mtime < started_wall:
+                continue
+            cand = it / "simulation.py"
+            if cand.exists() and cand.stat().st_size > 0:
+                sim = cand
+                break
+    if sim is None:
+        log.error("%s turn%d: no simulation.py produced", system, turn)
+        return "missing"
+    resp_path.write_text(sim.read_text(encoding="utf-8"), encoding="utf-8")
+    log.info("%s turn%d: filled ← %s → %s", system, turn, sim.parent.name, resp_name)
+    return "ok"
+
+
+def fill_missing(log: logging.Logger, systems: List[str]) -> None:
+    """Phase B: fill every missing (system, turn) via single-step codegen."""
+    targets = []
+    for system in systems:
+        out_dir = SIMBENCH_ROOT / "output_llms" / MODEL_NAME / system
+        for turn in (1, 2, 3):
+            resp = out_dir / RESPONSE_FILES[turn - 1]
+            if not (resp.exists() and resp.stat().st_size > 0):
+                targets.append((system, turn))
+    log.info("fill-missing: %d missing (system,turn) pairs: %s",
+             len(targets), ", ".join(f"{s}/t{t}" for s, t in targets))
+    for system, turn in targets:
+        fill_one_missing(system, turn, log)
+    # Final tally
+    total = 0
+    for system in systems:
+        out_dir = SIMBENCH_ROOT / "output_llms" / MODEL_NAME / system
+        for turn in (1, 2, 3):
+            resp = out_dir / RESPONSE_FILES[turn - 1]
+            if resp.exists() and resp.stat().st_size > 0:
+                total += 1
+    log.info("fill-missing done: %d/%d turns now present", total, len(systems) * 3)
+
+
 def _cmd_argv() -> List[str]:
     return shlex.split(DEFAULT_CMD) if " " in DEFAULT_CMD else [DEFAULT_CMD]
 
@@ -410,6 +554,10 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=1,
                     help="Concurrent systems. >1 races chrono-code/history/, so leave at 1 "
                          "unless you arrange per-system isolation.")
+    ap.add_argument("--fill-missing", action="store_true",
+                    help="Phase B: for each missing (system,turn), generate it via "
+                         "single-step codegen-from-plan (no execution/review). Uses "
+                         "canonical demo_data/pyinput{N}.py as the starting code for turn 2/3.")
     args = ap.parse_args()
 
     log = setup_logger()
@@ -425,6 +573,11 @@ def main() -> int:
     if args.limit:
         systems = systems[: args.limit]
     log.info("running %d systems: %s", len(systems), ", ".join(systems))
+
+    if args.fill_missing:
+        log.info("MODE: fill-missing (single-step codegen-from-plan)")
+        fill_missing(log, systems)
+        return 0
 
     if args.workers > 1:
         log.warning("workers=%d > 1: chrono-code/history/ is global and will race; "
