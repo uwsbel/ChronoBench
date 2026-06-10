@@ -1,0 +1,132 @@
+# mass_spring_damper_tsda.py
+#
+# Single mass-spring-damper example using ChLinkTSDA.
+# A free mass is connected to the fixed ground through a linear translational
+# spring-damper actuator. Irrlicht is used for real-time visualization.
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
+
+
+# ---------------------------------------------------------------------
+# 1. Create the Chrono physical system
+# ---------------------------------------------------------------------
+
+system = chrono.ChSystemNSC()
+
+# Disable gravity so the motion is purely along the spring direction.
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+
+# Recommended solver settings for this simple demo
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.GetSolver().AsIterative().SetMaxIterations(50)
+
+
+# ---------------------------------------------------------------------
+# 2. Create ground body
+# ---------------------------------------------------------------------
+
+ground = chrono.ChBody()
+ground.SetName("ground")
+ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, 0))
+
+# Small visual sphere showing the fixed anchor point
+anchor_shape = chrono.ChVisualShapeSphere(0.06)
+anchor_mat = chrono.ChVisualMaterial()
+anchor_mat.SetDiffuseColor(chrono.ChColor(0.1, 0.1, 0.9))
+anchor_shape.AddMaterial(anchor_mat)
+ground.AddVisualShape(anchor_shape)
+
+system.Add(ground)
+
+
+# ---------------------------------------------------------------------
+# 3. Create the moving mass
+# ---------------------------------------------------------------------
+
+mass = chrono.ChBody()
+mass.SetName("moving_mass")
+mass.SetMass(1.0)
+mass.SetInertiaXX(chrono.ChVector3d(0.01, 0.01, 0.01))
+
+# Initial position is stretched from the spring rest length.
+mass.SetPos(chrono.ChVector3d(1.5, 0, 0))
+
+# Optional initial velocity
+mass.SetPosDt(chrono.ChVector3d(0, 0, 0))
+
+# Visual box for the mass
+mass_shape = chrono.ChVisualShapeBox(0.25, 0.25, 0.25)
+mass_mat = chrono.ChVisualMaterial()
+mass_mat.SetDiffuseColor(chrono.ChColor(0.8, 0.2, 0.2))
+mass_shape.AddMaterial(mass_mat)
+mass.AddVisualShape(mass_shape)
+
+system.Add(mass)
+
+
+# ---------------------------------------------------------------------
+# 4. Add translational spring-damper using ChLinkTSDA
+# ---------------------------------------------------------------------
+
+spring = chrono.ChLinkTSDA()
+spring.SetName("linear_spring_damper")
+
+# Connection points are given in absolute coordinates because the third
+# argument is False.
+ground_anchor = chrono.ChVector3d(0, 0, 0)
+mass_anchor = chrono.ChVector3d(1.5, 0, 0)
+
+spring.Initialize(
+    ground,
+    mass,
+    False,
+    ground_anchor,
+    mass_anchor
+)
+
+# Default linear spring-damper parameters
+spring.SetRestLength(1.0)
+spring.SetSpringCoefficient(50.0)   # N/m
+spring.SetDampingCoefficient(2.0)   # N*s/m
+
+# Visual coil spring between the two TSDA endpoints
+spring_visual = chrono.ChVisualShapeSpring(0.05, 80, 15)
+spring.AddVisualShape(spring_visual)
+
+system.AddLink(spring)
+
+
+# ---------------------------------------------------------------------
+# 5. Irrlicht visualization
+# ---------------------------------------------------------------------
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("PyChrono: Single Mass-Spring-Damper with ChLinkTSDA")
+vis.Initialize()
+
+vis.AddLogo(chrono.GetChronoDataFile("logo_chrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(
+    chrono.ChVector3d(0.75, 1.0, 3.0),
+    chrono.ChVector3d(0.75, 0.0, 0.0)
+)
+vis.AddTypicalLights()
+
+
+# ---------------------------------------------------------------------
+# 6. Simulation loop
+# ---------------------------------------------------------------------
+
+time_step = 1e-3
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)

@@ -1,0 +1,185 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# ============================================================
+# 1. Initialize the PyChrono environment and core components
+# ============================================================
+print("Initializing PyChrono Beam FEA Simulation...")
+
+# Create the physical system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# ============================================================
+# 2. Create the FEA Mesh
+# ============================================================
+mesh = fea.ChMesh()
+
+# ------------------------------------------------------------
+# Define beam section and material properties
+# ------------------------------------------------------------
+# Euler-Bernoulli beam section
+beam_section = fea.ChBeamSectionEulerAdvanced()
+
+# Cross-section dimensions
+beam_width  = 0.012   # [m]
+beam_height = 0.025   # [m]
+beam_section.SetAsRectangularSection(beam_width, beam_height)
+
+# Material properties (steel-like)
+beam_section.SetYoungModulus(210e9)   # Young's modulus [Pa]
+beam_section.SetGshearModulus(80e9)   # Shear modulus [Pa]
+beam_section.SetDensity(7800)         # Density [kg/m³]
+beam_section.SetBeamRaleyghDamping(0.002)
+
+# ------------------------------------------------------------
+# Build the beam using a builder helper (IGA Euler beam)
+# ------------------------------------------------------------
+builder = fea.ChBuilderBeamEuler()
+
+# Beam 1: horizontal cantilever along X axis
+builder.BuildBeam(
+    mesh,                                        # the mesh
+    beam_section,                                # section properties
+    8,                                           # number of elements
+    chrono.ChVectorD(0.0, 0.0, 0.0),            # start point
+    chrono.ChVectorD(0.4, 0.0, 0.0),            # end point
+    chrono.ChVectorD(0, 1, 0)                    # up direction
+)
+
+# Fix the first node (cantilever boundary condition)
+builder.GetLastBeamNodes().front().SetFixed(True)
+
+# Apply a vertical load at the tip of the first beam
+tip_node_1 = builder.GetLastBeamNodes().back()
+tip_node_1.SetForce(chrono.ChVectorD(0, -2.0, 0))   # [N]
+
+# Beam 2: connected to the tip, going in Z direction
+builder.BuildBeam(
+    mesh,
+    beam_section,
+    6,
+    tip_node_1.GetPos(),                         # start from tip of beam 1
+    tip_node_1.GetPos() + chrono.ChVectorD(0, 0, 0.3),  # extend in Z
+    chrono.ChVectorD(0, 1, 0)
+)
+
+tip_node_2 = builder.GetLastBeamNodes().back()
+tip_node_2.SetForce(chrono.ChVectorD(0, -1.5, 0.5))  # angled load
+
+# Beam 3: inclined beam from origin going diagonally
+builder.BuildBeam(
+    mesh,
+    beam_section,
+    5,
+    chrono.ChVectorD(0.0, 0.0, 0.0),
+    chrono.ChVectorD(0.2, 0.2, 0.15),
+    chrono.ChVectorD(0, 1, 0)
+)
+builder.GetLastBeamNodes().front().SetFixed(True)
+builder.GetLastBeamNodes().back().SetForce(chrono.ChVectorD(0.5, -1.0, 0.3))
+
+# ------------------------------------------------------------
+# Add a concentrated mass at the tip of beam 2
+# ------------------------------------------------------------
+tip_node_2.SetMass(0.05)   # [kg]
+
+# ------------------------------------------------------------
+# Set automatic gravity for the mesh
+# ------------------------------------------------------------
+mesh.SetAutomaticGravity(True)
+
+# Add mesh to system
+system.Add(mesh)
+
+# ============================================================
+# 3. Visualization setup for the FEA mesh
+# ============================================================
+
+# Visualize beam elements (body frame)
+vis_beam_A = chrono.ChVisualShapeFEA(mesh)
+vis_beam_A.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+vis_beam_A.SetColorscaleMinMax(-0.4, 0.4)
+vis_beam_A.SetSmoothFaces(True)
+vis_beam_A.SetWireframe(False)
+mesh.AddVisualShapeFEA(vis_beam_A)
+
+# Visualize nodes
+vis_beam_B = chrono.ChVisualShapeFEA(mesh)
+vis_beam_B.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+vis_beam_B.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+vis_beam_B.SetSymbolsThickness(0.006)
+vis_beam_B.SetSymbolsScale(0.01)
+vis_beam_B.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(vis_beam_B)
+
+# ============================================================
+# 4. Create the Irrlicht visualization engine
+# ============================================================
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("PyChrono - Beam FEA Simulation")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.3, 0.3, 0.7), chrono.ChVectorD(0.2, 0.0, 0.15))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(
+    chrono.ChVectorD(1.5, 5.5, -2.5),
+    chrono.ChVectorD(0.0, 0.0, 0.0),
+    10, 1, 11, 55
+)
+
+# ============================================================
+# 5. Solver and integrator settings
+# ============================================================
+# Use a direct sparse solver suitable for FEA
+solver = chrono.ChSolverMINRES()
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableWarmStarting(True)
+system.SetSolver(solver)
+
+# Use HHT integrator for structural dynamics
+integrator = chrono.ChTimestepperHHT(system)
+integrator.SetAlpha(-0.2)
+integrator.SetMaxiters(10)
+integrator.SetAbsTolerances(1e-5)
+integrator.SetMode(chrono.ChTimestepperHHT.POSITION)
+integrator.SetScaling(True)
+system.SetTimestepper(integrator)
+
+# ============================================================
+# 6. Simulation loop
+# ============================================================
+timestep = 0.001   # [s]
+frame    = 0
+print_interval = 100
+
+print("Starting simulation loop... Close the window to exit.")
+print(f"  Timestep : {timestep} s")
+print(f"  Nodes    : {mesh.GetNnodes()}")
+print(f"  Elements : {mesh.GetNelements()}")
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+
+    # Optional: draw the world reference frame
+    chronoirr.drawAllCsyses(vis, 0.02)
+
+    vis.EndScene()
+
+    system.DoStepDynamics(timestep)
+    frame += 1
+
+    # Console output every N frames
+    if frame % print_interval == 0:
+        t = system.GetChTime()
+        tip_pos = tip_node_1.GetPos()
+        print(f"  t={t:.3f}s | Tip-1 pos: "
+              f"({tip_pos.x:.4f}, {tip_pos.y:.4f}, {tip_pos.z:.4f})")
+
+print("Simulation finished.")

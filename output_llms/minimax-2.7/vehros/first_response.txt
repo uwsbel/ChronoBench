@@ -1,0 +1,290 @@
+Below is a **complete, runnable‑style example** that shows how to set up a PyChrono simulation of an HMMWV vehicle, a flat rigid terrain, a simple driver controller, and a ROS bridge for clock‑sync, driver‑input and vehicle‑state publishing.  
+All of the key pieces (contact method, engine type, tire model, friction/restitution, driver, ROS integration) are explicitly configured as requested.
+
+```python
+#!/usr/bin/env python3
+"""
+PyChrono HMMWV simulation with ROS integration.
+
+This script demonstrates:
+  • Creation of a ChSystem (NSC or SMC contact can be chosen).
+  • Instantiation of an HMMWV vehicle with a specific contact method,
+    engine model, and tire model.
+  • A rigid‐ground terrain with defined friction and restitution.
+  • A simple driver system (open‑loop) that can be overridden via ROS.
+  • ROS bridge that publishes simulation time, subscribes to driver commands,
+    and publishes vehicle state.
+  • A main loop that advances the system, vehicle, terrain and driver,
+    while synchronising the ROS bridge.
+"""
+
+# --------------------------------------------------------------------
+# 1.  Imports
+# --------------------------------------------------------------------
+import pychrono as chrono               # Core Chrono functionality
+import pychrono.vehicle as veh          # Vehicle‑specific classes
+import pychrono.ros as chrono_ros       # ROS bridge (if available)
+import rospy
+from std_msgs.msg import Float64
+from geometry_msgs.msg import Twist
+
+# --------------------------------------------------------------------
+# 2.  ROS node initialisation
+# --------------------------------------------------------------------
+def init_ros():
+    """Start a ROS node.  The node name must be unique if you run
+       multiple instances."""
+    rospy.init_node('pychrono_hmmwv_ros', anonymous=True)
+    rospy.loginfo("ROS node 'pychrono_hmmwv_ros' started.")
+
+# --------------------------------------------------------------------
+# 3.  Global simulation parameters
+# --------------------------------------------------------------------
+TIME_STEP = 1e-3          # integration step size (s)
+END_TIME  = 20.0          # total simulation duration (s)
+OUT_DIR   = "./output"    # folder for optional data logging
+
+# --------------------------------------------------------------------
+# 4.  Create the physical system (Chrono system)
+# --------------------------------------------------------------------
+def make_physical_system():
+    """Return a ChSystem configured for a typical vehicle simulation."""
+    # Use a non‑smooth (NSC) contact method for large‑scale rigid contacts.
+    # (Switch to SMC if you prefer smooth contacts.)
+    system = chrono.ChSystemNSC()
+
+    # Gravity
+    system.Set_G_acc(chrono.ChVectorD(0.0, 0.0, -9.81))
+
+    # Solver settings – SOR is fast enough for most demos
+    system.SetSolverType(chrono.ChSolver.Type_SOR)
+    system.SetMaxIteration(50)
+
+    # Optional: set a fixed time step (or let the system adapt)
+    system.SetTimestep(TIME_STEP)
+
+    return system
+
+# --------------------------------------------------------------------
+# 5.  HMMWV vehicle
+# --------------------------------------------------------------------
+def create_hmmwv(system):
+    """Instantiate, configure and initialise the HMMWV vehicle."""
+
+    # 5a.  Create the vehicle object (uses the Chrono::Vehicle HMMWV model)
+    vehicle = veh.HMMWV()
+
+    # 5b.  Contact method (SMC = smooth contact, NSC = non‑smooth)
+    vehicle.SetContactMethod(chrono.ChContactMethod.SMC)
+
+    # 5c.  Engine model – choose a simple torque‑based model
+    vehicle.SetEngineType(veh.EngineModelType.SIMPLE)
+
+    # 5d.  Transmission model (also simple)
+    vehicle.SetTransmissionType(veh.TransmissionModelType.SIMPLE)
+
+    # 5e.  Tire model – rigid (no compliance) – switch to
+    #      TireModelType.Fiala for a more advanced model
+    vehicle.SetTireModelType(veh.TireModelType.RIGID)
+
+    # 5f.  Initial position and velocity of the vehicle chassis
+    init_pos = chrono.ChCoordsysD(
+        chrono.ChVectorD(0.0, 0.0, 0.8),   # x, y, z  (above ground)
+        chrono.ChQuaternionD(1.0, 0.0, 0.0, 0.0)   # unit quaternion
+    )
+    vehicle.SetInitPosition(init_pos)
+    vehicle.SetInitVelocity(chrono.ChVectorD(0.0, 0.0, 0.0))
+
+    # 5g.  Initialise the vehicle within the Chrono system
+    #      The second argument (True) creates visualisation assets if any.
+    vehicle.Initialize(system, True)
+
+    return vehicle
+
+# --------------------------------------------------------------------
+# 6.  Rigid terrain
+# --------------------------------------------------------------------
+def create_terrain(system):
+    """Create a flat, rigid ground with friction and restitution."""
+
+    terrain = veh.RigidTerrain(system)
+
+    # Mechanical properties of the ground
+    terrain.SetContactFrictionCoefficient(0.9)      # µ
+    terrain.SetContactRestitutionCoefficient(0.0)   # e (no bounce)
+    # You can also set other material parameters (e.g. Young modulus)
+    terrain.Initialize()
+
+    return terrain
+
+# --------------------------------------------------------------------
+# 7.  Driver system (simple open‑loop)
+# --------------------------------------------------------------------
+def create_driver(vehicle):
+    """Create a driver controller that can be overwritten via ROS."""
+
+    driver = veh.ChDriver(vehicle.GetVehicle())
+    driver.Initialize()
+
+    # Default target values (can be overwritten by ROS callbacks)
+    driver.SetThrottle(0.0)   # 0 … 1
+    driver.SetSteering(0.0)  # rad
+    driver.SetBraking(0.0)   # 0 … 1
+
+    return driver
+
+# --------------------------------------------------------------------
+# 8.  ROS bridge helpers
+# --------------------------------------------------------------------
+def build_ros_bridge(system):
+    """Set up the Chrono‑ROS bridge and register all required handlers."""
+
+    # Create the bridge manager – this class wraps ROS pubs/subs and
+    # supplies a time‑synchronisation mechanism.
+    ros_mgr = chrono_ros.ChROSBridgeManager()
+    ros_mgr.SetTimeStep(TIME_STEP)
+
+    # -----------------------------------------------------------------
+    # 8a. Clock synchronisation – publish simulation time on /clock
+    # -----------------------------------------------------------------
+    clock_pub = rospy.Publisher('/clock', Float64, queue_size=1)
+
+    def on_clock_sync(chrono_time):
+        """Called by the bridge every time the simulation clock advances."""
+        clock_pub.publish(Float64(chrono_time))
+
+    ros_mgr.RegisterClockSyncHandler(on_clock_sync)
+
+    # -----------------------------------------------------------------
+    # 8b. Driver‑input subscription – receive a Twist (speed + steer)
+    # -----------------------------------------------------------------
+    # The driver command is stored in a thread‑safe dictionary.
+    driver_cmd = {'speed': 0.0, 'steering': 0.0, 'brake': 0.0}
+
+    def driver_input_callback(msg):
+        """ROS callback that updates the command dictionary."""
+        driver_cmd['speed']    = max(0.0, msg.linear.x)   # m/s
+        driver_cmd['steering'] = msg.angular.z            # rad
+        driver_cmd['brake']    = max(0.0, -msg.linear.x)  # negative => brake
+
+    driver_sub = rospy.Subscriber(
+        '/hmmwv/driver_cmd', Twist, driver_input_callback, queue_size=1
+    )
+
+    # Handler that applies the latest commands to the driver object.
+    def on_driver_input(chrono_time):
+        driver.SetThrottle(driver_cmd['speed'])
+        driver.SetSteering(driver_cmd['steering'])
+        driver.SetBraking(driver_cmd['brake'])
+
+    ros_mgr.RegisterDriverInputHandler(on_driver_input)
+
+    # -----------------------------------------------------------------
+    # 8c. Vehicle‑state publishing – expose chassis velocity to ROS
+    # -----------------------------------------------------------------
+    state_pub = rospy.Publisher('/hmmwv/vehicle_state', Twist, queue_size=1)
+
+    def on_vehicle_state(chrono_time):
+        # Obtain the raw vehicle state from the Chrono vehicle object.
+        state = vehicle.GetVehicle().GetState()
+
+        twist_msg = Twist()
+        twist_msg.linear.x  = state.v.x
+        twist_msg.linear.y  = state.v.y
+        twist_msg.linear.z  = state.v.z
+        twist_msg.angular.x = state.w.x
+        twist_msg.angular.y = state.w.y
+        twist_msg.angular.z = state.w.z
+        state_pub.publish(twist_msg)
+
+    ros_mgr.RegisterVehicleStateHandler(on_vehicle_state)
+
+    return ros_mgr
+
+# --------------------------------------------------------------------
+# 9.  Main simulation loop
+# --------------------------------------------------------------------
+def simulation_loop(system, vehicle, terrain, driver, ros_mgr):
+    """Advance the system while keeping ROS in sync."""
+
+    rospy.loginfo("Starting simulation loop …")
+
+    # Ensure the system time step is set (already done, but be explicit)
+    system.SetTimestep(TIME_STEP)
+
+    # Main integration loop
+    while not rospy.is_shutdown():
+        # Stop if the simulation has reached the desired end time
+        if system.GetChTime() >= END_TIME:
+            rospy.loginfo("Simulation finished (end time reached).")
+            break
+
+        # -----------------------------------------------------------------
+        # 9a. ROS side – synchronise time and exchange data
+        # -----------------------------------------------------------------
+        ros_mgr.Synchronize(system.GetChTime())
+
+        # -----------------------------------------------------------------
+        # 9b. Advance the physical system (Chrono core integration)
+        # -----------------------------------------------------------------
+        system.DoStepDynamics(TIME_STEP)
+
+        # -----------------------------------------------------------------
+        # 9c. Advance each subsystem
+        # -----------------------------------------------------------------
+        vehicle.Advance(TIME_STEP)   # vehicle dynamics, suspension, tires
+        terrain.Advance(TIME_STEP)   # terrain (static here, but still called)
+        driver.Advance(TIME_STEP)    # driver controller (e.g. PID)
+
+        # -----------------------------------------------------------------
+        # 9d. ROS publishing – send latest data to ROS listeners
+        # -----------------------------------------------------------------
+        ros_mgr.Update()
+
+    rospy.loginfo("Simulation loop terminated.")
+
+# --------------------------------------------------------------------
+# 10. Entry point
+# --------------------------------------------------------------------
+if __name__ == '__main__':
+    try:
+        # 1) Initialise ROS
+        init_ros()
+
+        # 2) Create the Chrono system
+        system = make_physical_system()
+
+        # 3) Create the HMMWV vehicle
+        vehicle = create_hmmwv(system)
+
+        # 4) Create the terrain
+        terrain = create_terrain(system)
+
+        # 5) Create the driver
+        driver = create_driver(vehicle)
+
+        # 6) Build the ROS bridge and register callbacks
+        ros_mgr = build_ros_bridge(system)
+
+        # 7) Run the simulation loop
+        simulation_loop(system, vehicle, terrain, driver, ros_mgr)
+
+    except rospy.ROSInterruptException:
+        # Graceful shutdown when Ctrl‑C is pressed
+        pass
+```
+
+### How the script satisfies the requirements
+
+| Requirement | Where it is handled in the script |
+|-------------|-----------------------------------|
+| **Initialise PyChrono environment & core components** | `make_physical_system()` creates a `ChSystem`, sets gravity, solver type and time step. |
+| **Add HMMWV vehicle with specified contact method, engine type, tire model** | `create_hmmwv()` selects `ChContactMethod.SMC`, `EngineModelType.SIMPLE`, `TransmissionModelType.SIMPLE`, `TireModelType.RIGID`. |
+| **Set up a terrain with friction & restitution** | `create_terrain()` uses `SetContactFrictionCoefficient(0.9)` and `SetContactRestitutionCoefficient(0.0)`. |
+| **Initialise driver system for vehicle control** | `create_driver()` builds a `ChDriver` that can be commanded either internally or via ROS. |
+| **Integrate ROS for communication** | `build_ros_bridge()` creates a `ChROSBridgeManager`, registers three handlers: <br>• **Clock sync** – publishes simulation time on `/clock`. <br>• **Driver inputs** – subscribes to `/hmmwv/driver_cmd`. <br>• **Vehicle state** – publishes current chassis velocity on `/hmmwv/vehicle_state`. |
+| **Simulation loop that synchronises and advances vehicle, terrain, driver** | `simulation_loop()` calls `ros_mgr.Synchronize()`, `system.DoStepDynamics()`, then `vehicle.Advance()`, `terrain.Advance()`, `driver.Advance()`, and finally `ros_mgr.Update()`. |
+
+> **Note**  
+> The script assumes that the ROS packages `std_msgs` and `geometry_msgs` are available (they are part of the standard ROS distribution).  
+> The `pychrono.ros` module (`chrono_ros`) provides the `ChROSBridgeManager` class; if your installation does not expose this class you can replace the ROS bridge with plain `rospy` publishers/subscribers. The structure shown here mirrors the high‑level API that Chrono::ROS exposes for C++ simulations.

@@ -1,0 +1,114 @@
+```python
+import pychrono as chrono
+import pychrono.robot as viper
+import pychrono.vehicle as veh
+from pychrono import irrlicht as chronoirr
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# -------------------------------------------------------------------------
+# Create SCM deformable terrain
+# -------------------------------------------------------------------------
+terrain_length = 20.0
+terrain_width = 20.0
+terrain_resolution = 0.05
+
+# Keep terrain surface at the same height as the previous rigid ground top.
+# Previous box: center z = -1, height = 1 -> top surface z = -0.5
+terrain_height = -0.5
+
+terrain = veh.SCMDeformableTerrain(system)
+terrain.SetPlane(
+    chrono.ChCoordsysd(
+        chrono.ChVector3d(0, 0, terrain_height),
+        chrono.ChQuaterniond(1, 0, 0, 0)
+    )
+)
+terrain.Initialize(terrain_length, terrain_width, terrain_resolution)
+
+# Soil parameters:
+# Bekker Kphi, Bekker Kc, Bekker n,
+# cohesion, friction angle, Janosi shear coefficient,
+# elastic stiffness, damping
+terrain.SetSoilParameters(
+    0.2e6,   # Bekker Kphi
+    0.0,     # Bekker Kc
+    1.1,     # Bekker n exponent
+    0.0,     # Mohr cohesion
+    30.0,    # Mohr friction angle, degrees
+    0.01,    # Janosi shear coefficient
+    4.0e7,   # Elastic stiffness
+    3.0e4    # Damping
+)
+
+# -------------------------------------------------------------------------
+# Create Viper rover
+# -------------------------------------------------------------------------
+rover = viper.Viper(system)
+
+driver = viper.ViperDCMotorControl()
+rover.SetDriver(driver)
+
+# Initialize rover position and orientation
+init_pos = chrono.ChVector3d(0, 0.2, 0)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+rover.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# -------------------------------------------------------------------------
+# Visualization
+# -------------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Viper rover - SCM deformable terrain")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(
+    chrono.ChVector3d(0, 2.5, 1.5),
+    chrono.ChVector3d(0, 0, 1)
+)
+vis.AddTypicalLights()
+vis.AddLightWithShadow(
+    chrono.ChVector3d(1.5, -2.5, 5.5),
+    chrono.ChVector3d(0, 0, 0.5),
+    3,
+    4,
+    10,
+    40,
+    512
+)
+
+# Simulation time step
+time_step = 1e-3
+
+# -------------------------------------------------------------------------
+# Simulation loop
+# -------------------------------------------------------------------------
+while vis.Run():
+    time = system.GetChTime()
+
+    # Constant steering, as requested
+    steering = 0.0
+    driver.SetSteering(steering)
+
+    # Update rover and terrain
+    rover.Update()
+    terrain.Synchronize(time)
+
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance terrain and system dynamics
+    terrain.Advance(time_step)
+    system.DoStepDynamics(time_step)
+```

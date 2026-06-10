@@ -1,0 +1,183 @@
+import math
+
+import pychrono as chrono                 # Main PyChrono module
+import pychrono.fea as fea                # Finite Element Analysis module
+import pychrono.pardisomkl as mkl         # Pardiso MKL linear solver module
+import pychrono.irrlicht as chronoirr     # Irrlicht visualization module
+
+print("Example: PyChrono using beam finite elements")
+
+# -------------------------------------------------------------------------
+# Create the physical system
+# -------------------------------------------------------------------------
+sys = chrono.ChSystemSMC()
+
+# -------------------------------------------------------------------------
+# Create the FEA mesh
+# -------------------------------------------------------------------------
+mesh = fea.ChMesh()
+
+# -------------------------------------------------------------------------
+# Euler-Bernoulli beam section setup
+# -------------------------------------------------------------------------
+# This section is used by Euler-Bernoulli beam elements.  It defines the
+# geometry, elastic properties, damping, and orientation of the beam section.
+msection = fea.ChBeamSectionEulerAdvanced()
+
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
+msection.SetDensity(1000.0)
+msection.SetRayleighDamping(0.000)
+
+msection.SetCentroid(0, 0.02)
+msection.SetShearCenter(0, 0.1)
+
+# SetSectionRotation expects radians, not degrees.
+msection.SetSectionRotation(math.radians(45.0))
+
+# -------------------------------------------------------------------------
+# Manually-created Euler-Bernoulli beam elements
+# -------------------------------------------------------------------------
+beam_L = 0.1
+
+hnode1 = fea.ChNodeFEAxyzrot(
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0))
+)
+hnode2 = fea.ChNodeFEAxyzrot(
+    chrono.ChFramed(chrono.ChVector3d(beam_L, 0, 0))
+)
+hnode3 = fea.ChNodeFEAxyzrot(
+    chrono.ChFramed(chrono.ChVector3d(beam_L * 2, 0, 0))
+)
+
+mesh.AddNode(hnode1)
+mesh.AddNode(hnode2)
+mesh.AddNode(hnode3)
+
+belement1 = fea.ChElementBeamEuler()
+belement1.SetNodes(hnode1, hnode2)
+belement1.SetSection(msection)
+mesh.AddElement(belement1)
+
+belement2 = fea.ChElementBeamEuler()
+belement2.SetNodes(hnode2, hnode3)
+belement2.SetSection(msection)
+mesh.AddElement(belement2)
+
+# Apply nodal loads
+hnode2.SetForce(chrono.ChVector3d(4, 2, 0))
+hnode3.SetTorque(chrono.ChVector3d(0, -0.04, 0))
+
+# -------------------------------------------------------------------------
+# Euler-Bernoulli beam setup using ChBuilderBeamEuler
+# -------------------------------------------------------------------------
+# The helper object automatically creates nodes and Euler beam elements
+# between point A and point B.
+builder = fea.ChBuilderBeamEuler()
+
+point_A = chrono.ChVector3d(0.0, 0.0, -0.1)
+point_B = chrono.ChVector3d(0.2, 0.0, -0.1)
+Y_up = chrono.ChVector3d(0.0, 1.0, 0.0)
+
+builder.BuildBeam(
+    mesh,
+    msection,
+    5,
+    point_A,
+    point_B,
+    Y_up
+)
+
+# Fix the last node of the beam created by the builder.
+builder.GetLastBeamNodes().back().SetFixed(True)
+
+# Apply a force to the first node of the beam created by the builder.
+builder.GetLastBeamNodes()[0].SetForce(chrono.ChVector3d(0, -1, 0))
+
+# -------------------------------------------------------------------------
+# Gravity settings
+# -------------------------------------------------------------------------
+mesh.SetAutomaticGravity(False)
+
+# Add mesh to the physical system
+sys.Add(mesh)
+
+# -------------------------------------------------------------------------
+# Boundary conditions using constraints
+# -------------------------------------------------------------------------
+mtruss = chrono.ChBody()
+mtruss.SetFixed(True)
+sys.Add(mtruss)
+
+# Fully constrain node 3 to the fixed truss.
+constr_bc = chrono.ChLinkMateGeneric()
+constr_bc.Initialize(hnode3, mtruss, False, hnode3.Frame(), hnode3.Frame())
+sys.Add(constr_bc)
+
+constr_bc.SetConstrainedCoords(
+    True, True, True,
+    True, True, True
+)
+
+# Node 1 is fixed using ChLinkMateGeneric instead of SetFixed.
+# hnode1.SetFixed(True)  # Replaced by the constraint below.
+
+constr_d = chrono.ChLinkMateGeneric()
+constr_d.Initialize(hnode1, mtruss, False, hnode1.Frame(), hnode1.Frame())
+sys.Add(constr_d)
+
+constr_d.SetConstrainedCoords(
+    True, True, True,
+    True, True, True
+)
+
+# -------------------------------------------------------------------------
+# Visualization
+# -------------------------------------------------------------------------
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+# -------------------------------------------------------------------------
+# Irrlicht visual system
+# -------------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("FEA beams")
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
+vis.AddTypicalLights()
+
+# -------------------------------------------------------------------------
+# MKL Pardiso solver
+# -------------------------------------------------------------------------
+msolver = mkl.ChSolverPardisoMKL()
+sys.SetSolver(msolver)
+
+# -------------------------------------------------------------------------
+# Simulation loop
+# -------------------------------------------------------------------------
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    sys.DoStepDynamics(0.001)

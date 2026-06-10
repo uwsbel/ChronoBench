@@ -1,0 +1,178 @@
+Here's a complete PyChrono simulation script for the Gator vehicle on rigid terrain:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+# -------------------------------------------------------------------
+# Set the data path for vehicle and Chrono resources
+# -------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# -------------------------------------------------------------------
+# Simulation parameters
+# -------------------------------------------------------------------
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (MESH for all components)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain dimensions
+terrainHeight = 0
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Simulation frame rate (50 FPS, real time)
+fps = 50
+render_step_size = 1.0 / fps
+
+# -------------------------------------------------------------------
+# Create and configure the Gator vehicle
+# -------------------------------------------------------------------
+gator = veh.Gator()
+gator.SetContactMethod(contact_method)
+gator.SetChassisCollisionType(chassis_collision_type)
+gator.SetChassisFixed(False)
+gator.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+gator.SetTireType(tire_model)
+gator.SetTireStepSize(tire_step_size)
+
+# Initialize the vehicle
+gator.Initialize()
+
+# Set visualization type for all vehicle subsystems to MESH
+gator.SetChassisVisualizationType(vis_type)
+gator.SetSuspensionVisualizationType(vis_type)
+gator.SetSteeringVisualizationType(vis_type)
+gator.SetWheelVisualizationType(vis_type)
+gator.SetTireVisualizationType(vis_type)
+
+# -------------------------------------------------------------------
+# Create the rigid terrain
+# -------------------------------------------------------------------
+terrain = veh.RigidTerrain(gator.GetSystem())
+
+# Define the terrain material (contact properties)
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+
+# Add a flat terrain patch with a custom texture
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+    terrainLength, terrainWidth)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+terrain.Initialize()
+
+# -------------------------------------------------------------------
+# Create the Irrlicht visualization
+# -------------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('Gator Vehicle Simulation')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 1.75), 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(gator.GetVehicle())
+
+# -------------------------------------------------------------------
+# Create the interactive driver system
+# -------------------------------------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for the driver inputs (in seconds)
+steering_time = 1.0   # time to go from 0 to +1 (or 0 to -1)
+throttle_time = 1.0   # time to go from 0 to +1
+braking_time = 0.3    # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# -------------------------------------------------------------------
+# Simulation loop
+# -------------------------------------------------------------------
+# Number of simulation steps between rendered frames
+render_steps = math.ceil(render_step_size / step_size)
+step_number = 0
+
+# Real-time timer for synchronization
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = gator.GetSystem().GetChTime()
+
+    # Render at the desired frame rate
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    # Collect driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (synchronize)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    gator.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance the simulation by one time step
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    gator.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment the step counter
+    step_number += 1
+
+    # Enforce real-time execution
+    realtime_timer.Spin(step_size)
+```
+
+### Key Features of This Script:
+
+1. **Environment Initialization**: Sets up the Chrono data paths and core simulation parameters.
+
+2. **Gator Vehicle Setup**:
+   - Configures initial location/orientation, NSC contact method, and **TMEASY** tire model.
+   - Sets **MESH visualization** for all components (chassis, suspension, steering, wheels, tires).
+
+3. **Rigid Terrain**:
+   - Creates a 100×100 m flat patch with friction/restitution material.
+   - Applies a **custom texture** (`tile4.jpg`) for visual realism.
+
+4. **Interactive Driver**:
+   - `ChInteractiveDriverIRR` enables keyboard control over **steering, throttle, and braking**.
+   - Response deltas are tied to the frame rate.
+
+5. **Real-Time Loop at 50 FPS**:
+   - Uses `render_step_size = 1/50` and `ChRealtimeStepTimer` to maintain real-time pacing.
+   - Synchronizes and advances all modules each step.
+
+You can control the vehicle using the keyboard (W/S for throttle/brake, A/D for steering) once the simulation window opens.

@@ -1,0 +1,183 @@
+"""
+PyChrono Simulation: Camera Sensor with Triangular Mesh
+========================================================
+This script loads a triangular mesh from a Wavefront .obj file, visualizes it as
+a fixed body, attaches a camera sensor with noise filters and visualizations,
+and orbits the camera around the mesh while printing buffer data.
+"""
+
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import math
+import time
+
+# ------------------------------------------------------------------
+# 1. Initialize the PyChrono Environment and Core Components
+# ------------------------------------------------------------------
+
+# Create the physical system that will hold all bodies and constraints
+mphysicalSystem = chrono.ChSystemNSC()
+
+# ------------------------------------------------------------------
+# 2. Load the Triangular Mesh and Add as a Fixed Body
+# ------------------------------------------------------------------
+
+# Path to the Wavefront .obj mesh file (uses Chrono data directory)
+mesh_filename = chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj")
+
+# Load the triangular mesh from the .obj file
+trimesh = chrono.ChTriangleMeshConnected()
+trimesh.LoadWavefrontMesh(mesh_filename, False, True)
+
+# Optionally scale the mesh
+trimesh.Transform(chrono.ChVector3d(0, 0, 0), chrono.ChMatrix33d(1.0))
+
+# Create a visualization shape from the triangle mesh
+trimesh_shape = chrono.ChVisualShapeTriangleMesh()
+trimesh_shape.SetMesh(trimesh)
+trimesh_shape.SetName("Triangular Mesh")
+trimesh_shape.SetMutable(False)
+
+# Create a fixed body to hold the mesh
+mesh_body = chrono.ChBody()
+mesh_body.SetPos(chrono.ChVector3d(0, 0, 0))
+mesh_body.AddVisualShape(trimesh_shape)
+mesh_body.SetFixed(True)  # Make the body static / fixed in the scene
+
+# Add the body to the system
+mphysicalSystem.Add(mesh_body)
+
+# ------------------------------------------------------------------
+# 3. Create the Sensor Manager
+# ------------------------------------------------------------------
+
+manager = sens.ChSensorManager(mphysicalSystem)
+
+# Configure a point light to illuminate the scene for the camera
+manager.scene.AddPointLight(
+    chrono.ChVector3f(100, 100, 100),   # position
+    chrono.ChColor(1, 1, 1),            # intensity / color
+    1000                                # max range
+)
+
+# ------------------------------------------------------------------
+# 4. Camera Sensor Parameters
+# ------------------------------------------------------------------
+
+# Update rate of the camera (Hz)
+update_rate = 30.0
+
+# Image resolution
+image_width = 1280
+image_height = 720
+
+# Camera field of view (radians)
+fov = 1.408
+
+# Lag time between sensor data acquisition (seconds)
+lag = 0.0
+
+# Exposure (collection) time for the camera
+exposure_time = 0.0
+
+# ------------------------------------------------------------------
+# 5. Create and Attach the Camera Sensor
+# ------------------------------------------------------------------
+
+# Initial offset pose for the camera relative to the mesh body
+offset_pose = chrono.ChFramed(
+    chrono.ChVector3d(-5, 0, 2),
+    chrono.QuatFromAngleAxis(0.2, chrono.ChVector3d(0, 1, 0))
+)
+
+# Create the camera sensor attached to the mesh body
+cam = sens.ChCameraSensor(
+    mesh_body,        # body to which the camera is attached
+    update_rate,      # update rate in Hz
+    offset_pose,      # offset pose
+    image_width,      # image width
+    image_height,     # image height
+    fov               # camera's horizontal field of view
+)
+cam.SetName("Orbiting Camera Sensor")
+cam.SetLag(lag)
+cam.SetCollectionWindow(exposure_time)
+
+# ------------------------------------------------------------------
+# 6. Add Noise Filters and Visualization Filters to the Camera
+# ------------------------------------------------------------------
+
+# --- Noise Model ---
+# Apply a Gaussian noise model with constant mean/std deviation
+# Parameters: mean, stdev
+cam.PushFilter(sens.ChFilterCameraNoiseConstNormal(0.0, 0.02))
+
+# --- Visualization of the raw (noisy) RGBA8 buffer ---
+cam.PushFilter(sens.ChFilterVisualize(image_width, image_height, "Camera (with Noise)"))
+
+# --- Access the RGBA8 buffer (needed for grabbing data on the host) ---
+cam.PushFilter(sens.ChFilterRGBA8Access())
+
+# Add the camera sensor to the sensor manager
+manager.AddSensor(cam)
+
+# ------------------------------------------------------------------
+# 7. Simulation Parameters
+# ------------------------------------------------------------------
+
+# Orbit parameters
+orbit_radius = 5.0
+orbit_rate = 0.5        # radians per second
+orbit_height = 2.0
+
+# Simulation step and end time
+step_size = 1e-2
+end_time = 40.0
+
+# ------------------------------------------------------------------
+# 8. Run the Simulation Loop
+# ------------------------------------------------------------------
+
+ch_time = 0.0
+render_time = 0.0
+
+print("Starting simulation...\n")
+
+while ch_time < end_time:
+
+    # --- Dynamically update the camera's position in an orbit ---
+    # Compute the new camera position around the mesh
+    cam_x = orbit_radius * math.cos(ch_time * orbit_rate)
+    cam_y = orbit_radius * math.sin(ch_time * orbit_rate)
+
+    new_pose = chrono.ChFramed(
+        chrono.ChVector3d(cam_x, cam_y, orbit_height),
+        # Point the camera toward the mesh (looking at the origin)
+        chrono.QuatFromAngleAxis(ch_time * orbit_rate + math.pi,
+                                 chrono.ChVector3d(0, 0, 1))
+    )
+    cam.SetOffsetPose(new_pose)
+
+    # --- Update the sensor manager (renders all sensors) ---
+    manager.Update()
+
+    # --- Access and print the camera buffer data ---
+    rgba8_buffer = cam.GetMostRecentRGBA8Buffer()
+    if rgba8_buffer.HasData():
+        rgba8_data = rgba8_buffer.GetRGBA8Data()
+        print(f"[t = {ch_time:6.2f} s] "
+              f"Camera buffer received: "
+              f"{rgba8_buffer.Width} x {rgba8_buffer.Height} | "
+              f"First pixel RGBA = "
+              f"({int(rgba8_data[0,0,0])}, {int(rgba8_data[0,0,1])}, "
+              f"{int(rgba8_data[0,0,2])}, {int(rgba8_data[0,0,3])})")
+    else:
+        print(f"[t = {ch_time:6.2f} s] No camera data yet...")
+
+    # --- Advance the simulation dynamics ---
+    mphysicalSystem.DoStepDynamics(step_size)
+
+    # Advance simulation time
+    ch_time = mphysicalSystem.GetChTime()
+
+print("\nSimulation complete.")

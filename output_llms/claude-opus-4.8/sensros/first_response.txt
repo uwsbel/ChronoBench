@@ -1,0 +1,247 @@
+# PyChrono Simulation with Sensors and ROS Integration
+
+```python
+import pychrono as ch
+import pychrono.sensor as sens
+import pychrono.ros as chros
+
+import math
+import numpy as np
+
+
+def main():
+    # ------------------------------------------------------------------
+    # 1. Initialize the PyChrono environment and core components
+    # ------------------------------------------------------------------
+    # Create the Chrono physical system
+    sys = ch.ChSystemNSC()
+    sys.SetGravitationalAcceleration(ch.ChVector3d(0, 0, -9.81))
+
+    # ------------------------------------------------------------------
+    # 2. Add the ground body and a mesh for visualization
+    # ------------------------------------------------------------------
+    # Create the ground body
+    ground = ch.ChBody()
+    ground.SetFixed(False)          # Allow the body to move
+    ground.SetPos(ch.ChVector3d(0, 0, 0))
+    ground.EnableCollision(False)
+    sys.Add(ground)
+
+    # Load a triangular mesh for visualization (attached to the ground)
+    mesh = ch.ChTriangleMeshConnected()
+    try:
+        mesh.LoadWavefrontMesh(
+            ch.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"),
+            False, True)
+        mesh.Transform(ch.ChVector3d(0, 0, 0),
+                       ch.ChMatrix33d(1))  # scale/transform if needed
+
+        trimesh_shape = ch.ChVisualShapeTriangleMesh()
+        trimesh_shape.SetMesh(mesh)
+        trimesh_shape.SetName("ground_mesh")
+        trimesh_shape.SetMutable(False)
+        ground.AddVisualShape(trimesh_shape, ch.ChFramed())
+    except Exception as e:
+        print("Could not load mesh, continuing without it:", e)
+
+    # ------------------------------------------------------------------
+    # Configure the ground body to move (prescribe a motion)
+    # ------------------------------------------------------------------
+    # Use a simple linear velocity to make the body translate over time
+    ground.SetPosDt(ch.ChVector3d(0.2, 0, 0))   # initial velocity (m/s)
+    # Add a small angular velocity to exercise rotational sensors
+    ground.SetAngVelLocal(ch.ChVector3d(0, 0, 0.1))
+
+    # ------------------------------------------------------------------
+    # 3. Create the sensor manager and attach the sensors
+    # ------------------------------------------------------------------
+    manager = sens.ChSensorManager(sys)
+
+    # Configure the scene lighting for the camera/lidar
+    manager.scene.AddPointLight(
+        ch.ChVector3f(2, 2, 2),
+        ch.ChColor(1, 1, 1),
+        500.0)
+
+    # Common sensor parameters
+    update_rate = 30.0          # Hz
+    offset_pose = ch.ChFramed(
+        ch.ChVector3d(0.0, 0.0, 1.0),
+        ch.QuatFromAngleAxis(0, ch.ChVector3d(0, 0, 1)))
+
+    # ----- Camera sensor -----
+    cam_width = 640
+    cam_height = 480
+    cam_fov = 1.408  # radians
+    camera = sens.ChCameraSensor(
+        ground,            # body the sensor is attached to
+        update_rate,       # update rate in Hz
+        offset_pose,       # offset pose
+        cam_width,         # image width
+        cam_height,        # image height
+        cam_fov)           # horizontal field of view
+    camera.SetName("camera_sensor")
+    camera.PushFilter(sens.ChFilterVisualize(cam_width, cam_height))
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+    manager.AddSensor(camera)
+
+    # ----- Lidar sensor -----
+    lidar_hsamples = 800
+    lidar_vsamples = 32
+    lidar = sens.ChLidarSensor(
+        ground,                    # body
+        update_rate,               # update rate
+        offset_pose,               # offset pose
+        lidar_hsamples,            # horizontal samples
+        lidar_vsamples,            # vertical samples
+        2 * math.pi,               # horizontal field of view
+        ch.CH_PI / 12,             # max vertical angle
+        -ch.CH_PI / 6,             # min vertical angle
+        100.0)                     # max distance
+    lidar.SetName("lidar_sensor")
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0))
+    manager.AddSensor(lidar)
+
+    # ----- GPS sensor -----
+    gps_reference = ch.ChVector3d(-121.75, 38.55, 0.0)  # lat/long/alt origin
+    gps_noise = sens.ChNoiseNone()
+    gps = sens.ChGPSSensor(
+        ground,
+        update_rate,
+        offset_pose,
+        gps_reference,
+        gps_noise)
+    gps.SetName("gps_sensor")
+    gps.PushFilter(sens.ChFilterGPSAccess())
+    manager.AddSensor(gps)
+
+    # ----- Accelerometer sensor -----
+    acc_noise = sens.ChNoiseNone()
+    accelerometer = sens.ChAccelerometerSensor(
+        ground,
+        update_rate,
+        offset_pose,
+        acc_noise)
+    accelerometer.SetName("accelerometer_sensor")
+    accelerometer.PushFilter(sens.ChFilterAccelAccess())
+    manager.AddSensor(accelerometer)
+
+    # ----- Gyroscope sensor -----
+    gyro_noise = sens.ChNoiseNone()
+    gyroscope = sens.ChGyroscopeSensor(
+        ground,
+        update_rate,
+        offset_pose,
+        gyro_noise)
+    gyroscope.SetName("gyroscope_sensor")
+    gyroscope.PushFilter(sens.ChFilterGyroAccess())
+    manager.AddSensor(gyroscope)
+
+    # ----- Magnetometer sensor -----
+    mag_noise = sens.ChNoiseNone()
+    magnetometer = sens.ChMagnetometerSensor(
+        ground,
+        update_rate,
+        offset_pose,
+        mag_noise,
+        gps_reference)
+    magnetometer.SetName("magnetometer_sensor")
+    magnetometer.PushFilter(sens.ChFilterMagnetAccess())
+    manager.AddSensor(magnetometer)
+
+    # ------------------------------------------------------------------
+    # 4. Register the sensors with a ROS manager
+    # ------------------------------------------------------------------
+    ros_manager = chros.ChROSPythonManager()
+
+    # Register a clock handler so ROS time is published
+    ros_manager.RegisterHandler(chros.ChROSClockHandler())
+
+    # Camera handler -> /chrono/camera/data/image
+    ros_manager.RegisterHandler(
+        chros.ChROSCameraHandler(
+            camera.GetUpdateRate(), camera,
+            "~/output/camera/data/image"))
+
+    # Lidar handler -> /chrono/lidar/data/pointcloud
+    ros_manager.RegisterHandler(
+        chros.ChROSLidarHandler(
+            lidar, "~/output/lidar/data/pointcloud"))
+
+    # GPS handler -> /chrono/gps/data
+    ros_manager.RegisterHandler(
+        chros.ChROSGPSHandler(
+            gps, "~/output/gps/data"))
+
+    # Accelerometer handler -> /chrono/accelerometer/data
+    ros_manager.RegisterHandler(
+        chros.ChROSAccelerometerHandler(
+            accelerometer, "~/output/accelerometer/data"))
+
+    # Gyroscope handler -> /chrono/gyroscope/data
+    ros_manager.RegisterHandler(
+        chros.ChROSGyroscopeHandler(
+            gyroscope, "~/output/gyroscope/data"))
+
+    # Magnetometer handler -> /chrono/magnetometer/data
+    ros_manager.RegisterHandler(
+        chros.ChROSMagnetometerHandler(
+            magnetometer, "~/output/magnetometer/data"))
+
+    # Initialize the ROS manager (creates the ROS node and publishers)
+    ros_manager.Initialize()
+
+    # ------------------------------------------------------------------
+    # 5. Run the simulation loop
+    # ------------------------------------------------------------------
+    time = 0.0
+    time_end = 30.0
+    step_size = 1e-3
+
+    # Real-time timer to maintain real-time execution
+    realtime_timer = ch.ChRealtimeStepTimer()
+
+    print("Starting simulation...")
+    while time < time_end:
+        time = sys.GetChTime()
+
+        # Update all sensors (renders, filters, etc.)
+        manager.Update()
+
+        # Update / publish the ROS data; stop if requested
+        if not ros_manager.Update(time, step_size):
+            break
+
+        # Advance the dynamics
+        sys.DoStepDynamics(step_size)
+
+        # Enforce real-time execution
+        realtime_timer.Spin(step_size)
+
+    print("Simulation finished.")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Key Components Explained
+
+**1. System & Core Setup**
+- A `ChSystemNSC` is created and gravity is applied.
+
+**2. Ground Body & Mesh**
+- A movable `ChBody` is added with an attached triangular mesh (`ChVisualShapeTriangleMesh`).
+- The body is given linear and angular velocities so the dynamic sensors (accelerometer, gyroscope) produce meaningful data.
+
+**3. Sensor Manager & Sensors**
+- A `ChSensorManager` manages all six sensors, each attached to the ground body with an offset pose.
+- Each sensor has the appropriate access filter pushed, and the camera/lidar add visualization filters.
+
+**4. ROS Manager Registration**
+- A `ChROSPythonManager` registers a clock handler plus one handler per sensor, mapping each to a dedicated ROS topic.
+
+**5. Simulation Loop**
+- The loop updates sensors, publishes via ROS, advances dynamics with `DoStepDynamics`, and uses a `ChRealtimeStepTimer` to keep wall-clock pace.

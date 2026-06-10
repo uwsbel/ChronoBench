@@ -1,0 +1,285 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+import csv
+
+# -----------------------------------------------------------------------------
+# Chrono data paths
+# -----------------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+
+# -----------------------------------------------------------------------------
+# Initial vehicle locations and orientations
+# -----------------------------------------------------------------------------
+
+# Changed initial truck location and orientation
+truck_initLoc = chrono.ChVector3d(-20.0, -2.0, 0.8)
+truck_initRot = chrono.QuatFromAngleZ(0.05)
+
+# Added initial sedan location and orientation
+sedan_initLoc = chrono.ChVector3d(-35.0, 2.0, 0.5)
+sedan_initRot = chrono.QuatFromAngleZ(0.0)
+
+# Visualization type for vehicle parts
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis
+chassis_collision_type = veh.CollisionType_NONE
+
+# Changed truck tire model to rigid
+truck_tire_model = veh.TireModelType_RIGID
+
+# Sedan tire model
+sedan_tire_model = veh.TireModelType_TMEASY
+
+# Camera track point
+trackPoint = chrono.ChVector3d(0, 0, 2.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50.0
+
+# -----------------------------------------------------------------------------
+# Create and initialize the Kraz truck
+# -----------------------------------------------------------------------------
+truck = veh.Kraz()
+truck.SetContactMethod(contact_method)
+truck.SetChassisCollisionType(chassis_collision_type)
+truck.SetChassisFixed(False)
+truck.SetInitPosition(chrono.ChCoordsysd(truck_initLoc, truck_initRot))
+truck.SetTireType(truck_tire_model)
+truck.SetTireStepSize(tire_step_size)
+truck.Initialize()
+
+truck.SetChassisVisualizationType(vis_type, vis_type)
+truck.SetSteeringVisualizationType(vis_type)
+truck.SetSuspensionVisualizationType(vis_type, vis_type)
+truck.SetWheelVisualizationType(vis_type, vis_type)
+truck.SetTireVisualizationType(vis_type, vis_type)
+
+truck.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# -----------------------------------------------------------------------------
+# Create and initialize the sedan in the same system as the truck
+# -----------------------------------------------------------------------------
+sedan = veh.Sedan(truck.GetSystem())
+sedan.SetContactMethod(contact_method)
+sedan.SetChassisCollisionType(chassis_collision_type)
+sedan.SetChassisFixed(False)
+sedan.SetInitPosition(chrono.ChCoordsysd(sedan_initLoc, sedan_initRot))
+sedan.SetTireType(sedan_tire_model)
+sedan.SetTireStepSize(tire_step_size)
+sedan.Initialize()
+
+sedan.SetChassisVisualizationType(vis_type)
+sedan.SetSteeringVisualizationType(vis_type)
+sedan.SetSuspensionVisualizationType(vis_type)
+sedan.SetWheelVisualizationType(vis_type)
+sedan.SetTireVisualizationType(vis_type)
+
+# -----------------------------------------------------------------------------
+# Terrain: predefined highway mesh
+# -----------------------------------------------------------------------------
+terrain_file = veh.GetDataFile("terrain/Highway.json")
+terrain = veh.RigidTerrain(truck.GetSystem(), terrain_file)
+terrain.Initialize()
+
+# -----------------------------------------------------------------------------
+# Visualization system
+# -----------------------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("Kraz + Sedan Highway Demo")
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 25.0, 1.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+
+# Camera follows the Kraz tractor
+vis.AttachVehicle(truck.GetTractor())
+
+# -----------------------------------------------------------------------------
+# Driver system for the truck: interactive Irrlicht driver
+# -----------------------------------------------------------------------------
+truck_driver = veh.ChInteractiveDriverIRR(vis)
+
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+
+truck_driver.SetSteeringDelta(render_step_size / steering_time)
+truck_driver.SetThrottleDelta(render_step_size / throttle_time)
+truck_driver.SetBrakingDelta(render_step_size / braking_time)
+truck_driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# Driver system for the sedan: fixed throttle and fixed steering
+# -----------------------------------------------------------------------------
+class FixedSedanDriver:
+    def __init__(self, throttle=0.35, steering=0.0, braking=0.0):
+        self.inputs = veh.DriverInputs()
+        self.inputs.m_throttle = throttle
+        self.inputs.m_steering = steering
+        self.inputs.m_braking = braking
+
+    def Initialize(self):
+        pass
+
+    def Synchronize(self, time):
+        pass
+
+    def Advance(self, step):
+        pass
+
+    def GetInputs(self):
+        return self.inputs
+
+
+sedan_driver = FixedSedanDriver(
+    throttle=0.35,
+    steering=0.0,
+    braking=0.0
+)
+sedan_driver.Initialize()
+
+# -----------------------------------------------------------------------------
+# Output vehicle masses
+# -----------------------------------------------------------------------------
+print("TRUCK TRACTOR MASS:", truck.GetTractor().GetMass())
+print("SEDAN MASS:", sedan.GetVehicle().GetMass())
+
+# -----------------------------------------------------------------------------
+# Storage for tractor and trailer state history
+# -----------------------------------------------------------------------------
+truck_state_history = []
+
+def vec_to_tuple(v):
+    return (v.x, v.y, v.z)
+
+def quat_to_tuple(q):
+    return (q.e0, q.e1, q.e2, q.e3)
+
+def store_truck_state(time):
+    tractor_body = truck.GetTractor().GetChassisBody()
+    trailer_body = truck.GetTrailer().GetChassisBody()
+
+    tractor_pos = tractor_body.GetPos()
+    tractor_rot = tractor_body.GetRot()
+    tractor_lin_vel = tractor_body.GetPosDt()
+    tractor_ang_vel = tractor_body.GetAngVelParent()
+
+    trailer_pos = trailer_body.GetPos()
+    trailer_rot = trailer_body.GetRot()
+    trailer_lin_vel = trailer_body.GetPosDt()
+    trailer_ang_vel = trailer_body.GetAngVelParent()
+
+    truck_state_history.append({
+        "time": time,
+
+        "tractor_pos": vec_to_tuple(tractor_pos),
+        "tractor_rot": quat_to_tuple(tractor_rot),
+        "tractor_lin_vel": vec_to_tuple(tractor_lin_vel),
+        "tractor_ang_vel": vec_to_tuple(tractor_ang_vel),
+
+        "trailer_pos": vec_to_tuple(trailer_pos),
+        "trailer_rot": quat_to_tuple(trailer_rot),
+        "trailer_lin_vel": vec_to_tuple(trailer_lin_vel),
+        "trailer_ang_vel": vec_to_tuple(trailer_ang_vel)
+    })
+
+# -----------------------------------------------------------------------------
+# Simulation loop
+# -----------------------------------------------------------------------------
+render_steps = math.ceil(render_step_size / step_size)
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = truck.GetSystem().GetChTime()
+
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+        # Store tractor and trailer state at render-frame rate
+        store_truck_state(time)
+
+    # Driver inputs
+    truck_driver_inputs = truck_driver.GetInputs()
+    sedan_driver_inputs = sedan_driver.GetInputs()
+
+    # Synchronize modules
+    truck_driver.Synchronize(time)
+    sedan_driver.Synchronize(time)
+
+    terrain.Synchronize(time)
+
+    truck.Synchronize(time, truck_driver_inputs, terrain)
+    sedan.Synchronize(time, sedan_driver_inputs, terrain)
+
+    vis.Synchronize(time, truck_driver_inputs)
+
+    # Advance modules
+    truck_driver.Advance(step_size)
+    sedan_driver.Advance(step_size)
+
+    terrain.Advance(step_size)
+
+    truck.Advance(step_size)
+    sedan.Advance(step_size)
+
+    vis.Advance(step_size)
+
+    step_number += 1
+
+    realtime_timer.Spin(step_size)
+
+# -----------------------------------------------------------------------------
+# Save stored truck tractor/trailer state history
+# -----------------------------------------------------------------------------
+with open("truck_tractor_trailer_state_history.csv", "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+
+    writer.writerow([
+        "time",
+
+        "tractor_x", "tractor_y", "tractor_z",
+        "tractor_q0", "tractor_q1", "tractor_q2", "tractor_q3",
+        "tractor_vx", "tractor_vy", "tractor_vz",
+        "tractor_wx", "tractor_wy", "tractor_wz",
+
+        "trailer_x", "trailer_y", "trailer_z",
+        "trailer_q0", "trailer_q1", "trailer_q2", "trailer_q3",
+        "trailer_vx", "trailer_vy", "trailer_vz",
+        "trailer_wx", "trailer_wy", "trailer_wz"
+    ])
+
+    for state in truck_state_history:
+        writer.writerow([
+            state["time"],
+
+            *state["tractor_pos"],
+            *state["tractor_rot"],
+            *state["tractor_lin_vel"],
+            *state["tractor_ang_vel"],
+
+            *state["trailer_pos"],
+            *state["trailer_rot"],
+            *state["trailer_lin_vel"],
+            *state["trailer_ang_vel"]
+        ])
+
+print("Saved truck tractor/trailer state history to truck_tractor_trailer_state_history.csv")

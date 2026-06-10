@@ -1,0 +1,164 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# ----------------------------------------------------------------------
+# Set the Chrono data paths
+# ----------------------------------------------------------------------
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# ----------------------------------------------------------------------
+# Simulation parameters
+# ----------------------------------------------------------------------
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(-5, 0, 0.7)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (MESH for full visualization)
+vis_type = veh.VisualizationType_MESH
+
+# Type of tire model (RIGID)
+tire_model = veh.TireModelType_RIGID
+
+# Terrain dimensions
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Simulation step size
+step_size = 2e-3
+
+# Time interval between rendered frames (50 FPS)
+render_step_size = 1.0 / 50
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.75)
+
+# ----------------------------------------------------------------------
+# Create and initialize the HMMWV vehicle
+# ----------------------------------------------------------------------
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+hmmwv.SetTireType(tire_model)
+hmmwv.SetTireStepSize(step_size)
+hmmwv.Initialize()
+
+# Apply mesh visualization to all vehicle components
+hmmwv.SetChassisVisualizationType(vis_type)
+hmmwv.SetSuspensionVisualizationType(vis_type)
+hmmwv.SetSteeringVisualizationType(vis_type)
+hmmwv.SetWheelVisualizationType(vis_type)
+hmmwv.SetTireVisualizationType(vis_type)
+
+# ----------------------------------------------------------------------
+# Create the SCM deformable terrain
+# ----------------------------------------------------------------------
+terrain = veh.SCMTerrain(hmmwv.GetSystem())
+
+# Set the SCM soil parameters (custom)
+#   Bekker Kphi, Bekker Kc, Bekker n exponent
+#   Mohr cohesive limit (Pa), Mohr friction limit (degrees)
+#   Janosi shear coefficient (m)
+#   Elastic stiffness (Pa/m), damping (Pa s/m)
+terrain.SetSoilParameters(
+    2e6,    # Bekker Kphi
+    0,      # Bekker Kc
+    1.1,    # Bekker n exponent
+    0,      # Mohr cohesive limit (Pa)
+    30,     # Mohr friction limit (degrees)
+    0.01,   # Janosi shear coefficient (m)
+    2e8,    # Elastic stiffness (Pa/m), before plastic yield
+    3e4     # Damping (Pa s/m)
+)
+
+# Enable a moving patch feature that follows the vehicle chassis
+# Arguments: tracked body, OOBB center offset, OOBB dimensions
+terrain.AddMovingPatch(
+    hmmwv.GetChassisBody(),
+    chrono.ChVector3d(0, 0, 0),
+    chrono.ChVector3d(5, 3, 1)
+)
+
+# Set plot type to visualize sinkage with false color plotting
+terrain.SetPlotType(veh.SCMTerrain.PLOT_SINKAGE, 0, 0.1)
+
+# Initialize the terrain (mesh resolution defined by grid spacing)
+terrain.Initialize(terrainLength, terrainWidth, 0.02)
+
+# ----------------------------------------------------------------------
+# Create the Irrlicht visualization
+# ----------------------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV on SCM Deformable Terrain')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(hmmwv.GetVehicle())
+
+# ----------------------------------------------------------------------
+# Create the interactive driver system
+# ----------------------------------------------------------------------
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering, throttle, and braking inputs
+steering_time = 1.0   # time to go from 0 to +1 (or 0 to -1)
+throttle_time = 1.0   # time to go from 0 to +1
+braking_time = 0.3    # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+# ----------------------------------------------------------------------
+# Simulation loop
+# ----------------------------------------------------------------------
+# Number of simulation steps between two rendered frames
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+step_number = 0
+render_frame = 0
+
+# Create a real-time timer to ensure simulation runs in real time
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = hmmwv.GetSystem().GetChTime()
+
+    # Render scene at the prescribed frame rate
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from the driver)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    hmmwv.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place to maintain real-time execution
+    realtime_timer.Spin(step_size)

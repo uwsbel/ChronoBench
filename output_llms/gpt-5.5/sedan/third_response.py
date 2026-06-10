@@ -1,0 +1,275 @@
+import os
+import math
+import argparse
+
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+
+
+# ---------------------------------------------------------------------
+# Command-line input: reference speed for PID speed control
+# ---------------------------------------------------------------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--ref-speed",
+    type=float,
+    default=15.0,
+    help="Reference vehicle speed in m/s for PID throttle control.",
+)
+args, _ = parser.parse_known_args()
+
+reference_speed = max(0.0, args.ref_speed)
+
+
+# ---------------------------------------------------------------------
+# Chrono data paths
+# ---------------------------------------------------------------------
+
+chrono_data_path = chrono.GetChronoDataPath()
+if not chrono_data_path.endswith(("/", "\\")):
+    chrono_data_path += "/"
+
+chrono.SetChronoDataPath(chrono_data_path)
+veh.SetDataPath(chrono_data_path + "vehicle/")
+
+
+# ---------------------------------------------------------------------
+# Initial vehicle location and orientation - adjusted for highway mesh
+# ---------------------------------------------------------------------
+
+initLoc = chrono.ChVector3d(-45.0, -3.5, 0.7)
+initYaw = 0.0
+initRot = chrono.QuatFromAngleZ(initYaw)
+
+
+# ---------------------------------------------------------------------
+# Visualization and vehicle setup options
+# ---------------------------------------------------------------------
+
+vis_type = veh.VisualizationType_MESH
+chassis_collision_type = veh.CollisionType_NONE
+tire_model = veh.TireModelType_TMEASY
+
+trackPoint = chrono.ChVector3d(-5.0, 0.0, 1.8)
+
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+
+# ---------------------------------------------------------------------
+# Simulation step sizes - decreased for finer control
+# ---------------------------------------------------------------------
+
+step_size = 5e-4
+tire_step_size = step_size
+
+render_step_size = 1.0 / 100.0  # 100 FPS
+
+
+# ---------------------------------------------------------------------
+# Create and initialize vehicle
+# ---------------------------------------------------------------------
+
+vehicle = veh.BMW_E90()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+
+# ---------------------------------------------------------------------
+# Create highway mesh terrain
+# ---------------------------------------------------------------------
+
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+
+terrain_pose = chrono.ChCoordsysd(
+    chrono.ChVector3d(0.0, 0.0, 0.0),
+    chrono.QUNIT
+)
+
+# Try common Chrono highway mesh names across versions/installations.
+highway_mesh_candidates = [
+    "terrain/meshes/highway.obj",
+    "terrain/meshes/highway_col.obj",
+    "terrain/meshes/Highway.obj",
+    "terrain/meshes/Highway_col.obj",
+]
+
+highway_mesh = None
+for mesh_rel_path in highway_mesh_candidates:
+    mesh_abs_path = veh.GetDataFile(mesh_rel_path)
+    if os.path.isfile(mesh_abs_path):
+        highway_mesh = mesh_abs_path
+        break
+
+if highway_mesh is None:
+    raise FileNotFoundError(
+        "Could not find a highway terrain mesh. Tried:\n"
+        + "\n".join(veh.GetDataFile(p) for p in highway_mesh_candidates)
+    )
+
+patch = terrain.AddPatch(
+    patch_mat,
+    terrain_pose,
+    highway_mesh,
+    "highway"
+)
+
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+terrain.Initialize()
+
+
+# ---------------------------------------------------------------------
+# Create Irrlicht visualization system
+# ---------------------------------------------------------------------
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("BMW E90 - Highway Mesh with PID Speed Control")
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+
+# ---------------------------------------------------------------------
+# Create interactive driver
+# Steering remains manual; throttle is overridden by PID controller.
+# ---------------------------------------------------------------------
+
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Increased steering response time to 5 seconds.
+steering_time = 5.0
+throttle_time = 1.0
+braking_time = 0.3
+
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+# ---------------------------------------------------------------------
+# PID throttle controller
+# ---------------------------------------------------------------------
+
+Kp = 0.08
+Ki = 0.02
+Kd = 0.002
+
+speed_error_integral = 0.0
+previous_speed_error = reference_speed
+
+integral_limit = 20.0
+
+
+def clamp(value, low, high):
+    return max(low, min(high, value))
+
+
+def compute_pid_throttle(current_speed, dt):
+    global speed_error_integral
+    global previous_speed_error
+
+    speed_error = reference_speed - current_speed
+
+    speed_error_integral += speed_error * dt
+    speed_error_integral = clamp(
+        speed_error_integral,
+        -integral_limit,
+        integral_limit
+    )
+
+    speed_error_derivative = (speed_error - previous_speed_error) / dt
+    previous_speed_error = speed_error
+
+    pid_output = (
+        Kp * speed_error
+        + Ki * speed_error_integral
+        + Kd * speed_error_derivative
+    )
+
+    throttle = clamp(pid_output, 0.0, 1.0)
+
+    # Optional mild automatic braking if vehicle overspeeds significantly.
+    auto_braking = 0.0
+    if pid_output < -0.05:
+        auto_braking = clamp(-pid_output, 0.0, 0.5)
+
+    return throttle, auto_braking
+
+
+# ---------------------------------------------------------------------
+# Simulation loop
+# ---------------------------------------------------------------------
+
+print("VEHICLE MASS:", vehicle.GetVehicle().GetMass())
+print("REFERENCE SPEED:", reference_speed, "m/s")
+
+render_steps = math.ceil(render_step_size / step_size)
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs.
+    # Steering and manual braking remain available from keyboard input.
+    driver_inputs = driver.GetInputs()
+
+    # PID speed control overrides throttle.
+    current_speed = vehicle.GetVehicle().GetSpeed()
+    pid_throttle, pid_braking = compute_pid_throttle(current_speed, step_size)
+
+    driver_inputs.m_throttle = pid_throttle
+    driver_inputs.m_braking = max(driver_inputs.m_braking, pid_braking)
+
+    # Synchronize modules.
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance modules.
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    step_number += 1
+
+    realtime_timer.Spin(step_size)

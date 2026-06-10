@@ -1,0 +1,313 @@
+```python
+# Jeffcott rotor with an IGA beam in PyChrono
+# ------------------------------------------------------------
+# Models a flexible shaft using an IGA FEM beam, a flywheel at
+# midspan, and a rotational speed motor driving one shaft end.
+# Visualization is done with Irrlicht and FEM beam visualization.
+
+import math
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+
+
+# ---------------------------------------------------------------------
+# Compatibility helpers for different PyChrono releases
+# ---------------------------------------------------------------------
+Vec = chrono.ChVectorD if hasattr(chrono, "ChVectorD") else chrono.ChVector3d
+Frame = chrono.ChFrameD if hasattr(chrono, "ChFrameD") else chrono.ChFramed
+
+def set_fixed(body, fixed=True):
+    if hasattr(body, "SetBodyFixed"):
+        body.SetBodyFixed(fixed)
+    else:
+        body.SetFixed(fixed)
+
+def set_gravity(system, g):
+    if hasattr(system, "Set_G_acc"):
+        system.Set_G_acc(g)
+    else:
+        system.SetGravitationalAcceleration(g)
+
+def add_item(system, item):
+    if hasattr(system, "Add"):
+        system.Add(item)
+    else:
+        system.AddItem(item)
+
+
+# ---------------------------------------------------------------------
+# Create Chrono physical system
+# ---------------------------------------------------------------------
+system = chrono.ChSystemSMC()
+set_gravity(system, Vec(0, -9.81, 0))
+
+# Solver setup
+try:
+    solver = chrono.ChSolverMINRES()
+    solver.SetMaxIterations(300)
+    solver.SetTolerance(1e-10)
+    solver.EnableDiagonalPreconditioner(True)
+    solver.SetVerbose(False)
+    system.SetSolver(solver)
+except Exception:
+    pass
+
+# HHT time integrator is well suited for flexible-body dynamics
+try:
+    stepper = chrono.ChTimestepperHHT(system)
+    stepper.SetAlpha(-0.15)
+    stepper.SetMaxiters(20)
+    stepper.SetAbsTolerances(1e-8)
+    system.SetTimestepper(stepper)
+except Exception:
+    pass
+
+
+# ---------------------------------------------------------------------
+# Rotor / beam parameters
+# ---------------------------------------------------------------------
+shaft_length = 1.0
+shaft_diameter = 0.018
+shaft_density = 7800.0
+E = 2.10e11
+G = 8.0e10
+
+n_iga_elements = 16
+iga_order = 3
+
+flywheel_radius = 0.085
+flywheel_width = 0.045
+flywheel_mass = 5.0
+
+# Small center-of-mass eccentricity to excite Jeffcott whirl
+eccentricity = 1.5e-3
+
+motor_speed = 140.0       # rad/s
+time_step = 2.0e-4
+
+
+# ---------------------------------------------------------------------
+# Ground body
+# ---------------------------------------------------------------------
+ground = chrono.ChBody()
+set_fixed(ground, True)
+add_item(system, ground)
+
+
+# ---------------------------------------------------------------------
+# FEM mesh and IGA beam section
+# ---------------------------------------------------------------------
+mesh = fea.ChMesh()
+add_item(system, mesh)
+
+# Beam section for an IGA/Cosserat beam
+try:
+    section = fea.ChBeamSectionCosseratEasyCircular(
+        shaft_diameter,
+        shaft_density,
+        E,
+        G,
+        0.002
+    )
+except Exception:
+    # Fallback for older builds
+    section = fea.ChBeamSectionEulerAdvanced()
+    section.SetDensity(shaft_density)
+    section.SetYoungModulus(E)
+    section.SetGshearModulus(G)
+    try:
+        section.SetAsCircularSection(shaft_diameter)
+    except Exception:
+        section.SetAsRectangularSection(shaft_diameter, shaft_diameter)
+    try:
+        section.SetRayleighDamping(0.002)
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------
+# Build IGA beam
+# ---------------------------------------------------------------------
+start = Vec(0, 0, 0)
+end = Vec(shaft_length, 0, 0)
+up_dir = Vec(0, 1, 0)
+
+builder = fea.ChBuilderBeamIGA()
+
+# Different Chrono versions expose slightly different argument order.
+# Try common signatures.
+built = False
+build_attempts = [
+    lambda: builder.BuildBeam(mesh, section, n_iga_elements, start, end, up_dir, iga_order),
+    lambda: builder.BuildBeam(mesh, section, n_iga_elements, iga_order, start, end, up_dir),
+    lambda: builder.BuildBeam(mesh, section, start, end, up_dir, iga_order, n_iga_elements),
+    lambda: builder.BuildBeam(mesh, section, start, end, up_dir, n_iga_elements, iga_order),
+    lambda: builder.BuildBeam(mesh, section, n_iga_elements, start, end, up_dir),
+]
+
+for attempt in build_attempts:
+    try:
+        attempt()
+        built = True
+        break
+    except TypeError:
+        pass
+
+if not built:
+    raise RuntimeError("Could not build the IGA beam. Check your PyChrono FEA version.")
+
+beam_nodes = list(builder.GetLastBeamNodes())
+
+left_node = beam_nodes[0]
+center_node = beam_nodes[len(beam_nodes) // 2]
+right_node = beam_nodes[-1]
+
+
+# ---------------------------------------------------------------------
+# Rigid bodies representing shaft-end bearing hubs
+# ---------------------------------------------------------------------
+hub_mass = 0.2
+hub_inertia = Vec(1e-4, 1e-4, 1e-4)
+
+left_hub = chrono.ChBody()
+left_hub.SetMass(hub_mass)
+left_hub.SetInertiaXX(hub_inertia)
+left_hub.SetPos(start)
+add_item(system, left_hub)
+
+right_hub = chrono.ChBody()
+right_hub.SetMass(hub_mass)
+right_hub.SetInertiaXX(hub_inertia)
+right_hub.SetPos(end)
+add_item(system, right_hub)
+
+
+# ---------------------------------------------------------------------
+# Attach beam end nodes to rigid bearing hubs
+# ---------------------------------------------------------------------
+def attach_node_to_body(node, body):
+    # Translational constraint
+    link_pos = fea.ChLinkNodeFrame()
+    link_pos.Initialize(node, body)
+    add_item(system, link_pos)
+
+    # Rotational constraint for xyzrot beam nodes
+    try:
+        link_rot = fea.ChLinkNodeFrameRot()
+        link_rot.Initialize(node, body)
+        add_item(system, link_rot)
+    except Exception:
+        pass
+
+attach_node_to_body(left_node, left_hub)
+attach_node_to_body(right_node, right_hub)
+
+
+# ---------------------------------------------------------------------
+# Rotational motor at left end and revolute bearing at right end
+# ---------------------------------------------------------------------
+# Chrono rotational motor/revolute joint axis is the local Z axis.
+# Rotate the joint frame so local Z aligns with global X, the shaft axis.
+q_shaft_axis = chrono.Q_from_AngAxis(math.pi / 2.0, Vec(0, 1, 0))
+
+left_joint_frame = Frame(start, q_shaft_axis)
+right_joint_frame = Frame(end, q_shaft_axis)
+
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(left_hub, ground, left_joint_frame)
+motor.SetSpeedFunction(chrono.ChFunctionConst(motor_speed))
+add_item(system, motor)
+
+right_bearing = chrono.ChLinkLockRevolute()
+right_bearing.Initialize(right_hub, ground, right_joint_frame)
+add_item(system, right_bearing)
+
+
+# ---------------------------------------------------------------------
+# Flywheel at shaft center
+# ---------------------------------------------------------------------
+flywheel_pos = Vec(0.5 * shaft_length, 0, 0)
+
+flywheel = chrono.ChBody()
+flywheel.SetMass(flywheel_mass)
+flywheel.SetPos(flywheel_pos)
+
+# Inertia tensor for a solid cylinder whose symmetry axis is X
+Ixx = 0.5 * flywheel_mass * flywheel_radius**2
+Iyy = (1.0 / 12.0) * flywheel_mass * (3.0 * flywheel_radius**2 + flywheel_width**2)
+Izz = Iyy
+flywheel.SetInertiaXX(Vec(Ixx, Iyy, Izz))
+
+# Offset COM from reference frame to create a small unbalance
+try:
+    flywheel.SetFrameCOMToRef(Frame(Vec(0, eccentricity, 0), chrono.QUNIT))
+except Exception:
+    pass
+
+add_item(system, flywheel)
+
+# Visual cylinder for flywheel
+try:
+    flywheel_shape = chrono.ChVisualShapeCylinder(flywheel_radius, flywheel_width)
+    flywheel_shape.SetColor(chrono.ChColor(0.2, 0.25, 0.85))
+
+    # Cylinder visual axis is commonly local Z, rotate it to align with X
+    flywheel.AddVisualShape(flywheel_shape, Frame(Vec(0, 0, 0), q_shaft_axis))
+except Exception:
+    pass
+
+# Attach center beam node to flywheel
+attach_node_to_body(center_node, flywheel)
+
+
+# ---------------------------------------------------------------------
+# FEM visualization
+# ---------------------------------------------------------------------
+try:
+    vis_beam = fea.ChVisualShapeFEA(mesh)
+    vis_beam.SetFEMdataType(fea.ChVisualShapeFEA.DataType_NODE_SPEED_NORM)
+    vis_beam.SetColorscaleMinMax(0.0, 3.0)
+    vis_beam.SetSmoothFaces(True)
+    vis_beam.SetWireframe(False)
+    mesh.AddVisualShapeFEA(vis_beam)
+
+    vis_wire = fea.ChVisualShapeFEA(mesh)
+    vis_wire.SetFEMdataType(fea.ChVisualShapeFEA.DataType_SURFACE)
+    vis_wire.SetWireframe(True)
+    vis_wire.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
+    mesh.AddVisualShapeFEA(vis_wire)
+
+except Exception:
+    # Older PyChrono visualization API
+    vis_beam = fea.ChVisualizationFEAmesh(mesh)
+    vis_beam.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_SPEED_NORM)
+    vis_beam.SetColorscaleMinMax(0.0, 3.0)
+    vis_beam.SetSmoothFaces(True)
+    vis_beam.SetWireframe(False)
+    mesh.AddAsset(vis_beam)
+
+
+# ---------------------------------------------------------------------
+# Irrlicht visualization
+# ---------------------------------------------------------------------
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Jeffcott Rotor with IGA Beam - PyChrono")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(Vec(1.25, -1.1, 0.55), Vec(0.5, 0, 0))
+vis.AddTypicalLights()
+
+
+# ---------------------------------------------------------------------
+# Simulation loop
+# ---------------------------------------------------------------------
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)
+```

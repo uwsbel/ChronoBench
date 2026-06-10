@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+"""
+PyChrono Gator Vehicle Simulation with Sensors and Visualization
+This script creates a complete simulation featuring a Gator vehicle,
+terrain, interactive driver, and sensor systems.
+"""
+
+import numpy as np
+import math
+import os
+import sys
+
+# PyChrono imports
+import pychrono as chrono
+import pychrono.vehicle as chrvehicle
+import pychrono.sensor as chrsensor
+
+# Set the path to Chrono data if needed
+chrono.SetDataPath("../../../data/")
+
+
+class GatorVehicleSimulation:
+    """Complete simulation class for Gator vehicle with sensors"""
+    
+    def __init__(self):
+        """Initialize all simulation components"""
+        
+        # Simulation parameters
+        self.step_size = 1e-3
+        self.end_time = 10.0
+        self.render_step = 1.0/60.0
+        
+        # Create chrono system
+        self.system = chrono.ChSystemNSC()
+        self.system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+        self.system.SetSolverType(chrono.ChSolver.Type_SOR)
+        self.system.SetMaxItersSolverSpeed(50)
+        self.system.SetMaxItersSolverStab(50)
+        self.system.SetTolerance(1e-6)
+        self.system.SetStepSize(self.step_size)
+        
+        # Create ground terrain
+        self._create_terrain()
+        
+        # Create the Gator vehicle
+        self._create_vehicle()
+        
+        # Create driver system
+        self._create_driver()
+        
+        # Create sensor system
+        self._create_sensors()
+        
+        # Create visualization window
+        self._create_visualization()
+        
+        # Timing variables
+        self.render_simulation = True
+        self.simulation_time = 0.0
+        
+    def _create_terrain(self):
+        """Create a rigid terrain for the simulation"""
+        
+        # Terrain parameters
+        terrain_height = 0.0  # Ground level
+        terrain_size = 50.0   # Size of terrain in each direction
+        
+        # Create the ground material
+        ground_material = chrono.ChMaterialSurfaceNSC()
+        ground_material.SetFriction(0.8)
+        ground_material.SetRestitution(0.1)
+        
+        # Create terrain body
+        self.ground = chrono.ChBody()
+        self.ground.SetBodyFixed(True)
+        self.ground.SetMaterialSurface(ground_material)
+        
+        # Create terrain collision shape (box approximation for infinite plane)
+        ground_shape = chrono.ChBoxShape(terrain_size, 0.5, terrain_size)
+        ground_shape.SetTexture(chrono.GetChronoDataFile("textures/tile4.png"))
+        self.ground.AddVisualShape(ground_shape, chrono.ChFrameD(
+            chrono.ChVectorD(0, -0.5, 0)))
+        
+        # Add obstacles (cylinders for variety)
+        num_obstacles = 10
+        for i in range(num_obstacles):
+            obs = chrono.ChBody()
+            obs.SetMaterialSurface(ground_material)
+            angle = 2 * math.pi * i / num_obstacles
+            radius = 8.0
+            obs.SetPos(chrono.ChVectorD(
+                radius * math.cos(angle), 0.5, radius * math.sin(angle)))
+            obs.SetBodyFixed(False)
+            obs.SetMass(10)
+            
+            # Cylinder collision shape
+            cyl_shape = chrono.ChCylinderShape(0.3, 1.0)
+            obs.AddCollisionShape(cyl_shape)
+            obs.SetCollide(True)
+            
+            # Visualization shape
+            vis_cyl = chrono.ChVisualizationGeometry()
+            vis_cyl = chrono.ChCylinderShape(0.3, 1.0)
+            obs.AddVisualShape(vis_cyl)
+            
+            self.system.AddBody(obs)
+        
+        self.system.AddBody(self.ground)
+        print("Terrain created with obstacles")
+        
+    def _create_vehicle(self):
+        """Create the Gator vehicle with various visualization types"""
+        
+        # Create the vehicle system
+        self.vehicle = chrvehicle.Gator(self.system, 
+                                        chrvehicle.DrivelineTypeWV_AWD,
+                                        chrvehicle.EngineModelType_SIMPLE,
+                                        chrvehicle.TransmissionModelType_SIMPLE)
+        
+        # Set tire contact model
+        self.vehicle.SetTireContactModel(chrvehicle.TireContactModel_RIGID)
+        
+        # Initialize vehicle at starting position
+        init_loc = chrono.ChVectorD(-15, 1.5, 5)
+        init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+        self.vehicle.Initialize(chrono.ChCoordsysD(init_loc, init_rot))
+        
+        # Set visualization parameters
+        self.vehicle.SetChassisVisualizationType(chrvehicle.VisualizationType_PRIMITIVES)
+        self.vehicle.SetWheelVisualizationType(chrvehicle.VisualizationType_MESH)
+        self.vehicle.SetSuspensionVisualizationType(chrvehicle.VisualizationType_PRIMITIVES)
+        self.vehicle.SetSteeringVisualizationType(chrvehicle.VisualizationType_PRIMITIVES)
+        
+        # Get vehicle components for additional setup
+        self.chassis = self.vehicle.GetChassis()
+        self.driver = None  # Will be set separately
+        
+        print("Gator vehicle initialized")
+        
+    def _create_driver(self):
+        """Create the interactive driver system"""
+        
+        # Create a driver based on keyboard inputs
+        self.driver = chrvehicle.ChInteractiveDriverIRR(self.vehicle)
+        
+        # Connect to default keyboard inputs
+        self.driver.Initialize()
+        
+        # Set driver parameters
+        self.driver.SetThrottleDelta(0.02)
+        self.driver.SetSteeringDelta(0.03)
+        self.driver.SetBrakingDelta(0.02)
+        
+        print("Interactive driver system created")
+        
+    def _create_sensors(self):
+        """Create sensor manager with camera and lights"""
+        
+        # Create sensor manager
+        self.sensor_manager = chrsensor.ChSensorManager(self.system)
+        
+        # Add point lights for illumination
+        self._add_point_lights()
+        
+        # Add camera sensor attached to chassis
+        self._add_chassis_camera()
+        
+        print("Sensor system initialized")
+        
+    def _add_point_lights(self):
+        """Add point lights to the scene for visualization"""
+        
+        # Light 1 - Front light
+        light1 = chrsensor.ChLightPoint(
+            chrono.ChVectorD(0, 5, -10),
+            chrono.ChColor(1.0, 1.0, 0.9),
+            100.0,  # intensity
+            20.0    # attenuation
+        )
+        self.sensor_manager.AddLight(light1)
+        
+        # Light 2 - Side light
+        light2 = chrsensor.ChLightPoint(
+            chrono.ChVectorD(10, 5, 0),
+            chrono.ChColor(1.0, 0.9, 0.8),
+            80.0,
+            15.0
+        )
+        self.sensor_manager.AddLight(light2)
+        
+        # Light 3 - Ambient fill
+        light3 = chrsensor.ChLightPoint(
+            chrono.ChVectorD(-5, 8, 5),
+            chrono.ChColor(0.6, 0.7, 0.9),
+            50.0,
+            30.0
+        )
+        self.sensor_manager.AddLight(light3)
+        
+        print(f"Added {3} point lights to the scene")
+        
+    def _add_chassis_camera(self):
+        """Add a camera sensor to the vehicle chassis"""
+        
+        # Get chassis frame for camera attachment
+        chassis_frame = self.chassis.GetFrame()
+        
+        # Camera offset position (rear-view, looking backward)
+        camera_offset = chrono.ChFrameD(
+            chrono.ChVectorD(0, 1.5, 2.0),  # Position relative to chassis
+            chrono.ChQuaternionD(chrono.Q_ROTATE_Y_TO_RAD, 0)  # Rotation
+        )
+        
+        # Create camera parameters
+        camera_params = chrsensor.ChCameraParameters()
+        camera_params.resolution = chrsensor.ChVector2i(640, 480)
+        camera_params.frustum_angle = 60.0 * (math.pi / 180.0)  # 60 degree FOV
+        camera_params.frustum_znear = 0.1
+        camera_params.frustum_zfar = 100.0
+        camera_params.sample_rate = 30.0
+        
+        # Create the camera sensor
+        self.chassis_camera = chrsensor.ChSensorCamera(
+            "ChassisCamera",
+            camera_offset,
+            camera_params
+        )
+        
+        # Set camera update rate
+        self.chassis_camera.SetName("Vehicle Rear Camera")
+        
+        # Add camera to sensor manager
+        self.sensor_manager.AddSensor(self.chassis_camera)
+        
+        # Create and add a render target for the camera
+        self._create_render_target()
+        
+        print("Chassis camera sensor added")
+        
+    def _create_render_target(self):
+        """Create a render target for the camera output"""
+        
+        # Create a render target
+        self.render_target = chrsensor.ChRenderTarget()
+        self.render_target.SetWidth(640)
+        self.render_target.SetHeight(480)
+        self.render_target.SetPostProcess(True)
+        self.render_target.SetSaveCameraData(True)
+        self.render_target.SetUseSingleBuffer(True)
+        
+        # Add to camera
+        self.chassis_camera.AddRenderTarget(self.render_target)
+        
+        print("Render target created for camera")
+        
+    def _create_visualization(self):
+        """Set up the 3D visualization window"""
+        
+        # Create application for visualization
+        self.application = None
+        
+        # Check if we can use IRRlicht visualization
+        try:
+            self.application = chrono.ChVisualSystemIrrlicht()
+            self.application.AttachSystem(self.system)
+            self.application.AddCamera(chrono.ChVectorD(0, 10, -20))
+            self.application.AddTypicalLights()
+            self.application.AddLightWithShadow(
+                chrono.ChVectorD(10, 20, -10),
+                chrono.ChVectorD(0, 0, 0),
+                50, 10, 50, 60, 20)
+            self.application.SetWindowSize(1280, 720)
+            self.application.SetWindowTitle("PyChrono Gator Vehicle Simulation")
+            self.application.AddLogo()
+            self.application.Initialize()
+            
+            print("Irrlicht visualization initialized")
+            
+        except Exception as e:
+            print(f"Irrlicht visualization not available: {e}")
+            print("Running in headless mode")
+            self.render_simulation = False
+            
+    def update_simulation(self, step_time):
+        """Update all simulation components"""
+        
+        # Update driver inputs
+        self.driver.Update()
+        
+        # Update vehicle
+        self.vehicle.Update(step_time)
+        
+        # Update sensor manager
+        self.sensor_manager.Update(step_time)
+        
+        # Advance the system
+        self.system.DoStepDynamics(self.step_size)
+        
+        # Update simulation time
+        self.simulation_time += self.step_size
+        
+    def update_visualization(self):
+        """Update the visualization window"""
+        
+        if self.application and self.render_simulation:
+            self.application.Synchronize("", [])
+            self.application.Render()
+            return self.application.Run()
+        return True
+        
+    def run(self):
+        """Main simulation loop"""
+        
+        print("\n" + "="*60)
+        print("Starting PyChrono Gator Vehicle Simulation")
+        print("="*60)
+        print(f"Step size: {self.step_size}")
+        print(f"End time: {self.end_time}")
+        print("="*60 + "\n")
+        
+        # Get vehicle state for initial information
+        vehicle_state = self.vehicle.GetVehicleSpeed()
+        print(f"Initial vehicle speed: {vehicle_state} m/s")
+        
+        # Main simulation loop
+        step_number = 0
+        last_render_time = 0.0
+        last_camera_capture = 0.0
+        
+        try:
+            while self.simulation_time < self.end_time:
+                
+                # Update visualization
+                if not self.update_visualization():
+                    print("Visualization closed by user")
+                    break
+                
+                # Advance simulation
+                self.update_simulation(self.step_size)
+                step_number += 1
+                
+                # Print periodic updates
+                if step_number % 500 == 0:
+                    speed = self.vehicle.GetVehicleSpeed()
+                    pos = self.chassis.GetPos()
+                    print(f"Time: {self.simulation_time:.2f}s | "
+                          f"Speed: {speed:.2f} m/s | "
+                          f"Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})")
+                
+                # Capture camera images periodically
+                if self.simulation_time - last_camera_capture > 1.0:
+                    self._capture_camera_image(step_number)
+                    last_camera_capture = self.simulation_time
+                    
+        except KeyboardInterrupt:
+            print("\nSimulation interrupted by user")
+            
+        finally:
+            self._print_simulation_summary(step_number)
+            
+    def _capture_camera_image(self, step_num):
+        """Capture and save camera image"""
+        
+        try:
+            # Get the latest data from camera
+            camera_data = self.chassis_camera.GetMostRecentData()
+            if camera_data:
+                # Process camera data here if needed
+                # In a full implementation, you would save or process the image
+                pass
+                
+        except Exception as e:
+            print(f"Camera capture error: {e}")
+            
+    def _print_simulation_summary(self, total_steps):
+        """Print simulation summary statistics"""
+        
+        print("\n" + "="*60)
+        print("Simulation Complete")
+        print("="*60)
+        print(f"Total simulation time: {self.simulation_time:.2f} seconds")
+        print(f"Total physics steps: {total_steps}")
+        print(f"Final vehicle speed: {self.vehicle.GetVehicleSpeed():.2f} m/s")
+        print(f"Final chassis position: {self.chassis.GetPos()}")
+        print("="*60)
+
+
+def main():
+    """Main entry point for the simulation"""
+    
+    print("PyChrono Gator Vehicle Simulation")
+    print("Initializing components...")
+    
+    # Create and run simulation
+    simulation = GatorVehicleSimulation()
+    simulation.run()
+    
+    print("\nSimulation finished successfully!")
+
+
+if __name__ == "__main__":
+    main()

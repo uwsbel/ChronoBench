@@ -1,0 +1,122 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.robot as robot
+import math
+
+# ---------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+# ---------------------------------------------------------------------
+
+# Create the Chrono physical system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Set collision system type
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# ---------------------------------------------------------------------
+# 2. Add the ground body (rigid terrain)
+# ---------------------------------------------------------------------
+
+# Create a contact material for the ground
+ground_mat = chrono.ChContactMaterialNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.0)
+
+# Create the ground body
+ground = chrono.ChBodyEasyBox(
+    20, 20, 1,        # dimensions: x, y, z
+    1000,             # density
+    True,             # visualization
+    True,             # collision
+    ground_mat        # contact material
+)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.5))
+ground.SetFixed(True)
+
+# Add a texture to the ground for better visualization
+ground.GetVisualShape(0).SetTexture(
+    chrono.GetChronoDataFile("textures/concrete.jpg")
+)
+
+system.Add(ground)
+
+# ---------------------------------------------------------------------
+# 3. Initialize the Viper rover and its driver
+# ---------------------------------------------------------------------
+
+# Create the Viper rover
+viper = robot.Viper(system)
+
+# Create and assign the driver
+driver = robot.ViperDCMotorControl()
+viper.SetDriver(driver)
+
+# Set the initial position and orientation of the rover
+init_pos = chrono.ChVector3d(0, 0, 0.5)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+viper.Initialize(chrono.ChFramed(init_pos, init_rot))
+
+# ---------------------------------------------------------------------
+# 4. Create the Irrlicht visualization
+# ---------------------------------------------------------------------
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Viper Rover on Rigid Terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(2.5, 2.5, 1.5),
+              chrono.ChVector3d(0, 0, 0))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(
+    chrono.ChVector3d(1.5, -2.5, 5.5),   # light position
+    chrono.ChVector3d(0, 0, 0.5),        # target point
+    3,                                    # radius
+    2, 8,                                 # near/far clip
+    60                                    # field of view
+)
+
+# ---------------------------------------------------------------------
+# 5. Simulation loop with gradually changing steering
+# ---------------------------------------------------------------------
+
+# Simulation parameters
+time_step = 1e-3
+time = 0.0
+
+# Steering parameters
+max_steering = 0.6        # maximum steering angle (radians)
+steering_period = 4.0     # time over which steering changes
+
+print("Starting simulation...")
+
+while vis.Run():
+    time = system.GetChTime()
+
+    # Gradually change the steering using a sinusoidal pattern
+    # This produces a smooth steering change over time
+    if time < steering_period:
+        steering = max_steering * (time / steering_period)
+    else:
+        steering = max_steering * math.sin(
+            (time - steering_period) * (math.pi / steering_period)
+        )
+
+    # Apply steering to the driver
+    driver.SetSteering(steering)
+
+    # Update the rover dynamics
+    viper.Update()
+
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the simulation
+    system.DoStepDynamics(time_step)
+
+print("Simulation finished.")

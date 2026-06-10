@@ -1,0 +1,273 @@
+Below is a complete PyChrono + ROS 2 simulation script that creates a Chrono system with gravity, a fixed floor, a movable box, ROS clock/body/TF handlers, and a custom ROS handler that publishes integer messages.
+
+```python
+#!/usr/bin/env python3
+
+import time
+
+import pychrono as chrono
+import pychrono.ros as chros
+
+import rclpy
+from std_msgs.msg import Int32
+
+
+# ---------------------------------------------------------------------
+# Compatibility helpers for different PyChrono versions
+# ---------------------------------------------------------------------
+
+if hasattr(chrono, "ChVector3d"):
+    ChVector = chrono.ChVector3d
+else:
+    ChVector = chrono.ChVectorD
+
+
+def set_gravity(system, gx, gy, gz):
+    if hasattr(system, "SetGravitationalAcceleration"):
+        system.SetGravitationalAcceleration(ChVector(gx, gy, gz))
+    else:
+        system.Set_G_acc(ChVector(gx, gy, gz))
+
+
+def make_nsc_material():
+    if hasattr(chrono, "ChContactMaterialNSC"):
+        mat = chrono.ChContactMaterialNSC()
+    else:
+        mat = chrono.ChMaterialSurfaceNSC()
+
+    mat.SetFriction(0.6)
+    mat.SetRestitution(0.1)
+
+    if hasattr(mat, "SetCompliance"):
+        mat.SetCompliance(1e-9)
+
+    if hasattr(mat, "SetDampingF"):
+        mat.SetDampingF(0.2)
+
+    return mat
+
+
+# ---------------------------------------------------------------------
+# Custom ROS handler publishing integer messages
+# ---------------------------------------------------------------------
+
+class CustomIntPublisherHandler(chros.ChROSHandler):
+    """
+    Custom Chrono ROS handler.
+
+    Publishes std_msgs/msg/Int32 messages on a specified topic at a given rate.
+    The Chrono ROS manager calls Tick() according to the handler update rate.
+    """
+
+    def __init__(self, update_rate_hz, topic_name):
+        super().__init__(update_rate_hz)
+
+        self.topic_name = topic_name
+        self.counter = 0
+
+        self.node = None
+        self.publisher = None
+
+    def Initialize(self, interface):
+        """
+        Called once by the Chrono ROS manager.
+        """
+        if not rclpy.ok():
+            rclpy.init(args=None)
+
+        self.node = rclpy.create_node("chrono_custom_int_publisher")
+        self.publisher = self.node.create_publisher(Int32, self.topic_name, 10)
+
+        return True
+
+    def Tick(self, time):
+        """
+        Called periodically by the Chrono ROS manager.
+        """
+        msg = Int32()
+        msg.data = self.counter
+
+        self.publisher.publish(msg)
+
+        self.node.get_logger().debug(
+            f"Published Int32 data={msg.data} at Chrono time={time:.3f}"
+        )
+
+        self.counter += 1
+
+        # Non-blocking ROS spin for this custom Python node.
+        rclpy.spin_once(self.node, timeout_sec=0.0)
+
+
+# ---------------------------------------------------------------------
+# Main simulation
+# ---------------------------------------------------------------------
+
+def main():
+    # -----------------------------------------------------------------
+    # 1. Create Chrono physical system
+    # -----------------------------------------------------------------
+
+    system = chrono.ChSystemNSC()
+    set_gravity(system, 0.0, 0.0, -9.81)
+
+    # Optional collision-system configuration
+    try:
+        system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    except Exception:
+        pass
+
+    # Suggested collision tolerances
+    try:
+        chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.002)
+        chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.002)
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # 2. Define material properties
+    # -----------------------------------------------------------------
+
+    contact_material = make_nsc_material()
+
+    # -----------------------------------------------------------------
+    # 3. Add fixed floor
+    # -----------------------------------------------------------------
+
+    floor = chrono.ChBodyEasyBox(
+        10.0,     # x size
+        10.0,     # y size
+        0.2,      # z size
+        1000.0,   # density
+        True,     # visualize
+        True,     # collide
+        contact_material
+    )
+
+    floor.SetName("fixed_floor")
+    floor.SetPos(ChVector(0.0, 0.0, -0.1))
+    floor.SetFixed(True)
+
+    system.Add(floor)
+
+    # -----------------------------------------------------------------
+    # 4. Add movable box
+    # -----------------------------------------------------------------
+
+    box = chrono.ChBodyEasyBox(
+        0.5,      # x size
+        0.5,      # y size
+        0.5,      # z size
+        500.0,    # density
+        True,     # visualize
+        True,     # collide
+        contact_material
+    )
+
+    box.SetName("movable_box")
+    box.SetPos(ChVector(0.0, 0.0, 1.0))
+    box.SetFixed(False)
+
+    system.Add(box)
+
+    # -----------------------------------------------------------------
+    # 5. Configure Chrono ROS manager and handlers
+    # -----------------------------------------------------------------
+
+    ros_manager = chros.ChROSManager()
+
+    # Publish /clock
+    clock_handler = chros.ChROSClockHandler()
+    ros_manager.RegisterHandler(clock_handler)
+
+    # Publish body state for the movable box
+    body_handler = chros.ChROSBodyHandler(
+        50.0,                 # update rate Hz
+        box,
+        "/chrono/box/state"
+    )
+    ros_manager.RegisterHandler(body_handler)
+
+    # Publish TF transforms
+    tf_handler = chros.ChROSTFHandler(50.0)
+
+    # Parent frame: world
+    # Child frames: fixed_floor, movable_box
+    tf_handler.AddTransform(floor, "world", "fixed_floor")
+    tf_handler.AddTransform(box, "world", "movable_box")
+
+    ros_manager.RegisterHandler(tf_handler)
+
+    # Register custom integer publisher
+    custom_int_handler = CustomIntPublisherHandler(
+        update_rate_hz=10.0,
+        topic_name="/chrono/custom_int"
+    )
+    ros_manager.RegisterHandler(custom_int_handler)
+
+    # Initialize ROS communication
+    ros_manager.Initialize()
+
+    # -----------------------------------------------------------------
+    # 6. Simulation loop
+    # -----------------------------------------------------------------
+
+    step_size = 1.0e-3
+    end_time = 20.0
+
+    realtime_timer = chrono.ChRealtimeStepTimer()
+
+    print("Starting Chrono + ROS simulation.")
+    print("Publishing:")
+    print("  /clock")
+    print("  /chrono/box/state")
+    print("  /tf")
+    print("  /chrono/custom_int")
+    print("Press Ctrl+C to stop.")
+
+    try:
+        while system.GetChTime() < end_time:
+            time_now = system.GetChTime()
+
+            # Advance Chrono dynamics
+            system.DoStepDynamics(step_size)
+
+            # Update ROS communication
+            ros_ok = ros_manager.Update(time_now, step_size)
+
+            if ros_ok is False:
+                print("ROS manager requested shutdown.")
+                break
+
+            # Maintain real-time execution
+            realtime_timer.Spin(step_size)
+
+    except KeyboardInterrupt:
+        print("Simulation interrupted by user.")
+
+    finally:
+        if custom_int_handler.node is not None:
+            custom_int_handler.node.destroy_node()
+
+        if rclpy.ok():
+            rclpy.shutdown()
+
+        print("Simulation finished.")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Run it in a ROS 2-sourced terminal, for example:
+
+```bash
+source /opt/ros/humble/setup.bash
+python3 chrono_ros_box_sim.py
+```
+
+You can inspect the custom integer topic with:
+
+```bash
+ros2 topic echo /chrono/custom_int
+```

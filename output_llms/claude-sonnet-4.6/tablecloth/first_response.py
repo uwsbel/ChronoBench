@@ -1,0 +1,218 @@
+# =============================================================================
+# PyChrono Tablecloth Folding Simulation using Shell Elements
+# =============================================================================
+
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+try:
+    import pychrono.pardisomkl as mkl
+    USE_MKL = True
+except ImportError:
+    USE_MKL = False
+    print("PardisoMKL not available, falling back to default solver.")
+
+# =============================================================================
+# 1. Initialize the PyChrono Environment
+# =============================================================================
+
+# Create the physical system
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# =============================================================================
+# 2. Tablecloth Parameters
+# =============================================================================
+
+# Mesh grid dimensions
+cloth_length_x = 1.0       # meters (X direction)
+cloth_length_z = 1.0       # meters (Z direction)
+num_elements_x = 20        # number of elements along X
+num_elements_z = 20        # number of elements along Z
+
+# Node counts
+num_nodes_x = num_elements_x + 1
+num_nodes_z = num_elements_z + 1
+
+# Element dimensions
+dx = cloth_length_x / num_elements_x
+dz = cloth_length_z / num_elements_z
+
+# Material properties (fabric-like)
+thickness   = 0.002        # [m]    shell thickness
+density     = 500.0        # [kg/m³] fabric density
+E_modulus   = 1.0e5        # [Pa]   Young's modulus (flexible cloth)
+poisson     = 0.3          # [-]    Poisson's ratio
+alpha_damp  = 0.01         # Rayleigh damping alpha
+
+# =============================================================================
+# 3. Create the FEA Mesh
+# =============================================================================
+
+mesh = fea.ChMesh()
+mesh.SetAutomaticGravity(True)
+
+# ---- Isotropic Kirchhoff Material ----
+material = fea.ChElasticityKirchhoffIsothropic(E_modulus, poisson)
+shell_material = fea.ChMaterialShellKirchhoff(material)
+shell_material.SetDensity(density)
+
+# ---- Create nodes on a flat grid (XZ plane, elevated) ----
+nodes = []  # 2D list [ix][iz]
+
+for ix in range(num_nodes_x):
+    row = []
+    for iz in range(num_nodes_z):
+        x = ix * dx - cloth_length_x / 2.0   # centre around origin
+        y = 0.5                                # initial height [m]
+        z = iz * dz - cloth_length_z / 2.0
+
+        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, y, z))
+        node.SetMass(0.0)   # mass handled by shell density
+        mesh.AddNode(node)
+        row.append(node)
+    nodes.append(row)
+
+# ---- Create shell elements (each quad split into 2 triangles) ----
+for ix in range(num_elements_x):
+    for iz in range(num_elements_z):
+        # Four corner nodes of the quad
+        n00 = nodes[ix    ][iz    ]
+        n10 = nodes[ix + 1][iz    ]
+        n11 = nodes[ix + 1][iz + 1]
+        n01 = nodes[ix    ][iz + 1]
+
+        # Triangle 1: n00, n10, n11
+        elem1 = fea.ChElementShellBST()
+        elem1.SetNodes(n00, n10, n11, None, None, None)
+        elem1.AddLayer(thickness, 0.0, shell_material)
+        elem1.SetAlphaDamp(alpha_damp)
+        mesh.AddElement(elem1)
+
+        # Triangle 2: n00, n11, n01
+        elem2 = fea.ChElementShellBST()
+        elem2.SetNodes(n00, n11, n01, None, None, None)
+        elem2.AddLayer(thickness, 0.0, shell_material)
+        elem2.SetAlphaDamp(alpha_damp)
+        mesh.AddElement(elem2)
+
+# =============================================================================
+# 4. Apply Boundary Conditions
+# =============================================================================
+
+# Fix two adjacent corners of the tablecloth to simulate hanging/folding
+corner_nodes = [
+    nodes[0][0],
+    nodes[num_elements_x][0],
+]
+
+for node in corner_nodes:
+    node.SetFixed(True)
+
+# =============================================================================
+# 5. Add Mesh to System
+# =============================================================================
+
+system.Add(mesh)
+
+# =============================================================================
+# 6. Add a Ground / Reference Body (optional visual)
+# =============================================================================
+
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0, -0.1, 0))
+ground_shape = chrono.ChBoxShape()
+ground_shape.GetBoxGeometry().Size = chrono.ChVectorD(0.8, 0.05, 0.8)
+ground.AddVisualShape(ground_shape)
+system.Add(ground)
+
+# =============================================================================
+# 7. Set Up the Solver (PardisoMKL preferred)
+# =============================================================================
+
+if USE_MKL:
+    mkl_solver = mkl.ChSolverPardisoMKL()
+    mkl_solver.LockSparsityPattern(True)
+    system.SetSolver(mkl_solver)
+    print("Using PardisoMKL solver.")
+else:
+    solver = chrono.ChSolverMINRES()
+    solver.SetMaxIterations(200)
+    solver.SetTolerance(1e-10)
+    solver.EnableWarmStart(True)
+    system.SetSolver(solver)
+    print("Using MINRES solver.")
+
+# =============================================================================
+# 8. Set Up Time Integrator
+# =============================================================================
+
+hht = chrono.ChTimestepperHHT(system)
+hht.SetAlpha(-0.2)
+hht.SetMaxiters(10)
+hht.SetAbsTolerances(1e-4, 1e-2)
+hht.SetMode(chrono.ChTimestepperHHT.POSITION)
+hht.SetScaling(True)
+system.SetTimestepper(hht)
+
+# =============================================================================
+# 9. Set Up Irrlicht Visualization
+# =============================================================================
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("PyChrono – Tablecloth Folding (Shell Elements)")
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0.0, 1.5, -2.0), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# ---- FEA visualisation ----
+vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NODE_DISP_NORM)
+vis_mesh.SetColorscaleMinMax(0.0, 0.4)
+vis_mesh.SetSmoothFaces(True)
+vis_mesh.SetWireframe(False)
+mesh.AddVisualShapeFEA(vis_mesh)
+
+# Wireframe overlay
+vis_mesh_wire = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh_wire.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_SURFACE)
+vis_mesh_wire.SetWireframe(True)
+vis_mesh_wire.SetDefaultMeshColor(chrono.ChColor(0.3, 0.3, 0.3))
+mesh.AddVisualShapeFEA(vis_mesh_wire)
+
+vis.BindAll()
+
+# =============================================================================
+# 10. Simulation Loop
+# =============================================================================
+
+timestep   = 0.002   # [s]
+total_time = 5.0     # [s]
+frame      = 0
+
+print("\n--- Starting Tablecloth Folding Simulation ---")
+print(f"  Nodes   : {num_nodes_x * num_nodes_z}")
+print(f"  Elements: {2 * num_elements_x * num_elements_z}")
+print(f"  Solver  : {'PardisoMKL' if USE_MKL else 'MINRES'}")
+print(f"  Duration: {total_time} s  |  dt = {timestep} s\n")
+
+while vis.Run() and system.GetChTime() < total_time:
+
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(timestep)
+    frame += 1
+
+    if frame % 50 == 0:
+        t = system.GetChTime()
+        print(f"  t = {t:.3f} s  |  frame {frame:5d}")
+
+print("\n--- Simulation complete ---")

@@ -1,0 +1,236 @@
+```python
+# =============================================================================
+# PyChrono Crank-Slider Mechanism Simulation
+# =============================================================================
+# This script demonstrates a crank-slider mechanism consisting of:
+#   - Floor/Truss (fixed body)
+#   - Crankshaft (driven by motor)
+#   - Connecting rod
+#   - Piston (slides linearly)
+# Visualization is provided by Irrlicht.
+# =============================================================================
+
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# =============================================================================
+# SIMULATION PARAMETERS
+# =============================================================================
+CRANK_RADIUS    = 0.2       # [m] crank arm length
+CRANK_WIDTH     = 0.05      # [m] thickness of crank body
+CON_ROD_LENGTH  = 0.6       # [m] connecting rod length
+PISTON_RADIUS   = 0.07      # [m] piston cylinder radius
+PISTON_HEIGHT   = 0.12      # [m] piston height
+MOTOR_SPEED     = 2.0       # [rad/s] constant angular speed of crank
+
+# =============================================================================
+# 1. INITIALIZE CHRONO SYSTEM
+# =============================================================================
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+system.SetSolverMaxIterations(150)
+
+# =============================================================================
+# 2. MATERIALS
+# =============================================================================
+mat_floor    = chrono.ChMaterialSurfaceNSC()
+mat_parts    = chrono.ChMaterialSurfaceNSC()
+
+# =============================================================================
+# 3. FLOOR / TRUSS  (fixed body)
+# =============================================================================
+floor = chrono.ChBodyEasyBox(3.0, 0.1, 1.0, 1000, True, True, mat_floor)
+floor.SetPos(chrono.ChVectorD(0.5, -0.15, 0))
+floor.SetBodyFixed(True)
+floor.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(floor)
+
+# Support pillar for the crank pivot
+pillar = chrono.ChBodyEasyBox(0.08, 0.3, 0.08, 1000, True, True, mat_floor)
+pillar.SetPos(chrono.ChVectorD(0.0, 0.1, 0.0))
+pillar.SetBodyFixed(True)
+pillar.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/blue.png"))
+system.Add(pillar)
+
+# Cylinder guide (fixed, visual only)
+guide = chrono.ChBodyEasyBox(CON_ROD_LENGTH + CRANK_RADIUS + 0.15, 
+                              PISTON_RADIUS * 2.2,
+                              PISTON_RADIUS * 2.2, 
+                              1000, True, True, mat_floor)
+guide.SetPos(chrono.ChVectorD(0.5 * (CON_ROD_LENGTH + CRANK_RADIUS + 0.15) + CRANK_RADIUS * 0.5,
+                               0.0, 0.0))
+guide.SetBodyFixed(True)
+guide.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/chrome.png"))
+system.Add(guide)
+
+# =============================================================================
+# 4. CRANKSHAFT
+# =============================================================================
+# The crank rotates about (0, 0, 0).  The crank pin is at (CRANK_RADIUS, 0, 0)
+# in the body frame, so we position the crank body centre at the midpoint.
+
+crank = chrono.ChBodyEasyBox(CRANK_RADIUS, CRANK_WIDTH, CRANK_WIDTH,
+                              2700, True, True, mat_parts)
+# Body frame centre is at (CRANK_RADIUS/2, 0, 0) in world so that:
+#   pivot end  = (0, 0, 0) in world
+#   pin end    = (CRANK_RADIUS, 0, 0) in world
+crank.SetPos(chrono.ChVectorD(CRANK_RADIUS / 2.0, 0.0, 0.0))
+crank.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/redwhite.png"))
+system.Add(crank)
+
+# =============================================================================
+# 5. CONNECTING ROD
+# =============================================================================
+# The rod stretches from the crank pin to the wrist pin.
+# Initial position: crank at angle 0 → crank pin at (CRANK_RADIUS, 0, 0)
+#                   piston at (CRANK_RADIUS + CON_ROD_LENGTH, 0, 0)
+# Rod body centre is at the midpoint.
+
+con_rod_cx = CRANK_RADIUS + CON_ROD_LENGTH / 2.0
+
+con_rod = chrono.ChBodyEasyBox(CON_ROD_LENGTH, 0.04, 0.04,
+                                2700, True, True, mat_parts)
+con_rod.SetPos(chrono.ChVectorD(con_rod_cx, 0.0, 0.0))
+con_rod.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/greenwhite.png"))
+system.Add(con_rod)
+
+# =============================================================================
+# 6. PISTON
+# =============================================================================
+piston_x = CRANK_RADIUS + CON_ROD_LENGTH   # initial X position
+
+piston = chrono.ChBodyEasyCylinder(PISTON_RADIUS, PISTON_HEIGHT,
+                                    2700, True, True, mat_parts)
+# ChBodyEasyCylinder's axis is along Y by default – rotate 90° about Z
+piston.SetPos(chrono.ChVectorD(piston_x, 0.0, 0.0))
+rot90z = chrono.ChQuaternionD()
+rot90z.Q_from_AngZ(math.pi / 2.0)
+piston.SetRot(rot90z)
+piston.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/bluewhite.png"))
+system.Add(piston)
+
+# =============================================================================
+# 7. JOINTS
+# =============================================================================
+
+# --- 7a. Motor: drives crankshaft at constant angular speed ---
+# Connects FLOOR to CRANK about Z-axis at the pivot point (0,0,0).
+motor = chrono.ChLinkMotorRotationSpeed()
+motor_frame = chrono.ChFrameD(chrono.ChVectorD(0, 0, 0),
+                               chrono.ChQuaternionD(1, 0, 0, 0))
+motor.Initialize(crank, floor, motor_frame)
+motor_speed_func = chrono.ChFunction_Const(MOTOR_SPEED)
+motor.SetSpeedFunction(motor_speed_func)
+system.Add(motor)
+
+# --- 7b. Revolute joint: CRANK ↔ CONNECTING ROD (crank pin) ---
+# Located at (CRANK_RADIUS, 0, 0) in world.
+rev_crank_rod = chrono.ChLinkLockRevolute()
+rev_crank_rod.Initialize(
+    crank, con_rod,
+    chrono.ChCoordsysD(chrono.ChVectorD(CRANK_RADIUS, 0, 0),
+                        chrono.ChQuaternionD(1, 0, 0, 0))
+)
+system.Add(rev_crank_rod)
+
+# --- 7c. Revolute joint: CONNECTING ROD ↔ PISTON (wrist pin) ---
+# Located at (CRANK_RADIUS + CON_ROD_LENGTH, 0, 0) in world.
+rev_rod_piston = chrono.ChLinkLockRevolute()
+rev_rod_piston.Initialize(
+    con_rod, piston,
+    chrono.ChCoordsysD(chrono.ChVectorD(CRANK_RADIUS + CON_ROD_LENGTH, 0, 0),
+                        chrono.ChQuaternionD(1, 0, 0, 0))
+)
+system.Add(rev_rod_piston)
+
+# --- 7d. Prismatic joint: FLOOR ↔ PISTON (piston slides along X) ---
+# Prismatic along X: we need a frame rotated 90° about Y so that the
+# prismatic axis (local Z) aligns with the world X axis.
+prismatic = chrono.ChLinkLockPrismatic()
+rot_prismatic = chrono.ChQuaternionD()
+rot_prismatic.Q_from_AngY(math.pi / 2.0)          # local Z → world X
+prismatic.Initialize(
+    piston, floor,
+    chrono.ChCoordsysD(chrono.ChVectorD(piston_x, 0, 0), rot_prismatic)
+)
+system.Add(prismatic)
+
+# =============================================================================
+# 8. IRRLICHT VISUALIZATION
+# =============================================================================
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("PyChrono – Crank-Slider Mechanism")
+vis.Initialize()
+
+# Logo & skybox
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+
+# Lights
+vis.AddLight(chrono.ChVectorD( 4,  6,  3), 8.0, chrono.ChColor(0.9, 0.9, 1.0))
+vis.AddLight(chrono.ChVectorD(-4,  4, -3), 6.0, chrono.ChColor(1.0, 0.9, 0.8))
+
+# Camera
+vis.AddCamera(chrono.ChVectorD(0.5, 0.8, 2.0),   # eye
+              chrono.ChVectorD(0.5, 0.0, 0.0))    # target
+
+# Typical scene items
+vis.AddTypicalLights()
+
+# =============================================================================
+# 9. SIMULATION LOOP
+# =============================================================================
+time_step = 1e-3    # [s]
+end_time  = 20.0    # [s]  (10 full revolutions at 2 rad/s ≈ 20 s)
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+print("=" * 60)
+print("  Crank-Slider Simulation")
+print(f"  Crank radius   : {CRANK_RADIUS} m")
+print(f"  Connecting rod : {CON_ROD_LENGTH} m")
+print(f"  Motor speed    : {MOTOR_SPEED} rad/s  "
+      f"({MOTOR_SPEED/(2*math.pi)*60:.1f} RPM)")
+print("=" * 60)
+
+while vis.Run() and system.GetChTime() < end_time:
+    vis.BeginScene(True, True, chrono.ChColor(0.18, 0.25, 0.35))
+    vis.DrawAll()
+
+    # Draw a simple HUD via Irrlicht GUI
+    vis.GetGUIEnvironment()   # (available for custom text if needed)
+
+    vis.EndScene()
+
+    system.DoStepDynamics(time_step)
+    realtime_timer.Spin(time_step)
+
+    # Console output every 0.5 s
+    t = system.GetChTime()
+    if abs(t % 0.5) < time_step * 1.5:
+        px = piston.GetPos().x
+        print(f"  t = {t:6.2f} s  |  piston x = {px:.4f} m")
+
+print("\nSimulation complete.")
+```
+
+---
+
+### Key Design Decisions
+
+| Component | Body type | Joint |
+|-----------|-----------|-------|
+| Floor / truss | Fixed `ChBodyEasyBox` | — |
+| Crankshaft | `ChBodyEasyBox` | `ChLinkMotorRotationSpeed` (to floor) |
+| Connecting rod | `ChBodyEasyBox` | `ChLinkLockRevolute` (to crank & piston) |
+| Piston | `ChBodyEasyCylinder` | `ChLinkLockRevolute` (to rod) + `ChLinkLockPrismatic` (to floor) |
+
+### How it works
+1. **Motor** spins the crank at `MOTOR_SPEED` rad/s around the Z-axis.  
+2. The **crank pin** (revolute) transmits rotation to the connecting rod.  
+3. The **wrist pin** (revolute) connects the rod to the piston.  
+4. The **prismatic joint** constrains the piston to slide only along the X-axis, converting rotary motion into reciprocating linear motion.

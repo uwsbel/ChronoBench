@@ -1,0 +1,184 @@
+Here's a complete PyChrono simulation script featuring a UAZBUS vehicle:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# ----------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+# ----------------------------------------------------------------------
+
+# Set the data path for vehicle and Chrono resources
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# ----------------------------------------------------------------------
+# Simulation and vehicle parameters
+# ----------------------------------------------------------------------
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.4)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (MESH, PRIMITIVES, NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (TMEASY, RIGID, PAC02, etc.)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain dimensions
+terrainHeight = 0
+terrainLength = 100.0  # size in X direction
+terrainWidth = 100.0   # size in Y direction
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVector3d(0.0, 0.0, 1.75)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+
+# Simulation step size
+step_size = 1e-3
+
+# ----------------------------------------------------------------------
+# 2. Add the required physical systems and objects
+# ----------------------------------------------------------------------
+
+# --- Create and configure the UAZBUS vehicle ---
+uazbus = veh.UAZBUS()
+uazbus.SetContactMethod(contact_method)
+uazbus.SetChassisCollisionType(chassis_collision_type)
+uazbus.SetChassisFixed(False)
+uazbus.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+uazbus.SetTireType(tire_model)
+uazbus.SetTireStepSize(step_size)
+
+# Initialize the vehicle
+uazbus.Initialize()
+
+# Set visualization for all vehicle subsystems
+uazbus.SetChassisVisualizationType(vis_type)
+uazbus.SetSuspensionVisualizationType(vis_type)
+uazbus.SetSteeringVisualizationType(vis_type)
+uazbus.SetWheelVisualizationType(vis_type)
+uazbus.SetTireVisualizationType(vis_type)
+
+# ----------------------------------------------------------------------
+# 3. Create the rigid terrain with friction and restitution
+# ----------------------------------------------------------------------
+
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)        # Friction coefficient
+patch_mat.SetRestitution(0.01)    # Restitution coefficient
+
+terrain = veh.RigidTerrain(uazbus.GetSystem())
+patch = terrain.AddPatch(
+    patch_mat,
+    chrono.ChCoordsysd(chrono.ChVector3d(0, 0, terrainHeight), chrono.QUNIT),
+    terrainLength,
+    terrainWidth
+)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+terrain.Initialize()
+
+# ----------------------------------------------------------------------
+# Create the Irrlicht visualization system with camera and lighting
+# ----------------------------------------------------------------------
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('UAZBUS Vehicle Demo')
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(uazbus.GetVehicle())
+
+# ----------------------------------------------------------------------
+# Create and initialize the interactive driver system
+# ----------------------------------------------------------------------
+
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Set the time response for steering, throttle, and braking keyboard inputs
+steering_time = 1.0   # time to go from 0 to +1 (or 0 to -1)
+throttle_time = 1.0   # time to go from 0 to +1
+braking_time  = 0.3   # time to go from 0 to +1
+driver.SetSteeringDelta(render_step_size := step_size / steering_time)
+driver.SetThrottleDelta(step_size / throttle_time)
+driver.SetBrakingDelta(step_size / braking_time)
+
+driver.Initialize()
+
+# ----------------------------------------------------------------------
+# 4. Simulation loop with synchronization and real-time execution
+# ----------------------------------------------------------------------
+
+# Output some vehicle information
+print("VEHICLE MASS: ", uazbus.GetVehicle().GetMass())
+
+# Initialize the real-time timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+while vis.Run():
+    time = uazbus.GetSystem().GetChTime()
+
+    # Render the current frame
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Get the driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Synchronize all subsystems
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    uazbus.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance the simulation for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    uazbus.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Enforce soft real-time execution
+    realtime_timer.Spin(step_size)
+```
+
+## Key Components Explained:
+
+**1. Environment Initialization**
+- Sets up Chrono data paths for both core and vehicle resources.
+- Configures simulation parameters like step size and contact method (NSC).
+
+**2. UAZBUS Vehicle Setup**
+- Creates the UAZBUS with specified initial position (`initLoc`) and orientation.
+- Configures the TMeasy tire model and mesh visualization.
+- Initializes all subsystems (chassis, suspension, steering, wheels, tires).
+
+**3. Rigid Terrain**
+- Creates a `RigidTerrain` patch with friction (`0.9`) and restitution (`0.01`).
+- Applies a tiled texture for visual realism.
+
+**4. Irrlicht Visualization**
+- Sets up a chase camera tracking the vehicle.
+- Adds directional lighting, skybox, and logo for a complete scene.
+
+**5. Driver System**
+- Uses an interactive Irrlicht driver, allowing keyboard control of steering, throttle, and braking with smooth response times.
+
+**6. Simulation Loop**
+- **Synchronize**: Aligns all modules (driver, terrain, vehicle, visualization) at the current time.
+- **Advance**: Steps each module forward by `step_size`.
+- **ChRealtimeStepTimer**: Maintains real-time execution by spinning to match the wall clock.
+
+You can drive the vehicle using the **arrow keys** (steering/throttle) and brake controls once the simulation window appears.

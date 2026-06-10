@@ -1,0 +1,115 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)  # The ground is fixed and does not move
+ground.EnableCollision(False)  # Disable collision detection for the ground
+
+# Add a visualization cylinder to the ground (at the joint location)
+cyl_ground = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
+ground.AddVisualShape(cyl_ground, chrono.ChFramed(chrono.ChVector3d(0, 0, 1)))
+
+# -----------------------------------------------------------------------
+# Create the FIRST pendulum body
+# -----------------------------------------------------------------------
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)       # The pendulum can move
+pend_1.EnableCollision(False)
+pend_1.SetMass(1)            # Mass in kg
+pend_1.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Inertia tensor (kg·m^2)
+
+# Add a visualization cylinder to the first pendulum (length=2, along X-axis)
+cyl_1 = chrono.ChVisualShapeCylinder(0.1, 2)
+cyl_1.SetColor(chrono.ChColor(0.6, 0, 0))  # Red
+pend_1.AddVisualShape(cyl_1, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Initial position: center of mass at (1, 0, 1) — pendulum is horizontal along +X
+pend_1.SetPos(chrono.ChVector3d(1, 0, 1))
+
+# Revolute joint: ground <-> pend_1 at (0, 0, 1), rotating around Z-axis
+rev_1 = chrono.ChLinkLockRevolute()
+rev_1.Initialize(ground, pend_1,
+                 chrono.ChFramed(chrono.ChVector3d(0, 0, 1),
+                                 chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_1)
+
+# -----------------------------------------------------------------------
+# Create the SECOND pendulum body
+# -----------------------------------------------------------------------
+pend_2 = chrono.ChBody()
+sys.AddBody(pend_2)
+pend_2.SetFixed(False)       # The pendulum can move
+pend_2.EnableCollision(False)
+pend_2.SetMass(1)            # Mass in kg
+pend_2.SetInertiaXX(chrono.ChVector3d(0.2, 1, 1))  # Inertia tensor (kg·m^2)
+
+# Add a visualization cylinder to the second pendulum (length=2, along X-axis)
+cyl_2 = chrono.ChVisualShapeCylinder(0.1, 2)
+cyl_2.SetColor(chrono.ChColor(0, 0, 0.6))  # Blue
+pend_2.AddVisualShape(cyl_2, chrono.ChFramed(chrono.VNULL, chrono.QuatFromAngleY(chrono.CH_PI_2)))
+
+# Initial position: center of mass at (3, 0, 1) — second pendulum is also horizontal along +X
+# It connects to the tip of pend_1 which is at (2, 0, 1)
+pend_2.SetPos(chrono.ChVector3d(3, 0, 1))
+
+# Add a small sphere at the connection point between pend_1 and pend_2 for visualization
+cyl_joint = chrono.ChVisualShapeCylinder(0.15, 0.4)
+cyl_joint.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+ground.AddVisualShape(cyl_joint, chrono.ChFramed(chrono.ChVector3d(2, 0, 1)))
+
+# Revolute joint: pend_1 <-> pend_2 at the tip of pend_1 (2, 0, 1), rotating around Z-axis
+rev_2 = chrono.ChLinkLockRevolute()
+rev_2.Initialize(pend_1, pend_2,
+                 chrono.ChFramed(chrono.ChVector3d(2, 0, 1),
+                                 chrono.ChQuaterniond(1, 0, 0, 0)))
+sys.AddLink(rev_2)
+
+# -----------------------------------------------------------------------
+# Create the Irrlicht visualization system
+# -----------------------------------------------------------------------
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('Double Pendulum Demo')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 3, 8))
+vis.AddTypicalLights()
+
+# -----------------------------------------------------------------------
+# Simulation loop
+# -----------------------------------------------------------------------
+log_info = True  # Flag to control logging
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(1e-3)  # Time step = 0.001 seconds
+
+    # Log information after 1 second of simulation time
+    if log_info and sys.GetChTime() > 1:
+        pos_1 = pend_1.GetPos()
+        pos_2 = pend_2.GetPos()
+
+        print(f"t = {sys.GetChTime():.4f} s")
+        print(f"  Pendulum 1 pos : x={pos_1.x:.4f},  y={pos_1.y:.4f}")
+        lin_vel_1 = pend_1.GetPosDt()
+        print(f"  Pendulum 1 vel : vx={lin_vel_1.x:.4f}, vy={lin_vel_1.y:.4f}")
+
+        print(f"  Pendulum 2 pos : x={pos_2.x:.4f},  y={pos_2.y:.4f}")
+        lin_vel_2 = pend_2.GetPosDt()
+        print(f"  Pendulum 2 vel : vx={lin_vel_2.x:.4f}, vy={lin_vel_2.y:.4f}")
+
+        log_info = False  # Disable further logging

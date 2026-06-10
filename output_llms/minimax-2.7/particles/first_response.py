@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""
+PyChrono N‑body gravitational particle simulation
+==================================================
+
+Creates a cloud of particles with random shapes, positions, velocities and
+orientations.  Every step the mutual gravitational forces are computed
+according to Newton's law and applied to the bodies.  The scene is rendered
+with the Irrlicht engine.
+
+You can adjust the parameters in the "Configuration" block below.
+"""
+
+import sys
+import math
+import random
+
+import pychrono as chrono
+import pychrono.irrlicht as irr
+
+# =============================================================================
+# Configuration – edit these values to change the behaviour of the simulation
+# =============================================================================
+
+# Gravitational constant (scaled for visible motion)
+G_CONSTANT = 0.5            # [N·m²/kg²] – increase for faster attraction
+
+# Number of particles emitted at start
+NUM_PARTICLES = 60
+
+# Minimum / maximum size of a particle (metres)
+MIN_SIZE = 0.2
+MAX_SIZE = 0.8
+
+# Material density used to compute mass from volume (kg/m³)
+DENSITY = 1000.0
+
+# Spatial region for random emission (cubic volume ±EMIT_RADIUS)
+EMIT_RADIUS = 12.0
+
+# Simulation time step (seconds)
+DT = 0.01
+
+# How often (in steps) new particles are emitted and how many each time
+EMIT_EVERY_STEPS = 500
+NEW_PARTICLES_PER_EMIT = 10
+
+# =============================================================================
+# Helper utilities
+# =============================================================================
+
+def random_unit_vector():
+    """Return a uniformly distributed random unit vector."""
+    u = random.uniform(-1.0, 1.0)
+    theta = random.uniform(0.0, 2.0 * math.pi)
+    r = math.sqrt(1.0 - u * u)
+    return chrono.ChVectorD(r * math.cos(theta),
+                           r * math.sin(theta),
+                           u)
+
+
+def compute_volume_and_inertia(shape_type, params):
+    """
+    Return (volume, Ixx, Iyy, Izz) for the requested shape.
+    Inertia values are for a solid body of uniform density `DENSITY`.
+    """
+    if shape_type == "sphere":
+        r = params["radius"]
+        vol = (4.0 / 3.0) * math.pi * r**3
+        I = 0.4 * DENSITY * vol * r**2          # 2/5 * m * r²
+        return vol, I, I, I
+
+    elif shape_type == "box":
+        sx, sy, sz = params["sx"], params["sy"], params["sz"]
+        vol = sx * sy * sz
+        Ixx = DENSITY * vol / 12.0 * (sy**2 + sz**2)
+        Iyy = DENSITY * vol / 12.0 * (sx**2 + sz**2)
+        Izz = DENSITY * vol / 12.0 * (sx**2 + sy**2)
+        return vol, Ixx, Iyy, Izz
+
+    elif shape_type == "cylinder":
+        r = params["radius"]
+        h = params["height"]
+        vol = math.pi * r**2 * h
+        Ixx = DENSITY * vol / 12.0 * (3.0 * r**2 + h**2)
+        Iyy = Ixx
+        Izz = 0.5 * DENSITY * vol * r**2
+        return vol, Ixx, Iyy, Izz
+
+    elif shape_type == "ellipsoid":
+        a, b, c = params["a"], params["b"], params["c"]
+        vol = (4.0 / 3.0) * math.pi * a * b * c
+        Ixx = 0.2 * DENSITY * vol * (b**2 + c**2)   # 1/5 * m * (b²+c²)
+        Iyy = 0.2 * DENSITY * vol * (a**2 + c**2)
+        Izz = 0.2 * DENSITY * vol * (a**2 + b**2)
+        return vol, Ixx, Iyy, Izz
+
+    else:
+        raise ValueError("Unknown shape type: " + shape_type)
+
+
+def create_random_particle(system):
+    """
+    Create a single particle with a random shape, add it to `system`,
+    and return the created body.
+    """
+    shape_type = random.choice(["sphere", "box", "cylinder", "ellipsoid"])
+    body = chrono.ChBody()
+
+    # -----------------------------------------------------------------
+    # Collision geometry (used also for visualisation)
+    # -----------------------------------------------------------------
+    if shape_type == "sphere":
+        radius = random.uniform(MIN_SIZE, MAX_SIZE)
+        body.GetCollisionModel().SetSafeTolerance(1e-3)
+        body.GetCollisionModel().AddSphere(radius)
+        params = {"radius": radius}
+
+    elif shape_type == "box":
+        sx = random.uniform(MIN_SIZE, MAX_SIZE)
+        sy = random.uniform(MIN_SIZE, MAX_SIZE)
+        sz = random.uniform(MIN_SIZE, MAX_SIZE)
+        body.GetCollisionModel().SetSafeTolerance(1e-3)
+        # Chrono expects half‑extents
+        body.GetCollisionModel().AddBox(sx / 2.0, sy / 2.0, sz / 2.0)
+        params = {"sx": sx, "sy": sy, "sz": sz}
+
+    elif shape_type == "cylinder":
+        radius = random.uniform(MIN_SIZE, MAX_SIZE / 1.5)
+        height = random.uniform(MIN_SIZE * 2.0, MAX_SIZE * 2.0)
+        body.GetCollisionModel().SetSafeTolerance(1e-3)
+        body.GetCollisionModel().AddCylinder(radius, height / 2.0)
+        params = {"radius": radius, "height": height}
+
+    elif shape_type == "ellipsoid":
+        a = random.uniform(MIN_SIZE, MAX_SIZE)
+        b = random.uniform(MIN_SIZE, MAX_SIZE)
+        c = random.uniform(MIN_SIZE, MAX_SIZE)
+        body.GetCollisionModel().SetSafeTolerance(1e-3)
+        body.GetCollisionModel().AddEllipsoid(a, b, c)
+        params = {"a": a, "b": b, "c": c}
+
+    # -----------------------------------------------------------------
+    # Mass & inertia (based on the chosen density)
+    # -----------------------------------------------------------------
+    volume, Ixx, Iyy, Izz = compute_volume_and_inertia(shape_type, params)
+    mass = DENSITY * volume
+    body.SetMass(mass)
+    body.SetInertiaXX(chrono.ChVectorD(Ixx, Iyy, Izz))
+
+    # -----------------------------------------------------------------
+    # Position & orientation
+    # -----------------------------------------------------------------
+    pos = chrono.ChVectorD(random.uniform(-EMIT_RADIUS, EMIT_RADIUS),
+                           random.uniform(-EMIT_RADIUS, EMIT_RADIUS),
+                           random.uniform(-EMIT_RADIUS, EMIT_RADIUS))
+    body.SetPos(pos)
+
+    # Random rotation (axis–angle representation)
+    axis = random_unit_vector()
+    angle = random.uniform(0.0, 2.0 * math.pi)
+    q = chrono.ChQuaternion()
+    q.SetFromAngleAxis(angle, axis)
+    body.SetRot(q)
+
+    # -----------------------------------------------------------------
+    # Initial velocity (small random values)
+    # -----------------------------------------------------------------
+    vel = chrono.ChVectorD(random.uniform(-0.5, 0.5),
+                           random.uniform(-0.5, 0.5),
+                           random.uniform(-0.5, 0.5))
+    body.SetPos_dt(vel)
+
+    # -----------------------------------------------------------------
+    # Miscellaneous settings
+    # -----------------------------------------------------------------
+    body.SetCollide(False)   # contacts are ignored – only gravity matters
+    body.SetBodyFixed(False) # body is free to move
+
+    system.Add(body)
+    return body
+
+
+def emit_particles(system, count):
+    """Create `count` random particles and return the list of bodies."""
+    return [create_random_particle(system) for _ in range(count)]
+
+
+# =============================================================================
+# Gravitational force routine
+# =============================================================================
+
+def update_gravity(particles, G):
+    """
+    Compute mutual Newtonian gravitational forces for all particles and
+    apply them to the bodies using `PutForce`.  The algorithm is O(N²) –
+    fine for a few hundred particles.
+    """
+    n = len(particles)
+    forces = [chrono.ChVectorD(0, 0, 0) for _ in range(n)]
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            bi = particles[i]
+            bj = particles[j]
+
+            # Vector from i to j
+            r_vec = bj.GetPos() - bi.GetPos()
+            dist = r_vec.Length()
+            if dist < 1e-6:            # avoid division by zero / singularities
+                continue
+
+            # Gravitational magnitude
+            f_mag = G * bi.GetMass() * bj.GetMass() / (dist * dist)
+
+            # Unit direction
+            unit = r_vec.GetNormalized()
+
+            # Force on i due to j
+            f_vec = unit * f_mag
+
+            forces[i] += f_vec
+            forces[j] -= f_vec   # Newton's third law
+
+    # Apply the computed net force to each body
+    for idx, body in enumerate(particles):
+        body.PutForce(forces[idx])
+
+
+# =============================================================================
+# Main simulation entry point
+# =============================================================================
+
+def main():
+    # -------------------------------------------------------------------------
+    # Create a Chrono physical system
+    # -------------------------------------------------------------------------
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))   # No default (constant) gravity
+    system.SetSolverType(chrono.ChSolver.SOR)
+    system.SetMaxItersSpeed(500)
+    system.SetStep(DT)
+
+    # -------------------------------------------------------------------------
+    # Initialise the Irrlicht visualisation
+    # -------------------------------------------------------------------------
+    app = irr.ChIrrApp(system,
+                       u"Gravitational N‑body Simulation",
+                       irr.dimension2d_u32(1280, 720))
+
+    # Camera, lights, sky – defaults are fine for a quick demo
+    app.AddTypicalCamera(chrono.ChVectorD(0, 30, -45),
+                         chrono.ChVectorD(0, 0, 0))
+    app.AddTypicalLights()
+    app.AddTypicalSky()
+    app.SetShowDemoInfo(True)
+    app.SetTimestep(DT)
+    app.SetVideoframeRate(30)
+
+    # -------------------------------------------------------------------------
+    # Emit the initial cloud of particles
+    # -------------------------------------------------------------------------
+    particles = emit_particles(system, NUM_PARTICLES)
+
+    # -------------------------------------------------------------------------
+    # Main loop
+    # -------------------------------------------------------------------------
+    step_counter = 0
+    while app.GetDevice().run():
+
+        # Periodically emit additional particles
+        if step_counter % EMIT_EVERY_STEPS == 0:
+            new_ones = emit_particles(system, NEW_PARTICLES_PER_EMIT)
+            particles.extend(new_ones)
+
+        # Apply mutual gravitational forces
+        update_gravity(particles, G_CONSTANT)
+
+        # Render the scene
+        app.BeginScene()
+        app.DrawAll()
+        app.DoStep()
+        app.EndScene()
+
+        step_counter += 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

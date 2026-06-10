@@ -1,0 +1,355 @@
+# PyChrono M113 Vehicle Simulation Script
+
+```python
+"""
+PyChrono M113 Vehicle Simulation
+Features: Rigid terrain, driver system, Irrlicht visualization
+"""
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+
+
+def main():
+    """
+    Main function to create and run the M113 vehicle simulation.
+    """
+    
+    # =========================================================================
+    # 1. INITIALIZE PYCHRONO ENVIRONMENT
+    # =========================================================================
+    
+    # Set the path to vehicle data files
+    veh.SetDataPath(chrono.GetChronoDataPath() + "vehicle/")
+    
+    # Create the Chrono system
+    my_system = chrono.ChSystemNSC()
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set simulation parameters
+    simulation_step_size = 1e-3        # 1 ms timestep
+    simulation_end_time = 20.0         # 20 seconds
+    real_time_scale = 1.0              # Real-time execution
+    
+    # =========================================================================
+    # 2. CREATE M113 VEHICLE
+    # =========================================================================
+    
+    # Create the M113 vehicle with specified configuration
+    vehicle = veh.M113_Vehicle(my_system, veh.DrivelineType_AXLE_4WD)
+    
+    # Set visualization type for chassis and wheels
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetDrivelineVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    
+    # Set initial vehicle position (x, y, z)
+    vehicle_init_pos = chrono.ChCoordsysD(
+        chrono.ChVectorD(0, 0.8, 0),  # Position
+        chrono.ChQuaternionD(1, 0, 0, 0)  # Orientation (no rotation)
+    )
+    
+    # Initialize the vehicle
+    vehicle.Initialize(vehicle_init_pos)
+    
+    # Set initial velocity (optional)
+    vehicle.SetVehicleVel(chrono.ChVectorD(0, 0, 0))
+    
+    print("M113 Vehicle initialized successfully")
+    
+    # =========================================================================
+    # 3. CREATE RIGID TERRAIN
+    # =========================================================================
+    
+    # Create terrain dimensions
+    terrain_length = 200.0  # X direction
+    terrain_width = 200.0   # Z direction
+    terrain_thickness = 0.5
+    
+    # Create the terrain system
+    terrain = veh.RigidTerrain(my_system)
+    
+    # Set terrain material properties
+    terrain_material = chrono.ChMaterialSurfaceNSC()
+    terrain_material.SetFriction(0.9)        # High friction for vehicle traction
+    terrain_material.SetRestitution(0.05)     # Low restitution (minimal bounce)
+    terrain_material.SetCohesion(0.0)        # No cohesion
+    terrain_material.SetCompliance(0.0)      # No compliance (rigid contact)
+    
+    # Create ground patch with defined size
+    ground_patch = terrain.AddPatch(
+        terrain_material,
+        chrono.ChVectorD(0, -terrain_thickness, 0),  # Starting point
+        chrono.ChVectorD(0, 0, 1),                    # Normal vector
+        terrain_length,                               # X extent
+        terrain_width,                                # Z extent
+        1,                                            # Number of tiles
+        1                                            # Number of tiles
+    )
+    
+    # Set terrain color for visualization (brownish ground)
+    ground_color = chrono.ChColor(0.6, 0.5, 0.3)
+    ground_patch.SetColor(ground_color)
+    
+    # Initialize the terrain
+    terrain.Initialize()
+    
+    print("Rigid terrain created successfully")
+    print(f"  - Friction coefficient: {terrain_material.GetFriction()}")
+    print(f"  - Restitution coefficient: {terrain_material.GetRestitution()}")
+    
+    # =========================================================================
+    # 4. CREATE DRIVER SYSTEM
+    # =========================================================================
+    
+    # Create a driver based on steering and throttle inputs
+    driver = veh.ChDriver(vehicle.GetVehicle())
+    
+    # Initialize the driver
+    driver.Initialize()
+    
+    # Set driver input limits
+    driver.SetMax steering angle(0.5)    # Maximum steering angle in radians
+    driver.SetMax throttle(1.0)          # Maximum throttle (0-1)
+    driver.SetMax braking(1.0)           # Maximum braking force
+    
+    print("Driver system initialized successfully")
+    
+    # =========================================================================
+    # 5. CREATE IRRLICHT VISUALIZATION
+    # =========================================================================
+    
+    # Create the application
+    application = chronoirr.ChIrrApp(
+        my_system,                              # Physics system
+        "M113 Vehicle Simulation",              # Window title
+        chronoirr.dimension2du(1280, 720),      # Window dimensions
+        chronoirr.EDENTIALITY_ENABLED,          # Fullscreen mode
+        chronoirr.ESDR_OPENGL,                 # OpenGL driver
+        chronoirr.EWS_NONE,                    # No widgets
+        0                                       # No custom event receiver
+    )
+    
+    # Setup the application
+    application.AddTypicalSky()
+    application.AddTypicalLogo(chrono.GetChronoDataPath() + "logo_pychrono_alpha.png")
+    application.AddTypicalLights(
+        chronoirr.vector3df(50, 100, 50),      # First light position
+        chronoirr.vector3df(50, 100, -50),     # Second light position
+        150,                                    # Light intensity
+        chronoirr.vector3df(0.3, 0.3, 0.3)      # Ambient light
+    )
+    
+    # Add camera with specified position and target
+    camera_distance = 12.0
+    camera_height = 5.0
+    camera_position = chronoirr.vector3df(camera_distance, camera_height, camera_distance)
+    camera_target = chronoirr.vector3df(0, 1, 0)
+    
+    application.AddTypicalCamera(camera_position, camera_target)
+    
+    # Add text labels for debugging
+    application.AddTypicalGUI()
+    
+    # Bind vehicle components for visualization
+    application.Bind(vehicle.GetVehicle())
+    application.BindAll()
+    
+    # Set simulation step size
+    application.SetTimestep(simulation_step_size)
+    
+    # Enable video recording (optional)
+    application.SetVideoframeSave(False)
+    application.SetVideoframeWriter(None)
+    
+    # Set real-time synchronization rate
+    application.SetTimestepType(chronoirr.E_TimestepType_TENTH)
+    
+    print("Irrlicht visualization setup complete")
+    print(f"  - Camera position: ({camera_distance}, {camera_height}, {camera_distance})")
+    print(f"  - Camera target: (0, 1, 0)")
+    
+    # =========================================================================
+    # 6. SIMULATION LOOP
+    # =========================================================================
+    
+    print("\n" + "="*60)
+    print("Starting simulation loop...")
+    print("="*60 + "\n")
+    
+    # Start the application
+    application.Start()
+    
+    # Initialize timing variables
+    start_wall_time = chrono.GetTime()
+    current_time = 0.0
+    step_count = 0
+    display_interval = 1.0  # Update display every 1 second
+    
+    # Main simulation loop
+    while application.GetDevice().run():
+        
+        # Check if simulation should stop
+        if current_time >= simulation_end_time:
+            break
+        
+        # ---------------------------------------------------------------------
+        # RENDERING
+        # ---------------------------------------------------------------------
+        
+        # Begin scene rendering
+        application.BeginScene(True, True, chronoirr.SColor(255, 100, 100, 100))
+        
+        # Update and draw all visualization elements
+        application.DrawAll()
+        
+        # Render grid on terrain
+        application.Render()
+        
+        # End scene rendering
+        application.EndScene()
+        
+        # ---------------------------------------------------------------------
+        # GET DRIVER INPUTS
+        # ---------------------------------------------------------------------
+        
+        # Get current steering, throttle, and braking inputs
+        steering_input = driver.GetSteering()      # -1 to 1
+        throttle_input = driver.GetThrottle()      # 0 to 1
+        braking_input = driver.GetBraking()        # 0 to 1
+        
+        # Create driver inputs structure
+        driver_inputs = veh.DriverInputs()
+        driver_inputs.m_steering = steering_input
+        driver_inputs.m_throttle = throttle_input
+        driver_inputs.m_braking = braking_input
+        driver_inputs.m_clutch = 0.0               # No clutch for automatic
+        driver_inputs.m_handbrake = False          # No handbrake
+        
+        # ---------------------------------------------------------------------
+        # SYNCHRONIZE SYSTEMS
+        # ---------------------------------------------------------------------
+        
+        # Synchronize vehicle with terrain
+        vehicle.Synchronize(current_time, driver_inputs, terrain)
+        
+        # Synchronize terrain
+        terrain.Synchronize(current_time)
+        
+        # Synchronize driver
+        driver.Synchronize(current_time)
+        
+        # ---------------------------------------------------------------------
+        # ADVANCE SIMULATION
+        # ---------------------------------------------------------------------
+        
+        # Advance vehicle system
+        vehicle.Advance(simulation_step_size)
+        
+        # Advance terrain system
+        terrain.Advance(simulation_step_size)
+        
+        # Advance driver system
+        driver.Advance(simulation_step_size)
+        
+        # Advance the Chrono system
+        my_system.DoStepDynamics(simulation_step_size)
+        
+        # ---------------------------------------------------------------------
+        # ADVANCE VISUALIZATION
+        # ---------------------------------------------------------------------
+        
+        # Advance visualization system
+        application.Advance(simulation_step_size)
+        
+        # ---------------------------------------------------------------------
+        # UPDATE TIME AND DISPLAY
+        # ---------------------------------------------------------------------
+        
+        # Update current simulation time
+        current_time += simulation_step_size
+        step_count += 1
+        
+        # Print periodic status updates
+        if current_time >= step_count * display_interval:
+            # Get vehicle state information
+            chassis_pos = vehicle.GetVehicle().GetChassis().GetPos()
+            chassis_speed = vehicle.GetVehicle().GetSpeed()
+            
+            print(f"Time: {current_time:6.2f}s | "
+                  f"Position: ({chassis_pos.x:7.2f}, {chassis_pos.y:6.2f}, {chassis_pos.z:7.2f}) | "
+                  f"Speed: {chassis_speed:6.2f} m/s | "
+                  f"Steps: {step_count}")
+    
+    # =========================================================================
+    # 7. CLEANUP AND FINAL REPORT
+    # =========================================================================
+    
+    end_wall_time = chrono.GetTime()
+    total_wall_time = end_wall_time - start_wall_time
+    simulated_time = current_time
+    
+    print("\n" + "="*60)
+    print("SIMULATION COMPLETE")
+    print("="*60)
+    print(f"\nSimulation Duration: {simulated_time:.2f} seconds")
+    print(f"Total Steps: {step_count}")
+    print(f"Wall Clock Time: {total_wall_time:.2f} seconds")
+    print(f"Average Step Time: {total_wall_time/step_count*1000:.3f} ms")
+    print(f"Real-time Factor: {simulated_time/total_wall_time:.2f}x")
+    
+    # Get final vehicle state
+    final_chassis_pos = vehicle.GetVehicle().GetChassis().GetPos()
+    final_chassis_speed = vehicle.GetVehicle().GetSpeed()
+    
+    print("\nFinal Vehicle State:")
+    print(f"  Position: ({final_chassis_pos.x:.2f}, {final_chassis_pos.y:.2f}, {final_chassis_pos.z:.2f})")
+    print(f"  Speed: {final_chassis_speed:.2f} m/s")
+    
+    print("\n" + "="*60)
+    print("End of Simulation")
+    print("="*60)
+    
+    return 0
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Key Features of This Simulation:
+
+### 1. **PyChrono Environment Initialization**
+- Sets up the Chrono system with standard gravity
+- Configures simulation parameters (timestep, duration)
+
+### 2. **M113 Vehicle System**
+- Creates the M113 armored personnel carrier
+- Sets visualization types for all components
+- Initializes with specified position and orientation
+
+### 3. **Rigid Terrain**
+- Creates a large flat terrain surface
+- Configures material properties (friction: 0.9, restitution: 0.05)
+- Sets terrain color for visualization
+
+### 4. **Driver System**
+- Implements steering, throttle, and braking control
+- Sets input limits for realistic vehicle behavior
+
+### 5. **Irrlicht Visualization**
+- Full 3D rendering with camera positioned at an isometric angle
+- Sky, lighting, and logo setup
+- Real-time scene rendering
+
+### 6. **Simulation Loop**
+- Synchronizes all systems (vehicle, terrain, driver)
+- Advances physics and visualization
+- Maintains real-time execution
+- Prints periodic status updates
+
+### 7. **Final Report**
+- Provides simulation statistics
+- Reports final vehicle position and speed

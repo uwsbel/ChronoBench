@@ -1,0 +1,177 @@
+**PyChrono – Beam‑buckling simulation with FEA, custom motor and Irrlicht visualisation**
+
+Below is a complete, ready‑to‑run script that builds a simple beam‑buckling scenario:
+
+* 5‑node Euler‑beam (4 Euler‑Bernoulli elements) spanning 2 m.  
+* The left‑most node is fixed; the right‑most node is coupled to a free body that is driven by a **custom piecewise‑motion motor** (ramp‑hold‑ramp).  
+* A `ChLinkMateGeneric` enforces the node‑to‑body constraint and a `ChLinkLinActuator` supplies the motion.  
+* The system uses a MINRES linear solver together with the HHT implicit timestepper for stable dynamics.  
+* The whole scene is visualised with the Irrlicht module.
+
+```python
+#!/usr/bin/env python3
+"""
+Beam‑buckling simulation with PyChrono FEA, custom motor and Irrlicht visualisation.
+
+The beam (Euler‑Bernoulli) is compressed by a piecewise‑motion actuator.
+The script demonstrates:
+  • Finite‑element beam mesh (ChMesh + ChElementBeamEuler)
+  • Node‑to‑body constraints (ChLinkMateGeneric)
+  • Custom motor function (ChFunctionSequence)
+  • Solver/timestepper settings (MINRES + HHT)
+  • Irrlicht visualisation
+"""
+
+# -------------------------------------------------------------------------
+# Imports
+# -------------------------------------------------------------------------
+import pychrono.core as chrono          # Chrono core
+import pychrono.fea as chronofea        # FEA (beams, meshes, …)
+import pychrono.irrlicht as irr          # Irrlicht visualisation
+
+# -------------------------------------------------------------------------
+# 1.  Create physical system and set basic parameters
+# -------------------------------------------------------------------------
+system = chrono.ChSystemSMC()           # smooth‑contact (SMC) system
+system.SetGravity(chrono.ChVectorD(0.0, 0.0, 0.0))   # no gravity for buckling
+
+# ---- Solver & timestepper ------------------------------------------------
+solver = chrono.ChSolverMINRES()
+system.SetSolver(solver)
+system.SetSolverMaxIterations(500)      # enough for a small problem
+
+timestepper = chrono.ChTimestepperHHT()
+system.SetTimestepper(timestepper)
+
+# ---- Simulation step size -------------------------------------------------
+system.SetStep(1e-4)                    # 0.1 ms – fine enough for buckling
+
+# -------------------------------------------------------------------------
+# 2.  Finite‑element beam mesh
+# -------------------------------------------------------------------------
+mesh = chronofea.ChMesh()
+
+# Node positions (5 nodes, 4 elements)
+L = 2.0                                   # total length [m]
+num_nodes = 5
+node_x = [i * L / (num_nodes - 1) for i in range(num_nodes)]
+
+nodes = []
+for x in node_x:
+    # 6‑DOF node (position + rotation)
+    node = chronofea.ChNodeFEAxyzD(chrono.ChVectorD(x, 0.0, 0.0))
+    node.SetMass(0.0)                    # mass is computed from density
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Fix the leftmost node (cantilever)
+nodes[0].Fix()
+
+# Beam cross‑section (rectangular)
+section = chronofea.ChBeamSectionCube()
+section.SetWidth(0.05)                   # b = 5 cm
+section.SetHeight(0.05)                 # h = 5 cm
+section.SetYoungModulus(2.0e11)         # steel: 200 GPa
+section.SetDensity(7800.0)              # steel density
+
+# Create beam elements
+for i in range(num_nodes - 1):
+    elem = chronofea.ChElementBeamEuler()
+    elem.SetNodes(nodes[i], nodes[i + 1])
+    elem.SetSection(section)
+    mesh.AddElement(elem)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# -------------------------------------------------------------------------
+# 3.  Rigid bodies and constraints
+# -------------------------------------------------------------------------
+# --- Ground (fixed) --------------------------------------------------------
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)
+ground.SetPos(chrono.ChVectorD(0.0, 0.0, 0.0))
+system.Add(ground)
+
+# --- Moving mass attached to the last node ---------------------------------
+end_mass = chrono.ChBody()
+end_mass.SetPos(chrono.ChVectorD(L, 0.0, 0.0))
+end_mass.SetMass(1.0)                  # dummy mass (helps the solver)
+system.Add(end_mass)
+
+# ---- Node‑to‑body constraint (mate) ---------------------------------------
+# This locks the last node to the moving body, enforcing equal motion.
+node_to_body = chronofea.ChLinkMateGeneric(True, True, True,
+                                            True, True, True)   # lock all DOFs
+node_to_body.Initialize(end_mass, nodes[-1])
+system.Add(node_to_body)
+
+# ---- Actuator (linear motor) between ground and the moving body ----------
+actuator = chronofea.ChLinkLinActuator()
+actuator.Initialize(ground, end_mass)                     # connects ground ↔ end_mass
+actuator.SetDirection(chrono.ChVectorD(1.0, 0.0, 0.0))    # motion along X
+
+# ---- Custom motor function: ramp‑hold‑ramp --------------------------------
+# Displacement is expressed relative to the initial actuator length.
+motor_fun = chronofea.ChFunctionSequence()
+
+# 0 → 2 s : ramp up (0 → 0.4 m)   slope = 0.2 m/s
+ramp_up = chronofea.ChFunctionRamp()
+ramp_up.Set_ang(0.0, 0.2)            # offset = 0.0, slope = 0.2
+motor_fun.AddFun(ramp_up, 2.0)       # duration = 2 s
+
+# 2 → 5 s : hold at 0.4 m
+hold = chronofea.ChFunctionConst()
+hold.Set_ang(0.4)                    # constant displacement
+motor_fun.AddFun(hold, 3.0)          # duration = 3 s
+
+# 5 → 7 s : ramp back (0.4 → 0 m)   slope = -0.2 m/s
+ramp_down = chronofea.ChFunctionRamp()
+ramp_down.Set_ang(0.4, -0.2)         # offset = 0.4, slope = -0.2
+motor_fun.AddFun(ramp_down, 2.0)    # duration = 2 s
+
+actuator.SetMotionFunction(motor_fun)
+system.Add(actuator)
+
+# -------------------------------------------------------------------------
+# 4.  Irrlicht visualisation
+# -------------------------------------------------------------------------
+app = irr.ChIrrApp(system, 'Beam Buckling – PyChrono FEA',
+                  irr.dimension2du(800, 600))
+
+app.AddTypicalSkyBox()
+app.AddTypicalCamera(irr.vector3df(0.0, 0.5, 3.0),
+                     irr.vector3df(0.0, 0.0, 0.0))
+app.AddTypicalLight()
+
+# Bind and update assets (meshes, bodies, …)
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# The same step size used for the physics
+app.SetStep(1e-4)
+
+# -------------------------------------------------------------------------
+# 5.  Main loop
+# -------------------------------------------------------------------------
+print("Running beam‑buckling simulation... (close Irrlicht window to stop)")
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()                     # render everything
+    app.DoStep()                     # advance physics
+    app.EndScene()
+```
+
+### How it works
+
+| Component | Role |
+|-----------|------|
+| **ChMesh** + **ChElementBeamEuler** | Finite‑element representation of the beam. |
+| **ChNodeFEAxyzD** (5 nodes) | 6‑DOF nodes that store position/rotation. |
+| **ChBeamSectionCube** | Defines geometry (5 cm × 5 cm) and material (steel). |
+| **ChLinkMateGeneric** | Locks the last node to a rigid body (`end_mass`). |
+| **ChLinkLinActuator** + **ChFunctionSequence** | Custom motor that drives the end mass (ramp‑hold‑ramp). |
+| **ChSolverMINRES** + **ChTimestepperHHT** | Linear solver & implicit integrator for accurate, stable dynamics. |
+| **Irrlicht** (`ChIrrApp`) | Real‑time 3‑D visualisation (camera, sky‑box, lights). |
+
+Feel free to adjust the beam length, cross‑section, material properties, or motor profile to explore different buckling behaviours. The script can be run directly in a Python environment with PyChrono installed (`pip install pychrono`).

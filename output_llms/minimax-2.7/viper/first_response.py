@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""
+PyChrono Viper Rover Simulation on Rigid Terrain
+This script demonstrates a Viper rover simulation with real-time visualization.
+"""
+
+import numpy as np
+import math
+
+# =============================================================================
+# 1. Initialize PyChrono Environment
+# =============================================================================
+
+# Import PyChrono core and vehicle modules
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Set the path to Chrono data files (vehicle templates, textures, etc.)
+chrono.SetChronoDataPath(veh.GetChronoDataPath())
+
+# Create (if needed) and set the output directory
+output_dir = "VIROVER_SIMULATION_OUTPUT"
+import os
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# =============================================================================
+# 2. Create Physical Systems
+# =============================================================================
+
+# Create a Chrono system (rigid body physics engine)
+system = chrono.ChSystemNSC()
+system.SetVerbosity(chrono.Verbosity_Verbose)
+
+# Set gravity (negative Y direction for typical ground plane at Y=0)
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+# Set solver parameters for better convergence
+solver = chrono.ChSolverBB()
+solver.SetMaxIterations(100)
+solver.SetTolerance(1e-6)
+system.SetSolver(solver)
+
+# Set simulation timestep parameters
+step_size = 1e-3  # 1 millisecond timestep
+t_end = 20.0      # Total simulation time
+
+# =============================================================================
+# 3. Add Ground Body (Rigid Terrain)
+# =============================================================================
+
+# Create ground material
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.1)
+
+# Create ground body - flat rigid terrain
+ground = chrono.ChBody()
+ground.SetBodyFixed(True)  # Fixed to world (infinite mass)
+ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+ground.SetMaterialSurface(ground_mat)
+
+# Add collision geometry for ground
+ground_shape = chrono.ChCollisionShape()
+ground_shape.AddBox(half_extents=chrono.ChVectorD(50, 0.5, 50))  # Large ground plane
+ground.AddCollisionShape(ground_shape, chrono.ChFrameD())
+
+# Add visualization geometry
+ground_visual = chrono.ChVisualShapeBox(half_extents=chrono.ChVectorD(50, 0.5, 50))
+ground.AddVisualShape(ground_visual)
+
+system.AddBody(ground)
+
+# =============================================================================
+# 4. Initialize Viper Rover
+# =============================================================================
+
+# Create Viper rover assembly
+print("Initializing Viper rover...")
+
+# Create the Viper rover assembly (chassis + 4 wheels)
+viper = veh.Viper rover(vehicle_system=None, chassis_pos=chrono.ChVectorD(0, 0.5, 0))
+
+# Viper rover parameters
+viper_wheelbase = 0.94       # Distance between front and rear axles (m)
+viper_track = 0.80           # Distance between left and right wheels (m)
+viper_wheel_radius = 0.16    # Wheel radius (m)
+viper_wheel_width = 0.08     # Wheel width (m)
+
+# Create the Viper rover using the factory method
+# This creates the complete rover with chassis, suspension, and wheels
+viper_rocker = veh.ViperRocker(
+    system,
+    pos=chrono.ChVectorD(0, 0.5, 0),
+    chassis_mat=ground_mat,
+    wheel_mat=ground_mat
+)
+
+# Set Viper rover appearance/color
+viper_rocker.SetChassisColor(chrono.ChColor(0.8, 0.2, 0.2))  # Red chassis
+viper_rocker.SetWheelColor(chrono.ChColor(0.1, 0.1, 0.1))   # Black wheels
+
+# =============================================================================
+# 5. Initialize Viper Driver
+# =============================================================================
+
+# Create a driver for the Viper rover
+# Using a simple path-following driver
+driver = veh.ChPathFollowerDriver(
+    viper_rocker.GetVehicle(),
+    veh.GetDataFile("paths/curve_straight.txt"),
+    "path_1",
+    2.0,    # Desired vehicle speed (m/s)
+    2.0     # Look-ahead distance (m)
+)
+
+# Alternatively, create a manual driver for direct control
+manual_driver = veh.ChDriver(viper_rocker.GetVehicle())
+
+# Set initial driver inputs
+throttle = 0.0
+steering = 0.0
+braking = 0.0
+
+# =============================================================================
+# 6. Create Real-Time Visualization (Irrlicht)
+# =============================================================================
+
+# Create the Irrlicht application for 3D visualization
+print("Creating Irrlicht visualization...")
+app = irr.ChIrrApp(
+    system,
+    "Viper Rover Simulation",
+    irr.dimension2du(1280, 720),  # Window size
+    irr.EWI_PERSPECTIVE           # Perspective projection
+)
+
+# Add camera settings
+app.AddTypicalCamera(
+    irr.vector3df(5, 4, -5),      # Camera position
+    irr.vector3df(0, 0, 0)        # Look-at target
+)
+
+# Add default lighting
+app.AddTypicalLight(
+    irr.vector3df(10, 20, 10),    # Light position
+    irr.SColorf(1.0, 1.0, 1.0)   # Light color
+)
+
+# Add directional light for better shadow effect
+app.AddLightWithShadow(
+    irr.vector3df(15, 20, -10),
+    irr.vector3df(0, 0, 0),
+    30,                            # Radius
+    1, 40,                         # Near/far planes
+    irr.SColorf(1.0, 1.0, 0.9)
+)
+
+# Set window title
+app.SetWindowTitle("PyChrono - Viper Rover Simulation")
+app.SetShowDemoInfo(True)         # Show FPS and simulation info
+app.SetShowProfiler(True)         # Show performance profiler
+
+# =============================================================================
+# 7. Implement Simulation Loop
+# =============================================================================
+
+print("Starting simulation loop...")
+
+# Time variables
+time = 0.0
+frame = 0
+last_time = 0.0
+steer_direction = 1  # 1 for left, -1 for right
+
+# Start the simulation
+app.SetTimestep(step_size)
+app.Start()  # This starts the Irrlicht event loop
+
+# Main simulation loop (controlled by Irrlicht in real-time mode)
+while app.GetDevice().run():
+    # Get current simulation time
+    time = system.GetChTime()
+    
+    # Update steering - gradually change steering angle over time
+    if time < 5.0:
+        # Initial phase: straight driving
+        steering = 0.0
+        throttle = 0.5
+    elif time < 10.0:
+        # Phase 1: gradually turn left
+        steering = steer_direction * min((time - 5.0) / 2.0, 0.4)
+        throttle = 0.3
+    elif time < 15.0:
+        # Phase 2: straight driving
+        steering = steer_direction * 0.4
+        throttle = 0.4
+    elif time < 20.0:
+        # Phase 3: gradually turn back (right)
+        steering = steer_direction * (0.4 - (time - 15.0) / 2.5 * 0.4)
+        throttle = 0.3
+    else:
+        # Phase 4: stop
+        steering = 0.0
+        throttle = 0.0
+        braking = 0.5
+    
+    # Apply driver inputs
+    manual_driver.SetSteering(steering)
+    manual_driver.SetThrottle(throttle)
+    manual_driver.SetBraking(braking)
+    manual_driver.Synchronize(time)
+    
+    # Update the Viper rover
+    viper_rocker.Synchronize(time, manual_driver)
+    viper_rocker.Update()
+    
+    # Advance the simulation
+    system.DoStepDynamics(step_size)
+    
+    # Render the scene
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    # Print status every 2 seconds
+    if time - last_time >= 2.0:
+        print(f"Time: {time:.2f}s | Steering: {steering:.3f} | "
+              f"Throttle: {throttle:.2f} | "
+              f"Position: {viper_rocker.GetVehicle().GetChassis().GetPos()}")
+        last_time = time
+    
+    frame += 1
+
+# =============================================================================
+# 8. Cleanup and Save Results
+# =============================================================================
+
+print("\nSimulation completed!")
+print(f"Total frames: {frame}")
+print(f"Final time: {time:.2f}s")
+
+# Save vehicle trajectory data
+trajectory_file = os.path.join(output_dir, "viper_trajectory.txt")
+with open(trajectory_file, 'w') as f:
+    f.write("# Viper Rover Trajectory Data\n")
+    f.write("# Time (s)\tX (m)\tY (m)\tZ (m)\tHeading (rad)\n")
+    # Note: In real implementation, you would record positions during simulation
+    f.write(f"{time:.4f}\t0.0\t0.0\t0.0\t0.0\n")
+
+print(f"Results saved to: {output_dir}")

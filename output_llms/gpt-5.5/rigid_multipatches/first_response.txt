@@ -1,0 +1,467 @@
+```python
+# hmmwv_complex_rigid_terrain.py
+#
+# PyChrono simulation: HMMWV on a multi-patch rigid terrain with Irrlicht
+# visualization and an interactive keyboard driver.
+#
+# Controls in the Irrlicht window:
+#   Arrow left/right : steering
+#   Arrow up         : throttle
+#   Arrow down       : braking
+
+import os
+import math
+import struct
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+
+# ---------------------------------------------------------------------
+# Basic Chrono/PyChrono compatibility helpers
+# ---------------------------------------------------------------------
+
+Vec = chrono.ChVector3d if hasattr(chrono, "ChVector3d") else chrono.ChVectorD
+Quat = chrono.ChQuaterniond if hasattr(chrono, "ChQuaterniond") else chrono.ChQuaternionD
+Coordsys = chrono.ChCoordsysd if hasattr(chrono, "ChCoordsysd") else chrono.ChCoordsysD
+QUNIT = chrono.QUNIT if hasattr(chrono, "QUNIT") else Quat(1, 0, 0, 0)
+
+
+def make_coords(x, y, z):
+    return Coordsys(Vec(x, y, z), QUNIT)
+
+
+def get_contact_method_nsc():
+    if hasattr(chrono, "ChContactMethod_NSC"):
+        return chrono.ChContactMethod_NSC
+    return chrono.ChContactMethod.NSC
+
+
+def make_nsc_material(friction=0.8, restitution=0.01):
+    if hasattr(chrono, "ChContactMaterialNSC"):
+        mat = chrono.ChContactMaterialNSC()
+    else:
+        mat = chrono.ChMaterialSurfaceNSC()
+
+    if hasattr(mat, "SetFriction"):
+        mat.SetFriction(friction)
+    if hasattr(mat, "SetRestitution"):
+        mat.SetRestitution(restitution)
+
+    return mat
+
+
+def vehicle_data_file(rel_path):
+    try:
+        return veh.GetDataFile(rel_path)
+    except Exception:
+        return os.path.join(chrono.GetChronoDataPath(), "vehicle", rel_path)
+
+
+def set_patch_texture_or_color(patch, texture_candidates, sx, sy, color):
+    for rel in texture_candidates:
+        path = vehicle_data_file(rel)
+        if os.path.exists(path):
+            try:
+                patch.SetTexture(path, sx, sy)
+                return
+            except Exception:
+                pass
+
+    if hasattr(patch, "SetColor"):
+        patch.SetColor(chrono.ChColor(*color))
+
+
+# ---------------------------------------------------------------------
+# Procedural terrain asset generation
+# ---------------------------------------------------------------------
+
+def create_bump_obj(filename, length=14.0, width=7.0, nx=50, ny=26, height=0.65):
+    """Create a mesh-based Gaussian bump as an OBJ surface."""
+    with open(filename, "w") as f:
+        f.write("# Procedural Chrono terrain bump mesh\n")
+
+        for iy in range(ny + 1):
+            y = -width / 2.0 + width * iy / ny
+            for ix in range(nx + 1):
+                x = -length / 2.0 + length * ix / nx
+
+                # Smooth bump with a small ripple component
+                gx = x / (0.22 * length)
+                gy = y / (0.28 * width)
+                z = height * math.exp(-(gx * gx + gy * gy))
+                z += 0.035 * math.sin(2.5 * x) * math.exp(-1.8 * gy * gy)
+
+                # Force edges close to zero height for a clean transition
+                edge_x = min(ix / nx, 1.0 - ix / nx)
+                edge_y = min(iy / ny, 1.0 - iy / ny)
+                edge_blend = min(1.0, 8.0 * min(edge_x, edge_y))
+                z *= edge_blend
+
+                f.write(f"v {x:.8f} {y:.8f} {z:.8f}\n")
+
+        for iy in range(ny):
+            for ix in range(nx):
+                v1 = iy * (nx + 1) + ix + 1
+                v2 = v1 + 1
+                v3 = v1 + nx + 2
+                v4 = v1 + nx + 1
+                f.write(f"f {v1} {v2} {v3}\n")
+                f.write(f"f {v1} {v3} {v4}\n")
+
+
+def write_24bit_bmp(filename, pixels):
+    """Write pixels as a 24-bit BMP. pixels[y][x] is grayscale 0..255."""
+    h = len(pixels)
+    w = len(pixels[0])
+    row_stride = (3 * w + 3) & ~3
+    image_size = row_stride * h
+    file_size = 54 + image_size
+
+    with open(filename, "wb") as f:
+        # BITMAPFILEHEADER
+        f.write(b"BM")
+        f.write(struct.pack("<I", file_size))
+        f.write(struct.pack("<HH", 0, 0))
+        f.write(struct.pack("<I", 54))
+
+        # BITMAPINFOHEADER
+        f.write(struct.pack("<I", 40))
+        f.write(struct.pack("<i", w))
+        f.write(struct.pack("<i", h))
+        f.write(struct.pack("<H", 1))
+        f.write(struct.pack("<H", 24))
+        f.write(struct.pack("<I", 0))
+        f.write(struct.pack("<I", image_size))
+        f.write(struct.pack("<i", 2835))
+        f.write(struct.pack("<i", 2835))
+        f.write(struct.pack("<I", 0))
+        f.write(struct.pack("<I", 0))
+
+        pad = b"\x00" * (row_stride - 3 * w)
+
+        # BMP is bottom-up
+        for y in reversed(range(h)):
+            for x in range(w):
+                g = max(0, min(255, int(pixels[y][x])))
+                f.write(bytes([g, g, g]))
+            f.write(pad)
+
+
+def create_heightmap_bmp(filename, n=128, hmin=-0.20, hmax=0.50):
+    """Create a deterministic grayscale heightmap with smooth undulations."""
+    pixels = []
+
+    for j in range(n):
+        row = []
+        y = -1.0 + 2.0 * j / (n - 1)
+
+        for i in range(n):
+            x = -1.0 + 2.0 * i / (n - 1)
+
+            # Blend to zero height at edges for smoother transitions.
+            edge = min(i / (n - 1), 1.0 - i / (n - 1),
+                       j / (n - 1), 1.0 - j / (n - 1))
+            blend = min(1.0, 7.0 * edge)
+
+            h = 0.0
+            h += 0.18 * math.sin(2.4 * math.pi * x + 0.4) * math.cos(1.7 * math.pi * y)
+            h += 0.08 * math.sin(5.0 * math.pi * (x + y))
+            h += 0.28 * math.exp(-7.0 * ((x - 0.25) ** 2 + (y + 0.15) ** 2))
+            h -= 0.12 * math.exp(-10.0 * ((x + 0.35) ** 2 + (y - 0.25) ** 2))
+            h *= blend
+
+            g = 255.0 * (h - hmin) / (hmax - hmin)
+            row.append(g)
+
+        pixels.append(row)
+
+    write_24bit_bmp(filename, pixels)
+
+
+def add_mesh_patch(terrain, material, coords, mesh_file, mesh_name="bump_mesh", sweep_radius=0.005):
+    """Try common RigidTerrain mesh-patch signatures."""
+    attempts = [
+        lambda: terrain.AddPatch(material, coords, mesh_file, mesh_name, sweep_radius, True),
+        lambda: terrain.AddPatch(material, coords, mesh_file, mesh_name, sweep_radius),
+        lambda: terrain.AddPatch(material, coords, mesh_file, sweep_radius, True),
+        lambda: terrain.AddPatch(material, coords, mesh_file, sweep_radius),
+    ]
+
+    last_error = None
+    for attempt in attempts:
+        try:
+            return attempt()
+        except TypeError as e:
+            last_error = e
+
+    raise RuntimeError(f"Could not create mesh terrain patch. Last error: {last_error}")
+
+
+def add_heightmap_patch(terrain, material, coords, heightmap_file,
+                        length, width, hmin, hmax, name="heightmap_patch"):
+    """Try common RigidTerrain heightmap-patch signatures."""
+    attempts = [
+        lambda: terrain.AddPatch(material, coords, heightmap_file, length, width, hmin, hmax),
+        lambda: terrain.AddPatch(material, coords, heightmap_file, name, length, width, hmin, hmax),
+    ]
+
+    last_error = None
+    for attempt in attempts:
+        try:
+            return attempt()
+        except TypeError as e:
+            last_error = e
+
+    raise RuntimeError(f"Could not create heightmap terrain patch. Last error: {last_error}")
+
+
+# ---------------------------------------------------------------------
+# Chrono data paths
+# ---------------------------------------------------------------------
+
+if "CHRONO_DATA_DIR" in os.environ:
+    chrono_data = os.environ["CHRONO_DATA_DIR"]
+    if not chrono_data.endswith(os.sep):
+        chrono_data += os.sep
+    chrono.SetChronoDataPath(chrono_data)
+
+veh.SetDataPath(os.path.join(chrono.GetChronoDataPath(), "vehicle") + os.sep)
+
+
+# ---------------------------------------------------------------------
+# Simulation parameters
+# ---------------------------------------------------------------------
+
+step_size = 2.0e-3
+tire_step_size = 1.0e-3
+render_step_size = 1.0 / 50.0
+
+init_loc = Vec(-52.0, 0.0, 0.75)
+init_rot = QUNIT
+
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+
+
+# ---------------------------------------------------------------------
+# Create and initialize HMMWV
+# ---------------------------------------------------------------------
+
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(get_contact_method_nsc())
+hmmwv.SetInitPosition(Coordsys(init_loc, init_rot))
+hmmwv.SetChassisFixed(False)
+
+if hasattr(hmmwv, "SetInitFwdVel"):
+    hmmwv.SetInitFwdVel(0.0)
+
+if hasattr(hmmwv, "SetChassisCollisionType") and hasattr(veh, "CollisionType_NONE"):
+    hmmwv.SetChassisCollisionType(veh.CollisionType_NONE)
+
+if hasattr(hmmwv, "SetEngineType") and hasattr(veh, "EngineModelType_SHAFTS"):
+    hmmwv.SetEngineType(veh.EngineModelType_SHAFTS)
+
+if hasattr(hmmwv, "SetTransmissionType") and hasattr(veh, "TransmissionModelType_AUTOMATIC_SHAFTS"):
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SHAFTS)
+
+if hasattr(hmmwv, "SetDriveType") and hasattr(veh, "DrivelineTypeWV_AWD"):
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+
+if hasattr(hmmwv, "SetSteeringType") and hasattr(veh, "SteeringTypeWV_PITMAN_ARM"):
+    hmmwv.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+
+if hasattr(hmmwv, "SetTireType") and hasattr(veh, "TireModelType_RIGID"):
+    hmmwv.SetTireType(veh.TireModelType_RIGID)
+
+if hasattr(hmmwv, "SetTireStepSize"):
+    hmmwv.SetTireStepSize(tire_step_size)
+
+hmmwv.Initialize()
+
+# Mesh visualization for all available HMMWV components.
+if hasattr(veh, "VisualizationType_MESH"):
+    vis_mesh = veh.VisualizationType_MESH
+
+    if hasattr(hmmwv, "SetChassisVisualizationType"):
+        hmmwv.SetChassisVisualizationType(vis_mesh)
+    if hasattr(hmmwv, "SetSuspensionVisualizationType"):
+        hmmwv.SetSuspensionVisualizationType(vis_mesh)
+    if hasattr(hmmwv, "SetSteeringVisualizationType"):
+        hmmwv.SetSteeringVisualizationType(vis_mesh)
+    if hasattr(hmmwv, "SetWheelVisualizationType"):
+        hmmwv.SetWheelVisualizationType(vis_mesh)
+    if hasattr(hmmwv, "SetTireVisualizationType"):
+        hmmwv.SetTireVisualizationType(vis_mesh)
+
+
+system = hmmwv.GetSystem()
+
+
+# ---------------------------------------------------------------------
+# Construct complex rigid terrain with multiple patch types
+# ---------------------------------------------------------------------
+
+terrain = veh.RigidTerrain(system)
+
+mat_asphalt = make_nsc_material(friction=0.90, restitution=0.01)
+mat_dirt = make_nsc_material(friction=0.70, restitution=0.01)
+mat_grass = make_nsc_material(friction=0.55, restitution=0.01)
+mat_bump = make_nsc_material(friction=0.85, restitution=0.01)
+mat_height = make_nsc_material(friction=0.75, restitution=0.01)
+
+# Flat asphalt patch
+patch = terrain.AddPatch(mat_asphalt, make_coords(-38.0, 0.0, 0.0), 36.0, 14.0)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/asphalt.jpg", "terrain/textures/concrete.jpg", "terrain/textures/tile4.jpg"],
+    18.0,
+    7.0,
+    (0.35, 0.35, 0.35),
+)
+
+# Flat dirt patch
+patch = terrain.AddPatch(mat_dirt, make_coords(-13.0, 0.0, 0.0), 18.0, 14.0)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/dirt.jpg", "terrain/textures/tile5.jpg", "terrain/textures/tile4.jpg"],
+    9.0,
+    7.0,
+    (0.55, 0.42, 0.25),
+)
+
+# Side grass patches with different texture/friction
+patch = terrain.AddPatch(mat_grass, make_coords(-18.0, 12.0, 0.0), 55.0, 9.0)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/grass.jpg", "terrain/textures/green_grass.jpg", "terrain/textures/tile4.jpg"],
+    22.0,
+    5.0,
+    (0.15, 0.45, 0.12),
+)
+
+patch = terrain.AddPatch(mat_grass, make_coords(-18.0, -12.0, 0.0), 55.0, 9.0)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/grass.jpg", "terrain/textures/green_grass.jpg", "terrain/textures/tile4.jpg"],
+    22.0,
+    5.0,
+    (0.15, 0.45, 0.12),
+)
+
+# Procedural mesh bump patch
+asset_dir = os.path.abspath("chrono_generated_terrain")
+os.makedirs(asset_dir, exist_ok=True)
+
+bump_obj = os.path.join(asset_dir, "procedural_bump.obj")
+create_bump_obj(bump_obj)
+
+patch = add_mesh_patch(
+    terrain,
+    mat_bump,
+    make_coords(5.0, 0.0, 0.0),
+    bump_obj,
+    mesh_name="procedural_bump",
+    sweep_radius=0.01,
+)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/dirt.jpg", "terrain/textures/tile4.jpg"],
+    5.0,
+    3.0,
+    (0.50, 0.38, 0.25),
+)
+
+# Heightmap-based rough terrain patch
+heightmap_bmp = os.path.join(asset_dir, "procedural_heightmap.bmp")
+height_hmin = -0.20
+height_hmax = 0.50
+create_heightmap_bmp(heightmap_bmp, n=128, hmin=height_hmin, hmax=height_hmax)
+
+patch = add_heightmap_patch(
+    terrain,
+    mat_height,
+    make_coords(31.0, 0.0, 0.0),
+    heightmap_bmp,
+    length=38.0,
+    width=16.0,
+    hmin=height_hmin,
+    hmax=height_hmax,
+)
+set_patch_texture_or_color(
+    patch,
+    ["terrain/textures/dirt.jpg", "terrain/textures/grass.jpg", "terrain/textures/tile4.jpg"],
+    12.0,
+    5.0,
+    (0.45, 0.40, 0.28),
+)
+
+terrain.Initialize()
+
+
+# ---------------------------------------------------------------------
+# Irrlicht visualization
+# ---------------------------------------------------------------------
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("PyChrono HMMWV - complex rigid terrain")
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(Vec(0.0, 0.0, 1.75), 7.0, 0.45)
+
+vis.Initialize()
+
+try:
+    vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+except Exception:
+    pass
+
+vis.AddSkyBox()
+vis.AddLightDirectional()
+vis.AttachVehicle(hmmwv.GetVehicle())
+
+
+# ---------------------------------------------------------------------
+# Interactive driver
+# ---------------------------------------------------------------------
+
+driver = veh.ChInteractiveDriverIRR(vis)
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+driver.Initialize()
+
+
+# ---------------------------------------------------------------------
+# Simulation loop
+# ---------------------------------------------------------------------
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+render_steps = max(1, int(math.ceil(render_step_size / step_size)))
+step_number = 0
+
+while vis.Run():
+    time = system.GetChTime()
+
+    driver_inputs = driver.GetInputs()
+
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    hmmwv.Advance(step_size)
+    vis.Advance(step_size)
+
+    realtime_timer.Spin(step_size)
+    step_number += 1
+```

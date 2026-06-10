@@ -1,0 +1,234 @@
+Looking at the original script, I need to:
+
+1. **Fix/identify issues**: The script is mostly correct but uses an interactive driver that needs to be replaced
+2. **Increase terrain length to 200.0**
+3. **Implement a circular path with Bezier curve and PID steering controller**
+4. **Replace interactive driver with `ChPathFollowerDriver`**
+5. **Add sentinel/target point visualization spheres**
+6. **Visualize the path with two balls**
+
+Here is the corrected and modified script:
+
+```python
+import pychrono.core as chrono
+import pychrono.irrlicht as irr
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# Circular path radius
+path_radius = 20.0
+
+# Initial vehicle location and orientation - start on the circular path facing +Y (tangent at (R,0))
+initLoc = chrono.ChVector3d(path_radius, 0, 0.5)
+initRot = chrono.QuatFromAngleAxis(math.pi / 2, chrono.ChVector3d(0, 0, 1))
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_PRIMITIVES
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrainHeight = 0       # terrain height
+terrainLength = 200.0   # increased from 100.0 to fit circular path
+terrainWidth = 200.0    # increased to match length
+
+# Point on chassis tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+# Create the HMMWV vehicle, set parameters, and initialize
+vehicle = veh.HMMWV_Full()
+vehicle.SetContactMethod(contact_method)
+vehicle.SetChassisCollisionType(chassis_collision_type)
+vehicle.SetChassisFixed(False)
+vehicle.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+vehicle.SetTireType(tire_model)
+vehicle.SetTireStepSize(tire_step_size)
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat,
+                         chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                         terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# -------------------------------------------------------
+# Create a circular Bezier path
+# -------------------------------------------------------
+num_points = 100
+path_points = chrono.vector_ChVector3d()
+for i in range(num_points):
+    angle = 2.0 * math.pi * i / num_points
+    x = path_radius * math.cos(angle)
+    y = path_radius * math.sin(angle)
+    path_points.push_back(chrono.ChVector3d(x, y, 0.5))
+
+# Create closed Bezier curve
+path = chrono.ChBezierCurve(path_points, True)  # True = closed path
+
+# -------------------------------------------------------
+# Create the vehicle Irrlicht interface
+# -------------------------------------------------------
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Circular Path Demo')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# -------------------------------------------------------
+# Visualize the circular path using two marker balls
+# (placed at opposite ends of the circle)
+# -------------------------------------------------------
+ball1 = chrono.ChBody()
+ball1.SetPos(chrono.ChVector3d(path_radius, 0, 0.5))
+ball1.SetFixed(True)
+ball1_shape = chrono.ChVisualShapeSphere(1.0)
+ball1_shape.SetColor(chrono.ChColor(1, 0.4, 0))
+ball1.AddVisualShape(ball1_shape)
+vehicle.GetSystem().Add(ball1)
+
+ball2 = chrono.ChBody()
+ball2.SetPos(chrono.ChVector3d(-path_radius, 0, 0.5))
+ball2.SetFixed(True)
+ball2_shape = chrono.ChVisualShapeSphere(1.0)
+ball2_shape.SetColor(chrono.ChColor(1, 0.4, 0))
+ball2.AddVisualShape(ball2_shape)
+vehicle.GetSystem().Add(ball2)
+
+# -------------------------------------------------------
+# Create the path follower driver with PID steering control
+# -------------------------------------------------------
+target_speed = 8.0  # desired speed (m/s); throttle overridden to constant below
+
+driver = veh.ChPathFollowerDriver(vehicle.GetVehicle(), path, "circular_path", target_speed)
+
+# PID gains for steering (lateral) controller
+steering_Kp = 0.4
+steering_Ki = 0.0
+steering_Kd = 0.0
+driver.GetSteeringController().SetLookAheadDistance(5.0)
+driver.GetSteeringController().SetGains(steering_Kp, steering_Ki, steering_Kd)
+
+# Speed controller gains (used internally, but we override throttle to constant)
+driver.GetSpeedController().SetGains(0.4, 0.0, 0.0)
+
+driver.Initialize()
+
+# Constant throttle value
+throttle_value = 0.3
+
+# -------------------------------------------------------
+# Sentinel and target point visualization spheres
+# -------------------------------------------------------
+sentinel_body = chrono.ChBody()
+sentinel_body.SetFixed(True)
+sentinel_shape = chrono.ChVisualShapeSphere(0.4)
+sentinel_shape.SetColor(chrono.ChColor(1, 0, 0))   # Red = sentinel (look-ahead)
+sentinel_body.AddVisualShape(sentinel_shape)
+vehicle.GetSystem().Add(sentinel_body)
+
+target_body = chrono.ChBody()
+target_body.SetFixed(True)
+target_shape = chrono.ChVisualShapeSphere(0.4)
+target_shape.SetColor(chrono.ChColor(0, 1, 0))     # Green = target point on path
+target_body.AddVisualShape(target_shape)
+vehicle.GetSystem().Add(target_body)
+
+# Output vehicle mass
+print("VEHICLE MASS: ", vehicle.GetVehicle().GetMass())
+
+# Number of simulation steps between render frames
+render_steps = math.ceil(render_step_size / step_size)
+
+# Initialize simulation frame counter
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Render scene
+    if (step_number % render_steps == 0):
+        # Update sentinel and target visualization sphere positions
+        sentinel_body.SetPos(driver.GetSteeringController().GetSentinelLocation())
+        target_body.SetPos(driver.GetSteeringController().GetTargetLocation())
+
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs from path follower
+    driver_inputs = driver.GetInputs()
+
+    # Override throttle with constant value; disable braking
+    driver_inputs.m_throttle = throttle_value
+    driver_inputs.m_braking = 0.0
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    vehicle.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+```
+
+### Key Changes Made:
+
+| Change | Description |
+|--------|-------------|
+| **Terrain size** | Increased `terrainLength` and `terrainWidth` from `100.0` to `200.0` |
+| **Initial position** | Vehicle starts at `(path_radius, 0, 0.5)` facing `+Y` (tangent to circle), using `QuatFromAngleAxis` |
+| **Circular path** | Built a closed `ChBezierCurve` from 100 evenly-spaced points around a circle of radius 20 m |
+| **Path markers** | Two orange spheres placed at `(+R, 0)` and `(-R, 0)` to visualize the path |
+| **Driver** | Replaced `ChInteractiveDriverIRR` with `ChPathFollowerDriver` using PID steering gains `(Kp=0.4, Ki=0, Kd=0)` |
+| **Constant throttle** | `driver_inputs.m_throttle` overridden to `0.3` each step; braking set to `0` |
+| **Sentinel/target spheres** | Red sphere = sentinel (look-ahead point), Green sphere = nearest path target; updated each render frame |

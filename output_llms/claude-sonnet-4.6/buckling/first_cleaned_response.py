@@ -1,0 +1,367 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+import math
+
+
+
+
+class ChFunctionMyMotor(chrono.ChFunction):
+    
+    
+    def __init__(self, amplitude=0.02, ramp_time=2.0):
+        chrono.ChFunction.__init__(self)
+        self.amplitude = amplitude
+        self.ramp_time = ramp_time
+
+    def Get_y(self, x):
+        
+        if x < self.ramp_time:
+            
+            return -self.amplitude * (x / self.ramp_time)
+        else:
+            
+            return -self.amplitude
+
+    def Get_y_dx(self, x):
+        
+        if x < self.ramp_time:
+            return -self.amplitude / self.ramp_time
+        else:
+            return 0.0
+
+    def Clone(self):
+        return ChFunctionMyMotor(self.amplitude, self.ramp_time)
+
+
+
+
+
+print("=== PyChrono Beam Buckling Simulation ===")
+
+
+sys = chrono.ChSystemSMC()
+sys.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+
+
+
+beam_material = fea.ChBeamSectionEulerAdvanced()
+
+
+b = 0.020   
+h = 0.005   
+
+beam_material.SetAsRectangularSection(b, h)
+beam_material.SetYoungModulus(210e9)      
+beam_material.SetGshearModulus(80.77e9)  
+beam_material.SetBeamRaleyghDamping(0.002)
+
+
+rho = 7800  
+beam_material.SetDensity(rho)
+
+print(f"Beam cross-section: {b*1000:.1f}mm x {h*1000:.1f}mm")
+print(f"Young's Modulus: {210e9/1e9:.0f} GPa")
+
+
+
+
+mesh = fea.ChMesh()
+
+
+beam_length = 1.0    
+num_elements = 20    
+num_nodes = num_elements + 1
+
+print(f"Beam length: {beam_length} m")
+print(f"Number of elements: {num_elements}")
+
+
+nodes = []
+for i in range(num_nodes):
+    x_pos = i * beam_length / num_elements
+    
+    
+    imperfection = 0.0001 * math.sin(math.pi * x_pos / beam_length)
+    
+    node = fea.ChNodeFEAxyzrot(
+        chrono.ChFrameD(
+            chrono.ChVectorD(x_pos, imperfection, 0),
+            chrono.Q_from_AngAxis(0, chrono.ChVectorD(0, 1, 0))
+        )
+    )
+    node.SetMass(0.001)  
+    nodes.append(node)
+    mesh.AddNode(node)
+
+print(f"Created {len(nodes)} beam nodes with sinusoidal imperfection")
+
+
+elements = []
+builder = fea.ChBuilderBeamEuler()
+
+
+builder.BuildBeam(
+    mesh,
+    beam_material,
+    num_elements,
+    nodes[0],      
+    nodes[-1],     
+    chrono.ChVectorD(0, 1, 0)  
+)
+
+print(f"Built beam with {builder.GetLastBeamNodes().size()} elements")
+
+
+built_nodes = builder.GetLastBeamNodes()
+
+
+
+
+
+
+
+fixed_body = chrono.ChBody()
+fixed_body.SetBodyFixed(True)
+fixed_body.SetPos(chrono.ChVectorD(0, 0, 0))
+sys.Add(fixed_body)
+
+
+constraint_left = fea.ChLinkPointFrame()
+constraint_left.Initialize(built_nodes[0], fixed_body)
+sys.Add(constraint_left)
+
+
+constraint_rot_left = fea.ChLinkDirFrame()
+constraint_rot_left.Initialize(built_nodes[0], fixed_body)
+sys.Add(constraint_rot_left)
+
+print("Left end: fully fixed (cantilever condition)")
+
+
+moving_body = chrono.ChBody()
+moving_body.SetBodyFixed(False)
+moving_body.SetPos(chrono.ChVectorD(beam_length, 0, 0))
+moving_body.SetMass(1.0)
+
+
+prismatic_joint = chrono.ChLinkLockPrismatic()
+prismatic_joint.Initialize(
+    moving_body,
+    fixed_body,
+    chrono.ChCoordsysD(
+        chrono.ChVectorD(beam_length, 0, 0),
+        chrono.Q_from_AngAxis(chrono.CH_C_PI_2, chrono.ChVectorD(0, 0, 1))
+    )
+)
+sys.Add(prismatic_joint)
+sys.Add(moving_body)
+
+print("Right end: prismatic joint (slides along X-axis)")
+
+
+constraint_right = fea.ChLinkPointFrame()
+constraint_right.Initialize(built_nodes[-1], moving_body)
+sys.Add(constraint_right)
+
+
+
+print("Right end: pinned (rotation free, translation constrained to moving body)")
+
+
+
+
+motor_function = ChFunctionMyMotor(amplitude=0.015, ramp_time=3.0)
+
+motor = chrono.ChLinkMotionImposed()
+motor.Initialize(
+    moving_body,
+    fixed_body,
+    True,
+    chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0)),
+    chrono.ChFrameD(chrono.ChVectorD(beam_length, 0, 0))
+)
+motor.SetMotionFunction(motor_function)
+sys.Add(motor)
+
+print(f"Motor: applying {0.015*1000:.1f}mm compression over {3.0}s")
+
+
+E = 210e9
+I = b * h**3 / 12  
+Pcr = math.pi**2 * E * I / (beam_length**2)
+print(f"\nTheoretical Euler critical load (pin-pin): {Pcr:.2f} N")
+print(f"Effective compressive area: {b*h*1e6:.2f} mm²")
+print(f"Critical stress: {Pcr/(b*h)/1e6:.2f} MPa")
+
+
+
+
+mesh.SetAutomaticGravity(True)
+
+
+sys.Add(mesh)
+
+
+
+
+
+
+beam_vis = fea.ChVisualizationFEAmesh(mesh)
+beam_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_BEAM_MZ)  
+beam_vis.SetColorscaleMinMax(-0.4, 0.4)
+beam_vis.SetSmoothFaces(True)
+beam_vis.SetWireframe(False)
+mesh.AddAsset(beam_vis)
+
+
+node_vis = fea.ChVisualizationFEAmesh(mesh)
+node_vis.SetFEMglyphType(fea.ChVisualizationFEAmesh.E_GLYPH_NODE_DOT_POS)
+node_vis.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_NONE)
+node_vis.SetSymbolsThickness(0.008)
+mesh.AddAsset(node_vis)
+
+
+
+
+try:
+    import pychrono.mkl as mkl
+    solver = mkl.ChSolverPardisoMKL()
+    solver.LockSparsityPattern(True)
+    sys.SetSolver(solver)
+    print("\nSolver: MKL Pardiso (sparse direct)")
+except ImportError:
+    
+    solver = chrono.ChSolverMINRES()
+    solver.SetMaxIterations(200)
+    solver.SetTolerance(1e-12)
+    solver.EnableDiagonalPreconditioner(True)
+    solver.SetVerbose(False)
+    sys.SetSolver(solver)
+    print("\nSolver: MINRES iterative (MKL not available)")
+
+
+
+
+sys.SetTimestepperType(chrono.ChTimestepper.Type_HHT)
+hht_stepper = chrono.CastToChTimestepperHHT(sys.GetTimestepper())
+hht_stepper.SetAlpha(-0.2)           
+hht_stepper.SetMaxiters(20)          
+hht_stepper.SetAbsTolerances(1e-6)   
+hht_stepper.SetMode(chrono.ChTimestepperHHT.POSITION)  
+hht_stepper.SetScaling(True)
+hht_stepper.SetVerbose(False)
+print("Timestepper: HHT (Hilber-Hughes-Taylor) alpha=-0.2")
+
+
+
+
+application = chronoirr.ChIrrApp(
+    sys,
+    "PyChrono - Beam Buckling FEA Simulation",
+    chronoirr.dimension2du(1280, 720)
+)
+
+application.AddTypicalSky()
+application.AddTypicalLogo()
+application.AddTypicalCamera(
+    chronoirr.vector3df(0.5, 0.3, 1.2),  
+    chronoirr.vector3df(0.5, 0.0, 0.0)   
+)
+application.AddTypicalLights(
+    chronoirr.vector3df(1.0, 2.0, 2.0),
+    chronoirr.vector3df(-1.0, 2.0, -0.5)
+)
+application.AddLightWithShadow(
+    chronoirr.vector3df(2.0, 4.0, 2.0),
+    chronoirr.vector3df(0.5, 0.0, 0.0),
+    6, 0.2, 6, 40
+)
+
+
+application.SetStepManage(True)
+application.SetTimestep(0.002)
+application.SetTryRealtime(False)  
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+print("\n=== Starting Simulation ===")
+print("Controls: SPACE=pause, ESC=exit")
+print(f"Timestep: 0.002s | Total time: 6.0s")
+
+
+
+
+sim_time_end = 6.0
+dt = 0.002
+log_interval = 0.1
+last_log_time = 0.0
+
+
+mid_node_idx = len(list(built_nodes)) // 2
+
+print(f"\n{'Time':>8} | {'Compression':>12} | {'Mid-Deflection':>14} | {'Status':>12}")
+print("-" * 60)
+
+while application.GetDevice().run():
+    application.BeginScene(True, True, chronoirr.SColor(255, 30, 30, 50))
+    application.DrawAll()
+    
+    
+    chronoirr.ChIrrTools.drawAllCsyses(
+        application.GetVideoDriver(), 0.1, False
+    )
+    
+    application.DoStep()
+    application.EndScene()
+    
+    t = sys.GetChTime()
+    
+    
+    if t - last_log_time >= log_interval:
+        last_log_time = t
+        
+        
+        try:
+            mid_node = built_nodes[mid_node_idx]
+            mid_pos = mid_node.GetPos()
+            mid_deflection = mid_pos.y
+            
+            
+            right_pos = moving_body.GetPos().x
+            compression = beam_length - right_pos
+            
+            
+            if abs(mid_deflection) > 0.001:
+                status = "BUCKLING!"
+            elif abs(mid_deflection) > 0.0001:
+                status = "Initiating"
+            else:
+                status = "Pre-buckle"
+            
+            print(f"{t:8.3f} | {compression*1000:10.3f} mm | "
+                  f"{mid_deflection*1000:12.4f} mm | {status:>12}")
+        except Exception as e:
+            print(f"{t:8.3f} | Data unavailable: {e}")
+    
+    
+    if t >= sim_time_end:
+        print("\n=== Simulation Complete ===")
+        break
+
+
+
+
+print("\n" + "="*60)
+print("BEAM BUCKLING SIMULATION SUMMARY")
+print("="*60)
+print(f"Beam Length:          {beam_length*1000:.0f} mm")
+print(f"Cross-section:        {b*1000:.0f}mm x {h*1000:.0f}mm")
+print(f"Material:             Steel (E={210e9/1e9:.0f} GPa)")
+print(f"Elements:             {num_elements} Euler-Bernoulli beams")
+print(f"Solver:               HHT + Sparse Direct")
+print(f"Critical Load (Euler): {Pcr:.2f} N")
+print(f"Slenderness ratio:    {beam_length / math.sqrt(I/(b*h)):.1f}")
+print("="*60)

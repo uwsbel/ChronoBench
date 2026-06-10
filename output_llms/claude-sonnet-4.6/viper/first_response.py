@@ -1,0 +1,160 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as chronoirr
+import math
+
+# =============================================================================
+# Initialize the PyChrono environment
+# =============================================================================
+
+# Create the Chrono system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# Set solver parameters
+system.SetSolverMaxIterations(150)
+system.SetSolverForceTolerance(1e-10)
+
+# =============================================================================
+# Create the ground body (rigid terrain)
+# =============================================================================
+
+# Ground material
+ground_mat = chrono.ChMaterialSurfaceNSC()
+ground_mat.SetFriction(0.9)
+ground_mat.SetRestitution(0.01)
+
+# Create ground body
+ground = chrono.ChBodyEasyBox(
+    20, 20, 0.5,   # dimensions: length, width, height
+    1000,          # density
+    True,          # visualize
+    True,          # collide
+    ground_mat     # material
+)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.25))
+ground.SetBodyFixed(True)
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# =============================================================================
+# Initialize the Viper Rover
+# =============================================================================
+
+# Import Viper rover module
+import pychrono.robot as robot
+
+# Create the Viper rover
+viper = robot.Viper(system)
+
+# Create the Viper driver
+driver = robot.ViperDCMotorControl()
+viper.SetDriver(driver)
+
+# Set initial rover position and orientation
+init_pos = chrono.ChVectorD(0, 0, 0.5)
+init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+
+viper.Initialize(chrono.ChFrameD(init_pos, init_rot))
+
+# =============================================================================
+# Create Irrlicht visualization
+# =============================================================================
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("Viper Rover Simulation")
+vis.Initialize()
+
+# Add logo, skybox, and typical lights
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(
+    chrono.ChVectorD(3, 3, 2),   # camera position
+    chrono.ChVectorD(0, 0, 0.5)  # camera target
+)
+vis.AddTypicalLights()
+vis.AddLightWithShadow(
+    chrono.ChVectorD(5, 5, 5),   # light position
+    chrono.ChVectorD(0, 0, 0),   # light target
+    10,                           # radius
+    1,                            # near clip
+    20,                           # far clip
+    50                            # angle of FOV
+)
+
+# =============================================================================
+# Simulation parameters
+# =============================================================================
+
+timestep = 1e-3          # simulation timestep [s]
+total_time = 20.0        # total simulation time [s]
+steering_change_time = 5.0  # time period over which steering changes [s]
+
+# Steering parameters
+max_steering = 0.4       # maximum steering angle [rad]
+current_time = 0.0
+
+# Real-time timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+# =============================================================================
+# Simulation loop
+# =============================================================================
+
+print("Starting Viper Rover Simulation...")
+print(f"Total simulation time: {total_time} s")
+print(f"Timestep: {timestep} s")
+
+step_number = 0
+
+while vis.Run() and current_time < total_time:
+
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # ---------------------------------------------------------------------------
+    # Update steering: gradually changes over the specified time period
+    # ---------------------------------------------------------------------------
+    if current_time < steering_change_time:
+        # Linearly increase steering from 0 to max_steering
+        steering = max_steering * (current_time / steering_change_time)
+    elif current_time < 2 * steering_change_time:
+        # Linearly decrease steering back to 0
+        steering = max_steering * (1.0 - (current_time - steering_change_time) / steering_change_time)
+    else:
+        # Hold steering at 0 for the remainder
+        steering = 0.0
+
+    # Apply throttle and steering to the driver
+    driver.SetSteering(steering)
+
+    # ---------------------------------------------------------------------------
+    # Update the rover
+    # ---------------------------------------------------------------------------
+    viper.Update()
+
+    # ---------------------------------------------------------------------------
+    # Advance the simulation
+    # ---------------------------------------------------------------------------
+    system.DoStepDynamics(timestep)
+
+    # Update time
+    current_time += timestep
+    step_number += 1
+
+    # Synchronize real-time
+    realtime_timer.Spin(timestep)
+
+    # Print status every 1 second
+    if step_number % 1000 == 0:
+        rover_pos = viper.GetChassisPos()
+        print(f"Time: {current_time:.2f}s | "
+              f"Rover Pos: ({rover_pos.x:.3f}, {rover_pos.y:.3f}, {rover_pos.z:.3f}) | "
+              f"Steering: {steering:.3f}")
+
+print("\nSimulation completed!")

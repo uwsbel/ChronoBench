@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""
+PyChrono simulation – orbiting camera around a fixed OBJ mesh.
+
+This example demonstrates:
+* loading a Wavefront mesh and visualising it as a fixed body,
+* attaching a camera sensor to a moving body,
+* applying a Gaussian noise filter and visualisation post‑process,
+* updating the camera pose each step so it orbits the mesh,
+* printing the camera buffer when a new frame is available.
+
+Run with:
+    python orbiting_camera.py
+"""
+
+import math
+import numpy as np               # for array printing
+import pychrono as chrono
+import pychrono.sensor as sens
+
+def main():
+    # -------------------------------------------------------------------------
+    # 1.  Create a Chrono system and set basic parameters
+    # -------------------------------------------------------------------------
+    system = chrono.ChSystemNSC()
+    system.SetTimestepperType(chrono.ChTimestepper.Type_Euler)
+    system.SetStepSize(1.0e-3)            # 1 ms time step
+    system.Set_G_acc(chrono.ChVectorD(0, 0, 0))   # no gravity – the mesh is fixed
+
+    # -------------------------------------------------------------------------
+    # 2.  Load a triangular mesh (OBJ) and add it as a fixed body
+    # -------------------------------------------------------------------------
+    mesh_file = "mesh.obj"   # <-- replace with your own OBJ file
+    mesh = chrono.ChTriangleMesh()
+    try:
+        mesh.LoadWavefrontMesh(mesh_file, True, True)
+        print(f"[INFO] Loaded mesh from '{mesh_file}'")
+    except Exception as e:
+        print(f"[ERROR] Could not load mesh: {e}")
+        return
+
+    # Create a body that carries the mesh
+    mesh_body = chrono.ChBody()
+    mesh_body.SetPos(chrono.ChVectorD(0, 0, 0))
+    mesh_body.SetBodyFixed(True)                     # it will not move
+    vis_shape = chrono.ChTriangleMeshShape()
+    vis_shape.SetMesh(mesh)
+    mesh_body.AddVisualShape(vis_shape)
+    system.AddBody(mesh_body)
+
+    # -------------------------------------------------------------------------
+    # 3.  Create a moving camera platform (dynamic body)
+    # -------------------------------------------------------------------------
+    cam_body = chrono.ChBody()
+    cam_body.SetPos(chrono.ChVectorD(5, 0, 0))        # start on the +X axis
+    cam_body.SetBodyFixed(False)                      # we will drive it kinematically
+    system.AddBody(cam_body)
+
+    # -------------------------------------------------------------------------
+    # 4.  Define the camera sensor and its filters
+    # -------------------------------------------------------------------------
+    update_rate = 30               # Hz
+    camera_offset = chrono.ChFrame(chrono.ChVectorD(0, 0, 0))   # local offset on the platform
+    width, height = 640, 480
+
+    camera = sens.ChCameraSensor(
+        cam_body,               # parent body
+        update_rate,            # update frequency
+        camera_offset,          # pose relative to parent
+        width, height,          # image size
+        "Camera"                # sensor name
+    )
+
+    # Add a Gaussian‑noise filter (mean = 0, std = 0.02)
+    noise = sens.ChNoiseGaussian(0.0, 0.02)
+    camera.PushFilter(noise)
+
+    # Filter that gives us direct access to the RGBA buffer
+    camera.PushFilter(sens.ChFilterRGBA8Access())
+
+    # Filter that visualises the image (opens a window if a display is available)
+    camera.PushFilter(sens.ChFilterVisualize())
+
+    # -------------------------------------------------------------------------
+    # 5.  Create a sensor manager and add the camera
+    # -------------------------------------------------------------------------
+    manager = sens.ChSensorManager(system)
+    manager.AddSensor(camera)
+
+    # -------------------------------------------------------------------------
+    # 6.  Simulation parameters
+    # -------------------------------------------------------------------------
+    orbit_radius = 5.0            # distance from origin
+    orbit_speed = 0.5             # rad/s
+    sim_time = 0.0
+    end_time = 5.0                # total simulation time
+    time_step = system.GetStepSize()
+
+    # Forward direction of the camera in its local frame (Chrono uses -Z as forward)
+    forward_local = chrono.ChVectorD(0, 0, -1)
+
+    # -------------------------------------------------------------------------
+    # 7.  Run the simulation loop
+    # -------------------------------------------------------------------------
+    step = 0
+    while sim_time < end_time:
+        # Advance dynamics
+        system.DoStepDynamics(time_step)
+
+        # Update all sensors (this creates camera frames when needed)
+        manager.Update()
+
+        # ---- Move the camera platform in a circle around the mesh ----
+        angle = sim_time * orbit_speed
+        x = orbit_radius * math.cos(angle)
+        z = orbit_radius * math.sin(angle)
+        cam_body.SetPos(chrono.ChVectorD(x, 0, z))
+
+        # Orient the body so its local -Z axis points toward the origin
+        dir_to_origin = -cam_body.GetPos()          # vector from camera to origin
+        dir_to_origin.Normalize()
+        q = chrono.Q_from_Vect_To_Vect(forward_local, dir_to_origin)
+        cam_body.SetRot(q)
+
+        # ---- Print camera buffer when a new frame is available ----
+        if camera.IsNewDataAvailable():
+            # Get the most recent RGBA frame
+            frame = camera.GetMostRecentData()
+            # `frame` is a numpy array with shape (height, width, 4)
+            print(f"Step {step:06d} | SimTime {sim_time:.3f} s | "
+                  f"Buffer shape: {frame.shape}, dtype: {frame.dtype}")
+            print(f"  First pixel (RGBA): {frame[0, 0, :]}")
+            print(f"  Sample first 10 values: {frame.ravel()[:10]}")
+
+        sim_time += time_step
+        step += 1
+
+    print("\n[INFO] Simulation finished.")
+
+if __name__ == "__main__":
+    main()

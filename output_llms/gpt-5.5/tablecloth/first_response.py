@@ -1,0 +1,251 @@
+# tablecloth_folding_shells.py
+#
+# PyChrono FEA simulation: folding a tablecloth using Kirchhoff shell elements.
+# The cloth is modeled as a triangular shell mesh with an isotropic Kirchhoff
+# material. One edge is fixed and the opposite edge is pulled upward/inward to
+# initiate folding. PardisoMKL is used as the linear solver and Irrlicht is used
+# for visualization.
+
+import math
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+
+# PardisoMKL is optional in some Chrono builds, but requested for this example.
+try:
+    import pychrono.pardisomkl as pardisomkl
+except ImportError as e:
+    raise ImportError(
+        "This script requires the PyChrono PardisoMKL module. "
+        "Install/use a Chrono build with PardisoMKL enabled."
+    ) from e
+
+
+# ---------------------------------------------------------------------------
+# Compatibility helper for different PyChrono versions
+# ---------------------------------------------------------------------------
+
+def V(x, y, z):
+    """Chrono vector helper compatible with recent and older PyChrono versions."""
+    if hasattr(chrono, "ChVector3d"):
+        return chrono.ChVector3d(x, y, z)
+    return chrono.ChVectorD(x, y, z)
+
+
+# ---------------------------------------------------------------------------
+# System setup
+# ---------------------------------------------------------------------------
+
+system = chrono.ChSystemSMC()
+
+# Gravity
+if hasattr(system, "SetGravitationalAcceleration"):
+    system.SetGravitationalAcceleration(V(0, 0, -9.81))
+else:
+    system.Set_G_acc(V(0, 0, -9.81))
+
+# Use PardisoMKL direct sparse solver
+solver = pardisomkl.ChSolverPardisoMKL()
+solver.SetVerbose(False)
+try:
+    solver.LockSparsityPattern(True)
+except Exception:
+    pass
+system.SetSolver(solver)
+
+# HHT timestepper is well suited for stiff FEA dynamics
+try:
+    timestepper = chrono.ChTimestepperHHT(system)
+    timestepper.SetAlpha(-0.2)
+    timestepper.SetMaxIters(25)
+    timestepper.SetAbsTolerances(1e-5)
+    timestepper.SetStepControl(False)
+    system.SetTimestepper(timestepper)
+except Exception:
+    # Fall back to Chrono default timestepper if HHT API differs.
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Tablecloth shell mesh
+# ---------------------------------------------------------------------------
+
+mesh = fea.ChMesh()
+try:
+    mesh.SetAutomaticGravity(True)
+except Exception:
+    pass
+
+# Tablecloth dimensions and mesh resolution
+cloth_length = 0.80      # x direction [m]
+cloth_width = 0.80       # y direction [m]
+cloth_z = 0.62           # initial height [m]
+
+nx = 24                  # elements along x, squares split into triangles
+ny = 24                  # elements along y
+
+dx = cloth_length / nx
+dy = cloth_width / ny
+
+# Material parameters for a soft cloth-like Kirchhoff shell
+rho = 350.0              # density [kg/m^3]
+young = 4.0e6            # Young's modulus [Pa]
+poisson = 0.30           # Poisson ratio
+thickness = 0.0012       # shell thickness [m]
+
+# Create isotropic Kirchhoff material.
+# Chrono historically used the spelling "Isothropic" in some APIs.
+if hasattr(fea, "ChMaterialShellKirchhoffIsothropic"):
+    mat = fea.ChMaterialShellKirchhoffIsothropic(rho, young, poisson)
+elif hasattr(fea, "ChMaterialShellKirchhoffIsotropic"):
+    mat = fea.ChMaterialShellKirchhoffIsotropic(rho, young, poisson)
+else:
+    raise RuntimeError(
+        "Could not find ChMaterialShellKirchhoffIsothropic/Isotropic in pychrono.fea."
+    )
+
+# Create nodes on a regular grid
+nodes = []
+for ix in range(nx + 1):
+    col = []
+    x = -0.5 * cloth_length + ix * dx
+    for iy in range(ny + 1):
+        y = -0.5 * cloth_width + iy * dy
+
+        node = fea.ChNodeFEAxyz(V(x, y, cloth_z))
+
+        # Fix the left edge to act like a held edge of the tablecloth.
+        if ix == 0:
+            node.SetFixed(True)
+
+        mesh.AddNode(node)
+        col.append(node)
+
+    nodes.append(col)
+
+# Create triangular Kirchhoff shell elements.
+# Each grid square is split into two triangles with consistent orientation.
+if not hasattr(fea, "ChElementShellBST"):
+    raise RuntimeError(
+        "This example requires ChElementShellBST, Chrono's Kirchhoff-Love shell element."
+    )
+
+for ix in range(nx):
+    for iy in range(ny):
+        n00 = nodes[ix][iy]
+        n10 = nodes[ix + 1][iy]
+        n01 = nodes[ix][iy + 1]
+        n11 = nodes[ix + 1][iy + 1]
+
+        # Triangle 1: n00 -> n10 -> n11
+        e1 = fea.ChElementShellBST()
+        e1.SetNodes(n00, n10, n11)
+        e1.SetMaterial(mat)
+        e1.SetThickness(thickness)
+        try:
+            e1.SetAlphaDamp(0.02)
+        except Exception:
+            pass
+        mesh.AddElement(e1)
+
+        # Triangle 2: n00 -> n11 -> n01
+        e2 = fea.ChElementShellBST()
+        e2.SetNodes(n00, n11, n01)
+        e2.SetMaterial(mat)
+        e2.SetThickness(thickness)
+        try:
+            e2.SetAlphaDamp(0.02)
+        except Exception:
+            pass
+        mesh.AddElement(e2)
+
+# Add FEA mesh to system
+system.Add(mesh)
+
+
+# ---------------------------------------------------------------------------
+# Simple table visual reference
+# ---------------------------------------------------------------------------
+
+# Visual-only table under the cloth.
+table = chrono.ChBodyEasyBox(
+    1.10 * cloth_length,
+    1.10 * cloth_width,
+    0.04,
+    1000.0,
+    False,   # collision
+    True     # visualization
+)
+table.SetFixed(True)
+table.SetPos(V(0, 0, cloth_z - 0.07))
+system.Add(table)
+
+
+# ---------------------------------------------------------------------------
+# Visualization assets for the FEA mesh
+# ---------------------------------------------------------------------------
+
+cloth_vis = fea.ChVisualShapeFEA(mesh)
+cloth_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_SURFACE)
+cloth_vis.SetSmoothFaces(True)
+cloth_vis.SetWireframe(False)
+mesh.AddVisualShapeFEA(cloth_vis)
+
+wire_vis = fea.ChVisualShapeFEA(mesh)
+wire_vis.SetFEMdataType(fea.ChVisualShapeFEA.DataType_SURFACE)
+wire_vis.SetWireframe(True)
+mesh.AddVisualShapeFEA(wire_vis)
+
+
+# ---------------------------------------------------------------------------
+# Irrlicht visualization
+# ---------------------------------------------------------------------------
+
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("PyChrono FEA tablecloth folding - Kirchhoff shell mesh")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(V(1.15, -1.25, 1.05), V(0.0, 0.0, cloth_z))
+vis.AddTypicalLights()
+
+
+# ---------------------------------------------------------------------------
+# Folding actuation
+# ---------------------------------------------------------------------------
+
+# Opposite edge nodes are pulled upward and inward to initiate a fold.
+pull_nodes = [nodes[nx][iy] for iy in range(ny + 1)]
+
+total_pull_x = -2.0      # inward force, toward fixed edge [N]
+total_pull_z = 4.0       # upward force [N]
+
+fx_node = total_pull_x / len(pull_nodes)
+fz_node = total_pull_z / len(pull_nodes)
+
+pull_time = 1.2          # duration of applied pull [s]
+ramp_time = 0.25         # smooth force ramp [s]
+
+step_size = 1.0e-3
+
+while vis.Run():
+    time = system.GetChTime()
+
+    # Apply or remove folding force
+    if time < pull_time:
+        ramp = min(time / ramp_time, 1.0)
+        fx = ramp * fx_node
+        fz = ramp * fz_node
+    else:
+        fx = 0.0
+        fz = 0.0
+
+    for node in pull_nodes:
+        node.SetForce(V(fx, 0.0, fz))
+
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    system.DoStepDynamics(step_size)

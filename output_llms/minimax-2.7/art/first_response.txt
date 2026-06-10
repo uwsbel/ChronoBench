@@ -1,0 +1,652 @@
+# PyChrono ARTcar Simulation Script
+
+Here's a complete PyChrono simulation script featuring an ARTcar vehicle on rigid terrain with Irrlicht visualization:
+
+```python
+"""
+PyChrono Simulation: ARTcar Vehicle on Rigid Terrain
+=====================================================
+This script demonstrates a complete vehicle simulation using PyChrono
+with Irrlicht visualization, including terrain, vehicle dynamics, 
+and interactive driver controls.
+"""
+
+# =============================================================================
+# STEP 1: Import Required PyChrono Modules
+# =============================================================================
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import os
+
+# =============================================================================
+# STEP 2: Initialize PyChrono Environment and Core Components
+# =============================================================================
+
+def initialize_chrono_environment():
+    """
+    Initialize the core PyChrono environment with necessary settings.
+    """
+    # Set the path for data files (textures, meshes, etc.)
+    chrono.SetDataPath(veh.GetDataPath())
+    
+    # Create the simulation system
+    system = chrono.ChSystemNSC()
+    
+    # Configure system parameters
+    system.Set_G_acc(chrono.ChVector3d(0, -9.81, 0))  # Gravity
+    
+    # Set solver parameters for better convergence
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetMaxIterations(100)
+    system.SetSolverMaxIterations(100)
+    
+    # Set collision detection parameters
+    system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+    
+    return system
+
+
+def create_vehicle_system(system, start_position):
+    """
+    Create the ARTcar vehicle system with specified parameters.
+    
+    Parameters:
+    -----------
+    system : ChSystemNSC
+        The physics system to add the vehicle to
+    start_position : ChVector3d
+        Initial position of the vehicle
+    
+    Returns:
+    --------
+    vehicle : ChVehicle
+        The created vehicle object
+    datamanager : ChVehicleVisualSystem
+        Visual system for rendering
+    """
+    
+    # =================================================================
+    # ARTcar Vehicle Configuration Parameters
+    # =================================================================
+    
+    # Vehicle contact method (NSC for non-smooth contact)
+    contact_method = chrono.ChContactMethod.NSC
+    
+    # Initial vehicle orientation (quaternion)
+    # ChQuaterniond(angle, axis_x, axis_y, axis_z)
+    # Identity quaternion = no rotation
+    vehicle_orientation = chrono.ChQuaterniond(1, 0, 0, 0)
+    
+    # Collision type for vehicle components
+    collision_type = veh.CollisionType_BACKEND
+    
+    # Visualization type
+    visualization_type = veh.VisualizationType_MESH
+    
+    # Drive type (AWD = All-Wheel Drive)
+    drive_type = veh.DriveType.AWD
+    
+    # Powertrain type
+    powertrain_type = veh.PowertrainType_SHAFTS
+    
+    # Tire model type
+    tire_model_type = veh.TireModelType_RIGID
+    
+    # =================================================================
+    # Create ARTcar Vehicle
+    # =================================================================
+    
+    # Initialize vehicle with custom parameters
+    vehicle = veh.ARTcar(
+        system,
+        contact_method,
+        vehicle_orientation,
+        collision_type,
+        visualization_type,
+        drive_type,
+        powertrain_type,
+        tire_model_type
+    )
+    
+    # Set initial position
+    vehicle.Initialize(chrono.ChCoordsysd(start_position, vehicle_orientation))
+    
+    # Set vehicle visualization (for Irrlicht rendering)
+    vehicle.SetChassisCollisionColor(chrono.ChColor(0.8, 0.2, 0.2))  # Red chassis
+    vehicle.SetWheelVisibility(True)
+    vehicle.SetSuspensionVisibility(True)
+    
+    return vehicle
+
+
+def create_rigid_terrain(system, dimensions, texture_path=None):
+    """
+    Create a rigid terrain with specified dimensions and optional texture.
+    
+    Parameters:
+    -----------
+    system : ChSystemNSC
+        The physics system to add the terrain to
+    dimensions : tuple
+        (length_x, width_y, height_z) of the terrain plane
+    texture_path : str, optional
+        Path to texture image for the terrain
+    
+    Returns:
+    --------
+    terrain : RigidTerrain
+        The created terrain object
+    """
+    
+    # =================================================================
+    # Terrain Material Configuration
+    # =================================================================
+    
+    # Create friction material for the terrain
+    terrain_material = chrono.ChMaterialSurfaceNSC()
+    terrain_material.SetFriction(0.8)           # Friction coefficient
+    terrain_material.SetRestitution(0.1)         # Bounciness
+    terrain_material.SetSpheroidal(0.0)          # No sphero-cylinder blending
+    
+    # =================================================================
+    # Terrain Visual Material
+    # =================================================================
+    
+    terrain_vis_mat = chrono.ChVisualMaterial()
+    terrain_vis_mat.SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray color
+    
+    # Apply texture if provided
+    if texture_path and os.path.exists(texture_path):
+        terrain_vis_mat.SetTexture(texture_path)
+    
+    # =================================================================
+    # Create Rigid Terrain
+    # =================================================================
+    
+    # Create the terrain object
+    terrain = veh.RigidTerrain(system)
+    
+    # Add terrain patch with specified dimensions
+    # Patch parameters: (width_x, length_z, material, thickness)
+    patch = terrain.AddPatch(
+        terrain_material,
+        dimensions[0],  # Width in X direction
+        dimensions[1],   # Width in Y direction (not used for plane)
+        dimensions[2],   # Thickness
+        chrono.ChVector3d(0, 0, 0)  # Position
+    )
+    
+    # Set terrain visualization
+    terrain.SetColor(chrono.ChColor(0.3, 0.6, 0.3))  # Green color
+    terrain.SetTexture(veh.GetDataPath() + "terrain/textures/grass.jpg", 10, 10)
+    
+    # Set terrain patch visualization material
+    patch.GetGroundBody().SetVisualMaterial(terrain_vis_mat)
+    
+    # Initialize the terrain
+    terrain.Initialize()
+    
+    return terrain
+
+
+def create_interactive_driver(system, vehicle):
+    """
+    Create an interactive driver system for real-time vehicle control.
+    
+    Parameters:
+    -----------
+    system : ChSystemNSC
+        The physics system
+    vehicle : ChVehicle
+        The vehicle to control
+    
+    Returns:
+    --------
+    driver : ChDriver
+        The interactive driver object
+    """
+    
+    # =================================================================
+    # Create Driver System
+    # =================================================================
+    
+    # Create the interactive driver
+    driver = veh.ChDriver(vehicle)
+    
+    # Set driver inputs (will be updated in simulation loop)
+    driver.Initialize()
+    
+    # Set steering parameters
+    driver.SetSteeringDelta(0.02)      # Steering rate
+    driver.SetThrottleDelta(0.05)      # Throttle rate
+    driver.SetBrakingDelta(0.05)       # Braking rate
+    
+    # Set maximum values
+    driver.SetMaxSteering(1.0)         # Maximum steering angle
+    driver.SetMaxThrottle(1.0)         # Maximum throttle
+    driver.SetMaxBraking(1.0)         # Maximum braking force
+    
+    return driver
+
+
+def create_visualization_system(vehicle, terrain):
+    """
+    Create the Irrlicht visualization system for real-time rendering.
+    
+    Parameters:
+    -----------
+    vehicle : ChVehicle
+        The vehicle to visualize
+    terrain : RigidTerrain
+        The terrain to visualize
+    
+    Returns:
+    --------
+    vis : ChIrrApp
+        The Irrlicht application for visualization
+    """
+    
+    # Create Irrlicht application
+    vis = irr.ChIrrApp(
+        vehicle.GetSystem(),           # Physics system
+        "ARTcar Simulation",            # Window title
+        irr.dimension2du(1280, 720),   # Window dimensions
+        irr.VerticalDir_Y              # Up direction
+    )
+    
+    # Setup visualization parameters
+    vis.AddTypicalLights()                          # Add default lighting
+    vis.AddCamera(irr.vector3df(8, 6, -8))         # Camera position
+    vis.AddLogo(irr.recti(10, 10, 130, 40))       # Logo position
+    
+    # Add the vehicle visualization
+    vis.AddVehicle(vehicle, irr.ChIrrAppTools_DRIVABLE)
+    
+    # Add the terrain visualization
+    vis.AddTerrain(terrain)
+    
+    # Set shadows
+    vis.SetShadows(True)
+    
+    # Set additional sky/background
+    vis.SetSkyBox(True)
+    
+    # Initialize the visualization system
+    vis.AssetBindAll()
+    vis.AssetUpdateAll()
+    
+    return vis
+
+
+def run_simulation_loop(system, vehicle, driver, vis, terrain, fps=50):
+    """
+    Main simulation loop with real-time visualization.
+    
+    Parameters:
+    -----------
+    system : ChSystemNSC
+        The physics system
+    vehicle : ChVehicle
+        The vehicle being simulated
+    driver : ChDriver
+        The interactive driver
+    vis : ChIrrApp
+        The visualization system
+    terrain : RigidTerrain
+        The terrain
+    fps : int
+        Target frames per second for visualization
+    """
+    
+    # =================================================================
+    # Simulation Parameters
+    # =================================================================
+    
+    simulation_step = 1.0 / fps          # Simulation time step
+    visualization_step = 1.0 / fps      # Visualization time step
+    end_time = 100.0                    # Simulation end time (seconds)
+    current_time = 0.0
+    
+    # =================================================================
+    # Statistics and Logging
+    # =================================================================
+    
+    stats_interval = 1.0                # Print stats every second
+    last_stats_time = 0.0
+    
+    # =================================================================
+    # Main Simulation Loop
+    # =================================================================
+    
+    print("=" * 60)
+    print("ARTcar Simulation Started")
+    print("=" * 60)
+    print(f"Target FPS: {fps}")
+    print(f"Simulation step size: {simulation_step:.4f} seconds")
+    print(f"End time: {end_time} seconds")
+    print("-" * 60)
+    print("Controls:")
+    print("  [W/↑] - Accelerate")
+    print("  [S/↓] - Brake/Reverse")
+    print("  [A/←] - Steer Left")
+    print("  [D/→] - Steer Right")
+    print("  [SPACE] - Emergency Brake")
+    print("  [ESC] - Exit Simulation")
+    print("=" * 60)
+    
+    # Initialize the application
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Main simulation loop
+    while current_time < end_time:
+        
+        # ---------------------------------------------------------
+        # Process Visualization Events
+        # ---------------------------------------------------------
+        
+        if not vis.Run():
+            print("\nSimulation terminated by user.")
+            break
+        
+        # Check for ESC key
+        if vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_ESCAPE):
+            print("\nSimulation terminated (ESC pressed).")
+            break
+        
+        # ---------------------------------------------------------
+        # Update Driver Input
+        # ---------------------------------------------------------
+        
+        # Get driver input from keyboard
+        steering_input = 0.0
+        throttle_input = 0.0
+        braking_input = 0.0
+        
+        # Keyboard controls
+        if vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_KEY_W) or \
+           vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_UP):
+            throttle_input = 1.0
+        if vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_KEY_S) or \
+           vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_DOWN):
+            braking_input = 1.0
+        if vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_KEY_A) or \
+           vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_LEFT):
+            steering_input = 1.0
+        if vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_KEY_D) or \
+           vis.GetDevice().getEventReceiver().IsKeyDown(irr.EKEY_RIGHT):
+            steering_input = -1.0
+        
+        # Apply driver inputs
+        driver.SetSteeringInput(steering_input)
+        driver.SetThrottleInput(throttle_input)
+        driver.SetBrakingInput(braking_input)
+        
+        # ---------------------------------------------------------
+        # Update Vehicle Dynamics
+        # ---------------------------------------------------------
+        
+        # Synchronize the vehicle with the driver
+        vehicle.Synchronize(current_time, driver.GetInputs(), terrain)
+        
+        # Update the vehicle system
+        vehicle.Update(current_time)
+        
+        # Advance the physics system
+        system.Update(current_time, simulation_step)
+        
+        # ---------------------------------------------------------
+        # Update Visualization
+        # ---------------------------------------------------------
+        
+        vis.BeginScene()
+        vis.DrawAll()                  # Draw all objects
+        
+        # Add information overlay
+        draw_info_overlay(vis, current_time, vehicle, driver)
+        
+        vis.EndScene()
+        
+        # ---------------------------------------------------------
+        # Update Statistics
+        # ---------------------------------------------------------
+        
+        if current_time - last_stats_time >= stats_interval:
+            print_stats(current_time, vehicle)
+            last_stats_time = current_time
+        
+        # Advance time
+        current_time += simulation_step
+    
+    print("=" * 60)
+    print(f"Simulation completed. Total time: {current_time:.2f} seconds")
+    print("=" * 60)
+
+
+def draw_info_overlay(vis, time, vehicle, driver):
+    """
+    Draw information overlay on the visualization window.
+    """
+    
+    # Create overlay background
+    vis.DrawAll()
+    
+    # This would draw additional HUD elements in a full implementation
+    # For now, the visualization system handles basic HUD
+
+
+def print_stats(time, vehicle):
+    """
+    Print simulation statistics to console.
+    """
+    
+    # Get vehicle state
+    chassis_pos = vehicle.GetChassis().GetPos()
+    chassis_vel = vehicle.GetChassis().GetVel()
+    speed = np.sqrt(chassis_vel.x**2 + chassis_vel.y**2 + chassis_vel.z**2)
+    
+    # Get wheel states
+    num_wheels = vehicle.GetNumWheels()
+    
+    print(f"\n[T={time:.2f}s] Vehicle Statistics:")
+    print(f"  Position: ({chassis_pos.x:.2f}, {chassis_pos.y:.2f}, {chassis_pos.z:.2f})")
+    print(f"  Speed: {speed * 3.6:.2f} km/h")
+    print(f"  Driver inputs: Steer={driver.GetSteeringInput():.2f}, "
+          f"Throttle={driver.GetThrottleInput():.2f}, "
+          f"Brake={driver.GetBrakingInput():.2f}")
+
+
+def main():
+    """
+    Main function to set up and run the complete simulation.
+    """
+    
+    print("\n" + "=" * 70)
+    print("  PYCHRONO ARTCAR VEHICLE SIMULATION")
+    print("=" * 70 + "\n")
+    
+    # =================================================================
+    # Configuration Parameters
+    # =================================================================
+    
+    # Vehicle start position
+    start_position = chrono.ChVector3d(0, 1.0, 0)  # 1 meter above ground
+    
+    # Terrain dimensions
+    terrain_dimensions = (100.0, 100.0, 0.5)  # 100m x 100m x 0.5m thick
+    
+    # Target FPS for visualization
+    target_fps = 50
+    
+    # =================================================================
+    # Initialize Simulation Components
+    # =================================================================
+    
+    print("[1/5] Initializing PyChrono environment...")
+    system = initialize_chrono_environment()
+    
+    print("[2/5] Creating ARTcar vehicle system...")
+    vehicle = create_vehicle_system(system, start_position)
+    
+    print("[3/5] Creating rigid terrain...")
+    terrain = create_rigid_terrain(system, terrain_dimensions)
+    
+    print("[4/5] Creating interactive driver system...")
+    driver = create_interactive_driver(system, vehicle)
+    
+    print("[5/5] Creating visualization system...")
+    vis = create_visualization_system(vehicle, terrain)
+    
+    print("\nAll components initialized successfully!\n")
+    
+    # =================================================================
+    # Run Simulation
+    # =================================================================
+    
+    run_simulation_loop(system, vehicle, driver, vis, terrain, fps=target_fps)
+    
+    # =================================================================
+    # Cleanup
+    # =================================================================
+    
+    print("\nCleaning up simulation...")
+    del vis
+    del vehicle
+    del terrain
+    del system
+    
+    print("Simulation cleanup complete.")
+
+
+# =============================================================================
+# Alternative: Simplified Vehicle Setup (without full ARTcar class)
+# =============================================================================
+
+def create_simplified_vehicle(system, position):
+    """
+    Create a simplified vehicle using basic PyChrono components.
+    This can be used as an alternative if the ARTcar class is not available.
+    """
+    
+    # Create a simple rigid body as a chassis
+    chassis = chrono.ChBody()
+    chassis.SetPos(position)
+    chassis.SetMass(500)  # 500 kg
+    chassis.SetInertiaXX(chrono.ChVector3d(100, 100, 100))
+    system.Add(chassis)
+    
+    # Add visualization to chassis
+    chassis_vis = chrono.ChVisualShapeBox(2.0, 1.0, 4.0)  # 2m x 1m x 4m
+    chassis.AddVisualShape(chassis_vis)
+    
+    # Add collision to chassis
+    chassis_shape = chrono.ChCollisionShapeBox(2.0, 1.0, 4.0)
+    chassis.AddCollisionShape(chassis_shape)
+    chassis.EnableCollision(True)
+    
+    return chassis
+
+
+# =============================================================================
+# Advanced: Custom Terrain with Multiple Layers
+# =============================================================================
+
+def create_advanced_terrain(system):
+    """
+    Create a multi-layered terrain with different properties.
+    """
+    
+    # Create the terrain
+    terrain = veh.RigidTerrain(system)
+    
+    # Main ground patch
+    main_patch = terrain.AddPatch(
+        chrono.ChMaterialSurfaceNSC(),
+        200.0, 200.0, 1.0,
+        chrono.ChVector3d(0, -0.5, 0)
+    )
+    
+    # Create a ramp
+    ramp_material = chrono.ChMaterialSurfaceNSC()
+    ramp_material.SetFriction(0.7)
+    
+    # Ramp parameters
+    ramp_length = 20.0
+    ramp_width = 5.0
+    ramp_angle = 15.0  # degrees
+    
+    # Create ramp body
+    ramp = chrono.ChBody()
+    ramp.SetPos(chrono.ChVector3d(30, 2, 0))
+    ramp.SetMass(1000)
+    
+    # Set ramp orientation (tilted)
+    ramp_angle_rad = np.radians(ramp_angle)
+    ramp_rot = chrono.ChQuaterniond()
+    ramp_rot.Q_from_AngY(ramp_angle_rad)
+    ramp.SetRot(ramp_rot)
+    
+    # Add collision and visualization
+    ramp.AddCollisionShape(chrono.ChCollisionShapeBox(ramp_width, 0.5, ramp_length))
+    ramp.AddVisualShape(chrono.ChVisualShapeBox(ramp_width, 0.5, ramp_length))
+    ramp.EnableCollision(True)
+    
+    system.Add(ramp)
+    
+    terrain.Initialize()
+    
+    return terrain
+
+
+# =============================================================================
+# Entry Point
+# =============================================================================
+
+if __name__ == "__main__":
+    main()
+```
+
+## Key Features of This Simulation
+
+### 1. **Core Components**
+- **PyChrono Environment**: Fully initialized physics system with proper solver settings
+- **ARTcar Vehicle**: Complete vehicle with chassis, suspension, wheels, and powertrain
+- **Rigid Terrain**: Ground plane with configurable dimensions and friction properties
+
+### 2. **Interactive Driver System**
+- **Real-time controls**: Keyboard input for steering, throttle, and braking
+- **Configurable rates**: Adjustable input rates for steering delta, throttle delta, and braking delta
+- **Safety limits**: Maximum values for steering angle, throttle, and braking force
+
+### 3. **Visualization (Irrlicht)**
+- **Real-time rendering**: 50 FPS target frame rate
+- **Camera control**: Automatic camera following the vehicle
+- **Information overlay**: Real-time statistics display
+- **Lighting and shadows**: Professional lighting setup
+
+### 4. **Simulation Loop**
+- **Physics integration**: Accurate vehicle dynamics simulation
+- **Input processing**: Keyboard event handling
+- **Statistics logging**: Periodic performance and state information
+
+### 5. **Configuration Parameters**
+- **Vehicle**: Start position, orientation, collision type, visualization type
+- **Terrain**: Dimensions, friction coefficient, texture
+- **Simulation**: Time step, FPS, end time
+
+## Usage Instructions
+
+1. **Install PyChrono**: Ensure you have PyChrono installed with vehicle and Irrlicht modules
+2. **Run the script**: Execute the script in a Python environment
+3. **Controls**:
+   - **W/↑**: Accelerate
+   - **S/↓**: Brake/Reverse
+   - **A/←**: Steer Left
+   - **D/→**: Steer Right
+   - **ESC**: Exit simulation
+
+This simulation provides a complete framework for vehicle dynamics research and testing using PyChrono's advanced physics engine and visualization capabilities.

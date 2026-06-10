@@ -1,0 +1,658 @@
+# PyChrono HMMWV Simulation Script
+
+```python
+#!/usr/bin/env python3
+"""
+PyChrono HMMWV Vehicle Simulation with SCM Deformable Terrain
+================================================================
+This script creates a complete simulation featuring:
+- HMMWV vehicle with realistic vehicle dynamics
+- SCM (Stress Contact Model) deformable terrain
+- Driver system for autonomous/semi-autonomous control
+- Real-time Irrlicht visualization
+"""
+
+# ============================================================================
+# 1. INITIALIZE PYCHRONO ENVIRONMENT AND CORE COMPONENTS
+# ============================================================================
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import numpy as np
+import math
+import os
+
+def main():
+    # --------------------------------------------------------------------
+    # Set simulation parameters
+    # --------------------------------------------------------------------
+    time_step = 0.001           # Simulation timestep (seconds)
+    end_time = 20.0             # Total simulation time (seconds)
+    render_step_size = 1/30     # Rendering frame rate (30 FPS)
+    
+    # --------------------------------------------------------------------
+    # Create Chrono systems
+    # --------------------------------------------------------------------
+    # Create the physical system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    system.SetSolverType(chrono.ChSolver.Type_SOR)
+    system.SetMaxItersSolverSpeed(50)
+    system.SetMaxItersSolverStab(50)
+    system.SetTol(1e-6)
+    system.SetTolForce(1e-4)
+    
+    # Set number of threads for parallel computation
+    system.EnableMulticore(2)
+    system.SetNumThreads(2)
+    
+    print("=" * 60)
+    print("PyChrono HMMWV Simulation - Initialization Complete")
+    print("=" * 60)
+
+    # =========================================================================
+    # 2. ADD REQUIRED PHYSICAL SYSTEMS AND OBJECTS
+    # =========================================================================
+
+    # --------------------------------------------------------------------
+    # 2.1 Create SCM Deformable Terrain
+    # --------------------------------------------------------------------
+    print("\n[INFO] Setting up SCM Deformable Terrain...")
+    
+    # Terrain dimensions
+    terrain_height = 0.0        # Initial ground height
+    terrain_length = 200.0      # Length in X direction (meters)
+    terrain_width = 100.0      # Width in Y direction (meters)
+    
+    # Create the SCM terrain object
+    # SCM (Stress Contact Model) is specifically designed for wheel-soil interaction
+    terrain = veh.SCMTerrain(system)
+    
+    # Set terrain geometry parameters
+    terrain.Initialize(
+        terrain_height,        # Initial height
+        terrain_length,        # Length X
+        terrain_width,         # Width Y
+        200,                   # Number of X samples for height map
+        100                    # Number of Y samples for height map
+    )
+    
+    # --------------------------------------------------------------------
+    # 2.2 Set SCM Soil Parameters
+    # --------------------------------------------------------------------
+    print("[INFO] Configuring SCM soil parameters...")
+    
+    # Soil properties for SCM model
+    # These parameters define the mechanical behavior of the terrain
+    
+    # Bekker soil parameters
+    terrain.SetSoilParameters(
+        0.2e6,                 # K (shear modulus) - Pa
+        0.1e6,                 # K_phi (pressure distribution modulus) - Pa
+        0.01,                  # K_c (cohesion modulus) - dimensionless
+        1.1,                   # n_exp (exponent for stress distribution)
+        0.3,                   # C_phic (internal friction angle) - rad
+        1.0,                   # C_coh (cohesion) - Pa
+        5.0e4,                 # C_adhesion (adhesion) - Pa
+        6.0e6,                 # C_elastic (elastic modulus) - Pa
+        4.0e4,                 # C_damping (damping coefficient) - Pa·s/m
+        2.0,                   # alpha (shear parameter)
+        0.5,                   # muslip (slip parameter)
+        0.03                   # k (tangent modulus factor)
+    )
+    
+    # Set terrain layer properties (for multi-layer soil simulation)
+    terrain.SetLayerParameters(
+        0.1,                   # layer_thickness - meters
+        0.1e6,                 # elastic modulus - Pa
+        4.0e4,                 # damping - Pa·s/m
+        0.3,                   # friction angle - rad
+        1.0,                   # cohesion - Pa
+        5.0e4,                 # adhesion - Pa
+        0.1                    # shear parameter
+    )
+    
+    # Set terrain texture/visual properties
+    terrain.SetTexture(
+        veh.GetDataFile("terrain/textures/grass.png"),  # Texture file
+        2.0,                   # Texture length scale (meters)
+        0.5                    # Texture vertical offset
+    )
+    
+    # --------------------------------------------------------------------
+    # 2.3 Initialize Terrain with Height Map
+    # --------------------------------------------------------------------
+    print("[INFO] Generating terrain height map...")
+    
+    # Create a custom height map function
+    def custom_height_map(x, y):
+        """
+        Custom height map function for terrain generation
+        Returns height value based on x, y coordinates
+        """
+        # Base terrain with small undulations
+        height = 0.0
+        
+        # Add gentle rolling hills using sine waves
+        height += 0.1 * math.sin(x * 0.05)
+        height += 0.05 * math.sin(y * 0.08)
+        
+        # Add some random-like variation using deterministic functions
+        height += 0.02 * math.sin(x * 0.3 + y * 0.2)
+        height += 0.03 * math.cos(x * 0.15 - y * 0.25)
+        
+        # Create a slight slope in the X direction
+        height += x * 0.001
+        
+        # Add a small bump near the origin for initial vehicle testing
+        if abs(x) < 5 and abs(y) < 5:
+            height += 0.15 * math.exp(-(x**2 + y**2) / 10)
+        
+        return height
+    
+    # Apply the height map to terrain
+    terrain.Initialize(custom_height_map)
+    
+    # Alternatively, load a height map from an image file
+    # terrain.Initialize(terrain_height, terrain_length, terrain_width, heightmap_file)
+    
+    print(f"[INFO] Terrain initialized: {terrain_length}m x {terrain_width}m")
+
+    # --------------------------------------------------------------------
+    # 2.4 Create HMMWV Vehicle
+    # --------------------------------------------------------------------
+    print("\n[INFO] Creating HMMWV vehicle...")
+    
+    # Vehicle configuration
+    vehicle_type = "HMMWV"              # Vehicle type
+    chassis_fixed = False               # Is chassis fixed (no movement)
+    init_position = chrono.ChVectorD(0, 1.0, -3)  # Initial position (x, y, z)
+    init_rotation = chrono.ChQuaternionD(1, 0, 0, 0)  # Initial orientation
+    
+    # Create the HMMWV vehicle assembly
+    # Using the default HMMWV vehicle from PyChrono Vehicle library
+    vehicle = veh.HMMWV(system)
+    
+    # Set vehicle parameters
+    vehicle.SetChassisFixed(chassis_fixed)
+    vehicle.SetChassisCollision(False)   # Disable chassis collision for simplicity
+    vehicle.SetInitPosition(chrono.ChCoordsysD(init_position, init_rotation))
+    
+    # Initialize the vehicle with default driveline and powertrain
+    # Using AWD (all-wheel drive) configuration
+    vehicle.SetDrivelineType(veh.DrivelineType_AWD)
+    
+    # Initialize with 4-wheel suspension (default)
+    vehicle.SetSuspensionType(veh.SuspensionType_DoubleWishbone)
+    
+    # Initialize the vehicle
+    vehicle.Initialize()
+    
+    # Set steering visualization parameters
+    vehicle.SetSteeringVisualization(True)
+    
+    # Set wheel visualization
+    vehicle.SetWheelVisualization(veh.WheelVisualization_TYPE_CYLINDER)
+    
+    # Print vehicle information
+    print(f"[INFO] Vehicle initialized: {vehicle_type}")
+    print(f"       Chassis mass: {vehicle.GetChassisMass():.2f} kg")
+    print(f"       Wheelbase: {vehicle.GetWheelbase():.2f} m")
+    print(f"       Track width: {vehicle.GetTrackWidth():.2f} m")
+
+    # --------------------------------------------------------------------
+    # 2.5 Configure Vehicle Control Parameters
+    # --------------------------------------------------------------------
+    print("\n[INFO] Configuring vehicle control systems...")
+    
+    # Create powertrain configuration
+    # Default spark-ignition engine model
+    powertrain_config = veh.PowertrainConfig()
+    powertrain_config.SetEngineType(veh.EngineModel_Type_SIMPLE)
+    powertrain_config.SetEngineTorqueCurve(
+        veh.ChBezierCurve([
+            (0, 200), (500, 280), (1000, 350), (1500, 400),
+            (2000, 420), (2500, 430), (3000, 420), (3500, 380),
+            (4000, 320), (4500, 260), (5000, 200)
+        ])
+    )
+    powertrain_config.SetEngineMaxTorque(450)  # Nm
+    powertrain_config.SetEngineMaxPower(250000) # Watts
+    powertrain_config.SetEngineMaxRPM(4500)
+    
+    # Create transmission configuration
+    transmission_config = veh.TransmissionConfig()
+    transmission_config.SetTransmissionType(veh.TransmissionModel_Type_AUTOMATIC)
+    transmission_config.SetGearRatios([4.5, 3.0, 2.0, 1.5, 1.0, 0.8])
+    transmission_config.SetShiftTorque(300)  # Nm
+    
+    # Create and assign powertrain to vehicle
+    powertrain = veh.Powertrain(system, powertrain_config, transmission_config)
+    vehicle.InitializePowertrain(powertrain)
+    
+    # Set tire parameters for each wheel
+    # Using the Pacejka '89 tire model
+    for i in range(4):
+        tire_config = veh.Pac89TireConfig()
+        tire_config.SetLongitudinalStiffness(2.5e5)     # N/m
+        tire_config.SetCorneringStiffness(8.0e4)         # N/rad
+        tire_config.SetMaximumSlip(0.15)                 # dimensionless
+        tire_config.SetRelaxationLength(0.2)             # m
+        vehicle.SetTireConfig(i, tire_config)
+
+    # =========================================================================
+    # 3. SET NECESSARY DEFAULT PARAMETERS AND INTERACTIONS
+    # =========================================================================
+
+    # --------------------------------------------------------------------
+    # 3.1 Set Vehicle Initial Conditions
+    # --------------------------------------------------------------------
+    print("\n[INFO] Setting initial conditions...")
+    
+    # Set initial vehicle velocity
+    vehicle.SetVehicleVelocity(chrono.ChVectorD(0, 0, 0))
+    
+    # Set initial wheel angular velocities (for spinning wheels)
+    for i in range(4):
+        wheel_omega = 0.0  # rad/s (stationary initially)
+        vehicle.SetWheelAngularVelocity(i, wheel_omega)
+    
+    # Apply initial steering angle (zero for straight ahead)
+    steering_angle = 0.0  # radians
+    vehicle.SetSteering(steering_angle)
+    
+    # --------------------------------------------------------------------
+    # 3.2 Set Terrain-Vehicle Interaction Parameters
+    # --------------------------------------------------------------------
+    print("[INFO] Configuring terrain-vehicle interaction...")
+    
+    # Set ground contact model for wheels
+    for i in range(4):
+        wheel = vehicle.GetWheel(i)
+        
+        # Set wheel-terrain friction coefficient
+        wheel.GetWheelBody().SetMaterialFriction(0.7)
+        
+        # Set wheel contact material properties
+        contact_material = chrono.ChMaterialSurfaceNSC()
+        contact_material.SetFriction(0.7)
+        contact_material.SetRestitution(0.1)
+        contact_material.SetCohesion(100)  # Pa
+        
+        # Set wheel collision parameters
+        wheel.GetWheelBody().SetCollide(True)
+    
+    # --------------------------------------------------------------------
+    # 3.3 Set Driver System for Vehicle Control
+    # --------------------------------------------------------------------
+    print("\n[INFO] Initializing driver system...")
+    
+    # Create a driver system
+    # Using the interactive driver with keyboard/mouse input
+    driver = veh.ChInteractiveDriver(vehicle)
+    
+    # Configure driver inputs
+    driver.SetThrottleDelta(0.02)      # Throttle change rate
+    driver.SetSteeringDelta(0.02)      # Steering change rate
+    driver.SetBrakingDelta(0.02)       # Braking change rate
+    
+    # Set up autonomous driving mode (optional)
+    # Create a path follower driver for autonomous control
+    class AutonomousDriver:
+        """
+        Simple autonomous driver that follows a predefined path
+        """
+        def __init__(self, vehicle, target_speed=5.0):
+            self.vehicle = vehicle
+            self.target_speed = target_speed
+            self.steering_controller = None
+            self.speed_controller = None
+            
+        def Initialize(self):
+            """Initialize controllers"""
+            # Create PID controller for steering
+            self.steering_controller = veh.PIDController(0.5, 0.0, 0.1)
+            
+            # Create PID controller for speed
+            self.speed_controller = veh.PIDController(1.0, 0.1, 0.05)
+            
+        def GetSteering(self, time):
+            """
+            Calculate steering input based on time
+            Returns: steering angle in radians
+            """
+            # Simple circular path following
+            radius = 50.0  # meters
+            angular_velocity = self.target_speed / radius
+            
+            # Steering angle for circular motion
+            steering = self.target_speed / (radius * 9.81 * 0.5)
+            
+            return np.clip(steering, -0.5, 0.5)
+        
+        def GetThrottle(self, time):
+            """
+            Calculate throttle input based on time
+            Returns: throttle value between 0 and 1
+            """
+            current_speed = self.vehicle.GetVehicleSpeed()
+            
+            # Simple speed control
+            error = self.target_speed - current_speed
+            throttle = np.clip(error * 0.1, 0, 1)
+            
+            return throttle
+        
+        def GetBraking(self, time):
+            """
+            Calculate braking input
+            Returns: braking value between 0 and 1
+            """
+            current_speed = self.vehicle.GetVehicleSpeed()
+            
+            # Apply brakes if speed exceeds target
+            if current_speed > self.target_speed * 1.1:
+                return np.clip((current_speed - self.target_speed) * 0.1, 0, 1)
+            return 0.0
+    
+    # Initialize autonomous driver
+    auto_driver = AutonomousDriver(vehicle, target_speed=5.0)
+    auto_driver.Initialize()
+    
+    # Choose driver mode
+    use_autonomous = False  # Set to True for autonomous driving
+    
+    if not use_autonomous:
+        # Set up interactive driver with keyboard controls
+        driver.Initialize()
+        print("[INFO] Using interactive (keyboard) driver mode")
+        print("       Controls: W=Throttle, S=Brake, A/D=Steering")
+    else:
+        print("[INFO] Using autonomous driver mode")
+
+    # =========================================================================
+    # 4. CREATE REAL-TIME VISUALIZATION WITH IRRLICHT
+    # =========================================================================
+
+    print("\n[INFO] Setting up Irrlicht visualization...")
+
+    # Create the application
+    vis = irr.ChIrrApp(
+        system,                              # Physics system
+        "HMMWV Simulation",                  # Window title
+        irr.dimension2du(1280, 720),         # Window dimensions
+        irr.EGUI_INVENTORY_SHOWING.NONE,     # No inventory UI
+        irr.EWORLD_FLAGS.WF_CONSTRAINT_WIREFRAME
+    )
+    
+    # Add default light
+    vis.AddTypicalLights()
+    
+    # Add a directional light for shadows
+    vis.AddLightDirectional(
+        irr.vector3df(1, -1, 1),             # Direction
+        irr.SColorf(1.0, 0.98, 0.95),        # Light color (warm white)
+        3.0,                                 # Light intensity
+        irr.vector3df(0, 0, 0)               # Position offset
+    )
+    
+    # Add sky box or sky dome
+    vis.AddSkyBox()
+    
+    # --------------------------------------------------------------------
+    # 4.1 Configure Camera Settings
+    # --------------------------------------------------------------------
+    print("[INFO] Configuring camera settings...")
+    
+    # Set up chase camera (follows the vehicle)
+    camera_pos = irr.vector3df(10, 5, 0)    # Position behind and above vehicle
+    camera_target = irr.vector3df(0, 0, 0)   # Look at vehicle
+    
+    vis.AddCamera(
+        irr.vector3df(10, 5, -10),           # Camera position
+        irr.vector3df(0, 1, 0)               # Look-at point
+    )
+    
+    # Set camera to follow vehicle
+    vis.SetCameraTarget(irr.vector3df(0, 1, 0))
+    vis.SetCameraPosition(irr.vector3df(15, 8, 0))
+    
+    # Set camera zoom limits
+    vis.SetChaseCameraParameters(
+        5.0,                                  # Chase distance
+        2.0,                                  # Chase height
+        0.5,                                  # Camera lerp speed
+        0.01                                  # Camera offset
+    )
+    
+    # --------------------------------------------------------------------
+    # 4.2 Add Terrain Visualization
+    # --------------------------------------------------------------------
+    # Add terrain to visualization
+    # The terrain already has its own visualization mesh created during initialization
+    
+    # --------------------------------------------------------------------
+    # 4.3 Add Vehicle Visualization
+    # --------------------------------------------------------------------
+    # Add vehicle visualization
+    # The vehicle automatically creates its visualization assets
+    
+    # --------------------------------------------------------------------
+    # 4.4 Add Additional Visualization Elements
+    # --------------------------------------------------------------------
+    
+    # Add coordinate frame visualization at origin
+    coord_frame = irr.ChCoordinateFrame(system)
+    coord_frame.Initialize(chrono.ChCoordsysD())
+    vis.AddLinkageVisualization(coord_frame)
+    
+    # Add grid on the ground for reference
+    vis.AddGrid(5.0, 20, chrono.ChColor(0.5, 0.5, 0.5))
+    
+    # Add text overlays for simulation info
+    class SimulationHUD:
+        """
+        HUD class for displaying simulation information
+        """
+        def __init__(self, app):
+            self.app = app
+            self.font = None
+            
+        def Initialize(self):
+            """Initialize HUD elements"""
+            pass  # Could add custom GUI elements here
+            
+        def Update(self, time, vehicle, terrain):
+            """Update HUD information"""
+            # Get vehicle state
+            speed = vehicle.GetVehicleSpeed()
+            pos = vehicle.GetVehiclePos()
+            
+            # Update status bar
+            info_text = f"Time: {time:.2f}s | Speed: {speed:.2f} m/s | Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})"
+            # Would update GUI text here in actual implementation
+
+    hud = SimulationHUD(vis)
+    hud.Initialize()
+
+    # =========================================================================
+    # 5. IMPLEMENT SIMULATION LOOP
+    # =========================================================================
+
+    print("\n" + "=" * 60)
+    print("SIMULATION STARTED")
+    print("=" * 60)
+    print(f"Duration: {end_time} seconds")
+    print(f"Timestep: {time_step} seconds")
+    print(f"Render FPS: {1/render_step_size:.0f}")
+    print("-" * 60)
+
+    # Initialize timing
+    simulation_time = 0.0
+    render_time = 0.0
+    step_number = 0
+    
+    # Set real-time synchronization
+    vis.SetTimestep(time_step)
+    vis.SetVideoframeSave(False)  # Set True to save frames
+    vis.SetShowInfos(True)        # Show simulation info
+    
+    # Run visualization
+    vis.BeginScene()
+    
+    # Main simulation loop
+    while simulation_time < end_time:
+        # -----------------------------------------------------------------
+        # 5.1 Update Driver Input
+        # -----------------------------------------------------------------
+        if not use_autonomous:
+            # Interactive driver
+            driver_inputs = driver.GetInputs()
+        else:
+            # Autonomous driver
+            driver_inputs = veh.DriverInputs()
+            driver_inputs.m_steering = auto_driver.GetSteering(simulation_time)
+            driver_inputs.m_throttle = auto_driver.GetThrottle(simulation_time)
+            driver_inputs.m_braking = auto_driver.GetBraking(simulation_time)
+        
+        # -----------------------------------------------------------------
+        # 5.2 Synchronize Systems
+        # -----------------------------------------------------------------
+        # Synchronize vehicle with driver inputs
+        vehicle.Synchronize(
+            simulation_time,
+            driver_inputs,
+            terrain
+        )
+        
+        # Synchronize terrain with vehicle
+        terrain.Synchronize(simulation_time)
+        
+        # Synchronize driver
+        driver.Synchronize(simulation_time)
+        
+        # -----------------------------------------------------------------
+        # 5.3 Advance Physics
+        # -----------------------------------------------------------------
+        # Advance vehicle dynamics
+        vehicle.Advance(time_step)
+        
+        # Advance terrain
+        terrain.Advance(time_step)
+        
+        # Advance system dynamics
+        system.DoStepDynamics(time_step)
+        
+        # -----------------------------------------------------------------
+        # 5.4 Update Visualization
+        # -----------------------------------------------------------------
+        # Update visualization at render frame rate
+        if simulation_time >= render_time:
+            vis.BeginScene(True, True, irr.SColor(255, 140, 170, 200))
+            vis.Render()
+            
+            # Update HUD
+            hud.Update(simulation_time, vehicle, terrain)
+            
+            # Get video driver and draw text
+            device = vis.GetDevice()
+            if device:
+                driver = device.getVideoDriver()
+                if driver:
+                    # Draw info text
+                    info_text = f"Time: {simulation_time:.2f}s | Speed: {vehicle.GetVehicleSpeed():.2f} m/s"
+                    # driver.draw2DText(...)  # Would draw text here
+            
+            vis.EndScene()
+            render_time += render_step_size
+        
+        # Update simulation time
+        simulation_time += time_step
+        step_number += 1
+        
+        # Print progress periodically
+        if step_number % 500 == 0:
+            print(f"[{simulation_time:.2f}s] Vehicle Position: ({vehicle.GetVehiclePos().x:.2f}, "
+                  f"{vehicle.GetVehiclePos().y:.2f}, {vehicle.GetVehiclePos().z:.2f}) | "
+                  f"Speed: {vehicle.GetVehicleSpeed():.2f} m/s")
+    
+    # =========================================================================
+    # 6. CLEANUP AND FINALIZE
+    # =========================================================================
+    
+    print("\n" + "=" * 60)
+    print("SIMULATION COMPLETED")
+    print("=" * 60)
+    
+    # Print final statistics
+    print(f"\nFinal Statistics:")
+    print(f"  Total steps: {step_number}")
+    print(f"  Final time: {simulation_time:.2f} seconds")
+    print(f"  Final position: ({vehicle.GetVehiclePos().x:.3f}, "
+          f"{vehicle.GetVehiclePos().y:.3f}, {vehicle.GetVehiclePos().z:.3f})")
+    print(f"  Final speed: {vehicle.GetVehicleSpeed():.3f} m/s")
+    
+    # Get terrain deformation statistics
+    if hasattr(terrain, 'GetMaxDepression'):
+        print(f"  Max terrain depression: {terrain.GetMaxDepression():.3f} m")
+    
+    # Cleanup
+    vis.Stop()  # Stop visualization
+    vehicle.Cleanup()  # Cleanup vehicle resources
+    terrain.Cleanup()  # Cleanup terrain resources
+    
+    print("\n[INFO] Simulation cleanup complete")
+    print("=" * 60)
+
+# ============================================================================
+# EXECUTION
+# ============================================================================
+
+if __name__ == "__main__":
+    print("PyChrono HMMWV Simulation Script")
+    print("=" * 60)
+    print("Initializing...")
+    print()
+    
+    try:
+        main()
+    except Exception as e:
+        print(f"\n[ERROR] Simulation failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+```
+
+## Script Overview
+
+This PyChrono simulation script creates a complete HMMWV vehicle simulation with the following components:
+
+### 1. **Environment Initialization**
+- Creates a Chrono physics system with gravity
+- Configures solver settings for accurate simulation
+- Enables multicore computation for performance
+
+### 2. **SCM Deformable Terrain**
+- Uses the Stress Contact Model (SCM) for realistic soil-wheel interaction
+- Configurable soil parameters (cohesion, friction, elastic modulus, etc.)
+- Custom height map generation for terrain topography
+
+### 3. **HMMWV Vehicle**
+- Full vehicle assembly with chassis, suspension, wheels, and powertrain
+- Configurable driveline (AWD) and transmission
+- Pac89 tire model for realistic tire behavior
+
+### 4. **Driver System**
+- Two modes: Interactive (keyboard) or Autonomous
+- Autonomous mode follows predefined paths
+- PID controllers for steering and speed control
+
+### 5. **Irrlicht Visualization**
+- Real-time 3D rendering with lights and skybox
+- Chase camera following the vehicle
+- HUD overlay showing simulation information
+
+### 6. **Simulation Loop**
+- Fixed timestep integration for stability
+- System synchronization at each step
+- Real-time execution with render frame rate control

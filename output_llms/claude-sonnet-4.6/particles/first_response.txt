@@ -1,0 +1,267 @@
+```python
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import random
+import math
+
+# =============================================================================
+# Custom gravitational force accumulator
+# =============================================================================
+class GravitationalForce(chrono.ChForce):
+    """Apply mutual gravitational attraction between all particles."""
+    pass
+
+# Gravitational constant (scaled for simulation)
+G_CONSTANT = 6.674e-3  # Scaled up for visible effect
+
+# =============================================================================
+# Particle emitter class
+# =============================================================================
+class ParticleEmitter:
+    def __init__(self, system, emit_interval=0.5, max_particles=40):
+        self.system = system
+        self.emit_interval = emit_interval
+        self.max_particles = max_particles
+        self.last_emit_time = 0.0
+        self.particles = []
+
+    def _random_shape(self):
+        """Return a random collision shape and visual shape."""
+        shape_type = random.randint(0, 2)
+
+        if shape_type == 0:
+            # Sphere
+            radius = random.uniform(0.15, 0.4)
+            col_shape = chrono.ChCollisionShapeSphere(chrono.ChContactMaterialNSC(), radius)
+            vis_shape = chrono.ChVisualShapeSphere(radius)
+            mass = (4.0 / 3.0) * math.pi * radius**3 * 500.0
+            return col_shape, vis_shape, mass
+
+        elif shape_type == 1:
+            # Box
+            hx = random.uniform(0.1, 0.35)
+            hy = random.uniform(0.1, 0.35)
+            hz = random.uniform(0.1, 0.35)
+            col_shape = chrono.ChCollisionShapeBox(
+                chrono.ChContactMaterialNSC(), hx, hy, hz)
+            vis_shape = chrono.ChVisualShapeBox(hx, hy, hz)
+            mass = (2*hx) * (2*hy) * (2*hz) * 500.0
+            return col_shape, vis_shape, mass
+
+        else:
+            # Cylinder
+            radius = random.uniform(0.1, 0.3)
+            height = random.uniform(0.2, 0.5)
+            col_shape = chrono.ChCollisionShapeCylinder(
+                chrono.ChContactMaterialNSC(), radius, height)
+            vis_shape = chrono.ChVisualShapeCylinder(radius, height)
+            mass = math.pi * radius**2 * height * 500.0
+            return col_shape, vis_shape, mass
+
+    def emit(self, current_time):
+        """Emit a new particle if interval elapsed and below max count."""
+        if (current_time - self.last_emit_time < self.emit_interval or
+                len(self.particles) >= self.max_particles):
+            return
+
+        body = chrono.ChBody()
+
+        # Random position within a sphere of radius 5
+        theta = random.uniform(0, 2 * math.pi)
+        phi   = random.uniform(0, math.pi)
+        r     = random.uniform(1.5, 5.0)
+        px = r * math.sin(phi) * math.cos(theta)
+        py = r * math.sin(phi) * math.sin(theta)
+        pz = r * math.cos(phi)
+        body.SetPos(chrono.ChVector3d(px, py, pz))
+
+        # Random orientation
+        q = chrono.ChQuaterniond()
+        q.SetFromAngleAxis(
+            random.uniform(0, 2 * math.pi),
+            chrono.ChVector3d(
+                random.uniform(-1, 1),
+                random.uniform(-1, 1),
+                random.uniform(-1, 1)
+            ).GetNormalized()
+        )
+        body.SetRot(q)
+
+        # Random initial velocity (small, towards center tendency)
+        speed = random.uniform(0.0, 0.5)
+        vx = random.uniform(-speed, speed)
+        vy = random.uniform(-speed, speed)
+        vz = random.uniform(-speed, speed)
+        body.SetPosDt(chrono.ChVector3d(vx, vy, vz))
+
+        # Random shape
+        col_shape, vis_shape, mass = self._random_shape()
+
+        # Set mass and inertia
+        body.SetMass(mass)
+        body.SetInertiaXX(chrono.ChVector3d(
+            mass * 0.1, mass * 0.1, mass * 0.1))
+
+        # Assign random color
+        color = chrono.ChColor(
+            random.uniform(0.2, 1.0),
+            random.uniform(0.2, 1.0),
+            random.uniform(0.2, 1.0)
+        )
+        vis_shape.SetColor(color)
+
+        body.AddVisualShape(vis_shape)
+
+        # Add collision shape
+        body.EnableCollision(True)
+        body.AddCollisionShape(col_shape)
+
+        self.system.Add(body)
+        self.particles.append(body)
+        self.last_emit_time = current_time
+        print(f"[t={current_time:.2f}] Emitted particle #{len(self.particles)} "
+              f"at ({px:.2f}, {py:.2f}, {pz:.2f}), mass={mass:.2f}")
+
+    def apply_gravity(self):
+        """Apply pairwise gravitational forces between all particles."""
+        n = len(self.particles)
+        for i in range(n):
+            for j in range(i + 1, n):
+                bi = self.particles[i]
+                bj = self.particles[j]
+
+                pi = bi.GetPos()
+                pj = bj.GetPos()
+
+                diff = pj - pi
+                dist = diff.Length()
+
+                # Avoid singularity
+                if dist < 0.3:
+                    continue
+
+                # Gravitational force magnitude: F = G * m1 * m2 / r^2
+                force_mag = G_CONSTANT * bi.GetMass() * bj.GetMass() / (dist * dist)
+
+                # Direction unit vectors
+                dir_ij =  diff / dist   # i -> j
+                dir_ji = -diff / dist   # j -> i
+
+                force_on_i = dir_ij * force_mag
+                force_on_j = dir_ji * force_mag
+
+                # Accumulate forces
+                bi.AccumulateForce(force_on_i, pi, False)
+                bj.AccumulateForce(force_on_j, pj, False)
+
+    def cleanup_escaped(self, max_radius=20.0):
+        """Remove particles that have escaped too far."""
+        to_remove = [b for b in self.particles if b.GetPos().Length() > max_radius]
+        for b in to_remove:
+            self.system.Remove(b)
+            self.particles.remove(b)
+            print(f"Removed escaped particle. Remaining: {len(self.particles)}")
+
+# =============================================================================
+# Main simulation
+# =============================================================================
+def main():
+    # ---- System setup ----
+    sys = chrono.ChSystemNSC()
+    sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No global gravity
+
+    # Collision system
+    sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # Solver settings
+    sys.SetSolverMaxIterations(20)
+
+    # ---- Irrlicht visualization ----
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Gravitational Particle Attraction")
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0, 0, 18), chrono.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+    vis.AddLightWithShadow(
+        chrono.ChVector3d(10, 10, 10),
+        chrono.ChVector3d(0, 0, 0),
+        40, 1, 40, 50
+    )
+
+    # ---- Add a central attractor (fixed, massive body) ----
+    central = chrono.ChBody()
+    central.SetPos(chrono.ChVector3d(0, 0, 0))
+    central.SetMass(5000.0)
+    central.SetFixed(True)
+
+    # Visual for central body
+    central_vis = chrono.ChVisualShapeSphere(0.6)
+    central_vis.SetColor(chrono.ChColor(1.0, 0.8, 0.0))
+    central.AddVisualShape(central_vis)
+    sys.Add(central)
+
+    # ---- Particle emitter ----
+    emitter = ParticleEmitter(sys, emit_interval=0.4, max_particles=35)
+
+    # ---- Simulation loop ----
+    timestep = 0.005
+    sim_time  = 0.0
+    frame     = 0
+
+    print("Starting gravitational particle simulation...")
+    print("Close the window to exit.\n")
+
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+
+        # Draw reference axes
+        chronoirr.drawAllCOGs(vis, sys, 0.3)
+
+        vis.EndScene()
+
+        # Emit new particles
+        emitter.emit(sim_time)
+
+        # Apply pairwise gravitational forces between free particles
+        emitter.apply_gravity()
+
+        # Apply gravitational pull from central body to each particle
+        for body in emitter.particles:
+            pos = body.GetPos()
+            diff = central.GetPos() - pos
+            dist = diff.Length()
+            if dist > 0.3:
+                force_mag = G_CONSTANT * central.GetMass() * body.GetMass() / (dist * dist)
+                force = (diff / dist) * force_mag
+                body.AccumulateForce(force, pos, False)
+
+        # Advance simulation
+        sys.DoStepDynamics(timestep)
+        sim_time += timestep
+        frame    += 1
+
+        # Periodically clean up escaped particles
+        if frame % 500 == 0:
+            emitter.cleanup_escaped(max_radius=18.0)
+
+    print("Simulation ended.")
+
+if __name__ == "__main__":
+    main()
+```
+
+## Key Features
+
+| Feature | Description |
+|---|---|
+| **No global gravity** | `SetGravitationalAcceleration(0,0,0)` — only custom forces act |
+| **Particle emitter** | Spawns up to 35 particles every 0.4 s with random shapes/positions/velocities |
+| **Random shapes** | Sphere, Box, or Cylinder chosen randomly with matching mass |
+| **Pairwise gravity** | `F = G·m₁·m₂/r²` computed between every pair of free particles |
+| **Central attractor** | Fixed massive body at the origin pulling all particles |
+| **Irrlicht rendering** | Full 3D visualization with skybox, lights, and camera |
+| **Cleanup** | Particles that escape beyond radius 18 are removed from the system |

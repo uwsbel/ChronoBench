@@ -1,0 +1,114 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# ---------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+# ---------------------------------------------------------------------
+
+# Create the physical system
+sys = chrono.ChSystemNSC()
+
+# Set gravitational acceleration (pointing in -Y direction)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# ---------------------------------------------------------------------
+# 2. Add the required physical systems and objects
+# ---------------------------------------------------------------------
+
+# --- Create the GROUND body ---
+ground = chrono.ChBody()
+ground.SetFixed(True)                       # Ground does not move
+ground.SetName("Ground")
+sys.Add(ground)
+
+# Add a small visualization sphere at the ground/pivot location
+ground_sphere = chrono.ChVisualShapeSphere(0.05)
+ground_sphere.SetColor(chrono.ChColor(0.0, 0.0, 1.0))
+ground.AddVisualShape(ground_sphere, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+
+# --- Create the PENDULUM body ---
+pendulum = chrono.ChBody()
+
+# Set mass and inertia properties
+pendulum_mass = 1.0
+pendulum.SetMass(pendulum_mass)
+# Inertia tensor (Ixx, Iyy, Izz) for a thin rod / point mass approximation
+pendulum.SetInertiaXX(chrono.ChVector3d(0.2, 0.2, 0.2))
+
+# Set initial position of the pendulum's center of mass
+# Pivot is at origin; pendulum hangs horizontally along +X initially
+pendulum_length = 2.0
+pendulum.SetPos(chrono.ChVector3d(pendulum_length / 2.0, 0, 0))
+pendulum.SetName("Pendulum")
+sys.Add(pendulum)
+
+# Add a cylinder visualization for the pendulum rod
+pend_cyl = chrono.ChVisualShapeCylinder(0.05, pendulum_length)
+pend_cyl.SetColor(chrono.ChColor(1.0, 0.4, 0.0))
+# Rotate the cylinder so its axis aligns with the X-axis (rod direction)
+rod_rotation = chrono.QuatFromAngleZ(chrono.CH_PI_2)
+pendulum.AddVisualShape(pend_cyl, chrono.ChFramed(chrono.ChVector3d(0, 0, 0), rod_rotation))
+
+# Add a sphere at the free end of the pendulum (the bob)
+bob = chrono.ChVisualShapeSphere(0.15)
+bob.SetColor(chrono.ChColor(1.0, 0.0, 0.0))
+pendulum.AddVisualShape(bob, chrono.ChFramed(chrono.ChVector3d(pendulum_length / 2.0, 0, 0)))
+
+# ---------------------------------------------------------------------
+# 3. Connect ground and pendulum with a REVOLUTE joint
+# ---------------------------------------------------------------------
+
+revolute_joint = chrono.ChLinkLockRevolute()
+# The joint frame is located at the origin (pivot point).
+# The revolute axis is the Z-axis by default, so the pendulum
+# will swing in the X-Y plane.
+revolute_joint.Initialize(
+    ground,
+    pendulum,
+    chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT)
+)
+sys.AddLink(revolute_joint)
+
+# ---------------------------------------------------------------------
+# 4. Set up the Irrlicht visualization system
+# ---------------------------------------------------------------------
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('PyChrono Simple Pendulum Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 0, 6))   # Camera position
+vis.AddTypicalLights()
+
+# ---------------------------------------------------------------------
+# 5. Run the simulation loop with periodic logging
+# ---------------------------------------------------------------------
+
+time_step = 0.01           # Integration time step [s]
+log_interval = 0.5         # How often to print state info [s]
+last_log_time = 0.0
+
+print("Starting Simple Pendulum Simulation...\n")
+
+while vis.Run():
+    # Render the current frame
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Advance the dynamics simulation by one time step
+    sys.DoStepDynamics(time_step)
+
+    # Periodically log the pendulum's position and velocity
+    current_time = sys.GetChTime()
+    if current_time - last_log_time >= log_interval:
+        pos = pendulum.GetPos()
+        vel = pendulum.GetPosDt()
+        print(f"Time: {current_time:6.2f} s | "
+              f"Position: ({pos.x:7.4f}, {pos.y:7.4f}, {pos.z:7.4f}) | "
+              f"Velocity: ({vel.x:7.4f}, {vel.y:7.4f}, {vel.z:7.4f})")
+        last_log_time = current_time

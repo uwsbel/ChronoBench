@@ -1,0 +1,208 @@
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+# =============================================================================
+# Initialize PyChrono environment
+# =============================================================================
+
+# Set the path to Chrono data files
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+# =============================================================================
+# HMMWV Vehicle Setup
+# =============================================================================
+
+# Initial vehicle position and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (NONE, PRIMITIVES, MESH)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY, FIALA, PAC89, PAC02, LUGRE)
+tire_model = veh.TireModelType_RIGID
+
+# Create the HMMWV vehicle
+hmmwv = veh.HMMWV_Full()
+hmmwv.SetContactMethod(chrono.ChContactMethod_SMC)
+hmmwv.SetChassisCollisionType(chassis_collision_type)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysd(initLoc, initRot))
+hmmwv.SetTireType(tire_model)
+hmmwv.SetTireStepSize(1e-3)
+hmmwv.Initialize()
+
+# Set visualization types for vehicle subsystems
+hmmwv.SetChassisVisualizationType(vis_type)
+hmmwv.SetSuspensionVisualizationType(vis_type)
+hmmwv.SetSteeringVisualizationType(vis_type)
+hmmwv.SetWheelVisualizationType(vis_type)
+hmmwv.SetTireVisualizationType(vis_type)
+
+# =============================================================================
+# SCM Deformable Terrain Setup
+# =============================================================================
+
+# Simulation step size
+step_size = 3e-3
+
+# Terrain dimensions
+terrainHeight = 0
+terrainLength = 16.0  # size in X direction
+terrainWidth = 8.0    # size in Y direction
+
+# SCM terrain parameters
+# Bekker-Wong soil parameters
+Kphi    = 2e6    # Bekker Kphi
+Kc      = 0      # Bekker Kc
+n       = 1.1    # Bekker n exponent
+c       = 0      # Mohr cohesive limit (Pa)
+phi     = 30     # Mohr friction limit (degrees)
+K       = 0.01   # Janosi shear coefficient (m)
+E_elastic = 2e8  # Elastic stiffness (Pa/m), before plastic yeld
+damping   = 3e4  # Hysteretic damping coefficient
+
+# Create SCM terrain
+terrain = veh.SCMTerrain(hmmwv.GetSystem())
+terrain.SetSoilParameters(Kphi, Kc, n, c, phi, K, E_elastic, damping)
+
+# Enable bulldozing effects
+terrain.EnableBulldozing(True)
+terrain.SetBulldozingParameters(
+    55,   # angle of friction for erosion of displaced material at the border of the rut
+    1,    # displaced material vs. downward pressed material
+    5,    # number of erosion iterations
+    10    # number of concentric vertex selections subject to erosion
+)
+
+# Set terrain mesh resolution
+terrain.SetPlotType(veh.SCMTerrain.PLOT_PRESSURE, 0, 30000.2)
+
+# Initialize terrain - using a flat surface or height map
+# Using built-in flat initialization
+terrain.Initialize(terrainLength, terrainWidth, 0.02)
+
+# Move terrain to position it under the vehicle
+terrain.SetTexture(veh.GetDataFile("terrain/textures/dirt.jpg"), 6.0, 6.0)
+
+# =============================================================================
+# Driver System Setup
+# =============================================================================
+
+# Create the interactive driver system
+driver = veh.ChInteractiveDriverIRR(hmmwv.GetVehicle())
+
+# Set the time response for steering and throttle keyboard inputs
+steering_time = 1.0  # time to go from 0 to +1 (or from 0 to -1)
+throttle_time = 1.0  # time to go from 0 to +1
+braking_time  = 0.3  # time to go from 0 to +1
+
+driver.SetSteeringDelta(step_size / steering_time)
+driver.SetThrottleDelta(step_size / throttle_time)
+driver.SetBrakingDelta(step_size / braking_time)
+
+# =============================================================================
+# Irrlicht Visualization Setup
+# =============================================================================
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV on SCM Terrain')
+vis.SetWindowSize(1280, 720)
+
+# Set camera tracking point (chase camera)
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.75)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.SetChaseCameraState(veh.utils.ChChaseCamera.Chase)
+vis.SetChaseCameraAngle(-math.pi / 6)
+
+# Initialize visualization
+vis.Initialize()
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+
+# Attach vehicle and initialize driver with vis system
+vis.AttachVehicle(hmmwv.GetVehicle())
+driver.Initialize()
+
+# =============================================================================
+# Simulation Loop
+# =============================================================================
+
+# Output vehicle mass
+print("Vehicle mass: ", hmmwv.GetVehicle().GetMass())
+
+# Number of simulation steps between visualization frames
+render_steps = math.ceil(1.0 / 50 / step_size)  # ~50 fps
+
+# Initialize simulation frame counter and timer
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+time = 0
+
+print("Starting simulation...")
+
+while vis.Run():
+    time = hmmwv.GetSystem().GetChTime()
+
+    # Render scene at specified frequency
+    if step_number % render_steps == 0:
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Get driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Update modules (process inputs from other modules)
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    hmmwv.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    hmmwv.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)
+
+print("Simulation completed.")
+```
+
+## Key Features of This Script:
+
+1. **HMMWV Vehicle**: Fully initialized with mesh visualization, rigid tires, and SMC contact method
+
+2. **SCM Deformable Terrain**:
+   - Bekker-Wong soil parameters (Kphi, Kc, n exponents)
+   - Mohr-Coulomb failure parameters (cohesion c, friction angle φ)
+   - Janosi shear coefficient for traction modeling
+   - Bulldozing effects enabled for realistic soil displacement
+   - Pressure visualization overlay
+
+3. **Driver System**: Interactive keyboard/mouse control with configurable response times for steering, throttle, and braking
+
+4. **Irrlicht Visualization**:
+   - Chase camera following the vehicle
+   - Directional lighting and skybox
+   - 50 FPS rendering target
+
+5. **Simulation Loop**:
+   - Proper synchronization order (driver → terrain → vehicle → vis)
+   - Advancement of all subsystems
+   - Real-time execution using `ChRealtimeStepTimer`

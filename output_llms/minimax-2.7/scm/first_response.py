@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+PyChrono HMMWV Simulation on SCM Deformable Terrain
+====================================================
+This script creates a complete simulation of a full HMMWV vehicle
+on deformable SCM terrain with Irrlicht visualization.
+"""
+
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+from pychrono.vehicle import HMMWV
+from pychrono.vehicle import SCMDeformableTerrain
+from pychrono.vehicle import ChDriver
+
+
+def main():
+    # =====================================================================
+    # 1. INITIALIZE PYCHRONO ENVIRONMENT
+    # =====================================================================
+    
+    print("Initializing PyChrono environment...")
+    
+    # Create physical system
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set solver settings
+    system.SetSolverType(chrono.ChSolver.Type_SOR)
+    system.SetMaxItersSolverSpeed(500)
+    system.SetMaxItersSolverStab(200)
+    system.SetTolSpeed(1e-6)
+    system.SetTolForce(1e-5)
+    
+    # Set simulation timestep
+    timestep = 0.002  # 2ms timestep for stability
+    system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+    
+    # =====================================================================
+    # 2. CREATE SCM DEFORMABLE TERRAIN
+    # =====================================================================
+    
+    print("Creating SCM deformable terrain...")
+    
+    # Initialize SCM terrain
+    terrain = SCMDeformableTerrain(system)
+    
+    # Terrain geometry parameters
+    terrain_size_x = 200.0  # meters
+    terrain_size_z = 200.0  # meters
+    terrain_num_x = 200     # grid resolution
+    terrain_num_z = 200
+    
+    terrain.SetTexture(veh.GetDataFile("terrain/textures/grass.png"),
+                      8.0, 8.0)
+    terrain.SetMeshWireFrame(False)
+    
+    # Initialize terrain
+    terrain.Initialize(terrain_size_x, terrain_size_z, terrain_num_x, terrain_num_z)
+    
+    # =====================================================================
+    # 3. CONFIGURE CUSTOM SOIL PARAMETERS
+    # =====================================================================
+    
+    print("Configuring SCM soil parameters...")
+    
+    # SCM soil model parameters (typical for soft soil)
+    # These parameters control soil behavior:
+    # - Bekker parameters (pressure-sinkage relationship)
+    # - Johnson-Cook strength parameters
+    # - Shear failure parameters
+    
+    # Bekker pressure-sinkage parameters
+    terrain.SetSoilParameters(
+        # Bekker parameters (pressure vs sinkage)
+        Prak_bekker=170000,        # Pressure at reference sinkage [Pa]
+        Prak_sink=0.015,            # Reference sinkage [m]
+        K_shrink=1.0,               # Shrinkage factor
+        K_x=700000,                 # Shear modulus parameter [N/m^3]
+        K_y=800000,                 # Pressure modulus parameter [N/m^3]
+        n_sink=1.1,                 # Sinkage exponent
+        
+        # Johnson-Cook strength parameters
+        K_elastic=700000,           # Elastic stiffness [N/m]
+        alpha_elastic=0.1,          # Elastic exponent
+        n_elastic=1.5,             # Elastic exponent
+        
+        # Shear parameters
+        coh_shear=5000,            # Shear cohesion [Pa]
+        coh_press=20000,           # Pressure cohesion [Pa]
+        alpha_shear=0.3,           # Shear angle exponent
+        
+        # Fracture parameters
+        phi_friction=0.6,          # Internal friction angle [rad]
+        eta_friction=0.01,         # Friction coefficient
+        phi_shear=0.45,            # Shear strength angle [rad]
+        K_slope=100000,            # Slope correction factor
+        
+        # Erosion parameters
+        ero_depth=0.02,            # Erosion depth [m]
+        ero_cohesion=500,         # Erosion cohesion [Pa]
+        
+        # Timestep and viscosity
+        dt_terrain=0.002,          # Terrain simulation timestep
+        viscosity=0.01             # Soil viscosity
+    )
+    
+    # Enable sinkage visualization
+    terrain.SetPlotLevel(0, -0.1, 0.1, 1.0)  # min, max heights, scale
+    terrain.EnableVehicleSurface(true)
+    
+    # =====================================================================
+    # 4. CREATE HMMWV VEHICLE
+    # =====================================================================
+    
+    print("Creating HMMWV vehicle...")
+    
+    # Vehicle parameters
+    vehicle_location = chrono.ChVectorD(0, 2.5, 0)
+    vehicle_orientation = chrono.ChQuaternionD(1, 0, 0, 0)
+    
+    # Create HMMWV vehicle with rigid tire model
+    vehicle = HMMWV(system)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetChassisCollision(False)
+    
+    # Rigid tire model configuration
+    tire_type = veh.TireModelType_RIGID
+    vehicle.SetTireType(tire_type)
+    vehicle.SetTireCollisionType(veh.CollisionType_ALL)
+    
+    # Initialize vehicle at specified location and orientation
+    vehicle.Initialize(chrono.ChCoordsysD(vehicle_location, vehicle_orientation))
+    
+    # Set vehicle visualization (mesh-based)
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_MESH)
+    
+    # Load and apply HMMWV mesh textures
+    chassis_mesh = veh.GetDataFile("hmmwv/hmmwv_chassis_mesh.obj")
+    wheel_mesh = veh.GetDataFile("hmmwv/hmmwv_wheel_mesh.obj")
+    
+    # =====================================================================
+    # 5. CONFIGURE MOVING PATCH FEATURE
+    # =====================================================================
+    
+    print("Configuring moving patch feature...")
+    
+    # Moving patch follows the vehicle chassis
+    patch_size_x = 15.0  # Patch length in x-direction [m]
+    patch_size_z = 15.0  # Patch width in z-direction [m]
+    
+    # Set moving patch to follow vehicle chassis
+    def update_patch():
+        """Callback to update terrain patch position to follow vehicle"""
+        chassis_pos = vehicle.GetChassis().GetPos()
+        return chrono.ChVectorD(chassis_pos.x, chassis_pos.y, chassis_pos.z)
+    
+    terrain.SetMovingPatch(vehicle.GetChassisBody(), patch_size_x, patch_size_z)
+    
+    # =====================================================================
+    # 6. CREATE INTERACTIVE DRIVER SYSTEM
+    # =====================================================================
+    
+    print("Setting up interactive driver system...")
+    
+    # Create driver system
+    driver = veh.ChDriver(vehicle)
+    
+    # Driver input settings
+    driver.SetThrottleDelta(0.02)    # Throttle change per update
+    driver.SetSteeringDelta(0.03)    # Steering change per update
+    driver.SetBrakingDelta(0.06)      # Braking change per update
+    
+    # Initialize Irrlicht application for interactive control
+    driver_app = irr.ChIrrApp(
+        system,
+        "HMMWV on SCM Terrain",
+        irr.dimension2du(1280, 720),
+        irr.EWV_ERINOSCROLLBARS,
+        False,  # fullscreen
+        True    # shadows
+    )
+    
+    driver_app.AddTypicalCamera(irr.vector3df(8, 6, -8), irr.vector3df(0, 2, 0))
+    driver_app.AddTypicalLights(irr.vector3df(50, 100, 50), irr.vector3df(50, 80, -50))
+    driver_app.AddTypicalLights(irr.vector3df(-50, 100, -50), irr.vector3df(-50, 80, 50))
+    
+    # Add vehicle to the visualization scene
+    driver_app.AddVehicle(vehicle, chrono.ChColor(0.8, 0.2, 0.2))
+    
+    # Add terrain visualization
+    driver_app.AddCustomTerrain(terrain)
+    
+    # Configure terrain false-color visualization for sinkage
+    terrain.SetPlotColorMap(chrono.VEHICLE_TERRAIN_COLOR_FALSECOLOR)
+    
+    # =====================================================================
+    # 7. SETUP SIMULATION PARAMETERS
+    # =====================================================================
+    
+    print("Configuring simulation parameters...")
+    
+    # Simulation timing
+    simulation_fps = 50  # Target frame rate
+    simulation_time = 0  # Total simulation time
+    max_simulation_time = 60  # Maximum simulation duration (seconds)
+    
+    # Visualization settings
+    render_frame_step = int(1.0 / (timestep * simulation_fps))
+    
+    # =====================================================================
+    # 8. RUN SIMULATION LOOP
+    # =====================================================================
+    
+    print("Starting simulation at {} FPS...".format(simulation_fps))
+    print("Use arrow keys to control: Throttle (Up/Down), Steering (Left/Right), Brake (Space)")
+    print("Press 'Q' to quit\n")
+    
+    driver_app.Start()
+    
+    frame_count = 0
+    
+    while driver_app.GetDevice().run():
+        # Get current time
+        current_time = system.GetChTime()
+        
+        # Check termination conditions
+        if current_time > max_simulation_time:
+            print(f"\nSimulation completed: {max_simulation_time} seconds reached")
+            break
+        
+        # Begin scene rendering
+        driver_app.BeginScene(True, True, irr.SColor(255, 100, 100, 100))
+        driver_app.DrawAll()
+        
+        # Render terrain with false-color sinkage visualization
+        terrain.Render(driver_app.GetVideoDriver())
+        
+        # Update driver inputs
+        driver.Synchronize(current_time)
+        
+        # Apply driver inputs to vehicle
+        steering = driver.GetSteering()
+        throttle = driver.GetThrottle()
+        braking = driver.GetBraking()
+        
+        vehicle.ApplySteering(steering)
+        vehicle.ApplyThrottle(throttle)
+        vehicle.ApplyBraking(braking)
+        
+        # Advance vehicle dynamics
+        vehicle.Synchronize(current_time, steering, throttle, braking)
+        
+        # Advance terrain
+        terrain.Synchronize(current_time)
+        
+        # Advance system dynamics
+        system.DoStepDynamics(timestep)
+        
+        # Update simulation time
+        simulation_time += timestep
+        
+        # Render at specified FPS
+        if frame_count % render_frame_step == 0:
+            driver_app.EndScene()
+        
+        frame_count += 1
+        
+        # Print status periodically
+        if frame_count % 500 == 0:
+            chassis_pos = vehicle.GetChassis().GetPos()
+            chassis_vel = vehicle.GetChassis().GetVel()
+            speed = math.sqrt(chassis_vel.x**2 + chassis_vel.z**2)
+            print(f"Time: {current_time:.2f}s | "
+                  f"Position: ({chassis_pos.x:.2f}, {chassis_pos.y:.2f}, {chassis_pos.z:.2f}) | "
+                  f"Speed: {speed*3.6:.2f} km/h | "
+                  f"Steering: {steering:.2f} | "
+                  f"Throttle: {throttle:.2f}")
+    
+    # Cleanup
+    print("\nSimulation ended. Cleaning up...")
+    vehicle.Close()
+    terrain.Close()
+    
+    print("Done!")
+
+
+if __name__ == "__main__":
+    main()

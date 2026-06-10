@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+"""
+PyChrono Simulation with Sensors and ROS Integration
+
+This script creates a PyChrono simulation demonstrating:
+- Ground body with controlled motion
+- Multiple sensor types (camera, lidar, GPS, IMU)
+- Sensor manager for data acquisition
+- ROS interface for publishing sensor data
+- Real-time simulation loop
+"""
+
+import pychrono as chrono
+import pychrono.sensor as sensormanager
+import pychrono.ros as chrono_ros
+import numpy as np
+import time
+
+
+class SimulationController:
+    """Controller for managing simulation state and real-time execution."""
+    
+    def __init__(self, timestep=0.001, real_time_factor=1.0):
+        self.time_step = timestep
+        self.real_time_factor = real_time_factor
+        self.simulation_time = 0.0
+        self.frame_count = 0
+        self.start_wall_time = None
+        
+    def sleep_until_realtime(self):
+        """Maintain real-time execution by sleeping if running ahead."""
+        if self.start_wall_time is None:
+            self.start_wall_time = time.time()
+            
+        expected_time = self.simulation_time / self.real_time_factor
+        elapsed_time = time.time() - self.start_wall_time
+        sleep_time = expected_time - elapsed_time
+        
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+    
+    def advance(self):
+        """Advance simulation time."""
+        self.simulation_time += self.time_step
+        self.frame_count += 1
+
+
+class GroundMover:
+    """Class to control ground body motion with various motion profiles."""
+    
+    def __init__(self, body):
+        self.body = body
+        self.motion_type = "sinusoidal"  # Options: sinusoidal, linear, circular
+        
+    def update(self, time):
+        """Update ground body position based on motion type."""
+        if self.motion_type == "sinusoidal":
+            # Sinusoidal motion in X-Z plane
+            amplitude = 0.5  # meters
+            frequency = 0.5  # Hz
+            x = amplitude * np.sin(2 * np.pi * frequency * time)
+            z = amplitude * np.cos(2 * np.pi * frequency * time)
+            self.body.SetPos(chrono.ChVectorD(x, 0.0, z))
+            
+            # Add velocity for realistic motion
+            vx = amplitude * 2 * np.pi * frequency * np.cos(2 * np.pi * frequency * time)
+            vz = -amplitude * 2 * np.pi * frequency * np.sin(2 * np.pi * frequency * time)
+            self.body.SetPos_dt(chrono.ChVectorD(vx, 0.0, vz))
+            
+        elif self.motion_type == "linear":
+            # Linear motion along X axis
+            speed = 0.5  # m/s
+            x = speed * time
+            self.body.SetPos(chrono.ChVectorD(x, 0.0, 0.0))
+            self.body.SetPos_dt(chrono.ChVectorD(speed, 0.0, 0.0))
+            
+        elif self.motion_type == "circular":
+            # Circular motion in X-Z plane
+            radius = 0.5  # meters
+            omega = 1.0  # rad/s
+            x = radius * np.cos(omega * time)
+            z = radius * np.sin(omega * time)
+            self.body.SetPos(chrono.ChVectorD(x, 0.0, z))
+            
+            # Set orientation to follow path
+            self.body.SetAngularVelocity(chrono.ChVectorD(0, omega, 0))
+
+
+def create_ground_body(system):
+    """Create a ground body with collision properties."""
+    
+    # Create material for ground surface
+    ground_mat = chrono.ChMaterialSurfaceNSC()
+    ground_mat.SetFriction(0.8)
+    ground_mat.SetRestitution(0.1)
+    
+    # Create ground body
+    ground_body = chrono.ChBody()
+    ground_body.SetName("Ground_Body")
+    ground_body.SetBodyFixed(False)  # Allow movement
+    ground_body.SetMass(10.0)
+    ground_body.SetInertiaXX(chrono.ChVectorD(1.0, 1.0, 1.0))
+    ground_body.SetPos(chrono.ChVectorD(0.0, 0.5, 0.0))
+    ground_body.SetMaterialSurface(ground_mat)
+    
+    # Set collision geometry (box shape)
+    ground_body.GetCollisionModel().SetBox(0.5, 0.1, 0.5)
+    ground_body.GetCollisionModel().BuildModel()
+    
+    # Add body to system
+    system.AddBody(ground_body)
+    
+    return ground_body
+
+
+def create_ground_mesh():
+    """Create a visualization mesh for the ground body."""
+    
+    # Create mesh object
+    mesh = chrono.ChTriangleMeshConnected()
+    
+    # Define simple box mesh vertices
+    hx, hy, hz = 0.5, 0.1, 0.5  # half-extents
+    vertices = [
+        chrono.ChVectorD(-hx, -hy, -hz),
+        chrono.ChVectorD( hx, -hy, -hz),
+        chrono.ChVectorD( hx,  hy, -hz),
+        chrono.ChVectorD(-hx,  hy, -hz),
+        chrono.ChVectorD(-hx, -hy,  hz),
+        chrono.ChVectorD( hx, -hy,  hz),
+        chrono.ChVectorD( hx,  hy,  hz),
+        chrono.ChVectorD(-hx,  hy,  hz),
+    ]
+    
+    # Define faces (triangles)
+    faces = [
+        [0, 1, 2], [0, 2, 3],  # front
+        [4, 6, 5], [4, 7, 6],  # back
+        [0, 4, 5], [0, 5, 1],  # bottom
+        [2, 6, 7], [2, 7, 3],  # top
+        [0, 3, 7], [0, 7, 4],  # left
+        [1, 5, 6], [1, 6, 2],  # right
+    ]
+    
+    # Add vertices and faces to mesh
+    for v in vertices:
+        mesh.AddNode(chrono.ChVectorD(v.x, v.y, v.z))
+    
+    for f in faces:
+        triangle = chrono.ChTriangle()
+        triangle.SetNode(0, chrono.ChVectorD(vertices[f[0]].x, vertices[f[0]].y, vertices[f[0]].z))
+        triangle.SetNode(1, chrono.ChVectorD(vertices[f[1]].x, vertices[f[1]].y, vertices[f[1]].z))
+        triangle.SetNode(2, chrono.ChVectorD(vertices[f[2]].x, vertices[f[2]].y, vertices[f[2]].z))
+        mesh.AddTriangle(triangle)
+    
+    # Set visualization material
+    visual_mat = chrono.ChVisualizationTriangleMeshShape()
+    visual_mat.SetMesh(mesh)
+    visual_mat.SetColor(chrono.ChColor(0.5, 0.5, 0.5))  # Gray color
+    
+    return mesh, visual_mat
+
+
+def setup_camera_sensor(manager, parent_body, offset):
+    """Set up a camera sensor attached to a body."""
+    
+    # Camera parameters
+    update_rate = 30  # Hz
+    horizontal_fov = 1.2  # radians (~69 degrees)
+    image_width = 1280
+    image_height = 720
+    min_distance = 0.1
+    max_distance = 100.0
+    
+    # Create camera sensor
+    camera = sensormanager.ChCameraSensor(
+        parent_body,
+        update_rate,
+        chrono.ChFrameD(offset),
+        horizontal_fov,
+        image_width,
+        image_height,
+        min_distance,
+        max_distance
+    )
+    
+    # Configure camera properties
+    camera.SetName("Camera_Sensor")
+    camera.SetLocalOffset(chrono.ChVectorD(0.0, 0.3, 0.0))
+    
+    # Set noise parameters (optional)
+    camera.SetOverlayColor(chrono.ChColor(1, 1, 1))
+    
+    # Add camera to manager
+    manager.Add(camera)
+    
+    return camera
+
+
+def setup_lidar_sensor(manager, parent_body, offset):
+    """Set up a lidar sensor attached to a body."""
+    
+    # Lidar parameters
+    update_rate = 20  # Hz
+    num_layers = 16
+    points_per_layer = 1800
+    max_distance = 50.0
+    vertical_fov = 0.3  # radians
+    horizontal_fov = 2 * np.pi  # 360 degrees
+    
+    # Create lidar sensor
+    lidar = sensormanager.ChLidarSensor(
+        parent_body,
+        update_rate,
+        chrono.ChFrameD(offset),
+        num_layers,
+        points_per_layer,
+        max_distance,
+        vertical_fov,
+        horizontal_fov
+    )
+    
+    # Configure lidar properties
+    lidar.SetName("Lidar_Sensor")
+    lidar.SetLocalOffset(chrono.ChVectorD(0.0, 0.25, 0.0))
+    
+    # Configure scan pattern
+    scan_freq = 10  # Hz scanning frequency
+    lidar.SetScanFrequency(scan_freq)
+    
+    # Set noise parameters (optional)
+    lidar.SetNoiseLite(True)
+    
+    # Add lidar to manager
+    manager.Add(lidar)
+    
+    return lidar
+
+
+def setup_gps_sensor(manager, parent_body, offset):
+    """Set up a GPS sensor attached to a body."""
+    
+    # GPS parameters
+    update_rate = 10  # Hz
+    
+    # Create GPS sensor
+    gps = sensormanager.ChGPSSensor(
+        parent_body,
+        update_rate,
+        chrono.ChFrameD(offset)
+    )
+    
+    # Configure GPS properties
+    gps.SetName("GPS_Sensor")
+    gps.SetLocalOffset(chrono.ChVectorD(0.0, 0.2, 0.0))
+    
+    # Set GPS noise parameters
+    gps.SetNoiseGPS(True)
+    gps.SetNoiseGyro(True)
+    
+    # Add GPS to manager
+    manager.Add(gps)
+    
+    return gps
+
+
+def setup_imu_sensor(manager, parent_body, offset):
+    """Set up an IMU sensor (accelerometer, gyroscope, magnetometer) attached to a body."""
+    
+    # IMU parameters
+    update_rate = 100  # Hz (high frequency for IMU)
+    
+    # Create IMU sensor
+    imu = sensormanager.ChIMUSensor(
+        parent_body,
+        update_rate,
+        chrono.ChFrameD(offset)
+    )
+    
+    # Configure IMU properties
+    imu.SetName("IMU_Sensor")
+    imu.SetLocalOffset(chrono.ChVectorD(0.0, 0.1, 0.0))
+    
+    # Configure IMU noise parameters
+    imu.SetNoiseAccel(True)
+    imu.SetNoiseGyro(True)
+    imu.SetNoiseMag(True)
+    
+    # Set IMU model
+    imu.SetProcessNoiseAccel(0.05)   # Accelerometer noise
+    imu.SetProcessNoiseGyro(0.0005)   # Gyroscope noise
+    imu.SetProcessNoiseMag(0.01)      # Magnetometer noise
+    
+    # Add IMU to manager
+    manager.Add(imu)
+    
+    return imu
+
+
+def setup_sensor_manager(system):
+    """Initialize the sensor manager with the physical system."""
+    
+    # Create sensor manager
+    manager = sensormanager.ChSensorManager(system)
+    
+    # Configure render settings for visual sensors
+    manager.SetRenderingMode(sensormanager.RenderingMode_FULL)
+    
+    # Set ambient light parameters
+    manager.SetAmbientLight(0.5)
+    
+    # Configure scene for sensors
+    scene = manager.GetScene()
+    scene.SetBackgroundColor(chrono.ChColor(0.1, 0.1, 0.2))  # Dark blue sky
+    
+    # Add lighting
+    scene.AddPointLight(
+        chrono.ChVectorD(5, 10, 5),
+        chrono.ChColor(1, 1, 1),
+        100.0
+    )
+    
+    return manager
+
+
+def setup_environment(system):
+    """Set up the simulation environment with visual assets."""
+    
+    # Create ground visualization
+    ground_viz = chrono.ChVisualizationShape()
+    ground_viz.AddBox(1.0, 0.02, 1.0)
+    ground_viz.SetColor(chrono.ChColor(0.3, 0.8, 0.3))
+    
+    return ground_viz
+
+
+def create_ros_interface(sensors, node_name="pychrono_sensor_node"):
+    """Create ROS interface for publishing sensor data."""
+    
+    # Initialize ROS manager
+    ros_manager = chrono_ros.ChROSMgr()
+    
+    # Initialize ROS node
+    ros_manager.Initialize(node_name, 1)  # spin rate = 1
+    
+    # Map sensors to ROS topics
+    sensor_topic_map = {
+        "Camera_Sensor": "/sensor/camera/image",
+        "Lidar_Sensor": "/sensor/lidar/pointcloud",
+        "GPS_Sensor": "/sensor/gps/fix",
+        "IMU_Sensor": "/sensor/imu/data",
+    }
+    
+    # Register sensors with ROS topics
+    for sensor_name, topic in sensor_topic_map.items():
+        if sensor_name in sensors:
+            sensor = sensors[sensor_name]
+            
+            # Determine message type based on sensor
+            if "Camera" in sensor_name:
+                msg_type = chrono_ros.ChROSMsgType_IMAGE
+            elif "Lidar" in sensor_name:
+                msg_type = chrono_ros.ChROSMsgType_POINTCLOUD
+            elif "GPS" in sensor_name:
+                msg_type = chrono_ros.ChROSMsgType_NAV_SAT_FIX
+            elif "IMU" in sensor_name:
+                msg_type = chrono_ros.ChROSMsgType_IMU
+            else:
+                msg_type = chrono_ros.ChROSMsgType_UNKNOWN
+            
+            # Register with ROS manager
+            ros_manager.RegisterSensor(sensor, topic, msg_type)
+            print(f"Registered {sensor_name} on topic {topic}")
+    
+    return ros_manager
+
+
+def run_simulation():
+    """Main function to run the PyChrono simulation with sensors."""
+    
+    print("=" * 60)
+    print("PyChrono Simulation with Sensors and ROS Integration")
+    print("=" * 60)
+    
+    # 1. Initialize PyChrono environment
+    print("\n[1] Initializing PyChrono environment...")
+    
+    # Set default collision parameters
+    chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+    chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.002)
+    
+    # 2. Create the Chrono system
+    print("[2] Creating Chrono physical system...")
+    
+    my_system = chrono.ChSystemNSC()
+    my_system.SetTitle("PyChrono Sensor Simulation")
+    my_system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    my_system.SetSolverMaxIterations(500)
+    my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    my_system.SetTimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT)
+    
+    # 3. Create ground body
+    print("[3] Creating ground body...")
+    
+    ground_body = create_ground_body(my_system)
+    print(f"    Ground body created at position: {ground_body.GetPos()}")
+    
+    # 4. Set up ground motion
+    print("[4] Configuring ground body motion...")
+    
+    ground_mover = GroundMover(ground_body)
+    ground_mover.motion_type = "sinusoidal"
+    print(f"    Motion type: {ground_mover.motion_type}")
+    
+    # 5. Set up sensor manager
+    print("[5] Setting up sensor manager...")
+    
+    sensor_manager = setup_sensor_manager(my_system)
+    
+    # 6. Add sensors
+    print("[6] Adding sensors to ground body...")
+    
+    sensors = {}
+    sensor_offset = chrono.ChVectorD(0.0, 0.0, 0.0)
+    
+    # Camera sensor
+    print("    Adding Camera sensor...")
+    camera = setup_camera_sensor(sensor_manager, ground_body, sensor_offset)
+    sensors["Camera_Sensor"] = camera
+    
+    # Lidar sensor
+    print("    Adding Lidar sensor...")
+    lidar = setup_lidar_sensor(sensor_manager, ground_body, sensor_offset)
+    sensors["Lidar_Sensor"] = lidar
+    
+    # GPS sensor
+    print("    Adding GPS sensor...")
+    gps = setup_gps_sensor(sensor_manager, ground_body, sensor_offset)
+    sensors["GPS_Sensor"] = gps
+    
+    # IMU sensor (accelerometer, gyroscope, magnetometer)
+    print("    Adding IMU sensor (accelerometer, gyroscope, magnetometer)...")
+    imu = setup_imu_sensor(sensor_manager, ground_body, sensor_offset)
+    sensors["IMU_Sensor"] = imu
+    
+    print(f"    Total sensors added: {len(sensors)}")
+    
+    # 7. Set up ROS interface
+    print("[7] Setting up ROS interface...")
+    
+    try:
+        ros_interface = create_ros_interface(sensors)
+        ros_enabled = True
+        print("    ROS interface initialized successfully")
+    except Exception as e:
+        ros_enabled = False
+        print(f"    Warning: ROS interface not available ({str(e)})")
+        print("    Continuing simulation without ROS...")
+    
+    # 8. Initialize simulation controller
+    print("[8] Initializing simulation controller...")
+    
+    controller = SimulationController(
+        timestep=0.001,  # 1 ms timestep
+        real_time_factor=1.0  # Run at real-time speed
+    )
+    
+    # Simulation parameters
+    simulation_duration = 10.0  # seconds
+    visualization_interval = 1.0  # Print status every second
+    
+    print("\n" + "=" * 60)
+    print("Starting Simulation")
+    print("=" * 60)
+    print(f"Duration: {simulation_duration} seconds")
+    print(f"Timestep: {controller.time_step} seconds")
+    print(f"Real-time factor: {controller.real_time_factor}")
+    print("-" * 60)
+    
+    # 9. Main simulation loop
+    print("\n[9] Running simulation loop...")
+    
+    try:
+        while controller.simulation_time < simulation_duration:
+            # Update ground body motion
+            ground_mover.update(controller.simulation_time)
+            
+            # Update all sensors
+            sensor_manager.Update()
+            
+            # Advance physics simulation
+            my_system.DoStepDynamics(controller.time_step)
+            
+            # Advance simulation time
+            controller.advance()
+            
+            # Maintain real-time execution
+            controller.sleep_until_realtime()
+            
+            # Print status periodically
+            if controller.simulation_time % visualization_interval < controller.time_step:
+                print(f"Time: {controller.simulation_time:.2f}s | "
+                      f"Ground Pos: ({ground_body.GetPos().x:.3f}, "
+                      f"{ground_body.GetPos().y:.3f}, "
+                      f"{ground_body.GetPos().z:.3f}) | "
+                      f"Frames: {controller.frame_count}")
+                
+                # Publish ROS data if enabled
+                if ros_enabled:
+                    ros_interface.SpinOnce()
+    
+    except KeyboardInterrupt:
+        print("\nSimulation interrupted by user.")
+    
+    # 10. Finalize simulation
+    print("\n" + "=" * 60)
+    print("Simulation Complete")
+    print("=" * 60)
+    print(f"Total simulation time: {controller.simulation_time:.2f} seconds")
+    print(f"Total frames: {controller.frame_count}")
+    print(f"Average FPS: {controller.frame_count / controller.simulation_time:.2f}")
+    
+    # Cleanup
+    if ros_enabled:
+        print("Shutting down ROS interface...")
+        ros_interface.Shutdown()
+    
+    print("\nSimulation finished successfully!")
+
+
+if __name__ == "__main__":
+    run_simulation()

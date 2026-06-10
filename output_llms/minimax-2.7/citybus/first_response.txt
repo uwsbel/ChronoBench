@@ -1,0 +1,389 @@
+```python
+"""
+PyChrono CityBus Simulation on Rigid Terrain
+=============================================
+This script simulates a CityBus vehicle on a rigid terrain using PyChrono
+and Irrlicht for visualization.
+"""
+
+import os
+import math
+import numpy as np
+
+# Import PyChrono components
+import pychrono.core as chrono
+import pychrono.vehicle as chronovehicle
+import pychrono.irrlicht as irrlicht
+
+# =============================================================================
+# 1. INITIALIZE PYCHRONO ENVIRONMENT
+# =============================================================================
+
+# Set the path to Chrono data directory
+chrono.SetChronoDataPath("C:/Chrono/data/")
+
+# Create simulation system
+my_system = chrono.ChSystemNSC()
+my_system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+my_system.SetSolverType(chrono.ChSolverSolverType.SOR)
+my_system.SetMaxItersSolverSpeed(50)
+my_system.SetMaxItersSolverStab(50)
+my_system.SetStepSize(0.001)
+
+# Set simulation timing
+simulation_fps = 50
+step_size = 1.0 / simulation_fps
+
+print("=" * 60)
+print("PyChrono CityBus Simulation")
+print("=" * 60)
+
+# =============================================================================
+# 2. CREATE RIGID TERRAIN
+# =============================================================================
+
+print("\n[INFO] Creating rigid terrain...")
+
+# Terrain parameters
+terrain_height = 0.0  # Ground level
+terrain_length = 200.0  # Length in meters
+terrain_width = 100.0   # Width in meters
+
+# Create ground material
+ground_material = chrono.ChMaterialSurfaceNSC()
+ground_material.SetFriction(0.9)
+ground_material.SetRestitution(0.1)
+ground_material.SetCompliance(0.0)
+ground_material.SetComplianceT(0.0)
+
+# Create terrain body
+ground = chrono.ChBody()
+ground.SetName("ground")
+ground.SetPos(chrono.ChVectorD(0, terrain_height, 0))
+ground.SetBodyFixed(True)
+ground.SetMaterialSurface(ground_material)
+
+# Add collision geometry (box representation)
+ground_collision = chrono.ChCollisionShapeBox(ground, 
+                                               terrain_length / 2, 
+                                               0.1, 
+                                               terrain_width / 2)
+ground.AddCollisionShape(ground_collision, chrono.ChFrameD())
+ground.EnableCollision(True)
+
+my_system.Add(ground)
+
+# Create visualization geometry
+vis_material = chrono.ChVisualizationMaterial()
+vis_material.SetAmbientColor(chrono.ChColor(0.4, 0.4, 0.4))
+vis_material.SetDiffuseColor(chrono.ChColor(0.5, 0.5, 0.5))
+vis_material.SetSpecularColor(chrono.ChColor(0.1, 0.1, 0.1))
+
+ground_vis = chrono.ChVisualizationShapeBox(terrain_length, 0.1, terrain_width)
+ground_vis.SetMaterial(vis_material)
+ground.AddVisualizationShape(ground_vis)
+
+print(f"[INFO] Terrain created: {terrain_length}m x {terrain_width}m")
+
+# =============================================================================
+# 3. CREATE CITYBUS VEHICLE
+# =============================================================================
+
+print("\n[INFO] Creating CityBus vehicle...")
+
+# Vehicle parameters
+vehicle_location = chrono.ChVectorD(0, 1.0, 0)
+vehicle_orientation = chrono.Q_ROT_Y -  # Initial rotation (around Y axis)
+
+# Create the CityBus vehicle assembly
+citybus = chronovehicle.CityBus_VehicleSimple(my_system, 
+                                               chrono.ChCoordsysD(vehicle_location, vehicle_orientation))
+
+# Set tire model (rigid tire for rigid terrain)
+tire_model = chronovehicle.TireModelType.RIGID
+citybus.SetTireModel(tire_model)
+
+# Initialize vehicle
+citybus.Initialize()
+
+# Set visualization types for vehicle parts
+print("[INFO] Setting visualization types...")
+
+# Main chassis - mesh visualization
+chassis_vis = citybus.GetChassis().GetVisualizationShape(0)
+if chassis_vis:
+    chassis_vis.SetMesh("citybus_body.obj", chrono.GetChronoDataFile("vehicle/hmmwv/hmmwv_chassis.obj"))
+    print("[INFO] Chassis: Using mesh visualization")
+
+# Front and rear subframes - primitive visualization (boxes)
+front_suspension = citybus.GetVehicle().GetSuspension(0)
+rear_suspension = citybus.GetVehicle().GetSuspension(1)
+
+# Wheels - primitive visualization (cylinders)
+for i in range(4):
+    wheel = citybus.GetWheel(i).GetSpindle()
+    wheel_vis = chrono.ChVisualizationShapeCylinder(0.4, 0.3)
+    wheel_vis.SetMaterial(vis_material)
+    wheel.AddVisualizationShape(wheel_vis)
+    print(f"[INFO] Wheel {i}: Using primitive (cylinder) visualization")
+
+# =============================================================================
+# 4. CREATE DRIVER SYSTEM
+# =============================================================================
+
+print("\n[INFO] Creating interactive driver system...")
+
+# Create driver inputs system
+driver = chronovehicle.ChDriver(citybus.GetVehicle())
+
+# Input limits
+driver.SetMaxSteering(0.5)  # Maximum steering angle (radians)
+driver.SetMaxThrottle(1.0)   # Maximum throttle (0-1)
+driver.SetMaxBraking(1.0)   # Maximum braking (0-1)
+
+# Initialize with zero inputs
+steering_input = 0.0
+throttle_input = 0.0
+brake_input = 0.0
+
+print("[INFO] Driver system initialized with controls:")
+print("       - Steering: Left/Right Arrow Keys")
+print("       - Throttle: Up Arrow Key")
+print("       - Brake: Down Arrow Key")
+print("       - Reset: R Key")
+print("       - Quit: Q Key")
+
+# =============================================================================
+# 5. SET UP IRRLICHT VISUALIZATION
+# =============================================================================
+
+print("\n[INFO] Setting up Irrlicht visualization...")
+
+# Create application
+myapplication = irrlicht.ChIrrApp(
+    my_system,
+    "CityBus Simulation",
+    irrlicht.dimension2du(1280, 720)
+)
+
+# Setup window and device
+myapplication.AddTypicalSky()
+myapplication.AddTypicalLights(irrlicht.dimension2df(0.5, 0.5), 
+                                 irrlicht.dimension2df(0.5, 0.5),
+                                 100, 80)
+myapplication.AddTypicalCamera(irrlicht.vector3df(10, 5, -10),
+                                 irrlicht.vector3df(0, 2, 0))
+
+# Add ground to visualization
+myapplication.Add(myapplication.CreateGrid(20, 50, chrono.ChColor(0.3, 0.3, 0.3), True))
+
+# Add vehicle to visualization
+myapplication.Add(citybus)
+
+# Camera follow parameters
+camera_distance = 15.0  # Distance behind vehicle
+camera_height = 5.0    # Height above vehicle
+camera_offset = chrono.ChVectorD(0, camera_height, -camera_distance)
+
+print("[INFO] Visualization system initialized")
+
+# =============================================================================
+# 6. HELPER FUNCTIONS
+# =============================================================================
+
+def update_camera_follow(application, vehicle, offset):
+    """Update camera to follow the vehicle"""
+    vehicle_pos = citybus.GetChassis().GetPos()
+    camera_target = irrlicht.vector3df(vehicle_pos.x, vehicle_pos.y + 2, vehicle_pos.z)
+    camera_pos = irrlicht.vector3df(
+        vehicle_pos.x + offset.x,
+        vehicle_pos.y + offset.y,
+        vehicle_pos.z + offset.z
+    )
+    application.GetDevice().getSceneManager().getActiveCamera().setTarget(camera_target)
+    application.GetDevice().getSceneManager().getActiveCamera().setPosition(camera_pos)
+
+def get_vehicle_speed(vehicle):
+    """Get vehicle speed in m/s"""
+    vel = vehicle.GetChassis().GetPos_dt()
+    return math.sqrt(vel.x**2 + vel.y**2 + vel.z**2)
+
+def format_time(seconds):
+    """Format simulation time as MM:SS.ms"""
+    minutes = int(seconds // 60)
+    secs = seconds % 60
+    return f"{minutes:02d}:{secs:05.2f}"
+
+# =============================================================================
+# 7. SIMULATION LOOP
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("STARTING SIMULATION")
+print("=" * 60)
+print(f"Target FPS: {simulation_fps}")
+print(f"Step size: {step_size:.4f} seconds")
+print("=" * 60)
+
+# Simulation state
+running = True
+simulation_time = 0.0
+frame_count = 0
+
+# Keyboard state tracking
+key_states = {
+    'left': False,
+    'right': False,
+    'up': False,
+    'down': False
+}
+
+# Set up event receiver for keyboard input
+class ChIrrEventReceiver(irrlicht.ChIrrEventReceiver):
+    def __init__(self, key_states):
+        super().__init__()
+        self.key_states = key_states
+        
+    def OnEvent(self, event):
+        if event.EventType == irrlicht.EET_KEY_INPUT_EVENT:
+            key = event.KeyInput.Key
+            pressed = event.KeyInput.PressedDown
+            
+            if key == irrlicht.KEY_LEFT:
+                self.key_states['left'] = pressed
+            elif key == irrlicht.KEY_RIGHT:
+                self.key_states['right'] = pressed
+            elif key == irrlicht.KEY_UP:
+                self.key_states['up'] = pressed
+            elif key == irrlicht.KEY_DOWN:
+                self.key_states['down'] = pressed
+            elif key == irrlicht.KEY_KEY_Q:
+                if not pressed:
+                    global running
+                    running = False
+            elif key == irrlicht.KEY_KEY_R:
+                if not pressed:
+                    # Reset vehicle position
+                    citybus.GetChassis().SetPos(vehicle_location)
+                    citybus.GetChassis().SetRot(vehicle_orientation)
+                    citybus.GetChassis().SetPos_dt(chrono.ChVectorD(0, 0, 0))
+                    citybus.GetChassis().SetRot_dt(chrono.ChVectorD(0, 0, 0))
+                    
+        return False
+
+# Create event receiver
+event_receiver = ChIrrEventReceiver(key_states)
+myapplication.GetDevice().setEventReceiver(event_receiver)
+
+# Main simulation loop
+while running and myapplication.GetDevice().run():
+    # Start frame
+    myapplication.BeginScene()
+    myapplication.DrawAll()
+    
+    # Process driver inputs
+    if key_states['left']:
+        steering_input = min(steering_input + 0.02, driver.GetMaxSteering())
+    elif key_states['right']:
+        steering_input = max(steering_input - 0.02, -driver.GetMaxSteering())
+    else:
+        steering_input *= 0.95  # Return to center
+    
+    throttle_input = 1.0 if key_states['up'] else 0.0
+    brake_input = 1.0 if key_states['down'] else 0.0
+    
+    # Apply driver inputs
+    driver.SetSteering(steering_input)
+    driver.SetThrottle(throttle_input)
+    driver.SetBraking(brake_input)
+    
+    # Synchronize vehicle systems
+    citybus.Synchronize(simulation_time, 
+                        chronovehicle.DriverInputs(steering_input, throttle_input, brake_input),
+                        my_system)
+    
+    # Advance simulation
+    my_system.DoStepDynamics(step_size)
+    simulation_time += step_size
+    frame_count += 1
+    
+    # Update camera to follow vehicle
+    update_camera_follow(myapplication, citybus, camera_offset)
+    
+    # Print status every 50 frames
+    if frame_count % 50 == 0:
+        speed_ms = get_vehicle_speed(citybus)
+        speed_kmh = speed_ms * 3.6
+        print(f"Time: {format_time(simulation_time)} | "
+              f"Speed: {speed_kmh:.1f} km/h | "
+              f"Steering: {steering_input:.2f} | "
+              f"Throttle: {throttle_input:.2f} | "
+              f"Brake: {brake_input:.2f}")
+    
+    # End frame
+    myapplication.EndScene()
+    
+    # Check for close button
+    if not myapplication.GetDevice().run():
+        running = False
+
+# Cleanup
+print("\n" + "=" * 60)
+print("SIMULATION COMPLETED")
+print("=" * 60)
+print(f"Total simulation time: {format_time(simulation_time)}")
+print(f"Total frames: {frame_count}")
+print(f"Average FPS: {frame_count / simulation_time:.2f}")
+print("=" * 60)
+
+# Clean exit
+myapplication.GetDevice().closeDevice()
+```
+
+This script creates a complete CityBus simulation with the following features:
+
+## Key Components:
+
+### 1. **PyChrono Environment Initialization**
+   - Creates a ChSystemNSC (non-smooth contact) system
+   - Sets gravity and solver parameters
+   - Configures timing for 50 FPS simulation
+
+### 2. **Rigid Terrain**
+   - Creates a fixed ground body with collision geometry
+   - Uses box collision shape for the terrain
+   - Includes visual material properties
+
+### 3. **CityBus Vehicle**
+   - Initializes a CityBus_VehicleSimple with specified location and orientation
+   - Uses rigid tire model for terrain interaction
+   - Different visualization types for chassis (mesh) and wheels (primitive cylinders)
+
+### 4. **Interactive Driver System**
+   - Creates ChDriver for input handling
+   - Configurable steering, throttle, and braking limits
+   - Keyboard controls:
+     - **Left/Right Arrows**: Steering
+     - **Up Arrow**: Throttle
+     - **Down Arrow**: Brake
+     - **R Key**: Reset vehicle position
+     - **Q Key**: Quit simulation
+
+### 5. **Irrlicht Visualization**
+   - Real-time 3D rendering with sky and lighting
+   - Camera follows the vehicle from behind
+   - Grid overlay on the ground
+   - Status display showing speed, steering, throttle, and brake
+
+### 6. **Simulation Loop**
+   - Runs at 50 FPS with step size of 0.02 seconds
+   - Processes driver inputs in real-time
+   - Synchronizes vehicle dynamics with the physics system
+   - Updates camera position to follow the vehicle
+   - Prints status every 50 frames
+
+## Dependencies:
+Make sure you have PyChrono installed with:
+- `pychrono.core`
+- `pychrono.vehicle`
+- `pychrono.irrlicht`

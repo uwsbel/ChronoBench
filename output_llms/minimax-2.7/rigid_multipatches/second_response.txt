@@ -1,0 +1,135 @@
+Looking at the original PyChrono script, I need to identify errors and then apply the modifications requested.
+
+## Identified Errors in Original Code:
+1. **Variable definition order issue**: `step_size` and `tire_step_size` are defined at the bottom but `tire_step_size` is used in `hmmwv.SetTireStepSize(tire_step_size)` inside the `main()` function before being defined.
+2. **Collision system type syntax**: The correct PyChrono enum is `chrono.ChCollisionSystem.Type_BULLET` (note: no extra ".Type" in some versions).
+
+## Corrected and Modified Script:
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Simulation step sizes (moved before main to ensure variables are defined)
+step_size = 2e-3
+tire_step_size = 1e-3
+
+
+def main():
+    #  Create the HMMWV vehicle, set parameters, and initialize
+    hmmwv = veh.HMMWV_Full()
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(6, -70, 0.5), chrono.ChQuaterniond(1, 0, 0, 0)))
+    hmmwv.SetEngineType(veh.EngineModelType_SIMPLE)
+    hmmwv.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
+    hmmwv.SetDriveType(veh.DrivelineTypeWV_AWD)
+    hmmwv.SetTireType(veh.TireModelType_TMEASY)
+    hmmwv.SetTireStepSize(tire_step_size)
+    hmmwv.Initialize()
+
+    hmmwv.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    hmmwv.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+    hmmwv.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+    # Create the terrain with a single patch using mesh
+    terrain = veh.RigidTerrain(hmmwv.GetSystem())
+
+    # Create contact material with same friction and restitution values
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+    terrain_mat.SetContactMaterialThickness(0.01)
+
+    # Add terrain patch with collision mesh
+    patch = terrain.AddPatch(
+        terrain_mat,
+        chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+        veh.GetDataFile("terrain/meshes/Highway_col.obj"),
+        120.0,  # length
+        120.0   # width
+    )
+    patch.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+
+    # Create and add visual mesh to terrain
+    vis_mesh = chrono.ChTriangleMeshConnected()
+    vis_mesh.LoadWavefrontMesh(veh.GetDataFile("terrain/meshes/Highway_vis.obj"))
+
+    visual_shape = chrono.ChVisualShapeTriangleMesh(vis_mesh)
+    
+    # Get terrain ground body and add visual shape
+    terrain_ground = terrain.GetGroundBody()
+    terrain_ground.AddVisualShape(visual_shape, chrono.ChFrameD(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+
+    terrain.Initialize()
+
+    # Create the vehicle Irrlicht interface
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle('HMMWV Rigid Terrain Demo')
+    vis.SetWindowSize(1280, 1024)
+    vis.SetChaseCamera(chrono.ChVector3d(0.0, 0.0, 0.75), 6.0, 0.5)
+    vis.Initialize()
+    vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+    vis.AddLightDirectional()
+    vis.AddSkyBox()
+    vis.AttachVehicle(hmmwv.GetVehicle())
+
+    # Create the interactive driver system
+    driver = veh.ChInteractiveDriverIRR(vis)
+    driver.SetSteeringDelta(0.02)
+    driver.SetThrottleDelta(0.02)
+    driver.SetBrakingDelta(0.06)
+    driver.Initialize()
+
+    hmmwv.GetVehicle().EnableRealtime(True)
+
+    while vis.Run():
+        time = hmmwv.GetSystem().GetChTime()
+
+        # Draw scene
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+
+        # Get driver inputs
+        driver_inputs = driver.GetInputs()
+
+        # Update modules (process inputs from other modules)
+        driver.Synchronize(time)
+        terrain.Synchronize(time)
+        hmmwv.Synchronize(time, driver_inputs, terrain)
+        vis.Synchronize(time, driver_inputs)
+
+        # Advance simulation for one timestep for all modules
+        driver.Advance(step_size)
+        terrain.Advance(step_size)
+        hmmwv.Advance(step_size)
+        vis.Advance(step_size)
+
+    return 0
+
+
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+main()
+```
+
+## Summary of Changes Made:
+
+1. **Fixed Error**: Moved `step_size` and `tire_step_size` definitions to the top of the script (before `main()`) to ensure they are defined when used.
+
+2. **Initial Position Updated**: Changed from `ChVector3d(-10, -2, 0.6)` to `ChVector3d(6, -70, 0.5)`.
+
+3. **Terrain Simplification**: Removed all four terrain patches (patch1, patch2, patch3, patch4) and replaced with a single terrain patch using:
+   - Contact material with friction 0.9 and restitution 0.01
+   - Mesh file `terrain/meshes/Highway_col.obj`
+   - Contact material thickness set to 0.01
+
+4. **Added Visual Mesh**: Created visual mesh using `terrain/meshes/Highway_vis.obj` and added it to the terrain's ground body using `ChVisualShapeTriangleMesh` and `AddVisualShape`.
+
+5. **Removed Individual Patches**: Deleted definitions for patch1, patch2, patch3, and patch4.

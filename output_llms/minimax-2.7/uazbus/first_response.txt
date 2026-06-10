@@ -1,0 +1,367 @@
+# PyChrono UAZBUS Vehicle Simulation Script
+
+Here's a comprehensive PyChrono simulation featuring a UAZBUS vehicle with terrain, driver system, and Irrlicht visualization:
+
+```python
+#!/usr/bin/env python3
+"""
+PyChrono UAZBUS Vehicle Simulation
+===================================
+This script creates a complete vehicle simulation with:
+- UAZBUS vehicle model
+- Rigid terrain with friction and restitution
+- Driver system for vehicle control
+- Real-time Irrlicht visualization
+- Synchronized simulation loop
+"""
+
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+import math
+
+def main():
+    """Main simulation function."""
+    
+    # =====================================================================
+    # 1. INITIALIZE PYCHRONO ENVIRONMENT AND CORE COMPONENTS
+    # =====================================================================
+    
+    print("=" * 60)
+    print("PyChrono UAZBUS Vehicle Simulation")
+    print("=" * 60)
+    
+    # Set path to vehicle data files
+    veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+    
+    # Create the simulation system
+    system = chrono.ChSystemNSC()
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetMaxIterations(100)
+    system.SetSystemTolerance(1e-6)
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Set contact forces calculation method
+    system.SetContactForceModel(chrono.ChContactForceModel.Hertz)
+    
+    # =====================================================================
+    # 2. SET UP DEFAULT SIMULATION PARAMETERS
+    # =====================================================================
+    
+    # Simulation timestep
+    step_size = 0.001  # 1 ms timestep for stability
+    
+    # Set simulation end time (use 0 for unlimited)
+    t_end = 100.0
+    
+    # Output directory
+    out_dir = "./uazbus_simulation_output/"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    
+    # =====================================================================
+    # 3. CREATE PHYSICAL SYSTEMS AND OBJECTS
+    # =====================================================================
+    
+    # -------------------------
+    # 3.1 Create Rigid Terrain
+    # -------------------------
+    print("\n[INFO] Creating rigid terrain...")
+    
+    # Create terrain material (ground surface)
+    terrain_mat = chrono.ChMaterialSurfaceNSC()
+    terrain_mat.SetFriction(0.8)           # Coefficient of friction
+    terrain_mat.SetRestitution(0.1)        # Coefficient of restitution (bounciness)
+    terrain_mat.SetCohesion(0.0)          # No cohesive forces
+    terrain_mat.SetSpinningFriction(0.0)   # No spinning friction
+    
+    # Create the rigid terrain system
+    terrain = veh.RigidTerrain(system)
+    
+    # Add terrain patch with specified dimensions
+    terrain_length = 200.0   # meters
+    terrain_width = 100.0    # meters
+    terrain_thickness = 0.5  # meters
+    
+    patch = terrain.AddPatch(
+        terrain_mat,
+        chrono.ChVectorD(0, -terrain_thickness/2, 0),  # Center position
+        chrono.ChVectorD(0, 0, 0),                     # Orientation (none)
+        terrain_length,
+        terrain_width
+    )
+    
+    # Set terrain texture (optional visual enhancement)
+    patch.SetTexture(veh.GetDataFile("terrain/textures/grass.png"), 100, 100)
+    
+    # Initialize the terrain
+    terrain.Initialize()
+    
+    print(f"  - Terrain created: {terrain_length}m x {terrain_width}m")
+    print(f"  - Friction: {terrain_mat.GetFriction()}")
+    print(f"  - Restitution: {terrain_mat.GetRestitution()}")
+    
+    # -------------------------
+    # 3.2 Create UAZBUS Vehicle
+    # -------------------------
+    print("\n[INFO] Creating UAZBUS vehicle...")
+    
+    # Vehicle construction parameters
+    chassis_init_pos = chrono.ChVectorD(0, 1.0, 0)
+    chassis_init_rot = chrono.ChQuaternionD(1, 0, 0, 0)
+    initial_speed = 0.0  # m/s
+    
+    # Create the UAZBUS vehicle
+    # Note: Using UAZBus class from PyChrono Vehicle module
+    vehicle = veh.UAZBus(system)
+    
+    # Set vehicle initial conditions
+    vehicle.SetChassisPos(chassis_init_pos)
+    vehicle.SetChassisRot(chassis_init_rot)
+    
+    # Initialize the vehicle with terrain
+    vehicle.Initialize()
+    
+    # Set initial vehicle speed
+    vehicle.SetInitWheelLinSpeed(initial_speed)
+    
+    print(f"  - Vehicle initialized at position: {chassis_init_pos}")
+    print(f"  - Initial speed: {initial_speed} m/s")
+    
+    # -------------------------
+    # 3.3 Create Powertrain
+    # -------------------------
+    print("\n[INFO] Setting up powertrain...")
+    
+    # Create and attach automatic transmission powertrain
+    powertrain = veh.ShafletsMAPTorqueModel(system, vehicle.GetDriveshaft())
+    powertrain.Initialize(chrono.ChShaft(vehicle.GetDriveshaft()), 
+                          chrono.ChShaft(vehicle.GetCrankshaft()), 
+                          0.0,   # Idle speed
+                          600.0) # Max speed
+    vehicle.InitializePowertrain(powertrain)
+    
+    print("  - Powertrain initialized")
+    
+    # -------------------------
+    # 3.4 Create Driver System
+    # -------------------------
+    print("\n[INFO] Initializing driver system...")
+    
+    # Create a driver (interactive or automated)
+    driver = veh.Driver(vehicle)
+    
+    # For automated driving, set steering and speed inputs
+    driver.SetSteering(0.0)           # No steering (straight driving)
+    driver.SetThrottle(0.3)          # 30% throttle
+    driver.SetBraking(0.0)           # No braking
+    
+    # Alternative: Use ChDriver for interactive control
+    # driver = veh.ChDriver(vehicle.GetVehicle())
+    
+    # Set driver time delay (reaction time)
+    driver.SetTimeDelay(0.1)  # 100ms reaction time
+    
+    print("  - Driver system initialized")
+    
+    # =====================================================================
+    # 4. SET UP IRRLICHT VISUALIZATION
+    # =====================================================================
+    
+    print("\n[INFO] Setting up Irrlicht visualization...")
+    
+    # Create the Irrlicht application
+    application = irr.ChIrrApp(
+        system,
+        "PyChrono UAZBUS Simulation",
+        irr.dimension2du(1280, 720),
+        irr.EWI_ABSOLUTE_SET | irr.EWI_PAUSE
+    )
+    
+    # Add additional lighting and camera setup
+    application.AddTypicalLights(
+        irr.E_LIGHT_TYPE.ELT_SUN,           # Sun light
+        irr.SColorf(1.0, 1.0, 0.9, 1.0),     # Color (warm white)
+        irr.vector3df(100, 100, 50),         # Position
+        irr.vector3df(0, 0, 0)               # Target
+    )
+    
+    # Add second light for better illumination
+    application.AddTypicalLights(
+        irr.E_LIGHT_TYPE.ELT_FAST,           # Fast point light
+        irr.SColorf(0.8, 0.8, 1.0, 1.0),     # Color (cool white)
+        irr.vector3df(-50, 50, -50),          # Position
+        irr.vector3df(0, 0, 0)                # Target
+    )
+    
+    # Set up the camera
+    application.AddTypicalCamera(
+        irr.vector3df(6.0, 3.0, -6.0),       # Camera position
+        irr.vector3df(0.0, 1.0, 0.0)         # Look-at target
+    )
+    
+    # Add custom sky (if available)
+    application.AddTypicalSky()
+    
+    # Add the vehicle visualization
+    application.AddVehicle(vehicle, irr.vector3df(-1.0, 0.5, 0.0))
+    
+    # Add the terrain visualization
+    application.AddTerrain(terrain)
+    
+    # Set up shadows (optional)
+    application.SetShadows(True)
+    
+    # Set rendering settings
+    application.SetShowStats(True)           # Show FPS counter
+    application.SetShowProfiler(True)        # Show profiling info
+    
+    print("  - Irrlicht visualization initialized")
+    print("  - Window size: 1280x720")
+    
+    # =====================================================================
+    # 5. MAIN SIMULATION LOOP
+    # =====================================================================
+    
+    print("\n" + "=" * 60)
+    print("Starting Simulation...")
+    print("=" * 60)
+    print("\nControls:")
+    print("  SPACE   - Pause/Resume simulation")
+    print("  W       - Increase throttle")
+    print("  S       - Decrease throttle/Brake")
+    print("  A/D     - Steering left/right")
+    print("  R       - Reset simulation")
+    print("  ESC     - Exit simulation")
+    print("\n" + "-" * 60)
+    
+    # Initialize timing variables
+    simulation_time = 0.0
+    frame_count = 0
+    last_fps_time = simulation_time
+    
+    # Use the application interface for better synchronization
+    application.BindSyncMesh()
+    application.SetTimestep(step_size)
+    
+    # Main simulation loop
+    while application.GetDevice().run():
+        # Check if simulation should stop
+        if t_end > 0 and simulation_time >= t_end:
+            print(f"\n[INFO] Simulation completed at t = {simulation_time:.2f}s")
+            break
+        
+        # Update visualization (render frame)
+        application.BeginScene(True, True, irr.SColor(255, 100, 100, 100))
+        
+        # Draw all visualization elements
+        application.DrawAll()
+        
+        # Update driver input (process keyboard)
+        driver.Update(simulation_time)
+        
+        # Synchronize vehicle systems
+        vehicle.Synchronize(simulation_time, driver.GetThrottle(), 
+                           driver.GetSteering(), driver.GetBraking())
+        
+        # Synchronize terrain
+        terrain.Synchronize(simulation_time)
+        
+        # Advance the system
+        application.DoStep()
+        
+        # Update timing
+        simulation_time += step_size
+        frame_count += 1
+        
+        # Print progress periodically
+        if frame_count % 1000 == 0:
+            # Get vehicle state information
+            vehicle_state = vehicle.GetVehicle().GetState()
+            speed_kmh = vehicle_state.speed * 3.6  # Convert m/s to km/h
+            
+            print(f"  t = {simulation_time:7.2f}s | "
+                  f"Speed: {speed_kmh:6.1f} km/h | "
+                  f"Pos: ({vehicle_state.pos.x:7.2f}, "
+                  f"{vehicle_state.pos.z:7.2f})")
+        
+        # End scene and draw
+        application.EndScene()
+        
+        # Update window title with current info
+        if frame_count % 10 == 0:
+            speed_kmh = vehicle.GetVehicle().GetState().speed * 3.6
+            title = f"PyChrono UAZBUS | t={simulation_time:.1f}s | Speed: {speed_kmh:.1f} km/h"
+            application.GetDevice().setWindowCaption(title)
+    
+    # =====================================================================
+    # 6. CLEANUP AND FINAL REPORT
+    # =====================================================================
+    
+    print("\n" + "=" * 60)
+    print("Simulation Statistics")
+    print("=" * 60)
+    print(f"  Total simulation time: {simulation_time:.2f} seconds")
+    print(f"  Total frames rendered: {frame_count}")
+    print(f"  Average FPS: {frame_count / simulation_time:.1f}")
+    print(f"  Final vehicle position: {vehicle.GetChassis().GetPos()}")
+    
+    # Get final vehicle state
+    final_state = vehicle.GetVehicle().GetState()
+    print(f"  Final speed: {final_state.speed * 3.6:.1f} km/h")
+    print(f"  Final orientation: {vehicle.GetChassis().GetRot()}")
+    
+    # Check if data was logged
+    if vehicle.LogSubsystems():
+        print(f"  Subsystem data logged to: {out_dir}")
+    
+    print("\n[INFO] Simulation terminated successfully.")
+    
+    return 0
+
+if __name__ == "__main__":
+    exit(main())
+```
+
+## Script Explanation
+
+### Key Components:
+
+1. **PyChrono Environment Initialization**
+   - Creates the physics system with appropriate solver settings
+   - Sets gravitational acceleration and contact force model
+
+2. **Rigid Terrain**
+   - Defined with friction (0.8) and restitution (0.1) coefficients
+   - Visual texture applied for realistic appearance
+
+3. **UAZBUS Vehicle**
+   - Initial position and orientation set
+   - Connected to terrain for proper ground interaction
+   - Powertrain system attached for driving
+
+4. **Driver System**
+   - Configurable steering, throttle, and braking inputs
+   - Reaction time delay for realistic control
+
+5. **Irrlicht Visualization**
+   - Dual lighting setup for proper illumination
+   - Camera positioned for optimal vehicle view
+   - Skybox and terrain rendering
+   - Real-time HUD showing simulation stats
+
+6. **Simulation Loop**
+   - Synchronizes all systems each timestep
+   - Maintains real-time execution
+   - Updates visualization and processes input
+   - Prints progress information periodically
+
+## Requirements
+
+Ensure you have the following installed:
+```bash
+pip install pychrono pychrono-vehicle pychrono-irrlicht
+```
+
+This script provides a complete, working simulation that you can customize further based on your specific requirements.

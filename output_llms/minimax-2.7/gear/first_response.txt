@@ -1,0 +1,595 @@
+# PyChrono Epicyclic Gear System Simulation
+
+I'll create a comprehensive PyChrono simulation demonstrating an epicyclic (planetary) gear system with proper visualization.
+
+```python
+#!/usr/bin/env python3
+"""
+PyChrono Epicyclic Gear System Simulation
+==========================================
+This script demonstrates a planetary (epicyclic) gear system with:
+- Fixed ring gear (outer gear)
+- Rotating sun gear (center gear) with motor
+- Planet gears between sun and ring
+- Planet carrier that rotates
+- Irrlicht visualization with materials and lighting
+"""
+
+import math
+import os
+
+# ============================================================================
+# 1. Initialize PyChrono Environment
+# ============================================================================
+
+# Import PyChrono modules
+import pychrono as chrono
+import pychrono.irrlicht as irr
+
+# Set the path for assets (textures and materials)
+chrono.SetChronoDataPath("../../../data/")
+
+
+def create_epicyclic_gear_system():
+    """
+    Create an epicyclic (planetary) gear system with:
+    - Sun gear at center (rotates)
+    - Planet gears (revolve around sun)
+    - Ring gear (fixed, outer)
+    - Planet carrier (rotates with planets)
+    """
+    
+    # =========================================================================
+    # 2. Create Physical Systems and Objects
+    # =========================================================================
+    
+    # Create the physical system
+    my_system = chrono.ChSystemNSC()
+    my_system.SetCollisionSystemType(chrono.ChCollisionSystem_Type_BULLET)
+    
+    # Set gravity
+    my_system.Set_Gravity(chrono.ChVector3d(0, 0, -9.81))
+    
+    # Simulation parameters
+    time_step = 0.001
+    output_fps = 50
+    
+    # =========================================================================
+    # 2.1 Ground and Truss (Fixed Structure)
+    # =========================================================================
+    
+    # Create ground plane (fixed)
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetPos(chrono.ChVector3d(0, 0, 0))
+    ground.SetVisualizationObject(
+        chrono.ChVisualizationShapeFile(chrono.GetChronoDataFile("sensor/vlp16/velodyne_mount.obj"))
+    )
+    
+    # Ground visualization
+    ground_mat = chrono.ChVisualizationShapeMaterial()
+    ground_mat.SetDiffuseColor(chrono.ChColor(0.3, 0.3, 0.3))
+    ground_mat.SetSpecularColor(chrono.ChColor(0.1, 0.1, 0.1))
+    
+    ground_shape = chrono.ChVisualizationShapeBox(20, 20, 0.1)
+    ground_shape.SetMaterial(ground_mat)
+    ground.AddVisualizationShape(ground_shape)
+    
+    # Collision shape for ground
+    ground_coll = chrono.ChCollisionShapeBox(10, 10, 0.05)
+    ground.AddCollisionShape(ground_coll, chrono.ChFrameD(chrono.ChVector3d(0, 0, -0.05)))
+    
+    my_system.AddBody(ground)
+    
+    # =========================================================================
+    # 2.2 Support Truss Structure
+    # =========================================================================
+    
+    # Create truss base
+    truss = chrono.ChBody()
+    truss.SetBodyFixed(True)
+    truss.SetPos(chrono.ChVector3d(0, 0, 0.5))
+    
+    truss_mat = chrono.ChVisualizationShapeMaterial()
+    truss_mat.SetDiffuseColor(chrono.ChColor(0.4, 0.4, 0.5))
+    truss_mat.SetSpecularColor(chrono.ChColor(0.2, 0.2, 0.2))
+    
+    # Truss as a cylindrical support
+    truss_shape = chrono.ChVisualizationShapeCylinder(2.0, 0.1)
+    truss_shape.SetMaterial(truss_mat)
+    truss.AddVisualizationShape(truss_shape)
+    
+    my_system.AddBody(truss)
+    
+    # =========================================================================
+    # 2.3 Gear Parameters
+    # =========================================================================
+    
+    # Gear dimensions (in meters)
+    sun_radius = 0.3           # Sun gear radius
+    planet_radius = 0.2        # Planet gear radius
+    ring_inner_radius = 0.75   # Ring gear inner radius
+    gear_thickness = 0.08      # Gear thickness
+    
+    # Number of teeth (for visual representation)
+    sun_teeth = 30
+    planet_teeth = 20
+    ring_teeth = 70
+    
+    # Gear positions in XY plane
+    sun_position = chrono.ChVector3d(0, 0, 1.0)
+    planet_offset = sun_radius + planet_radius  # Distance from sun center to planet center
+    
+    # =========================================================================
+    # 2.4 Sun Gear (Central Gear with Motor)
+    # =========================================================================
+    
+    sun_gear = chrono.ChBody()
+    sun_gear.SetPos(sun_position)
+    sun_gear.SetMass(5.0)
+    sun_gear.SetInertiaXX(chrono.ChVector3d(0.1, 0.1, 0.1))
+    
+    # Visual material for sun gear
+    sun_mat = chrono.ChVisualizationShapeMaterial()
+    sun_mat.SetDiffuseColor(chrono.ChColor(0.9, 0.3, 0.1))  # Orange-red
+    sun_mat.SetSpecularColor(chrono.ChColor(0.5, 0.2, 0.1))
+    sun_mat.SetShininess(60)
+    
+    # Create sun gear visualization (gear shape)
+    sun_shape = chrono.ChVisualizationShapeGear(
+        sun_radius,           # radius
+        sun_teeth,            # number of teeth
+        gear_thickness,       # thickness
+        0.02,                 # tooth depth
+        0.0,                  # cone angle
+        True                  # double-sided teeth
+    )
+    sun_shape.SetMaterial(sun_mat)
+    sun_gear.AddVisualizationShape(sun_shape)
+    
+    # Add center shaft visualization
+    shaft_shape = chrono.ChVisualizationShapeCylinder(gear_thickness/2, 0.15)
+    shaft_shape.SetMaterial(sun_mat)
+    sun_gear.AddVisualizationShape(shaft_shape)
+    
+    # Collision shape
+    sun_coll = chrono.ChCollisionShapeCylinder(chrono.ChAxis_Y, sun_radius, gear_thickness)
+    sun_gear.AddCollisionShape(sun_coll, chrono.ChFrameD())
+    
+    my_system.AddBody(sun_gear)
+    
+    # =========================================================================
+    # 2.5 Planet Gears (Multiple planets in epicyclic arrangement)
+    # =========================================================================
+    
+    num_planets = 3
+    planet_gears = []
+    
+    for i in range(num_planets):
+        angle = 2 * math.pi * i / num_planets
+        
+        planet = chrono.ChBody()
+        planet.SetPos(chrono.ChVector3d(
+            sun_position.x + planet_offset * math.cos(angle),
+            sun_position.y + planet_offset * math.sin(angle),
+            sun_position.z
+        ))
+        planet.SetMass(2.0)
+        planet.SetInertiaXX(chrono.ChVector3d(0.02, 0.02, 0.02))
+        
+        # Visual material for planet gear (metallic blue)
+        planet_mat = chrono.ChVisualizationShapeMaterial()
+        planet_mat.SetDiffuseColor(chrono.ChColor(0.2, 0.4, 0.8))
+        planet_mat.SetSpecularColor(chrono.ChColor(0.3, 0.5, 0.8))
+        planet_mat.SetShininess(80)
+        
+        # Planet gear visualization
+        planet_shape = chrono.ChVisualizationShapeGear(
+            planet_radius,
+            planet_teeth,
+            gear_thickness,
+            0.015,
+            0.0,
+            True
+        )
+        planet_shape.SetMaterial(planet_mat)
+        planet.AddVisualizationShape(planet_shape)
+        
+        # Collision shape
+        planet_coll = chrono.ChCollisionShapeCylinder(chrono.ChAxis_Y, planet_radius, gear_thickness)
+        planet.AddCollisionShape(planet_coll, chrono.ChFrameD())
+        
+        my_system.AddBody(planet)
+        planet_gears.append(planet)
+    
+    # =========================================================================
+    # 2.6 Ring Gear (Fixed Outer Gear)
+    # =========================================================================
+    
+    ring_gear = chrono.ChBody()
+    ring_gear.SetBodyFixed(True)  # Ring gear is fixed
+    ring_gear.SetPos(sun_position)
+    ring_gear.SetMass(100.0)  # Large mass to ensure it's fixed
+    
+    # Visual material for ring gear (dark gray)
+    ring_mat = chrono.ChVisualizationShapeMaterial()
+    ring_mat.SetDiffuseColor(chrono.ChColor(0.2, 0.2, 0.2))
+    ring_mat.SetSpecularColor(chrono.ChColor(0.3, 0.3, 0.3))
+    ring_mat.SetShininess(40)
+    
+    # Ring gear visualization
+    ring_shape = chrono.ChVisualizationShapeRing(
+        ring_inner_radius - 0.1,  # inner radius
+        ring_inner_radius,         # outer radius
+        gear_thickness,            # thickness
+        ring_teeth,                # number of teeth
+        0.02                       # tooth depth
+    )
+    ring_shape.SetMaterial(ring_mat)
+    ring_gear.AddVisualizationShape(ring_shape)
+    
+    # Collision shape for ring (hollow cylinder)
+    ring_coll = chrono.ChCollisionShapeCylinderAnnulus(
+        ring_inner_radius - 0.15,
+        ring_inner_radius + 0.05,
+        gear_thickness
+    )
+    ring_gear.AddCollisionShape(ring_coll, chrono.ChFrameD())
+    
+    my_system.AddBody(ring_gear)
+    
+    # =========================================================================
+    # 2.7 Planet Carrier (Rotating Arm)
+    # =========================================================================
+    
+    planet_carrier = chrono.ChBody()
+    planet_carrier.SetPos(sun_position)
+    planet_carrier.SetMass(3.0)
+    planet_carrier.SetInertiaXX(chrono.ChVector3d(0.05, 0.05, 0.05))
+    
+    # Visual material for carrier (green)
+    carrier_mat = chrono.ChVisualizationShapeMaterial()
+    carrier_mat.SetDiffuseColor(chrono.ChColor(0.2, 0.7, 0.3))
+    carrier_mat.SetSpecularColor(chrono.ChColor(0.2, 0.5, 0.3))
+    
+    # Carrier arm visualization
+    for i in range(num_planets):
+        angle = 2 * math.pi * i / num_planets
+        
+        arm_shape = chrono.ChVisualizationShapeBox(
+            planet_offset * 0.8,
+            0.03,
+            0.03
+        )
+        arm_shape.SetMaterial(carrier_mat)
+        planet_carrier.AddVisualizationShape(arm_shape)
+    
+    # Central hub
+    hub_shape = chrono.ChVisualizationShapeCylinder(gear_thickness/2, 0.1)
+    hub_shape.SetMaterial(carrier_mat)
+    planet_carrier.AddVisualizationShape(hub_shape)
+    
+    my_system.AddBody(planet_carrier)
+    
+    # =========================================================================
+    # 2.8 Gear Constraints (Links)
+    # =========================================================================
+    
+    # Create constraints between gears
+    
+    # Sun-Planet constraints (3 planets)
+    for i, planet in enumerate(planet_gears):
+        angle = 2 * math.pi * i / num_planets
+        
+        # Create a revolute joint between sun and planet
+        sun_planet_joint = chrono.ChLinkLockRevolute()
+        sun_planet_joint.Initialize(
+            sun_gear,
+            planet,
+            chrono.ChFrameD(sun_position + chrono.ChVector3d(
+                planet_offset * math.cos(angle),
+                planet_offset * math.sin(angle),
+                0
+            ))
+        )
+        my_system.AddLink(sun_planet_joint)
+    
+    # Planet-Carrier constraints
+    for i, planet in enumerate(planet_gears):
+        angle = 2 * math.pi * i / num_planets
+        
+        # Create revolute joint between planet and carrier
+        planet_carrier_joint = chrono.ChLinkLockRevolute()
+        planet_carrier_joint.Initialize(
+            planet,
+            planet_carrier,
+            planet.GetFrame()
+        )
+        my_system.AddLink(planet_carrier_joint)
+    
+    # Ring-Planet constraints (planets mesh with ring)
+    # For a more accurate simulation, we would add constraints here
+    # but for simplicity, we rely on collision for ring-planet interaction
+    
+    # =========================================================================
+    # 2.9 Motor on Sun Gear
+    # =========================================================================
+    
+    # Create a motor to enforce constant rotation speed on sun gear
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.Initialize(
+        sun_gear,                    # body 1 (motor shaft)
+        ground,                      # body 2 (fixed reference)
+        chrono.ChFrameD(sun_position, chrono.ChQuaterniond(1, 0, 0, 0))  # frame
+    )
+    
+    # Set motor speed (radians per second)
+    motor.SetMotorSpeed(chrono.ChFunction_Const(10.0))  # ~95 RPM
+    my_system.AddLink(motor)
+    
+    # =========================================================================
+    # 2.10 Output Assets
+    # =========================================================================
+    
+    # Output directory
+    out_dir = "epicyclic_gear_output"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    
+    return my_system, {
+        'system': my_system,
+        'sun_gear': sun_gear,
+        'planet_gears': planet_gears,
+        'ring_gear': ring_gear,
+        'planet_carrier': planet_carrier,
+        'motor': motor,
+        'ground': ground,
+        'time_step': time_step,
+        'output_fps': output_fps
+    }
+
+
+def run_visualization(system_data):
+    """
+    Run Irrlicht visualization for the gear system.
+    """
+    
+    my_system = system_data['system']
+    
+    # =========================================================================
+    # 3. Visualization Setup
+    # =========================================================================
+    
+    # Create Irrlicht application
+    my_application = irr.ChIrrApp(
+        my_system,
+        "Epicyclic Gear System Simulation",
+        irr.dimension2du(1280, 720)
+    )
+    
+    # Setup window and camera
+    my_application.AddTypicalSky()
+    my_application.AddTypicalCamera(
+        irr.vector3df(3, 3, 3),      # camera position
+        irr.vector3df(0, 0, 1.5)      # look-at target
+    )
+    
+    # =========================================================================
+    # 3.1 Lighting Setup
+    # =========================================================================
+    
+    # Ambient light
+    my_application.AddLight(
+        irr.vector3df(5, 5, 10),
+        1.0,
+        irr.SColorf(0.3, 0.3, 0.3)
+    )
+    
+    # Directional light (sun)
+    my_application.AddTypicalLight(
+        irr.ChIrrApp.LIGHT_DIRECTIONAL,
+        irr.vector3df(1, 1, 1),
+        1.0,
+        irr.SColorf(0.8, 0.8, 0.8)
+    )
+    
+    # Point lights for better illumination
+    my_application.AddLight(
+        irr.vector3df(-2, -2, 4),
+        0.5,
+        irr.SColorf(0.5, 0.5, 0.6)
+    )
+    
+    # =========================================================================
+    # 3.2 Additional Visualization Elements
+    # =========================================================================
+    
+    # Add ground grid
+    ground_grid = irr.ChIrrAssetConverter.AddGrid(
+        my_system.Get_bodylist()[0],
+        2.0,              # x size
+        2.0,              # y size
+        20,               # x subdivisions
+        20,               # y subdivisions
+        irr.SColor(100, 100, 100, 100),
+        True              # visible
+    )
+    
+    # =========================================================================
+    # 3.3 User Interface
+    # =========================================================================
+    
+    # Add text info
+    my_application.AddHUDText(
+        "Epicyclic Gear System",
+        irr.vector2di(10, 10),
+        irr.SColor(255, 255, 255, 255),
+        True
+    )
+    
+    my_application.AddHUDText(
+        "Motor: Sun gear rotating at 10 rad/s (~95 RPM)",
+        irr.vector2di(10, 30),
+        irr.SColor(255, 200, 200, 200),
+        True
+    )
+    
+    # =========================================================================
+    # 3.4 Run the Visualization Loop
+    # =========================================================================
+    
+    # Set simulation step
+    my_application.SetTimestep(system_data['time_step'])
+    my_application.SetVideoframeRate(60)
+    
+    # Run the application
+    print("Starting visualization...")
+    print("Controls:")
+    print("  - Left mouse button: Select object")
+    print("  - Right mouse button: Rotate view")
+    print("  - Mouse wheel: Zoom")
+    print("  - Press 'q' or close window to quit")
+    
+    while my_application.Run():
+        # Render scene
+        my_application.BeginScene()
+        my_application.DrawAll()
+        
+        # Update HUD with current state
+        sun_speed = system_data['sun_gear'].GetAngVelLocal().z
+        carrier_speed = system_data['planet_carrier'].GetAngVelLocal().z
+        
+        time_text = f"Time: {my_system.GetChTime():.2f} s"
+        my_application.AddHUDText(
+            time_text,
+            irr.vector2di(10, 50),
+            irr.SColor(255, 255, 255, 255),
+            False
+        )
+        
+        rpm_text = f"Sun gear RPM: {abs(sun_speed) * 60 / (2 * math.pi):.1f}"
+        my_application.AddHUDText(
+            rpm_text,
+            irr.vector2di(10, 70),
+            irr.SColor(255, 255, 255, 255),
+            False
+        )
+        
+        carrier_text = f"Carrier RPM: {abs(carrier_speed) * 60 / (2 * math.pi):.1f}"
+        my_application.AddHUDText(
+            carrier_text,
+            irr.vector2di(10, 90),
+            irr.SColor(255, 255, 255, 255),
+            False
+        )
+        
+        # Do step
+        my_application.DoStep()
+        
+        # End scene
+        my_application.EndScene()
+    
+    print("Visualization closed.")
+
+
+def run_batch_simulation(system_data, duration=10.0):
+    """
+    Run a batch simulation without visualization.
+    Useful for testing and getting numerical results.
+    """
+    
+    my_system = system_data['system']
+    
+    print(f"Running batch simulation for {duration} seconds...")
+    print(f"Time step: {system_data['time_step']} s")
+    
+    # Run simulation
+    sim_time = 0.0
+    step = 0
+    
+    while sim_time < duration:
+        my_system.DoStepDynamics(system_data['time_step'])
+        sim_time = my_system.GetChTime()
+        
+        step += 1
+        
+        if step % 100 == 0:
+            # Print progress
+            sun_angle = system_data['sun_gear'].GetRot().GetAngle()
+            carrier_angle = system_data['planet_carrier'].GetRot().GetAngle()
+            sun_angvel = system_data['sun_gear'].GetAngVelLocal().z
+            carrier_angvel = system_data['planet_carrier'].GetAngVelLocal().z
+            
+            print(f"t={sim_time:.2f}s | "
+                  f"Sun: angle={sun_angle:.2f} rad, ω={sun_angvel:.2f} rad/s | "
+                  f"Carrier: angle={carrier_angle:.2f} rad, ω={carrier_angvel:.2f} rad/s")
+    
+    # Final state
+    print("\n=== Final State ===")
+    print(f"Sun gear final angle: {system_data['sun_gear'].GetRot().GetAngle():.2f} rad")
+    print(f"Sun gear final angular velocity: {system_data['sun_gear'].GetAngVelLocal().z:.2f} rad/s")
+    print(f"Carrier final angle: {system_data['planet_carrier'].GetRot().GetAngle():.2f} rad")
+    print(f"Carrier final angular velocity: {system_data['planet_carrier'].GetAngVelLocal().z:.2f} rad/s")
+
+
+def main():
+    """
+    Main function to run the epicyclic gear simulation.
+    """
+    
+    print("=" * 60)
+    print("PyChrono Epicyclic Gear System Simulation")
+    print("=" * 60)
+    
+    # Create the gear system
+    system_data = create_epicyclic_gear_system()
+    
+    # Choose mode: 'visual' or 'batch'
+    mode = 'visual'
+    
+    if mode == 'visual':
+        print("\nStarting interactive visualization mode...")
+        run_visualization(system_data)
+    else:
+        print("\nStarting batch simulation mode...")
+        run_batch_simulation(system_data, duration=5.0)
+    
+    print("\nSimulation complete.")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Key Features of This Simulation
+
+### 1. **Physical Components**
+- **Sun Gear**: Central gear with motor attached, rotates at constant speed
+- **Planet Gears (3)**: Meshing gears that revolve around the sun
+- **Ring Gear**: Fixed outer gear with internal teeth
+- **Planet Carrier**: Arm that rotates with the planets
+- **Support Truss**: Fixed structural base
+
+### 2. **Constraints & Joints**
+- Revolute joints connecting sun-to-planet gears
+- Revolute joints connecting planet-to-carrier
+- Motor link enforcing constant rotation speed
+
+### 3. **Visualization (Irrlicht)**
+- Proper material definitions with diffuse/specular colors
+- Multiple light sources for realistic lighting
+- HUD text showing real-time simulation data
+- Interactive camera controls
+
+### 4. **Simulation Parameters**
+- Configurable time step for accuracy
+- Motor speed set to 10 rad/s (~95 RPM)
+- Full 3D visualization with grid ground
+
+## To Run This Script
+
+1. Make sure PyChrono is installed
+2. Save the script as `epicyclic_gear_demo.py`
+3. Run with: `python epicyclic_gear_demo.py`
+
+The visualization will show the gears in motion with real-time displays of time, sun gear RPM, and carrier RPM.

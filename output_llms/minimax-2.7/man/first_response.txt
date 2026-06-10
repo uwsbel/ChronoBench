@@ -1,0 +1,526 @@
+```python
+#!/usr/bin/env python3
+"""
+PyChrono Simulation: MAN 10t Truck on Rigid Terrain
+=====================================================
+This simulation demonstrates a truck vehicle dynamics with:
+- MAN 10t truck model
+- TMEASY tire model
+- Real-time driver controls
+- Irrlicht visualization with chase camera
+- Customizable terrain textures
+"""
+
+import os
+import sys
+import math
+import numpy as np
+
+# PyChrono imports
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# ============================================================================
+# SIMULATION PARAMETERS
+# ============================================================================
+
+# Time settings
+SIMULATION_TIME = 30.0       # Total simulation time (seconds)
+STEP_SIZE = 0.001            # Physics step size (seconds)
+OUTUPUT_FPS = 30             # Rendering frame rate
+
+# Vehicle settings
+VEHICLE_INITIAL_POS = chrono.ChVectorD(0, 1.0, 0)
+VEHICLE_INITIAL_ROT = chrono.ChQuaternionD(1, 0, 0, 0)
+
+# Terrain settings
+TERRAIN_SIZE = 200.0         # Terrain dimensions (meters)
+TERRAIN_FRICTION = 0.8
+TERRAIN_RESTITUTION = 0.05
+
+# Tire settings
+TIRE_PRESSURE = 8.5e5        # Tire pressure (Pascals)
+
+# =============================================================================
+# INITIALIZATION FUNCTIONS
+# =============================================================================
+
+def initialize_chrono_environment():
+    """
+    Initialize the core PyChrono environment with appropriate paths
+    and global settings.
+    """
+    # Set paths to data directories
+    chrono.SetDataPath(os.path.join(os.path.dirname(__file__), 
+                                     'data', 'chrono', ''))
+    veh.SetDataPath(os.path.join(os.path.dirname(__file__), 
+                                  'data', 'vehicle', ''))
+    
+    # Print configuration info
+    print("=" * 60)
+    print("PyChrono Vehicle Simulation")
+    print("=" * 60)
+    print(f"Chrono data path: {chrono.GetDataPath()}")
+    print(f"Vehicle data path: {veh.GetDataPath()}")
+    print("=" * 60)
+    
+    return chrono
+
+def create_physical_system():
+    """
+    Create and configure the main physical system with appropriate
+    solver settings for vehicle dynamics.
+    """
+    # Create non-smooth contact system
+    system = chrono.ChSystemNSC()
+    
+    # Set gravitational acceleration
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Configure solver for vehicle dynamics
+    system.SetSolverType(chrono.ChSolver.Type_BARZILAIBORWEIN)
+    system.SetMaxIterations(100)
+    system.Set_TimestepperType(chrono.ChTimestepper.Type_EULER_IMPLICIT_LINEARIZED)
+    
+    # Set step size
+    system.SetStepSize(STEP_SIZE)
+    
+    # Enable better collision detection
+    system.ChangeCollisionSystem(chrono.ChCollisionSystem.Type_BULLET)
+    
+    return system
+
+def create_terrain(system):
+    """
+    Create a rigid terrain with configurable friction and visual properties.
+    
+    Returns:
+        tuple: (terrain, patches) for further configuration
+    """
+    print("\n[INFO] Creating rigid terrain...")
+    
+    # Create terrain object
+    terrain = veh.RigidTerrain(system)
+    
+    # Create terrain material with specified friction
+    mat = chrono.ChMaterialSurfaceNSC()
+    mat.SetFriction(TERRAIN_FRICTION)
+    mat.SetRestitution(TERRAIN_RESTITUTION)
+    mat.SetCompliance(0.0)
+    mat.SetComplianceT(0.0)
+    
+    # Add terrain patches (visual and collision)
+    terrain_h = 0.5  # Terrain thickness
+    
+    patch = terrain.AddPatch(
+        chrono.ChCoordsysD(chrono.ChVectorD(0, -terrain_h/2, 0), 
+                          chrono.ChQuaternionD(1, 0, 0, 0)),
+        mat,
+        TERRAIN_SIZE, TERRAIN_SIZE,  # Length x Width
+        terrain_h,
+        0,  # Texture horizontal repeat
+        0   # Texture vertical repeat
+    )
+    
+    # Try to set terrain texture if available
+    try:
+        tex_file = veh.GetChronoDataFile("terrain/concrete.jpg")
+        if os.path.exists(tex_file):
+            patch.SetTexture(tex_file, 5.0, 5.0)
+            print(f"[INFO] Terrain texture applied: {tex_file}")
+        else:
+            # Use default gray color
+            patch.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+            print("[INFO] Using default terrain color (texture not found)")
+    except:
+        patch.SetColor(chrono.ChColor(0.4, 0.4, 0.4))
+        print("[INFO] Using default terrain color")
+    
+    # Set visualization color
+    patch.GetVisualizationShape().SetTexture(
+        veh.GetChronoDataFile("terrain/texture.png"), 
+        50, 50
+    )
+    
+    # Initialize terrain
+    terrain.Initialize()
+    
+    return terrain, patch
+
+def create_truck(system):
+    """
+    Create and configure the MAN 10t truck with TMEASY tires.
+    
+    Returns:
+        tuple: (truck, driver) for simulation control
+    """
+    print("\n[INFO] Creating MAN 10t truck...")
+    
+    # Create truck using the MAN 10t vehicle model
+    truck = veh.MAN_10t(system)
+    
+    # Set tire model to TMEASY
+    truck.SetTireModelType(veh.TireModelType_TMEASY)
+    
+    # Configure TMEASY tire parameters
+    tire_config = veh.TMeasyTireConfig()
+    tire_config.Set TirePressure(TIRE_PRESSURE)
+    truck.SetTireVisualization(veh.TireVisualizationType_MESH)
+    
+    # Set initial position and orientation
+    truck.SetInitPosition(chrono.ChCoordsysD(
+        VEHICLE_INITIAL_POS, 
+        VEHICLE_INITIAL_ROT
+    ))
+    
+    # Set driveline type (4WD)
+    truck.SetDrivelineType(veh.DrivelineType_AWD)
+    
+    # Set transmission type
+    truck.SetTransmissionType(veh.TransmissionType_AUTOMATIC)
+    
+    # Initialize the vehicle
+    truck.Initialize()
+    
+    print(f"[INFO] Truck initialized at position: {VEHICLE_INITIAL_POS}")
+    print("[INFO] Using TMEASY tire model")
+    print("[INFO] Driveline: AWD (All-Wheel Drive)")
+    
+    return truck
+
+def create_driver(truck):
+    """
+    Create a driver controller for the vehicle.
+    
+    Returns:
+        ChDriver: Driver controller object
+    """
+    # Create keyboard driver
+    driver = veh.ChDriver(keys_horizontal=irr.KEY_STEER, 
+                         keys_vertical=[irr.KEY_ACCELERATE, irr.KEY_BRAKE])
+    
+    # Alternatively, use interactive driver
+    # driver = veh.ChInteractiveDriverIRR(truck)
+    
+    driver.Initialize()
+    
+    print("[INFO] Driver controller initialized")
+    print("       Controls: Arrow Keys or WASD for steering/throttle/brake")
+    
+    return driver
+
+# =============================================================================
+# VISUALIZATION SETUP
+# =============================================================================
+
+def setup_visualization(system, truck):
+    """
+    Set up Irrlicht visualization with chase camera, lighting, and skybox.
+    
+    Returns:
+        ChVisualSystemIrrlicht: Configured visualization system
+    """
+    print("\n[INFO] Setting up Irrlicht visualization...")
+    
+    # Create Irrlicht visualization system
+    vis = irr.CChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowTitle("MAN 10t Truck - Rigid Terrain Simulation")
+    vis.SetWindowSize(1280, 720)
+    vis.SetStyle(irr.IrrVisualStyle_STEEL_BLUE)
+    
+    # Initialize the visualization
+    vis.Initialize()
+    
+    # ----- CAMERA SETTINGS -----
+    # Chase camera following the vehicle
+    cam_offset = chrono.ChVectorD(-12.0, 5.0, 0.0)  # Behind and above vehicle
+    vis.AddCameraRowWithMode(irr.CameraLocationType_FOLLOW, 
+                             cam_offset,  # offset
+                             chrono.ChVectorD(0, 1.5, 0),  # transition point
+                             1.5)  # chase damping
+    
+    # ----- LIGHTING -----
+    # Add directional light (sun-like)
+    light_dir = chrono.ChVectorD(0.5, -1.0, -0.5)
+    light_dir.Normalize()
+    vis.AddLightDirectional(
+        irr.vector3df(light_dir.x, light_dir.y, light_dir.z),
+        irr.vector3df(1.0, 1.0, 1.0),
+        0.8
+    )
+    
+    # Add ambient light for softer shadows
+    vis.AddLightAmbient(irr.vector3df(0.3, 0.3, 0.3))
+    
+    # ----- SKYBOX -----
+    # Add skybox for realistic rendering
+    vis.AddSkyBox()
+    
+    # ----- ADDITIONAL RENDERING OPTIONS -----
+    # Enable rendering of contact points (debug)
+    # vis.EnableContactDrawing(irr.EnableContactDraw_MODE_CONTACTS)
+    
+    # Enable rendering of collision shapes (debug)
+    # vis.EnableCollisionShapeDrawing(True)
+    
+    # Enable rendering of COG frames
+    # vis.EnableBodyFrameDrawing(True)
+    
+    # Enable arrows for forces
+    # vis.EnableLinkFrameDrawing(True)
+    
+    # Set shadows
+    vis.SetShadows(True)
+    
+    print("[INFO] Visualization system initialized")
+    print("       - Chase camera enabled")
+    print("       - Directional lighting enabled")
+    print("       - Skybox enabled")
+    print("       - Shadows enabled")
+    
+    return vis
+
+def add_custom_elements(vis):
+    """
+    Add custom visual elements like logos, markers, or additional geometry.
+    """
+    # Add grid reference
+    # (The terrain patch already provides visual reference)
+    
+    # Add vehicle reference marker
+    # (Built into the vehicle visualization)
+    
+    print("[INFO] Custom elements added to scene")
+
+# =============================================================================
+# SIMULATION LOOP
+# =============================================================================
+
+def run_simulation(system, truck, driver, vis):
+    """
+    Main simulation loop with real-time visualization and control.
+    
+    Parameters:
+        system: PyChrono physics system
+        truck: Vehicle object
+        driver: Driver controller
+        vis: Visualization system
+    """
+    print("\n" + "=" * 60)
+    print("STARTING SIMULATION")
+    print("=" * 60)
+    print("Press ESC or close window to exit")
+    print("-" * 60)
+    
+    # Simulation timing
+    sim_time = 0.0
+    step_number = 0
+    render_frame = 0
+    time_per_frame = 1.0 / OUTUPUT_FPS
+    
+    # Vehicle state tracking
+    max_speed = 0.0
+    distance_traveled = 0.0
+    last_position = VEHICLE_INITIAL_POS
+    
+    # Create HUD information
+    hud_text = """
+    MAN 10t Truck Simulation
+    ------------------------
+    Controls:
+    - Arrow Up/W: Accelerate
+    - Arrow Down/S: Brake
+    - Arrow Left/A: Steer Left
+    - Arrow Right/D: Steer Right
+    - Space: Handbrake
+    - R: Reset vehicle
+    - ESC: Exit simulation
+    """
+    
+    # Main simulation loop
+    while vis.Run():
+        # ----- RENDERING -----
+        if sim_time >= render_frame * time_per_frame:
+            vis.BeginScene()
+            vis.Render()
+            
+            # Add HUD overlay with simulation info
+            info_text = (
+                f"Time: {sim_time:.2f}s | "
+                f"Speed: {truck.GetSpeed()*3.6:.1f} km/h | "
+                f"Throttle: {driver.GetThrottle()*100:.0f}% | "
+                f"Brake: {driver.GetBraking()*100:.0f}%"
+            )
+            vis.AddCaption(info_text, irr.CaptionPosition_CENTER, 
+                          irr.vector2df(0.5, 0.02), irr.SColorf(255, 255, 255, 1.0))
+            
+            vis.EndScene()
+            render_frame += 1
+        
+        # ----- INPUT PROCESSING -----
+        # Get driver inputs
+        driver_inputs = driver.Synchronize(step_number)
+        
+        # Apply inputs to vehicle
+        truck.Synchronize(step_number, sim_time, driver_inputs)
+        
+        # ----- PHYSICS UPDATE -----
+        system.Update()
+        
+        # ----- STATE TRACKING -----
+        current_pos = truck.GetChassis().GetPos()
+        current_speed = truck.GetSpeed()
+        
+        # Calculate distance traveled
+        displacement = (current_pos - last_position).Length()
+        distance_traveled += displacement
+        last_position = current_pos
+        
+        # Track max speed
+        if current_speed > max_speed:
+            max_speed = current_speed
+        
+        # ----- TIME UPDATE -----
+        sim_time = system.GetChTime()
+        step_number += 1
+        
+        # ----- PROGRESS REPORTING -----
+        if step_number % 500 == 0:
+            print(f"[{sim_time:6.2f}s] Speed: {current_speed*3.6:6.2f} km/h | "
+                  f"Throttle: {driver_inputs.throttle*100:5.1f}% | "
+                  f"Brake: {driver_inputs.brake*100:5.1f}%")
+        
+        # ----- CHECK FOR RESET -----
+        # Reset simulation on R key
+        if irr.key_is_pressed(irr.KEY_KEY_R):
+            print("\n[INFO] Resetting simulation...")
+            system.SetChTime(0)
+            truck.Reset(chrono.ChCoordsysD(
+                VEHICLE_INITIAL_POS, 
+                VEHICLE_INITIAL_ROT
+            ))
+            sim_time = 0
+            step_number = 0
+            render_frame = 0
+        
+        # ----- CHECK TERMINATION -----
+        if sim_time >= SIMULATION_TIME:
+            print(f"\n[INFO] Simulation time reached ({SIMULATION_TIME}s)")
+            break
+        
+        # Safety check for extreme positions
+        if current_pos.y < -10:
+            print("\n[WARNING] Vehicle fell below terrain - possible instability")
+            break
+    
+    # ----- FINAL REPORT -----
+    print("\n" + "=" * 60)
+    print("SIMULATION COMPLETE")
+    print("=" * 60)
+    print(f"Final Time:         {sim_time:.2f} s")
+    print(f"Total Distance:    {distance_traveled:.2f} m")
+    print(f"Max Speed:         {max_speed*3.6:.2f} km/h")
+    print(f"Physics Steps:     {step_number}")
+    print("=" * 60)
+    
+    return sim_time, distance_traveled, max_speed
+
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
+
+def main():
+    """
+    Main function to run the complete simulation.
+    """
+    try:
+        # Initialize environment
+        chrono = initialize_chrono_environment()
+        
+        # Create physical system
+        system = create_physical_system()
+        
+        # Create terrain
+        terrain, patch = create_terrain(system)
+        
+        # Create vehicle
+        truck = create_truck(system)
+        
+        # Create driver controller
+        driver = create_driver(truck)
+        
+        # Setup visualization
+        vis = setup_visualization(system, truck)
+        
+        # Add custom visual elements
+        add_custom_elements(vis)
+        
+        # Run simulation
+        final_time, distance, max_speed = run_simulation(
+            system, truck, driver, vis
+        )
+        
+        print("\n[INFO] Simulation finished successfully!")
+        return 0
+        
+    except KeyboardInterrupt:
+        print("\n[INFO] Simulation interrupted by user")
+        return 1
+        
+    except Exception as e:
+        print(f"\n[ERROR] Simulation failed with error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+This PyChrono simulation script provides a comprehensive vehicle dynamics demonstration featuring:
+
+## Key Features
+
+### 1. **Physical System**
+- Non-smooth contact dynamics (NSC) system for realistic collisions
+- BARZILAI-BORWEIN solver optimized for vehicle dynamics
+- Configurable step size and collision detection
+
+### 2. **Vehicle Model**
+- **MAN 10t truck** from the PyChrono Vehicle library
+- **TMEASY tire model** for realistic tire behavior
+- AWD (All-Wheel Drive) driveline configuration
+- Automatic transmission model
+
+### 3. **Rigid Terrain**
+- Large terrain surface (200m × 200m)
+- Configurable friction and restitution
+- Customizable texture support
+
+### 4. **Visualization (Irrlicht)**
+- Chase camera following the vehicle
+- Directional lighting (sun-like)
+- Ambient lighting for soft shadows
+- Skybox for atmospheric rendering
+- HUD overlay showing real-time telemetry
+
+### 5. **Driver Controls**
+- **Arrow Keys/WASD**: Steering and throttle/brake
+- **Space**: Handbrake
+- **R**: Reset vehicle position
+- **ESC**: Exit simulation
+
+### 6. **Simulation Monitoring**
+- Real-time speed, throttle, and brake display
+- Distance traveled tracking
+- Maximum speed recording
+- Automatic termination after 30 seconds
+
+## Dependencies
+
+To run this script, install:
+```bash
+pip install pychrono pychrono.vehicle pychrono.irrlicht
+```

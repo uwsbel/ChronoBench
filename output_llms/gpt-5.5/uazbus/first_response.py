@@ -1,0 +1,205 @@
+# uazbus_irrlicht_demo.py
+#
+# PyChrono simulation of a UAZBUS on rigid terrain with Irrlicht visualization.
+
+import os
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr   # Ensures Irrlicht module is loaded
+
+
+# ---------------------------------------------------------------------
+# Data paths
+# ---------------------------------------------------------------------
+
+if "CHRONO_DATA_DIR" in os.environ:
+    chrono.SetChronoDataPath(os.environ["CHRONO_DATA_DIR"])
+
+chrono_data = chrono.GetChronoDataPath()
+if chrono_data and not chrono_data.endswith("/"):
+    chrono_data += "/"
+
+if "CHRONO_VEHICLE_DATA_DIR" in os.environ:
+    veh.SetDataPath(os.environ["CHRONO_VEHICLE_DATA_DIR"])
+else:
+    veh.SetDataPath(chrono_data + "vehicle/")
+
+
+# ---------------------------------------------------------------------
+# Simulation parameters
+# ---------------------------------------------------------------------
+
+contact_method = chrono.ChContactMethod_NSC
+
+step_size = 1e-3
+tire_step_size = 1e-3
+
+render_fps = 50
+render_step_size = 1.0 / render_fps
+
+terrain_length = 200.0
+terrain_width = 200.0
+terrain_friction = 0.9
+terrain_restitution = 0.01
+
+init_loc = chrono.ChVector3d(0.0, 0.0, 0.5)
+init_rot = chrono.ChQuaterniond(1.0, 0.0, 0.0, 0.0)
+init_fwd_vel = 0.0
+
+track_point = chrono.ChVector3d(0.0, 0.0, 1.75)
+
+
+# ---------------------------------------------------------------------
+# Create and initialize UAZBUS vehicle
+# ---------------------------------------------------------------------
+
+uazbus = veh.UAZBUS()
+
+uazbus.SetContactMethod(contact_method)
+uazbus.SetChassisCollisionType(veh.CollisionType_NONE)
+uazbus.SetChassisFixed(False)
+
+uazbus.SetInitPosition(chrono.ChCoordsysd(init_loc, init_rot))
+
+# If supported by the installed PyChrono version, set initial speed.
+if hasattr(uazbus, "SetInitFwdVel"):
+    uazbus.SetInitFwdVel(init_fwd_vel)
+
+# Vehicle configuration
+if hasattr(uazbus, "SetEngineType"):
+    uazbus.SetEngineType(veh.EngineModelType_SIMPLE_MAP)
+
+if hasattr(uazbus, "SetTransmissionType"):
+    uazbus.SetTransmissionType(veh.TransmissionModelType_AUTOMATIC_SIMPLE_MAP)
+
+if hasattr(uazbus, "SetDriveType"):
+    uazbus.SetDriveType(veh.DrivelineTypeWV_AWD)
+
+if hasattr(uazbus, "SetSteeringType"):
+    uazbus.SetSteeringType(veh.SteeringTypeWV_PITMAN_ARM)
+
+uazbus.SetTireType(veh.TireModelType_TMEASY)
+uazbus.SetTireStepSize(tire_step_size)
+
+uazbus.Initialize()
+
+# Visualization types
+uazbus.SetChassisVisualizationType(veh.VisualizationType_MESH)
+uazbus.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+uazbus.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+uazbus.SetWheelVisualizationType(veh.VisualizationType_MESH)
+uazbus.SetTireVisualizationType(veh.VisualizationType_MESH)
+
+system = uazbus.GetSystem()
+
+# Gravity
+if hasattr(system, "SetGravitationalAcceleration"):
+    system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+else:
+    system.Set_G_acc(chrono.ChVector3d(0, 0, -9.81))
+
+
+# ---------------------------------------------------------------------
+# Create rigid terrain
+# ---------------------------------------------------------------------
+
+terrain = veh.RigidTerrain(system)
+
+try:
+    terrain_mat = chrono.ChContactMaterialNSC()
+except AttributeError:
+    terrain_mat = chrono.ChMaterialSurfaceNSC()
+
+terrain_mat.SetFriction(terrain_friction)
+terrain_mat.SetRestitution(terrain_restitution)
+
+patch = terrain.AddPatch(
+    terrain_mat,
+    chrono.CSYSNORM,
+    terrain_length,
+    terrain_width
+)
+
+patch.SetColor(chrono.ChColor(0.45, 0.55, 0.35))
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+
+terrain.Initialize()
+
+
+# ---------------------------------------------------------------------
+# Create Irrlicht visualization system
+# ---------------------------------------------------------------------
+
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle("PyChrono UAZBUS Simulation")
+vis.SetWindowSize(1280, 720)
+vis.SetChaseCamera(track_point, 8.0, 0.5)
+vis.AttachVehicle(uazbus.GetVehicle())
+
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddLightDirectional()
+vis.AddLightWithShadow(
+    chrono.ChVector3d(10, -20, 30),
+    chrono.ChVector3d(0, 0, 0),
+    100,
+    1,
+    100,
+    40,
+    512
+)
+
+
+# ---------------------------------------------------------------------
+# Driver system
+# ---------------------------------------------------------------------
+
+driver = veh.ChInteractiveDriverIRR(vis)
+
+# Keyboard control response times
+steering_time = 1.0
+throttle_time = 1.0
+braking_time = 0.3
+
+driver.SetSteeringDelta(render_step_size / steering_time)
+driver.SetThrottleDelta(render_step_size / throttle_time)
+driver.SetBrakingDelta(render_step_size / braking_time)
+
+driver.Initialize()
+
+
+# ---------------------------------------------------------------------
+# Real-time simulation loop
+# ---------------------------------------------------------------------
+
+realtime_timer = chrono.ChRealtimeStepTimer()
+
+print("UAZBUS simulation started.")
+print("Use the Irrlicht interactive driver controls to steer, throttle, and brake.")
+
+while vis.Run():
+    time = system.GetChTime()
+
+    # Get current driver inputs
+    driver_inputs = driver.GetInputs()
+
+    # Render scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Synchronize all modules
+    driver.Synchronize(time)
+    terrain.Synchronize(time)
+    uazbus.Synchronize(time, driver_inputs, terrain)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance all modules
+    driver.Advance(step_size)
+    terrain.Advance(step_size)
+    uazbus.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Enforce real-time execution
+    realtime_timer.Spin(step_size)

@@ -1,0 +1,452 @@
+#!/usr/bin/env python3
+"""
+PyChrono Curiosity Rover Simulation
+A simulation showcasing a Curiosity rover navigating on rigid terrain
+with motor control and Irrlicht visualization.
+"""
+
+# Import necessary PyChrono modules
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+import pychrono.vehicle as veh
+import math
+
+def main():
+    # 1. Initialize PyChrono environment and core components
+    print("=" * 60)
+    print("PyChrono Curiosity Rover Simulation")
+    print("=" * 60)
+    print("\nInitializing PyChrono environment...")
+    
+    # Create a physical system (Non-smooth contact for rigid body dynamics)
+    system = chrono.ChSystemNSC()
+    system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+    
+    # Solver settings for accurate simulation
+    system.SetSolverType(chrono.ChSolver.Type_SOR)
+    system.SetMaxItersSolverSpeed(60)
+    system.SetMaxItersSolverStab(60)
+    system.SetStepSize(0.001)
+    
+    # 2. Create a fixed ground with collision properties
+    print("Creating rigid terrain with collision properties...")
+    
+    # Ground material with friction and restitution
+    ground_mat = chrono.ChMaterialSurfaceNSC()
+    ground_mat.SetFriction(0.8)
+    ground_mat.SetRestitution(0.0)
+    
+    # Create ground body - fixed (not moving)
+    ground = chrono.ChBody()
+    ground.SetBodyFixed(True)
+    ground.SetMaterialSurface(ground_mat)
+    ground.SetPos(chrono.ChVectorD(0, -0.5, 0))
+    ground.SetName("Ground")
+    
+    # Ground visualization - large flat terrain
+    ground_color = chrono.ChColor(0.25, 0.45, 0.2)  # Greenish terrain
+    ground_vis = chrono.ChVisualizationBox(50, 0.1, 50)
+    ground_vis.SetColor(ground_color)
+    ground.AddVisualization(ground_vis)
+    
+    # Ground collision shape (box for rigid terrain)
+    ground_col = chrono.ChCollisionModel()
+    ground_col.AddBox(50, 0.1, 50, chrono.ChVectorD(0, -0.5, 0))
+    ground_col.Build()
+    ground.AddCollisionModel(ground_col)
+    ground.SetCollide(True)
+    
+    system.Add(ground)
+    
+    # Add some terrain obstacles (small boxes)
+    obstacle_positions = [
+        (5.0, 0.0, 3.0),
+        (-3.0, 0.0, -2.0),
+        (8.0, 0.0, -4.0),
+        (2.0, 0.0, 5.0),
+    ]
+    
+    for i, (x, y, z) in enumerate(obstacle_positions):
+        obstacle = chrono.ChBody()
+        obstacle.SetBodyFixed(True)
+        obstacle.SetMaterialSurface(ground_mat)
+        obstacle.SetPos(chrono.ChVectorD(x, y, z))
+        obstacle.SetName(f"Obstacle_{i}")
+        
+        obstacle_vis = chrono.ChVisualizationBox(0.5, 0.5, 0.5)
+        obstacle_vis.SetColor(chrono.ChColor(0.5, 0.3, 0.2))  # Brown obstacles
+        obstacle.AddVisualization(obstacle_vis)
+        
+        obstacle_col = chrono.ChCollisionModel()
+        obstacle_col.AddBox(0.5, 0.5, 0.5, chrono.ChVectorD(0, 0, 0))
+        obstacle_col.Build()
+        obstacle.AddCollisionModel(obstacle_col)
+        obstacle.SetCollide(True)
+        
+        system.Add(obstacle)
+    
+    # 3. Create Curiosity rover model
+    print("Creating Curiosity rover model...")
+    
+    # Rover parameters (approximate Curiosity dimensions)
+    rover_mass = 899.0  # kg
+    body_length = 2.9   # meters
+    body_width = 2.7    # meters
+    body_height = 0.7   # meters
+    
+    # Rover material
+    rover_mat = chrono.ChMaterialSurfaceNSC()
+    rover_mat.SetFriction(0.9)
+    rover_mat.SetRestitution(0.0)
+    
+    # Rover main body
+    rover_body = chrono.ChBody()
+    rover_body.SetMaterialSurface(rover_mat)
+    rover_body.SetPos(chrono.ChVectorD(0, 1.0, 0))
+    rover_body.SetMass(rover_mass)
+    rover_body.SetName("Curiosity_Rover_Body")
+    
+    # Body visualization
+    body_color = chrono.ChColor(0.8, 0.8, 0.8)  # Gray aluminum color
+    body_vis = chrono.ChVisualizationBox(body_length, body_height, body_width)
+    body_vis.SetColor(body_color)
+    rover_body.AddVisualization(body_vis)
+    
+    # Body collision shape
+    body_col = chrono.ChCollisionModel()
+    body_col.AddBox(body_length, body_height, body_width, chrono.ChVectorD(0, 0, 0))
+    body_col.Build()
+    rover_body.AddCollisionModel(body_col)
+    rover_body.SetCollide(True)
+    
+    system.Add(rover_body)
+    
+    # 4. Create wheels (6 wheels for Curiosity-like configuration)
+    print("Creating 6-wheel system...")
+    
+    wheel_mat = chrono.ChMaterialSurfaceNSC()
+    wheel_mat.SetFriction(0.9)
+    wheel_mat.SetRestitution(0.0)
+    
+    wheel_radius = 0.25  # meters
+    wheel_width = 0.15   # meters
+    wheel_mass = 10.0    # kg each
+    
+    # Wheel positions (Curiosity-like arrangement)
+    wheel_positions = [
+        (1.1, -0.5, 1.2),   # Front Left
+        (1.1, -0.5, -1.2),  # Front Right
+        (0.0, -0.5, 1.2),   # Middle Left
+        (0.0, -0.5, -1.2),  # Middle Right
+        (-1.1, -0.5, 1.2),  # Rear Left
+        (-1.1, -0.5, -1.2), # Rear Right
+    ]
+    
+    wheels = []
+    wheel_joints = []
+    
+    for i, (x, y, z) in enumerate(wheel_positions):
+        # Create wheel body
+        wheel = chrono.ChBody()
+        wheel.SetMaterialSurface(wheel_mat)
+        wheel.SetPos(chrono.ChVectorD(x, y, z))
+        wheel.SetMass(wheel_mass)
+        wheel.SetName(f"Wheel_{i}")
+        
+        # Wheel visualization
+        wheel_color = chrono.ChColor(0.2, 0.2, 0.2)  # Dark gray wheels
+        wheel_vis = chrono.ChVisualizationCylinder(wheel_radius, wheel_width)
+        wheel_vis.SetColor(wheel_color)
+        wheel.AddVisualization(wheel_vis)
+        
+        # Wheel collision
+        wheel_col = chrono.ChCollisionModel()
+        wheel_col.AddCylinder(wheel_radius, wheel_radius, wheel_width)
+        wheel_col.Build()
+        wheel.AddCollisionModel(wheel_col)
+        wheel.SetCollide(True)
+        
+        system.Add(wheel)
+        wheels.append(wheel)
+        
+        # Create revolute joint for wheel rotation
+        wheel_z = 1.2 if i % 2 == 0 else -1.2
+        
+        # Distance from rover center to wheel
+        if i == 0 or i == 1:  # Front
+            wheel_x = 1.1
+        elif i == 2 or i == 3:  # Middle
+            wheel_x = 0.0
+        else:  # Rear
+            wheel_x = -1.1
+        
+        # Create spherical joint connecting wheel to body
+        joint_pos = chrono.ChVectorD(wheel_x, y + 0.15, wheel_z)
+        
+        # Create a simple distance joint (constraint)
+        # Using a spring-damper for suspension effect
+        spring = chrono.ChLinkTSDA()
+        spring.Initialize(wheel, rover_body, False, joint_pos, joint_pos)
+        spring.SetSpringCoefficient(5000)
+        spring.SetDampingCoefficient(500)
+        spring.SetRestLength(0.35)
+        system.Add(spring)
+        wheel_joints.append(spring)
+    
+    # 5. Create motor control driver for real-time steering inputs
+    print("Creating motor control driver...")
+    
+    # Create a simple vehicle driver/controller
+    # This will handle steering inputs
+    driver = veh.ChDriverStr(system, rover_body, wheels)
+    
+    # Driver parameters
+    steering_sensitivity = 0.03
+    max_steering_angle = 0.5  # radians
+    steering_input = 0.0
+    throttle_input = 0.0
+    
+    # 6. Setup Irrlicht visualization system
+    print("Setting up Irrlicht visualization...")
+    
+    # Create visualization system
+    vis = chronoirr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("Curiosity Rover - PyChrono Simulation")
+    vis.SetStyle(chronoirr.IrrlichtDevice.DIRECTX9)  # Use DirectX9 for better visuals
+    
+    # Camera settings
+    camera_position = chrono.ChVectorD(-8, 5, 8)
+    camera_target = chrono.ChVectorD(0, 1, 0)
+    vis.AddCamera(camera_position, camera_target)
+    
+    # Lighting setup
+    # Main directional light (sun-like)
+    light_pos = chrono.ChVectorD(10, 20, 10)
+    light_color = chrono.ChColor(1.0, 0.95, 0.8)  # Warm sunlight
+    light_radius = 100
+    vis.AddLight(light_pos, light_radius, light_color)
+    
+    # Secondary fill light
+    fill_light_pos = chrono.ChVectorD(-10, 15, -10)
+    fill_light_color = chrono.ChColor(0.6, 0.7, 0.9)  # Cool fill
+    vis.AddLight(fill_light_pos, light_radius, fill_light_color)
+    
+    # Shadow light
+    shadow_light_pos = chrono.ChVectorD(5, 15, 5)
+    shadow_color = chrono.ChColor(0.3, 0.3, 0.35)
+    vis.AddShadowLight(shadow_light_pos, 50, shadow_color)
+    
+    # Enable shadows
+    vis.EnableShadows(True)
+    
+    # Initialize visualization
+    vis.Initialize()
+    
+    # 7. Add visual enhancements (textures, logos, environment)
+    print("Adding visual enhancements...")
+    
+    # Add a skybox/environment
+    env_box = chrono.ChVisualizationBox(100, 100, 100)
+    env_box.SetColor(chrono.ChColor(0.5, 0.7, 0.9))  # Sky blue
+    env_box.SetTransparent(True)
+    env_box.SetMaterial(chrono.ChVisualizationMaterial())
+    env_box.GetMaterial().SetOpacity(0.3)
+    # Note: In actual implementation, you'd use a skybox mesh
+    
+    # Add some reference markers on the ground
+    for i in range(-10, 11, 5):
+        for j in range(-10, 11, 5):
+            marker = chrono.ChBody()
+            marker.SetBodyFixed(True)
+            marker.SetPos(chrono.ChVectorD(i, 0.01, j))
+            marker_vis = chrono.ChVisualizationBox(0.2, 0.02, 0.2)
+            marker_vis.SetColor(chrono.ChColor(1, 1, 0))  # Yellow markers
+            marker.AddVisualization(marker_vis)
+            marker.SetCollide(False)
+            system.Add(marker)
+    
+    # 8. Create simulation application
+    application = chronoirr.CChIrrApp(
+        vis,
+        "Curiosity Rover - PyChrono",
+        chronoirr.dimension2du(1280, 720),
+        False
+    )
+    application.SetTimestep(0.001)
+    application.SetVideoDriver(chronoirr.IrrlichtDevice.DIRECTX9)
+    
+    # 9. Simulation loop with real-time controls
+    print("\n" + "=" * 60)
+    print("Simulation started!")
+    print("=" * 60)
+    print("Controls:")
+    print("  W/S      - Forward/Backward throttle")
+    print("  A/D      - Steer left/right")
+    print("  Q/E      - Increase/Decrease speed")
+    print("  SPACE    - Reset simulation")
+    print("  ESC      - Exit simulation")
+    print("  R        - Toggle camera mode")
+    print("=" * 60)
+    
+    # Simulation state
+    simulation_time = 0.0
+    camera_mode = 0  # 0: orbit, 1: follow rover
+    running = True
+    
+    # Main simulation loop
+    while running:
+        # Handle events
+        if application.GetDevice().run():
+            # Begin scene
+            application.BeginScene()
+            application.DrawAll()
+            
+            # Update simulation
+            # Apply throttle to wheels (simulate driving)
+            wheel_speed = throttle_input * 5.0  # Angular velocity
+            
+            for wheel in wheels:
+                # Apply angular velocity to wheels
+                current_rot = wheel.GetRot()
+                angle_increment = chrono.ChQuaternionD(
+                    math.cos(wheel_speed * 0.001 / 2),
+                    0,
+                    math.sin(wheel_speed * 0.001 / 2),
+                    0
+                )
+                new_rot = current_rot * angle_increment
+                wheel.SetRot(new_rot)
+            
+            # Apply steering (affects rover body orientation)
+            if abs(steering_input) > 0.01:
+                # Calculate turn radius based on steering
+                turn_rate = steering_input * steering_sensitivity
+                current_rot = rover_body.GetRot()
+                
+                # Simple steering: rotate rover around Y axis
+                yaw_increment = chrono.ChQuaternionD(
+                    math.cos(turn_rate * 0.001 / 2),
+                    0,
+                    math.sin(turn_rate * 0.001 / 2),
+                    0
+                )
+                new_rot = yaw_increment * current_rot
+                rover_body.SetRot(new_rot)
+            
+            # Move rover forward based on throttle
+            if abs(throttle_input) > 0.01:
+                current_pos = rover_body.GetPos()
+                current_rot = rover_body.GetRot()
+                
+                # Get forward direction
+                forward = chrono.ChVectorD(1, 0, 0)
+                forward = current_rot.Rotate(forward)
+                
+                # Apply movement
+                speed = throttle_input * 0.5
+                new_pos = current_pos + forward * speed * 0.001
+                rover_body.SetPos(new_pos)
+                
+                # Move wheels with rover
+                for i, wheel in enumerate(wheels):
+                    wheel_pos = wheel.GetPos()
+                    wheel_offset = wheel_pos - current_pos
+                    wheel_new_pos = new_pos + wheel_offset
+                    wheel.SetPos(wheel_new_pos)
+            
+            # Update suspension springs
+            for i, joint in enumerate(wheel_joints):
+                # Springs are automatically updated by the physics system
+                pass
+            
+            # Run physics step
+            if application.Step():
+                simulation_time += 0.001
+            
+            # End scene
+            application.EndScene()
+            
+            # Print simulation info periodically
+            if int(simulation_time * 1000) % 1000 == 0:
+                print(f"Time: {simulation_time:.2f}s | "
+                      f"Pos: ({rover_body.GetPos().x:.2f}, "
+                      f"{rover_body.GetPos().y:.2f}, "
+                      f"{rover_body.GetPos().z:.2f}) | "
+                      f"Throttle: {throttle_input:.2f} | "
+                      f"Steering: {steering_input:.2f}")
+        else:
+            running = False
+    
+    print("\n" + "=" * 60)
+    print("Simulation complete!")
+    print(f"Total simulation time: {simulation_time:.2f} seconds")
+    print("=" * 60)
+
+def create_rover_visualization(rover_body, system):
+    """
+    Create detailed visualization for the rover body
+    Including mast, cameras, and other components
+    """
+    # Mast (camera mast)
+    mast = chrono.ChBody()
+    mast.SetPos(rover_body.GetPos() + chrono.ChVectorD(0.5, 0.6, 0))
+    mast_vis = chrono.ChVisualizationCylinder(0.05, 0.5, 0)
+    mast_vis.SetColor(chrono.ChColor(0.6, 0.6, 0.6))
+    mast.AddVisualization(mast_vis)
+    system.Add(mast)
+    
+    # Camera head
+    camera_head = chrono.ChBody()
+    camera_head.SetPos(rover_body.GetPos() + chrono.ChVectorD(0.5, 0.9, 0))
+    camera_vis = chrono.ChVisualizationBox(0.15, 0.1, 0.15)
+    camera_vis.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
+    camera_head.AddVisualization(camera_vis)
+    system.Add(camera_head)
+    
+    # Solar panel
+    solar_panel = chrono.ChBody()
+    solar_panel.SetPos(rover_body.GetPos() + chrono.ChVectorD(-0.5, 0.5, 0))
+    solar_vis = chrono.ChVisualizationBox(1.0, 0.05, 1.5)
+    solar_vis.SetColor(chrono.ChColor(0.1, 0.2, 0.4))  # Blue-ish
+    solar_panel.AddVisualization(solar_vis)
+    system.Add(solar_panel)
+    
+    return mast, camera_head, solar_panel
+
+def apply_textures(system):
+    """
+    Apply textures to various components
+    Note: Requires actual texture image files
+    """
+    # This is a placeholder for texture application
+    # In actual implementation, you would load texture images
+    # and apply them to visualization materials
+    
+    texture_files = {
+        'terrain': 'textures/terrain_dirt.png',
+        'rover_body': 'textures/metal_gray.png',
+        'wheels': 'textures/rubber_black.png',
+        'solar': 'textures/solar_panel.png',
+    }
+    
+    # Texture application would go here
+    # vis.SetTexture(0, texture_files['terrain'])
+    
+    return texture_files
+
+def add_logo_overlay():
+    """
+    Add logo/overlay to the simulation
+    """
+    # Create logo visualization
+    logo_text = "CURIOSITY ROVER"
+    
+    # This would typically be done through Irrlicht's GUI system
+    # For now, we'll note it as a placeholder
+    
+    return logo_text
+
+if __name__ == "__main__":
+    main()

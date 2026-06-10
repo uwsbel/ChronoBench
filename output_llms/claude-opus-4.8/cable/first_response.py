@@ -1,0 +1,147 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# ---------------------------------------------------------------------
+# 1. Initialize the PyChrono environment and core components
+# ---------------------------------------------------------------------
+
+# Create the physical system
+sys = chrono.ChSystemSMC()
+
+# Set gravitational acceleration
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# ---------------------------------------------------------------------
+# 2. Create the FEA mesh and ANCF cable elements
+# ---------------------------------------------------------------------
+
+# Create a mesh that will contain the finite elements
+mesh = fea.ChMesh()
+
+# -----------------------------
+# Define the beam cross-section
+# -----------------------------
+beam_length = 1.0       # total length of the beam [m]
+num_elements = 10       # number of ANCF cable elements
+diameter = 0.01         # diameter of the circular cross-section [m]
+
+# Create the section/material properties for the ANCF cable
+msection = fea.ChBeamSectionCable()
+msection.SetDiameter(diameter)
+msection.SetYoungModulus(0.01e9)   # Young's modulus [Pa]
+msection.SetRayleighDamping(0.0001)  # internal damping
+
+# ---------------------------------------------------------------------
+# Build the beam using the ChBuilderCableANCF utility
+# ---------------------------------------------------------------------
+builder = fea.ChBuilderCableANCF()
+
+# The builder automatically creates nodes and ANCF cable elements,
+# connecting them in series along the specified direction.
+builder.BuildBeam(
+    mesh,                               # mesh to populate
+    msection,                           # cross-section properties
+    num_elements,                       # number of elements
+    chrono.ChVector3d(0, 0, 0),         # start point (point A)
+    chrono.ChVector3d(beam_length, 0, 0)  # end point (point B)
+)
+
+# Retrieve the list of generated nodes
+beam_nodes = builder.GetLastBeamNodes()
+
+# ---------------------------------------------------------------------
+# 3. Hinge one end of the beam to the ground
+# ---------------------------------------------------------------------
+
+# Create a fixed "truss" body to act as the ground anchor
+truss = chrono.ChBody()
+truss.SetFixed(True)
+sys.Add(truss)
+
+# Get the first node of the beam (the end to be hinged)
+first_node = builder.GetLastBeamNodes().front()
+
+# Create a hinge (spherical/pointline) constraint between the first node
+# and the ground. ChLinkNodeFrame leaves rotation free -> acts as a hinge.
+hinge_constraint = fea.ChLinkNodeFrame()
+hinge_constraint.Initialize(first_node, truss)
+sys.Add(hinge_constraint)
+
+# Add the mesh to the system
+sys.Add(mesh)
+
+# ---------------------------------------------------------------------
+# 4. Visualization of the FEA mesh (deformation + nodes)
+# ---------------------------------------------------------------------
+
+# Visualization of the beam deformation (e.g., bending moment / displacement)
+visual_beam = chrono.ChVisualShapeFEA(mesh)
+visual_beam.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visual_beam.SetColorscaleMinMax(-0.4, 0.4)
+visual_beam.SetSmoothFaces(True)
+visual_beam.SetWireframe(False)
+mesh.AddVisualShapeFEA(visual_beam)
+
+# Visualization of the nodal positions (draw nodes as small dots/spheres)
+visual_nodes = chrono.ChVisualShapeFEA(mesh)
+visual_nodes.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+visual_nodes.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visual_nodes.SetSymbolsThickness(0.006)
+visual_nodes.SetSymbolsScale(0.01)
+visual_nodes.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visual_nodes)
+
+# ---------------------------------------------------------------------
+# 5. Create the Irrlicht visualization application
+# ---------------------------------------------------------------------
+
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("ANCF Cable Beam - Hinged End")
+vis.Initialize()
+vis.AddLogo(chronoirr.GetChronoDataFile("logo_pychrono_alpha.png"))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.0, 0.6, -1.5),
+              chrono.ChVector3d(0.5, 0.0, 0.0))
+vis.AddTypicalLights()
+
+# ---------------------------------------------------------------------
+# 6. Set up the solver and time stepper for FEA
+# ---------------------------------------------------------------------
+
+# A direct sparse solver is recommended for FEA problems
+solver = chrono.ChSolverPardisoMKL()
+sys.SetSolver(solver)
+
+# Use an implicit (HHT) integrator for stability with flexible bodies
+stepper = chrono.ChTimestepperHHT(sys)
+stepper.SetStepControl(False)
+sys.SetTimestepper(stepper)
+
+# ---------------------------------------------------------------------
+# 7. Simulation loop
+# ---------------------------------------------------------------------
+
+time_step = 0.01
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+
+    # Optionally print the position of the free (last) node
+    last_node = beam_nodes.back()
+    pos = last_node.GetPos()
+    # print(f"Tip position: ({pos.x:.3f}, {pos.y:.3f}, {pos.z:.3f})")
+
+    vis.EndScene()
+
+    # Advance the simulation by one time step
+    sys.DoStepDynamics(time_step)
+
+> solver = chrono.ChSolverMINRES()
+> solver.SetMaxIterations(200)
+> solver.SetTolerance(1e-10)
+> sys.SetSolver(solver)
+>
