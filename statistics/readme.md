@@ -1,3 +1,9 @@
+> **Note on naming:** `statistics/` (this folder) is the **analysis and figures workspace**
+> (ranking scripts, correlation analysis, plots). It is distinct from the sibling `statistic/`
+> (singular), which is the **pipeline runtime-output directory** that `scoring/p_sim_score.py`,
+> the J-LLM scorer, and `scoring/rank_llm.py` read from and write to. The names are confusingly
+> similar but the roles differ; see `statistic/README.md`.
+
 This folder contains essential data and scripts for evaluating and analyzing the performance of various LLMs across multiple metrics, along with tools for visualization and ranking.
 
 ### CSV Data:
