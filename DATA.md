@@ -6,7 +6,7 @@ SimBench commits a large amount of generated data directly to git:
 |------|------|---------------|------------|
 | `output_llms/` | ~756 MB | ~41,300 | Per-model generated DT code + per-system score files for 30+ S-LLMs. |
 | `output_conversion/` | ~84 MB | ~1,690 | Alpaca-format multi-turn conversation JSONs. |
-| `.git/` | ~2.3 GB | — | History bloat from the above (and previously-removed paper builds). |
+| `.git/` | ~2.3 GB | n/a | History bloat from the above (and previously-removed paper builds). |
 
 The `demo_data/` benchmark itself is small (~3 MB) and should stay in git. The two generated-output
 directories are what make the repo heavy to clone.

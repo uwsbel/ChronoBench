@@ -1,4 +1,4 @@
-## `scoring/engine/` — the operational engine (generation + judging)
+## `scoring/engine/`: the operational engine (generation + judging)
 
 > This directory holds the S-LLM generation drivers and the batch J-LLM scoring harness
 > (`p_JLLM_score.py`) that produced the published results. (It was formerly named `v01`, which

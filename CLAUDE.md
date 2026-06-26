@@ -12,14 +12,14 @@ the methodology is simulator-agnostic.
 The authoritative description of this project is the **published IEEE Access paper**, kept
 in-repo:
 
-1. `.claude/docs/2026Jingquan-SimBench.pdf` — the published PDF. **This is authoritative.**
-2. `.claude/docs/tex-source-uber.tex` — the full paper LaTeX source, flattened into one file
+1. `.claude/docs/2026Jingquan-SimBench.pdf`: the published PDF. **This is authoritative.**
+2. `.claude/docs/tex-source-uber.tex`: the full paper LaTeX source, flattened into one file
    (all sections inlined). Best for reading and `grep` (methodology, equations, claims,
    exact numbers, the S-LLM/J-LLM prompt templates, appendices).
 
 Before reasoning about the methodology, claims, numbers, terminology, or prompt design,
 consult these rather than relying on memory or the README. Where the `.tex` source and the
-PDF disagree, **trust the PDF** — the source still carries some commented-out editorial
+PDF disagree, **trust the PDF**: the source still carries some commented-out editorial
 notes, `\updatedText{}` revision macros, and minor typos that do not appear in the
 rendered/published paper.
 
