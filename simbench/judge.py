@@ -1,7 +1,7 @@
 """Rule-based J-LLM evaluator for PyChrono digital twins.
 
 This is the reusable form of the judge that was previously locked inside
-``scoring/v01/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
+``scoring/engine/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
 import time). Here a single ``evaluate_dt(...)`` call returns the score plus the judge's
 rationale, the rubric lives once in ``simbench/rubric/*.txt``, and the model/provider are
 parameters.

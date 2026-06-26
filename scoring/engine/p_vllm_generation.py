@@ -11,7 +11,7 @@ from typing import Tuple
 # Auto-detect project root based on script location
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
-# Script is at: <PROJECT_ROOT>/scoring/v01/p_vllm_generation.py, so go up 2 levels
+# Script is at: <PROJECT_ROOT>/scoring/engine/p_vllm_generation.py, so go up 2 levels
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 
 # ---------------- Config ----------------

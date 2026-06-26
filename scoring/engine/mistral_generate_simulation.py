@@ -1,5 +1,5 @@
-from openai import OpenAI
 import os
+from mistralai import Mistral
 import json
 from tqdm import tqdm
 
@@ -7,18 +7,16 @@ from tqdm import tqdm
 # Auto-detect project root based on script location
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Script is at: <PROJECT_ROOT>/scoring/v01/Openai_generate_simulation.py, so go up 2 levels
+# Script is at: <PROJECT_ROOT>/scoring/engine/mistral_generate_simulation.py, so go up 2 levels
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-nvidia_api_key = os.getenv("NVIDIA_API_KEY")
-#print(nvidia_api_key)
-if not nvidia_api_key:
-    raise RuntimeError("Please set the NVIDIA_API_KEY environment variable!")
+
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
 
-def generate_first_code(first_prompt,model_link):
+
+def generate_first_code(first_prompt, model_link):
     # because some of the models like gemma-2 do not have a system role, so we add the system role to the user role prompt
     prompt = f"""
     You are a PyChrono expert tasked with generating a simulation script based on the following instructions. Make sure to:
@@ -32,29 +30,29 @@ def generate_first_code(first_prompt,model_link):
     “”"
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=nvidia_api_key
-        )
-        completion = client.chat.completions.create(
-            model=model_link,
+        api_key = ""
+        model = "mistral-large-latest"
+
+        client = Mistral(api_key=api_key)
+
+        completion = client.chat.complete(
+            model=model,
             messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.6,
-            top_p=0.9,
-            max_tokens=4096,
-            stream=False
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ]
         )
-        return completion.choices[0].message.content,prompt
+        return completion.choices[0].message.content, prompt
     except Exception as e:
         print('error1:', e)
-        return str(e),str(e)
+        return str(e), str(e)
 
-def generate_second_third_code(prompt, code,model_link):
+
+def generate_second_third_code(prompt, code, model_link):
     prompt = f"""
-    
+
     You are a PyChrono expert tasked with generating a simulation script based on the following instructions and a given PyChrono script, which may contain errors. Your task has two parts: identify the potential errors in the script and correct them if exist, also follow the instructions to modify the script to meet the requirements.
 
 Here is the PyChrono code you need to modify:
@@ -75,27 +73,28 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        global nvidia_api_key
-        client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=nvidia_api_key
-        )
-        completion = client.chat.completions.create(
-            model=model_link,
+        api_key  = ""
+        model = "mistral-large-latest"
+
+        client = Mistral(api_key=api_key)
+
+        completion = client.chat.complete(
+            model=model,
             messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.6,
-            top_p=0.9,
-            max_tokens=4096,
-            stream=False
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ]
         )
         return completion.choices[0].message.content, prompt
     except Exception as e:
         print('error2:', e)
-        return str(e),str(e)
+        return str(e), str(e)
 
-def save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2, second_response, combined_prompt3, third_response):
+
+def save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,
+                           second_response, combined_prompt3, third_response):
     # Prepare the conversation data
     # Ensure the directory exists
     directory = os.path.dirname(output_conversation_path)
@@ -120,38 +119,21 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-    "gemma-2-9b-it": "google/gemma-2-9b-it",
-    "gemma-2-27b-it": "google/gemma-2-27b-it",
-    "gemma-2-2b-it":"google/gemma-2-2b-it",
-    "llama-3.1-405b-instruct": "meta/llama-3.1-405b-instruct",
-    "llama-3.1-70b-instruct":"meta/llama-3.1-70b-instruct",
-    "llama-3.1-8b-instruct":"meta/llama-3.1-8b-instruct",
-    "phi-3-mini-128k-instruct":"microsoft/phi-3-mini-128k-instruct",
-    "phi-3-medium-128k-instruct":"microsoft/Phi-3-medium-128k-instruct",
-    "nemotron-4-340b-instruct":"nvidia/nemotron-4-340b-instruct",
-    "mistral-nemo-12b-instruct":"nv-mistralai/mistral-nemo-12b-instruct",
-    "mixtral-8x22b-instruct-v0.1":"mistralai/mixtral-8x22b-instruct-v0.1",
-    "codestral-22b-instruct-v0.1":"mistralai/codestral-22b-instruct-v0.1",
-    "mixtral-8x7b-instruct-v0.1":"mistralai/mixtral-8x7b-instruct-v0.1",
-    "mistral-large-latest":"mistralai/mistral-large",
-    "mamba-codestral-7b-v0.1":"mistralai/mamba-codestral-7b-v0.1",
-    "llama4_maverick":"nvdev/meta/llama-4-maverick-17b-128e-instruct",
-    "llama4_scout":"nvdev/meta/llama-4-scout-17b-16e-instruct",
-    "llama-3.3-70b-instruct":"meta/llama-3.3-70b-instruct",
-    "llama-3.1-405b-instruct":"meta/llama-3.1-405b-instruct",
-
+    "mistral-large-latest": "mistral-large-latest",
 }
-system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles", "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-#system_do_list=["rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank", "tablecloth", "turtlebot", "uazbus", "veh_app","vehros","viper"]
-system_do_list=system_list
+system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
+               "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
+               "pendulum",
+               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
+               "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
+system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
 # Auto-detected paths based on project root
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
-Output_path = os.path.join(PROJECT_ROOT, "output_llms")
+Output_path = os.path.join(PROJECT_ROOT, "output")
 Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list= ["llama-3.3-70b-instruct"]
+test_model_list = ["mistral-large-latest"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -167,7 +149,7 @@ for test_model in tqdm(test_model_list):
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)
 
-        if  system_folder in system_do_list:
+        if system_folder in system_do_list:
             input1_path = os.path.join(system_folder_path, 'input1.txt')
             input1_prompt = read_script(input1_path)
             # print('input1:', input1_prompt)
@@ -177,36 +159,46 @@ for test_model in tqdm(test_model_list):
             # if system_folder in test_system_list:
             print("first round")
             first_response, combined_prompt1 = generate_first_code(input1_prompt, test_model_link)
-        #    print(first_response, combined_prompt1)
+            #    print(first_response, combined_prompt1)
             first_response_path = os.path.join(output_system_path, "first_response.txt")
             with open(first_response_path, 'w', encoding="utf-8") as file:
                 file.write(first_response)
             # for the second and third input, the input is the input2.txt with pyinput2.py; input3.txt with pyinput3.py, respectively
             input2txt_path = os.path.join(system_folder_path, 'input2.txt')
             input2_prompt = read_script(input2txt_path)
-            #print('input2:', input2_prompt)
+            # print('input2:', input2_prompt)
             input2py_path = os.path.join(system_folder_path, 'pyinput2.py')
             input2_code = read_script(input2py_path)
-            #print('input2 code:', input2_code)
+            # print('input2 code:', input2_code)
             print("second round")
             second_response, combined_prompt2 = generate_second_third_code(input2_prompt, input2_code, test_model_link)
-        #    print(second_response, combined_prompt2)
+            #    print(second_response, combined_prompt2)
             second_response_path = os.path.join(output_system_path, "second_response.txt")
             with open(second_response_path, 'w', encoding="utf-8") as file:
                 file.write(second_response)
             input3txt_path = os.path.join(system_folder_path, 'input3.txt')
             input3_prompt = read_script(input3txt_path)
-        #    print('input3:', input3_prompt)
+            #    print('input3:', input3_prompt)
             input3py_path = os.path.join(system_folder_path, 'pyinput3.py')
             input3_code = read_script(input3py_path)
-        #    print('input3 code:', input3_code)
+            #    print('input3 code:', input3_code)
             print("third round")
             third_response, combined_prompt3 = generate_second_third_code(input3_prompt, input3_code, test_model_link)
-        #    print(third_response, combined_prompt3)
+            #    print(third_response, combined_prompt3)
             third_response_path = os.path.join(output_system_path, "third_response.txt")
             with open(third_response_path, 'w', encoding="utf-8") as file:
                 file.write(third_response)
             # save the combined prompt with the response into a json file
-            output_conversation_path = os.path.join(Output_conversation_path, f"{test_model}_{system_folder}_conversation.json")
-            save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2, second_response, combined_prompt3, third_response)
+            output_conversation_path = os.path.join(Output_conversation_path,
+                                                    f"{test_model}_{system_folder}_conversation.json")
+            save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,
+                                   second_response, combined_prompt3, third_response)
 print("finished")
+
+
+
+
+
+
+
+

@@ -11,7 +11,7 @@ rubric three times inline, hardcoded the judge model, printed the API key, and r
 
 Usage:
     # judge model: $SIMBENCH_JUDGE_MODEL (default gpt-4o-mini); needs $OPENAI_API_KEY
-    python scoring/v01/p_JLLM_score.py <test_model> [<test_model> ...]
+    python scoring/engine/p_JLLM_score.py <test_model> [<test_model> ...]
     # or set SIMBENCH_TEST_MODELS="modelA,modelB"; else falls back to DEFAULT_TEST_MODELS below.
 """
 
@@ -25,8 +25,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 # -----------------------------------------------------------------------------
-# Make the repo root importable so `import simbench` works when run from scoring/v01/.
-# Script is at <PROJECT_ROOT>/scoring/v01/p_JLLM_score.py, so go up 2 levels.
+# Make the repo root importable so `import simbench` works when run from scoring/engine/.
+# Script is at <PROJECT_ROOT>/scoring/engine/p_JLLM_score.py, so go up 2 levels.
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))

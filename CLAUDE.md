@@ -27,14 +27,17 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 
 ## Where things live (code)
 
-1. `api/api.txt` — condensed Chrono/PyChrono API reference fed to the J-LLM as context.
-2. `demo_data/` — expert ground-truth DTs: 34 physical systems, each with three turns
+1. `simbench/` (package): the reusable evaluator, `judge.evaluate_dt(...)`, the
+   `python -m simbench.score` CLI, and the system/category taxonomy (`systems.py`).
+2. `api/api.txt`: condensed Chrono/PyChrono API reference fed to the J-LLM as context.
+3. `demo_data/`: expert ground-truth DTs, 34 physical systems, each with three turns
    (`truth1.py`/`truth2.py`/`truth3.py`) of increasing complexity (102 tasks total).
-3. `output_llms/` and `output_conversion/` — S-LLM generations and converted conversations.
-4. `scoring/` — the evaluation pipeline (extract → compile/run → similarity + J-LLM scoring →
-   ranking) and the analysis/plotting scripts.
-5. `statistics/` — statistical analysis (rankings, correlations) over the scored results.
-6. `visualization/` — pipeline and demo-overview figures.
+4. `output_llms/` and `output_conversion/`: S-LLM generations and converted conversations.
+5. `scoring/`: the analysis/plotting scripts plus `rank_llm.py`; `scoring/engine/` holds the
+   generation drivers and the batch J-LLM scorer (`p_JLLM_score.py`).
+6. `metrics/`: pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`).
+7. `analysis/`: ranking and correlation analysis plus figures over the scored results.
+8. `visualization/`: pipeline and demo-overview figures.
 
 ## Conventions
 

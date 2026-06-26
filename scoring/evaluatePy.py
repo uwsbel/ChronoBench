@@ -115,7 +115,7 @@ print(difference)
 # Auto-detected paths based on project root
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
 Output_path = os.path.join(PROJECT_ROOT, "output")
-Output_statistic_path = os.path.join(PROJECT_ROOT, "statistic")
+Output_statistic_path = os.path.join(PROJECT_ROOT, "metrics")
 
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):

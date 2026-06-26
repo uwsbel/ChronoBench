@@ -37,7 +37,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 
 # ---------- Input/Output Paths ----------
 COMBINED_SCORES = PROJECT_ROOT / "output_llms" / "combined_evaluation_scores.csv"
-EVAL_RESULTS = PROJECT_ROOT / "statistic" / "evaluation_results.csv"
+EVAL_RESULTS = PROJECT_ROOT / "metrics" / "evaluation_results.csv"
 OUT_DIR = SCRIPT_DIR / "out"
 MAKE_PLOT = True
 

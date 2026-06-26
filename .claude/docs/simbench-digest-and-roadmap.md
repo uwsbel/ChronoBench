@@ -22,13 +22,13 @@ are separate**, and the directory names hide it.
    were hardcoded in `scoring/evaluatePy.py:94-103`; now centralized in `simbench/systems.py`.
 2. **API context (`api/api.txt`)** - ~4k-token PyChrono reference (2-level LLM summarization),
    used as J-LLM grounding.
-3. **Operational engine (`scoring/v01/`)** - despite the name, the live machinery: S-LLM
+3. **Operational engine (`scoring/engine/`)** - despite the name, the live machinery: S-LLM
    generation drivers + `p_JLLM_score.py` (batch judging). Now imports `simbench/`.
 4. **Analysis layer (`scoring/` root)** - ~30 scripts that built the paper's figures/tables
    (`multivariate_analysis.py`, `failure_mode_analysis.py`, `rank_llm.py`, `plot_*`).
 5. **Generated corpus + results** - `output_llms/` (~756 MB, 30+ models),
-   `output_conversion/` (~84 MB), `statistic/` (pipeline runtime outputs), `statistics/`
-   (analysis workspace), `visualization/` (figures).
+   `output_conversion/` (~84 MB), `metrics/` (pipeline metric outputs), `analysis/`
+   (analysis + figures workspace), `visualization/` (figures).
 
 **Pipeline:** generate -> `extractPy.py` -> `evaluatePy.py` (compile/run) -> `p_sim_score.py`
 (CodeBLEU/ROUGE) -> J-LLM scoring -> `rank_llm.py`. See `ONBOARDING.md` for exact commands.
@@ -62,11 +62,11 @@ judge, the expert reference DTs, and the API grounding**, not in the leaderboard
   returns `{score, rationale, mode, model, prompt, raw}`; provider-agnostic; rubric factored into
   versioned `simbench/rubric/*.txt`. `simbench/systems.py` is the taxonomy single-source.
   `python -m simbench.score <model>` evaluates one agent's outputs (with `--dry-run`) and writes
-  a CSV in the published schema (so `rank_llm.py` consumes it). `scoring/v01/p_JLLM_score.py`
+  a CSV in the published schema (so `rank_llm.py` consumes it). `scoring/engine/p_JLLM_score.py`
   refactored to use the package, guarded under `__main__`, model via CLI/env, no key print.
-- **P2 structure + data hosting:** documented `statistic/` (runtime outputs) vs `statistics/`
-  (analysis) instead of renaming (renaming would touch 3+ scripts); labeled `scoring/v01` as the
-  live engine; `DATA.md` describes the ~840 MB hosting migration.
+- **P2 structure + data hosting:** renamed the misleading dirs (`scoring/v01` -> `scoring/engine`,
+  `statistic` -> `metrics`, `statistics` -> `analysis`) and updated every reference; `DATA.md`
+  describes the ~840 MB hosting migration.
 
 ### Remaining / gated
 1. **Data hosting** (`DATA.md`): publish `output_llms`/`output_conversion` to Zenodo or a Release,

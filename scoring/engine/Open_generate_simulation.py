@@ -7,7 +7,7 @@ from tqdm import tqdm
 # Auto-detect project root based on script location
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Script is at: <PROJECT_ROOT>/scoring/v01/Open_generate_simulation.py, so go up 2 levels
+# Script is at: <PROJECT_ROOT>/scoring/engine/Open_generate_simulation.py, so go up 2 levels
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
 def read_script(file_path):

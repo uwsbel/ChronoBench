@@ -28,11 +28,11 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 | `demo_data/` | The benchmark: 34 systems x 3 turns. `manifest.json` indexes system -> category -> turn -> files. |
 | `api/api.txt` | ~4k-token PyChrono API reference used as judge context. |
 | `simbench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_dt`), `score.py` (CLI), `systems.py` (taxonomy). |
-| `scoring/v01/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
+| `scoring/engine/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
 | `scoring/` (root) | The paper's analysis/plotting scripts + `rank_llm.py`. |
 | `output_llms/` | Generated DT code + scores for 30+ published models (large; see `DATA.md`). |
-| `statistic/` | Pipeline **runtime outputs** (e.g. `evaluation_results.csv`). |
-| `statistics/` | Separate **analysis/figures** workspace (different role despite the similar name). |
+| `metrics/` | Pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`). |
+| `analysis/` | Analysis + figures workspace (ranking, correlation, plots). |
 
 ## 3. The evaluation pipeline
 
@@ -42,12 +42,12 @@ generate -> extract -> (compile) -> similarity -> J-LLM score -> rank
 
 | Stage | Script | In -> Out |
 |-------|--------|-----------|
-| 1. Generate (optional) | `scoring/v01/*_generate_simulation.py` | prompts -> `output_llms/<model>/<system>/{first,second,third}_response.txt` |
+| 1. Generate (optional) | `scoring/engine/*_generate_simulation.py` | prompts -> `output_llms/<model>/<system>/{first,second,third}_response.txt` |
 | 2. Extract code | `scoring/extractPy.py` | `*_response.txt` -> `*_response.py` (+ cleaned) |
 | 3. Compile/run (optional, needs PyChrono) | `scoring/evaluatePy.py` | `*_response.py` -> execution log (Compile@1) |
-| 4. Similarity metrics | `scoring/p_sim_score.py` | cleaned code vs `cleaned_truth*.py` -> `statistic/evaluation_results.csv` |
-| 5. J-LLM scoring | **`python -m simbench.score <model>`** (or legacy `scoring/v01/p_JLLM_score.py`) | `*_response.py` + `truth*.py` + `api.txt` -> per-system CSV + `output_llms/combined_evaluation_scores.csv` |
-| 6. Rank | `scoring/rank_llm.py` | merges (4)+(5) -> rankings under `statistic/analysis_output/` |
+| 4. Similarity metrics | `scoring/p_sim_score.py` | cleaned code vs `cleaned_truth*.py` -> `metrics/evaluation_results.csv` |
+| 5. J-LLM scoring | **`python -m simbench.score <model>`** (or legacy `scoring/engine/p_JLLM_score.py`) | `*_response.py` + `truth*.py` + `api.txt` -> per-system CSV + `output_llms/combined_evaluation_scores.csv` |
+| 6. Rank | `scoring/rank_llm.py` | merges (4)+(5) -> rankings under `scoring/out/` |
 
 ## 4. Start here (pick your goal)
 
@@ -87,11 +87,7 @@ print(ev.rationale)   # the judge's per-criterion deductions (free text) -> feed
 
 ## 5. Known rough edges
 
-1. `scoring/extractPy.py`, `scoring/p_sim_score.py` have a hardcoded `test_model_list` near the
-   bottom; edit it before running, or prefer `python -m simbench.score` which takes the model
-   on the command line.
-2. `scoring/extractPy.py` currently contains its body twice (an accidental duplication); it
-   still runs, but only the second `test_model_list` takes effect.
-3. `statistic/` vs `statistics/` are different on purpose (runtime outputs vs analysis); see
-   the READMEs in each.
-4. `output_llms/` and `output_conversion/` are large; see `DATA.md` for hosting guidance.
+1. `scoring/p_sim_score.py` has a hardcoded `test_model_list` near the bottom; edit it before
+   running. (`scoring/extractPy.py` and `python -m simbench.score` take the model on the
+   command line, so prefer those.)
+2. `output_llms/` and `output_conversion/` are large; see `DATA.md` for hosting guidance.

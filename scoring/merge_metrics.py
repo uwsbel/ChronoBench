@@ -13,11 +13,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
 # Input files
-EVAL_RESULTS = PROJECT_ROOT / "statistic" / "evaluation_results.csv"
+EVAL_RESULTS = PROJECT_ROOT / "metrics" / "evaluation_results.csv"
 COMBINED_SCORES = PROJECT_ROOT / "output_llms" / "combined_evaluation_scores.csv"
 
 # Output file
-OUTPUT_FILE = PROJECT_ROOT / "statistic" / "all_metrics_combined.csv"
+OUTPUT_FILE = PROJECT_ROOT / "metrics" / "all_metrics_combined.csv"
 
 def main():
     print("=" * 60)

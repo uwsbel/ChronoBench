@@ -20,7 +20,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 # Define paths (auto-detected)
 dataset_path = PROJECT_ROOT / "demo_data"
 output_path = PROJECT_ROOT / "output_llms"
-output_statistic_path = PROJECT_ROOT / "statistic"
+output_statistic_path = PROJECT_ROOT / "metrics"
 # List of models and systems to evaluate
 test_model_list = [
     "gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",

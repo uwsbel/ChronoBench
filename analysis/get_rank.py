@@ -1,10 +1,13 @@
+import os
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Load the two CSV files
-file_1_path = 'D:\SimBench\statistic\\filtered_pass_data.csv'
-file_2_path = 'D:\SimBench\statistic\\LLM.csv'
+# Load the two CSV files (located alongside this script in analysis/)
+_DIR = os.path.dirname(os.path.abspath(__file__))
+file_1_path = os.path.join(_DIR, "filtered_pass_data.csv")
+file_2_path = os.path.join(_DIR, "LLM.csv")
 
 df1 = pd.read_csv(file_1_path)
 df2 = pd.read_csv(file_2_path)

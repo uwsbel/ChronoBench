@@ -1,21 +1,17 @@
+from openai import OpenAI
 import os
 import json
 from tqdm import tqdm
-import anthropic
 
 # -----------------------------------------------------------------------------
 # Auto-detect project root based on script location
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Script is at: <PROJECT_ROOT>/scoring/v01/claude_generate_simulation.py, so go up 2 levels
+# Script is at: <PROJECT_ROOT>/scoring/engine/gpt_generate_simulation.py, so go up 2 levels
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-client = anthropic.Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY")
-)
-key=os.environ.get("ANTHROPIC_API_KEY")
-print(key)
-print(os.environ.get("ANTHROPIC_API_KEY"))
+nvidia_api_key = os.getenv("OPENAI_API_KEY")
+print(nvidia_api_key)
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -35,16 +31,19 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        message = client.messages.create(
+        global nvidia_api_key
+        client = OpenAI(api_key=nvidia_api_key)
+        completion = client.chat.completions.create(
             model=model_link,
-            max_tokens=4096*2,
             messages=[
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            temperature=0.1,
+            top_p=0.95,
+            max_completion_tokens=4096*4,
+            stream=False
         )
-        #print(message.content)
-
-        return message.content, prompt
+        return completion.choices[0].message.content, prompt
     except Exception as e:
         print('error1:', e)
         return str(e), str(e)
@@ -73,16 +72,19 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        message = client.messages.create(
+        global nvidia_api_key
+        client = OpenAI(api_key=nvidia_api_key)
+        completion = client.chat.completions.create(
             model=model_link,
-            max_tokens=4096*2,
             messages=[
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            temperature=0.1,
+            top_p=0.95,
+            max_completion_tokens=1024 * 4 * 4,
+            stream=False
         )
-        # print(message.content)
-
-        return message.content, prompt
+        return completion.choices[0].message.content, prompt
     except Exception as e:
         print('error2:', e)
         return str(e), str(e)
@@ -114,29 +116,37 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-    "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",
-    "claude-3-7-sonnet-20250219":"claude-3-7-sonnet-20250219",
-    "claude-4-sonnet-20250514":"claude-4-sonnet-20250514"
+    "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-4o-mini-f1":"ft:gpt-4o-mini-2024-07-18:personal::9xVAdwNY",
+    "gpt-4.1":"gpt-4.1",
+    "gpt-4.1-mini":"gpt-4.1-mini",
+    "gpt-4.1-nano":"gpt-4.1-nano",
+    "o4-mini":"o4-mini",
+    "o3":"o3",
+    "gpt-4o-mini-f3":"ft:gpt-4o-mini-2024-07-18:uw-sbel::A6Rd900h"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
                "pendulum",
                "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
-system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
+system_do_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity","feda", "gator", "gear", "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man",
+                  "mass_spring_damper", "particles", "pendulum",
+                  "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
+                  "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 # Auto-detected paths based on project root
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
-Output_path = os.path.join(PROJECT_ROOT, "output_llms")
-Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
+output_path = os.path.join(PROJECT_ROOT, "output_llms")
+output_conv = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["claude-3-7-sonnet-20250219"]
+test_model_list = ["gpt-4o-mini-f3"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
     print('entering model:', test_model)
     test_model_link = opensource_model_links[test_model]
-    output_model_path = os.path.join(Output_path, test_model)
+    output_model_path = os.path.join(output_path, test_model)
     os.makedirs(output_model_path, exist_ok=True)
     # for each model, we create a folder to store the test results for each dynamical system
     for system_folder in os.listdir(dataset_path):
@@ -157,11 +167,10 @@ for test_model in tqdm(test_model_list):
         if True:
             print("first round")
             first_response, combined_prompt1 = generate_first_code(input1_prompt, test_model_link)
-            print(first_response, combined_prompt1)
+            #    print(first_response, combined_prompt1)
             first_response_path = os.path.join(output_system_path, "first_response.txt")
             with open(first_response_path, 'w', encoding="utf-8") as file:
-                text_blocks = [block.text for block in first_response]
-                file.write("\n".join(text_blocks))
+                file.write(first_response)
             # for the second and third input, the input is the input2.txt with pyinput2.py; input3.txt with pyinput3.py, respectively
             input2txt_path = os.path.join(system_folder_path, 'input2.txt')
             input2_prompt = read_script(input2txt_path)
@@ -174,9 +183,7 @@ for test_model in tqdm(test_model_list):
             #    print(second_response, combined_prompt2)
             second_response_path = os.path.join(output_system_path, "second_response.txt")
             with open(second_response_path, 'w', encoding="utf-8") as file:
-                text_blocks = [block.text for block in second_response]
-                file.write("\n".join(text_blocks))
-
+                file.write(second_response)
             input3txt_path = os.path.join(system_folder_path, 'input3.txt')
             input3_prompt = read_script(input3txt_path)
             #    print('input3:', input3_prompt)
@@ -188,11 +195,11 @@ for test_model in tqdm(test_model_list):
             #    print(third_response, combined_prompt3)
             third_response_path = os.path.join(output_system_path, "third_response.txt")
             with open(third_response_path, 'w', encoding="utf-8") as file:
-                text_blocks = [block.text for block in third_response]
-                file.write("\n".join(text_blocks))
+                file.write(third_response)
             # save the combined prompt with the response into a json file
-            output_conversation_path = os.path.join(Output_conversation_path,
+            output_conversation_path = os.path.join(output_conv,
                                                     f"{test_model}_{system_folder}_conversation.json")
-            #save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,second_response, combined_prompt3, third_response)
+            save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,
+                                   second_response, combined_prompt3, third_response)
 print("finished")
 

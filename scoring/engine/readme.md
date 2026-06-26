@@ -1,8 +1,8 @@
-## Files associated with version 1 of the J-LLM
+## `scoring/engine/` — the operational engine (generation + judging)
 
-> **This directory is the operational engine, not dead code.** Despite the "v01" name, it holds
-> the S-LLM generation drivers and the batch J-LLM scoring harness (`p_JLLM_score.py`) that
-> produced the published results. As of the reusable-evaluator refactor, `p_JLLM_score.py`
+> This directory holds the S-LLM generation drivers and the batch J-LLM scoring harness
+> (`p_JLLM_score.py`) that produced the published results. (It was formerly named `v01`, which
+> misleadingly read as legacy/version-1.) As of the reusable-evaluator refactor, `p_JLLM_score.py`
 > imports the rubric/judge logic from the top-level `simbench/` package (single source of truth)
 > and runs only under `__main__`. For one-off or new-agent evaluation, prefer
 > `python -m simbench.score <model>` (see `ONBOARDING.md`); use the scripts here for full

@@ -1,16 +1,21 @@
 import os
-from mistralai import Mistral
 import json
 from tqdm import tqdm
+import anthropic
 
 # -----------------------------------------------------------------------------
 # Auto-detect project root based on script location
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Script is at: <PROJECT_ROOT>/scoring/v01/mistral_generate_simulation.py, so go up 2 levels
+# Script is at: <PROJECT_ROOT>/scoring/engine/claude_generate_simulation.py, so go up 2 levels
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-
+client = anthropic.Anthropic(
+    api_key=os.environ.get("ANTHROPIC_API_KEY")
+)
+key=os.environ.get("ANTHROPIC_API_KEY")
+print(key)
+print(os.environ.get("ANTHROPIC_API_KEY"))
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
         return file.read()
@@ -30,21 +35,16 @@ def generate_first_code(first_prompt, model_link):
     “”"
     """
     try:
-        api_key = ""
-        model = "mistral-large-latest"
-
-        client = Mistral(api_key=api_key)
-
-        completion = client.chat.complete(
-            model=model,
+        message = client.messages.create(
+            model=model_link,
+            max_tokens=4096*2,
             messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
+                {"role": "user", "content": prompt}
             ]
         )
-        return completion.choices[0].message.content, prompt
+        #print(message.content)
+
+        return message.content, prompt
     except Exception as e:
         print('error1:', e)
         return str(e), str(e)
@@ -73,21 +73,16 @@ Modify the script based on the provided instructions to ensure it meets the spec
 Provide the corrected and modified script below:
     """
     try:
-        api_key  = ""
-        model = "mistral-large-latest"
-
-        client = Mistral(api_key=api_key)
-
-        completion = client.chat.complete(
-            model=model,
+        message = client.messages.create(
+            model=model_link,
+            max_tokens=4096*2,
             messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
+                {"role": "user", "content": prompt}
             ]
         )
-        return completion.choices[0].message.content, prompt
+        # print(message.content)
+
+        return message.content, prompt
     except Exception as e:
         print('error2:', e)
         return str(e), str(e)
@@ -119,7 +114,9 @@ def save_conversation_json(output_conversation_path, combined_prompt1, first_res
 
 
 opensource_model_links = {
-    "mistral-large-latest": "mistral-large-latest",
+    "claude-3-5-sonnet": "claude-3-5-sonnet-20240620",
+    "claude-3-7-sonnet-20250219":"claude-3-7-sonnet-20250219",
+    "claude-4-sonnet-20250514":"claude-4-sonnet-20250514"
 }
 system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
                "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
@@ -129,11 +126,11 @@ system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "
 system_do_list = ['art', 'citybus','feda','gator','hmmwv','scm','rigid_highway','rigid_multipatches']
 # Auto-detected paths based on project root
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
-Output_path = os.path.join(PROJECT_ROOT, "output")
+Output_path = os.path.join(PROJECT_ROOT, "output_llms")
 Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
 # in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
 # 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-test_model_list = ["mistral-large-latest"]
+test_model_list = ["claude-3-7-sonnet-20250219"]
 # define an output path for the test results for each model with the name of the model
 # using tqdm to show the progress bar
 for test_model in tqdm(test_model_list):
@@ -149,20 +146,22 @@ for test_model in tqdm(test_model_list):
         output_system_path = os.path.join(output_model_path, system_folder)
         os.makedirs(output_system_path, exist_ok=True)
 
-        if system_folder in system_do_list:
-            input1_path = os.path.join(system_folder_path, 'input1.txt')
-            input1_prompt = read_script(input1_path)
-            # print('input1:', input1_prompt)
-            # generate the first response
-            # only test with the first system
-            # if system_folder == 'art':
-            # if system_folder in test_system_list:
+        # read the input1.txt file
+        input1_path = os.path.join(system_folder_path, 'input1.txt')
+        input1_prompt = read_script(input1_path)
+        # print('input1:', input1_prompt)
+        # generate the first response
+        # only test with the first system
+        # if system_folder == 'art':
+        # if system_folder in test_system_list:
+        if True:
             print("first round")
             first_response, combined_prompt1 = generate_first_code(input1_prompt, test_model_link)
-            #    print(first_response, combined_prompt1)
+            print(first_response, combined_prompt1)
             first_response_path = os.path.join(output_system_path, "first_response.txt")
             with open(first_response_path, 'w', encoding="utf-8") as file:
-                file.write(first_response)
+                text_blocks = [block.text for block in first_response]
+                file.write("\n".join(text_blocks))
             # for the second and third input, the input is the input2.txt with pyinput2.py; input3.txt with pyinput3.py, respectively
             input2txt_path = os.path.join(system_folder_path, 'input2.txt')
             input2_prompt = read_script(input2txt_path)
@@ -175,7 +174,9 @@ for test_model in tqdm(test_model_list):
             #    print(second_response, combined_prompt2)
             second_response_path = os.path.join(output_system_path, "second_response.txt")
             with open(second_response_path, 'w', encoding="utf-8") as file:
-                file.write(second_response)
+                text_blocks = [block.text for block in second_response]
+                file.write("\n".join(text_blocks))
+
             input3txt_path = os.path.join(system_folder_path, 'input3.txt')
             input3_prompt = read_script(input3txt_path)
             #    print('input3:', input3_prompt)
@@ -187,18 +188,11 @@ for test_model in tqdm(test_model_list):
             #    print(third_response, combined_prompt3)
             third_response_path = os.path.join(output_system_path, "third_response.txt")
             with open(third_response_path, 'w', encoding="utf-8") as file:
-                file.write(third_response)
+                text_blocks = [block.text for block in third_response]
+                file.write("\n".join(text_blocks))
             # save the combined prompt with the response into a json file
             output_conversation_path = os.path.join(Output_conversation_path,
                                                     f"{test_model}_{system_folder}_conversation.json")
-            save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,
-                                   second_response, combined_prompt3, third_response)
+            #save_conversation_json(output_conversation_path, combined_prompt1, first_response, combined_prompt2,second_response, combined_prompt3, third_response)
 print("finished")
-
-
-
-
-
-
-
 

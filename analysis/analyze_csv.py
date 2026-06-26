@@ -1,10 +1,14 @@
+import os
+
 import pandas as pd
 import matplotlib.pyplot as plt
-# Load the CSV files
-file_path = 'D:\SimBench\statistic\\filtered_pass_data.csv'
+
+# Load the CSV files (located alongside this script in analysis/)
+_DIR = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(_DIR, "filtered_pass_data.csv")
 data = pd.read_csv(file_path)
 
-llm_file_path = 'D:\SimBench\statistic\LLM.csv'
+llm_file_path = os.path.join(_DIR, "LLM.csv")
 llm_data = pd.read_csv(llm_file_path)
 
 
