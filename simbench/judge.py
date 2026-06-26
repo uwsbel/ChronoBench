@@ -1,0 +1,188 @@
+"""Rule-based J-LLM evaluator for PyChrono digital twins.
+
+This is the reusable form of the judge that was previously locked inside
+``scoring/v01/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
+import time). Here a single ``evaluate_dt(...)`` call returns the score plus the judge's
+rationale, the rubric lives once in ``simbench/rubric/*.txt``, and the model/provider are
+parameters.
+
+SimBench's purpose is to *evaluate and diagnose* a Chrono agent's digital twins, so the natural
+use is in a loop: an agent generates a DT, ``evaluate_dt`` scores it and explains the
+deductions, the agent revises.
+
+Three rubric modes (matching the paper):
+    - ``"ref_doc"`` : compare against the expert reference AND the API documentation (strongest).
+    - ``"ref"``     : compare against the expert reference only.
+    - ``"doc"``     : compare against the API documentation only (use when no reference exists).
+
+Example
+-------
+>>> from simbench.judge import evaluate_dt
+>>> ev = evaluate_dt(candidate_code, reference=truth_code, api_doc=api_text)
+>>> ev.score, ev.mode
+(72, 'ref_doc')
+>>> print(ev.rationale)   # the judge's per-criterion deductions, free text
+
+Provider-agnostic: pass any OpenAI-compatible ``client`` (e.g. an ``openai.OpenAI`` pointed at
+NVIDIA NIM, Together, vLLM, etc.). If omitted, an ``openai.OpenAI`` is built from
+``OPENAI_API_KEY``.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+# Judge sampling defaults, unchanged from the published pipeline (low variance).
+DEFAULT_MODEL = os.getenv("SIMBENCH_JUDGE_MODEL", "gpt-4o-mini")
+DEFAULT_TEMPERATURE = 0.2
+DEFAULT_TOP_P = 0.7
+DEFAULT_MAX_TOKENS = 12000
+
+_RUBRIC_DIR = Path(__file__).resolve().parent / "rubric"
+
+# mode -> (template filename, required template fields)
+MODES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "ref_doc": ("ref_doc.txt", ("code", "reference_code", "api_documentation")),
+    "ref": ("ref.txt", ("code", "reference_code")),
+    "doc": ("doc.txt", ("code", "api_documentation")),
+}
+
+_SCORE_RE = re.compile(r"\[\[(\d+)\]\]")
+
+
+@dataclass
+class Evaluation:
+    """Result of one J-LLM evaluation.
+
+    Attributes:
+        score: integer 0-100 parsed from the judge's ``[[x]]`` tag, or ``None`` if the judge
+            did not emit a parsable score (e.g. an API error or a malformed response).
+        rationale: the judge's full free-text explanation of the deductions (the per-criterion
+            breakdown lives here; the rubric does not ask for structured sub-scores).
+        mode: which rubric mode was used ("ref_doc" | "ref" | "doc").
+        model: the judge model name.
+        prompt: the exact prompt sent to the judge (kept for auditing/repro).
+        raw: the raw judge response (== rationale; kept for symmetry with the legacy JSON dumps).
+    """
+
+    score: int | None
+    rationale: str
+    mode: str
+    model: str
+    prompt: str
+    raw: str
+
+
+def parse_score(text: str | None) -> int | None:
+    """Extract the integer score from a judge response of the form '... [[42]]'.
+
+    Returns the first match, or None if no ``[[number]]`` tag is present. (The legacy
+    ``extract_scores_from_txt`` raised on a miss; here we return None so a single bad response
+    does not abort a batch.)
+    """
+    if not text:
+        return None
+    m = _SCORE_RE.search(text)
+    return int(m.group(1)) if m else None
+
+
+def select_mode(reference: str | None, api_doc: str | None) -> str:
+    """Pick the richest applicable rubric mode given what context is available."""
+    if reference and api_doc:
+        return "ref_doc"
+    if reference:
+        return "ref"
+    if api_doc:
+        return "doc"
+    raise ValueError("evaluate_dt needs at least one of `reference` or `api_doc`.")
+
+
+def build_prompt(
+    mode: str,
+    code: str,
+    reference: str | None = None,
+    api_doc: str | None = None,
+) -> str:
+    """Render the rubric prompt for a mode. Raises if required context is missing/empty."""
+    if mode not in MODES:
+        raise ValueError(f"Unknown mode {mode!r}; expected one of {sorted(MODES)}.")
+    fname, required = MODES[mode]
+    values = {"code": code, "reference_code": reference, "api_documentation": api_doc}
+    for field in required:
+        key = {"code": "code", "reference_code": "reference", "api_documentation": "api_doc"}[field]
+        if not values[field]:
+            raise ValueError(f"mode {mode!r} requires non-empty `{key}`.")
+    template = (_RUBRIC_DIR / fname).read_text(encoding="utf-8")
+    # Fill all placeholders; unused ones (per mode) are simply absent from the template.
+    return template.format(
+        code=code,
+        reference_code=reference or "",
+        api_documentation=api_doc or "",
+    )
+
+
+def _default_client():
+    from openai import OpenAI  # imported lazily so importing simbench never requires openai
+
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def evaluate_dt(
+    candidate: str,
+    reference: str | None = None,
+    api_doc: str | None = None,
+    *,
+    mode: str | None = None,
+    model: str = DEFAULT_MODEL,
+    client=None,
+    temperature: float = DEFAULT_TEMPERATURE,
+    top_p: float = DEFAULT_TOP_P,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+) -> Evaluation:
+    """Evaluate one candidate digital twin with the rule-based J-LLM.
+
+    Args:
+        candidate: the agent-generated PyChrono code to score.
+        reference: expert ground-truth code (enables "ref"/"ref_doc" modes).
+        api_doc: API documentation text, e.g. the contents of ``api/api.txt`` (enables
+            "doc"/"ref_doc" modes).
+        mode: force a rubric mode; if None, the richest applicable mode is selected.
+        model: judge model name (default from $SIMBENCH_JUDGE_MODEL or "gpt-4o-mini").
+        client: an OpenAI-compatible client; if None, one is built from $OPENAI_API_KEY.
+        temperature, top_p, max_tokens: sampling params (defaults match the published pipeline).
+
+    Returns:
+        An :class:`Evaluation`. On an API error the score is None and ``rationale`` holds the
+        error string, so callers can filter rather than crash mid-batch.
+    """
+    if mode is None:
+        mode = select_mode(reference, api_doc)
+    prompt = build_prompt(mode, candidate, reference, api_doc)
+
+    if client is None:
+        client = _default_client()
+
+    try:
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            stream=False,
+        )
+        raw = completion.choices[0].message.content
+    except Exception as exc:  # surface, do not crash a batch
+        raw = f"ERROR: {exc}"
+
+    return Evaluation(
+        score=parse_score(raw),
+        rationale=raw,
+        mode=mode,
+        model=model,
+        prompt=prompt,
+        raw=raw,
+    )
