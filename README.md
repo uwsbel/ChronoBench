@@ -25,14 +25,14 @@ different but qualitatively similar simulator-specific data.
 A description of the approach used to produce the J-LLM has been published in IEEE Access:
 
 ```bibtex
-@article{wangSimbench2026,
-  title   = {{SimBench: A Framework for Evaluating and Diagnosing LLM-Based Digital-Twin Generation for Multi-Physics Simulation}},
-  author  = {Jingquan Wang and Andrew Negrut and Hongyu Wang and Harry Zhang and Dan Negrut},
-  journal = {IEEE Access},
-  year    = {2026},
-  % volume  = {TODO}, % number = {TODO}, pages = {TODO}, doi = {TODO} -- fill in IEEE Access publication metadata
-  institution = {University of Wisconsin-Madison}
-}
+@article{simbench2026,
+  author={Wang, Jingquan and Negrut, Andrew and Wang, Hongyu and Zhang, Harry and Negrut, Dan},
+  journal={IEEE Access}, 
+  title={SimBench: A Framework for Evaluating and Diagnosing LLM-Based Digital-Twin Generation for Multi-Physics Simulation}, 
+  year={2026},
+  volume={14},
+  pages={61784-61808},
+  doi={10.1109/ACCESS.2026.3685519}}
 ```
 
 The earlier preprint is available on arXiv as
