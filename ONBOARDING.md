@@ -61,19 +61,23 @@ python scoring/rank_llm.py                          # rankings
 ```
 
 ### (b) Evaluate a NEW agent against SimBench
+New-agent outputs go under `runs/` so they never touch the frozen published run (see
+`runs/README.md`). Scoring uses a **contract** (default `v1.0-ieee-access-2026`), so results are
+comparable to the paper.
 1. Put your agent's generated code at:
-   `output_llms/<your-agent>/<system>/{first,second,third}_response.py`
+   `runs/<your-agent>/<system>/{first,second,third}_response.py`
    for each of the 34 systems (see names in `demo_data/manifest.json`). If you only have raw
-   `.txt` model responses, drop them as `*_response.txt` and run `scoring/extractPy.py` first.
+   `.txt` model responses, drop them as `*_response.txt` and run
+   `python scoring/extractPy.py <your-agent> --responses-dir runs` first.
 2. Sanity-check the layout without spending API calls:
    ```bash
-   python -m simbench.score <your-agent> --dry-run
+   python -m simbench.score <your-agent> --responses-dir runs --dry-run
    ```
-3. Score it (writes a CSV in the standard schema, plus a by-category / by-turn summary):
+3. Score it (uses the v1.0 contract; writes a CSV in the standard schema + a by-category/turn summary):
    ```bash
-   python -m simbench.score <your-agent>
+   python -m simbench.score <your-agent> --responses-dir runs
    ```
-4. Optional: `python scoring/rank_llm.py` to rank your agent against the published models.
+4. Contracts are listed in `CONTRACTS.md`; pass `--contract <version>` to score under a different one.
 
 ### (c) Use the J-LLM as a standalone diagnostic (in an agent loop)
 ```python

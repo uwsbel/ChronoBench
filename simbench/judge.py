@@ -105,8 +105,13 @@ def build_prompt(
     code: str,
     reference: str | None = None,
     api_doc: str | None = None,
+    rubric_dir=None,
 ) -> str:
-    """Render the rubric prompt for a mode. Raises if required context is missing/empty."""
+    """Render the rubric prompt for a mode. Raises if required context is missing/empty.
+
+    rubric_dir overrides the package's default rubric (e.g. to use a contract's frozen rubric
+    snapshot); when None, the package `simbench/rubric/` is used.
+    """
     if mode not in MODES:
         raise ValueError(f"Unknown mode {mode!r}; expected one of {sorted(MODES)}.")
     fname, required = MODES[mode]
@@ -115,7 +120,8 @@ def build_prompt(
         key = {"code": "code", "reference_code": "reference", "api_documentation": "api_doc"}[field]
         if not values[field]:
             raise ValueError(f"mode {mode!r} requires non-empty `{key}`.")
-    template = (_RUBRIC_DIR / fname).read_text(encoding="utf-8")
+    base = Path(rubric_dir) if rubric_dir else _RUBRIC_DIR
+    template = (base / fname).read_text(encoding="utf-8")
     # Fill all placeholders; unused ones (per mode) are simply absent from the template.
     return template.format(
         code=code,
@@ -141,6 +147,7 @@ def evaluate_script(
     temperature: float = DEFAULT_TEMPERATURE,
     top_p: float = DEFAULT_TOP_P,
     max_tokens: int = DEFAULT_MAX_TOKENS,
+    rubric_dir=None,
 ) -> Evaluation:
     """Evaluate one candidate virtual experiment script with the rule-based J-LLM.
 
@@ -160,7 +167,7 @@ def evaluate_script(
     """
     if mode is None:
         mode = select_mode(reference, api_doc)
-    prompt = build_prompt(mode, candidate, reference, api_doc)
+    prompt = build_prompt(mode, candidate, reference, api_doc, rubric_dir=rubric_dir)
 
     if client is None:
         client = _default_client()

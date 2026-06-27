@@ -17,36 +17,26 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # Script is at: <PROJECT_ROOT>/scoring/p_sim_score.py, so go up 1 level
 PROJECT_ROOT = SCRIPT_DIR.parent
 
-# Define paths (auto-detected)
+# Make the repo root importable so we can use the canonical system taxonomy.
+import sys
+sys.path.insert(0, str(PROJECT_ROOT))
+from simbench.systems import all_systems  # noqa: E402
+
+# Default paths (auto-detected); all overridable via CLI.
 dataset_path = PROJECT_ROOT / "demo_data"
-output_path = PROJECT_ROOT / "output_llms"
-output_statistic_path = PROJECT_ROOT / "metrics"
-# List of models and systems to evaluate
-test_model_list = [
-    "gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct",
-"llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-medium-128k-instruct",
- "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1",
- "mixtral-8x7b-instruct-v0.1", "mistral-large-latest", "mamba-codestral-7b-v0.1",
- "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet", "Gemini-1.5-pro",
-"llama4_maverick","llama4_scout", "llama-3.3-70b-instruct","o3","deepseek-r1-8b",
-"deepseek-r1-32b", "deepseek-r1","gemma-3-1b-it","qwen3-235b-a22b","claude-3-7-sonnet-20250219",
-"claude-4-sonnet-20250514","Gemini-2.5-pro","gpt-4.1-mini", "gpt-4.1-nano",
-"gpt-4.1","o4-mini","llama3.1-8b-f1","gpt-4o-mini-f1","llama3.3-70b-sft1","gpt-4o-mini-f3","pe_gpt-4o-mini","llama3.1-8b-lora1",
-"pe_llama-3.3-70b-instruct","pe_llama-3.1-405b-instruct","pe_deepseek-r1-32b","pe_llama4_scout","llama4-109b-lora1","pe_llama4_maverick",
-"llama3.3-70b-lora1","pe_deepseek-r1-8b","pe_llama-3.1-8b-instruct","pe_llama-3.1-70b-instruct"
-]
+DEFAULT_RESPONSES = PROJECT_ROOT / "output_llms"
+DEFAULT_OUT = PROJECT_ROOT / "metrics" / "evaluation_results.csv"
 
-system_list = [
-    "art", "beam", "buckling", "cable", "car", "camera",
-    "citybus", "curiosity", "feda", "gator", "gear",
-    "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113",
-    "man", "mass_spring_damper", "particles", "pendulum",
-    "rigid_highway", "rigid_multipatches", "rotor", "scm",
-    "scm_hill", "sedan", "sensros", "slider_crank",
-    "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"
-]
 
-system_do_list = system_list
+def resolve_models(argv_models, responses_dir):
+    """Models to score: CLI args, else $SIMBENCH_TEST_MODELS, else every dir under responses_dir."""
+    if argv_models:
+        return argv_models
+    env = os.getenv("SIMBENCH_TEST_MODELS")
+    if env:
+        return [m.strip() for m in env.split(",") if m.strip()]
+    return sorted(d for d in os.listdir(responses_dir)
+                  if os.path.isdir(os.path.join(responses_dir, d)))
 
 def read_script(file_path):
     with open(file_path, "r", encoding="utf-8") as file:
@@ -111,36 +101,44 @@ def evaluate_system(system_folder, model, output_model_path, dataset_path):
 
     return data
 
-def process_model_system_pair(model, system_folder):
-    output_model_path = os.path.join(output_path, model)
+def process_model_system_pair(model, system_folder, responses_dir, dataset_path):
+    output_model_path = os.path.join(responses_dir, model)
     os.makedirs(output_model_path, exist_ok=True)
     return evaluate_system(system_folder, model, output_model_path, dataset_path)
 
-if __name__ == '__main__':
-    # Initialize an empty list to collect all data
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(prog="python scoring/p_sim_score.py",
+                                 description="CodeBLEU/ROUGE similarity metrics vs cleaned ground truth.")
+    ap.add_argument("models", nargs="*",
+                    help="models to score (default: every dir under --responses-dir; or $SIMBENCH_TEST_MODELS)")
+    ap.add_argument("--responses-dir", default=str(DEFAULT_RESPONSES),
+                    help="base dir with <model>/<system>/*_cleaned_response.py (default: output_llms/)")
+    ap.add_argument("--out", default=str(DEFAULT_OUT),
+                    help="output CSV (default: metrics/evaluation_results.csv). Use a runs/ path for new agents.")
+    ap.add_argument("--systems", default="", help="comma-separated subset (default: all 34)")
+    args = ap.parse_args(argv)
+
+    responses_dir = args.responses_dir
+    models = resolve_models(args.models, responses_dir)
+    systems = [s.strip() for s in args.systems.split(",") if s.strip()] or all_systems()
+    print(f"sim-score: {len(models)} model(s) x {len(systems)} systems -> {args.out}")
+
     all_data = []
-
-    # Parallel execution using ProcessPoolExecutor
     with ProcessPoolExecutor() as executor:
-        futures = []
-        for test_model in test_model_list:
-            for system_folder in os.listdir(dataset_path):
-                if system_folder in system_do_list:
-                    futures.append(executor.submit(process_model_system_pair, test_model, system_folder))
-
-        # Collecting the results
+        futures = [executor.submit(process_model_system_pair, m, s, responses_dir, str(dataset_path))
+                   for m in models for s in systems]
         for future in tqdm(as_completed(futures), total=len(futures)):
             result = future.result()
             if result is not None:
                 all_data.extend(result)
 
-    # Convert the collected data into a DataFrame
     df = pd.DataFrame(all_data)
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    df.to_csv(args.out, index=False)
+    print(f"Results saved to {args.out}\nFinished")
 
-    # Save the DataFrame to a single CSV file
-    output_file = os.path.join(output_statistic_path, "evaluation_results.csv")
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    df.to_csv(output_file, index=False)
 
-    print(f"Results saved to {output_file}")
-    print("Finished")
+if __name__ == '__main__':
+    main()

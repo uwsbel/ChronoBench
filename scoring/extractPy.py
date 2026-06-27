@@ -103,8 +103,8 @@ def remove_comments_from_file(input_py_file, output_py_file, log_file="comment_r
         return f"{output_py_file} An unexpected error occurred: {str(e)}"
 
 
-def process_model(test_model):
-    output_model_path = os.path.join(Output_path, test_model)
+def process_model(test_model, responses_dir):
+    output_model_path = os.path.join(responses_dir, test_model)
     os.makedirs(output_model_path, exist_ok=True)
     print("entering model:", test_model)
 
@@ -130,9 +130,9 @@ def process_model(test_model):
             file.write("\n".join(messages) + "\n")
 
 
-def resolve_test_models(argv):
-    if argv:
-        return argv
+def resolve_test_models(models):
+    if models:
+        return models
     env = os.getenv("SIMBENCH_TEST_MODELS")
     if env:
         return [m.strip() for m in env.split(",") if m.strip()]
@@ -140,11 +140,17 @@ def resolve_test_models(argv):
 
 
 def main(argv=None):
-    argv = sys.argv[1:] if argv is None else argv
-    test_model_list = resolve_test_models(argv)
-    print(f"Extracting for models: {test_model_list}")
+    import argparse
+    ap = argparse.ArgumentParser(prog="python scoring/extractPy.py",
+                                 description="Extract runnable .py (+ comment-stripped) from S-LLM .txt responses.")
+    ap.add_argument("models", nargs="*", help="models to process (else $SIMBENCH_TEST_MODELS, else default)")
+    ap.add_argument("--responses-dir", default=os.path.join(PROJECT_ROOT, "output_llms"),
+                    help="base dir with <model>/<system>/*_response.txt (default: output_llms/; use runs/ for new agents)")
+    args = ap.parse_args(argv)
+    test_model_list = resolve_test_models(args.models)
+    print(f"Extracting for models: {test_model_list} (responses-dir={args.responses_dir})")
     for test_model in test_model_list:
-        process_model(test_model)
+        process_model(test_model, args.responses_dir)
     print("finished")
 
 

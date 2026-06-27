@@ -11,6 +11,9 @@ import logging
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Script is at: <PROJECT_ROOT>/scoring/clean_truth.py, so go up 1 level
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+import sys
+sys.path.insert(0, PROJECT_ROOT)
+from simbench.systems import all_systems  # noqa: E402
 
 def remove_comments_from_file(input_py_file, output_py_file, log_file='comment_removal.log'):
     """Remove comments from a Python file and save the output to another file."""
@@ -53,78 +56,26 @@ def read_script(file_path):
         return file.read()
 
 
-opensource_model_links = {
-    "gemma-2-9b-it": "google/gemma-2-9b-it",
-    "gemma-2-27b-it": "google/gemma-2-27b-it",
-    "gemma-2-2b-it": "google/gemma-2-2b-it",
-    "llama-3.1-405b-instruct": "meta/llama-3.1-405b-instruct",
-    "llama-3.1-70b-instruct": "meta/llama-3.1-70b-instruct",
-    "codellama-70b": "meta/codellama-70b",
-    "llama-3.1-8b-instruct": "meta/llama-3.1-8b-instruct",
-    "phi-3-mini-128k-instruct": "microsoft/phi-3-mini-128k-instruct",
-    "phi-3-small-8k-instruct": "microsoft/phi-3-small-8k-instruct",
-    "phi-3-medium-128k-instruct": "microsoft/phi-3-medium-128k-instruct",
-    "nemotron-4-340b-instruct": "nvidia/nemotron-4-340b-instruct",
-    "mistral-nemo-12b-instruct": "nv-mistralai/mistral-nemo-12b-instruct",
-    "mixtral-8x22b-instruct-v0.1": "mistralai/mixtral-8x22b-instruct-v0.1",
-    "codestral-22b-instruct-v0.1": "mistralai/codestral-22b-instruct-v0.1",
-    "mixtral-8x7b-instruct-v0.1": "mistralai/mixtral-8x7b-instruct-v0.1",
-    "mistral-large": "mistralai/mistral-large",
-    "mamba-codestral-7b-v0.1": "mistralai/mamba-codestral-7b-v0.1",
-}
-system_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus", "curiosity", "feda", "gator", "gear",
-               "gps_imu", "handler", "hmmwv", "kraz", "lidar", "m113", "man", "mass_spring_damper", "particles",
-               "pendulum",
-               "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
-               "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
-
 # Auto-detected paths based on project root
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
-Output_path = os.path.join(PROJECT_ROOT, "output")
-Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
-# in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
-# 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-#test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct","nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1"]
 
-test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
-                   "nemotron-4-340b-instruct", "mistral-nemo-12b-instruct", "mixtral-8x22b-instruct-v0.1", "codestral-22b-instruct-v0.1", "mixtral-8x7b-instruct-v0.1", "mistral-large", "mamba-codestral-7b-v0.1",
-                   "gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet","Gemini-1.5-pro"]
-# define an output path for the test results for each model with the name of the model
-# using tqdm to show the progress bar
 
-for system_folder in os.listdir(dataset_path):
-    print('entering folder:', system_folder)
-    system_folder_path = os.path.join(dataset_path, system_folder)
-    # for each dynamical system, we create a folder to store the test results for each model
+def main(argv=None):
+    """Regenerate cleaned_truth{1,2,3}.py (comments stripped) for every benchmark system.
 
-    if True:
-        # we want to clean the truth1.py, truth2.py, truth3.py files
-        first_truth_path = os.path.join(system_folder_path, "truth1.py")
-        second_truth_path = os.path.join(system_folder_path, "truth2.py")
-        third_truth_path = os.path.join(system_folder_path, "truth3.py")
+    NOTE: this rewrites files inside demo_data, which is part of the frozen contract. The regex
+    is deterministic so output should be byte-identical; if it ever changes, the contract's
+    tasks hash changes and the contract must be re-pinned.
+    """
+    for system_folder in all_systems():
+        system_folder_path = os.path.join(dataset_path, system_folder)
+        for t in (1, 2, 3):
+            src = os.path.join(system_folder_path, f"truth{t}.py")
+            dst = os.path.join(system_folder_path, f"cleaned_truth{t}.py")
+            print(remove_comments_from_file(src, dst))
+    print("finished")
 
-        first_cleaned_truth_path = os.path.join(system_folder_path, "cleaned_truth1.py")
-        print(first_cleaned_truth_path)
 
-        message_1_cleaned = remove_comments_from_file(first_truth_path, first_cleaned_truth_path)
-        print(message_1_cleaned)
-
-        second_cleaned_truth_path = os.path.join(system_folder_path, "cleaned_truth2.py")
-        message_2_cleaned = remove_comments_from_file(second_truth_path, second_cleaned_truth_path)
-        print(message_2_cleaned)
-
-        third_cleaned_truth_path = os.path.join(system_folder_path, "cleaned_truth3.py")
-        message_3_cleaned = remove_comments_from_file(third_truth_path, third_cleaned_truth_path)
-        print(message_3_cleaned)
-
-        # save the three messages to a txt file
-        message_path = os.path.join(dataset_path, "extraction_message.txt")
-        with open(message_path, "w", encoding="utf-8") as file:
-            file.write(message_1_cleaned + '\n')
-            file.write(message_2_cleaned + '\n')
-            file.write(message_3_cleaned + '\n')
-
-        # print(third_response)
-
-print("finished")
+if __name__ == "__main__":
+    main()
 

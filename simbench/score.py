@@ -38,8 +38,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402
+from simbench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402,F401
 from simbench.systems import all_systems, category_of  # noqa: E402
+from simbench.contract import DEFAULT_CONTRACT, list_contracts, load_contract  # noqa: E402
 
 ROUNDS = [("first", 1), ("second", 2), ("third", 3)]
 # CSV columns match combined_evaluation_scores.csv so rank_llm.py is drop-in.
@@ -56,8 +57,12 @@ def _read(path: str) -> str | None:
 
 
 def score_one(model: str, system: str, responses_dir: str, data_dir: str, api_doc: str,
-              modes: list[str], judge_model: str, client, dry_run: bool) -> list[dict]:
-    """Score all three turns of one system. Returns a list of per-turn result dicts."""
+              modes: list[str], judge_kwargs: dict, client, dry_run: bool) -> list[dict]:
+    """Score all three turns of one system. Returns a list of per-turn result dicts.
+
+    judge_kwargs holds the contract-derived judge params (model, temperature, top_p, max_tokens,
+    rubric_dir) spread into evaluate_script.
+    """
     sys_out = os.path.join(responses_dir, model, system)
     sys_data = os.path.join(data_dir, system)
     rows = []
@@ -75,13 +80,13 @@ def score_one(model: str, system: str, responses_dir: str, data_dir: str, api_do
             if dry_run:
                 # validate that context exists and the prompt renders; no API call.
                 try:
-                    build_prompt(mode, candidate, ref, doc)
+                    build_prompt(mode, candidate, ref, doc, rubric_dir=judge_kwargs.get("rubric_dir"))
                     row[mode] = "OK"
                 except ValueError as e:
                     row[mode] = f"ERR:{e}"
             else:
                 ev = evaluate_script(candidate, reference=ref, api_doc=doc, mode=mode,
-                                 model=judge_model, client=client)
+                                     client=client, **judge_kwargs)
                 row[mode] = ev.score
         rows.append(row)
     return rows
@@ -137,13 +142,16 @@ def build_parser() -> argparse.ArgumentParser:
                    help="base dir containing <model>/<system>/ outputs (default: output_llms/)")
     p.add_argument("--data-dir", default=os.path.join(PROJECT_ROOT, "demo_data"),
                    help="benchmark data dir with <system>/truth{1,2,3}.py (default: demo_data/)")
-    p.add_argument("--api", default=os.path.join(PROJECT_ROOT, "api", "api.txt"),
-                   help="API documentation text file (default: api/api.txt)")
+    p.add_argument("--contract", default=DEFAULT_CONTRACT,
+                   help=f"contract version supplying the judge/api/rubric (default: {DEFAULT_CONTRACT}; "
+                        f"'none' to use package defaults + --api/--judge-model)")
+    p.add_argument("--api", default=None,
+                   help="override the API doc text file (default: from the contract)")
     p.add_argument("--systems", default="", help="comma-separated subset (default: all 34)")
     p.add_argument("--modes", default="doc,ref,ref_doc",
                    help="comma-separated rubric modes to run (default: doc,ref,ref_doc)")
-    p.add_argument("--judge-model", default=DEFAULT_MODEL,
-                   help=f"judge model (default: {DEFAULT_MODEL}; or $SIMBENCH_JUDGE_MODEL)")
+    p.add_argument("--judge-model", default=None,
+                   help="override the judge model (default: from the contract, or gpt-4o-mini)")
     p.add_argument("--base-url", default=None,
                    help="OpenAI-compatible base_url for a non-OpenAI provider")
     p.add_argument("--out", default=None,
@@ -163,9 +171,37 @@ def main(argv=None) -> int:
         print(f"Unknown mode(s): {bad}; valid: {sorted(MODE_TO_COL)}")
         return 2
 
-    api_doc = _read(args.api)
+    # Resolve the contract: it supplies judge model/sampling, the api doc, and the rubric.
+    # Explicit --judge-model / --api override the contract; --contract none uses package defaults.
+    judge_kwargs: dict = {"rubric_dir": None}
+    contract = None
+    contract_label = "none"
+    if args.contract and args.contract.lower() != "none":
+        try:
+            contract = load_contract(args.contract)
+        except FileNotFoundError as e:
+            print(e)
+            return 2
+        contract_label = contract.version
+        judge_kwargs.update(model=contract.judge_model, temperature=contract.temperature,
+                            top_p=contract.top_p, max_tokens=contract.max_tokens,
+                            rubric_dir=str(contract.rubric_dir))
+        if not contract.verify_tasks():
+            print(f"WARNING: demo_data no longer matches contract {contract.version} "
+                  f"(pinned {contract.tasks_sha256[:12]}...); scores will NOT be comparable.")
+    if args.judge_model:
+        judge_kwargs["model"] = args.judge_model
+    judge_kwargs.setdefault("model", DEFAULT_MODEL)
+
+    # API doc: --api override, else contract snapshot, else top-level api/api.txt.
+    if args.api:
+        api_doc = _read(args.api)
+    elif contract is not None:
+        api_doc = contract.read_api_doc()
+    else:
+        api_doc = _read(os.path.join(PROJECT_ROOT, "api", "api.txt"))
     if api_doc is None and any(m in ("doc", "ref_doc") for m in modes):
-        print(f"API doc not found at {args.api} (needed for doc/ref_doc modes).")
+        print("API doc not found (needed for doc/ref_doc modes); set --api or use a contract.")
         return 2
 
     client = None
@@ -174,13 +210,13 @@ def main(argv=None) -> int:
         key = os.getenv("OPENAI_API_KEY")
         client = OpenAI(api_key=key, base_url=args.base_url) if args.base_url else OpenAI(api_key=key)
 
-    print(f"Evaluating '{args.model}' | judge={args.judge_model} | modes={modes} "
-          f"| systems={len(systems)} | dry_run={args.dry_run}")
+    print(f"Evaluating '{args.model}' | contract={contract_label} | judge={judge_kwargs['model']} "
+          f"| modes={modes} | systems={len(systems)} | dry_run={args.dry_run}")
 
     all_rows: list[dict] = []
     with ThreadPoolExecutor(max_workers=args.max_workers) as ex:
         futs = {ex.submit(score_one, args.model, s, args.responses_dir, args.data_dir,
-                          api_doc, modes, args.judge_model, client, args.dry_run): s
+                          api_doc, modes, judge_kwargs, client, args.dry_run): s
                 for s in systems}
         for fut in as_completed(futs):
             all_rows.extend(fut.result())
