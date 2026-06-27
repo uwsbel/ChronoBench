@@ -1,1 +1,0 @@
-I don't see any instructions provided. Please provide the instructions for generating the simulation script, and I'll be happy to assist you in creating the PyChrono script.

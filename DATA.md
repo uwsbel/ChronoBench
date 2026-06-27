@@ -11,11 +11,14 @@ SimBench commits a large amount of generated data directly to git:
 The `demo_data/` benchmark itself is small (~3 MB) and should stay in git. The two generated-output
 directories are what make the repo heavy to clone.
 
-## Archive location (fill in once published)
+## Archive location
 
-- Archive base URL (Zenodo files URL or GitHub Release assets URL): `TODO`
-- DOI (if Zenodo): `TODO`
-- Checksums: see `dist/SHA256SUMS` produced by the packaging script (paste here after upload).
+- Record: https://zenodo.org/records/20974275
+- DOI: `10.5281/zenodo.20974275` (https://doi.org/10.5281/zenodo.20974275)
+- Archive base URL (Zenodo files): `https://zenodo.org/records/20974275/files`
+- Checksums (SHA256):
+  - `output_llms.tar.gz`: `29bc3c7f588d37c1ad839b92628d0ffcf7a30132944b56e4442fef4a31b7f591`
+  - `output_conversion.tar.gz`: `7796e86dbae651570ab49e9598d6c8216dc34c72bf57c070eb72cf412222ba08`
 
 ## Recommended migration
 

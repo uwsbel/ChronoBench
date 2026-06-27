@@ -7,9 +7,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Base URL that directly serves the tarballs, e.g. a Zenodo record files URL or a GitHub Release
-# assets URL. Fill this in (or export SIMBENCH_DATA_URL) once the archive is published.
-BASE_URL="${SIMBENCH_DATA_URL:-PUT_ARCHIVE_BASE_URL_HERE}"
+# Base URL that directly serves the tarballs. Defaults to the published Zenodo record
+# (10.5281/zenodo.20974275); override with $SIMBENCH_DATA_URL for a mirror or a new version.
+BASE_URL="${SIMBENCH_DATA_URL:-https://zenodo.org/records/20974275/files}"
 ARCHIVES=("output_llms.tar.gz" "output_conversion.tar.gz")
 
 if [[ "$BASE_URL" == PUT_* ]]; then

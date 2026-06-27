@@ -55,11 +55,13 @@ generate -> extract -> (compile) -> similarity -> J-LLM score -> rank
 ## 4. Start here (pick your goal)
 
 ### (a) Reproduce the published evaluation
-The generated outputs for 30+ models are already in `output_llms/`. To regenerate scores:
+The published run lives on Zenodo (`10.5281/zenodo.20974275`), not in git. Fetch it first, then
+regenerate scores:
 ```bash
-python scoring/p_sim_score.py                      # similarity metrics (edit its test_model_list)
-python -m simbench.score claude-4-sonnet-20250514  # J-LLM scores for one model
-python scoring/rank_llm.py                          # rankings
+bash scripts/fetch_published_data.sh                # restores output_llms/ + output_conversion/
+python scoring/p_sim_score.py                       # similarity metrics for all models present
+python -m simbench.score claude-4-sonnet-20250514   # J-LLM scores for one model (v1.0 contract)
+python scoring/rank_llm.py                           # rankings
 ```
 
 ### (b) Evaluate a NEW agent against SimBench
