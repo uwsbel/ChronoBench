@@ -16,7 +16,7 @@ Contents:
    `DATA.md`).
 4. `paper_addition_dataset.tex`: the dataset-complexity section.
 
-The **living** benchmark and evaluator are at the repo top level (`simbench/`, `scoring/`,
+The **living** benchmark and evaluator are at the repo top level (`chronobench/`, `scoring/`,
 `demo_data/`, `contracts/`). Evaluate new agents through those (see `ONBOARDING.md`), not here.
 
 Reproducing the published rankings uses the living pipeline (writes a fresh `scoring/out/`, which

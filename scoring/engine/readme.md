@@ -3,9 +3,9 @@
 > This directory holds the S-LLM generation drivers and the batch J-LLM scoring harness
 > (`p_JLLM_score.py`) that produced the published results. (It was formerly named `v01`, which
 > misleadingly read as legacy/version-1.) As of the reusable-evaluator refactor, `p_JLLM_score.py`
-> imports the rubric/judge logic from the top-level `simbench/` package (single source of truth)
+> imports the rubric/judge logic from the top-level `chronobench/` package (single source of truth)
 > and runs only under `__main__`. For one-off or new-agent evaluation, prefer
-> `python -m simbench.score <model>` (see `ONBOARDING.md`); use the scripts here for full
+> `python -m chronobench.score <model>` (see `ONBOARDING.md`); use the scripts here for full
 > batch generation + scoring runs.
 
 - `claude_generate_simulation.py`, `google_generate_simulation.py`, `gpt_generate_simulation.py`, `mistral_generate_simulation.py`, and `opensource_generate_simulation.py` are Python scripts used to generate virtual experiment scripts for specific LLMs. The `opensource_generate_simulation.py` script is designed for open-source LLMs, as mentioned in the paper.

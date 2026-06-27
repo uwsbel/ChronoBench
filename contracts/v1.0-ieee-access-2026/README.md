@@ -16,5 +16,5 @@ breaks comparability with the published numbers and must be made as a NEW contra
 Reproduce the published configuration:
 
 ```bash
-python -m simbench.score <model> --contract v1.0-ieee-access-2026
+python -m chronobench.score <model> --contract v1.0-ieee-access-2026
 ```

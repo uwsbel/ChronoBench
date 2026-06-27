@@ -17,9 +17,9 @@ This folder contains five major categories of simulation scenarios (setups, them
 - **Vehicle Systems (VEH)**:
   - `["art", "citybus", "feda", "gator", "hmmwv", "kraz", "m113", "man", "rigid_highway", "rigid_multipatches", "scm", "scm_hill", "sedan", "uazbus"]`
 
-### SimBench Overview:
+### ChronoBench Overview:
 
-SimBench provides a diverse range of simulation scenarios across five key application areas: multibody dynamics (MBS), vehicle dynamics (VEH), robotics (RBT), finite element analysis (FEA), and sensor integration (SEN). These scenarios are designed to evaluate specific aspects of S-LLM performance, such as virtual experiment script setup, problem reasoning, and the ability to carry out model adjustments.
+ChronoBench provides a diverse range of simulation scenarios across five key application areas: multibody dynamics (MBS), vehicle dynamics (VEH), robotics (RBT), finite element analysis (FEA), and sensor integration (SEN). These scenarios are designed to evaluate specific aspects of S-LLM performance, such as virtual experiment script setup, problem reasoning, and the ability to carry out model adjustments.
 
 A brief discussion of the classes of simulations used in this benchmark are as follows:
 
@@ -35,4 +35,4 @@ A brief discussion of the classes of simulations used in this benchmark are as f
 
 ### Simulation Tasks:
 
-SimBench features 102 demonstration tasks across 34 unique physical systems from the five categories listed above. Each task is structured into three stages of increasing complexity, designed by simulation experts to challenge the S-LLM's capabilities in setting up and modifying virtual experiment scripts. These tasks provide a robust evaluation of the S-LLM's performance across different simulation environments.
+ChronoBench features 102 demonstration tasks across 34 unique physical systems from the five categories listed above. Each task is structured into three stages of increasing complexity, designed by simulation experts to challenge the S-LLM's capabilities in setting up and modifying virtual experiment scripts. These tasks provide a robust evaluation of the S-LLM's performance across different simulation environments.

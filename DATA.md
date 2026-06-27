@@ -1,6 +1,6 @@
 # Data hosting notes
 
-SimBench commits a large amount of generated data directly to git:
+ChronoBench commits a large amount of generated data directly to git:
 
 | Path | Size | Tracked files | What it is |
 |------|------|---------------|------------|
@@ -34,7 +34,7 @@ and fetch scripts are ready (`scripts/`); the upload and the untracking are gate
    checksums in the section above.
 3. **Fetch path** (ready): once published, anyone restores the data with
    ```bash
-   SIMBENCH_DATA_URL=<archive base url> bash scripts/fetch_published_data.sh
+   CHRONOBENCH_DATA_URL=<archive base url> bash scripts/fetch_published_data.sh
    ```
 4. **Stop tracking** (needs Dan; do only after steps 2-3 work): removes from HEAD, keeps the
    working-tree files.

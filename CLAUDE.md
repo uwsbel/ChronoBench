@@ -1,6 +1,7 @@
-# SimBench
+# ChronoBench
 
-SimBench is a benchmark for evaluating and diagnosing how well simulator-oriented LLMs
+ChronoBench (published as SimBench, IEEE Access 2026) is a benchmark for evaluating and
+diagnosing how well simulator-oriented LLMs
 (S-LLMs) generate **virtual experiment scripts** (simulator-ready scripts/configs that set up
 and run a simulation) for multi-physics simulation. Given a set of S-LLMs, it ranks them by the
 quality of those scripts using a rule-based **LLM-as-a-judge (J-LLM)** that combines predefined
@@ -28,8 +29,8 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 
 ## Where things live (code)
 
-1. `simbench/` (package): the reusable evaluator, `judge.evaluate_script(...)`, the
-   `python -m simbench.score` CLI, and the system/category taxonomy (`systems.py`).
+1. `chronobench/` (package): the reusable evaluator, `judge.evaluate_script(...)`, the
+   `python -m chronobench.score` CLI, and the system/category taxonomy (`systems.py`).
 2. `api/api.txt`: condensed Chrono/PyChrono API reference fed to the J-LLM as context.
 3. `demo_data/`: expert ground-truth scripts, 34 physical systems, each with three turns
    (`truth1.py`/`truth2.py`/`truth3.py`) of increasing complexity (102 tasks total).

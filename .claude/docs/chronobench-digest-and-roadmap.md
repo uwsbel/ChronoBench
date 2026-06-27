@@ -1,11 +1,11 @@
-# SimBench: organizational digest + roadmap
+# ChronoBench: organizational digest + roadmap
 
 Internal reference (kept in `.claude/docs/` alongside the paper). Two parts: (A) how the repo
 is organized, and (B) analysis of how it can better serve its purpose, plus what was done.
 
-**Purpose (authoritative):** SimBench exists to **evaluate and diagnose** Chrono agents (LLMs
+**Purpose (authoritative):** ChronoBench exists to **evaluate and diagnose** Chrono agents (LLMs
 that generate PyChrono virtual experiment scripts). It is **not** a training framework. The reuse of its
-data as preference/training material is a byproduct the paper mentions, not the mission. SimBench
+data as preference/training material is a byproduct the paper mentions, not the mission. ChronoBench
 serves "better Chrono agents" by *measuring and diagnosing* them.
 
 ---
@@ -19,11 +19,11 @@ are separate**, and the directory names hide it.
    `input{1,2,3}.txt` (prompts), `truth{1,2,3}.py` (expert reference scripts), `cleaned_truth*.py`
    (for similarity metrics), `pyinput{2,3}.py` (code given to the agent on modify turns),
    `output{1,2,3}.json` (Alpaca conversations). Indexed by `demo_data/manifest.json`. Categories
-   were hardcoded in `scoring/evaluatePy.py:94-103`; now centralized in `simbench/systems.py`.
+   were hardcoded in `scoring/evaluatePy.py:94-103`; now centralized in `chronobench/systems.py`.
 2. **API context (`api/api.txt`)** - ~4k-token PyChrono reference (2-level LLM summarization),
    used as J-LLM grounding.
 3. **Operational engine (`scoring/engine/`)** - despite the name, the live machinery: S-LLM
-   generation drivers + `p_JLLM_score.py` (batch judging). Now imports `simbench/`.
+   generation drivers + `p_JLLM_score.py` (batch judging). Now imports `chronobench/`.
 4. **Frozen paper analysis (`paper/`)** - the scripts that built the paper's figures/tables
    (`multivariate_analysis.py`, `failure_mode_analysis.py`, `plot_*`) + `out/` + summary CSV,
    moved out of `scoring/` so the living pipeline (`scoring/` root + `rank_llm.py`) stays clean.
@@ -58,11 +58,11 @@ judge, the expert reference scripts, and the API grounding**, not in the leaderb
   three evaluation start-paths: reproduce / evaluate a new agent / standalone diagnostic);
   `demo_data/manifest.json` (+ generator); conda `environment.yml` + completed pinned
   `requirements.txt` (added missing scipy/scikit-learn/seaborn/statsmodels/tiktoken).
-- **P1 reusable evaluator (centerpiece):** new `simbench/` package -
+- **P1 reusable evaluator (centerpiece):** new `chronobench/` package -
   `judge.py::evaluate_script(candidate, reference=None, api_doc=None, mode=..., model=..., client=...)`
   returns `{score, rationale, mode, model, prompt, raw}`; provider-agnostic; rubric factored into
-  versioned `simbench/rubric/*.txt`. `simbench/systems.py` is the taxonomy single-source.
-  `python -m simbench.score <model>` evaluates one agent's outputs (with `--dry-run`) and writes
+  versioned `chronobench/rubric/*.txt`. `chronobench/systems.py` is the taxonomy single-source.
+  `python -m chronobench.score <model>` evaluates one agent's outputs (with `--dry-run`) and writes
   a CSV in the published schema (so `rank_llm.py` consumes it). `scoring/engine/p_JLLM_score.py`
   refactored to use the package, guarded under `__main__`, model via CLI/env, no key print.
 - **P2 structure + data hosting:** renamed the misleading dirs (`scoring/v01` -> `scoring/engine`,
