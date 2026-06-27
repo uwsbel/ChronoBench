@@ -38,3 +38,19 @@ A brief discussion of the classes of simulations used in this benchmark are as f
 ### Simulation Tasks:
 
 ChronoBench features 102 demonstration tasks across 34 unique physical systems from the five categories listed above. Each task is structured into three stages of increasing complexity, designed by simulation experts to challenge the S-LLM's capabilities in setting up and modifying virtual experiment scripts. These tasks provide a robust evaluation of the S-LLM's performance across different simulation environments.
+
+## Adding a system
+
+The benchmark is frozen for the published contract (`v1.0-ieee-access-2026`). Adding a system
+changes the `demo_data` content hash, so it **breaks comparability** with that contract and belongs
+to a NEW contract version (see `contracts/HOW_TO_VERSION.md`). To add a system `<name>`:
+
+1. Create `demo_data/<name>/` with the per-turn files (the layout every system follows):
+   `input{1,2,3}.txt` (the prompts), `truth{1,2,3}.py` (expert reference scripts),
+   `pyinput{2,3}.py` (the starter code handed to the agent on turns 2-3), and `output{1,2,3}.json`
+   (Alpaca-style records). Generate the comment-stripped `cleaned_truth{1,2,3}.py` with
+   `python scoring/clean_truth.py`.
+2. Add `<name>` to the correct category in `chronobench/systems.py` (`CATEGORIES`).
+3. Regenerate the index: `python scoring/generate_manifest.py`.
+4. Cut a new contract version (re-pin the `demo_data` hash) per `contracts/HOW_TO_VERSION.md`.
+
