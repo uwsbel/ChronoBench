@@ -28,7 +28,7 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 |------|------|
 | `demo_data/` | The benchmark: 34 systems x 3 turns. `manifest.json` indexes system -> category -> turn -> files. |
 | `api/api.txt` | ~4k-token PyChrono API reference used as judge context. |
-| `chronobench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_script`), `score.py` (CLI), `systems.py` (taxonomy). |
+| `chronobench/` | **Reusable evaluator + generator** (the product): `judge.py` (`evaluate_script`), `score.py` + `generate.py` (CLIs), `systems.py`, `contract.py`. |
 | `scoring/engine/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
 | `scoring/` (root) | The living pipeline (extract/compile/sim-score/clean/merge) + `rank_llm.py`. |
 | `contracts/` | Versioned benchmark contracts (see `CONTRACTS.md`); `v1.0-ieee-access-2026` is the frozen baseline. |
@@ -44,7 +44,7 @@ generate -> extract -> (compile) -> similarity -> J-LLM score -> rank
 
 | Stage | Script | In -> Out |
 |-------|--------|-----------|
-| 1. Generate (optional) | `scoring/engine/*_generate_simulation.py` | prompts -> `output_llms/<model>/<system>/{first,second,third}_response.txt` |
+| 1. Generate (optional) | **`python -m chronobench.generate <model>`** | prompts -> `<responses-dir>/<model>/<system>/{first,second,third}_response.txt` |
 | 2. Extract code | `scoring/extractPy.py` | `*_response.txt` -> `*_response.py` (+ cleaned) |
 | 3. Compile/run (optional, needs PyChrono) | `scoring/evaluatePy.py` | `*_response.py` -> execution log (Compile@1) |
 | 4. Similarity metrics | `scoring/p_sim_score.py` | cleaned code vs `cleaned_truth*.py` -> `metrics/evaluation_results.csv` |
