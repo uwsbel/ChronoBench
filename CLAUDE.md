@@ -1,11 +1,12 @@
 # SimBench
 
 SimBench is a benchmark for evaluating and diagnosing how well simulator-oriented LLMs
-(S-LLMs) generate **digital twins (DTs)**, i.e. simulator-ready scripts/configs, for
-multi-physics simulation. Given a set of S-LLMs, it ranks them by DT quality using a
-rule-based **LLM-as-a-judge (J-LLM)** that combines predefined rubrics with human-in-the-loop
-calibration. It is demonstrated with the open-source **Chrono** multi-physics simulator, but
-the methodology is simulator-agnostic.
+(S-LLMs) generate **virtual experiment scripts** (simulator-ready scripts/configs that set up
+and run a simulation) for multi-physics simulation. Given a set of S-LLMs, it ranks them by the
+quality of those scripts using a rule-based **LLM-as-a-judge (J-LLM)** that combines predefined
+rubrics with human-in-the-loop calibration. It is demonstrated with the open-source **Chrono**
+multi-physics simulator, but the methodology is simulator-agnostic. (The published paper calls
+these artifacts "digital twins"; in this repo we use the term "virtual experiment script".)
 
 ## Source of truth (read these first)
 
@@ -30,7 +31,7 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 1. `simbench/` (package): the reusable evaluator, `judge.evaluate_dt(...)`, the
    `python -m simbench.score` CLI, and the system/category taxonomy (`systems.py`).
 2. `api/api.txt`: condensed Chrono/PyChrono API reference fed to the J-LLM as context.
-3. `demo_data/`: expert ground-truth DTs, 34 physical systems, each with three turns
+3. `demo_data/`: expert ground-truth scripts, 34 physical systems, each with three turns
    (`truth1.py`/`truth2.py`/`truth3.py`) of increasing complexity (102 tasks total).
 4. `output_llms/` and `output_conversion/`: S-LLM generations and converted conversations.
 5. `scoring/`: the analysis/plotting scripts plus `rank_llm.py`; `scoring/engine/` holds the

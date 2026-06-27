@@ -4,7 +4,7 @@ SimBench commits a large amount of generated data directly to git:
 
 | Path | Size | Tracked files | What it is |
 |------|------|---------------|------------|
-| `output_llms/` | ~756 MB | ~41,300 | Per-model generated DT code + per-system score files for 30+ S-LLMs. |
+| `output_llms/` | ~756 MB | ~41,300 | Per-model generated virtual experiment scripts + per-system score files for 30+ S-LLMs. |
 | `output_conversion/` | ~84 MB | ~1,690 | Alpaca-format multi-turn conversation JSONs. |
 | `.git/` | ~2.3 GB | n/a | History bloat from the above (and previously-removed paper builds). |
 

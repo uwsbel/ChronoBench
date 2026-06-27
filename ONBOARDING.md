@@ -1,9 +1,10 @@
 # SimBench onboarding
 
-SimBench **evaluates and diagnoses** Chrono agents: LLMs that generate digital-twin (DT)
-PyChrono code. It is not a training framework. The core asset is a rule-based **LLM-as-a-judge
-(J-LLM)** that scores a generated DT against an expert reference and/or the API documentation,
-plus a frozen benchmark of 34 systems x 3 turns (102 tasks).
+SimBench **evaluates and diagnoses** Chrono agents: LLMs that generate **virtual experiment
+scripts** (runnable PyChrono code that sets up and runs a simulation). It is not a training
+framework. The core asset is a rule-based **LLM-as-a-judge (J-LLM)** that scores a generated
+script against an expert reference and/or the API documentation, plus a frozen benchmark of 34
+systems x 3 turns (102 tasks).
 
 For the authoritative method, see the paper in [.claude/docs/](.claude/docs/) (and `CLAUDE.md`).
 This file is the practical "how do I run it" guide.
@@ -30,7 +31,7 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 | `simbench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_dt`), `score.py` (CLI), `systems.py` (taxonomy). |
 | `scoring/engine/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
 | `scoring/` (root) | The paper's analysis/plotting scripts + `rank_llm.py`. |
-| `output_llms/` | Generated DT code + scores for 30+ published models (large; see `DATA.md`). |
+| `output_llms/` | Generated virtual experiment scripts + scores for 30+ published models (large; see `DATA.md`). |
 | `metrics/` | Pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`). |
 | `analysis/` | Analysis + figures workspace (ranking, correlation, plots). |
 

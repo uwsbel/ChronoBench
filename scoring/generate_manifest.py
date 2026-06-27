@@ -27,7 +27,7 @@ DEMO_DATA = os.path.join(PROJECT_ROOT, "demo_data")
 # role -> filename template, where {t} is the turn number (1/2/3)
 TURN_FILES = {
     "prompt": "input{t}.txt",          # natural-language request given to the agent
-    "reference": "truth{t}.py",        # expert ground-truth digital twin
+    "reference": "truth{t}.py",        # expert ground-truth virtual experiment script
     "reference_cleaned": "cleaned_truth{t}.py",  # comments stripped, for similarity metrics
     "conversation": "output{t}.json",  # Alpaca-style instruction/input/output record
 }
@@ -58,7 +58,7 @@ def build_manifest() -> dict:
     return {
         "description": (
             "SimBench benchmark index. 34 physical systems x 3 turns = 102 turn-level tasks. "
-            "Turn 1 creates a digital twin from a prompt; Turns 2-3 modify/extend it. The "
+            "Turn 1 creates a virtual experiment script from a prompt; Turns 2-3 modify/extend it. The "
             "expert reference (truth{t}.py) and api/api.txt are the J-LLM's grounding context."
         ),
         "n_systems": len(SYSTEMS),
@@ -70,7 +70,7 @@ def build_manifest() -> dict:
         },
         "file_roles": {
             "prompt": "natural-language request given to the agent for this turn",
-            "reference": "expert-authored ground-truth PyChrono digital twin",
+            "reference": "expert-authored ground-truth PyChrono virtual experiment script",
             "reference_cleaned": "reference with comments removed (for CodeBLEU/ROUGE)",
             "conversation": "Alpaca-style {instruction,input,output} record of the turn",
             "starter_code": "existing code handed to the agent to modify (turns 2-3 only)",

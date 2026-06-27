@@ -1,4 +1,4 @@
-"""Rule-based J-LLM evaluator for PyChrono digital twins.
+"""Rule-based J-LLM evaluator for PyChrono virtual experiment scripts.
 
 This is the reusable form of the judge that was previously locked inside
 ``scoring/engine/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
@@ -6,9 +6,9 @@ import time). Here a single ``evaluate_dt(...)`` call returns the score plus the
 rationale, the rubric lives once in ``simbench/rubric/*.txt``, and the model/provider are
 parameters.
 
-SimBench's purpose is to *evaluate and diagnose* a Chrono agent's digital twins, so the natural
-use is in a loop: an agent generates a DT, ``evaluate_dt`` scores it and explains the
-deductions, the agent revises.
+SimBench's purpose is to *evaluate and diagnose* a Chrono agent's virtual experiment scripts, so
+the natural use is in a loop: an agent generates a script, ``evaluate_dt`` scores it and explains
+the deductions, the agent revises.
 
 Three rubric modes (matching the paper):
     - ``"ref_doc"`` : compare against the expert reference AND the API documentation (strongest).
@@ -142,7 +142,7 @@ def evaluate_dt(
     top_p: float = DEFAULT_TOP_P,
     max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> Evaluation:
-    """Evaluate one candidate digital twin with the rule-based J-LLM.
+    """Evaluate one candidate virtual experiment script with the rule-based J-LLM.
 
     Args:
         candidate: the agent-generated PyChrono code to score.

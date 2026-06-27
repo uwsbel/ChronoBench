@@ -1,4 +1,4 @@
-"""Evaluate ONE agent's digital-twin outputs against the SimBench benchmark.
+"""Evaluate ONE agent's virtual experiment scripts against the SimBench benchmark.
 
 This is the "evaluate your own agent" entry point. Point it at a directory holding your
 agent's generated code in the standard layout:

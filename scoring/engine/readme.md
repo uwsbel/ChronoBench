@@ -8,7 +8,7 @@
 > `python -m simbench.score <model>` (see `ONBOARDING.md`); use the scripts here for full
 > batch generation + scoring runs.
 
-- `claude_generate_simulation.py`, `google_generate_simulation.py`, `gpt_generate_simulation.py`, `mistral_generate_simulation.py`, and `opensource_generate_simulation.py` are Python scripts used to generate Digital Twins (DTs) for specific LLMs. The `opensource_generate_simulation.py` script is designed for open-source LLMs, as mentioned in the paper.
+- `claude_generate_simulation.py`, `google_generate_simulation.py`, `gpt_generate_simulation.py`, `mistral_generate_simulation.py`, and `opensource_generate_simulation.py` are Python scripts used to generate virtual experiment scripts for specific LLMs. The `opensource_generate_simulation.py` script is designed for open-source LLMs, as mentioned in the paper.
 
 - `openai_generate_simulation.py` is intended for general LLMs that support OpenAI-style API calls. Additionally, it supports vLLM for local LLM usage.
 

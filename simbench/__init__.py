@@ -1,8 +1,8 @@
-"""SimBench: evaluation and diagnosis of LLM-generated PyChrono digital twins.
+"""SimBench: evaluation and diagnosis of LLM-generated PyChrono virtual experiment scripts.
 
 This package exposes the SimBench *evaluator* as a reusable library, distinct from the
 research/analysis scripts under ``scoring/``. SimBench's purpose is to **evaluate and
-diagnose** Chrono agents (LLMs that generate digital-twin code), not to train them.
+diagnose** Chrono agents (LLMs that generate virtual experiment scripts), not to train them.
 
 Public API:
     - ``simbench.systems``  : the canonical 34 systems and 5 categories (single source of truth).

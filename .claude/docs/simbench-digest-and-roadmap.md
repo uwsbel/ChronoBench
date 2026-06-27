@@ -4,7 +4,7 @@ Internal reference (kept in `.claude/docs/` alongside the paper). Two parts: (A)
 is organized, and (B) analysis of how it can better serve its purpose, plus what was done.
 
 **Purpose (authoritative):** SimBench exists to **evaluate and diagnose** Chrono agents (LLMs
-that generate digital-twin PyChrono code). It is **not** a training framework. The reuse of its
+that generate PyChrono virtual experiment scripts). It is **not** a training framework. The reuse of its
 data as preference/training material is a byproduct the paper mentions, not the mission. SimBench
 serves "better Chrono agents" by *measuring and diagnosing* them.
 
@@ -16,7 +16,7 @@ Four functional layers plus the data. The key non-obvious point: the **engine an
 are separate**, and the directory names hide it.
 
 1. **Benchmark data (`demo_data/`)** - 34 systems x 3 turns (102 tasks). Per system, 14 files:
-   `input{1,2,3}.txt` (prompts), `truth{1,2,3}.py` (expert reference DTs), `cleaned_truth*.py`
+   `input{1,2,3}.txt` (prompts), `truth{1,2,3}.py` (expert reference scripts), `cleaned_truth*.py`
    (for similarity metrics), `pyinput{2,3}.py` (code given to the agent on modify turns),
    `output{1,2,3}.json` (Alpaca conversations). Indexed by `demo_data/manifest.json`. Categories
    were hardcoded in `scoring/evaluatePy.py:94-103`; now centralized in `simbench/systems.py`.
@@ -41,7 +41,7 @@ are separate**, and the directory names hide it.
 The multivariate analysis is the compass: the **evaluation/feedback protocol dominates**
 outcomes (multi-turn "round" ~31% of score variance; Turn 1->2 feedback +29 pts) while **model
 choice explains only ~3-5%**. So the value for building Chrono agents lives in the **diagnostic
-judge, the expert reference DTs, and the API grounding**, not in the leaderboard. The work is to
+judge, the expert reference scripts, and the API grounding**, not in the leaderboard. The work is to
 *liberate those assets into reusable form*, not to chase a better base model.
 
 ### Gaps that were addressed
