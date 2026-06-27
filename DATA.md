@@ -11,29 +11,39 @@ SimBench commits a large amount of generated data directly to git:
 The `demo_data/` benchmark itself is small (~3 MB) and should stay in git. The two generated-output
 directories are what make the repo heavy to clone.
 
-## Recommended migration (NOT done automatically; needs Dan's go-ahead)
+## Archive location (fill in once published)
 
-The goal is to keep the repo lean while preserving the data as a citable artifact:
+- Archive base URL (Zenodo files URL or GitHub Release assets URL): `TODO`
+- DOI (if Zenodo): `TODO`
+- Checksums: see `dist/SHA256SUMS` produced by the packaging script (paste here after upload).
 
-1. **Publish the data externally.** Tar each directory and upload to a versioned, citable host:
-   - Zenodo (gets a DOI; ideal to reference from the paper/README), or
-   - a GitHub Release asset on `uwsbel/SimBench` (simpler, no DOI).
+## Recommended migration
+
+The goal is to keep the repo lean while preserving the data as a citable artifact. The packaging
+and fetch scripts are ready (`scripts/`); the upload and the untracking are gated on Dan.
+
+1. **Package** (ready): writes tarballs + checksums to `dist/` (git-ignored).
    ```bash
-   tar -czf output_llms.tar.gz output_llms
-   tar -czf output_conversion.tar.gz output_conversion
+   bash scripts/package_published_data.sh
    ```
-2. **Stop tracking them going forward** (removes from HEAD, keeps working-tree files):
+2. **Publish** (needs Dan): upload `dist/output_llms.tar.gz` and `dist/output_conversion.tar.gz` to
+   Zenodo (DOI; ideal for citing) or a GitHub Release on the repo. Record the base URL + DOI +
+   checksums in the section above.
+3. **Fetch path** (ready): once published, anyone restores the data with
+   ```bash
+   SIMBENCH_DATA_URL=<archive base url> bash scripts/fetch_published_data.sh
+   ```
+4. **Stop tracking** (needs Dan; do only after steps 2-3 work): removes from HEAD, keeps the
+   working-tree files.
    ```bash
    git rm -r --cached output_llms output_conversion
-   # then uncomment the matching lines in .gitignore (see "Large generated data" section)
+   # then uncomment the output_llms/ and output_conversion/ lines in .gitignore
    ```
-3. **Add a fetch path** so users can pull the data back (a `scripts/fetch_data.sh` that curls the
-   Zenodo/Release tarballs and extracts them), and document it here + in `ONBOARDING.md`.
-4. **Shrink history (optional, heavy, gated).** Removing the blobs from the existing 2.3 GB
-   history needs `git filter-repo` (or BFG) followed by a **force-push**. On a public repo this
-   rewrites shared history and invalidates existing clones/forks, so it must be coordinated and
-   is **not** to be run without explicit confirmation.
+5. **Shrink history** (optional, heavy, separate explicit OK): removing the blobs from the ~2.3 GB
+   history needs `git filter-repo` (or BFG) + a **force-push**. On a public repo this rewrites
+   shared history and invalidates existing clones/forks, so it must be coordinated and is **not**
+   run without explicit confirmation.
 
-Until step 1 is done, the data stays tracked as-is so nothing is lost. The `.gitignore` entries
-for these directories are present but **commented out** so current tracking is unaffected;
-uncomment them only after the data is hosted and untracked (step 2).
+Until step 4, the data stays tracked as-is so nothing is lost. The `.gitignore` entries for these
+directories are present but **commented out** so current tracking is unaffected; uncomment them
+only after the data is hosted and untracked.
