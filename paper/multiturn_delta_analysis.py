@@ -35,7 +35,7 @@ def load_and_prepare_data():
     print("Multi-turn Delta Analysis")
     print("="*80)
     
-    df = pd.read_csv('scoring/out/all_metrics_merged_pretrain_only.csv')
+    df = pd.read_csv('paper/out/all_metrics_merged_pretrain_only.csv')
     
     # 只关注J-LLM-Ref-Doc (score_reference_document)
     df = df[['model', 'system', 'round', 'score_reference_document']].copy()
@@ -359,11 +359,11 @@ def plot_delta_analysis(delta_df, category_stats, family_stats):
     
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     
-    output_png = 'scoring/out/multiturn_delta_analysis.png'
+    output_png = 'paper/out/multiturn_delta_analysis.png'
     plt.savefig(output_png, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"图表已保存到: {output_png}")
     
-    output_pdf = 'scoring/out/multiturn_delta_analysis.pdf'
+    output_pdf = 'paper/out/multiturn_delta_analysis.pdf'
     plt.savefig(output_pdf, format='pdf', bbox_inches='tight', facecolor='white')
     print(f"PDF已保存到: {output_pdf}")
     
@@ -374,19 +374,19 @@ def save_results(delta_df, global_stats, category_stats, family_stats):
     print("\n保存分析结果...")
     
     # 1. Delta数据
-    delta_df.to_csv('scoring/out/multiturn_delta_data.csv', index=False, float_format='%.2f')
+    delta_df.to_csv('paper/out/multiturn_delta_data.csv', index=False, float_format='%.2f')
     print("  Delta数据已保存: multiturn_delta_data.csv")
     
     # 2. 全局统计
-    global_stats.to_csv('scoring/out/multiturn_delta_global_stats.csv', index=False, float_format='%.4f')
+    global_stats.to_csv('paper/out/multiturn_delta_global_stats.csv', index=False, float_format='%.4f')
     print("  全局统计已保存: multiturn_delta_global_stats.csv")
     
     # 3. 类别统计
-    category_stats.to_csv('scoring/out/multiturn_delta_category_stats.csv', index=False, float_format='%.2f')
+    category_stats.to_csv('paper/out/multiturn_delta_category_stats.csv', index=False, float_format='%.2f')
     print("  类别统计已保存: multiturn_delta_category_stats.csv")
     
     # 4. 家族统计
-    family_stats.to_csv('scoring/out/multiturn_delta_family_stats.csv', index=False, float_format='%.2f')
+    family_stats.to_csv('paper/out/multiturn_delta_family_stats.csv', index=False, float_format='%.2f')
     print("  家族统计已保存: multiturn_delta_family_stats.csv")
 
 def main():

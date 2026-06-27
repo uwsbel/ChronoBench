@@ -61,7 +61,7 @@ def parse_release_date(release_str):
 
 def extract_data_from_latex():
     """从LaTeX表格中提取数据"""
-    with open('scoring/out/model_info_table.tex', 'r', encoding='utf-8') as f:
+    with open('paper/out/model_info_table.tex', 'r', encoding='utf-8') as f:
         content = f.read()
     
     lines = content.split('\n')
@@ -249,11 +249,11 @@ def plot_mmlu_style():
     plt.tight_layout()
     
     # 保存图片
-    output_path = 'scoring/out/jllm_vs_release_mmlu_style.png'
+    output_path = 'paper/out/jllm_vs_release_mmlu_style.png'
     plt.savefig(output_path, bbox_inches='tight', dpi=300, facecolor='white')
     print(f"图表已保存到: {output_path}")
     
-    output_path_pdf = 'scoring/out/jllm_vs_release_mmlu_style.pdf'
+    output_path_pdf = 'paper/out/jllm_vs_release_mmlu_style.pdf'
     plt.savefig(output_path_pdf, bbox_inches='tight', format='pdf', facecolor='white')
     print(f"PDF图表已保存到: {output_path_pdf}")
     

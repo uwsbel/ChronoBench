@@ -8,7 +8,7 @@ def calculate_model_metrics():
     """
     计算每个模型的score_reference和score_document的平均值
     """
-    df = pd.read_csv('scoring/out/all_metrics_merged_pretrain_only_advanced.csv')
+    df = pd.read_csv('paper/out/all_metrics_merged_pretrain_only_advanced.csv')
     
     # 按模型分组，计算平均值
     model_metrics = df.groupby('model').agg({
@@ -42,7 +42,7 @@ def fix_latex_table():
     model_map = calculate_model_metrics()
     
     # 读取现有的LaTeX表格
-    with open('scoring/out/model_info_table.tex', 'r', encoding='utf-8') as f:
+    with open('paper/out/model_info_table.tex', 'r', encoding='utf-8') as f:
         latex_content = f.read()
     
     lines = latex_content.split('\n')
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     updated_latex = fix_latex_table()
     
     # 保存更新后的表格
-    with open('scoring/out/model_info_table.tex', 'w', encoding='utf-8') as f:
+    with open('paper/out/model_info_table.tex', 'w', encoding='utf-8') as f:
         f.write(updated_latex)
     
     print("表格已修复并更新！")

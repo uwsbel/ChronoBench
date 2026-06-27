@@ -30,7 +30,9 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 | `api/api.txt` | ~4k-token PyChrono API reference used as judge context. |
 | `simbench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_script`), `score.py` (CLI), `systems.py` (taxonomy). |
 | `scoring/engine/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
-| `scoring/` (root) | The paper's analysis/plotting scripts + `rank_llm.py`. |
+| `scoring/` (root) | The living pipeline (extract/compile/sim-score/clean/merge) + `rank_llm.py`. |
+| `contracts/` | Versioned benchmark contracts (see `CONTRACTS.md`); `v1.0-ieee-access-2026` is the frozen baseline. |
+| `paper/` | FROZEN IEEE Access 2026 artifact: paper figure/table analysis + `out/` + summary CSV. Not the tool. |
 | `output_llms/` | Generated virtual experiment scripts + scores for 30+ published models (large; see `DATA.md`). |
 | `metrics/` | Pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`). |
 | `analysis/` | Analysis + figures workspace (ranking, correlation, plots). |

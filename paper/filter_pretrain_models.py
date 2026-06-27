@@ -63,7 +63,7 @@ def filter_pretrain_models(input_file, output_file):
     print("完成！")
 
 if __name__ == "__main__":
-    input_file = "scoring/out/all_metrics_merged.csv"
-    output_file = "scoring/out/all_metrics_merged_pretrain_only.csv"
+    input_file = "paper/out/all_metrics_merged.csv"
+    output_file = "paper/out/all_metrics_merged_pretrain_only.csv"
     
     filter_pretrain_models(input_file, output_file)

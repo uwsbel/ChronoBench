@@ -51,7 +51,7 @@ def filter_advanced_metrics(input_file, output_file):
     print(df_filtered.head())
 
 if __name__ == "__main__":
-    input_file = "scoring/out/all_metrics_merged_pretrain_only.csv"
-    output_file = "scoring/out/all_metrics_merged_pretrain_only_advanced.csv"
+    input_file = "paper/out/all_metrics_merged_pretrain_only.csv"
+    output_file = "paper/out/all_metrics_merged_pretrain_only_advanced.csv"
     
     filter_advanced_metrics(input_file, output_file)

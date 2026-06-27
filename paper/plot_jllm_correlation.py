@@ -12,7 +12,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # 读取数据
-df = pd.read_csv('scoring/out/jllm_comparison.csv')
+df = pd.read_csv('paper/out/jllm_comparison.csv')
 
 # 设置字体
 plt.rcParams['font.size'] = 11
@@ -101,11 +101,11 @@ ax4.set_ylim([10, 50])
 plt.tight_layout(pad=3.0)
 
 # 保存图表
-output_png = 'scoring/out/jllm_correlation_analysis.png'
+output_png = 'paper/out/jllm_correlation_analysis.png'
 plt.savefig(output_png, dpi=300, bbox_inches='tight', facecolor='white')
 print(f"相关性分析图已保存到: {output_png}")
 
-output_pdf = 'scoring/out/jllm_correlation_analysis.pdf'
+output_pdf = 'paper/out/jllm_correlation_analysis.pdf'
 plt.savefig(output_pdf, format='pdf', bbox_inches='tight', facecolor='white')
 print(f"PDF版本已保存到: {output_pdf}")
 
@@ -169,11 +169,11 @@ ax4.grid(True, alpha=0.3)
 
 plt.tight_layout(pad=3.0)
 
-output_png2 = 'scoring/out/jllm_distribution_analysis.png'
+output_png2 = 'paper/out/jllm_distribution_analysis.png'
 plt.savefig(output_png2, dpi=300, bbox_inches='tight', facecolor='white')
 print(f"分布分析图已保存到: {output_png2}")
 
-output_pdf2 = 'scoring/out/jllm_distribution_analysis.pdf'
+output_pdf2 = 'paper/out/jllm_distribution_analysis.pdf'
 plt.savefig(output_pdf2, format='pdf', bbox_inches='tight', facecolor='white')
 print(f"PDF版本已保存到: {output_pdf2}")
 

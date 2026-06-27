@@ -34,11 +34,16 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 3. `demo_data/`: expert ground-truth scripts, 34 physical systems, each with three turns
    (`truth1.py`/`truth2.py`/`truth3.py`) of increasing complexity (102 tasks total).
 4. `output_llms/` and `output_conversion/`: S-LLM generations and converted conversations.
-5. `scoring/`: the analysis/plotting scripts plus `rank_llm.py`; `scoring/engine/` holds the
+5. `scoring/`: the living pipeline (`extractPy`, `evaluatePy`, `p_sim_score`, `clean_truth`,
+   `merge_metrics`, `generate_manifest`) plus `rank_llm.py`; `scoring/engine/` holds the
    generation drivers and the batch J-LLM scorer (`p_JLLM_score.py`).
-6. `metrics/`: pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`).
-7. `analysis/`: ranking and correlation analysis plus figures over the scored results.
-8. `visualization/`: pipeline and demo-overview figures.
+6. `contracts/`: versioned benchmark contracts (see `CONTRACTS.md`); `v1.0-ieee-access-2026` is
+   the frozen published baseline that pins judge config + api/rubric snapshots + the `demo_data` hash.
+7. `paper/`: the FROZEN IEEE Access 2026 artifact (the paper's figure/table analysis scripts +
+   `out/` + a summary CSV). Reproducibility only, not the living tool.
+8. `metrics/`: living pipeline metric outputs; `runs/`: new-agent eval outputs (git-ignored).
+9. `analysis/`: an older secondary analysis workspace (rank1-5, correlation); `visualization/`:
+   pipeline/overview figures. Both are paper-era (candidates to fold into `paper/` later).
 
 ## Conventions
 

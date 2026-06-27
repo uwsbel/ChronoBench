@@ -10,7 +10,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 def generate_latex_table():
     """生成LaTeX表格"""
     # 读取系统难度分析数据
-    df = pd.read_csv('scoring/out/system_difficulty_analysis.csv')
+    df = pd.read_csv('paper/out/system_difficulty_analysis.csv')
     
     # 选择需要的列
     df_table = df[['system', 'Category', 'Turn1_Avg', 'Turn2_Avg', 'Turn3_Avg', 'Overall_Avg']].copy()
@@ -49,8 +49,8 @@ def generate_latex_table():
 def generate_analysis_text():
     """生成分析文字"""
     # 读取数据
-    system_df = pd.read_csv('scoring/out/system_difficulty_analysis.csv')
-    category_df = pd.read_csv('scoring/out/category_difficulty_analysis.csv', index_col=0)
+    system_df = pd.read_csv('paper/out/system_difficulty_analysis.csv')
+    category_df = pd.read_csv('paper/out/category_difficulty_analysis.csv', index_col=0)
     
     # 提取关键统计
     hardest_5 = system_df.head(5)
@@ -123,18 +123,18 @@ def main():
     full_latex = latex_text + "\n\n" + latex_table
     
     # 保存
-    with open('scoring/out/failure_mode_section.tex', 'w', encoding='utf-8') as f:
+    with open('paper/out/failure_mode_section.tex', 'w', encoding='utf-8') as f:
         f.write(full_latex)
     
-    print("\nLaTeX章节已保存到: scoring/out/failure_mode_section.tex")
+    print("\nLaTeX章节已保存到: paper/out/failure_mode_section.tex")
     
     # 也生成一个简洁版本
     print("\n生成简洁版本...")
     
     # 只保留前20个系统的表格
-    df = pd.read_csv('scoring/out/system_difficulty_analysis.csv')
+    df = pd.read_csv('paper/out/system_difficulty_analysis.csv')
     df_top20 = df.head(20)
-    df_top20.to_csv('scoring/out/system_difficulty_top20.csv', index=False)
+    df_top20.to_csv('paper/out/system_difficulty_top20.csv', index=False)
     
     print("前20个最难系统已保存到: system_difficulty_top20.csv")
     

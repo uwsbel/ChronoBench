@@ -19,9 +19,9 @@ def load_jllm_data(filepath):
 def main():
     # 加载三个J-LLM的数据
     print("加载数据...")
-    df_4_1_mini = load_jllm_data('scoring/out/J-LLM/all_scores_ranked_gpt-4.1-mini.csv')
-    df_4_1_nano = load_jllm_data('scoring/out/J-LLM/all_scores_ranked_gpt-4.1-nano.csv')
-    df_4o_mini = load_jllm_data('scoring/out/J-LLM/all_scores_ranked_gpt-4o-mini.csv')
+    df_4_1_mini = load_jllm_data('paper/out/J-LLM/all_scores_ranked_gpt-4.1-mini.csv')
+    df_4_1_nano = load_jllm_data('paper/out/J-LLM/all_scores_ranked_gpt-4.1-nano.csv')
+    df_4o_mini = load_jllm_data('paper/out/J-LLM/all_scores_ranked_gpt-4o-mini.csv')
     
     print(f"GPT-4.1-mini: {len(df_4_1_mini)} 个模型")
     print(f"GPT-4.1-nano: {len(df_4_1_nano)} 个模型")
@@ -72,7 +72,7 @@ def main():
                              'Avg-J-LLM', 'Ref-Doc', 'Ref', 'Doc']]
     
     # 保存CSV
-    output_csv = 'scoring/out/jllm_comparison.csv'
+    output_csv = 'paper/out/jllm_comparison.csv'
     df_results.to_csv(output_csv, index=False, float_format='%.2f')
     print(f"\n结果已保存到: {output_csv}")
     
@@ -137,7 +137,7 @@ def main():
     print("生成Markdown表格...")
     print("="*80)
     
-    with open('scoring/out/jllm_comparison.md', 'w', encoding='utf-8') as f:
+    with open('paper/out/jllm_comparison.md', 'w', encoding='utf-8') as f:
         f.write("# J-LLM评估器对比分析\n\n")
         f.write("## 评分对比表\n\n")
         
@@ -183,12 +183,12 @@ def main():
                 f.write(f" {r:.4f} |")
             f.write("\n")
     
-    print("Markdown表格已保存到: scoring/out/jllm_comparison.md")
+    print("Markdown表格已保存到: paper/out/jllm_comparison.md")
     
     # 生成LaTeX表格
     print("\n生成LaTeX表格...")
     
-    with open('scoring/out/jllm_comparison.tex', 'w', encoding='utf-8') as f:
+    with open('paper/out/jllm_comparison.tex', 'w', encoding='utf-8') as f:
         f.write("\\begin{table*}[htbp]\n")
         f.write("    \\centering\n")
         f.write("    \\resizebox{\\textwidth}{!}{%\n")
@@ -216,7 +216,7 @@ def main():
         f.write("    \\label{tab:jllm_comparison}\n")
         f.write("\\end{table*}\n")
     
-    print("LaTeX表格已保存到: scoring/out/jllm_comparison.tex")
+    print("LaTeX表格已保存到: paper/out/jllm_comparison.tex")
     
     # 打印前10名模型
     print("\n" + "="*80)

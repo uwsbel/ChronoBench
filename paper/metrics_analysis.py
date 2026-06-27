@@ -25,8 +25,8 @@ plt.rcParams['figure.dpi'] = 150
 plt.rcParams['savefig.dpi'] = 200
 
 # Paths
-DATA_FILE = 'scoring/out/all_metrics_merged.csv'
-OUT_DIR = 'scoring/out/analysis'
+DATA_FILE = 'paper/out/all_metrics_merged.csv'
+OUT_DIR = 'paper/out/analysis'
 
 # Load data
 df = pd.read_csv(DATA_FILE)

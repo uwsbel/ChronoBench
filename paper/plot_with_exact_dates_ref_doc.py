@@ -1,5 +1,5 @@
 """
-使用精确日期绘制MMLU风格的图表
+使用精确日期绘制MMLU风格的图表（只使用J-LLM-Ref-Doc分数）
 """
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -49,8 +49,8 @@ MODEL_METADATA = {
 }
 
 def extract_data_from_latex():
-    """从LaTeX表格中提取数据"""
-    with open('scoring/out/model_info_table.tex', 'r', encoding='utf-8') as f:
+    """从LaTeX表格中提取数据（只使用J-LLM-Ref-Doc）"""
+    with open('paper/out/model_info_table.tex', 'r', encoding='utf-8') as f:
         content = f.read()
     
     lines = content.split('\n')
@@ -59,25 +59,18 @@ def extract_data_from_latex():
     for line in lines:
         if any(keyword in line for keyword in ['claude', 'o3', 'o4', 'gpt', 'Gemini', 'llama', 'deepseek', 'codestral', 'mixtral', 'mistral', 'gemma', 'phi', 'nemotron', 'qwen', 'mamba']):
             parts = [p.strip() for p in line.split('&')]
-            if len(parts) >= 12:  # 现在有12列
+            if len(parts) >= 12:
                 model_display = parts[0].strip()
-                jllm_ref_doc = parts[6].strip()
-                jllm_ref = parts[7].strip()
-                jllm_doc = parts[8].strip()
+                jllm_ref_doc = parts[6].strip()  # 只使用J-LLM-Ref-Doc
                 exact_date = parts[11].strip()
                 
-                # 清理LaTeX命令
                 model_display = re.sub(r'\\[a-zA-Z]+\{?\}?', '', model_display).strip()
                 exact_date = re.sub(r'\\\\$', '', exact_date).strip()
                 
                 try:
-                    # 计算平均J-LLM分数
-                    jllm_avg = (float(jllm_ref_doc) + float(jllm_ref) + float(jllm_doc)) / 3.0
-                    
-                    # 解析日期
+                    jllm_score = float(jllm_ref_doc)  # 直接使用J-LLM-Ref-Doc
                     release_date = datetime.strptime(exact_date, '%Y-%m-%d')
                     
-                    # 匹配原始模型名
                     model_orig = None
                     for key in MODEL_METADATA.keys():
                         key_simple = key.replace('-instruct', '').replace('-v0.1', '').replace('_', '-')
@@ -91,7 +84,7 @@ def extract_data_from_latex():
                             'model': model_display,
                             'model_orig': model_orig,
                             'release_date': release_date,
-                            'j_llm': jllm_avg,
+                            'j_llm_ref_doc': jllm_score,
                             'company': metadata['company'],
                             'size': metadata['size'] if metadata['size'] else 10
                         })
@@ -102,7 +95,7 @@ def extract_data_from_latex():
     return pd.DataFrame(data)
 
 def plot_with_exact_dates():
-    """使用精确日期绘制MMLU风格的图表"""
+    """使用精确日期绘制MMLU风格的图表（只使用J-LLM-Ref-Doc）"""
     df = extract_data_from_latex()
     
     if len(df) == 0:
@@ -112,7 +105,7 @@ def plot_with_exact_dates():
     print(f"成功提取 {len(df)} 个模型的数据")
     print(f"日期范围: {df['release_date'].min()} 到 {df['release_date'].max()}")
     
-    # 设置matplotlib参数（增大字体）
+    # 设置matplotlib参数
     plt.rcParams.update({
         'font.family': 'sans-serif',
         'font.size': 11,
@@ -122,10 +115,9 @@ def plot_with_exact_dates():
         'ytick.labelsize': 12,
     })
     
-    # 创建图表
     fig, ax = plt.subplots(figsize=(16, 8))
     
-    # 定义公司颜色（更鲜艳的配色）
+    # 定义公司颜色
     company_colors = {
         'Anthropic': '#FF4444',
         'OpenAI': '#AA66CC',
@@ -150,7 +142,7 @@ def plot_with_exact_dates():
                 size = 500
             sizes.append(size)
         
-        ax.scatter(company_data['release_date'], company_data['j_llm'],
+        ax.scatter(company_data['release_date'], company_data['j_llm_ref_doc'],
                   s=sizes, alpha=0.7, c=company_colors.get(company, '#95A5A6'),
                   label=company.lower(), edgecolors='none', linewidths=0, zorder=3)
     
@@ -163,7 +155,7 @@ def plot_with_exact_dates():
     
     texts = []
     for _, row in df.iterrows():
-        text = ax.text(row['release_date'], row['j_llm'], row['model'],
+        text = ax.text(row['release_date'], row['j_llm_ref_doc'], row['model'],
                       fontsize=9, alpha=1.0, color='black',
                       ha='center', va='center', fontweight='normal')
         texts.append(text)
@@ -182,7 +174,7 @@ def plot_with_exact_dates():
     
     # 添加线性回归线
     dates_numeric = mdates.date2num(df['release_date'])
-    slope, intercept, r_value, p_value, std_err = stats.linregress(dates_numeric, df['j_llm'])
+    slope, intercept, r_value, p_value, std_err = stats.linregress(dates_numeric, df['j_llm_ref_doc'])
     
     x_range = pd.date_range(start=df['release_date'].min(), 
                            end=df['release_date'].max(), 
@@ -191,7 +183,7 @@ def plot_with_exact_dates():
     ax.plot(x_range, y_range, 'k-', linewidth=2, alpha=0.4, zorder=2)
     
     # 添加基准线
-    avg_score = df['j_llm'].mean()
+    avg_score = df['j_llm_ref_doc'].mean()
     ax.axhline(y=avg_score, color='gray', linestyle='--', linewidth=1.5, alpha=0.5, zorder=1)
     ax.text(df['release_date'].min(), avg_score + 1, 
            f'{avg_score:.1f} = average', fontsize=11, color='gray', style='italic')
@@ -212,10 +204,10 @@ def plot_with_exact_dates():
     
     # 设置坐标轴
     ax.set_xlabel('Release Date', fontsize=15, fontweight='bold', labelpad=10)
-    ax.set_ylabel('J-LLM Score', fontsize=15, fontweight='bold', labelpad=10)
+    ax.set_ylabel('J-LLM-Ref-Doc Score', fontsize=15, fontweight='bold', labelpad=10)
     ax.set_title('', fontsize=17, fontweight='bold', pad=15)
     
-    # 设置x轴格式（精确日期，每6个月一个刻度）
+    # 设置x轴格式
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
     plt.xticks(rotation=45, ha='right')
@@ -223,7 +215,7 @@ def plot_with_exact_dates():
     # 设置y轴范围
     ax.set_ylim(15, 55)
     
-    # 网格（稍微粗一点）
+    # 网格
     ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.8, color='#DDDDDD', zorder=0)
     ax.set_axisbelow(True)
     
@@ -235,7 +227,7 @@ def plot_with_exact_dates():
         spine.set_linewidth(1)
         spine.set_edgecolor('#E0E0E0')
     
-    # 图例 - 无边框
+    # 图例
     legend = ax.legend(loc='upper left', frameon=False,
                       shadow=False, ncol=4, fontsize=11,
                       borderpad=0.5, labelspacing=0.3, columnspacing=1,
@@ -248,11 +240,11 @@ def plot_with_exact_dates():
     plt.tight_layout()
     
     # 保存图片
-    output_path = 'scoring/out/jllm_vs_exact_dates.png'
+    output_path = 'paper/out/jllm_ref_doc_vs_exact_dates.png'
     plt.savefig(output_path, bbox_inches='tight', dpi=300, facecolor='white')
     print(f"图表已保存到: {output_path}")
     
-    output_path_pdf = 'scoring/out/jllm_vs_exact_dates.pdf'
+    output_path_pdf = 'paper/out/jllm_ref_doc_vs_exact_dates.pdf'
     plt.savefig(output_path_pdf, bbox_inches='tight', format='pdf', facecolor='white')
     print(f"PDF图表已保存到: {output_path_pdf}")
     
@@ -261,8 +253,8 @@ def plot_with_exact_dates():
     # 打印统计信息
     print(f"\n数据统计:")
     print(f"总模型数: {len(df)}")
-    print(f"J-LLM分数范围: [{df['j_llm'].min():.2f}, {df['j_llm'].max():.2f}]")
-    print(f"平均分数: {df['j_llm'].mean():.2f}")
+    print(f"J-LLM-Ref-Doc分数范围: [{df['j_llm_ref_doc'].min():.2f}, {df['j_llm_ref_doc'].max():.2f}]")
+    print(f"平均分数: {df['j_llm_ref_doc'].mean():.2f}")
     print(f"\n线性回归:")
     print(f"斜率: {slope*365:.4f} (每年变化)")
     print(f"R-squared: {r_value**2:.4f}")

@@ -1,5 +1,5 @@
 """
-绘制性能 vs 发布日期的图表（增强版：按公司分组）
+绘制性能 vs 发布日期的图表
 """
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,7 +7,6 @@ import matplotlib.dates as mdates
 from datetime import datetime
 import re
 import numpy as np
-from matplotlib.patches import Rectangle
 
 def parse_release_date(release_str):
     """
@@ -26,7 +25,7 @@ def extract_data_from_latex():
     """
     从LaTeX表格中提取数据
     """
-    with open('scoring/out/model_info_table.tex', 'r', encoding='utf-8') as f:
+    with open('paper/out/model_info_table.tex', 'r', encoding='utf-8') as f:
         content = f.read()
     
     lines = content.split('\n')
@@ -67,7 +66,7 @@ def extract_data_from_latex():
 
 def plot_performance_vs_release():
     """
-    绘制性能 vs 发布日期的图表（按公司分组）
+    绘制性能 vs 发布日期的图表
     """
     df = extract_data_from_latex()
     
@@ -80,105 +79,73 @@ def plot_performance_vs_release():
         plt.style.use('seaborn-v0_8-whitegrid')
     except:
         plt.style.use('seaborn-whitegrid')
-    
     plt.rcParams['figure.dpi'] = 150
     plt.rcParams['savefig.dpi'] = 300
     plt.rcParams['font.size'] = 10
+    plt.rcParams['font.family'] = 'DejaVu Sans'
     
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
     
-    # 定义公司颜色映射
-    companies = df['company'].unique()
-    colors = plt.cm.tab20(np.linspace(0, 1, len(companies)))
-    company_colors = dict(zip(companies, colors))
-    
-    # 定义标记样式（按开源状态）
-    markers = {'Yes': 'o', 'No': 's'}  # 开源用圆圈，闭源用方块
+    # 按开源状态分组
+    open_source = df[df['open_weights'] == 'Yes']
+    closed_source = df[df['open_weights'] == 'No']
     
     # 绘制散点图
-    for company in companies:
-        company_data = df[df['company'] == company]
-        for open_status in ['Yes', 'No']:
-            data_subset = company_data[company_data['open_weights'] == open_status]
-            if len(data_subset) > 0:
-                marker = markers[open_status]
-                label = f"{company} ({'Open' if open_status == 'Yes' else 'Closed'})"
-                ax.scatter(data_subset['release_date'], data_subset['performance'], 
-                          s=120, alpha=0.7, c=[company_colors[company]], 
-                          marker=marker, label=label if len(company_data) <= 2 else None,
-                          edgecolors='black', linewidths=0.8, zorder=3)
+    scatter1 = ax.scatter(closed_source['release_date'], closed_source['performance'], 
+                         s=100, alpha=0.7, c='#1f77b4', label='Closed Source', 
+                         edgecolors='black', linewidths=0.5, zorder=3)
+    scatter2 = ax.scatter(open_source['release_date'], open_source['performance'], 
+                         s=100, alpha=0.7, c='#ff7f0e', label='Open Weights', 
+                         edgecolors='black', linewidths=0.5, zorder=3)
     
     # 添加趋势线
+    # 将所有日期转换为数值
     dates_num = mdates.date2num(df['release_date'])
     z = np.polyfit(dates_num, df['performance'], 1)
     p = np.poly1d(z)
     
+    # 绘制趋势线
     x_trend = pd.date_range(start=df['release_date'].min(), 
                            end=df['release_date'].max(), 
-                           freq='ME')
+                           freq='ME')  # ME = Month End
     ax.plot(x_trend, p(mdates.date2num(x_trend)), 
-           "r--", alpha=0.6, linewidth=2.5, 
-           label=f'Linear Trend (slope={z[0]*365:.2f} per year)', zorder=2)
+           "r--", alpha=0.5, linewidth=2, label=f'Trend (slope={z[0]:.3f})', zorder=2)
     
-    # 标注top 3模型
-    top_models = df.nlargest(3, 'performance')
+    # 标注一些重要模型
+    top_models = df.nlargest(5, 'performance')
     for _, row in top_models.iterrows():
         ax.annotate(row['model'], 
                    xy=(row['release_date'], row['performance']),
-                   xytext=(8, 8), textcoords='offset points',
-                   fontsize=9, alpha=0.8, fontweight='bold',
-                   bbox=dict(boxstyle='round,pad=0.4', facecolor='yellow', alpha=0.6, edgecolor='black'),
-                   arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0.2', alpha=0.6))
+                   xytext=(5, 5), textcoords='offset points',
+                   fontsize=8, alpha=0.7,
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.3))
     
     # 设置标签和标题
-    ax.set_xlabel('Release Date', fontsize=13, fontweight='bold')
-    ax.set_ylabel('J-LLM-Ref-Doc Performance Score', fontsize=13, fontweight='bold')
-    ax.set_title('Model Performance vs Release Date', fontsize=15, fontweight='bold', pad=20)
+    ax.set_xlabel('Release Date', fontsize=12, fontweight='bold')
+    ax.set_ylabel('J-LLM-Ref-Doc Performance', fontsize=12, fontweight='bold')
+    ax.set_title('Model Performance vs Release Date', fontsize=14, fontweight='bold', pad=20)
     
     # 格式化x轴日期
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
     plt.xticks(rotation=45, ha='right')
     
-    # 设置y轴范围
-    ax.set_ylim(df['performance'].min() - 2, df['performance'].max() + 3)
-    
     # 添加网格
-    ax.grid(True, alpha=0.3, linestyle='--', zorder=1)
+    ax.grid(True, alpha=0.3, linestyle='--')
     
-    # 添加图例（简化版）
-    # 只显示主要公司
-    from matplotlib.lines import Line2D
-    legend_elements = [
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='gray', 
-               markersize=10, label='Open Weights', markeredgecolor='black', markeredgewidth=0.8),
-        Line2D([0], [0], marker='s', color='w', markerfacecolor='gray', 
-               markersize=10, label='Closed Source', markeredgecolor='black', markeredgewidth=0.8),
-        Line2D([0], [0], color='red', linestyle='--', linewidth=2.5, label='Linear Trend')
-    ]
-    ax.legend(handles=legend_elements, loc='upper left', fontsize=10, framealpha=0.9)
-    
-    # 添加公司图例（右侧）
-    company_legend_elements = [Line2D([0], [0], marker='o', color='w', 
-                                      markerfacecolor=company_colors[comp], 
-                                      markersize=12, label=comp, 
-                                      markeredgecolor='black', markeredgewidth=0.8)
-                               for comp in sorted(companies)]
-    ax2 = ax.twinx()
-    ax2.set_yticks([])
-    ax2.legend(handles=company_legend_elements, loc='upper right', 
-              fontsize=9, framealpha=0.9, title='Companies', title_fontsize=10)
+    # 添加图例
+    ax.legend(loc='best', fontsize=10, framealpha=0.9)
     
     # 调整布局
     plt.tight_layout()
     
     # 保存图片
-    output_path = 'scoring/out/performance_vs_release_date.png'
+    output_path = 'paper/out/performance_vs_release_date.png'
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     print(f"图表已保存到: {output_path}")
     
     # 也保存为PDF格式（适合论文）
-    output_path_pdf = 'scoring/out/performance_vs_release_date.pdf'
+    output_path_pdf = 'paper/out/performance_vs_release_date.pdf'
     plt.savefig(output_path_pdf, bbox_inches='tight', format='pdf')
     print(f"PDF图表已保存到: {output_path_pdf}")
     
@@ -187,14 +154,10 @@ def plot_performance_vs_release():
     # 打印统计信息
     print(f"\n数据统计:")
     print(f"总模型数: {len(df)}")
-    print(f"开源模型: {len(df[df['open_weights'] == 'Yes'])}")
-    print(f"闭源模型: {len(df[df['open_weights'] == 'No'])}")
+    print(f"开源模型: {len(open_source)}")
+    print(f"闭源模型: {len(closed_source)}")
     print(f"性能范围: {df['performance'].min():.1f} - {df['performance'].max():.1f}")
     print(f"平均性能: {df['performance'].mean():.2f}")
-    print(f"\n按公司统计:")
-    for company in sorted(df['company'].unique()):
-        comp_data = df[df['company'] == company]
-        print(f"  {company}: {len(comp_data)} models, avg perf: {comp_data['performance'].mean():.2f}")
 
 if __name__ == "__main__":
     plot_performance_vs_release()

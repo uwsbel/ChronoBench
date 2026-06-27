@@ -24,8 +24,9 @@ are separate**, and the directory names hide it.
    used as J-LLM grounding.
 3. **Operational engine (`scoring/engine/`)** - despite the name, the live machinery: S-LLM
    generation drivers + `p_JLLM_score.py` (batch judging). Now imports `simbench/`.
-4. **Analysis layer (`scoring/` root)** - ~30 scripts that built the paper's figures/tables
-   (`multivariate_analysis.py`, `failure_mode_analysis.py`, `rank_llm.py`, `plot_*`).
+4. **Frozen paper analysis (`paper/`)** - the scripts that built the paper's figures/tables
+   (`multivariate_analysis.py`, `failure_mode_analysis.py`, `plot_*`) + `out/` + summary CSV,
+   moved out of `scoring/` so the living pipeline (`scoring/` root + `rank_llm.py`) stays clean.
 5. **Generated corpus + results** - `output_llms/` (~756 MB, 30+ models),
    `output_conversion/` (~84 MB), `metrics/` (pipeline metric outputs), `analysis/`
    (analysis + figures workspace), `visualization/` (figures).

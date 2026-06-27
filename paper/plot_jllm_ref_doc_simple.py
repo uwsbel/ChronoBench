@@ -12,7 +12,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # 读取数据
-df = pd.read_csv('scoring/out/jllm_ref_doc_comparison.csv')
+df = pd.read_csv('paper/out/jllm_ref_doc_comparison.csv')
 
 # 设置字体和样式
 plt.rcParams['font.size'] = 11
@@ -137,11 +137,11 @@ plt.suptitle('J-LLM Evaluators Comparison (Ref-Doc Modality)',
 plt.tight_layout(rect=[0, 0, 1, 0.99])
 
 # 保存图表
-output_png = 'scoring/out/jllm_ref_doc_correlation.png'
+output_png = 'paper/out/jllm_ref_doc_correlation.png'
 plt.savefig(output_png, dpi=300, bbox_inches='tight', facecolor='white')
 print(f"相关性分析图已保存到: {output_png}")
 
-output_pdf = 'scoring/out/jllm_ref_doc_correlation.pdf'
+output_pdf = 'paper/out/jllm_ref_doc_correlation.pdf'
 plt.savefig(output_pdf, format='pdf', bbox_inches='tight', facecolor='white')
 print(f"PDF版本已保存到: {output_pdf}")
 
@@ -182,11 +182,11 @@ ax.set_ylim([0, 50])
 
 plt.tight_layout()
 
-output_png2 = 'scoring/out/jllm_ref_doc_top10.png'
+output_png2 = 'paper/out/jllm_ref_doc_top10.png'
 plt.savefig(output_png2, dpi=300, bbox_inches='tight', facecolor='white')
 print(f"Top 10对比图已保存到: {output_png2}")
 
-output_pdf2 = 'scoring/out/jllm_ref_doc_top10.pdf'
+output_pdf2 = 'paper/out/jllm_ref_doc_top10.pdf'
 plt.savefig(output_pdf2, format='pdf', bbox_inches='tight', facecolor='white')
 print(f"PDF版本已保存到: {output_pdf2}")
 

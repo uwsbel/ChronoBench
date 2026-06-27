@@ -537,9 +537,9 @@ def generate_comparison(simbench_stats, other_benchmarks):
     
     # Save to CSV
     df = pd.DataFrame(all_benchmarks)
-    os.makedirs('scoring/out', exist_ok=True)
-    df.to_csv('scoring/out/benchmark_comparison_final.csv', index=False)
-    print(f"\n✓ Saved to: scoring/out/benchmark_comparison_final.csv")
+    os.makedirs('paper/out', exist_ok=True)
+    df.to_csv('paper/out/benchmark_comparison_final.csv', index=False)
+    print(f"\n✓ Saved to: paper/out/benchmark_comparison_final.csv")
     
     return all_benchmarks
 

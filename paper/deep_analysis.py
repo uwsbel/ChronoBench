@@ -13,7 +13,7 @@ import numpy as np
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Load data
-df = pd.read_csv('scoring/out/all_metrics_merged.csv')
+df = pd.read_csv('paper/out/all_metrics_merged.csv')
 df['score_ref_doc_norm'] = df['score_reference_document'] / 100
 
 # System categories

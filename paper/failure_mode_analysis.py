@@ -34,7 +34,7 @@ def load_and_analyze():
     print("Failure Mode Analysis: System Difficulty Assessment")
     print("="*80)
     
-    df = pd.read_csv('scoring/out/all_metrics_merged_pretrain_only.csv')
+    df = pd.read_csv('paper/out/all_metrics_merged_pretrain_only.csv')
     
     # 只关注J-LLM-Ref-Doc
     df = df[['model', 'system', 'round', 'score_reference_document']].copy()
@@ -290,11 +290,11 @@ def plot_failure_analysis(system_stats, category_stats):
     
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     
-    output_png = 'scoring/out/failure_mode_analysis.png'
+    output_png = 'paper/out/failure_mode_analysis.png'
     plt.savefig(output_png, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"图表已保存到: {output_png}")
     
-    output_pdf = 'scoring/out/failure_mode_analysis.pdf'
+    output_pdf = 'paper/out/failure_mode_analysis.pdf'
     plt.savefig(output_pdf, format='pdf', bbox_inches='tight', facecolor='white')
     print(f"PDF已保存到: {output_pdf}")
     
@@ -305,12 +305,12 @@ def save_results(system_stats, category_stats):
     print("\n保存分析结果...")
     
     # 1. 系统统计
-    system_stats.to_csv('scoring/out/system_difficulty_analysis.csv', 
+    system_stats.to_csv('paper/out/system_difficulty_analysis.csv', 
                         index=False, float_format='%.2f')
     print("  系统难度分析已保存: system_difficulty_analysis.csv")
     
     # 2. 类别统计
-    category_stats.to_csv('scoring/out/category_difficulty_analysis.csv', 
+    category_stats.to_csv('paper/out/category_difficulty_analysis.csv', 
                          float_format='%.2f')
     print("  类别难度分析已保存: category_difficulty_analysis.csv")
 

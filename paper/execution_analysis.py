@@ -236,7 +236,7 @@ print("\n" + "=" * 80)
 print("  8. GENERATING PLOTS")
 print("=" * 80)
 
-OUT_DIR = 'scoring/out/analysis_execution'
+OUT_DIR = 'paper/out/analysis_execution'
 import os
 os.makedirs(OUT_DIR, exist_ok=True)
 
