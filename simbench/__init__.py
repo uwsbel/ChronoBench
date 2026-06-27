@@ -6,7 +6,7 @@ diagnose** Chrono agents (LLMs that generate virtual experiment scripts), not to
 
 Public API:
     - ``simbench.systems``  : the canonical 34 systems and 5 categories (single source of truth).
-    - ``simbench.judge``    : the rule-based J-LLM evaluator, ``evaluate_dt(...)``.
+    - ``simbench.judge``    : the rule-based J-LLM evaluator, ``evaluate_script(...)``.
     - ``simbench.score``    : a CLI to evaluate one agent's outputs against the benchmark.
 """
 

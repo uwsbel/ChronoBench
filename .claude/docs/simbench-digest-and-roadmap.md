@@ -58,7 +58,7 @@ judge, the expert reference scripts, and the API grounding**, not in the leaderb
   `demo_data/manifest.json` (+ generator); conda `environment.yml` + completed pinned
   `requirements.txt` (added missing scipy/scikit-learn/seaborn/statsmodels/tiktoken).
 - **P1 reusable evaluator (centerpiece):** new `simbench/` package -
-  `judge.py::evaluate_dt(candidate, reference=None, api_doc=None, mode=..., model=..., client=...)`
+  `judge.py::evaluate_script(candidate, reference=None, api_doc=None, mode=..., model=..., client=...)`
   returns `{score, rationale, mode, model, prompt, raw}`; provider-agnostic; rubric factored into
   versioned `simbench/rubric/*.txt`. `simbench/systems.py` is the taxonomy single-source.
   `python -m simbench.score <model>` evaluates one agent's outputs (with `--dry-run`) and writes

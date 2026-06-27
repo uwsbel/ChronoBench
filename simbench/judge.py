@@ -2,12 +2,12 @@
 
 This is the reusable form of the judge that was previously locked inside
 ``scoring/engine/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
-import time). Here a single ``evaluate_dt(...)`` call returns the score plus the judge's
+import time). Here a single ``evaluate_script(...)`` call returns the score plus the judge's
 rationale, the rubric lives once in ``simbench/rubric/*.txt``, and the model/provider are
 parameters.
 
 SimBench's purpose is to *evaluate and diagnose* a Chrono agent's virtual experiment scripts, so
-the natural use is in a loop: an agent generates a script, ``evaluate_dt`` scores it and explains
+the natural use is in a loop: an agent generates a script, ``evaluate_script`` scores it and explains
 the deductions, the agent revises.
 
 Three rubric modes (matching the paper):
@@ -17,8 +17,8 @@ Three rubric modes (matching the paper):
 
 Example
 -------
->>> from simbench.judge import evaluate_dt
->>> ev = evaluate_dt(candidate_code, reference=truth_code, api_doc=api_text)
+>>> from simbench.judge import evaluate_script
+>>> ev = evaluate_script(candidate_code, reference=truth_code, api_doc=api_text)
 >>> ev.score, ev.mode
 (72, 'ref_doc')
 >>> print(ev.rationale)   # the judge's per-criterion deductions, free text
@@ -97,7 +97,7 @@ def select_mode(reference: str | None, api_doc: str | None) -> str:
         return "ref"
     if api_doc:
         return "doc"
-    raise ValueError("evaluate_dt needs at least one of `reference` or `api_doc`.")
+    raise ValueError("evaluate_script needs at least one of `reference` or `api_doc`.")
 
 
 def build_prompt(
@@ -130,7 +130,7 @@ def _default_client():
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-def evaluate_dt(
+def evaluate_script(
     candidate: str,
     reference: str | None = None,
     api_doc: str | None = None,

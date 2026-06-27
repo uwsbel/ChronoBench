@@ -38,7 +38,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.judge import DEFAULT_MODEL, build_prompt, evaluate_dt, select_mode  # noqa: E402
+from simbench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402
 from simbench.systems import all_systems, category_of  # noqa: E402
 
 ROUNDS = [("first", 1), ("second", 2), ("third", 3)]
@@ -80,7 +80,7 @@ def score_one(model: str, system: str, responses_dir: str, data_dir: str, api_do
                 except ValueError as e:
                     row[mode] = f"ERR:{e}"
             else:
-                ev = evaluate_dt(candidate, reference=ref, api_doc=doc, mode=mode,
+                ev = evaluate_script(candidate, reference=ref, api_doc=doc, mode=mode,
                                  model=judge_model, client=client)
                 row[mode] = ev.score
         rows.append(row)

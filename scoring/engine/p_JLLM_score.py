@@ -33,7 +33,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.judge import evaluate_dt, DEFAULT_MODEL  # noqa: E402
+from simbench.judge import evaluate_script, DEFAULT_MODEL  # noqa: E402
 from simbench.systems import all_systems  # noqa: E402
 
 # Judge model + sampling come from simbench.judge defaults ($SIMBENCH_JUDGE_MODEL).
@@ -56,11 +56,11 @@ def evaluate_and_save_results(round_name, prediction, reference_code, api_docume
                               output_system_path, client=None):
     """Run the three rubric modes for one turn and persist scores + prompts (unchanged schema)."""
     # doc / reference / reference+document, matching the original three output files.
-    ev_doc = evaluate_dt(prediction, api_doc=api_documentation, mode="doc",
+    ev_doc = evaluate_script(prediction, api_doc=api_documentation, mode="doc",
                          model=JUDGE_MODEL, client=client)
-    ev_ref = evaluate_dt(prediction, reference=reference_code, mode="ref",
+    ev_ref = evaluate_script(prediction, reference=reference_code, mode="ref",
                          model=JUDGE_MODEL, client=client)
-    ev_ref_doc = evaluate_dt(prediction, reference=reference_code, api_doc=api_documentation,
+    ev_ref_doc = evaluate_script(prediction, reference=reference_code, api_doc=api_documentation,
                              mode="ref_doc", model=JUDGE_MODEL, client=client)
 
     paths = {

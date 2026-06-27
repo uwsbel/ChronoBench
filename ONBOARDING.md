@@ -28,7 +28,7 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 |------|------|
 | `demo_data/` | The benchmark: 34 systems x 3 turns. `manifest.json` indexes system -> category -> turn -> files. |
 | `api/api.txt` | ~4k-token PyChrono API reference used as judge context. |
-| `simbench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_dt`), `score.py` (CLI), `systems.py` (taxonomy). |
+| `simbench/` | **Reusable evaluator** (this is the product): `judge.py` (`evaluate_script`), `score.py` (CLI), `systems.py` (taxonomy). |
 | `scoring/engine/` | The operational engine: S-LLM generation drivers + `p_JLLM_score.py` (batch judging). Not legacy. |
 | `scoring/` (root) | The paper's analysis/plotting scripts + `rank_llm.py`. |
 | `output_llms/` | Generated virtual experiment scripts + scores for 30+ published models (large; see `DATA.md`). |
@@ -77,9 +77,9 @@ python scoring/rank_llm.py                          # rankings
 
 ### (c) Use the J-LLM as a standalone diagnostic (in an agent loop)
 ```python
-from simbench.judge import evaluate_dt
+from simbench.judge import evaluate_script
 
-ev = evaluate_dt(candidate_code, reference=truth_code, api_doc=open("api/api.txt").read())
+ev = evaluate_script(candidate_code, reference=truth_code, api_doc=open("api/api.txt").read())
 print(ev.score)       # 0-100
 print(ev.rationale)   # the judge's per-criterion deductions (free text) -> feed back to the agent
 ```

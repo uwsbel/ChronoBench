@@ -28,7 +28,7 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 
 ## Where things live (code)
 
-1. `simbench/` (package): the reusable evaluator, `judge.evaluate_dt(...)`, the
+1. `simbench/` (package): the reusable evaluator, `judge.evaluate_script(...)`, the
    `python -m simbench.score` CLI, and the system/category taxonomy (`systems.py`).
 2. `api/api.txt`: condensed Chrono/PyChrono API reference fed to the J-LLM as context.
 3. `demo_data/`: expert ground-truth scripts, 34 physical systems, each with three turns
