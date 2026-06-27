@@ -1,0 +1,16 @@
+"""ChronoBench: evaluation and diagnosis of LLM-generated PyChrono virtual experiment scripts.
+
+This package exposes the ChronoBench *evaluator* as a reusable library, distinct from the
+research/analysis scripts under ``scoring/``. ChronoBench's purpose is to **evaluate and
+diagnose** Chrono agents (LLMs that generate virtual experiment scripts), not to train them.
+
+Public API:
+    - ``chronobench.systems``  : the canonical 34 systems and 5 categories (single source of truth).
+    - ``chronobench.judge``    : the rule-based J-LLM evaluator, ``evaluate_script(...)``.
+    - ``chronobench.score``    : a CLI to evaluate one agent's outputs against the benchmark.
+"""
+
+from .systems import CATEGORIES, SYSTEMS, category_of, all_systems  # noqa: F401
+
+__all__ = ["CATEGORIES", "SYSTEMS", "category_of", "all_systems"]
+__version__ = "0.1.0"

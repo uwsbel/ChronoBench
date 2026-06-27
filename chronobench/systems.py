@@ -1,4 +1,4 @@
-"""Canonical SimBench taxonomy: the 34 physical systems and their 5 categories.
+"""Canonical ChronoBench taxonomy: the 34 physical systems and their 5 categories.
 
 This is the single source of truth for the system->category mapping. It mirrors the lists
 historically hardcoded in ``scoring/evaluatePy.py`` (lines ~99-103); other code and the
@@ -53,7 +53,7 @@ def category_of(system: str) -> str:
     try:
         return _SYSTEM_TO_CATEGORY[system]
     except KeyError as exc:
-        raise KeyError(f"Unknown SimBench system: {system!r}") from exc
+        raise KeyError(f"Unknown ChronoBench system: {system!r}") from exc
 
 
 def all_systems() -> list[str]:

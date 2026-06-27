@@ -1,4 +1,4 @@
-"""Evaluate ONE agent's virtual experiment scripts against the SimBench benchmark.
+"""Evaluate ONE agent's virtual experiment scripts against the ChronoBench benchmark.
 
 This is the "evaluate your own agent" entry point. Point it at a directory holding your
 agent's generated code in the standard layout:
@@ -12,14 +12,14 @@ summary by rubric mode, category, and turn.
 
 Examples
 --------
-    # score the published outputs of one model (judge = $SIMBENCH_JUDGE_MODEL or gpt-4o-mini)
-    python -m simbench.score claude-4-sonnet-20250514
+    # score the published outputs of one model (judge = $CHRONOBENCH_JUDGE_MODEL or gpt-4o-mini)
+    python -m chronobench.score claude-4-sonnet-20250514
 
     # score your own agent living in a custom directory, only the FEA systems
-    python -m simbench.score my-agent --responses-dir /path/to/outputs --systems beam,cable,rotor
+    python -m chronobench.score my-agent --responses-dir /path/to/outputs --systems beam,cable,rotor
 
     # check your files/prompts without spending any API calls
-    python -m simbench.score my-agent --dry-run
+    python -m chronobench.score my-agent --dry-run
 
 Requires ``$OPENAI_API_KEY`` (unless ``--dry-run``). Use ``--base-url`` to point the
 OpenAI-compatible client at another provider (NVIDIA NIM, Together, a local vLLM, etc.).
@@ -38,9 +38,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402,F401
-from simbench.systems import all_systems, category_of  # noqa: E402
-from simbench.contract import DEFAULT_CONTRACT, list_contracts, load_contract  # noqa: E402
+from chronobench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402,F401
+from chronobench.systems import all_systems, category_of  # noqa: E402
+from chronobench.contract import DEFAULT_CONTRACT, list_contracts, load_contract  # noqa: E402
 
 ROUNDS = [("first", 1), ("second", 2), ("third", 3)]
 # CSV columns match combined_evaluation_scores.csv so rank_llm.py is drop-in.
@@ -135,7 +135,7 @@ def write_csv(rows: list[dict], out_path: str, modes: list[str]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="python -m simbench.score", description=__doc__,
+    p = argparse.ArgumentParser(prog="python -m chronobench.score", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("model", help="model/agent name; outputs at <responses-dir>/<model>/<system>/")
     p.add_argument("--responses-dir", default=os.path.join(PROJECT_ROOT, "output_llms"),
@@ -155,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base-url", default=None,
                    help="OpenAI-compatible base_url for a non-OpenAI provider")
     p.add_argument("--out", default=None,
-                   help="output CSV path (default: <responses-dir>/<model>/evaluation_scores_simbench.csv)")
+                   help="output CSV path (default: <responses-dir>/<model>/evaluation_scores_chronobench.csv)")
     p.add_argument("--max-workers", type=int, default=16)
     p.add_argument("--dry-run", action="store_true",
                    help="validate files and render prompts without calling the judge")
@@ -223,7 +223,7 @@ def main(argv=None) -> int:
 
     all_rows.sort(key=lambda r: (r["System"], r["Round"]))
     out_path = args.out or os.path.join(args.responses_dir, args.model,
-                                        "evaluation_scores_simbench.csv")
+                                        "evaluation_scores_chronobench.csv")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     write_csv(all_rows, out_path, modes)
     summarize(all_rows, modes)

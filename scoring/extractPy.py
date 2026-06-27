@@ -5,13 +5,13 @@ For each model and system, reads
 ``*_response.py`` (code extracted from the markdown/code fences) and ``*_cleaned_response.py``
 (comments removed, for the similarity metrics in ``p_sim_score.py``).
 
-Models come from the command line, else ``$SIMBENCH_TEST_MODELS`` (comma-separated), else
+Models come from the command line, else ``$CHRONOBENCH_TEST_MODELS`` (comma-separated), else
 ``DEFAULT_TEST_MODELS``:
 
     python scoring/extractPy.py <model> [<model> ...]
 
 (This file previously contained its entire body twice by accident; it has been de-duplicated.
-The system list is taken from the canonical ``simbench.systems`` taxonomy rather than scanning
+The system list is taken from the canonical ``chronobench.systems`` taxonomy rather than scanning
 ``demo_data/`` so that non-system entries like ``manifest.json`` are not treated as systems.)
 """
 
@@ -27,7 +27,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.systems import all_systems  # noqa: E402
+from chronobench.systems import all_systems  # noqa: E402
 
 DEFAULT_TEST_MODELS = ["llama3.3-70b-lora1"]
 ROUNDS = ["first", "second", "third"]
@@ -133,7 +133,7 @@ def process_model(test_model, responses_dir):
 def resolve_test_models(models):
     if models:
         return models
-    env = os.getenv("SIMBENCH_TEST_MODELS")
+    env = os.getenv("CHRONOBENCH_TEST_MODELS")
     if env:
         return [m.strip() for m in env.split(",") if m.strip()]
     return DEFAULT_TEST_MODELS
@@ -143,7 +143,7 @@ def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(prog="python scoring/extractPy.py",
                                  description="Extract runnable .py (+ comment-stripped) from S-LLM .txt responses.")
-    ap.add_argument("models", nargs="*", help="models to process (else $SIMBENCH_TEST_MODELS, else default)")
+    ap.add_argument("models", nargs="*", help="models to process (else $CHRONOBENCH_TEST_MODELS, else default)")
     ap.add_argument("--responses-dir", default=os.path.join(PROJECT_ROOT, "output_llms"),
                     help="base dir with <model>/<system>/*_response.txt (default: output_llms/; use runs/ for new agents)")
     args = ap.parse_args(argv)

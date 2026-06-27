@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-LLM Ranking Pipeline for SimBench
+LLM Ranking Pipeline for ChronoBench
 =================================
 
 1. Reads and merges two evaluation CSVs:
@@ -21,7 +21,7 @@ LLM Ranking Pipeline for SimBench
    - Per-file rankings
    - Top-10 plot
 
-Author: SimBench Team
+Author: ChronoBench Team
 """
 
 from pathlib import Path
@@ -330,7 +330,7 @@ def make_plot(cons: pd.DataFrame):
                 f'{score:.1f}', ha='center', fontsize=9, fontweight='bold')
     
     plt.xticks(rotation=45, ha="right")
-    plt.title("SimBench: Top 10 LLMs — Consensus Score", fontsize=14, fontweight='bold')
+    plt.title("ChronoBench: Top 10 LLMs — Consensus Score", fontsize=14, fontweight='bold')
     plt.xlabel("Model")
     plt.ylabel("Consensus Score (0–100)")
     plt.ylim(0, 105)
@@ -347,7 +347,7 @@ def make_plot(cons: pd.DataFrame):
 # =============================================================================
 def main():
     print("\n" + "=" * 60)
-    print("  SimBench LLM Ranking Pipeline")
+    print("  ChronoBench LLM Ranking Pipeline")
     print("=" * 60)
     
     # Check inputs exist

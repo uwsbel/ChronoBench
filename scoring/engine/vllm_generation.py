@@ -137,7 +137,7 @@ system_do_list = ["art", "beam", "buckling", "cable", "car", "camera", "citybus"
                   "rigid_highway", "rigid_multipatches", "rotor", "scm", "scm_hill", "sedan", "sensros", "slider_crank",
                   "tablecloth", "turtlebot", "uazbus", "veh_app", "vehros", "viper"]
 # data set path
-DATA_ROOT   = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/SimBench")
+DATA_ROOT   = Path("/lustre/fsw/coreai_nvfm_cupilot/jingquanw/ChronoBench")
 dataset_path = DATA_ROOT / "demo_data"
 Output_path     = DATA_ROOT / "output_llms"
 Output_conversation_path    = DATA_ROOT / "output_conversion"

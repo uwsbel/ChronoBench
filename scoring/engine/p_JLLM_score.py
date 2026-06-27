@@ -5,14 +5,14 @@ and writes, per (model, system): three ``*_score_*.txt`` files (doc / reference 
 modes), a ``*_evaluation.json`` audit record, a per-system ``evaluation_scores.csv``, and finally
 a merged ``output_llms/combined_evaluation_scores.csv``.
 
-The rubric/judge logic now lives in the reusable ``simbench.judge`` package (single source of
+The rubric/judge logic now lives in the reusable ``chronobench.judge`` package (single source of
 truth for the prompts); this file is the batch harness around it. Earlier versions duplicated the
 rubric three times inline, hardcoded the judge model, printed the API key, and ran at import time.
 
 Usage:
-    # judge model: $SIMBENCH_JUDGE_MODEL (default gpt-4o-mini); needs $OPENAI_API_KEY
+    # judge model: $CHRONOBENCH_JUDGE_MODEL (default gpt-4o-mini); needs $OPENAI_API_KEY
     python scoring/engine/p_JLLM_score.py <test_model> [<test_model> ...]
-    # or set SIMBENCH_TEST_MODELS="modelA,modelB"; else falls back to DEFAULT_TEST_MODELS below.
+    # or set CHRONOBENCH_TEST_MODELS="modelA,modelB"; else falls back to DEFAULT_TEST_MODELS below.
 """
 
 import os
@@ -25,7 +25,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 # -----------------------------------------------------------------------------
-# Make the repo root importable so `import simbench` works when run from scoring/engine/.
+# Make the repo root importable so `import chronobench` works when run from scoring/engine/.
 # Script is at <PROJECT_ROOT>/scoring/engine/p_JLLM_score.py, so go up 2 levels.
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,13 +33,13 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.judge import evaluate_script, DEFAULT_MODEL  # noqa: E402
-from simbench.systems import all_systems  # noqa: E402
+from chronobench.judge import evaluate_script, DEFAULT_MODEL  # noqa: E402
+from chronobench.systems import all_systems  # noqa: E402
 
-# Judge model + sampling come from simbench.judge defaults ($SIMBENCH_JUDGE_MODEL).
+# Judge model + sampling come from chronobench.judge defaults ($CHRONOBENCH_JUDGE_MODEL).
 JUDGE_MODEL = DEFAULT_MODEL
 
-# Default S-LLMs to score if none given on the CLI / via $SIMBENCH_TEST_MODELS.
+# Default S-LLMs to score if none given on the CLI / via $CHRONOBENCH_TEST_MODELS.
 DEFAULT_TEST_MODELS = ["llama3.3-70b-lora1"]
 
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
@@ -194,7 +194,7 @@ def process_model_system(test_model, system_folder, client=None):
 def resolve_test_models(argv):
     if argv:
         return argv
-    env = os.getenv("SIMBENCH_TEST_MODELS")
+    env = os.getenv("CHRONOBENCH_TEST_MODELS")
     if env:
         return [m.strip() for m in env.split(",") if m.strip()]
     return DEFAULT_TEST_MODELS

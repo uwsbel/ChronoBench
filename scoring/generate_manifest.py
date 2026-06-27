@@ -1,7 +1,7 @@
 """Generate ``demo_data/manifest.json``: a machine-readable index of the benchmark.
 
 Scans the ``demo_data`` folders, assigns each system its category from the canonical
-``simbench.systems`` map, records the per-turn file roles, and validates that every system
+``chronobench.systems`` map, records the per-turn file roles, and validates that every system
 has the expected files. Run from anywhere:
 
     python scoring/generate_manifest.py
@@ -20,7 +20,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from simbench.systems import CATEGORIES, SYSTEMS, TURNS, category_of  # noqa: E402
+from chronobench.systems import CATEGORIES, SYSTEMS, TURNS, category_of  # noqa: E402
 
 DEMO_DATA = os.path.join(PROJECT_ROOT, "demo_data")
 
@@ -57,7 +57,7 @@ def build_manifest() -> dict:
 
     return {
         "description": (
-            "SimBench benchmark index. 34 physical systems x 3 turns = 102 turn-level tasks. "
+            "ChronoBench benchmark index. 34 physical systems x 3 turns = 102 turn-level tasks. "
             "Turn 1 creates a virtual experiment script from a prompt; Turns 2-3 modify/extend it. The "
             "expert reference (truth{t}.py) and api/api.txt are the J-LLM's grounding context."
         ),

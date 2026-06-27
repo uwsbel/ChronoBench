@@ -15,7 +15,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Script is at: <PROJECT_ROOT>/scoring/evaluatePy.py, so go up 1 level
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 sys.path.insert(0, PROJECT_ROOT)
-from simbench.systems import all_systems  # noqa: E402
+from chronobench.systems import all_systems  # noqa: E402
 
 
 def run_python_file(python_file_path, log_file):
@@ -86,7 +86,7 @@ Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
 def main(argv=None):
     """Compile/run each model's generated scripts (Compile@1). Requires PyChrono installed."""
     argv = sys.argv[1:] if argv is None else argv
-    env = os.getenv("SIMBENCH_TEST_MODELS")
+    env = os.getenv("CHRONOBENCH_TEST_MODELS")
     test_model_list = argv or ([m.strip() for m in env.split(",") if m.strip()] if env else ["gpt-4o-mini-f2"])
     responses_dir = os.path.join(PROJECT_ROOT, "output_llms")
     print(f"Compile/run check for models: {test_model_list}")

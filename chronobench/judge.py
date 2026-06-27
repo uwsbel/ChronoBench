@@ -3,10 +3,10 @@
 This is the reusable form of the judge that was previously locked inside
 ``scoring/engine/p_JLLM_score.py`` (model hardcoded, rubric duplicated three times, work done at
 import time). Here a single ``evaluate_script(...)`` call returns the score plus the judge's
-rationale, the rubric lives once in ``simbench/rubric/*.txt``, and the model/provider are
+rationale, the rubric lives once in ``chronobench/rubric/*.txt``, and the model/provider are
 parameters.
 
-SimBench's purpose is to *evaluate and diagnose* a Chrono agent's virtual experiment scripts, so
+ChronoBench's purpose is to *evaluate and diagnose* a Chrono agent's virtual experiment scripts, so
 the natural use is in a loop: an agent generates a script, ``evaluate_script`` scores it and explains
 the deductions, the agent revises.
 
@@ -17,7 +17,7 @@ Three rubric modes (matching the paper):
 
 Example
 -------
->>> from simbench.judge import evaluate_script
+>>> from chronobench.judge import evaluate_script
 >>> ev = evaluate_script(candidate_code, reference=truth_code, api_doc=api_text)
 >>> ev.score, ev.mode
 (72, 'ref_doc')
@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Judge sampling defaults, unchanged from the published pipeline (low variance).
-DEFAULT_MODEL = os.getenv("SIMBENCH_JUDGE_MODEL", "gpt-4o-mini")
+DEFAULT_MODEL = os.getenv("CHRONOBENCH_JUDGE_MODEL", "gpt-4o-mini")
 DEFAULT_TEMPERATURE = 0.2
 DEFAULT_TOP_P = 0.7
 DEFAULT_MAX_TOKENS = 12000
@@ -110,7 +110,7 @@ def build_prompt(
     """Render the rubric prompt for a mode. Raises if required context is missing/empty.
 
     rubric_dir overrides the package's default rubric (e.g. to use a contract's frozen rubric
-    snapshot); when None, the package `simbench/rubric/` is used.
+    snapshot); when None, the package `chronobench/rubric/` is used.
     """
     if mode not in MODES:
         raise ValueError(f"Unknown mode {mode!r}; expected one of {sorted(MODES)}.")
@@ -131,7 +131,7 @@ def build_prompt(
 
 
 def _default_client():
-    from openai import OpenAI  # imported lazily so importing simbench never requires openai
+    from openai import OpenAI  # imported lazily so importing chronobench never requires openai
 
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -157,7 +157,7 @@ def evaluate_script(
         api_doc: API documentation text, e.g. the contents of ``api/api.txt`` (enables
             "doc"/"ref_doc" modes).
         mode: force a rubric mode; if None, the richest applicable mode is selected.
-        model: judge model name (default from $SIMBENCH_JUDGE_MODEL or "gpt-4o-mini").
+        model: judge model name (default from $CHRONOBENCH_JUDGE_MODEL or "gpt-4o-mini").
         client: an OpenAI-compatible client; if None, one is built from $OPENAI_API_KEY.
         temperature, top_p, max_tokens: sampling params (defaults match the published pipeline).
 

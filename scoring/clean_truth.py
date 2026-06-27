@@ -13,7 +13,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 import sys
 sys.path.insert(0, PROJECT_ROOT)
-from simbench.systems import all_systems  # noqa: E402
+from chronobench.systems import all_systems  # noqa: E402
 
 def remove_comments_from_file(input_py_file, output_py_file, log_file='comment_removal.log'):
     """Remove comments from a Python file and save the output to another file."""

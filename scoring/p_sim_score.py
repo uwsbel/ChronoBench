@@ -20,7 +20,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 # Make the repo root importable so we can use the canonical system taxonomy.
 import sys
 sys.path.insert(0, str(PROJECT_ROOT))
-from simbench.systems import all_systems  # noqa: E402
+from chronobench.systems import all_systems  # noqa: E402
 
 # Default paths (auto-detected); all overridable via CLI.
 dataset_path = PROJECT_ROOT / "demo_data"
@@ -29,10 +29,10 @@ DEFAULT_OUT = PROJECT_ROOT / "metrics" / "evaluation_results.csv"
 
 
 def resolve_models(argv_models, responses_dir):
-    """Models to score: CLI args, else $SIMBENCH_TEST_MODELS, else every dir under responses_dir."""
+    """Models to score: CLI args, else $CHRONOBENCH_TEST_MODELS, else every dir under responses_dir."""
     if argv_models:
         return argv_models
-    env = os.getenv("SIMBENCH_TEST_MODELS")
+    env = os.getenv("CHRONOBENCH_TEST_MODELS")
     if env:
         return [m.strip() for m in env.split(",") if m.strip()]
     return sorted(d for d in os.listdir(responses_dir)
@@ -112,7 +112,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="python scoring/p_sim_score.py",
                                  description="CodeBLEU/ROUGE similarity metrics vs cleaned ground truth.")
     ap.add_argument("models", nargs="*",
-                    help="models to score (default: every dir under --responses-dir; or $SIMBENCH_TEST_MODELS)")
+                    help="models to score (default: every dir under --responses-dir; or $CHRONOBENCH_TEST_MODELS)")
     ap.add_argument("--responses-dir", default=str(DEFAULT_RESPONSES),
                     help="base dir with <model>/<system>/*_cleaned_response.py (default: output_llms/)")
     ap.add_argument("--out", default=str(DEFAULT_OUT),
