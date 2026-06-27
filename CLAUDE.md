@@ -43,8 +43,7 @@ Note: `README.md` is a summary and can lag the paper; the paper governs.
 7. `paper/`: the FROZEN IEEE Access 2026 artifact (the paper's figure/table analysis scripts +
    `out/` + a summary CSV). Reproducibility only, not the living tool.
 8. `metrics/`: living pipeline metric outputs; `runs/`: new-agent eval outputs (git-ignored).
-9. `analysis/`: an older secondary analysis workspace (rank1-5, correlation); `visualization/`:
-   pipeline/overview figures. Both are paper-era (candidates to fold into `paper/` later).
+9. `visualization/`: pipeline and overview figures used by the README and the paper.
 
 ## Conventions
 

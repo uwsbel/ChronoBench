@@ -81,15 +81,17 @@ def hash_tasks(tasks_dir) -> str:
     """Deterministic content hash of a tasks directory (excludes the generated manifest.json).
 
     Must match the algorithm used to populate `tasks.sha256` in a contract.json: walk in sorted
-    order, and fold `relpath \\0 sha256(content)` for each file into one sha256.
+    order, and fold `relpath \\0 sha256(content)` for each file into one sha256. Non-task metadata
+    files (the generated manifest, the folder README) are excluded so docs do not perturb the hash.
     """
     tasks_dir = Path(tasks_dir)
     h = hashlib.sha256()
+    skip = {"manifest.json", "README.md"}
     files = []
     for dirpath, dirnames, filenames in os.walk(tasks_dir):
         dirnames.sort()
         for fn in sorted(filenames):
-            if fn == "manifest.json":
+            if fn in skip:
                 continue
             rel = os.path.relpath(os.path.join(dirpath, fn), tasks_dir).replace("\\", "/")
             files.append(rel)

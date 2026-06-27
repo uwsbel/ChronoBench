@@ -28,8 +28,7 @@ are separate**, and the directory names hide it.
    (`multivariate_analysis.py`, `failure_mode_analysis.py`, `plot_*`) + `out/` + summary CSV,
    moved out of `scoring/` so the living pipeline (`scoring/` root + `rank_llm.py`) stays clean.
 5. **Generated corpus + results** - `output_llms/` (~756 MB, 30+ models),
-   `output_conversion/` (~84 MB), `metrics/` (pipeline metric outputs), `analysis/`
-   (analysis + figures workspace), `visualization/` (figures).
+   `output_conversion/` (~84 MB), `metrics/` (pipeline metric outputs), `visualization/` (figures).
 
 **Pipeline:** generate -> `extractPy.py` -> `evaluatePy.py` (compile/run) -> `p_sim_score.py`
 (CodeBLEU/ROUGE) -> J-LLM scoring -> `rank_llm.py`. See `ONBOARDING.md` for exact commands.

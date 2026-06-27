@@ -1,4 +1,6 @@
-This folder contains five major categories of simulation scenarios (setups, themes), encompassing 34 mechatronic systems, for a total of 102 simulations (3 variations per system). The hope is that this number steadily goes up to improve the breadth and depth of the simulation setups available.
+# ChronoBench benchmark (`demo_data/`)
+
+This folder is the benchmark itself: five major categories of simulation scenarios (setups, themes), encompassing 34 mechatronic systems, for a total of 102 simulations (3 variations per system). The hope is that this number steadily goes up to improve the breadth and depth of the simulation setups available. Per-system files and their roles are indexed in `demo_data/manifest.json`; see also the "add a system" guide below.
 
 ### Categories and Systems:
 

@@ -35,7 +35,6 @@ export OPENAI_API_KEY=sk-...              # judge defaults to gpt-4o-mini
 | `paper/` | FROZEN IEEE Access 2026 artifact: paper figure/table analysis + `out/` + summary CSV. Not the tool. |
 | `output_llms/` | Generated virtual experiment scripts + scores for 30+ published models (large; see `DATA.md`). |
 | `metrics/` | Pipeline metric outputs (`evaluation_results.csv`, `all_metrics_combined.csv`). |
-| `analysis/` | Analysis + figures workspace (ranking, correlation, plots). |
 
 ## 3. The evaluation pipeline
 
