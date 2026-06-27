@@ -1,7 +1,14 @@
-from openai import OpenAI
+"""Regenerate the comment-stripped reference scripts used by the similarity metrics (stage 4).
+
+For every benchmark system, strips comments/docstrings from each ``truth{1,2,3}.py`` and writes
+``cleaned_truth{1,2,3}.py`` alongside it. Stripping comments makes CodeBLEU/ROUGE compare structure
+rather than prose. It uses the same comment-stripping regex as ``scoring/extractPy.py`` (which
+cleans the generated responses), so candidate and reference are cleaned identically. Run:
+    python scoring/clean_truth.py
+
+WARNING: this writes inside ``demo_data/``, which is part of the frozen contract; see ``main``.
+"""
 import os
-import json
-from tqdm import tqdm
 import re
 import logging
 

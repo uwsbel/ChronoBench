@@ -95,7 +95,8 @@ print(ev.rationale)   # the judge's per-criterion deductions (free text) -> feed
 
 ## 5. Known rough edges
 
-1. `scoring/p_sim_score.py` has a hardcoded `test_model_list` near the bottom; edit it before
-   running. (`scoring/extractPy.py` and `python -m chronobench.score` take the model on the
-   command line, so prefer those.)
+1. The stages assume a fixed on-disk layout (`<model>/<system>/{first,second,third}_response.*`)
+   and run in order: `scoring/rank_llm.py` (stage 6) exits with an error unless BOTH
+   `metrics/evaluation_results.csv` (stage 4) and `output_llms/combined_evaluation_scores.csv`
+   (stage 5) already exist.
 2. `output_llms/` and `output_conversion/` are large; see `DATA.md` for hosting guidance.

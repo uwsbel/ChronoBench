@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Merge evaluation_results.csv and combined_evaluation_scores.csv
-合并两个评估结果文件，增加所有指标列
+"""Join the similarity metrics and the J-LLM scores into one flat per-(model, system, round) CSV.
+
+Outer-joins ``metrics/evaluation_results.csv`` (CodeBLEU/ROUGE, stage 4) with
+``output_llms/combined_evaluation_scores.csv`` (J-LLM scores, stage 5) on (model, system, round) and
+writes ``metrics/all_metrics_combined.csv`` -- every metric for every (model, system, round) in one
+table. This is the standalone "merge only" view; ``scoring/rank_llm.py`` performs the same join as
+its first step before going on to rank, so run this only when you want the combined table WITHOUT
+the ranking. Run:  python scoring/merge_metrics.py
 """
 
 import pandas as pd

@@ -1,12 +1,17 @@
-from openai import OpenAI
+"""Compile/run check (Compile@1) for generated scripts. Pipeline stage 3 (optional; needs PyChrono).
+
+For each model under ``output_llms/`` (taken from the CLI args or ``$CHRONOBENCH_TEST_MODELS``), run
+that model's per-system ``first/second/third_response.py`` in a subprocess and log whether each one
+executes cleanly. Systems come from the canonical ``chronobench`` taxonomy. This stage does NOT call
+an LLM; it only checks that the generated code runs.
+
+    python scoring/evaluatePy.py <model> [<model> ...]
+"""
 import os
-import json
-from tqdm import tqdm
-import re
 import sys
 import logging
-import io
 import subprocess
+from tqdm import tqdm
 
 # -----------------------------------------------------------------------------
 # Auto-detect project root based on script location
@@ -80,9 +85,8 @@ opensource_model_links = {
 dataset_path = os.path.join(PROJECT_ROOT, "demo_data")
 Output_path = os.path.join(PROJECT_ROOT, "output")
 Output_conversation_path = os.path.join(PROJECT_ROOT, "output_conversion")
-# in the dataset_path, there are 34 dynamical system folders, each folder is a dyanmical system which contains 8 files [3 input text files, input1.txt, input2.txt, input3.txt;
-# 2 python input files, pyinput2.py, pyinput3.py; 3 ground truth python files truth1.py, truth2.py, truth3.py]
-#test_model_list = ["gemma-2-2b-it", "gemma-2-9b-it", "gemma-2-27b-it", "llama-3.1-405b-instruct", "llama-3.1-70b-instruct", "codellama-70b", "llama-3.1-8b-instruct", "phi-3-mini-128k-instruct", "phi-3-small-8k-instruct", "phi-3-medium-128k-instruct",
+
+
 def main(argv=None):
     """Compile/run each model's generated scripts (Compile@1). Requires PyChrono installed."""
     argv = sys.argv[1:] if argv is None else argv

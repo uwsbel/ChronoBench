@@ -1,3 +1,13 @@
+"""Similarity metrics (CodeBLEU + ROUGE) vs the cleaned ground truth. Pipeline stage 4.
+
+For each (model, system) pair, compare the model's comment-stripped ``*_cleaned_response.py`` against
+the expert ``cleaned_truth{1,2,3}.py`` and emit per-turn CodeBLEU and ROUGE rows to a CSV (default
+``metrics/evaluation_results.csv``). These cheap, reference-based scores complement the J-LLM scores
+(stage 5) and feed the ranking (stage 6). Models default to every dir under ``--responses-dir``;
+work fans out across processes. Run:
+
+    python scoring/p_sim_score.py [<model> ...] [--responses-dir DIR] [--out CSV] [--systems a,b]
+"""
 import evaluate
 from codebleu import calc_codebleu
 import os
