@@ -68,6 +68,16 @@ rolling dynamics. Freed slots go to solvers, coupling, SWIG, and state-managemen
 on PROBE VECTORS (API family, numerics risk, coupling, observables, extension mode), not scenario
 names: two tasks with the same probe vector collapse even if the stories differ.
 
+## Phase 0 pilot result (PASSED 2026-06-29)
+
+The de-scoped judge was validated end-to-end on a pendulum task (`demo_data_10/pendulum/`, judge at
+`scoring/judge_pilot.py`): the reference and a correct-but-DIFFERENT-style candidate both score 100
+(idiom divergence is not penalized), while a runs-but-WRONG candidate (L=0.5 m -> period 1.42 s vs
+analytic 2.01 s) that passes L1 execution and every L2 capability check is caught by L3
+(`invariant-fail`, 65). This confirms the architecture is both more thorough (L3 catches finite-but-
+wrong physics a text-only judge would miss) and unbiased on the execution/behavioral axis
+(style-divergent-but-correct scores identically to the reference). Cleared to scale to Phase 4.
+
 ## Method (bias-aware)
 
 1. Coverage is defined by the authoritative capability taxonomy (14 axes derived from Chrono 10.0.0's
