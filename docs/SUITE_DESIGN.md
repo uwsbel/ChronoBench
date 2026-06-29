@@ -1,5 +1,10 @@
 # ChronoBench task-suite redesign: blueprint (DRAFT for review)
 
+> **WORK IN PROGRESS.** The suite is being redesigned. Only the feasible-now (CPU PyChrono) tasks
+> are authored + verified first; the GPU/ROS/PyDEME tracks are a DEFERRED BACKLOG (see "ACTION
+> NEEDED" below) and are NOT yet done, NOT verified, and NOT in the contract. The suite is not
+> complete until that backlog is cleared. v1.0/paper stays frozen at tag `paper-ieee-access-2026`.
+
 Status: Phase 1/2 draft on branch `chrono10-redesign`. This document is the design + coverage record
 for the redesigned, multi-simulator (PyChrono 10.0 + PyDEME) task suite. It records *why* each task
 is in the suite (axis, simulator, source, rationale), fixing the provenance void of the original 34.
@@ -103,13 +108,29 @@ Minor deltas: window size as `chrono.ChVector2i(w,h)`; `AddSkyBox()` -> `SetSkyB
 `AddTypicalLights()` -> `SetLightIntensity()`+`SetLightDirection()`. Verification stays headless, so the
 Vulkan runtime is not required to gate a task. Sensor/ROS systems have no main vis system (no change).
 
-## Open design questions (for the panel red-team / Dan)
+## Decisions (Dan, this session)
 
-1. Target total: ~26 feasible-now + ~10 infra-gated. Comfortable, or trim/expand?
-2. VEH cap: keep 5 (hmmwv, rigid_multipatches, scm, m113, + one car) at ~19%? Which car, sedan or citybus?
-3. Do we keep `particles` (PyChrono emitter) once the PyDEME granular track exists, or retire it as
-   superseded?
-4. Difficulty staging: keep the 3-turn create/modify/extend structure for all axes, or vary it?
-5. CAD/STEP import (CASCADE): include despite the conda-packaging caveat, or defer?
-6. Should infra-gated tasks be authored now (designed, marked pending-verify) or deferred until the
-   GPU/ROS/PyDEME envs exist?
+1. Infra-gated tasks: **DEFER**. Author + gate-verify the feasible-now suite and cut the contract on
+   those only; the infra-gated axes are a designed backlog (below) to author + verify when the env
+   exists. Clear in-progress signage stays so a future visitor knows the suite is not yet complete.
+2. `particles`: **KEEP** (the PyChrono emitter / N-body path is distinct from the PyDEME GPU-DEM track).
+
+## DEFERRED BACKLOG -- ACTION NEEDED (suite is NOT complete until cleared)
+
+These axes are part of the intended suite but are NOT yet authored or verified: this machine has no
+NVIDIA GPU / CUDA and no ROS build. They are DESIGNED only, NOT in the v2.0 contract, until each is
+stood up, executed, and gated. `STATUS.md` flags them `deferred(infra)`.
+
+| Axis / track | Tasks | Infra required |
+|---|---|---|
+| Sensors (OptiX) | physics camera/path-tracing, LiDAR, radar | NVIDIA GPU + Chrono::Sensor built with OptiX |
+| Multi-agent / ROS | two-manager ROS, vehros, sensros | pychrono built with the `ros` module + a ROS env |
+| FSI / SPH | object drop, CRM terrain | NVIDIA GPU build |
+| DEM / granular (PyDEME) | granular pile, cone-penetration, mixer | Linux/WSL + CUDA 12.x + NVIDIA GPU + `pip install DEME` |
+
+## Still-open design questions (for the panel red-team)
+
+1. Target total ~26 feasible-now: comfortable, or trim/expand?
+2. VEH cap at 5 (~19%): which representative car, sedan or citybus?
+3. Difficulty staging: keep the 3-turn create/modify/extend structure for all axes, or vary it?
+4. CAD/STEP import (CASCADE): include despite the conda-packaging caveat, or defer?
