@@ -83,13 +83,13 @@ def merge_evaluation_files() -> pd.DataFrame:
         'Test Model': 'model',
         'System': 'system',
         'Round': 'round_name',
-        'Score API': 'score_document',
+        'Score API': 'score_api',
         'Score Reference': 'score_reference',
-        'Score Reference API': 'score_reference_document'
+        'Score Reference API': 'score_reference_api'
     })
     
     # Select columns to merge from df_scores
-    score_cols = ['_key', 'score_document', 'score_reference', 'score_reference_document']
+    score_cols = ['_key', 'score_api', 'score_reference', 'score_reference_api']
     df_scores_to_merge = df_scores_renamed[score_cols]
     
     # Merge on key
@@ -142,7 +142,7 @@ def get_numeric_and_score_like(df: pd.DataFrame):
     score_patterns = [
         r"score", r"bleu", r"rouge", r"codebleu",
         r"exact", r"\bf1\b", r"\bem\b", r"accuracy", r"\bacc\b",
-        r"mcc", r"pearson", r"spearman", r"reference", r"document"
+        r"mcc", r"pearson", r"spearman", r"reference", r"api"
     ]
     score_like = [c for c in numeric_cols if any(re.search(p, c, flags=re.I) for p in score_patterns)]
     score_like = [c for c in score_like if c not in flag_like]
@@ -152,9 +152,9 @@ def get_numeric_and_score_like(df: pd.DataFrame):
 
 def pick_primary_metric(df: pd.DataFrame):
     prefs = [
-        r"score.*reference.*document", r"score.*reference\s*document",
-        r"score reference document", r"score_reference_document",
-        r"score.*reference", r"score.*document"
+        r"score.*reference.*api", r"score.*reference\s*api",
+        r"score reference api", r"score_reference_api",
+        r"score.*reference", r"score.*api"
     ]
     for pat in prefs:
         for c in df.columns:
@@ -199,7 +199,7 @@ def rank_one_file(df: pd.DataFrame, model_col: str, primary_metric: str,
     
     # Attach common metrics
     extras = []
-    for pat in [r"score_document", r"score_reference", r"score_reference_document",
+    for pat in [r"score_api", r"score_reference", r"score_reference_api",
                 r"codebleu", r"rouge1", r"rouge2", r"rougeL", r"rougeLsum"]:
         for c in df.columns:
             if re.search(pat, c, flags=re.I) and pd.api.types.is_numeric_dtype(df[c]) and c not in extras:
@@ -233,7 +233,7 @@ def build_rankings(merged_df: pd.DataFrame) -> dict:
     print(f"\n  Saved merged data: {merged_path}")
     
     # Prepare two "views" for ranking
-    # View 1: LLM-as-judge scores (score_document, score_reference, score_reference_document)
+    # View 1: LLM-as-judge scores (score_api, score_reference, score_reference_api)
     # View 2: Code similarity metrics (codebleu, rouge, etc.)
     
     df = normalize_cols(merged_df)
@@ -247,9 +247,9 @@ def build_rankings(merged_df: pd.DataFrame) -> dict:
     zparts = []
     per_file_info = {}
     
-    # Rank by LLM-judge scores (primary: score_reference_document)
+    # Rank by LLM-judge scores (primary: score_reference_api)
     if llm_judge_cols:
-        primary = 'score_reference_document' if 'score_reference_document' in df.columns else llm_judge_cols[0]
+        primary = 'score_reference_api' if 'score_reference_api' in df.columns else llm_judge_cols[0]
         rank_df = rank_one_file(df, model_col, primary, False, llm_judge_cols)
         out_csv = OUT_DIR / "ranking_by_llm_judge.csv"
         rank_df.to_csv(out_csv, index=False, float_format="%.2f")

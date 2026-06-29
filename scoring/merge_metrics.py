@@ -53,13 +53,13 @@ def main():
         'Test Model': 'model',
         'System': 'system',
         'Round': 'round',
-        'Score API': 'score_document',
+        'Score API': 'score_api',
         'Score Reference': 'score_reference',
-        'Score Reference API': 'score_reference_document'
+        'Score Reference API': 'score_reference_api'
     })
     
     # Select columns to merge from df2
-    df2_to_merge = df2_renamed[['key', 'score_document', 'score_reference', 'score_reference_document']]
+    df2_to_merge = df2_renamed[['key', 'score_api', 'score_reference', 'score_reference_api']]
     
     # Merge on key
     merged = df1.merge(df2_to_merge, on='key', how='outer')

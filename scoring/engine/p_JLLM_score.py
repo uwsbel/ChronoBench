@@ -64,9 +64,9 @@ def evaluate_and_save_results(round_name, prediction, reference_code, api_docume
                              mode="ref_api", model=JUDGE_MODEL, client=client)
 
     paths = {
-        "score_document": (f"{round_name}_score_document.txt", ev_doc),
+        "score_api": (f"{round_name}_score_api.txt", ev_doc),
         "score_reference": (f"{round_name}_score_reference.txt", ev_ref),
-        "score_reference_document": (f"{round_name}_score_reference_document.txt", ev_ref_doc),
+        "score_reference_api": (f"{round_name}_score_reference_api.txt", ev_ref_doc),
     }
     for _, (fname, ev) in paths.items():
         with open(os.path.join(output_system_path, fname), "w", encoding="utf-8") as f:
@@ -80,19 +80,19 @@ def evaluate_and_save_results(round_name, prediction, reference_code, api_docume
         "output_system_path": output_system_path,
         "judge_model": JUDGE_MODEL,
         "scores": {
-            "score_document": ev_doc.raw,
+            "score_api": ev_doc.raw,
             "score_reference": ev_ref.raw,
-            "score_reference_document": ev_ref_doc.raw,
+            "score_reference_api": ev_ref_doc.raw,
         },
         "parsed_scores": {
-            "score_document": ev_doc.score,
+            "score_api": ev_doc.score,
             "score_reference": ev_ref.score,
-            "score_reference_document": ev_ref_doc.score,
+            "score_reference_api": ev_ref_doc.score,
         },
         "prompts": {
-            "prompt_document": ev_doc.prompt,
+            "prompt_api": ev_doc.prompt,
             "prompt_reference": ev_ref.prompt,
-            "prompt_reference_document": ev_ref_doc.prompt,
+            "prompt_reference_api": ev_ref_doc.prompt,
         },
     }
     with open(os.path.join(output_system_path, f"{round_name}_evaluation.json"), "w",
@@ -117,14 +117,14 @@ def save_scores_to_csv_with_metadata(output_system_path, test_model, system_fold
                  "Score Reference API"]]
     for round_name in ["first", "second", "third"]:
         try:
-            score_document = extract_scores_from_txt(
-                os.path.join(output_system_path, f"{round_name}_score_document.txt"))
+            score_api = extract_scores_from_txt(
+                os.path.join(output_system_path, f"{round_name}_score_api.txt"))
             score_reference = extract_scores_from_txt(
                 os.path.join(output_system_path, f"{round_name}_score_reference.txt"))
-            score_reference_document = extract_scores_from_txt(
-                os.path.join(output_system_path, f"{round_name}_score_reference_document.txt"))
-            csv_data.append([test_model, system_folder, round_name, score_document,
-                             score_reference, score_reference_document])
+            score_reference_api = extract_scores_from_txt(
+                os.path.join(output_system_path, f"{round_name}_score_reference_api.txt"))
+            csv_data.append([test_model, system_folder, round_name, score_api,
+                             score_reference, score_reference_api])
         except Exception as e:
             print(f"Error processing {round_name} in {system_folder} for {test_model}: {e}")
 

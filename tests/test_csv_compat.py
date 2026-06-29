@@ -5,7 +5,7 @@ import importlib
 _METRICS = "model,system,round,codebleu\nm1,pendulum,round_1,0.5\n"
 _SCORES = ("Test Model,System,Round,Score API,Score Reference,Score Reference API\n"
            "m1,pendulum,first,80,70,90\n")
-_INTERNAL = ["score_document", "score_reference", "score_reference_document"]
+_INTERNAL = ["score_api", "score_reference", "score_reference_api"]
 
 
 def _merge(tmp_path, scores_csv):
@@ -22,4 +22,4 @@ def test_api_headers_merge_into_internal_columns(tmp_path):
     merged = _merge(tmp_path, _SCORES)
     assert all(c in merged.columns for c in _INTERNAL)
     row = merged.iloc[0]
-    assert (row["score_document"], row["score_reference"], row["score_reference_document"]) == (80, 70, 90)
+    assert (row["score_api"], row["score_reference"], row["score_reference_api"]) == (80, 70, 90)
