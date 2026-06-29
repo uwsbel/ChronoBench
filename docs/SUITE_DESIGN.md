@@ -11,6 +11,58 @@ is in the suite (axis, simulator, source, rationale), fixing the provenance void
 Nothing here is authored or frozen yet; this is the plan for the panel red-team (Phase 3) and
 authoring/porting (Phase 4) to execute against.
 
+## Post-panel architecture (ADOPTED 2026-06-29) -- governs over the per-axis draft below
+
+The Phase 3 red-team (see `PANEL_REDTEAM.md`) reshaped the design. Where this section conflicts with
+the per-axis draft further down, THIS governs. Net: the benchmark becomes a failure-mode-probing,
+contracted-virtual-experiment suite with a layered oracle, not a per-axis demo-coverage set.
+
+### 1. Every task is a contracted virtual experiment
+Each task ships an executable contract: prompt parameters (masses, rates, seeds, asset paths, final
+time); required API/topology features; execution requirements (headless, no blocking vis, no absolute
+paths, bounded runtime, pinned 10.0); an output schema (JSON/CSV with units); a behavioral oracle
+(analytic checks, tolerances, inequalities, metamorphic relations); and per-task failure-triage
+(import / construct / run / missing-output / contract-violation / required-feature-absent).
+
+### 2. Layered oracle (evolves the judge; its own sub-plan)
+Score through layers, not a single rubric LLM:
+- L1 Execution integrity: imports, constructs, runs to horizon under timeout, no NaN/segfault.
+- L2 Semantic/topology: required APIs/modules present, correct callback/solver subclasses,
+  version-correct names (partial credit; prevents zero-saturation of a structurally-sound script).
+- L3 Behavioral invariants: robust/tolerant checks, qualitative trends, analytic approximations,
+  metamorphic relations (parameters varied via the PROMPT, never by editing generated code).
+- Judge LLM: residual partial-credit / semantic interpretation only, AFTER L1-L3.
+This is a judge re-architecture beyond the v1.0 reference+api rubric; build + validate it on the pilot
+before scaling. Treat it as a sub-project.
+
+### 3. Axes reframed around failure modes (supersedes the 14-axis coverage table below)
+First-class, separately scored: (a) mechanism/constraint + frame/marker reasoning; (b) collision/
+contact NSC vs SMC + trimesh/custom; (c) FEA incl. ANCF/shells/3D-solid + FEA-contact; (d) SOLVER/
+integrator/timestepper policy (NEW; no longer folded into contact); (e) SWIG Python/C++ extension --
+callbacks, ChFunction subclassing, GC/lifecycle (NEW; >=1 mandatory task); (f) cross-domain COUPLING
+(rigid-flex, FEA-contact, vehicle-terrain-sensor, robot-env) -- REQUIRED, not optional; (g) data-driven
+import + POST-import actuation (URDF/YAML); (h) sensors GPS/IMU (camera/lidar deferred-GPU); (i)
+STATE-management / reproducible logging -- seed, checkpoint/restart, schema (NEW first-class);
+(j) ground locomotion. Scale is tested via config-on-small-N (require `ChSystemMulticore` /
+broadphase / solver caps), NOT large-N execution. Solvers/callbacks/instrumentation also act as
+cross-cutting subscores.
+
+### 4. Axis-specific staging (supersedes uniform create->modify->extend); may include repair
+E.g. mechanisms: build topology -> validate an analytic quantity -> alter frame preserving the metric;
+contact/numerics: build or REPAIR a degraded model -> compare NSC/SMC -> couple/scale-config; FEA:
+build -> tune solver/timestep + validate displacement/frequency -> couple to rigid/contact;
+import/robotics: import -> actuate named joints + validate frames -> task motion + logging; callbacks:
+implement -> prove invocation/lifecycle -> use for state-dependent control. Repair stages (diagnose +
+fix a degraded script) are included for contact/numerics/import/state, kept focused so they probe
+domain knowledge, not generic code-editing.
+
+### 5. Redundancy cap tightened
+ALL ground locomotion (vehicles + rovers + mobile robots) <= 3-4 tasks TOTAL (not VEH-only at ~19%).
+At most ~2 Chrono::Vehicle wrappers; a rover only if it probes URDF/import/control/sensors, not
+rolling dynamics. Freed slots go to solvers, coupling, SWIG, and state-management. Redundancy is judged
+on PROBE VECTORS (API family, numerics risk, coupling, observables, extension mode), not scenario
+names: two tasks with the same probe vector collapse even if the stories differ.
+
 ## Method (bias-aware)
 
 1. Coverage is defined by the authoritative capability taxonomy (14 axes derived from Chrono 10.0.0's
