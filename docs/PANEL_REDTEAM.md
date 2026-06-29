@@ -37,9 +37,13 @@ provenance record; the adopted decisions are folded into `SUITE_DESIGN.md`.
 
 ## Decisions adopted (Dan, 2026-06-29)
 
-1. **Adopt the layered oracle** (execution -> semantic/topology -> behavioral invariants). This
-   evolves the judge beyond the single reference+api rubric LLM; it is a judge re-architecture and
-   gets its own sub-plan/pilot.
+1. **Judge: DE-SCOPED from the panel's full layered oracle (post-panel honest review).** Adopt L1
+   (execution gate) now, L3 behavioral invariants only where physics is clean, L2 kept MINIMAL
+   ("necessary capability present", not "preferred idiom"), keep the existing reference+api rubric
+   LLM for residual/partial credit, and RECALIBRATE the combined judge vs human judgment. Reason: a
+   full L2 required-API/topology layer is itself a new rigid idiom-bias vector, and a full rewrite
+   forfeits the v1.0 judge's human calibration. So "more thorough" is clear; "less biased" holds for
+   L1 but only conditionally elsewhere, hence the de-scope.
 2. **Adopt the failure-mode reframe**: tasks become contracted virtual experiments tagged by failure
    mode; add a first-class solver/integrator axis and a SWIG-callback/lifecycle axis; require
    cross-domain coupling tasks.

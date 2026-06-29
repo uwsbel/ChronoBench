@@ -24,16 +24,21 @@ paths, bounded runtime, pinned 10.0); an output schema (JSON/CSV with units); a 
 (analytic checks, tolerances, inequalities, metamorphic relations); and per-task failure-triage
 (import / construct / run / missing-output / contract-violation / required-feature-absent).
 
-### 2. Layered oracle (evolves the judge; its own sub-plan)
-Score through layers, not a single rubric LLM:
-- L1 Execution integrity: imports, constructs, runs to horizon under timeout, no NaN/segfault.
-- L2 Semantic/topology: required APIs/modules present, correct callback/solver subclasses,
-  version-correct names (partial credit; prevents zero-saturation of a structurally-sound script).
-- L3 Behavioral invariants: robust/tolerant checks, qualitative trends, analytic approximations,
-  metamorphic relations (parameters varied via the PROMPT, never by editing generated code).
-- Judge LLM: residual partial-credit / semantic interpretation only, AFTER L1-L3.
-This is a judge re-architecture beyond the v1.0 reference+api rubric; build + validate it on the pilot
-before scaling. Treat it as a sub-project.
+### 2. Judge evolution -- DE-SCOPED (post-panel honest review; NOT the full layered oracle)
+On review, the full three-layer oracle was de-scoped: a full L2 "required-API/topology" layer is
+itself a new rigid idiom-bias vector, and a full rewrite forfeits the v1.0 judge's human calibration.
+Adopted instead:
+- **L1 Execution integrity (now):** imports, constructs, runs to horizon under timeout, no NaN/segfault.
+  Objective, low-bias, hard-to-game, and the main win the text-only judge lacks.
+- **L3 Behavioral invariants (selective):** only where physics gives clean checks (mechanism
+  period/energy, FEA static displacement/frequency, monotone slip/sinkage); skip chaotic/contact.
+  Parameters varied via the PROMPT, never by editing generated code.
+- **L2 Semantic checks (MINIMAL):** "necessary capability present" only (e.g. a sensor was attached),
+  never "preferred idiom used".
+- **Keep the existing reference+api rubric LLM** for residual / partial-credit scoring.
+- **Recalibrate** the combined judge vs human expert judgment (as v1.0 was), else more thorough but
+  less validated.
+Validate this de-scoped judge on the Phase 0 pilot before scaling.
 
 ### 3. Axes reframed around failure modes (supersedes the 14-axis coverage table below)
 First-class, separately scored: (a) mechanism/constraint + frame/marker reasoning; (b) collision/
