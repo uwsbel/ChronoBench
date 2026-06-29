@@ -40,6 +40,19 @@ The earlier preprint is available on arXiv as
 [arXiv:2408.11987](https://arxiv.org/abs/2408.11987). A copy of the published paper is included
 in this repo at [.claude/docs/2026Jingquan-SimBench.pdf](.claude/docs/2026Jingquan-SimBench.pdf).
 
+## Reproducing the paper
+
+The exact code and data behind the published IEEE Access 2026 results are preserved at the git tag
+[`paper-ieee-access-2026`](https://github.com/uwsbel/ChronoBench/releases/tag/paper-ieee-access-2026).
+To reproduce the paper, check out that tag:
+
+```bash
+git checkout paper-ieee-access-2026
+```
+
+The `main` branch moves beyond the paper (cleaner naming, leaner dependencies, and a test suite), so
+use the tag when you specifically want the published results.
+
 ## Highlights of the paper
 ![ChronoBench Pipeline](./visualization/demo_overview.svg)
 The J-LLM associated with ChronoBench handles multi-physics simulations, including but

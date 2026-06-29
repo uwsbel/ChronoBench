@@ -8,7 +8,7 @@ work fans out across processes. Run:
 
     python scoring/p_sim_score.py [<model> ...] [--responses-dir DIR] [--out CSV] [--systems a,b]
 """
-import evaluate
+from rouge_score import rouge_scorer
 from codebleu import calc_codebleu
 import os
 import json
@@ -16,9 +16,6 @@ from tqdm import tqdm
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-import logging
-logging.getLogger("evaluate").setLevel(logging.ERROR)
-os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 # -----------------------------------------------------------------------------
 # Auto-detect project root based on script location
@@ -38,6 +35,18 @@ DEFAULT_RESPONSES = PROJECT_ROOT / "output_llms"
 DEFAULT_OUT = PROJECT_ROOT / "metrics" / "evaluation_results.csv"
 
 
+# ROUGE via google-research `rouge_score` directly (replaces the heavyweight, network-bound
+# `evaluate.load('rouge')`). One scorer per process (this module is re-imported in each worker).
+_ROUGE_TYPES = ("rouge1", "rouge2", "rougeL", "rougeLsum")
+_ROUGE_SCORER = rouge_scorer.RougeScorer(list(_ROUGE_TYPES), use_stemmer=True)
+
+
+def rouge_fmeasures(prediction, reference):
+    """ROUGE F-measures (rouge1/rouge2/rougeL/rougeLsum) for one prediction vs one reference."""
+    scores = _ROUGE_SCORER.score(reference, prediction)  # rouge_score takes (target, prediction)
+    return {t: scores[t].fmeasure for t in _ROUGE_TYPES}
+
+
 def resolve_models(argv_models, responses_dir):
     """Models to score: CLI args, else $CHRONOBENCH_TEST_MODELS, else every dir under responses_dir."""
     if argv_models:
@@ -53,7 +62,6 @@ def read_script(file_path):
         return file.read()
 
 def evaluate_system(system_folder, model, output_model_path, dataset_path):
-    rouge = evaluate.load('rouge')
     # Paths based on the current system and model
     system_folder_path = os.path.join(dataset_path, system_folder)
     output_system_path = os.path.join(output_model_path, system_folder)
@@ -88,7 +96,7 @@ def evaluate_system(system_folder, model, output_model_path, dataset_path):
     codebleu_scores = [calc_codebleu([ref], [pred], lang="python") for ref, pred in zip(references, predictions)]
 
     # Calculate ROUGE
-    rouge_scores = [rouge.compute(predictions=[pred], references=[ref]) for pred, ref in zip(predictions, references)]
+    rouge_scores = [rouge_fmeasures(pred, ref) for pred, ref in zip(predictions, references)]
 
     # Prepare data for the DataFrame
     data = []

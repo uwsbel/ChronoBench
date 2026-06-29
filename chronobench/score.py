@@ -39,7 +39,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from chronobench.judge import (  # noqa: E402,F401
-    DEFAULT_MODEL, build_prompt, evaluate_script, normalize_mode, select_mode)
+    DEFAULT_MODEL, build_prompt, evaluate_script, select_mode)
 from chronobench.systems import all_systems, category_of  # noqa: E402
 from chronobench.contract import DEFAULT_CONTRACT, list_contracts, load_contract  # noqa: E402
 
@@ -151,8 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="override the API doc text file (default: from the contract)")
     p.add_argument("--systems", default="", help="comma-separated subset (default: all 34)")
     p.add_argument("--modes", default="api,ref,ref_api",
-                   help="comma-separated rubric modes to run (default: api,ref,ref_api; "
-                        "legacy 'doc'/'ref_doc' accepted)")
+                   help="comma-separated rubric modes to run (default: api,ref,ref_api)")
     p.add_argument("--judge-model", default=None,
                    help="override the judge model (default: from the contract, or gpt-4o-mini)")
     p.add_argument("--base-url", default=None,
@@ -168,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     systems = [s.strip() for s in args.systems.split(",") if s.strip()] or all_systems()
-    modes = [normalize_mode(m.strip()) for m in args.modes.split(",") if m.strip()]
+    modes = [m.strip() for m in args.modes.split(",") if m.strip()]
     bad = [m for m in modes if m not in MODE_TO_COL]
     if bad:
         print(f"Unknown mode(s): {bad}; valid: {sorted(MODE_TO_COL)}")

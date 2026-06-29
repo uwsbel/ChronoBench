@@ -10,13 +10,10 @@ ChronoBench's purpose is to *evaluate and diagnose* a Chrono agent's virtual exp
 the natural use is in a loop: an agent generates a script, ``evaluate_script`` scores it and explains
 the deductions, the agent revises.
 
-Three rubric modes (matching the paper):
+Three rubric modes:
     - ``"ref_api"`` : compare against the expert reference AND the API documentation (strongest).
     - ``"ref"``     : compare against the expert reference only.
     - ``"api"``     : compare against the API documentation only (use when no reference exists).
-
-The legacy mode keys ``"ref_doc"`` and ``"doc"`` are still accepted as deprecated aliases for
-``"ref_api"`` and ``"api"`` (the paper and the frozen v1.0 contract used the old names).
 
 Example
 -------
@@ -46,23 +43,12 @@ DEFAULT_MAX_TOKENS = 12000
 
 _RUBRIC_DIR = Path(__file__).resolve().parent / "rubric"
 
-# mode -> (candidate template filenames newest-first, required template fields).
-# The filename tuple lets a renamed mode still resolve a contract's frozen legacy rubric: the
-# package ships ``api_info.txt``/``ref_api.txt`` while the v1.0 contract snapshot has the old
-# ``doc.txt``/``ref_doc.txt``; build_prompt() picks the first that exists in the rubric dir.
-MODES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "ref_api": (("ref_api.txt", "ref_doc.txt"), ("code", "reference_code", "api_documentation")),
-    "ref": (("ref.txt",), ("code", "reference_code")),
-    "api": (("api_info.txt", "doc.txt"), ("code", "api_documentation")),
+# mode -> (template filename, required template fields)
+MODES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "ref_api": ("ref_api.txt", ("code", "reference_code", "api_documentation")),
+    "ref": ("ref.txt", ("code", "reference_code")),
+    "api": ("api_info.txt", ("code", "api_documentation")),
 }
-
-# Deprecated mode keys accepted on input and normalized to the current names.
-_MODE_ALIASES = {"ref_doc": "ref_api", "doc": "api"}
-
-
-def normalize_mode(mode: str) -> str:
-    """Map a deprecated mode key (``"doc"``/``"ref_doc"``) to its current name; pass others through."""
-    return _MODE_ALIASES.get(mode, mode)
 
 _SCORE_RE = re.compile(r"\[\[(\d+)\]\]")
 
@@ -126,18 +112,15 @@ def build_prompt(
     rubric_dir overrides the package's default rubric (e.g. to use a contract's frozen rubric
     snapshot); when None, the package `chronobench/rubric/` is used.
     """
-    mode = normalize_mode(mode)
     if mode not in MODES:
         raise ValueError(f"Unknown mode {mode!r}; expected one of {sorted(MODES)}.")
-    fnames, required = MODES[mode]
+    fname, required = MODES[mode]
     values = {"code": code, "reference_code": reference, "api_documentation": api_doc}
     for field in required:
         key = {"code": "code", "reference_code": "reference", "api_documentation": "api_doc"}[field]
         if not values[field]:
             raise ValueError(f"mode {mode!r} requires non-empty `{key}`.")
     base = Path(rubric_dir) if rubric_dir else _RUBRIC_DIR
-    # Resolve the first template that exists (current name, then legacy fallback for frozen rubrics).
-    fname = next((f for f in fnames if (base / f).exists()), fnames[-1])
     template = (base / fname).read_text(encoding="utf-8")
     # Fill all placeholders; unused ones (per mode) are simply absent from the template.
     return template.format(
@@ -182,7 +165,8 @@ def evaluate_script(
         An :class:`Evaluation`. On an API error the score is None and ``rationale`` holds the
         error string, so callers can filter rather than crash mid-batch.
     """
-    mode = select_mode(reference, api_doc) if mode is None else normalize_mode(mode)
+    if mode is None:
+        mode = select_mode(reference, api_doc)
     prompt = build_prompt(mode, candidate, reference, api_doc, rubric_dir=rubric_dir)
 
     if client is None:
