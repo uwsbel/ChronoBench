@@ -1,7 +1,7 @@
 """Batch J-LLM scoring of S-LLM outputs (the operational engine, NOT legacy code).
 
 This drives the rule-based judge over ``output_llms/<model>/<system>/{first,second,third}_response.py``
-and writes, per (model, system): three ``*_score_*.txt`` files (doc / reference / reference+doc
+and writes, per (model, system): three ``*_score_*.txt`` files (api / reference / reference+api
 modes), a ``*_evaluation.json`` audit record, a per-system ``evaluation_scores.csv``, and finally
 a merged ``output_llms/combined_evaluation_scores.csv``.
 
@@ -55,13 +55,13 @@ def read_script(file_path):
 def evaluate_and_save_results(round_name, prediction, reference_code, api_documentation,
                               output_system_path, client=None):
     """Run the three rubric modes for one turn and persist scores + prompts (unchanged schema)."""
-    # doc / reference / reference+document, matching the original three output files.
-    ev_doc = evaluate_script(prediction, api_doc=api_documentation, mode="doc",
+    # api / reference / reference+api, matching the original three output files.
+    ev_doc = evaluate_script(prediction, api_doc=api_documentation, mode="api",
                          model=JUDGE_MODEL, client=client)
     ev_ref = evaluate_script(prediction, reference=reference_code, mode="ref",
                          model=JUDGE_MODEL, client=client)
     ev_ref_doc = evaluate_script(prediction, reference=reference_code, api_doc=api_documentation,
-                             mode="ref_doc", model=JUDGE_MODEL, client=client)
+                             mode="ref_api", model=JUDGE_MODEL, client=client)
 
     paths = {
         "score_document": (f"{round_name}_score_document.txt", ev_doc),
@@ -113,8 +113,8 @@ def extract_scores_from_txt(file_path):
 def save_scores_to_csv_with_metadata(output_system_path, test_model, system_folder,
                                      csv_filename="evaluation_scores.csv"):
     """Read the per-round score txt files and write a per-system CSV (unchanged schema)."""
-    csv_data = [["Test Model", "System", "Round", "Score Document", "Score Reference",
-                 "Score Reference Document"]]
+    csv_data = [["Test Model", "System", "Round", "Score API", "Score Reference",
+                 "Score Reference API"]]
     for round_name in ["first", "second", "third"]:
         try:
             score_document = extract_scores_from_txt(

@@ -38,15 +38,17 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from chronobench.judge import DEFAULT_MODEL, build_prompt, evaluate_script, select_mode  # noqa: E402,F401
+from chronobench.judge import (  # noqa: E402,F401
+    DEFAULT_MODEL, build_prompt, evaluate_script, normalize_mode, select_mode)
 from chronobench.systems import all_systems, category_of  # noqa: E402
 from chronobench.contract import DEFAULT_CONTRACT, list_contracts, load_contract  # noqa: E402
 
 ROUNDS = [("first", 1), ("second", 2), ("third", 3)]
-# CSV columns match combined_evaluation_scores.csv so rank_llm.py is drop-in.
-CSV_HEADER = ["Test Model", "System", "Round", "Score Document", "Score Reference",
-              "Score Reference Document"]
-MODE_TO_COL = {"doc": 3, "ref": 4, "ref_doc": 5}
+# CSV columns mirror combined_evaluation_scores.csv (old "Document" wording renamed to "API");
+# scoring/rank_llm.py and scoring/merge_metrics.py accept both spellings, so this stays drop-in.
+CSV_HEADER = ["Test Model", "System", "Round", "Score API", "Score Reference",
+              "Score Reference API"]
+MODE_TO_COL = {"api": 3, "ref": 4, "ref_api": 5}
 
 
 def _read(path: str) -> str | None:
@@ -75,8 +77,8 @@ def score_one(model: str, system: str, responses_dir: str, data_dir: str, api_do
         row = {"Test Model": model, "System": system, "Round": round_name,
                "category": category_of(system)}
         for mode in modes:
-            ref = reference if mode in ("ref", "ref_doc") else None
-            doc = api_doc if mode in ("doc", "ref_doc") else None
+            ref = reference if mode in ("ref", "ref_api") else None
+            doc = api_doc if mode in ("api", "ref_api") else None
             if dry_run:
                 # validate that context exists and the prompt renders; no API call.
                 try:
@@ -103,7 +105,7 @@ def summarize(rows: list[dict], modes: list[str]) -> None:
         if vals:
             print(f"  mode {mode:8s}: mean={sum(vals)/len(vals):.1f}  n={len(vals)}")
     # by category and by turn, using the richest selected mode
-    primary = "ref_doc" if "ref_doc" in modes else modes[0]
+    primary = "ref_api" if "ref_api" in modes else modes[0]
     by_cat: dict[str, list[int]] = {}
     by_turn: dict[str, list[int]] = {}
     for r in scored:
@@ -148,8 +150,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--api", default=None,
                    help="override the API doc text file (default: from the contract)")
     p.add_argument("--systems", default="", help="comma-separated subset (default: all 34)")
-    p.add_argument("--modes", default="doc,ref,ref_doc",
-                   help="comma-separated rubric modes to run (default: doc,ref,ref_doc)")
+    p.add_argument("--modes", default="api,ref,ref_api",
+                   help="comma-separated rubric modes to run (default: api,ref,ref_api; "
+                        "legacy 'doc'/'ref_doc' accepted)")
     p.add_argument("--judge-model", default=None,
                    help="override the judge model (default: from the contract, or gpt-4o-mini)")
     p.add_argument("--base-url", default=None,
@@ -165,7 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     systems = [s.strip() for s in args.systems.split(",") if s.strip()] or all_systems()
-    modes = [m.strip() for m in args.modes.split(",") if m.strip()]
+    modes = [normalize_mode(m.strip()) for m in args.modes.split(",") if m.strip()]
     bad = [m for m in modes if m not in MODE_TO_COL]
     if bad:
         print(f"Unknown mode(s): {bad}; valid: {sorted(MODE_TO_COL)}")
@@ -200,8 +203,8 @@ def main(argv=None) -> int:
         api_doc = contract.read_api_doc()
     else:
         api_doc = _read(os.path.join(PROJECT_ROOT, "api", "api.txt"))
-    if api_doc is None and any(m in ("doc", "ref_doc") for m in modes):
-        print("API doc not found (needed for doc/ref_doc modes); set --api or use a contract.")
+    if api_doc is None and any(m in ("api", "ref_api") for m in modes):
+        print("API doc not found (needed for api/ref_api modes); set --api or use a contract.")
         return 2
 
     client = None

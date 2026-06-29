@@ -78,13 +78,17 @@ def merge_evaluation_files() -> pd.DataFrame:
     df_scores['_key'] = df_scores['Test Model'] + '|' + df_scores['System'] + '|' + df_scores['round_norm']
     
     # Rename df_scores columns
+    # Accept both the legacy "Document" headers (frozen paper/ CSVs) and the current "API" headers
+    # (chronobench.score output); both spellings map to the same internal keys.
     df_scores_renamed = df_scores.rename(columns={
         'Test Model': 'model',
         'System': 'system',
         'Round': 'round_name',
         'Score Document': 'score_document',
+        'Score API': 'score_document',
         'Score Reference': 'score_reference',
-        'Score Reference Document': 'score_reference_document'
+        'Score Reference Document': 'score_reference_document',
+        'Score Reference API': 'score_reference_document'
     })
     
     # Select columns to merge from df_scores

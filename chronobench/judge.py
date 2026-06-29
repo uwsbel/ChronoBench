@@ -11,16 +11,19 @@ the natural use is in a loop: an agent generates a script, ``evaluate_script`` s
 the deductions, the agent revises.
 
 Three rubric modes (matching the paper):
-    - ``"ref_doc"`` : compare against the expert reference AND the API documentation (strongest).
+    - ``"ref_api"`` : compare against the expert reference AND the API documentation (strongest).
     - ``"ref"``     : compare against the expert reference only.
-    - ``"doc"``     : compare against the API documentation only (use when no reference exists).
+    - ``"api"``     : compare against the API documentation only (use when no reference exists).
+
+The legacy mode keys ``"ref_doc"`` and ``"doc"`` are still accepted as deprecated aliases for
+``"ref_api"`` and ``"api"`` (the paper and the frozen v1.0 contract used the old names).
 
 Example
 -------
 >>> from chronobench.judge import evaluate_script
 >>> ev = evaluate_script(candidate_code, reference=truth_code, api_doc=api_text)
 >>> ev.score, ev.mode
-(72, 'ref_doc')
+(72, 'ref_api')
 >>> print(ev.rationale)   # the judge's per-criterion deductions, free text
 
 Provider-agnostic: pass any OpenAI-compatible ``client`` (e.g. an ``openai.OpenAI`` pointed at
@@ -43,12 +46,23 @@ DEFAULT_MAX_TOKENS = 12000
 
 _RUBRIC_DIR = Path(__file__).resolve().parent / "rubric"
 
-# mode -> (template filename, required template fields)
-MODES: dict[str, tuple[str, tuple[str, ...]]] = {
-    "ref_doc": ("ref_doc.txt", ("code", "reference_code", "api_documentation")),
-    "ref": ("ref.txt", ("code", "reference_code")),
-    "doc": ("doc.txt", ("code", "api_documentation")),
+# mode -> (candidate template filenames newest-first, required template fields).
+# The filename tuple lets a renamed mode still resolve a contract's frozen legacy rubric: the
+# package ships ``api_info.txt``/``ref_api.txt`` while the v1.0 contract snapshot has the old
+# ``doc.txt``/``ref_doc.txt``; build_prompt() picks the first that exists in the rubric dir.
+MODES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "ref_api": (("ref_api.txt", "ref_doc.txt"), ("code", "reference_code", "api_documentation")),
+    "ref": (("ref.txt",), ("code", "reference_code")),
+    "api": (("api_info.txt", "doc.txt"), ("code", "api_documentation")),
 }
+
+# Deprecated mode keys accepted on input and normalized to the current names.
+_MODE_ALIASES = {"ref_doc": "ref_api", "doc": "api"}
+
+
+def normalize_mode(mode: str) -> str:
+    """Map a deprecated mode key (``"doc"``/``"ref_doc"``) to its current name; pass others through."""
+    return _MODE_ALIASES.get(mode, mode)
 
 _SCORE_RE = re.compile(r"\[\[(\d+)\]\]")
 
@@ -62,7 +76,7 @@ class Evaluation:
             did not emit a parsable score (e.g. an API error or a malformed response).
         rationale: the judge's full free-text explanation of the deductions (the per-criterion
             breakdown lives here; the rubric does not ask for structured sub-scores).
-        mode: which rubric mode was used ("ref_doc" | "ref" | "doc").
+        mode: which rubric mode was used ("ref_api" | "ref" | "api").
         model: the judge model name.
         prompt: the exact prompt sent to the judge (kept for auditing/repro).
         raw: the raw judge response (== rationale; kept for symmetry with the legacy JSON dumps).
@@ -92,11 +106,11 @@ def parse_score(text: str | None) -> int | None:
 def select_mode(reference: str | None, api_doc: str | None) -> str:
     """Pick the richest applicable rubric mode given what context is available."""
     if reference and api_doc:
-        return "ref_doc"
+        return "ref_api"
     if reference:
         return "ref"
     if api_doc:
-        return "doc"
+        return "api"
     raise ValueError("evaluate_script needs at least one of `reference` or `api_doc`.")
 
 
@@ -112,15 +126,18 @@ def build_prompt(
     rubric_dir overrides the package's default rubric (e.g. to use a contract's frozen rubric
     snapshot); when None, the package `chronobench/rubric/` is used.
     """
+    mode = normalize_mode(mode)
     if mode not in MODES:
         raise ValueError(f"Unknown mode {mode!r}; expected one of {sorted(MODES)}.")
-    fname, required = MODES[mode]
+    fnames, required = MODES[mode]
     values = {"code": code, "reference_code": reference, "api_documentation": api_doc}
     for field in required:
         key = {"code": "code", "reference_code": "reference", "api_documentation": "api_doc"}[field]
         if not values[field]:
             raise ValueError(f"mode {mode!r} requires non-empty `{key}`.")
     base = Path(rubric_dir) if rubric_dir else _RUBRIC_DIR
+    # Resolve the first template that exists (current name, then legacy fallback for frozen rubrics).
+    fname = next((f for f in fnames if (base / f).exists()), fnames[-1])
     template = (base / fname).read_text(encoding="utf-8")
     # Fill all placeholders; unused ones (per mode) are simply absent from the template.
     return template.format(
@@ -153,9 +170,9 @@ def evaluate_script(
 
     Args:
         candidate: the agent-generated PyChrono code to score.
-        reference: expert ground-truth code (enables "ref"/"ref_doc" modes).
+        reference: expert ground-truth code (enables "ref"/"ref_api" modes).
         api_doc: API documentation text, e.g. the contents of ``api/api.txt`` (enables
-            "doc"/"ref_doc" modes).
+            "api"/"ref_api" modes).
         mode: force a rubric mode; if None, the richest applicable mode is selected.
         model: judge model name (default from $CHRONOBENCH_JUDGE_MODEL or "gpt-4o-mini").
         client: an OpenAI-compatible client; if None, one is built from $OPENAI_API_KEY.
@@ -165,8 +182,7 @@ def evaluate_script(
         An :class:`Evaluation`. On an API error the score is None and ``rationale`` holds the
         error string, so callers can filter rather than crash mid-batch.
     """
-    if mode is None:
-        mode = select_mode(reference, api_doc)
+    mode = select_mode(reference, api_doc) if mode is None else normalize_mode(mode)
     prompt = build_prompt(mode, candidate, reference, api_doc, rubric_dir=rubric_dir)
 
     if client is None:

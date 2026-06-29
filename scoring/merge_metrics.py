@@ -48,14 +48,17 @@ def main():
     df2['round_norm'] = df2['Round'].map(round_map)
     df2['key'] = df2['Test Model'] + '|' + df2['System'] + '|' + df2['round_norm']
     
-    # Rename df2 columns for clarity
+    # Rename df2 columns for clarity. Accept both the legacy "Document" headers (frozen paper/ CSVs)
+    # and the current "API" headers (chronobench.score output); both map to the same internal keys.
     df2_renamed = df2.rename(columns={
         'Test Model': 'model',
-        'System': 'system', 
+        'System': 'system',
         'Round': 'round',
         'Score Document': 'score_document',
+        'Score API': 'score_document',
         'Score Reference': 'score_reference',
-        'Score Reference Document': 'score_reference_document'
+        'Score Reference Document': 'score_reference_document',
+        'Score Reference API': 'score_reference_document'
     })
     
     # Select columns to merge from df2

@@ -91,7 +91,7 @@ print(ev.score)       # 0-100
 print(ev.rationale)   # the judge's per-criterion deductions (free text) -> feed back to the agent
 ```
 `reference` and/or `api_doc` are optional; the richest applicable rubric mode
-(`ref_doc` > `ref` > `doc`) is chosen automatically.
+(`ref_api` > `ref` > `api`) is chosen automatically.
 
 ## 5. Known rough edges
 

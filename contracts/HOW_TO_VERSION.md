@@ -10,8 +10,9 @@ of everything scored under it). Instead, create a new versioned folder.
 1. **Pick a version id**, e.g. `v1.1-2027-newjudge` (a short, dated, reason-tagged name).
 2. **Create `contracts/<version>/`** with:
    - `api.txt` - the API grounding snapshot for this version (copy `api/api.txt`, or the updated one).
-   - `rubric/` - the three rubric prompts (`doc.txt`, `ref.txt`, `ref_doc.txt`); copy
-     `chronobench/rubric/`, or the edited versions.
+   - `rubric/` - the three rubric prompts (`api_info.txt`, `ref.txt`, `ref_api.txt`); copy
+     `chronobench/rubric/`, or the edited versions. (The frozen v1.0 contract shipped the legacy
+     names `doc.txt`/`ref_doc.txt`; the judge still resolves those via a filename fallback.)
    - `contract.json` - `judge` {model, temperature, top_p, max_tokens}, the `api_doc`/`rubric_dir`
      names, and a `tasks` block (source=`demo_data`, n_systems/n_turns/n_tasks, and `sha256`).
      Use `contracts/v1.0-ieee-access-2026/contract.json` as the template.
