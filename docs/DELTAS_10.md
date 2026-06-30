@@ -1,0 +1,41 @@
+# PyChrono 9.0 -> 10.0 port deltas + verified 10.0 idioms
+
+The deterministic-port delta table (grows as verification surfaces more). Entries marked [verified]
+were confirmed by running on this machine's `pychrono10` while authoring the pilot tasks; entries
+marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGELOG/demos.
+
+## Confirmed-unchanged (no port needed)
+- `chrono.SetChronoDataPath` / `chrono.GetChronoDataPath` [survey]
+- `VisualizationType_*` enums [survey]
+- Core math/types `ChVector3d`, `ChFramed`, `QUNIT`, body `SetFixed`, `SetMass`, `SetInertiaXX`,
+  `SetPos`, `GetPos`, `GetChTime`, `DoStepDynamics`, `SetGravitationalAcceleration` [verified]
+- `ChLinkLockRevolute.Initialize(b1, b2, ChFramed)` [verified]
+- `ChLinkTSDA.Initialize(b1, b2, local:bool, p1, p2)` + `SetRestLength` / `SetSpringCoefficient` /
+  `SetDampingCoefficient` [verified]
+- `ChBodyEasyBox(x, y, z, density, visualize, collide, material)` /
+  `ChBodyEasySphere(r, density, visualize, collide, material)` [verified]
+
+## Deltas to apply when porting
+- Vehicle driver: `veh.ChInteractiveDriverIRR(vis)` -> `veh.ChInteractiveDriver(vehicle.GetVehicle())` [survey]
+- Vehicle data path: remove `veh.SetDataPath(...)`; use `veh.GetVehicleDataFile(...)` /
+  `chrono.GetChronoDataFile(...)` [survey]
+- FEA colormap: `SetColorscaleMinMax(a, b)` -> `SetColormapRange(a, b)` [survey]
+- FEA visual shape: `ChVisualShapeFEA(mesh)` -> `ChVisualShapeFEA()` then `mesh.AddVisualShapeFEA(shape)` [survey]
+- Contact material: use `ChContactMaterialNSC` / `ChContactMaterialSMC` (10.0 name) [verified]
+- Visualization: standardize on VSG (Irrlicht is legacy). `chronoirr.ChVisualSystemIrrlicht` ->
+  `vsg.ChVisualSystemVSG`; `veh.ChWheeledVehicleVisualSystemIrrlicht` ->
+  `veh.ChWheeledVehicleVisualSystemVSG`; `...Tracked...Irrlicht` -> `...Tracked...VSG`. Window size as
+  `chrono.ChVector2i(w,h)`; `AddSkyBox()` -> `SetSkyBoxTexture(path)`; `AddTypicalLights()` ->
+  `SetLightIntensity()` + `SetLightDirection()` [survey]. (References verify headless, so VSG runtime
+  is not required to gate a task.)
+
+## New / non-obvious 10.0 idioms (verified tonight; easy to get wrong)
+- **Collision must be enabled explicitly.** A fresh `ChSystemNSC` has NO collision system
+  (`GetCollisionSystem()` is None) and bodies fall through each other. Call
+  `sys.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)` before stepping. [verified]
+- **Contact reporting callback signature.** `chrono.ReportContactCallback.OnReportContact` takes
+  **10** args: `(pA:ChVector3d, pB:ChVector3d, plane_coord:ChMatrix33d, distance:float,
+  eff_radius:float, react_forces:ChVector3d, react_torques:ChVector3d, objA:ChContactable,
+  objB:ChContactable, contact_id:int)`, return `True`. `react_forces.x` is the normal component.
+  A wrong arity raises a "SWIG director method error". Keep the reporter object alive on the Python
+  side; report via `sys.GetContactContainer().ReportAllContacts(reporter)`. [verified]
