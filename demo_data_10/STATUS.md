@@ -13,7 +13,7 @@ the de-scoped gate: L1 execution on pychrono10 + minimal L2 + L3 invariant via `
 | pendulum | mechanism | pychrono | verified | 100 | pilot; period 2.007 vs 2.006; reference + 2 samples |
 | slider_crank | mechanism | pychrono | pending | | KEEP-port |
 | gear | mechanism | pychrono | pending | | KEEP-port |
-| mass_spring_damper | mechanism | pychrono | pending | | KEEP-port; clean damping-ratio invariant |
+| mass_spring_damper | mechanism | pychrono | verified | 100 | period_d 0.6315 + zeta 0.1 match analytic |
 | beam | FEA | pychrono | pending | | KEEP-port; Euler cantilever tip-deflection |
 | cable | FEA | pychrono | pending | | KEEP-port; ANCF cable |
 | buckling | FEA | pychrono | pending | | KEEP-port |
