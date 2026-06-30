@@ -14,7 +14,7 @@ the de-scoped gate: L1 execution on pychrono10 + minimal L2 + L3 invariant via `
 | slider_crank | mechanism | pychrono | verified | 100 | closed loop; piston stroke 0.8 = 2*crank_rad |
 | gear | mechanism | pychrono | pending | | KEEP-port |
 | mass_spring_damper | mechanism | pychrono | verified | 100 | period_d 0.6315 + zeta 0.1 match analytic |
-| beam | FEA | pychrono | pending | | KEEP-port; Euler cantilever tip-deflection |
+| beam | FEA | pychrono | verified | 100 | clean cantilever; tip deflection 0.0048 = FL^3/3EI (static solve) |
 | cable | FEA | pychrono | pending | | KEEP-port; ANCF cable |
 | buckling | FEA | pychrono | pending | | KEEP-port |
 | rotor | FEA | pychrono | pending | | KEEP-port; IGA rotor |
