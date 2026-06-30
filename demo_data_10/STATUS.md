@@ -22,7 +22,7 @@ the de-scoped gate: L1 execution on pychrono10 + minimal L2 + L3 invariant via `
 | fea_ancf_beam (new) | FEA | pychrono | pending | | ADD; ANCF cantilever, analytic static deflection |
 | solver_nsc_smc (new) | solver/contact | pychrono | pending | | ADD; NSC vs SMC restitution invariant |
 | coupling_rigid_flex (new) | coupling | pychrono | pending | | ADD; rigid body on flexible beam |
-| swig_contact_reporter (new) | swig-extension | pychrono | pending | | ADD; callback lifecycle + nonempty contact log |
+| swig_contact_reporter (new) | swig-extension | pychrono | verified | 100 | callback+lifecycle; 4 contacts, normal_force 39.26~=N*m*g |
 | import_urdf (new) | data-import | pychrono | pending | | ADD; URDF load + named-joint actuation |
 | yaml_mbs (new) | data-import | pychrono | pending | | ADD; YAML declarative model |
 | checkpoint (new) | state-mgmt | pychrono | pending | | ADD; checkpoint/restart determinism |
