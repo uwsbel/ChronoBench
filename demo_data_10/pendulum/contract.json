@@ -2,24 +2,82 @@
   "task": "pendulum",
   "axis": "mechanism-kinematics-constraints",
   "simulator": "pychrono",
-  "source": "demo_data/pendulum (ported to 10.0) + analytic small-angle period",
-  "probe_vector": ["revolute-constraint", "frame-reasoning", "instrumented-observable"],
-  "turn": 1,
-  "run": {
-    "entry": "truth1.py",
-    "timeout": 120,
-    "expect_csv": "out.csv",
-    "expect_json_keys": ["period_est", "theta_max"]
-  },
-  "L2_caps": {
-    "revolute_joint": "Revolute",
-    "gravity_set": "SetGravitationalAcceleration|Gravitational|G_acc",
-    "step_loop": "DoStepDynamics"
-  },
-  "L3": [
-    {"kind": "rel_tol", "key": "period_est", "target": 2.0061, "tol": 0.10,
-     "desc": "small-angle period T = 2*pi*sqrt(L/g) with L=1.0, g=9.81"},
-    {"kind": "max", "key": "theta_max", "bound": 0.10472,
-     "desc": "amplitude <= 1.2*theta0 (theta0=5deg); no energy growth"}
+  "source": "demo_data/pendulum redesigned for 10.0; analytic small/large-angle period + energy conservation",
+  "turns": [
+    {
+      "turn": 1,
+      "probe_vector": ["revolute-constraint", "frame-reasoning", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["period_est", "theta_max"]
+      },
+      "L2_caps": {
+        "revolute_joint": "Revolute",
+        "gravity_set": "SetGravitationalAcceleration|Gravitational|G_acc",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "period_meas", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t"},
+        {"name": "theta_max_meas", "kind": "max_abs", "csv": "out.csv", "column": "theta"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "period_meas", "target": 2.0061, "tol": 0.10,
+         "desc": "small-angle period T=2*pi*sqrt(L/g), L=1,g=9.81; MEASURED from theta(t) zero-crossings"},
+        {"kind": "max", "key": "theta_max_meas", "bound": 0.10472,
+         "desc": "amplitude <= 1.2*theta0 (theta0=5deg); measured, no energy growth"}
+      ]
+    },
+    {
+      "turn": 2,
+      "probe_vector": ["parameter-modification", "large-amplitude-nonlinearity", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["period_est", "theta_max"]
+      },
+      "L2_caps": {
+        "revolute_joint": "Revolute",
+        "gravity_set": "SetGravitationalAcceleration|Gravitational|G_acc",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "period_meas", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t"},
+        {"name": "theta_max_meas", "kind": "max_abs", "csv": "out.csv", "column": "theta"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "theta_max_meas", "target": 1.0472, "tol": 0.05,
+         "desc": "amplitude ~ theta0=60deg=1.047 rad; MEASURED (catches 'release angle not changed')"},
+        {"kind": "rel_tol", "key": "period_meas", "target": 2.122, "tol": 0.045,
+         "desc": "large-angle period ~2.12 s > small-angle 2.006; MEASURED (catches small-angle-formula shortcut)"}
+      ]
+    },
+    {
+      "turn": 3,
+      "probe_vector": ["structural-extension", "two-body-coupling", "energy-conservation"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["energy_drift", "theta2_range"]
+      },
+      "L2_caps": {
+        "revolute_joint": "Revolute",
+        "gravity_set": "SetGravitationalAcceleration|Gravitational|G_acc",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "energy_drift_meas", "kind": "drift_rel", "csv": "out.csv", "column": "energy"},
+        {"name": "theta2_range_meas", "kind": "range", "csv": "out.csv", "column": "theta2"}
+      ],
+      "L3": [
+        {"kind": "max", "key": "energy_drift_meas", "bound": 0.02,
+         "desc": "total mechanical energy conserved (max relative drift <=2%); MEASURED from 'energy' column"},
+        {"kind": "min", "key": "theta2_range_meas", "bound": 1.0,
+         "desc": "second arm genuinely swings (range >1 rad); MEASURED from 'theta2' column -> proves the double-pendulum extension"}
+      ]
+    }
   ]
 }
