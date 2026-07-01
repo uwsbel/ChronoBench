@@ -49,12 +49,18 @@ untrusted LLM output must sandbox + resource-limit.
 """
 import csv as _csv
 import json
+import math
 import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+
+# Default scoring: L1 is a hard gate (0 if it fails). For a run that passes L1, the score is a weighted
+# blend of L1/L2/L3; if ANY L3 invariant fails, the score is capped (wrong physics is clearly penalized).
+# A contract (or a single turn) may override any of these under a "scoring" key -- one place to tune.
+DEFAULT_SCORING = {"weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50}, "invariant_fail_cap": 40}
 
 
 # --- CSV-derived observables (anti-gaming: measured from the trajectory, not self-reported) --------
@@ -76,29 +82,56 @@ def _read_csv_columns(path):
     return cols
 
 
-def _period(ts, xs):
-    """Mean full period from upward zero-crossings of xs (mean-subtracted)."""
+def _period(ts, xs, about=0.0):
+    """Mean full period from upward crossings of the level `about` (default 0 = the equilibrium).
+
+    Crossing a FIXED known equilibrium (not the empirical mean) keeps the estimate unbiased for a
+    DECAYING oscillation, where the transient makes the window mean nonzero and shifts the crossings.
+    Our oscillation columns are logged about a 0 equilibrium by task convention; override with `about`.
+    """
     pts = [(t, x) for t, x in zip(ts, xs) if t == t and x == x]
     if len(pts) < 3:
         return float("nan")
-    mean = sum(x for _, x in pts) / len(pts)
     cr = [pts[i][0] for i in range(1, len(pts))
-          if (pts[i - 1][1] - mean) < 0.0 <= (pts[i][1] - mean)]
+          if (pts[i - 1][1] - about) < 0.0 <= (pts[i][1] - about)]
     if len(cr) < 2:
         return float("nan")
     return (cr[-1] - cr[0]) / (len(cr) - 1)
 
 
+def _log_decrement(xs):
+    """Damping ratio zeta from the log-decrement over successive positive peaks of xs."""
+    xs = [x for x in xs if x == x]
+    peaks = [xs[i] for i in range(1, len(xs) - 1)
+             if xs[i] > xs[i - 1] and xs[i] >= xs[i + 1] and xs[i] > 0.0]
+    if len(peaks) < 2 or peaks[0] <= 0.0 or peaks[-1] <= 0.0:
+        return float("nan")
+    delta = (1.0 / (len(peaks) - 1)) * math.log(peaks[0] / peaks[-1])
+    return delta / math.sqrt(4.0 * math.pi ** 2 + delta ** 2)
+
+
 def _derive(spec, work):
-    """Compute one derived quantity from the candidate's emitted CSV; NaN if it cannot be computed."""
+    """Compute one derived quantity from the candidate's emitted CSV; NaN if it cannot be computed.
+
+    Optional `t_min` restricts the computation to rows with time >= t_min (using `time_column`, default
+    't'), e.g. to measure a steady-state amplitude from the tail of a driven-oscillator trajectory.
+    """
     path = os.path.join(work, spec.get("csv", "out.csv"))
     if not os.path.exists(path):
         return float("nan")
     cols = _read_csv_columns(path)
     kind = spec["kind"]
+    tcol = cols.get(spec.get("time_column", "t"), [])
+    col = cols.get(spec.get("column"), [])
+    t_min = spec.get("t_min")
+    if t_min is not None and tcol:
+        col = [x for t, x in zip(tcol, col) if t == t and t >= t_min]
+        tcol = [t for t in tcol if t == t and t >= t_min]
     if kind == "period":
-        return _period(cols.get(spec.get("time_column", "t"), []), cols.get(spec.get("column"), []))
-    xs = [x for x in cols.get(spec.get("column"), []) if x == x]
+        return _period(tcol, col, spec.get("about", 0.0))
+    if kind == "log_decrement":
+        return _log_decrement(col)
+    xs = [x for x in col if x == x]
     if not xs:
         return float("nan")
     if kind == "max_abs":
@@ -208,7 +241,16 @@ def judge(task_dir, candidate_path=None, turn=None):
 
     l2 = (sum(caps.values()) / len(caps)) if caps else 1.0
     l3 = (sum(1 for c in l3_results if c["ok"]) / len(l3_results)) if l3_results else 1.0
-    v["score"] = round(100 * (0.30 * 1.0 + 0.20 * l2 + 0.50 * l3), 1)   # L1 passed => 1.0
+    sc = dict(DEFAULT_SCORING)
+    sc.update(contract.get("scoring", {}))   # task-level override
+    sc.update(tc.get("scoring", {}))         # turn-level override (wins)
+    w = dict(DEFAULT_SCORING["weights"]); w.update(sc.get("weights", {}))
+    raw = 100.0 * (w["L1"] * 1.0 + w["L2"] * l2 + w["L3"] * l3)   # L1 passed => 1.0
+    cap = sc.get("invariant_fail_cap")
+    if not all_ok and cap is not None:
+        raw = min(raw, float(cap))           # any failed invariant caps the score (wrong physics)
+    v["score"] = round(raw, 1)
+    v["scoring"] = {"weights": w, "invariant_fail_cap": cap}
     v["triage"] = "pass" if all_ok else "invariant-fail"
     return v
 

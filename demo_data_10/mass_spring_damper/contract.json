@@ -2,23 +2,81 @@
   "task": "mass_spring_damper",
   "axis": "mechanism-kinematics-constraints",
   "simulator": "pychrono",
-  "source": "demo_data/mass_spring_damper (ported to 10.0) + analytic damped oscillator",
-  "probe_vector": ["TSDA-force-element", "damped-dynamics", "instrumented-observable"],
-  "turn": 1,
-  "run": {
-    "entry": "truth1.py",
-    "timeout": 120,
-    "expect_csv": "out.csv",
-    "expect_json_keys": ["period_d", "zeta_est"]
+  "source": "demo_data/mass_spring_damper redesigned for 10.0; targets from independent oracle.py (closed form + RK4), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
   },
-  "L2_caps": {
-    "tsda_spring": "ChLinkTSDA|SpringCoefficient",
-    "step_loop": "DoStepDynamics"
-  },
-  "L3": [
-    {"kind": "rel_tol", "key": "period_d", "target": 0.6315, "tol": 0.05,
-     "desc": "damped period Td = 2*pi/(wn*sqrt(1-zeta^2)), wn=10, zeta=0.1"},
-    {"kind": "rel_tol", "key": "zeta_est", "target": 0.1, "tol": 0.20,
-     "desc": "damping ratio zeta = c/(2*sqrt(k*m)) = 0.1 (log-decrement estimate)"}
+  "turns": [
+    {
+      "turn": 1,
+      "probe_vector": ["TSDA-force-element", "damped-dynamics", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["period_d", "zeta_est"]
+      },
+      "L2_caps": {
+        "tsda_spring": "ChLinkTSDA|SpringCoefficient",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "period_d_meas", "kind": "period", "csv": "out.csv", "column": "disp", "time_column": "t"},
+        {"name": "zeta_meas", "kind": "log_decrement", "csv": "out.csv", "column": "disp"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "period_d_meas", "target": 0.6315, "tol": 0.05,
+         "desc": "damped period Td=2*pi/(wn*sqrt(1-zeta^2)), wn=10, zeta=0.1 (oracle); MEASURED from disp zero-crossings"},
+        {"kind": "rel_tol", "key": "zeta_meas", "target": 0.1, "tol": 0.20,
+         "desc": "damping ratio zeta=c/(2*sqrt(k*m))=0.1 (oracle); MEASURED from disp log-decrement"}
+      ]
+    },
+    {
+      "turn": 2,
+      "probe_vector": ["parameter-modification", "damped-dynamics", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["period_d", "zeta_est"]
+      },
+      "L2_caps": {
+        "tsda_spring": "ChLinkTSDA|SpringCoefficient",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "period_d_meas", "kind": "period", "csv": "out.csv", "column": "disp", "time_column": "t"},
+        {"name": "zeta_meas", "kind": "log_decrement", "csv": "out.csv", "column": "disp"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "zeta_meas", "target": 0.3, "tol": 0.20,
+         "desc": "damping raised c=2->6 so zeta 0.1->0.3 (oracle); MEASURED from disp log-decrement (catches 'damping not changed')"},
+        {"kind": "rel_tol", "key": "period_d_meas", "target": 0.6587, "tol": 0.05,
+         "desc": "damped period at zeta=0.3 ~=0.659 s (oracle); MEASURED from disp zero-crossings"}
+      ]
+    },
+    {
+      "turn": 3,
+      "probe_vector": ["forcing-function", "resonance", "steady-state-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["ss_amp"]
+      },
+      "L2_caps": {
+        "tsda_spring": "ChLinkTSDA|SpringCoefficient",
+        "driving_force": "ChForce|AccumulateForce|SetModulation|ChFunctionSine",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "ss_amp_meas", "kind": "max_abs", "csv": "out.csv", "column": "disp", "time_column": "t", "t_min": 3.0}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "ss_amp_meas", "target": 0.016667, "tol": 0.15,
+         "desc": "steady-state amplitude at resonance Xss=F0/(2*zeta*k)~=0.0167 m (oracle); MEASURED as peak |disp| over the tail (t>=3 s)"}
+      ]
+    }
   ]
 }

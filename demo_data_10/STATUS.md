@@ -20,13 +20,33 @@ the template for the rest:
 3. **`pendulum` is now 3 turns**, each authored + gate-verified at 100: turn 1 create (small-angle period),
    turn 2 modify (large-angle 60deg: period 2.12 s + amplitude), turn 3 extend (double pendulum: energy
    drift 0.13% + second-arm swing). `pyinput2.py`=truth1, `pyinput3.py`=truth2.
-4. **Discrimination demonstrated** on real generations (turn 1): good sample 100 (pass) / bad sample 75
-   (invariant-fail, period 1.42 measured from CSV) / gpt-4o 0 and gpt-4o-mini 0 (L1 run:exception, both
-   emitted PyChrono 9.0 API `Set_G_acc`/`ChVectorD` that does not exist in 10.0).
+4. **Discrimination demonstrated** on real generations (turn 1): good sample 100 (pass) / bad sample 40
+   (invariant-fail, capped; period 1.42 measured from CSV) / gpt-4o 0 and gpt-4o-mini 0 (L1 run:exception,
+   both emitted PyChrono 9.0 API `Set_G_acc`/`ChVectorD` that does not exist in 10.0).
 
-The other four verified tasks have their `input1.txt` but are NOT yet multi-turn and their contracts still
-check the model's self-reported JSON (not yet CSV-derived). Applying the derived-observable + multi-turn
-template to them is the next replication step.
+## Second task + oracle upgrade (2026-07-01): `mass_spring_damper` done fully
+
+Following "one done well before breadth", `mass_spring_damper` is now a full 3-turn, oracle-grounded task,
+and the judge/methodology gained three things (also applied to `pendulum`):
+1. **Independent-oracle ground truth.** Targets come from `demo_data_10/<task>/oracle.py` (pure Python, NO
+   Chrono): the governing equations solved closed-form + high-fidelity RK4, run offline once, kept in-repo.
+   Tests "matches the true physics", not "matches our Chrono run"; the Chrono `truth{t}.py` is validated to
+   AGREE with the oracle (two-way check, agrees to ~4 sig figs).
+2. **Tunable scoring (`contract.json -> scoring`).** weights L1/L2/L3 = 0.30/0.20/0.50 + `invariant_fail_cap`
+   = 40 (any failed invariant caps the score); per-task/per-turn override, global default in `judge_v2.py`.
+   A wrong-physics candidate now scores 40, not 75.
+3. **New derived observables + a bug fix.** `log_decrement` (damping ratio) and a `t_min` tail window
+   (steady-state amplitude). The oracle also exposed a period-measurement bug: cross the known equilibrium
+   (0), NOT the empirical mean (mean-crossing biased a DECAYING signal's period by 1.3-6.8%); fixed in
+   `judge_v2.py:_period`.
+
+`mass_spring_damper` turns: 1 create (c=2, zeta=0.1, Td 0.6315) / 2 modify (c=6, zeta=0.3, Td 0.6587) /
+3 extend (resonant forcing F=sin(10 t), steady-state amp 0.0167). All gate-verify 100; good sample 100,
+bad sample (k=400 typo) 40. `pendulum` re-aligned: turn-2 target set to the oracle's elliptic-integral
+period 2.153 (was the Chrono value 2.122), tolerance widened to cover Chrono's numerical damping.
+
+The remaining verified tasks (`slider_crank`, `swig_contact_reporter`, `beam`) have `input1.txt` but are
+NOT yet multi-turn / oracle-grounded. Applying the full template to them is the breadth step.
 
 ## Tasks
 
@@ -35,7 +55,7 @@ template to them is the next replication step.
 | pendulum | mechanism | pychrono | verified+3turn | 100 | PILOT COMPLETE; 3 turns; input1-3.txt; CSV-derived invariants; end-to-end generate->judge proven |
 | slider_crank | mechanism | pychrono | verified | 100 | closed loop; piston stroke 0.8 = 2*crank_rad |
 | gear | mechanism | pychrono | pending | | KEEP-port |
-| mass_spring_damper | mechanism | pychrono | verified | 100 | period_d 0.6315 + zeta 0.1 match analytic |
+| mass_spring_damper | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns; oracle-grounded (oracle.py); derived period_d/zeta/ss_amp; good 100 / bad 40 |
 | beam | FEA | pychrono | verified | 100 | clean cantilever; tip deflection 0.0048 = FL^3/3EI (static solve) |
 | cable | FEA | pychrono | pending | | KEEP-port; ANCF cable |
 | buckling | FEA | pychrono | pending | | KEEP-port |
