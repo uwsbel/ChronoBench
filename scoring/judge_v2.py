@@ -143,6 +143,10 @@ def _derive(spec, work):
         return float("nan")
     if kind == "sum":
         return sum(xs)
+    if kind == "monotonic":     # fraction of adjacent steps that are non-decreasing (1.0 = fully monotone up)
+        if len(xs) < 2:
+            return float("nan")
+        return sum(1 for i in range(1, len(xs)) if xs[i] >= xs[i - 1] - 1e-9) / (len(xs) - 1)
     if kind == "max_abs":
         return max(abs(x) for x in xs)
     if kind == "max":

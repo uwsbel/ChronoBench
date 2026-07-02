@@ -81,11 +81,30 @@ The v2 suite is now runnable through ONE main-package command (wraps `judge_v2` 
 turns pass); `--candidates DIR` scores an agent's `DIR/<task>/turn{N}.py` outputs; `--task NAME` limits to
 one task; `--json FILE` dumps full results. Remaining: the ~12 pending tasks (breadth).
 
+## Realistic-task phase started (2026-07-02): sbel-reproducibility sourcing + contamination insurance + first terramechanics task
+
+Shift from artificial tasks to REAL, paper-backed scenarios (see `docs/REPRO_SCAN.md`, the classified scan
+of `uwsbel/sbel-reproducibility`). Contamination insurance in place (cheap-now posture): `CANARY.md` (fixed
+GUID) + a README curator marker; tasks authored PARAMETER-FIRST (each turn's `params` block is the single
+declared source; the oracle is a pure function of them, so eval-time randomization stays free); a
+publish-vs-reserve column in the scan. Deferred: the randomized-instance eval harness, contamination
+detection, private leaderboard.
+
+First realistic task done: **`plate_sinkage_scm`** (bevameter / plate-sinkage on SCM deformable terrain,
+CPU). It is the template's first outing on a domain with NO tight closed-form oracle: the independent
+Bekker-Wong oracle sets a COARSE band [0.5x, 2.5x] (SCM sinkage measured ~1.0-1.5x ideal Bekker), and the
+"softer soil / heavier load -> deeper" law is encoded ACROSS turns via the shifting band. Confirmed SCM
+works on this CPU (`veh.SCMTerrain`; `SetCollisionSystemType` required before constructing it, a real 10.0
+gotcha). Added judge derive kind `monotonic` (a stability check; not used in the final contract because a
+settled plate jitters at equilibrium under SMC contact, so within-run monotonicity is ~0.5 and invalid;
+the min/max band + cross-turn shifts do the work). Full suite now 18/18 turns pass.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
 |------|------|-----|-------|-----------|-------|
 | pendulum | mechanism | pychrono | verified+3turn | 100 | PILOT COMPLETE; 3 turns; input1-3.txt; CSV-derived invariants; end-to-end generate->judge proven |
+| plate_sinkage_scm (new) | terramechanics | pychrono | verified+3turn | 100 | FIRST REALISTIC; SCM deformable soil (CPU); Bekker-Wong coarse-band oracle; turns baseline/softer/heavier; param-first; good 100 / bad 40 |
 | slider_crank | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (stroke/stroke/speed); analytic-kinematics oracle; stroke+peak_speed derived; good 100 / bad 40 |
 | gear | mechanism | pychrono | pending | | KEEP-port |
 | mass_spring_damper | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns; oracle-grounded (oracle.py); derived period_d/zeta/ss_amp; good 100 / bad 40 |
