@@ -2,22 +2,80 @@
   "task": "slider_crank",
   "axis": "mechanism-kinematics-constraints",
   "simulator": "pychrono",
-  "source": "demo_data/slider_crank (ported to 10.0) + analytic inline-crank stroke",
-  "probe_vector": ["closed-kinematic-loop", "motor-actuation", "prismatic+revolute-joints", "instrumented-observable"],
-  "turn": 1,
-  "run": {
-    "entry": "truth1.py",
-    "timeout": 120,
-    "expect_csv": "out.csv",
-    "expect_json_keys": ["stroke", "crank_rad"]
+  "source": "demo_data/slider_crank redesigned for 10.0; targets from independent oracle.py (analytic inline slider-crank kinematics), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
   },
-  "L2_caps": {
-    "motor": "ChLinkMotorRotationSpeed",
-    "prismatic_joint": "ChLinkLockPrismatic",
-    "revolute_joint": "ChLinkLockRevolute"
-  },
-  "L3": [
-    {"kind": "rel_tol", "key": "stroke", "target": 0.8, "tol": 0.06,
-     "desc": "inline slider-crank piston stroke = 2*crank_rad = 0.8 m"}
+  "turns": [
+    {
+      "turn": 1,
+      "probe_vector": ["closed-kinematic-loop", "motor-actuation", "prismatic+revolute-joints", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["stroke", "crank_rad"]
+      },
+      "L2_caps": {
+        "motor": "ChLinkMotorRotationSpeed",
+        "prismatic_joint": "ChLinkLockPrismatic",
+        "revolute_joint": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "stroke_meas", "kind": "range", "csv": "out.csv", "column": "piston_x"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "stroke_meas", "target": 0.8, "tol": 0.06,
+         "desc": "inline slider-crank piston stroke = 2*crank_rad = 0.8 m (independent oracle); MEASURED as range of piston_x"}
+      ]
+    },
+    {
+      "turn": 2,
+      "probe_vector": ["parameter-modification", "closed-kinematic-loop", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["stroke", "crank_rad"]
+      },
+      "L2_caps": {
+        "motor": "ChLinkMotorRotationSpeed",
+        "prismatic_joint": "ChLinkLockPrismatic",
+        "revolute_joint": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "stroke_meas", "kind": "range", "csv": "out.csv", "column": "piston_x"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "stroke_meas", "target": 1.2, "tol": 0.06,
+         "desc": "crank radius enlarged to 0.6 -> stroke = 2*0.6 = 1.2 m (independent oracle); MEASURED as range of piston_x (catches 'radius not changed')"}
+      ]
+    },
+    {
+      "turn": 3,
+      "probe_vector": ["drive-speed-change", "velocity-kinematics", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["stroke", "peak_speed"]
+      },
+      "L2_caps": {
+        "motor": "ChLinkMotorRotationSpeed",
+        "prismatic_joint": "ChLinkLockPrismatic",
+        "revolute_joint": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "stroke_meas", "kind": "range", "csv": "out.csv", "column": "piston_x"},
+        {"name": "peak_speed_meas", "kind": "max_speed", "csv": "out.csv", "column": "piston_x", "time_column": "t"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "stroke_meas", "target": 1.2, "tol": 0.06,
+         "desc": "stroke is geometric, unchanged at 1.2 m (independent oracle); MEASURED as range of piston_x"},
+        {"kind": "rel_tol", "key": "peak_speed_meas", "target": 4.066, "tol": 0.08,
+         "desc": "peak piston speed at omega=2*pi = max|omega*dx/dtheta| ~= 4.07 m/s (independent oracle); MEASURED as max|d(piston_x)/dt| (catches 'drive speed not doubled')"}
+      ]
+    }
   ]
 }

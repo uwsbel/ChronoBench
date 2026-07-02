@@ -62,16 +62,27 @@ period 2.153 (was the Chrono value 2.122), tolerance widened to cover Chrono's n
    turn 3 oracle-exact. See `beam/CONTRACT.md`.
 
 Three tasks (`pendulum`, `mass_spring_damper`, `beam`) are now fully template-complete across mechanism,
-damped/forced oscillator, and FEA/static axes. The remaining verified tasks (`slider_crank`,
-`swig_contact_reporter`) have `input1.txt` but are NOT yet multi-turn / oracle-grounded, that is the
-breadth step.
+damped/forced oscillator, and FEA/static axes.
+
+## Breadth complete (2026-07-02): all 5 originally-verified tasks fully template-complete
+
+`slider_crank` and `swig_contact_reporter` are now full 3-turn, oracle-grounded tasks matching the
+pattern, so all five verified tasks are done:
+- `slider_crank`: analytic slider-crank kinematics oracle; turns stroke(r=0.4) / stroke(r=0.6) /
+  drive-speed(omega=2*pi)+peak piston speed; derived stroke (range) + peak_speed (max|dx/dt|). Added
+  judge derive kind `max_speed`.
+- `swig_contact_reporter`: static-equilibrium oracle; turns N=4 / N=6 / heavier(m=2)+per-contact; the
+  callback logs each contact's force to out.csv and the judge derives count + sum + per-contact max.
+  Added judge derive kinds `count` and `sum`.
+All five tasks: references gate-verify 100 across their turns; good sample ~100, bad sample capped at 40.
+Remaining: the ~12 pending tasks (breadth), and wiring `judge_v2` into a main-package CLI (in progress).
 
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
 |------|------|-----|-------|-----------|-------|
 | pendulum | mechanism | pychrono | verified+3turn | 100 | PILOT COMPLETE; 3 turns; input1-3.txt; CSV-derived invariants; end-to-end generate->judge proven |
-| slider_crank | mechanism | pychrono | verified | 100 | closed loop; piston stroke 0.8 = 2*crank_rad |
+| slider_crank | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (stroke/stroke/speed); analytic-kinematics oracle; stroke+peak_speed derived; good 100 / bad 40 |
 | gear | mechanism | pychrono | pending | | KEEP-port |
 | mass_spring_damper | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns; oracle-grounded (oracle.py); derived period_d/zeta/ss_amp; good 100 / bad 40 |
 | beam | FEA | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (tip load/self-weight/superposition); numpy-FE oracle; tip DERIVED from logged shape; good 100 / bad 40 |
@@ -82,7 +93,7 @@ breadth step.
 | fea_ancf_beam (new) | FEA | pychrono | pending | | ADD; ANCF cantilever, analytic static deflection |
 | solver_nsc_smc (new) | solver/contact | pychrono | pending | | ADD; NSC vs SMC restitution invariant |
 | coupling_rigid_flex (new) | coupling | pychrono | pending | | ADD; rigid body on flexible beam |
-| swig_contact_reporter (new) | swig-extension | pychrono | verified | 100 | callback+lifecycle; 4 contacts, normal_force 39.26~=N*m*g |
+| swig_contact_reporter (new) | swig-extension | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (N=4/N=6/heavier+per-contact); equilibrium oracle; count+sum+per-contact derived; good 100 / bad 40 |
 | import_urdf (new) | data-import | pychrono | pending | | ADD; URDF load + named-joint actuation |
 | yaml_mbs (new) | data-import | pychrono | pending | | ADD; YAML declarative model |
 | checkpoint (new) | state-mgmt | pychrono | pending | | ADD; checkpoint/restart determinism |

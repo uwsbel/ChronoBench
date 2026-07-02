@@ -2,23 +2,89 @@
   "task": "swig_contact_reporter",
   "axis": "swig-python-cpp-extension",
   "simulator": "pychrono",
-  "source": "Chrono demo_MBS_callbackNSC / contact-reporting idiom + static-equilibrium analytic",
-  "probe_vector": ["swig-callback-subclass", "object-lifecycle", "contact-instrumentation"],
-  "turn": 1,
-  "run": {
-    "entry": "truth1.py",
-    "timeout": 120,
-    "expect_json_keys": ["n_contacts", "normal_force"]
+  "source": "Chrono demo_MBS_callbackNSC / contact-reporting idiom; targets from independent oracle.py (static-equilibrium force balance), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
   },
-  "L2_caps": {
-    "report_callback": "ReportContactCallback",
-    "report_contacts": "ReportAllContacts",
-    "step_loop": "DoStepDynamics"
-  },
-  "L3": [
-    {"kind": "min", "key": "n_contacts", "bound": 4,
-     "desc": "callback invoked and produced data: >= N=4 sphere-ground contacts"},
-    {"kind": "rel_tol", "key": "normal_force", "target": 39.24, "tol": 0.25,
-     "desc": "summed normal reaction ~= N*m*g (static equilibrium), N=4, m~=1, g=9.81"}
+  "turns": [
+    {
+      "turn": 1,
+      "probe_vector": ["swig-callback-subclass", "object-lifecycle", "contact-instrumentation"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["n_contacts", "normal_force"]
+      },
+      "L2_caps": {
+        "report_callback": "ReportContactCallback",
+        "report_contacts": "ReportAllContacts",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "n_contacts_meas", "kind": "count", "csv": "out.csv", "column": "normal_force"},
+        {"name": "force_sum_meas", "kind": "sum", "csv": "out.csv", "column": "normal_force"}
+      ],
+      "L3": [
+        {"kind": "min", "key": "n_contacts_meas", "bound": 4,
+         "desc": "callback enumerated the contacts: >= N=4 rows logged"},
+        {"kind": "rel_tol", "key": "force_sum_meas", "target": 39.24, "tol": 0.15,
+         "desc": "summed normal force = N*m*g at static equilibrium, N=4,m=1,g=9.81 (independent oracle); MEASURED as sum of the logged per-contact forces"}
+      ]
+    },
+    {
+      "turn": 2,
+      "probe_vector": ["callback-adapts-to-count", "contact-instrumentation"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["n_contacts", "normal_force"]
+      },
+      "L2_caps": {
+        "report_callback": "ReportContactCallback",
+        "report_contacts": "ReportAllContacts",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "n_contacts_meas", "kind": "count", "csv": "out.csv", "column": "normal_force"},
+        {"name": "force_sum_meas", "kind": "sum", "csv": "out.csv", "column": "normal_force"}
+      ],
+      "L3": [
+        {"kind": "min", "key": "n_contacts_meas", "bound": 6,
+         "desc": "6 spheres now rest: >= 6 contacts logged"},
+        {"kind": "rel_tol", "key": "force_sum_meas", "target": 58.86, "tol": 0.15,
+         "desc": "summed normal force = 6*m*g (independent oracle); MEASURED as sum of per-contact forces (catches 'count not changed')"}
+      ]
+    },
+    {
+      "turn": 3,
+      "probe_vector": ["per-contact-analysis", "mass-scaling", "contact-instrumentation"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["n_contacts", "normal_force"]
+      },
+      "L2_caps": {
+        "report_callback": "ReportContactCallback",
+        "report_contacts": "ReportAllContacts",
+        "step_loop": "DoStepDynamics"
+      },
+      "derive": [
+        {"name": "n_contacts_meas", "kind": "count", "csv": "out.csv", "column": "normal_force"},
+        {"name": "force_sum_meas", "kind": "sum", "csv": "out.csv", "column": "normal_force"},
+        {"name": "per_contact_max", "kind": "max", "csv": "out.csv", "column": "normal_force"}
+      ],
+      "L3": [
+        {"kind": "min", "key": "n_contacts_meas", "bound": 6,
+         "desc": "6 heavier spheres rest: >= 6 contacts logged"},
+        {"kind": "rel_tol", "key": "force_sum_meas", "target": 117.72, "tol": 0.15,
+         "desc": "summed normal force = 6*(2m)*g with doubled mass (independent oracle); MEASURED as sum of per-contact forces"},
+        {"kind": "rel_tol", "key": "per_contact_max", "target": 19.62, "tol": 0.20,
+         "desc": "each individual resting contact carries one sphere's weight m*g ~= 19.62 N (independent oracle); MEASURED as the max per-contact force -> the callback reports individual contacts, not a lumped total"}
+      ]
+    }
   ]
 }

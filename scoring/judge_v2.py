@@ -131,9 +131,18 @@ def _derive(spec, work):
         return _period(tcol, col, spec.get("about", 0.0))
     if kind == "log_decrement":
         return _log_decrement(col)
+    if kind == "max_speed":
+        pts = [(t, x) for t, x in zip(tcol, col) if t == t and x == x]
+        rates = [abs((pts[i][1] - pts[i - 1][1]) / (pts[i][0] - pts[i - 1][0]))
+                 for i in range(1, len(pts)) if pts[i][0] != pts[i - 1][0]]
+        return max(rates) if rates else float("nan")
     xs = [x for x in col if x == x]
+    if kind == "count":
+        return float(len(xs))
     if not xs:
         return float("nan")
+    if kind == "sum":
+        return sum(xs)
     if kind == "max_abs":
         return max(abs(x) for x in xs)
     if kind == "max":
