@@ -1,0 +1,68 @@
+import pychrono.core as chrono
+import numpy as np
+import math
+
+# Create the PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# Create the ground plane
+ground = chrono.ChBodyEasyBox(10, 1, 0.1, 1000, True, False)
+ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, -0.5, 0))
+system.AddBody(ground)
+
+# Create the beam structure
+beam_length = 2.0
+beam_width = 0.1
+beam_height = 0.1
+num_elements = 10
+beam_nodes = []
+beam_elements = []
+
+# Create beam nodes
+for i in range(num_elements + 1):
+    x = i * beam_length / num_elements
+    node = chrono.ChBodyEasyBox(beam_width, beam_height, beam_width, 1000, True, False)
+    node.SetFixed(True)
+    node.SetPos(chrono.ChVector3d(x, 0.5, 0))
+    system.AddBody(node)
+    beam_nodes.append(node)
+
+# Create beam elements
+for i in range(num_elements):
+    element = chrono.ChLinkTSDA()
+    element.SetName("beam_element")
+    element.Initialize(beam_nodes[i], beam_nodes[i + 1], chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+    system.AddLink(element)
+    beam_elements.append(element)
+
+# Create a motor function to apply a load
+def apply_load(time):
+    load = 1000.0 * math.sin(2 * math.pi * time)
+    return load
+
+# Create a motor constraint
+motor = chrono.ChLinkMotorLinear()
+motor.SetName("beam_motor")
+motor.Initialize(beam_nodes[0], beam_nodes[1], chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT))
+system.AddLink(motor)
+
+# Create a visualization function
+def visualize():
+    vis = chrono.ChVisualSystemIrrlicht()
+    vis.AttachSystem(system)
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("PyChrono Beam Buckling Simulation")
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(0, 2, 3), chrono.ChVector3d(0, 0, 0))
+    vis.AddTypicalLights()
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(0.01)
+
+# Run the simulation
+visualize()

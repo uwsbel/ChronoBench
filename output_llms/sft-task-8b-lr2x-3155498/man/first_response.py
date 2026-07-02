@@ -1,0 +1,98 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import math
+
+
+def create_terrain(system):
+    terrain = chrono.ChBodyEasyBox(100, 0.1, 100, 1000, True, False)
+    terrain.SetName("Rigid terrain")
+    terrain.SetFixed(True)
+    terrain.SetPos(chrono.ChVector3d(0, -0.5, 0))
+    terrain.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    system.Add(terrain)
+    return terrain
+
+
+def create_truck(system):
+    veh.SetVehicleDataPath(chrono.GetChronoDataPath() + "vehicle/")
+    truck = veh.ManTruck()
+    truck.SetContactMethod(chrono.ChContactMethod_NSC)
+    truck.SetChassisCollisionType(veh.CollisionType_NONE)
+    truck.SetChassisFixed(False)
+    truck.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0.7, 0), chrono.ChQuaterniond(1, 0, 0, 0)))
+    truck.Initialize()
+    truck.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    truck.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    truck.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    truck.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    truck.SetTireVisualizationType(veh.VisualizationType_NONE)
+    system.Add(truck.GetVehicle())
+    return truck
+
+
+def add_tires(system, truck):
+    for i in range(4):
+        tire = veh.TMeasyTire()
+        tire.SetVisualizationType(veh.VisualizationType_MESH)
+        truck.AddTire(tire)
+    return [veh.TMeasyTire(), veh.TMeasyTire(), veh.TMeasyTire(), veh.TMeasyTire()]
+
+
+def setup_camera_and_lighting(world):
+    camera = chrono.ChCamera()
+    camera.SetName("Chase camera")
+    camera.SetPosition(chrono.ChVector3d(0, 2.5, 2.5))
+    camera.SetTarget(chrono.ChVector3d(0, 0, 0))
+    camera.SetUp(chrono.ChVector3d(0, 0, 1))
+    camera.SetFOV(chrono.CH_PI / 4)
+    world.Add(camera)
+
+    light = chrono.ChLightSun()
+    light.SetName("Directional light")
+    light.SetAmbientSky(chrono.ChColor(0.3, 0.3, 0.3))
+    light.SetAmbientGround(chrono.ChColor(0.05, 0.05, 0.05))
+    light.SetDirection(chrono.ChVector3d(0, -1, -1))
+    light.SetIntensity(1.0)
+    world.Add(light)
+
+
+def create_irrlicht_window():
+    vis = chrono.ChVisualSystemIrrlicht()
+    vis.AttachSystem(chrono.ChSystemNSC())
+    vis.SetWindowSize(1024, 768)
+    vis.SetWindowTitle("PyChrono MAN 10t Truck Simulation")
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddCamera()
+    vis.AddLightPoint(chrono.ChVector3d(1, 1, 1), 5.0, chrono.ChColor(0.8, 0.8, 0.8))
+    return vis
+
+
+def main():
+    system = chrono.ChSystemNSC()
+    terrain = create_terrain(system)
+    truck = create_truck(system)
+    tires = add_tires(system, truck)
+    setup_camera_and_lighting(system)
+    vis = create_irrlicht_window()
+
+    driver = veh.DriverInputs()
+    driver.m_throttle = 0.0
+    driver.m_steering = 0.0
+    driver.m_braking = 0.0
+
+    while vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(0.01)
+        truck.Advance(0.01)
+        driver.m_throttle = vis.GetKeyboardValue(chrono.KEYCODE_UP, 0.0, 1.0)
+        driver.m_steering = vis.GetKeyboardValue(chrono.KEYCODE_LEFT, -1.0, 1.0)
+        driver.m_braking = vis.GetKeyboardValue(chrono.KEYCODE_DOWN, 0.0, 1.0)
+        truck.SetDriverInputs(driver)
+        vis.Render()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,159 @@
+import pychrono.core as chrono
+import pychrono.vehicle as veh
+import math
+
+chrono.SetChronoDataPath(chrono.GetChronoDataPath())
+veh.SetDataPath(chrono.GetChronoDataPath() + 'vehicle/')
+
+
+# Initial vehicle location and orientation
+initLoc = chrono.ChVector3d(0, 0, 0.5)
+initRot = chrono.ChQuaterniond(1, 0, 0, 0)
+
+# Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
+vis_type = veh.VisualizationType_MESH
+
+# Collision type for chassis (PRIMITIVES, MESH, or NONE)
+chassis_collision_type = veh.CollisionType_NONE
+
+# Type of tire model (RIGID, TMEASY)
+tire_model = veh.TireModelType_TMEASY
+
+# Rigid terrain
+terrain_model = veh.RigidTerrain.BOX
+terrainHeight = 0.0
+terrainLength = 200.0
+terrainWidth = 100.0
+
+# Poon chassis tracked by the camera
+trackPoint = chrono.ChVector3d(-3.0, 0.0, 1.1)
+
+# Contact method
+contact_method = chrono.ChContactMethod_NSC
+contact_vis = False
+
+# Simulation step sizes
+step_size = 1e-3
+tire_step_size = step_size
+
+# Time interval between two render frames
+render_step_size = 1.0 / 50  # FPS = 50
+
+
+# Create the HMMWV vehicle, set parameters, and initialize
+vehicle_params = veh.HMMWV_Full.Parameters()
+vehicle_params.m_wheelbase = 3.0
+vehicle_params.m_tread = 1.75
+vehicle_params.m_max_speed = 10.0
+vehicle_params.m_powertrain_type = veh.PowertrainType_ELECTRIC
+vehicle_params.m_engine_type = veh.EngineType_ELECTRIC
+vehicle_params.m_tire_type = tire_model
+vehicle_params.m_contact_method = contact_method
+vehicle_params.m_chassis_collision_type = chassis_collision_type
+vehicle_params.m_init_position = initLoc
+vehicle_params.m_init_rotation = initRot
+vehicle_params.m_vis_type = vis_type
+vehicle_params.m_tire_step_size = tire_step_size
+
+vehicle = veh.HMMWV_Full(vehicle_params)
+vehicle.SetTireStepSize(tire_step_size)
+
+
+vehicle.Initialize()
+
+vehicle.SetChassisVisualizationType(vis_type)
+vehicle.SetSuspensionVisualizationType(vis_type)
+vehicle.SetSteeringVisualizationType(vis_type)
+vehicle.SetWheelVisualizationType(vis_type)
+vehicle.SetTireVisualizationType(vis_type)
+
+vehicle.GetSystem().SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+# Create the terrain
+patch_mat = chrono.ChContactMaterialNSC()
+patch_mat.SetFriction(0.9)
+patch_mat.SetRestitution(0.01)
+terrain = veh.RigidTerrain(vehicle.GetSystem())
+patch = terrain.AddPatch(patch_mat, chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), terrainLength, terrainWidth)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Create the vehicle Irrlicht interface
+vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+vis.SetWindowTitle('HMMWV Circular Path Tracking')
+vis.SetWindowSize(1280, 1024)
+vis.SetChaseCamera(trackPoint, 6.0, 0.5)
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddLightDirectional()
+vis.AddSkyBox()
+vis.AttachVehicle(vehicle.GetVehicle())
+
+# Create the PID controller
+Kp = 1.0
+Ki = 0.01
+Kd = 0.05
+target_radius = 15.0
+target_angle = 0.0
+target_speed = 0.3
+sentinel = chrono.ChVector3d(0, 0, 0.2)
+target = chrono.ChVector3d(0, 0, 0.2)
+error_sum = 0.0
+last_error = 0.0
+last_time = 0.0
+
+# Create the driver system
+driver_inputs = veh.ChDriverInputs()
+driver_inputs.m_steering = 0.0
+driver_inputs.m_throttle = 0.3
+driver_inputs.m_braking = 0.0
+
+# Simulation loop
+realtime_timer = chrono.ChRealtimeStepTimer()
+step_number = 0
+render_frame = 0
+
+while vis.Run():
+    time = vehicle.GetSystem().GetChTime()
+
+    # Update sentinel and target points
+    angle = time * 2.0
+    sentinel.x = target_radius * math.cos(angle)
+    sentinel.y = target_radius * math.sin(angle)
+    target.x = target_radius * math.cos(angle + math.pi)
+    target.y = target_radius * math.sin(angle + math.pi)
+
+    # PID controller
+    current_position = vehicle.GetVehicle().GetChassisBody().GetPos()
+    dx = current_position.x - sentinel.x
+    dy = current_position.y - sentinel.y
+    distance = math.sqrt(dx*dx + dy*dy)
+    angle_error = math.atan2(dy, dx) - current_position.z
+    error_sum += angle_error * step_size
+    derivative = angle_error - last_error
+    steering = Kp * angle_error + Ki * error_sum + Kd * derivative
+    driver_inputs.m_steering = max(min(steering, 1.0), -1.0)
+
+    # Render scene and output POV-Ray data
+    if (step_number % 10 == 0):
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        render_frame += 1
+
+    # Update modules (process inputs from other modules)
+    vehicle.Synchronize(time, driver_inputs, terrain)
+    terrain.Synchronize(time)
+    vis.Synchronize(time, driver_inputs)
+
+    # Advance simulation for one timestep for all modules
+    vehicle.Advance(step_size)
+    terrain.Advance(step_size)
+    vis.Advance(step_size)
+
+    # Increment frame number
+    step_number += 1
+
+    # Spin in place for real time to catch up
+    realtime_timer.Spin(step_size)

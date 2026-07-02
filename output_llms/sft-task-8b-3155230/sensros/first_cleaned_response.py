@@ -1,0 +1,72 @@
+import pychrono as chrono
+from pychrono import sensor
+from pychrono import ros
+from pychrono import visualization
+
+system = chrono.ChSystemNSC()
+visual_system = chrono.ChVisualSystemIrrlicht()
+visual_system.AttachCamera(chrono.ChCamera())
+visual_system.SetWindowSize(1024, 768)
+visual_system.SetWindowTitle('PyChrono Sensors')
+visual_system.Initialize()
+
+ground_body = chrono.ChBody()
+ground_body.SetName('Ground Body')
+ground_body.SetMass(1000)
+ground_body.SetInertiaXX(chrono.ChVector3d(100, 100, 100))
+ground_body.SetPos(chrono.ChVector3d(0, 0, 0))
+ground_body.SetPosDt(chrono.ChVector3d(0.1, 0, 0))
+ground_body.EnableCollision(True)
+shape = chrono.ChVisualShapeBox(2, 2, 0.1)
+shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+ground_body.AddVisualShape(shape)
+system.AddBody(ground_body)
+
+sensor_manager = chrono.ChSensorManager()
+ros_manager = ros.ChROSManager()
+
+camera_sensor = sensor.ChCameraSensor(ground_body, 0.0, 1.0)
+camera_sensor.SetUpdateRate(30)
+camera_sensor.SetFocalLength(0.1)
+camera_sensor.SetImageWidth(640)
+camera_sensor.SetImageHeight(480)
+camera_sensor.SetPosition(chrono.ChVector3d(0, 0, 0.5))
+camera_sensor.SetOrientation(chrono.QuatFromAngleZ(chrono.CH_PI_2))
+sensor_manager.AddSensor(camera_sensor)
+ros_manager.RegisterSensor(camera_sensor, '/camera/image', 'sensor_msgs/Image')
+
+lidar_sensor = sensor.ChLidarSensor(ground_body, 0.0, 1.0)
+lidar_sensor.SetUpdateRate(30)
+lidar_sensor.SetRange(50)
+lidar_sensor.SetVerticalAngle(chrono.CH_PI / 2)
+lidar_sensor.SetHorizontalAngle(chrono.CH_PI)
+lidar_sensor.SetHorizontalResolution(100)
+sensor_manager.AddSensor(lidar_sensor)
+ros_manager.RegisterSensor(lidar_sensor, '/lidar/points', 'sensor_msgs/PointCloud2')
+
+gps_sensor = sensor.ChGPS(ground_body)
+gps_sensor.SetUpdateRate(30)
+sensor_manager.AddSensor(gps_sensor)
+ros_manager.RegisterSensor(gps_sensor, '/gps/pose', 'geometry_msgs/PoseStamped')
+
+accel_sensor = sensor.ChAccelerometer(ground_body)
+accel_sensor.SetUpdateRate(30)
+sensor_manager.AddSensor(accel_sensor)
+ros_manager.RegisterSensor(accel_sensor, '/accelerometer/accel', 'sensor_msgs/Imu')
+
+gyro_sensor = sensor.ChGyroscope(ground_body)
+gyro_sensor.SetUpdateRate(30)
+sensor_manager.AddSensor(gyro_sensor)
+ros_manager.RegisterSensor(gyro_sensor, '/gyroscope/gyro', 'sensor_msgs/Imu')
+
+mag_sensor = sensor.ChMagnetometer(ground_body)
+mag_sensor.SetUpdateRate(30)
+sensor_manager.AddSensor(mag_sensor)
+ros_manager.RegisterSensor(mag_sensor, '/magnetometer/mag', 'sensor_msgs/Imu')
+
+while visual_system.Run():
+    time = system.GetChTime()
+    sensor_manager.Update()
+    system.DoStepDynamics(0.01)
+    visual_system.Render()
+    ros_manager.Update()

@@ -1,0 +1,92 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.vehicle.driver as driver
+import pychrono.vehicle.terrain as terrain
+import pychrono.visualization as visualization
+import math
+
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath('/usr/local/chrono/data/')
+veh.SetVehicleDataPath('/usr/local/chrono.vehicle/data/')
+
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# 2. Create HMMWV vehicle and set initial conditions
+hmmwv = veh.HMMWV_Full(system)
+hmmwv.SetContactMethod(veh.ChVehicleContactMethod.NSC)
+hmmwv.SetChassisFixed(False)
+hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+hmmwv.SetPowertrainType(veh.ChVehiclePowertrainModelType.SHV)
+hmmwv.SetTireType(veh.ChTireModelType.RIGID)
+hmmwv.SetTireStepSize(1e-3)
+hmmwv.Initialize()
+hmmwv.SetChassisVisualizationType(veh.VisualizationType.PRIMITIVES)
+hmmwv.SetSuspensionVisualizationType(veh.VisualizationType.PRIMITIVES)
+hmmwv.SetSteeringVisualizationType(veh.VisualizationType.PRIMITIVES)
+hmmwv.SetWheelVisualizationType(veh.VisualizationType.NONE)
+hmmwv.SetTireVisualizationType(veh.VisualizationType.NONE)
+
+# 3. Create SCM deformable terrain with soil parameters and height map
+scm_terrain = terrain.SCMDeformableTerrain(system, hmmwv.GetChassisBody())
+soil_parameters = terrain.SCMParameters()
+soil_parameters.mu = 0.9
+soil_parameters.K = 2e6
+soil_parameters.G = 3e6
+soil_parameters.phi = 30.0
+soil_parameters.cohesion = 0.0
+soil_parameters.density = 2000.0
+soil_parameters.Kphi = 3.0
+soil_parameters.Kvol = 0.0
+soil_parameters.damping = 0.0
+scm_terrain.SetSoilParameters(soil_parameters)
+scm_terrain.SetHeightMap("terrain_height_map.bin")  # Assume pre-generated height map file
+scm_terrain.SetBumpAmplitude(0.1)
+scm_terrain.SetBumpWavelength(2.0)
+scm_terrain.Initialize(hmmwv.GetChassisBody(), 100, 100, 0.02)
+scm_terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+
+# 4. Create driver system for vehicle control
+driver_inputs = driver.ChDriverInputs()
+driver_system = driver.ChIrrGuiDriver(hmmwv, driver_inputs)
+driver_system.SetSteeringDelta(0.05)
+driver_system.SetThrottleDelta(0.05)
+driver_system.SetBrakingDelta(0.05)
+
+# 5. Set up Irrlicht visualization with camera and lighting
+vis = visualization.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('PyChrono HMMWV SCM Simulation')
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, -6, 1.2), chrono.ChVector3d(0, 0, 0.5))
+vis.AddTypicalLights()
+
+# 6. Simulation loop parameters
+step_size = 1e-3
+real_time_factor = 1.0
+simulation_time = 0.0
+
+while vis.Run():
+    time = system.GetChTime()
+    dt = min(step_size, real_time_factor * (time - simulation_time))
+    
+    # Update driver inputs from GUI
+    driver_system.Synchronize(time)
+    driver_inputs = driver_system.GetInputs()
+    
+    # Synchronize vehicle and terrain
+    hmmwv.Synchronize(time, driver_inputs, scm_terrain)
+    scm_terrain.Synchronize(time, hmmwv.GetChassisBody())
+    
+    # Advance simulation
+    system.DoStepDynamics(dt)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    simulation_time = time
+
+    # Real-time execution control
+    chrono.ChRealtimeStep(dt)

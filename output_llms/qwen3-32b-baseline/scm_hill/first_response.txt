@@ -1,0 +1,80 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
+import pychrono.scm as scm
+
+# 1. Initialize PyChrono environment and core components
+chrono.SetChronoDataPath('path_to_chrono_data/')  # Update with actual data path if needed
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, -9.81))
+
+# 2. Create HMMWV vehicle and set initial conditions
+hmmwv = vehicle.HMMWV()
+hmmwv.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.Q_from_Euler_angles(0, 0, 0)))
+hmmwv.SetTireType(vehicle.TireModelType_SCM)
+hmmwv.SetTireStepSize(0.001)
+hmmwv.SetChassisFixed(False)
+hmmwv.Initialize()
+hmmwv.SetEngineType(vehicle.EngineType_SIMPLE)
+hmmwv.SetPowertrainType(vehicle.PowertrainType_SIMPLE)
+hmmwv.SetSimplePowertrain(100, 500)  # 100 Nm torque, 500 rpm
+hmmwv.GetVehicle().SetCollide(True)
+system.Add(hmmwv.GetVehicle())
+
+# 3. Set up SCM deformable terrain with soil parameters and height map
+soil = scm.ChSoilParameters()
+soil.cohesion = 0.5e5  # Pa
+soil.phi = 30 * chrono.CH_C_DEG_TO_RAD  # Friction angle (converted to radians)
+soil.kphi = 0.9
+soil.density = 2000  # kg/m^3
+soil.young_modulus = 2e6  # Pa
+soil.poisson_ratio = 0.3
+soil.friction = 0.4
+soil.damping = 0
+
+terrain = scm.ChSCMTerrain(system)
+terrain.SetSoilParameters(soil)
+terrain.SetBounce(0)
+terrain.SetSurfaceMeshResolution(200, 200)
+terrain.SetPlotType(scm.ChSCMTerrain.PLOT_SINKAGE, 0, 2)
+terrain.Initialize(100, 100, 0.01)  # Length, width, mesh resolution
+terrain.SetHeightMapFunction(lambda x, y: 0.0)  # Flat terrain
+
+# 4. Initialize driver system
+driver = vehicle.ChSimpleDriver(hmmwv.GetVehicle())
+driver.SetTargetSpeed(10)  # m/s
+
+# 5. Set up Irrlicht visualization with camera and lighting
+application = irr.ChIrrApp(system, 'HMMWV Simulation', irr.dimension2du(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, -6, 1.5), chrono.ChVectorD(0, 0, 1.5))  # Camera position and target
+application.AddLightWithShadow(chrono.ChVectorD(10, 10, 10), chrono.ChVectorD(0, 0, 0), 5, 20, 10, 40, 512, True, False)
+application.SetShowInfos(True)
+application.SetContactsDrawMode(1)
+application.SetSymbolsDrawMode(1)
+application.SetTimestep(0.001)
+
+# 6. Simulation loop
+application.SetStepManage(True)
+application.SetRealTime(True)
+
+time_step = 0.001
+simulation_time = 0
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    
+    # Update driver inputs
+    driver.Update(time_step)
+    
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    simulation_time += time_step
+    
+    application.EndScene()
+```

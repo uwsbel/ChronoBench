@@ -1,0 +1,70 @@
+import pychrono as chrono
+import pychrono.irrlicht as chronoirr
+
+# Initialize the Chrono system and visualization
+system = chrono.ChSystemNSC()
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("Epicyclic Gears Simulation")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(3, 3, 3), chrono.ChVector3d(0, 0, 0))
+vis.AddTypicalLights()
+
+# Create fixed truss (base)
+truss = chrono.ChBodyEasyBox(4, 4, 0.1, 1000, True, False)
+truss.SetName("Fixed Truss")
+truss.SetFixed(True)
+truss.GetVisualShape(0).SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+system.AddBody(truss)
+
+# Create rotating carrier bar
+carrier = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, 0.05, 2.0, 1000, True, False)
+carrier.SetName("Carrier")
+carrier.SetPos(chrono.ChVector3d(0, 0, 0))
+carrier.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.6, 0.3))
+system.AddBody(carrier)
+
+# Add motor to rotate the carrier
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(truss, carrier, chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+motor.SetSpeedFunction(chrono.ChFunctionConst(1.0))  # 1 rad/s
+system.AddLink(motor)
+
+# Create fixed sun gear
+sun_gear = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, 0.2, 0.05, 1000, True, False)
+sun_gear.SetName("Sun Gear")
+sun_gear.SetFixed(True)
+sun_gear.SetPos(chrono.ChVector3d(0, 0, 0))
+sun_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.1, 0.1))
+system.AddBody(sun_gear)
+
+# Create orbiting planet gear
+planet_gear = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, 0.1, 0.05, 1000, True, False)
+planet_gear.SetName("Planet Gear")
+planet_gear.SetPos(chrono.ChVector3d(1.5, 0, 0))
+planet_gear.GetVisualShape(0).SetColor(chrono.ChColor(0.1, 0.4, 0.8))
+system.AddBody(planet_gear)
+
+# Add revolute joint between planet gear and carrier
+planet_joint = chrono.ChLinkLockRevolute()
+planet_joint.Initialize(planet_gear, carrier, chrono.ChFramed(planet_gear.GetPos()))
+system.AddLink(planet_joint)
+
+# Add gear constraint between sun and planet gears
+gear_link = chrono.ChLinkGear()
+gear_link.Initialize(sun_gear, planet_gear,
+                     chrono.ChFramed(chrono.ChVector3d(0, 0, 0), chrono.QUNIT),
+                     chrono.ChFramed(planet_gear.GetPos(), chrono.QUNIT),
+                     True)
+gear_link.SetGearRatio(-0.2 / 0.1)  # -sun_radius/planet_radius
+system.AddLink(gear_link)
+
+# Simulation loop
+time_step = 0.001
+while vis.Run():
+    vis.BeginScene()
+    vis.DrawAll()
+    vis.EndScene()
+    system.DoStepDynamics(time_step)

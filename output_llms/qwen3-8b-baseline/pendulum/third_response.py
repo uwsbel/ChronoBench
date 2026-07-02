@@ -1,0 +1,25 @@
+import pychrono.core as chrono
+import pychrono.irrlicht as chronoirr
+import math
+
+# Initialize the Chrono simulation system
+sys = chrono.ChSystemNSC()
+
+# Set the gravitational acceleration for the system (in m/s^2)
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))  # g = 9.81 m/s^2
+
+# Create the ground body and add it to the simulation
+ground = chrono.ChBody()
+sys.Add(ground)
+ground.SetFixed(True)  # The ground is fixed and does not move
+ground.EnableCollision(False)  # Disable collision detection for the ground
+
+# Add a visualization cylinder to the ground
+cyl_1 = chrono.ChVisualShapeCylinder(0.2, 0.4)  # Cylinder with radius 0.2 and height 0.4
+ground.AddVisualShape(cyl_1, chrono.ChFramed(chrono.ChVector3d(0, 0, +1)))
+
+# Create the first pendulum body and add it to the simulation
+pend_1 = chrono.ChBody()
+sys.AddBody(pend_1)
+pend_1.SetFixed(False)
+print("error happened with only start ```python")

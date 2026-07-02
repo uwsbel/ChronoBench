@@ -1,0 +1,126 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+
+# Initialize the system
+system = chrono.ChSystemNSC()
+system.Set_G_acc(chrono.ChVectorD(0, 0, 0))  # No gravity
+
+# Create the mesh
+mesh = fea.ChMesh()
+
+# Define material properties for IGA beam
+material = fea.ChIgaBeamSectionEulerAdvanced()
+material.SetYoungModulus(210e9)  # Steel Young's modulus
+material.SetGshearModulus(81e9)  # Shear modulus
+material.SetDensity(7800)  # Density in kg/m^3
+material.SetAsCircularSection(0.02)  # Circular cross-section with radius 0.02 m
+
+# Define control points for the beam (straight along x-axis from 0 to 2 m)
+control_points = [
+    chrono.ChVectorD(0, 0, 0),
+    chrono.ChVectorD(0.5, 0, 0),
+    chrono.ChVectorD(1.0, 0, 0),
+    chrono.ChVectorD(1.5, 0, 0),
+    chrono.ChVectorD(2.0, 0, 0)
+]
+# Define knot vector for cubic B-spline (order 3)
+knots_u = [0, 0, 0, 0, 0.25, 0.5, 0.75, 1, 1, 1, 1]
+
+# Build the IGA beam using the builder
+builder = fea.ChBuilderBeamIga()
+builder.BuildBeam(mesh, material, len(control_points) - 1, control_points, knots_u)
+
+# Add the mesh to the system
+system.Add(mesh)
+
+# Find the center node (at x=1.0)
+center_node = None
+for node in mesh.GetNodes():
+    pos = node.GetPos()
+    if abs(pos.x - 1.0) < 1e-6 and abs(pos.y) < 1e-6 and abs(pos.z) < 1e-6:
+        center_node = node
+        break
+
+# Create flywheel body
+flywheel = chrono.ChBody()
+flywheel.SetMass(1.0)  # kg
+# Approximate inertia for a disk with radius 0.1 m
+Ixx = 0.5 * 1.0 * (0.1)**2  # Ixx = 0.5 * m * r^2
+flywheel.SetInertiaXX(chrono.ChVectorD(Ixx, Ixx, Ixx))
+flywheel.SetPos(chrono.ChVectorD(1.0, 0, 0))
+system.AddBody(flywheel)
+
+# Connect flywheel to center node
+link_node_flywheel = chrono.ChLinkNodeBody()
+link_node_flywheel.Initialize(center_node, flywheel, chrono.ChFrameD(center_node.GetPos()))
+system.AddLink(link_node_flywheel)
+
+# Find the end node (at x=2.0) for motor attachment
+end_node = None
+for node in mesh.GetNodes():
+    pos = node.GetPos()
+    if abs(pos.x - 2.0) < 1e-6 and abs(pos.y) < 1e-6 and abs(pos.z) < 1e-6:
+        end_node = node
+        break
+
+# Create driver body for motor
+driver = chrono.ChBody()
+driver.SetBodyFixed(False)
+system.AddBody(driver)
+
+# Connect driver body to end node
+link_node_driver = chrono.ChLinkNodeBody()
+link_node_driver.Initialize(end_node, driver, chrono.ChFrameD(end_node.GetPos()))
+system.AddLink(link_node_driver)
+
+# Apply rotational motor to driver body
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(driver, system.GetGround(), chrono.ChFrameD(chrono.ChVectorD(2, 0, 0)))
+# Set constant angular velocity (e.g., 10 rad/s)
+motor.SetSpeedFunction(chrono.ChFunctionConst(10.0))
+system.AddLink(motor)
+
+# Fix the first node (at x=0) to prevent rigid body motion
+fixed_body = chrono.ChBody()
+fixed_body.SetBodyFixed(True)
+system.AddBody(fixed_body)
+
+first_node = None
+for node in mesh.GetNodes():
+    pos = node.GetPos()
+    if abs(pos.x) < 1e-6 and abs(pos.y) < 1e-6 and abs(pos.z) < 1e-6:
+        first_node = node
+        break
+
+link_node_fixed = chrono.ChLinkNodeBody()
+link_node_fixed.Initialize(first_node, fixed_body, chrono.ChFrameD(first_node.GetPos()))
+system.AddLink(link_node_fixed)
+
+# Visualization settings
+mesh.SetColor(chrono.ChColor(0.6, 0.6, 1.0))
+mesh.SetDrawMode(fea.ChMeshDrawMode.E_PLOT_ELEM_BEAM_ABB)
+
+# Set up Irrlicht application
+application = irr.ChIrrApp(system, 'Jeffcott Rotor Simulation', irr.dimension2du(800, 600))
+application.AddLogo()
+application.AddSkyBox()
+application.AddCamera(chrono.ChVectorD(0, 2, 5), chrono.ChVectorD(0, 0, 0))
+application.AddTypicalLights()
+
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+application.SetTimestep(0.001)
+application.SetTryRealtime(True)
+
+# Simulation loop
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()
+```

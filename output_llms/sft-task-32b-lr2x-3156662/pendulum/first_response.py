@@ -1,0 +1,72 @@
+import pychrono as chrono
+import numpy as np
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, 0, -9.81))
+
+# Create ground body
+ground = chrono.ChBody()
+ground.SetName("Ground")
+ground.SetFixed(True)
+ground.EnableCollision(False)
+system.AddBody(ground)
+
+# Create pendulum body
+pendulum = chrono.ChBody()
+pendulum.SetName("Pendulum")
+pendulum.SetMass(1.0)  # kg
+pendulum.SetInertiaXX(chrono.ChVectorD(0, 1.0/12.0, 1.0/12.0))  # Thin rod inertia
+pendulum.SetPos(chrono.ChVectorD(0.5, 0, 0))  # Initial position with pivot at origin
+system.AddBody(pendulum)
+
+# Create revolute joint at origin
+revolute = chrono.ChLinkLockRevolute()
+revolute.SetName("Revolute Joint")
+revolute.Initialize(ground, pendulum, chrono.ChFramed(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+system.AddLink(revolute)
+
+# Add visualization: coordinate system on ground
+ground_shape = chrono.ChVisualShapeBox(0.1, 0.1, 0.1)
+ground.AddVisualShape(ground_shape, chrono.ChFrameD(chrono.ChVectorD(-0.1, 0, 0), chrono.QUNIT))
+ground_shape = chrono.ChVisualShapeCylinder(0.02, 0.4)
+ground.AddVisualShape(ground_shape, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+
+# Add visualization: pendulum rod
+rod_shape = chrono.ChVisualShapeCylinder(0.05, 1.0)
+pendulum.AddVisualShape(rod_shape, chrono.ChFrameD(chrono.ChVectorD(0, 0, 0), chrono.QUNIT))
+
+# Set up Irrlicht visualization
+vis = chrono.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("PyChrono Pendulum Simulation")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+vis.AddTypicalLights()
+
+# Simulation loop parameters
+time_step = 0.001
+simulation_time = 5.0
+log_interval = 0.05
+next_log_time = 0.0
+
+# Run simulation
+time = 0.0
+while time < simulation_time:
+    if vis.Run():
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        system.DoStepDynamics(time_step)
+        time += time_step
+
+        # Log pendulum state
+        if time >= next_log_time:
+            pos = pendulum.GetPos()
+            vel = pendulum.GetPosDt()
+            print(f"t={time:.3f} pos=({pos.x:.4f}, {pos.y:.4f}, {pos.z:.4f}) vel=({vel.x:.4f}, {vel.y:.4f}, {vel.z:.4f})")
+            next_log_time += log_interval
+    else:
+        break

@@ -1,0 +1,127 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.sensor as sens
+import numpy as np
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))  # No gravity
+
+# Create ground body
+ground = chrono.ChBody()
+ground.SetName("Moving Ground")
+ground.SetFixed(False)
+ground.EnableCollision(False)
+system.Add(ground)
+
+# Add a box visualization for the ground
+box = chrono.ChVisualShapeBox(10, 10, 0.1)
+ground.AddVisualShape(box, chrono.ChFramed(chrono.ChVector3d(0, 0, -0.05)))
+
+# Create sensor manager
+sensor_manager = sens.ChSensorManager(system)
+sensor_manager.SetNoiseModels(True)
+sensor_manager.SetUpdateRate(30.0)  # Base update rate
+
+# Add camera sensor
+camera = sens.ChCameraSensor(
+    ground,
+    30,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0))),
+    1280, 720, np.pi / 4.0
+)
+camera.SetName("Camera Sensor")
+camera.SetLensFlareModel(sens.ChOptixLensFlareModel.kNone)
+sensor_manager.AddSensor(camera)
+
+# Add lidar sensor
+lidar = sens.ChLidarSensor(
+    ground,
+    10.0,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 2), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0))),
+    300, 1.0, 64, 2 * np.pi, 2 * np.pi / 3, 100.0
+)
+lidar.SetName("LIDAR Sensor")
+lidar.SetVerticalSamples(64)
+sensor_manager.AddSensor(lidar)
+
+# Add GPS sensor
+gps = sens.ChGPSSensor(
+    ground,
+    10.0,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 1), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0)))
+)
+gps.SetName("GPS Sensor")
+sensor_manager.AddSensor(gps)
+
+# Add accelerometer sensor
+accel = sens.ChAccelerometerSensor(
+    ground,
+    100.0,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0)))
+)
+accel.SetName("Accelerometer Sensor")
+sensor_manager.AddSensor(accel)
+
+# Add gyroscope sensor
+gyro = sens.ChGyroscopeSensor(
+    ground,
+    100.0,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0)))
+)
+gyro.SetName("Gyroscope Sensor")
+sensor_manager.AddSensor(gyro)
+
+# Add magnetometer sensor
+mag = sens.ChMagnetometerSensor(
+    ground,
+    10.0,  # Update rate
+    chrono.ChFrameD(chrono.ChVector3d(0, 0, 0.5), chrono.QuatFromAngleAxisD(0, chrono.ChVector3d(0, 1, 0)))
+)
+mag.SetName("Magnetometer Sensor")
+sensor_manager.AddSensor(mag)
+
+# Create ROS manager
+ros_manager = sens.ChROSPythonManager()
+ros_manager.RegisterHandler(sens.ChROSCameraHandler("/camera/image", camera))
+ros_manager.RegisterHandler(sens.ChROSLidarHandler("/lidar/points", lidar))
+ros_manager.RegisterHandler(sens.ChROSGPSTopic("/gps/fix", gps))
+ros_manager.RegisterHandler(sens.ChROSAccelerometerTopic("/imu/accel", accel))
+ros_manager.RegisterHandler(sens.ChROSGyroscopeTopic("/imu/gyro", gyro))
+ros_manager.RegisterHandler(sens.ChROSMagnetometerTopic("/imu/mag", mag))
+
+# Set ground motion
+motion = chrono.ChFunctionConst(1.0)  # 1 m/s velocity
+motor = chrono.ChLinkMotorLinearSpeed()
+motor.Initialize(ground, chrono.ChBodyAuxRef(), chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+motor.SetSpeedFunction(motion)
+system.AddLink(motor)
+
+# Simulation loop parameters
+time_step = 1.0 / 30.0
+real_time = 0.0
+start_time = chrono.ChTime()
+
+while system.GetChTime() < 10.0:
+    # Update ground position manually (simplified)
+    ground.SetPos(chrono.ChVector3d(system.GetChTime(), 0, 0))
+    
+    # Update sensor manager
+    sensor_manager.Update()
+    
+    # Update ROS manager
+    ros_manager.Update()
+    
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    
+    # Real-time enforcement
+    sim_time = system.GetChTime()
+    real_time = (chrono.ChTime() - start_time).GetSecond()
+    if sim_time > real_time:
+        chrono.ChSleep(sim_time - real_time)
+
+print("Simulation complete.")
+```

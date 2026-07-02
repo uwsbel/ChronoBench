@@ -1,0 +1,80 @@
+import argparse
+import math
+import random
+import time
+
+import pychrono.core as chrono
+import pychrono.robot as cr
+import pychrono.ros as pyros
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--no_gui", action="store_true", help="run simulation in headless mode"
+    )
+    args, _ = parser.parse_known_args()
+
+    # Create the PyChrono system
+    my_system = chrono.ChSystemNSC()
+    my_system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+    # Create a fixed floor
+    floor = chrono.ChBodyEasyBox(2.0, 0.1, 2.0, 1000, True, True)
+    floor.SetFixed(True)
+    floor.SetPos(chrono.ChVector3d(0, -0.05, 0))
+    floor.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    my_system.Add(floor)
+
+    # Create a movable box
+    box = chrono.ChBodyEasyBox(0.2, 0.2, 0.2, 1000, True, True)
+    box.SetPos(chrono.ChVector3d(0, 0.5, 0))
+    box.SetFixed(False)
+    box.SetMass(1.0)
+    box.SetInertiaXX(chrono.ChVector3d(0.01, 0.01, 0.01))
+    box.GetVisualShape(0).SetColor(chrono.ChColor(0.2, 0.4, 0.8))
+    my_system.Add(box)
+
+    # Create a custom ROS handler
+    class CustomROSHandler(pyros.ChROSHandler):
+        def __init__(self, system, body, topic_name):
+            super().__init__(system)
+            self.body = body
+            self.topic_name = topic_name
+            self.count = 0
+
+        def OnUpdate(self):
+            self.count += 1
+            msg = pyros.std_msgs.UInt32()
+            msg.data = self.count
+            self.Publish(msg, self.topic_name)
+
+    ros_handler = CustomROSHandler(my_system, box, "/custom_int_message")
+
+    # Create the ROS manager
+    ros_manager = pyros.ChROSManager(my_system)
+    ros_manager.RegisterHandler(pyros.ChClockHandler(my_system))
+    ros_manager.RegisterHandler(pyros.ChBodyHandler(my_system, box))
+    ros_manager.RegisterHandler(pyros.ChTransformHandler(my_system, box))
+    ros_manager.RegisterHandler(ros_handler)
+
+    # Simulation loop
+    time_step = 0.001
+    simulation_time = 0.0
+    while simulation_time < 5.0:
+        start_time = time.time()
+        my_system.DoStepDynamics(time_step)
+        simulation_time = my_system.GetChTime()
+        ros_manager.Update()
+        if not args.no_gui:
+            my_system.SynchronizeAll()
+            my_system.AdvanceLastTimeStep(time_step)
+        duration = time.time() - start_time
+        if duration < time_step:
+            time.sleep(time_step - duration)
+
+    print(f"Simulation completed in {simulation_time:.3f} seconds.")
+
+
+if __name__ == "__main__":
+    main()

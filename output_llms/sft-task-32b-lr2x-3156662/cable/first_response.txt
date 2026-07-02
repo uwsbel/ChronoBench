@@ -1,0 +1,75 @@
+
+
+```python
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+
+# Initialize Chrono system with SMC solver for flexible bodies
+system = chrono.ChSystemSMC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create FEA mesh and add to system
+mesh = fea.ChMesh()
+system.Add(mesh)
+
+# Define beam material properties
+material = fea.ChMaterialBeamEuler()
+material.SetYoungModulus(2.1e11)  # Steel Young's modulus (Pa)
+material.SetGshearModulus(8.1e10)  # Shear modulus (Pa)
+material.SetDensity(7800)  # Density (kg/m^3)
+
+# Create beam geometry with 20 elements
+num_elements = 20
+beam_length = 1.0
+node_spacing = beam_length / num_elements
+nodes = []
+for i in range(num_elements + 1):
+    x = i * node_spacing
+    node = fea.ChNodeFEAxyzrot(chrono.ChFramed(chrono.ChVector3d(x, 0, 0)))
+    mesh.AddNode(node)
+    nodes.append(node)
+
+# Create beam elements between nodes
+for i in range(num_elements):
+    section = fea.ChBeamSectionEulerAdvanced()
+    section.SetAsRectangularSection(0.05, 0.02, material)  # 50mm x 20mm cross-section
+    element = fea.ChElementBeamEuler()
+    element.SetNodes(nodes[i], nodes[i+1])
+    element.SetSection(section)
+    mesh.AddElement(element)
+
+# Fix first node to ground as hinge
+fixed_ground = chrono.ChBody()
+fixed_ground.SetFixed(True)
+system.AddBody(fixed_ground)
+hinge_constraint = chrono.ChLinkPointFrame()
+hinge_constraint.Initialize(nodes[0], fixed_ground, chrono.ChFramed(nodes[0].GetPos(), nodes[0].GetRot()))
+system.AddLink(hinge_constraint)
+
+# Add FEA mesh visualization
+fea_visual = fea.ChVisualShapeFEA(mesh)
+fea_visual.SetFEMdataType(fea.ChVisualShapeFEA.DataType_ELEM_BEAM_MF)
+fea_visual.SetColorscaleMinMax(-0.1, 0.1)
+fea_visual.SetSmoothFaces(True)
+mesh.AddVisualShape(fea_visual)
+
+# Set up Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle("ANCF Cable Beam Simulation")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 2, 4), chrono.ChVector3d(0, 0, 0))
+vis.AddTypicalLights()
+
+# Simulation loop parameters
+step = 1e-3
+
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    system.DoStepDynamics(step)
+```

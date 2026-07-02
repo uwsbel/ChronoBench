@@ -1,0 +1,89 @@
+import pychrono as chrono
+import pychrono.ros as chronoros
+import rospy
+import time
+
+
+chrono.SetChronoDataPath('/path/to/chrono/data/')  
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
+
+
+material = chrono.ChMaterialSurfaceNSC()
+material.SetFriction(0.8)
+material.SetRestitution(0.1)
+
+
+
+floor = chrono.ChBodyEasyBox(10, 1, 10, 1000, True, True, material)
+floor.SetPos(chrono.ChVectorD(0, -1, 0))
+floor.SetBodyFixed(True)
+floor.SetName("floor")
+system.Add(floor)
+
+
+box = chrono.ChBodyEasyBox(1, 1, 1, 1000, True, True, material)
+box.SetPos(chrono.ChVectorD(0, 5, 0))
+box.SetName("movable_box")
+system.Add(box)
+
+
+ros_manager = chronoros.ChROSMgr()
+ros_manager.Initialize(
+    node_name="chrono_ros_node",
+    topic_clock="clock",
+    topic_scan="",
+    topic_imu="",
+    topic_gnss="",
+    topic_camera="",
+    topic_body="body",
+    topic_transform="transform"
+)
+
+
+ros_manager.RegisterHandler(chronoros.ChROSClockHandler())
+
+
+ros_manager.RegisterHandler(chronoros.ChROSBodyHandler(30, box, "movable_box"))
+
+
+ros_manager.RegisterHandler(chronoros.ChROSTransformHandler())
+
+
+class IntegerPublisher(chronoros.ChROSCustomHandler):
+    def __init__(self, topic):
+        super().__init__(topic)
+        self.count = 0
+
+    def OnUpdate(self, time, step):
+        msg = {"data": self.count}
+        self.publish(self.GetTopic(), msg)
+        self.count += 1
+
+ros_manager.RegisterHandler(IntegerPublisher("/integer_topic"))
+
+
+time_step = 1e-3  
+real_time_factor = 1.0  
+simulation_time = 0.0
+start_time = time.time()
+
+
+while simulation_time < 10.0:  
+    current_time = time.time()
+    time_diff = current_time - start_time
+
+    
+    system.DoStepDynamics(time_step)
+
+    
+    ros_manager.Update()
+
+    
+    simulation_time += time_step
+    sleep_time = (simulation_time / real_time_factor) - (time.time() - start_time)
+    if sleep_time > 0:
+        time.sleep(sleep_time)
+
+
+ros_manager.Shutdown()

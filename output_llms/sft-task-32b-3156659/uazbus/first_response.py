@@ -1,0 +1,50 @@
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+
+# Initialize the Chrono system
+sys = chrono.ChSystemNSC()
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create the UAZBUS vehicle
+vehicle = vehicle.UAZBUS(sys)
+vehicle.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+vehicle.Initialize()
+vehicle.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+vehicle.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+vehicle.SetSteeringVisualizationType(vehicle.VisualizationType_MESH)
+vehicle.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+
+# Create the rigid terrain
+terrain = vehicle.RigidTerrain(sys)
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 100, 100)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetFriction(0.9)
+patch.SetRestitution(0.01)
+terrain.Initialize()
+
+# Initialize the driver system
+driver = vehicle.Driver(vehicle, 'UAZBUS', 100.0)
+driver.SetThrottle(0.5)
+driver.SetSteering(0.1)
+driver.SetBraking(0.0)
+
+# Set up Irrlicht visualization
+vis = chrono.IrrlichtApplication(sys, 'UAZBUS Simulation', 1280, 720)
+vis.SetCameraVertical(chrono.IrrlichtApplication.Z_AXIS)
+vis.SetCameraPosition(chrono.ChVector3d(0, -8, 1.5))
+vis.SetCameraLookAt(chrono.ChVector3d(0, 0, 0.5))
+vis.EnableShadows()
+vis.SetSkyBox()
+vis.AddLightDirectional()
+vis.AddLightPoint(chrono.ChVector3d(10, 10, 10), 100000, chrono.ChColor(1, 1, 1))
+
+# Simulation loop parameters
+time_step = 0.001
+
+# Main simulation loop
+while vis.Run():
+    driver.Update(time_step)
+    sys.DoStepDynamics(time_step)
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()

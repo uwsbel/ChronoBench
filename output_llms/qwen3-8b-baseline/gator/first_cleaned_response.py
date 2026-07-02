@@ -1,0 +1,140 @@
+import pychrono as chrono
+from pychrono import irrlicht as chronoirr
+import numpy as np
+
+
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
+
+
+application = chronoirr.ChIrrApp(system, "Gator Vehicle Simulation", chronoirr.dimension2d(800, 600))
+application.AddCamera(chronoirr.ChCamera())
+application.SetCameraPosition(chrono.ChVectorD(0, 5, 10))
+application.SetCameraTarget(chrono.ChVectorD(0, 0, 0))
+application.SetWindowSize(800, 600)
+application.SetWindowPosition(100, 50)
+application.SetMaxSpeed(100)
+
+
+chassis = chrono.ChBodyEasyBox(2, 1, 0.5, 1000, True, True)
+chassis.SetPos(chrono.ChVectorD(0, 0.25, 0))
+chassis.SetBodyFixed(False)
+chassis.GetVisualShape().SetTexture('gator_chassis_texture.jpg')
+system.Add(chassis)
+
+
+wheel_radius = 0.3
+wheel_length = 0.5
+wheel_mass = 100
+wheel_pos = chrono.ChVectorD(-1, 0.25, 0)
+
+
+wheel_fl = chrono.ChBodyEasyCylinder(wheel_radius, wheel_length, wheel_mass, True, True)
+wheel_fl.SetPos(wheel_pos)
+wheel_fl.SetBodyFixed(False)
+system.Add(wheel_fl)
+tire_fl = chrono.ChTireTMEASY()
+tire_fl.SetRadius(wheel_radius)
+tire_fl.SetWidth(wheel_length)
+tire_fl.SetPressure(0.3)
+tire_fl.SetTireModel(chrono.ChTireTMEASY.TMEASY)
+wheel_fl.SetTire(tire_fl)
+
+
+wheel_fr = chrono.ChBodyEasyCylinder(wheel_radius, wheel_length, wheel_mass, True, True)
+wheel_fr.SetPos(chrono.ChVectorD(1, 0.25, 0))
+wheel_fr.SetBodyFixed(False)
+system.Add(wheel_fr)
+tire_fr = chrono.ChTireTMEASY()
+tire_fr.SetRadius(wheel_radius)
+tire_fr.SetWidth(wheel_length)
+tire_fr.SetPressure(0.3)
+tire_fr.SetTireModel(chrono.ChTireTMEASY.TMEASY)
+wheel_fr.SetTire(tire_fr)
+
+
+wheel_rl = chrono.ChBodyEasyCylinder(wheel_radius, wheel_length, wheel_mass, True, True)
+wheel_rl.SetPos(chrono.ChVectorD(-1, 0.25, -1))
+wheel_rl.SetBodyFixed(False)
+system.Add(wheel_rl)
+tire_rl = chrono.ChTireTMEASY()
+tire_rl.SetRadius(wheel_radius)
+tire_rl.SetWidth(wheel_length)
+tire_rl.SetPressure(0.3)
+tire_rl.SetTireModel(chrono.ChTireTMEASY.TMEASY)
+wheel_rl.SetTire(tire_rl)
+
+
+wheel_rr = chrono.ChBodyEasyCylinder(wheel_radius, wheel_length, wheel_mass, True, True)
+wheel_rr.SetPos(chrono.ChVectorD(1, 0.25, -1))
+wheel_rr.SetBodyFixed(False)
+system.Add(wheel_rr)
+tire_rr = chrono.ChTireTMEASY()
+tire_rr.SetRadius(wheel_radius)
+tire_rr.SetWidth(wheel_length)
+tire_rr.SetPressure(0.3)
+tire_rr.SetTireModel(chrono.ChTireTMEASY.TMEASY)
+wheel_rr.SetTire(tire_rr)
+
+
+spring_stiffness = 1e5
+damping = 1e3
+rest_length = 0.5
+
+
+spring_fl = chrono.ChLinkSpring()
+spring_fl.SetSpringStiffness(spring_stiffness)
+spring_fl.SetDampingCoefficient(damping)
+spring_fl.SetRestLength(rest_length)
+spring_fl.Initialize(chassis, wheel_fl, chrono.ChVectorD(0, 0, 0))
+system.Add(spring_fl)
+
+
+spring_fr = chrono.ChLinkSpring()
+spring_fr.SetSpringStiffness(spring_stiffness)
+spring_fr.SetDampingCoefficient(damping)
+spring_fr.SetRestLength(rest_length)
+spring_fr.Initialize(chassis, wheel_fr, chrono.ChVectorD(0, 0, 0))
+system.Add(spring_fr)
+
+
+spring_rl = chrono.ChLinkSpring()
+spring_rl.SetSpringStiffness(spring_stiffness)
+spring_rl.SetDampingCoefficient(damping)
+spring_rl.SetRestLength(rest_length)
+spring_rl.Initialize(chassis, wheel_rl, chrono.ChVectorD(0, 0, 0))
+system.Add(spring_rl)
+
+
+spring_rr = chrono.ChLinkSpring()
+spring_rr.SetSpringStiffness(spring_stiffness)
+spring_rr.SetDampingCoefficient(damping)
+spring_rr.SetRestLength(rest_length)
+spring_rr.Initialize(chassis, wheel_rr, chrono.ChVectorD(0, 0, 0))
+system.Add(spring_rr)
+
+
+terrain = chrono.ChRigidTerrain(system)
+terrain.GetGroundBody().SetPos(chrono.ChVectorD(0, 0, 0))
+terrain.GetGroundBody().SetRot(chrono.ChQuaternionD(1, 0, 0, 0))
+terrain.GetGroundBody().GetVisualShape().SetTexture('terrain_texture.jpg')
+terrain.GetGroundBody().GetVisualShape().SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+terrain.GetGroundBody().GetVisualShape().SetMesh(chrono.ChTriangleMeshShape())
+terrain.GetGroundBody().GetVisualShape().GetMesh().LoadWavefrontMesh('terrain_mesh.obj', False, False)
+system.Add(terrain)
+
+
+driver = chrono.ChDriver()
+driver.SetThrottle(0.5)
+driver.SetSteering(0)
+driver.SetBraking(0)
+
+
+application.SetTimeStep(1.0 / 50.0)
+application.SetStepManager(chrono.ChStepManager())
+application.SetMaxStep(1.0 / 50.0)
+
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.EndScene()

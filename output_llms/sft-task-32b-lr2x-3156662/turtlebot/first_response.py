@@ -1,0 +1,56 @@
+import pychrono as chrono
+import pychrono.robot as robot
+import pychrono.irrlicht as irr
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create ground body
+ground = chrono.ChBodyEasyBox(20, 20, 0.1, 1000, True, True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.05))
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+system.Add(ground)
+
+# Initialize Turtlebot
+turtlebot = robot.Turtlebot(system, "turtlebot")
+turtlebot.Initialize(chrono.ChFramed(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+
+# Set up Irrlicht visualization
+app = irr.ChIrrApp(system, "Turtlebot Simulation", irr.dimension2du(1280, 720))
+app.AddTypicalLogo(chrono.GetChronoDataFile("logo_pychrono_alpha.png"))
+app.AddTypicalSky()
+app.AddTypicalCamera(irr.vector3df(3, 3, 3), irr.vector3df(0, 0, 0))
+app.AddLightWithShadow(irr.vector3df(5, 5, 5), irr.vector3df(0, 0, 0), 3, 2, 70, 0.9, 500)
+app.SetShowFps(True)
+
+# Simulation loop parameters
+TIME_STEP = 0.005
+MAX_TIME = 10.0
+
+# Motor control parameters
+LEFT_TURN_SPEED = 1.0
+RIGHT_TURN_SPEED = -1.0
+STRAIGHT_SPEED = 0.5
+
+# Simulation loop
+time = 0.0
+while time < MAX_TIME and app.GetDevice().run():
+    # Update motor commands based on time
+    if time < 1.0:
+        turtlebot.SetMotorSpeeds(STRAIGHT_SPEED, STRAIGHT_SPEED)
+    elif 1.0 <= time < 2.0:
+        turtlebot.SetMotorSpeeds(LEFT_TURN_SPEED, -LEFT_TURN_SPEED)
+    else:
+        turtlebot.SetMotorSpeeds(RIGHT_TURN_SPEED, -RIGHT_TURN_SPEED)
+    
+    app.BeginScene()
+    app.DrawAll()
+    app.EndScene()
+    
+    system.DoStepDynamics(TIME_STEP)
+    time += TIME_STEP
+
+    # Enforce real-time execution
+    chrono.ChRealtimeStepDamping(TIME_STEP)

@@ -1,0 +1,74 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import math
+
+def run_simulation():
+    # 1. Initialize PyChrono environment and core components
+    system = chrono.ChSystemNSC()
+    system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+    # 2. Create Kraz vehicle and set initial conditions
+    vehicle = veh.Kraz(system)
+    vehicle.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+    vehicle.SetContactMethod(veh.ChVehicleContactMethod::NSC)
+    vehicle.SetChassisCollisionType(veh.ChChassisCollisionType::NONE)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitFwdVel(0.0)
+    vehicle.SetPowertrainType(veh.ChPowertrainModelType::SIMPLE_MAP)
+    vehicle.SetDriveType(veh.ChDriveType::WDT)
+    vehicle.SetSteeringType(veh.ChSteeringType::PITMAN_ARM)
+    vehicle.Initialize()
+    vehicle.SetChassisVisualizationType(veh.VisualizationType::MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType::PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType::MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType::PRIMITIVES)
+
+    # 3. Create rigid terrain with friction and restitution
+    terrain = veh.RigidTerrain(system)
+    terrain_mat = chrono.ChContactMaterialNSC()
+    terrain_mat.SetFriction(0.9)
+    terrain_mat.SetRestitution(0.01)
+    patch = terrain.AddPatch(terrain_mat, chrono.ChVector3d(0, 0, 0), chrono.ChVector3d(100, 100, 0.1))
+    patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+    terrain.Initialize()
+
+    # 4. Initialize driver system
+    driver = veh.ChIrrGuiDriver(vehicle.GetVehicle())
+    driver.SetSteeringDelta(0.05)
+    driver.SetThrottleDelta(0.05)
+    driver.SetBrakingDelta(0.05)
+    driver.Initialize()
+
+    # 5. Set up Irrlicht visualization
+    app = irr.ChIrrApp(system, "Kraz Vehicle Simulation", irr.dimension2du(1280, 720))
+    app.SetSkyBox()
+    app.SetCamera(chrono.ChVector3d(0, -8, 2), chrono.ChVector3d(0, 0, 1.5))
+    app.SetLightDirection(chrono.ChVector3d(0, 0, 1), True)
+    app.SetLightDirection(chrono.ChVector3d(0, 0, -1), True)
+    app.AssetBindAll()
+    app.AssetUpdateAll()
+
+    # 6. Simulation loop parameters
+    step_size = 0.001
+    real_time = True
+    time = 0
+    while app.GetDevice().run():
+        time = system.GetChTime()
+        app.BeginScene()
+        app.DrawAll()
+
+        # Synchronize and advance systems
+        driver.Synchronize(time)
+        vehicle.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        system.DoStepDynamics(step_size)
+
+        app.EndScene()
+        if real_time:
+            chrono.ChRealtimeStepDamping(step_size)
+
+    app.GetDevice().drop()
+
+if __name__ == "__main__":
+    run_simulation()

@@ -1,0 +1,84 @@
+import pychrono.core as chrono
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
+import math
+
+def main():
+    # Initialize the vehicle system
+    vehicle.Sys = vehicle.ChVehicleSystemNSC("HMMWV Simulation")
+    vehicle.Sys.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+    
+    # Create and initialize the HMMWV vehicle
+    hmmwv = vehicle.HMMWV_Full(vehicle.VehicleInitMode.RIGID_TERRAIN)
+    hmmwv.SetContactMethod(chrono.ChContactMethod_NSC)
+    hmmwv.SetChassisFixed(False)
+    hmmwv.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+    hmmwv.SetEngineType(vehicle.EngineModelType_SIMPLE)
+    hmmwv.SetTransmissionType(vehicle.TransmissionModelType_AUTOMATIC)
+    hmmwv.SetDrivetrainType(vehicle.DrivelineTypeWV_AWD)
+    hmmwv.Initialize()
+    hmmwv.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+    hmmwv.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+    hmmwv.SetSteeringVisualizationType(vehicle.VisualizationType_MESH)
+    hmmwv.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+
+    # Create and initialize the terrain
+    terrain = vehicle.RigidTerrain(vehicle.Sys)
+    # Flat asphalt patch
+    patch1 = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 
+                              chrono.ChVector3d(100, 100, 1), chrono.ChColor(0.8, 0.8, 0.5))
+    patch1.SetTexture(chrono.GetChronoDataFile("textures/asphalt.jpg"), 100, 100)
+    # Flat grass patch
+    patch2 = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(50, 50, 0), chrono.QUNIT), 
+                              chrono.ChVector3d(30, 30, 1), chrono.ChColor(0.1, 0.8, 0.1))
+    patch2.SetTexture(chrono.GetChronoDataFile("textures/grass.jpg"), 30, 30)
+    # Mesh-based bump patch
+    bump_mesh = chrono.ChTriangleMeshConnected()
+    # Create a simple triangular prism mesh for a bump
+    vertices = [chrono.ChVector3d(-2, -2, 0), chrono.ChVector3d(2, -2, 0), 
+                chrono.ChVector3d(2, 2, 0), chrono.ChVector3d(-2, 2, 0), 
+                chrono.ChVector3d(0, 0, 4)]
+    faces = [(0,1,4), (1,2,4), (2,3,4), (3,0,4), (0,3,2), (0,2,1)]
+    for v in vertices:
+        bump_mesh.add_vertex(v)
+    for f in faces:
+        bump_mesh.add_triangle(vertices[f[0]], vertices[f[1]], vertices[f[2]])
+    patch3 = terrain.AddVisualMesh(bump_mesh, chrono.ChFramed(chrono.ChVector3d(20, 20, 2), chrono.QUNIT), 
+                                   chrono.ChColor(0.9, 0.3, 0.1))
+    # Heightmap patch for varying elevations
+    heightmap_file = chrono.GetChronoDataFile("terrain/heightmap_50x50.png")
+    patch4 = terrain.AddHeightMap(heightmap_file, chrono.ChVector3d(50, 50, 10), 
+                                  chrono.ChColor(0.6, 0.6, 0.6))
+    terrain.Initialize()
+
+    # Create interactive driver
+    driver = vehicle.HMMWV_Driver(hmmwv)
+    driver.Initialize()
+
+    # Create Irrlicht application
+    vis = irr.ChVisualSystemIrrlicht()
+    vis.AttachSystem(vehicle.Sys)
+    vis.SetWindowSize(1280, 720)
+    vis.SetWindowTitle("PyChrono HMMWV Complex Terrain Simulation")
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChVector3d(-6, -6, 10), chrono.ChVector3d(0, 0, 2))
+    vis.AddTypicalLights()
+
+    # Simulation loop settings
+    step = 0.001
+    max_time = 30.0
+    while vis.Run() and vehicle.Sys.GetChTime() < max_time:
+        time = vehicle.Sys.GetChTime()
+        driver.Synchronize(time)
+        hmmwv.Synchronize(time, driver.GetInputs(), terrain)
+        terrain.Synchronize(time)
+        vis.BeginScene()
+        vis.Render()
+        vis.EndScene()
+        vehicle.Sys.DoStepDynamics(step)
+
+    vis.Run = False
+
+if __name__ == "__main__":
+    main()

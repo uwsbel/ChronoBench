@@ -1,0 +1,119 @@
+import argparse
+import pychrono as chrono
+import pychrono.vehicle as veh
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--visualize", action="store_true", help="Enable visualization")
+    args = parser.parse_args()
+
+    if args.visualize:
+        sys = chrono.ChSystemSMC()
+        veh.SetVehicleModelPath(chrono.GetChronoDataPath() + "vehicle/hmmwv/")
+
+        driver = veh.HMMWVDriverInputs()
+        driver.m_throttle = 0.0
+        driver.m_steering = 0.0
+        driver.m_braking = 0.0
+
+        vehicle = veh.HMMWV_Full(sys)
+        vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+        vehicle.SetChassisFixed(False)
+        vehicle.SetInitPosition(chrono.ChVector3d(0.0, 0.0, 0.5))
+        vehicle.SetTireType(veh.TireModelType_TMEASY)
+        vehicle.SetTireStepSize(1e-3)
+        vehicle.Initialize()
+        vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+        vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+        vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+        vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+        vehicle.SetBrakeVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+        terrain = veh.RigidTerrain(sys)
+        patch_mat = chrono.ChContactMaterialNSC()
+        patch_mat.SetFriction(0.9)
+        patch_mat.SetRestitution(0.01)
+        terrain.Initialize(chrono.ChBodyEasyBox(100, 100, 1.0, 1000.0, True, patch_mat))
+
+        while sys.GetChTime() < 10.0:
+            time = sys.GetChTime()
+            driver.m_steering = 0.0
+            driver.m_throttle = 0.0
+            driver.m_braking = 0.0
+            if time < 2.0:
+                driver.m_throttle = 1.0
+            elif 2.0 <= time < 4.0:
+                driver.m_steering = 0.2
+            elif 4.0 <= time < 6.0:
+                driver.m_braking = 1.0
+            elif 6.0 <= time < 8.0:
+                driver.m_steering = -0.2
+            else:
+                driver.m_throttle = 1.0
+            vehicle.SetDriverInputs(driver)
+            vehicle.Synchronize(time)
+            vehicle.Advance(sys.GetStep())
+            terrain.Synchronize(time)
+            terrain.Advance(sys.GetStep())
+            sys.DoStepDynamics(sys.GetStep())
+            if args.visualize:
+                sys.DoStepDynamics(0.01)
+                vehicle.ChSystemVehicle().GetVehicle().GetVisualSystem().BeginScene()
+                vehicle.ChSystemVehicle().GetVehicle().GetVisualSystem().Render()
+                terrain.Render()
+                vehicle.ChSystemVehicle().GetVehicle().GetVisualSystem().EndScene()
+        return
+
+    sys = chrono.ChSystemSMC()
+    veh.SetVehicleModelPath(chrono.GetChronoDataPath() + "vehicle/hmmwv/")
+
+    driver = veh.HMMWVDriverInputs()
+    driver.m_throttle = 0.0
+    driver.m_steering = 0.0
+    driver.m_braking = 0.0
+
+    vehicle = veh.HMMWV_Full(sys)
+    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+    vehicle.SetChassisFixed(False)
+    vehicle.SetInitPosition(chrono.ChVector3d(0.0, 0.0, 0.5))
+    vehicle.SetTireType(veh.TireModelType_TMEASY)
+    vehicle.SetTireStepSize(1e-3)
+    vehicle.Initialize()
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_PRIMITIVES)
+    vehicle.SetBrakeVisualizationType(veh.VisualizationType_PRIMITIVES)
+
+    terrain = veh.RigidTerrain(sys)
+    patch_mat = chrono.ChContactMaterialNSC()
+    patch_mat.SetFriction(0.9)
+    patch_mat.SetRestitution(0.01)
+    terrain.Initialize(chrono.ChBodyEasyBox(100, 100, 1.0, 1000.0, True, patch_mat))
+
+    while sys.GetChTime() < 10.0:
+        time = sys.GetChTime()
+        driver.m_steering = 0.0
+        driver.m_throttle = 0.0
+        driver.m_braking = 0.0
+        if time < 2.0:
+            driver.m_throttle = 1.0
+        elif 2.0 <= time < 4.0:
+            driver.m_steering = 0.2
+        elif 4.0 <= time < 6.0:
+            driver.m_braking = 1.0
+        elif 6.0 <= time < 8.0:
+            driver.m_steering = -0.2
+        else:
+            driver.m_throttle = 1.0
+        vehicle.SetDriverInputs(driver)
+        vehicle.Synchronize(time)
+        vehicle.Advance(sys.GetStep())
+        terrain.Synchronize(time)
+        terrain.Advance(sys.GetStep())
+        sys.DoStepDynamics(sys.GetStep())
+
+
+if __name__ == "__main__":
+    main()

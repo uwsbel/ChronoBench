@@ -1,0 +1,148 @@
+
+
+```python
+import pychrono.core as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as chronoirr
+
+# ----------------------------------------------------------------------------
+# Model1: A system with multiple chains of ANCF cable elements, each connected to a fixed truss and a box body.
+# This model demonstrates the use of ChBuilderCableANCF with multiple chains and endpoint bodies.
+# ----------------------------------------------------------------------------
+
+class Model1:
+    def __init__(self, system, mesh, n_chains=6):
+        self.system = system
+        self.mesh = mesh
+        self.end_bodies = []  # Store endpoint bodies for position printing
+        self.chain_visualizations = []  # Store visualizations for each chain
+
+        # Create a section for the cable beams
+        msection_cable2 = fea.ChBeamSectionCable()
+        msection_cable2.SetDiameter(0.015)  # 15 mm diameter
+        msection_cable2.SetYoungModulus(0.01e9)  # 0.01 GPa
+        msection_cable2.SetRayleighDamping(0.0001)
+
+        for chain_idx in range(n_chains):
+            builder = fea.ChBuilderCableANCF()
+            n_elements = 10 + chain_idx  # Increase elements per chain
+
+            # Calculate offset for this chain to avoid overlap
+            y_offset = chain_idx * 0.2
+            start_point = chrono.ChVector3d(0, y_offset, -0.1)
+            end_point = chrono.ChVector3d(0.5, y_offset, -0.1)
+
+            # Create the beam for this chain
+            builder.BuildBeam(
+                self.mesh,
+                msection_cable2,
+                n_elements,
+                start_point,
+                end_point
+            )
+
+            # Apply force to the front node
+            builder.GetLastBeamNodes().front().SetForce(chrono.ChVector3d(0, -0.7, 0))
+
+            # Create fixed truss body for this chain
+            mtruss = chrono.ChBody()
+            mtruss.SetFixed(True)
+            mtruss.SetName(f"Truss Chain {chain_idx}")
+            system.AddBody(mtruss)
+
+            # Create endpoint box body
+            endpoint_box = chrono.ChBodyEasyBox(0.05, 0.05, 0.05, 1000, True, True)
+            endpoint_box.SetName(f"Endpoint Box Chain {chain_idx}")
+            endpoint_box.SetPos(end_point)
+            endpoint_box.SetFixed(False)
+            system.AddBody(endpoint_box)
+            self.end_bodies.append(endpoint_box)
+
+            # Create hinge constraint between beam endpoint and endpoint box
+            endpoint_node = builder.GetLastBeamNodes().back()
+            endpoint_pos = endpoint_node.GetPos()
+            endpoint_box.SetPos(endpoint_pos)
+
+            # Create revolute joint between beam endpoint and endpoint box
+            revolute = chrono.ChLinkLockRevolute()
+            revolute.Initialize(endpoint_node, endpoint_box, chrono.ChFramed(endpoint_pos))
+            system.AddLink(revolute)
+
+            # Create visualization for this chain's beam
+            vis_beam = chrono.ChVisualShapeFEA()
+            vis_beam.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+            vis_beam.SetColorscaleMinMax(-0.4, 0.4)
+            vis_beam.SetSmoothFaces(True)
+            vis_beam.SetWireframe(False)
+            self.mesh.AddVisualShapeFEA(vis_beam)
+            self.chain_visualizations.append(vis_beam)
+
+            # Create visualization for this chain's nodes
+            vis_nodes = chrono.ChVisualShapeFEA()
+            vis_nodes.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_DOT_POS)
+            vis_nodes.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+            vis_nodes.SetSymbolsThickness(0.006)
+            vis_nodes.SetSymbolsScale(0.01)
+            vis_nodes.SetZbufferHide(False)
+            self.mesh.AddVisualShapeFEA(vis_nodes)
+            self.chain_visualizations.append(vis_nodes)
+
+    def PrintBodyPositions(self):
+        """Print the positions of the endpoint bodies for all chains."""
+        print("Chain Endpoint Positions:")
+        for idx, body in enumerate(self.end_bodies):
+            pos = body.GetPos()
+            print(f"Chain {idx}: ({pos.x:.4f}, {pos.y:.4f}, {pos.z:.4f})")
+        print()
+
+# Initialize the physical system and mesh container
+sys = chrono.ChSystemSMC()
+mesh = fea.ChMesh()
+
+# Create the model with 6 chains
+model = Model1(sys, mesh, n_chains=6)
+sys.Add(mesh)  # Add the mesh to the system
+
+# Create the Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Multiple FEA Cable Chains with Endpoint Bodies')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.0, -2.5))
+vis.AddTypicalLights()
+
+# Set solver and timestepper
+solver = chrono.ChSolverMINRES()
+solver.SetMaxIterations(200)
+solver.SetTolerance(1e-10)
+solver.EnableDiagonalPreconditioner(True)
+solver.EnableWarmStart(True)
+sys.SetSolver(solver)
+
+ts = chrono.ChTimestepperEulerImplicitLinearized(sys)
+sys.SetTimestepper(ts)
+
+# Simulation loop
+step = 0.01
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    model.PrintBodyPositions()  # Print endpoint positions each step
+    sys.DoStepDynamics(step)
+```
+
+This implementation:
+
+1. Creates a `Model1` class with a `n_chains` parameter (default 6)
+2. Generates multiple chains with increasing element counts (10, 11, 12, etc.)
+3. Adds endpoint box bodies for each chain and connects them with revolute joints
+4. Includes separate visualizations for each chain's beam and nodes
+5. Implements `PrintBodyPositions()` to print endpoint body positions
+6. Uses appropriate solver settings and visualization setup
+7. Maintains the same physical properties and constraints as the original code
+8. Adds clear naming and organization for the multiple chains

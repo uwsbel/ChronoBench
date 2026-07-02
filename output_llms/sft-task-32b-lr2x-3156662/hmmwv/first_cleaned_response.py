@@ -1,0 +1,67 @@
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+from pychrono import irrlicht as chronoirr
+
+
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+
+veh = vehicle.HMMWV_Full(system)
+veh.SetContactMethod(vehicle.ChContactMethod_NSC)
+veh.SetTireType(vehicle.TireModelType_TMEASY)
+veh.SetChassisVisualizationType(vehicle.VisualizationType_PRIMITIVES)
+veh.SetSuspensionVisualizationType(vehicle.VisualizationType_PRIMITIVES)
+veh.SetSteeringVisualizationType(vehicle.VisualizationType_PRIMITIVES)
+veh.SetWheelVisualizationType(vehicle.VisualizationType_NONE)
+
+
+init_pos = chrono.ChVector3d(0, 0, 0.5)
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)
+veh.SetInitPosition(init_pos)
+veh.SetInitOrientation(init_rot)
+veh.Initialize()
+
+
+terrain = vehicle.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysd(init_pos, init_rot), 100.0, 100.0)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+patch.SetTexture(veh.GetDataFile("terrain/textures/concrete.jpg"), 100, 100)
+terrain.Initialize()
+
+
+driver = vehicle.InteractiveDriverIRR(system, veh)
+driver.SetSteeringSensitivity(0.02)
+driver.SetThrottleSensitivity(0.02)
+driver.SetBrakingSensitivity(0.02)
+
+
+app = chronoirr.ChIrrApp(system, "HMMWV Simulation", chronoirr.dimension2du(1280, 720))
+app.SetSkyBox()
+app.SetCamera(chronoirr.vector3df(0, 2.5, -8), chronoirr.vector3df(0, 0, 0))
+app.SetLightDirection(chronoirr.vector3df(0, 0, 1), True)
+app.AddTypicalLights()
+app.AddLogo(veh.GetDataFile("logo_pychrono_alpha.png"))
+app.SetChaseCameraMode(True)
+app.SetCameraTrackVehicle(veh.GetChassisBody())
+
+
+time_step = 1.0 / 50.0
+
+
+while app.GetDevice().run():
+    app.BeginScene()
+    app.DrawAll()
+    
+    
+    driver.Update()
+    driver_inputs = driver.GetInputs()
+    veh.Synchronize(system.GetTime(), driver_inputs, terrain)
+    terrain.Synchronize(system.GetTime())
+    
+    
+    system.DoStepDynamics(time_step)
+    veh.Advance(time_step)
+    terrain.Advance(time_step)
+    
+    app.EndScene()

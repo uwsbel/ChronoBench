@@ -1,0 +1,97 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.irrlicht as irr
+import numpy as np
+
+# 1. Initialize the PyChrono environment and core components
+chrono.SetChronoDataPath('/path/to/chrono/data/')  # Update with actual path if needed
+system = chrono.ChSystemSMC()
+system.Set_Gravity(chrono.ChVectorD(0, 0, -9.81))
+
+# Use PardisoMKL solver
+solver = chrono.ChSolverPardisoMKL()
+solver.SetMaxIterations(100)
+solver.SetTolerance(1e-8)
+solver.EnableDiagonalPreconditioner(True)
+system.SetSolver(solver)
+
+# 2. Create FEA mesh for tablecloth
+mesh = fea.ChMesh()
+
+# Tablecloth dimensions and mesh parameters
+width = 2.0
+length = 2.0
+num_elements_wide = 20
+num_elements_long = 20
+
+# Material properties (isotropic Kirchhoff)
+material = fea.ChMaterialShellKirchhoff()
+material.SetYoungModulus(1e6)
+material.SetPoissonRatio(0.3)
+material.SetThickness(0.005)
+
+# Generate nodes and elements
+nodes = []
+for i in range(num_elements_wide + 1):
+    for j in range(num_elements_long + 1):
+        x = (i / num_elements_wide) * width - width / 2
+        y = (j / num_elements_long) * length - length / 2
+        node = fea.ChNodeFEAxyz(chrono.ChVectorD(x, y, 0))
+        mesh.AddNode(node)
+        nodes.append(node)
+
+elements = []
+count = 0
+for i in range(num_elements_wide):
+    for j in range(num_elements_long):
+        # Get corner nodes
+        n1 = nodes[i * (num_elements_long + 1) + j]
+        n2 = nodes[(i + 1) * (num_elements_long + 1) + j]
+        n3 = nodes[(i + 1) * (num_elements_long + 1) + j + 1]
+        n4 = nodes[i * (num_elements_long + 1) + j + 1]
+        
+        element = fea.ChElementShellKirchhoff()
+        element.SetNodes(n1, n2, n3, n4)
+        element.SetMaterial(material)
+        element.SetThickness(0.005)
+        mesh.AddElement(element)
+        elements.append(element)
+
+# Fix bottom edge nodes
+for node in nodes:
+    if node.GetPos().y < -length/2 + 1e-5:
+        node.SetFixed(True)
+
+# Add mesh to system
+system.Add(mesh)
+
+# 3. Set up visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.SetWindowSize(1024, 768)
+vis.SetWindowPosition(100, 100)
+vis.SetWindowTitle('Tablecloth Folding Simulation')
+vis.Initialize()
+vis.AddLogo()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVectorD(0, 0, 1.5))
+vis.AddLightWithShadow(chrono.ChVectorD(2, 2, 2), chrono.ChVectorD(0, 0, 0), 5, 2.5, 40, 5)
+
+# Mesh visualization
+vis_mesh = fea.ChVisualizationFEAmesh(mesh)
+vis_mesh.SetSmoothFaces(True)
+vis_mesh.SetWireframe(False)
+vis_mesh.SetFEMdataType(fea.ChVisualizationFEAmesh.E_PLOT_ELEM_SHAPES)
+mesh.AddAsset(vis_mesh)
+
+# 4. Simulation loop parameters
+time_step = 0.001
+end_time = 5.0
+
+# Run simulation
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    
+    system.DoStepDynamics(time_step)
+    
+    vis.EndScene()

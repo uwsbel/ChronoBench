@@ -1,0 +1,61 @@
+import pychrono as chrono
+import pychrono.vehicle as vehicle
+import pychrono.vehicle.artcar as artcar
+import pychrono.irrlicht as irr
+import os
+
+
+system = chrono.ChSystemSMC()
+system.Set_G_acc(chrono.ChVectorD(0, -9.81, 0))
+
+
+artcar = artcar.ARTcar()
+artcar.SetContactMethod(chrono.ChContactMethod.SMC)
+artcar.SetChassisFixed(False)
+artcar.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 0.5), chrono.ChQuaternionD(1, 0, 0, 0)))
+artcar.SetTireType(vehicle.TireModelType.RIGID)
+artcar.SetTireStepSize(1e-3)
+artcar.SetVisualizationType(vehicle.VisualizationType.MESH)
+artcar.Initialize()
+
+
+terrain = vehicle.RigidTerrain(artcar, 100, 100)
+terrain.SetTexture(chrono.GetChronoDataPath() + 'concrete.jpg', 100, 100)
+terrain.Initialize()
+
+
+application = irr.ChIrrApp(system, 'ARTcar Simulation', irr.dimension2d_u32(800, 600))
+application.AddTypicalLogo()
+application.AddTypicalSky()
+application.AddTypicalLights()
+application.AddTypicalCamera(chrono.ChVectorD(0, 1.5, -6))
+application.SetShowInfos(True)
+application.SetTargetFPS(50)
+application.Initialize()
+
+
+driver = vehicle.ChInteractiveDriverIRR(artcar, application.GetDevice())
+driver.SetSteeringClamp(1.0)
+driver.SetThrottleClamp(1.0)
+driver.SetBrakingClamp(1.0)
+driver.Initialize()
+
+
+time = 0
+time_step = 1.0 / 50
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    
+    
+    driver.Update()
+    driver_inputs = driver.GetInputs()
+    
+    
+    artcar.Synchronize(time, driver_inputs, terrain)
+    
+    
+    system.DoStepDynamics(time_step)
+    time += time_step
+    
+    application.EndScene()

@@ -1,0 +1,118 @@
+
+
+```python
+import numpy as np
+import pychrono as chrono
+from pychrono import ChSystemNSC, ChVisualSystemIrrlicht, ChBodyEasy, ChBodyEasySphere, ChBodyEasyBox, ChBodyEasyCylinder, ChContactMaterialSMC, ChContactNrm, ChLineSegment, ChLinePolyline, ChVisualShapeLine, ChVisualShapeBox, ChVisualShapeSphere, ChVisualShapeCylinder
+
+
+def create_ground_plane(system):
+    ground = chrono.ChBodyEasyBox(100, 100, 0.1, 1000, True, False)
+    ground.SetName("Ground plane")
+    ground.SetFixed(True)
+    ground.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    ground.SetPos(chrono.ChVector3d(0, 0, -0.05))
+    system.AddBody(ground)
+    return ground
+
+
+def create_particle_emitter(system, count=50):
+    particles = []
+    for _ in range(count):
+        shape = np.random.choice(["sphere", "box", "cylinder"])
+        radius = np.random.uniform(0.02, 0.08)
+        mass = np.random.uniform(0.1, 1.0)
+        x = np.random.uniform(-10, 10)
+        y = np.random.uniform(-5, 5)
+        z = np.random.uniform(-0.2, 0.2)
+        vx = np.random.uniform(-0.1, 0.1)
+        vy = np.random.uniform(-0.1, 0.1)
+        vz = np.random.uniform(-0.05, 0.05)
+        angle = np.random.uniform(0, 2 * np.pi)
+        body = chrono.ChBodyEasySphere(radius, 1000, True, False)
+        if shape == "box":
+            body = chrono.ChBodyEasyBox(radius * 2, radius * 2, radius * 0.4, 1000, True, False)
+        elif shape == "cylinder":
+            body = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, radius, radius * 0.4, 1000, True, False)
+        body.SetName(f"Particle {len(particles)}")
+        body.SetMass(mass)
+        body.SetInertiaXX(chrono.ChVector3d(mass * radius**2 / 10, mass * radius**2 / 10, mass * radius**2 / 10))
+        body.SetPos(chrono.ChVector3d(x, y, z))
+        body.SetPosDt(chrono.ChVector3d(vx, vy, vz))
+        body.SetRot(chrono.ChQuaterniond(np.cos(angle / 2), 0, np.sin(angle / 2), 0))
+        body.GetVisualShape(0).SetColor(chrono.ChColor(np.random.rand(), np.random.rand(), np.random.rand()))
+        system.AddBody(body)
+        particles.append((body, shape, radius, mass, angle))
+    return particles
+
+
+def apply_gravitational_forces(particles, G=0.001):
+    for i, (body_i, shape_i, radius_i, mass_i, angle_i) in enumerate(particles):
+        for j, (body_j, shape_j, radius_j, mass_j, angle_j) in enumerate(particles):
+            if i != j:
+                r = body_j.GetPos() - body_i.GetPos()
+                dist = r.Length()
+                if dist < 1e-5:
+                    continue
+                force = G * mass_i * mass_j / dist**2 * r.Normalize()
+                body_i.ApplyForce(force, body_i.GetPos(), True)
+                body_j.ApplyForce(-force, body_j.GetPos(), True)
+
+
+def visualize_simulation(system, particles, ground, line_segments, line_polyline, debug_lines):
+    system.DoStepDynamics(0.001)
+    for body, shape, radius, mass, angle in particles:
+        body.SetRot(chrono.ChQuaterniond(np.cos(angle / 2), 0, np.sin(angle / 2), 0))
+    for i, (body_i, shape_i, radius_i, mass_i, angle_i) in enumerate(particles):
+        for j, (body_j, shape_j, radius_j, mass_j, angle_j) in enumerate(particles):
+            if i < j:
+                line_segments[i * len(particles) + j].SetPoint(0, body_i.GetPos())
+                line_segments[i * len(particles) + j].SetPoint(1, body_j.GetPos())
+    line_polyline.Reset()
+    for body, shape, radius, mass, angle in particles:
+        line_polyline.AddPoint(body.GetPos())
+    line_polyline.AddPoint(chrono.ChVector3d(0, 0, 0))
+    for line in debug_lines:
+        line.SetPoint(0, chrono.ChVector3d(-10, -10, -0.2))
+        line.SetPoint(1, chrono.ChVector3d(10, 10, 0.2))
+    system.Update();
+
+
+def run_gravitational_particle_simulation():
+    system = chrono.ChSystemNSC()
+    system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, 0))
+    visual_system = ChVisualSystemIrrlicht()
+    visual_system.AttachSystem(system)
+    visual_system.SetWindowSize(1024, 720)
+    visual_system.SetWindowTitle("PyChrono Gravitational Particle Simulation")
+    visual_system.Initialize()
+    ground = create_ground_plane(system)
+    particles = create_particle_emitter(system, 50)
+    line_segments = [chrono.ChLineSegment() for _ in range(len(particles) * len(particles))]
+    line_polyline = chrono.ChLinePolyline()
+    debug_lines = [chrono.ChLineSegment() for _ in range(2)]
+    while visual_system.TimedStep(0.001, 0.016, 0.016):
+        visualize_simulation(system, particles, ground, line_segments, line_polyline, debug_lines)
+        visual_system.BeginScene()
+        visual_system.RenderFrame()
+        for body, shape, radius, mass, angle in particles:
+            if shape == "sphere":
+                visual_shape = chrono.ChVisualShapeSphere(radius)
+            elif shape == "box":
+                visual_shape = chrono.ChVisualShapeBox(radius * 2, radius * 2, radius * 0.4)
+            else:
+                visual_shape = chrono.ChVisualShapeCylinder(chrono.ChAxis_Z, radius, radius * 0.4)
+            visual_shape.SetColor(body.GetVisualShape(0).GetColor())
+            body.AddVisualShape(visual_shape, chrono.ChFramed(body.GetPos(), body.GetRot()))
+        for line in line_segments:
+            visual_system.RenderLine(line)
+        visual_system.RenderLine(line_polyline)
+        for line in debug_lines:
+            visual_system.RenderLine(line)
+        visual_system.RenderBody(ground)
+        visual_system.EndScene()
+
+
+if __name__ == "__main__":
+    run_gravitational_particle_simulation()
+```

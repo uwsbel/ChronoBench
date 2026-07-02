@@ -1,0 +1,82 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import numpy as np
+
+
+def create_terrain():
+    terrain = chrono.ChSystemNSC()
+    terrain.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+    terrain.SetSolverType(chrono.ChSolver.Type_ITERATIVE)
+    terrain.GetSolver().SetMaxIterations(100)
+    terrain.GetSolver().SetTolerance(1e-8)
+
+    ground = chrono.ChBodyEasyBox(100, 100, 1.0, 1000.0, True, True)
+    ground.SetName("Rigid terrain")
+    ground.SetFixed(True)
+    ground.EnableCollision(True)
+    ground.SetMaterialSurface(chrono.ChMaterialSurfaceSMC())
+    ground.GetMaterialSurface().SetFriction(0.8)
+    ground.GetMaterialSurface().SetRestitution(0.1)
+    ground.SetPos(chrono.ChVector3d(0, -0.5, 0))
+    terrain.Add(ground)
+    return terrain, ground
+
+
+def create_vehicle():
+    veh.SetVehicleDataPath(chrono.GetChronoDataPath() + "vehicle/")
+    vehicle = veh.ChM113()
+    vehicle.SetContactMethod(chrono.ChContactMethod_NSC)
+    vehicle.SetChassisCollisionType(veh.CollisionType_NONE)
+    vehicle.SetTrackShoeType(veh.TrackShoeType_M113)
+    vehicle.SetEngineType(veh.EngineType_SHAFTS)
+    vehicle.SetAutomaticGears(True)
+    vehicle.Initialize(chrono.ChVector3d(0, 0, 0), chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 0, 1)))
+    vehicle.SetChassisVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetWheelVisualizationType(veh.VisualizationType_MESH)
+    vehicle.SetTireVisualizationType(veh.VisualizationType_NONE)
+    return vehicle
+
+
+def create_driver(vehicle):
+    driver = veh.ChDriver(vehicle)
+    driver.Initialize()
+    driver.SetThrottle(0.0)
+    driver.SetSteering(0.0)
+    driver.SetBraking(0.0)
+    return driver
+
+
+def create_visual_system(vehicle, terrain):
+    vis = veh.ChWheeledVehicleVisualSystemIrrlicht()
+    vis.SetWindowTitle("PyChrono M113 vehicle on rigid terrain")
+    vis.SetWindowSize(1024, 768)
+    vis.SetChaseCamera(chrono.ChVector3d(0, 0, 2.5), 6.0, 0.5)
+    vis.SetTimestep(0.01)
+    vis.AddLightDirectional(chrono.ChVector3d(0.5, 0.5, 1), chrono.ChVector3d(0.2, 0.2, 0.1))
+    vis.AddLightPoint(chrono.ChVector3d(0, 0, 0.5), 10.0, chrono.ChColor(1, 0.8, 0.3))
+    vis.AddVehicle(vehicle)
+    vis.AddTerrain(terrain)
+    return vis
+
+
+def run_simulation():
+    terrain, ground = create_terrain()
+    vehicle = create_vehicle()
+    driver = create_driver(vehicle)
+    vis = create_visual_system(vehicle, terrain)
+
+    while vis.Run():
+        time = terrain.GetChTime()
+        driver.Synchronize(time)
+        driver.Advance(0.01)
+        vehicle.Synchronize(time, driver.GetInputs())
+        vehicle.Advance(0.01)
+        vis.Synchronize(time, driver.GetInputs(), vehicle.GetPos())
+        vis.Advance(0.01)
+        print(f"Time: {time:.2f}, Position: {vehicle.GetPos():.2f}, Velocity: {vehicle.GetSpeed():.2f} m/s")
+
+
+if __name__ == "__main__":
+    run_simulation()

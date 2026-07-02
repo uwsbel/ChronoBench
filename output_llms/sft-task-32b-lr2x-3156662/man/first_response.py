@@ -1,0 +1,74 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+import os
+
+# Initialize Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create MAN 10t vehicle
+vehicle = veh.MAN_10t()
+vehicle.SetChassisVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSuspensionVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetSteeringVisualizationType(veh.VisualizationType_PRIMITIVES)
+vehicle.SetWheelVisualizationType(veh.VisualizationType_NONE)
+vehicle.Initialize(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 1), chrono.QUNIT))
+vehicle.SetEngineMaxTorque(350)
+vehicle.SetEngineMaxSpeed(3000)
+vehicle.SetTransmissionType(veh.TransmissionType_AUTOMATIC)
+
+# Add TMEASY tires
+tires = []
+for i in range(vehicle.GetNumberOfWheels()):
+    tire = veh.TMEASY_Tire(f"TMEASY_{i}")
+    tire.Initialize(vehicle.GetWheel(i), veh.VisualizationType_MESH)
+    tires.append(tire)
+
+# Create rigid terrain
+terrain = veh.RigidTerrain(system)
+patch = terrain.AddPatch(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0), chrono.QUNIT), 200, 200)
+patch.SetTexture(veh.GetDataFile("terrain/textures/tile4.jpg"), 200, 200)
+patch.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Add driver system
+driver = veh.Driver(vehicle)
+driver.Initialize()
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.05)
+driver.SetBrakingDelta(0.05)
+driver.SetTargetSpeed(15)
+
+# Set up Irrlicht visualization
+app = irr.ChIrrApp(system, "MAN 10t Truck Simulation", irr.dimension2du(1280, 720))
+app.SetSkyBox()
+app.SetCamera(chrono.ChVector3d(0, -6, 2), chrono.ChVector3d(0, 0, 1.5))
+app.AddLightWithShadow(chrono.ChVector3d(10, -10, 15), chrono.ChVector3d(0, 0, 0), 3, 2, 45, 512, 512)
+app.SetChaseCameraSpeed(1.5, 1.5, 8)
+app.AssetBindAll()
+app.AssetUpdateAll()
+
+# Simulation loop parameters
+step_size = 1e-3
+real_time = True
+
+while app.GetDevice().run():
+    time = system.GetChTime()
+    app.BeginScene()
+    app.DrawAll()
+    
+    # Update driver inputs
+    driver_inputs = driver.GetInputs()
+    vehicle.Synchronize(time, driver_inputs)
+    for tire in tires:
+        tire.Synchronize(time, vehicle.GetWheelState(tire.GetIndex()), terrain.GetGround())
+    terrain.Synchronize(time)
+    vehicle.Advance(step_size)
+    for tire in tires:
+        tire.Advance(step_size)
+    terrain.Advance(step_size)
+    
+    app.EndScene()
+    if real_time:
+        app.Sleep(step_size)

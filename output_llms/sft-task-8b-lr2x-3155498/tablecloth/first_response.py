@@ -1,0 +1,59 @@
+import pychrono as chrono
+
+system = chrono.ChSystemNSC()
+solver = chrono.ChSolverPardisoMKL()
+solver.SetMaxIterations(100)
+solver.SetTolerance(1e-8)
+system.SetSolver(solver)
+system.SetGravitationalAcceleration(chrono.ChVector3(0, -9.81, 0))
+
+nodes = []
+for i in range(10):
+    for j in range(10):
+        x = i * 0.2
+        y = j * 0.2
+        node = chrono.ChShellNode()
+        node.SetPos(chrono.ChVector3(x, y, 0))
+        nodes.append(node)
+        system.Add(node)
+
+material = chrono.ChMaterialShellKirchhoff(1000, 0.3, 0.01, 1000)
+elements = []
+for i in range(9):
+    for j in range(9):
+        idx = i * 10 + j
+        nodes_i = [nodes[idx], nodes[idx + 1], nodes[idx + 11], nodes[idx + 10]]
+        element = chrono.ChShellElement4()
+        element.SetNodes(nodes_i)
+        element.SetMaterial(material)
+        system.Add(element)
+        elements.append(element)
+
+vertices = [node.GetPos() for node in nodes]
+mesh = chrono.ChTriangleMeshConnected()
+mesh.SetMode(chrono.ChTriangleMeshConnected.MeshMode.BASIC)
+for v in vertices:
+    mesh.AddVertex(v)
+for i in range(9):
+    for j in range(9):
+        idx = i * 10 + j
+        mesh.AddTriangle(idx, idx + 1, idx + 11)
+        mesh.AddTriangle(idx, idx + 11, idx + 10)
+visual_shape = chrono.ChVisualShapeMesh()
+visual_shape.SetMesh(mesh)
+visual_shape.SetColor(chrono.ChColor(0.5, 0.5, 0.5))
+system.AddVisualShape(visual_shape)
+
+visualize = chrono.ChVisualSystemIrrlicht()
+visualize.AttachSystem(system)
+visualize.SetWindowSize(1024, 768)
+visualize.SetWindowTitle('Tablecloth Folding with Shell Elements')
+visualize.Initialize()
+visualize.AddSkyBox()
+visualize.AddCamera(chrono.ChVector3(0, 5, 10), chrono.ChVector3(0, 0, 0))
+
+while visualize.Run():
+    system.DoStepDynamics(0.001)
+    visualize.BeginScene()
+    visualize.Render()
+    visualize.EndScene()

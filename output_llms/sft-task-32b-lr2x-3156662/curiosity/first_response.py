@@ -1,0 +1,52 @@
+import pychrono as chrono
+import pychrono.vehicle as veh
+import pychrono.irrlicht as irr
+
+# Initialize the Chrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVectorD(0, -9.81, 0))
+
+# Create the fixed ground plane with collision
+ground = chrono.ChBodyEasyBox(100, 100, 1, 1000, True, True)
+ground.SetPos(chrono.ChVectorD(0, 0, -0.5))
+ground.SetFixed(True)
+ground.GetVisualShape(0).SetColor(chrono.ChColor(0.3, 0.3, 0.3))
+system.Add(ground)
+
+# Create and initialize the Curiosity rover
+rover = veh.Curiosity()
+rover.SetChassisFixed(False)
+rover.SetInitPosition(chrono.ChCoordsysD(chrono.ChVectorD(0, 0, 1.5), chrono.QUNIT))
+rover.Initialize()
+rover.SetChassisVisualizationType(veh.VisualizationType_MESH)
+rover.SetSuspensionVisualizationType(veh.VisualizationType_MESH)
+rover.SetWheelVisualizationType(veh.VisualizationType_MESH)
+rover.SetSteeringVisualizationType(veh.VisualizationType_MESH)
+
+# Set up the interactive driver for real-time control
+application = irr.ChIrrApp(system, 'Curiosity Rover Simulation', irr.dimension2du(1280, 720))
+application.AddTypicalSky()
+application.AddTypicalLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+application.AddTypicalCamera(irr.vector3df(0, 1.5, -6), irr.vector3df(0, 0.3, 1.2))
+application.SetShowInfos(True)
+application.SetSymbolsVisible(True)
+
+driver = veh.ChInteractiveDriverIRR(rover, application, "Curiosity Driver")
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
+
+# Simulation loop settings
+time_step = 0.001
+real_time_factor = 1.0
+
+# Run the simulation
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    
+    # Update driver inputs and simulate
+    driver.Update()
+    system.DoStepDynamics(time_step)
+    
+    application.EndScene()

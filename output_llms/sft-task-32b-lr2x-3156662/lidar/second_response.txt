@@ -1,0 +1,187 @@
+
+
+```python
+import pychrono.core as chrono
+import pychrono.sensor as sens
+import numpy as np
+import time
+import math
+
+def main():
+    # -----------------
+    # Create the system
+    # -----------------
+    mphysicalSystem = chrono.ChSystemNSC()
+
+    # ----------------
+    # Add a box object
+    # ----------------
+    side = 2.0
+    texture = "textures/blue.png"
+    position = chrono.ChVector3d(0, 0, 0)
+    
+    box = chrono.ChBodyEasyBox(side, side, side, 1000)
+    box.SetPos(position)
+    box.SetName("Sensor Target Box")
+    
+    # Add visual shape with texture
+    box_shape = chrono.ChVisualShapeBox()
+    box_shape.SetColor(chrono.ChColor(0.2, 0.2, 0.8))
+    box_shape.SetTexture(chrono.GetChronoDataFile(texture), 1, 1)
+    box.AddVisualShape(box_shape)
+    mphysicalSystem.Add(box)
+
+    # -----------------------
+    # Create a sensor manager
+    # -----------------------
+    manager = sens.ChSensorManager(mphysicalSystem)
+
+    # ----------------------------
+    # Create and configure lidars
+    # ----------------------------
+    # 3D Lidar parameters
+    lidar_update_rate = 5.0
+    lidar_horizontal_samples = 800
+    lidar_vertical_samples = 300
+    lidar_horizontal_fov = 2 * chrono.CH_PI
+    lidar_max_vert_angle = chrono.CH_PI / 12
+    lidar_min_vert_angle = -chrono.CH_PI / 6
+    lidar_return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+    # Create 3D lidar sensor
+    lidar_offset = chrono.ChFramed(
+        chrono.ChVector3d(-12, 0, 1),
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar = sens.ChLidarSensor(
+        box,  # Attached to the box
+        lidar_update_rate,
+        lidar_offset,
+        lidar_horizontal_samples,
+        lidar_vertical_samples,
+        lidar_horizontal_fov,
+        lidar_max_vert_angle,
+        lidar_min_vert_angle,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        2,
+        0.003,
+        0.003,
+        lidar_return_mode
+    )
+    lidar.SetName("3D Lidar Sensor")
+    lidar.SetLag(0)
+    lidar.SetCollectionWindow(1.0 / lidar_update_rate)
+
+    # Add filters for 3D lidar
+    lidar.PushFilter(sens.ChFilterVisualize(lidar_horizontal_samples, lidar_vertical_samples, "3D Lidar Raw Data"))
+    lidar.PushFilter(sens.ChFilterDIAccess())
+    lidar.PushFilter(sens.ChFilterPCfromDepth())
+    lidar.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "3D Lidar Point Cloud"))
+    lidar.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar)
+
+    # 2D Lidar parameters
+    lidar2d_update_rate = 10.0
+    lidar2d_horizontal_samples = 360
+    lidar2d_vertical_samples = 1
+    lidar2d_horizontal_fov = chrono.CH_PI
+    lidar2d_max_vert_angle = 0.0
+    lidar2d_min_vert_angle = 0.0
+    lidar2d_return_mode = sens.LidarReturnMode_STRONGEST_RETURN
+
+    # Create 2D lidar sensor
+    lidar2d_offset = chrono.ChFramed(
+        chrono.ChVector3d(0, -6, 1.5),
+        chrono.QuatFromAngleAxis(0, chrono.ChVector3d(0, 1, 0))
+    )
+    lidar2d = sens.ChLidarSensor(
+        box,  # Attached to the box
+        lidar2d_update_rate,
+        lidar2d_offset,
+        lidar2d_horizontal_samples,
+        lidar2d_vertical_samples,
+        lidar2d_horizontal_fov,
+        lidar2d_max_vert_angle,
+        lidar2d_min_vert_angle,
+        100.0,
+        sens.LidarBeamShape_RECTANGULAR,
+        1,
+        0.003,
+        0.003,
+        lidar2d_return_mode
+    )
+    lidar2d.SetName("2D Lidar Sensor")
+    lidar2d.SetLag(0)
+    lidar2d.SetCollectionWindow(1.0 / lidar2d_update_rate)
+
+    # Add filters for 2D lidar
+    lidar2d.PushFilter(sens.ChFilterVisualize(lidar2d_horizontal_samples, lidar2d_vertical_samples, "2D Lidar Raw Data"))
+    lidar2d.PushFilter(sens.ChFilterDIAccess())
+    lidar2d.PushFilter(sens.ChFilterPCfromDepth())
+    lidar2d.PushFilter(sens.ChFilterVisualizePointCloud(640, 480, 1.0, "2D Lidar Point Cloud"))
+    lidar2d.PushFilter(sens.ChFilterXYZIAccess())
+    manager.AddSensor(lidar2d)
+
+    # -------------------
+    # Simulation settings
+    # -------------------
+    orbit_radius = 10
+    orbit_rate = 0.1
+    step_size = 1e-3
+    end_time = 40.0
+    out_dir = "SENSOR_OUTPUT/"
+
+    # -----------------
+    # Run simulation
+    # -----------------
+    ch_time = 0
+    while ch_time < end_time:
+        # Update lidar positions
+        lidar.SetOffsetPose(chrono.ChFramed(
+            chrono.ChVector3d(
+                -orbit_radius * math.cos(ch_time * orbit_rate),
+                -orbit_radius * math.sin(ch_time * orbit_rate),
+                1
+            ),
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+        ))
+        
+        lidar2d.SetOffsetPose(chrono.ChFramed(
+            chrono.ChVector3d(0, -6, 1.5),
+            chrono.QuatFromAngleAxis(ch_time * orbit_rate, chrono.ChVector3d(0, 0, 1))
+        ))
+
+        # Access and print lidar data
+        lidar_buffer = lidar.GetMostRecentXYZIBuffer()
+        if lidar_buffer and lidar_buffer.HasData():
+            print(f"3D Lidar: {lidar_buffer.Width}x{lidar_buffer.Height} points")
+
+        lidar2d_buffer = lidar2d.GetMostRecentXYZIBuffer()
+        if lidar2d_buffer and lidar2d_buffer.HasData():
+            print(f"2D Lidar: {lidar2d_buffer.Width}x{lidar2d_buffer.Height} points")
+
+        # Update sensor manager
+        manager.Update()
+        
+        # Advance simulation
+        mphysicalSystem.DoStepDynamics(step_size)
+        ch_time = mphysicalSystem.GetChTime()
+
+    print(f"Simulation complete. Total time: {ch_time:.2f}s")
+
+if __name__ == "__main__":
+    main()
+```
+
+Key corrections and modifications:
+1. Replaced mesh object with `ChBodyEasyBox` and added visual shape with texture
+2. Removed mesh loading/scale operations
+3. Attached both lidars to the box body instead of the mesh body
+4. Added a 2D lidar sensor with one vertical channel
+5. Added appropriate filters and visualizations for both lidars
+6. Fixed parameter naming and initialization order
+7. Added proper offset pose updates for both lidars
+8. Improved data access and output handling
+9. Added clear parameter sections for lidar configurations
+10. Fixed sensor manager initialization and update sequence

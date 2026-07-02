@@ -1,0 +1,79 @@
+import pychrono.core as chrono
+import pychrono.vehicle as vehicle
+import pychrono.irrlicht as irr
+import math
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create the FEDA vehicle
+vehicle_model = vehicle.ChVehicle(system, vehicle.ChVehicleModelType_FEDA, vehicle.ChContactMethod_NSC)
+vehicle_model.SetName("FEDA Vehicle")
+vehicle_model.SetInitPosition(chrono.ChCoordsysd(chrono.ChVector3d(0, 0, 0.5), chrono.QUNIT))
+vehicle_model.SetChassisVisualizationType(vehicle.VisualizationType_MESH)
+vehicle_model.SetSuspensionVisualizationType(vehicle.VisualizationType_MESH)
+vehicle_model.SetSteeringVisualizationType(vehicle.VisualizationType_MESH)
+vehicle_model.SetWheelVisualizationType(vehicle.VisualizationType_MESH)
+vehicle_model.SetTireVisualizationType(vehicle.VisualizationType_MESH)
+
+# Set tire model to TMEASY
+for axle in vehicle_model.GetAxles():
+    for wheel in axle.GetWheels():
+        wheel.SetTireModel(vehicle.ChTireModelType_TMEASY)
+
+# Initialize the vehicle
+vehicle_model.Initialize()
+
+# Create rigid terrain with custom texture
+terrain = vehicle.ChRigidTerrain(system)
+terrain.SetTexture(100, 100, "path/to/terrain_texture.jpg")  # Replace with actual texture path
+terrain.SetColor(chrono.ChColor(0.8, 0.8, 0.5))
+terrain.Initialize()
+
+# Set up Irrlicht visualization
+vis = irr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle("FEDA Vehicle Simulation")
+vis.Initialize()
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, -6, 1.5), chrono.ChVector3d(0, 0, 1.2))
+vis.AddTypicalLights()
+vis.EnableShadows(True)
+
+# Create interactive driver system
+driver = vehicle.ChIrrGuiDriver(vis, vehicle_model)
+driver.SetSteeringClamp(1.0)
+driver.SetThrottleClamp(1.0)
+driver.SetBrakingClamp(1.0)
+driver.SetSteeringDelta(0.05)
+driver.SetThrottleDelta(0.02)
+driver.SetBrakingDelta(0.02)
+driver.SetSteeringFactor(1.0)
+driver.SetThrottleFactor(1.0)
+driver.SetBrakingFactor(1.0)
+
+# Simulation loop settings
+time_step = 1.0 / 50.0
+real_time = True
+
+while vis.Run():
+    # Update driver inputs
+    driver_inputs = driver.GetInputs()
+    vehicle_model.Synchronize(system.GetChTime(), driver_inputs, terrain)
+    terrain.Synchronize(system.GetChTime())
+    
+    # Advance simulation
+    system.DoStepDynamics(time_step)
+    vehicle_model.Advance(time_step)
+    terrain.Advance(time_step)
+    
+    # Update visualization
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    
+    # Real-time enforcement
+    if real_time:
+        chrono.ChRealtimeStepDamping(time_step)

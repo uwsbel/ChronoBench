@@ -1,0 +1,73 @@
+import pychrono as chrono
+from pychrono import irrlicht
+from pychrono import ChSystemNSC
+from pychrono import ChBody
+from pychrono import ChLinkMotorRotationSpeed
+from pychrono import ChLinkPoint
+from pychrono import ChVector
+from pychrono import ChQuaternion
+from pychrono import ChBeamSectionIga
+from pychrono import ChBeamIga
+
+
+system = chrono.ChSystemNSC()
+
+
+beam_length = 2.0
+beam_width = 0.1
+beam_height = 0.1
+beam_thickness = 0.05
+
+beam_section = chrono.ChBeamSectionIga()
+beam_section.SetCrossSection(chrono.ChVector<>(beam_width, beam_height, beam_thickness))
+beam_section.SetMaterial(chrono.ChMaterialSurface(1e7, 0.3))  
+
+beam = chrono.ChBeamIga()
+beam.SetLength(beam_length)
+beam.SetSection(beam_section)
+beam.SetMaterial(chrono.ChMaterialSurface(1e7, 0.3))
+beam.SetPos(chrono.ChVector<>(0, 0, 0))
+beam.SetRot(chrono.ChQuaternion<>(1, 0, 0, 0))
+system.Add(beam)
+
+
+flywheel_mass = 10.0
+flywheel_radius = 0.1
+flywheel_inertia = chrono.ChVector<>(0.5 * flywheel_mass * flywheel_radius**2, 0.5 * flywheel_mass * flywheel_radius**2, 0.5 * flywheel_mass * flywheel_radius**2)
+flywheel = chrono.ChBody()
+flywheel.SetMass(flywheel_mass)
+flywheel.SetInertia(chrono.ChVector<>(flywheel_inertia.x(), flywheel_inertia.y(), flywheel_inertia.z()))
+flywheel.SetPos(chrono.ChVector<>(beam_length / 2, 0, 0))
+system.Add(flywheel)
+
+
+link = chrono.ChLinkPoint()
+link.SetPointA(beam, chrono.ChVector<>(beam_length / 2, 0, 0))
+link.SetPointB(flywheel, chrono.ChVector<>(0, 0, 0))
+system.Add(link)
+
+
+omega = 100.0  
+ground = chrono.ChBody()
+ground.SetMass(0)
+ground.SetPos(chrono.ChVector<>(beam_length, 0, 0))
+system.Add(ground)
+
+motor = chrono.ChLinkMotorRotationSpeed()
+motor.Initialize(beam, ground, chrono.ChFrame<>(chrono.ChVector<>(beam_length, 0, 0), chrono.ChQuaternion<>(1, 0, 0, 0)))
+motor.SetSpeed(omega)
+system.Add(motor)
+
+
+visual = chrono.ChVisualSystemIrrlicht()
+visual.AttachSystem(system)
+visual.SetWindowSize(800, 600)
+visual.SetWindowTitle("Jeffcott Rotor with IGA Beam")
+visual.Initialize()
+visual.AddCamera(chrono.ChVector<>(0, 2 * beam_length, 2 * beam_length), chrono.ChVector<>(0, 0, 0))
+visual.SetCameraVertical(chrono.ChVector<>(0, 1, 0))
+
+
+while (visual.Run()):
+    system.DoStepDynamics(1 / 60.0)
+    visual.Render()

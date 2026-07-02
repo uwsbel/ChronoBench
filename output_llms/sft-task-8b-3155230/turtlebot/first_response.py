@@ -1,0 +1,87 @@
+import pychrono as chrono
+from pychrono import irrlicht
+import math
+
+# Initialize PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))
+
+# Create ground body
+ground = chrono.ChBodyEasyBox(100, 100, 0.1, 1000, True, False)
+ground.SetFixed(True)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.05))
+system.Add(ground)
+
+# Create Turtlebot chassis
+chassis = chrono.ChBodyEasyBox(0.4, 0.1, 0.2, 1000, True, False)
+chassis.SetFixed(False)
+chassis.SetPos(chrono.ChVector3d(0, 0.05, 0))
+chassis.SetName("Turtlebot Chassis")
+system.Add(chassis)
+
+# Create wheels
+wheel_radius = 0.05
+wheel_length = 0.05
+left_wheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, wheel_radius, wheel_length, 1000, True, False)
+left_wheel.SetFixed(False)
+left_wheel.SetPos(chrono.ChVector3d(-0.1, 0, 0))
+left_wheel.SetName("Left Wheel")
+system.Add(left_wheel)
+
+right_wheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Z, wheel_radius, wheel_length, 1000, True, False)
+right_wheel.SetFixed(False)
+right_wheel.SetPos(chrono.ChVector3d(0.1, 0, 0))
+right_wheel.SetName("Right Wheel")
+system.Add(right_wheel)
+
+# Create revolute joints for wheels
+left_joint = chrono.ChLinkRevolute()
+left_joint.Initialize(chassis, left_wheel, chrono.ChFramed(chrono.ChVector3d(-0.1, 0, 0), chrono.QUNIT))
+system.AddLink(left_joint)
+
+right_joint = chrono.ChLinkRevolute()
+right_joint.Initialize(chassis, right_wheel, chrono.ChFramed(chrono.ChVector3d(0.1, 0, 0), chrono.QUNIT))
+system.AddLink(right_joint)
+
+# Create motor actuators
+left_motor = chrono.ChLinkMotorRevolute()
+left_motor.Initialize(left_joint, chrono.ChFramed(), chrono.ChFramed(), 0, 0)
+left_motor.SetTorqueFunction(chrono.ChFunctionConst(0))
+system.AddLink(left_motor)
+
+right_motor = chrono.ChLinkMotorRevolute()
+right_motor.Initialize(right_joint, chrono.ChFramed(), chrono.ChFramed(), 0, 0)
+right_motor.SetTorqueFunction(chrono.ChFunctionConst(0))
+system.AddLink(right_motor)
+
+# Initialize Irrlicht visualization
+visualize = irrlicht.ChVisualSystemIrrlicht()
+visualize.AttachSystem(system)
+visualize.SetWindowSize(1024, 768)
+visualize.SetWindowTitle("Turtlebot Simulation")
+visualize.Initialize()
+visualize.AddSkyBox()
+visualize.AddCamera(chrono.ChVector3d(0, 2, 3), chrono.ChVector3d(0, 0, 0))
+visualize.AddLightDirectional(chrono.ChVector3d(0, 0, 1), 0.8, 0.8, 0.8)
+
+# Simulation loop
+time_step = 0.01
+time = 0
+while time < 15:
+    time += time_step
+    system.DoStepDynamics(time_step)
+
+    # Apply motor torques based on time
+    if 5 <= time < 7:
+        left_motor.SetTorqueFunction(chrono.ChFunctionConst(-10))
+        right_motor.SetTorqueFunction(chrono.ChFunctionConst(10))
+    elif 7 <= time < 10:
+        left_motor.SetTorqueFunction(chrono.ChFunctionConst(10))
+        right_motor.SetTorqueFunction(chrono.ChFunctionConst(-10))
+    else:
+        left_motor.SetTorqueFunction(chrono.ChFunctionConst(0))
+        right_motor.SetTorqueFunction(chrono.ChFunctionConst(0))
+
+    visualize.BeginScene()
+    visualize.Render()
+    visualize.EndScene()

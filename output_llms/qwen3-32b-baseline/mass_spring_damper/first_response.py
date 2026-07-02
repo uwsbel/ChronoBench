@@ -1,0 +1,53 @@
+import pychrono as ch
+import pychrono.irrlicht as irr
+
+# 1. Initialize the PyChrono environment and core components
+system = ch.ChSystemNSC()
+system.Set_Gravity(ch.ChVectorD(0, 0, -9.81))
+
+# 2. Add ground body
+ground = ch.ChBody()
+system.AddBody(ground)
+ground.SetBodyFixed(True)
+ground.SetPos(ch.ChVectorD(0, 0, 0))
+# Add visual shape for ground
+ground_box = ch.ChVisualShapeBox(20, 1, 20)
+ground.AddVisualShape(ground_box, ch.ChFrameD())
+
+# 3. Add mass body
+mass = ch.ChBody()
+system.AddBody(mass)
+mass.SetPos(ch.ChVectorD(0, 0, 10))
+mass.SetMass(1.0)
+inertia = ch.ChVectorD(1e-6, 1e-6, 1e-6)
+mass.SetInertiaXX(inertia)
+# Add visual shape for mass
+mass_sphere = ch.ChVisualShapeSphere(0.5)
+mass.AddVisualShape(mass_sphere)
+
+# 4. Add spring-damper using ChLinkTSDA
+spring = ch.ChLinkTSDA()
+spring.Initialize(ground, mass, False, ch.ChVectorD(0, 0, 0), ch.ChVectorD(0, 0, 0))
+system.AddLink(spring)
+# Add visual shape for spring
+spring_shape = ch.ChVisualShapeSpring(0.05, 50, 10)
+spring.AddVisualShape(spring_shape)
+
+# 5. Set up Irrlicht visualization
+application = irr.ChIrrApp(system, "Mass-Spring-Damper System", irr.dimension2du(800, 600))
+application.SetSkyBox()
+application.SetCamera(irr.vector3df(0, 5, 15))
+application.SetLightDirection(irr.vector3df(0, -1, 0), True)
+application.AssetBindAll()
+application.AssetUpdateAll()
+
+# 6. Simulation loop setup
+application.SetStep(0.001)
+application.SetRealTimeUpdate(True)
+
+# 7. Run simulation
+while application.GetDevice().run():
+    application.BeginScene()
+    application.DrawAll()
+    application.DoStep()
+    application.EndScene()

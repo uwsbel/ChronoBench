@@ -1,0 +1,124 @@
+import os
+import math
+import numpy as np
+import pychrono as chrono
+import pychrono.robot as turtlebot
+from pychrono import irrlicht as chronoirr
+import pychrono.sensor as sens
+
+# Create Chrono system
+system = chrono.ChSystemNSC()
+system.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, 0, -9.81))  # Set gravity in negative Z direction
+chrono.ChCollisionModel.SetDefaultSuggestedEnvelope(0.0025)
+chrono.ChCollisionModel.SetDefaultSuggestedMargin(0.0025)
+
+# Create ground body as terrain plane that robot will drive on
+ground_mat = chrono.ChContactMaterialNSC()
+ground = chrono.ChBodyEasyBox(20, 20, 1, 1000, True, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, 0, -0.6))  # Adjusted ground position
+ground.SetFixed(True)  # Fix the ground in place
+ground.GetVisualShape(0).SetTexture(chrono.GetChronoDataFile("textures/concrete.jpg"))
+system.Add(ground)
+
+# Create Turtlebot Robot
+init_pos = chrono.ChVector3d(0, 0.2, 0)  # Initial position of the robot
+init_rot = chrono.ChQuaterniond(1, 0, 0, 0)  # Initial orientation of the robot
+robot = turtlebot.TurtleBot(system, init_pos, init_rot)  # Create Turtlebot instance
+robot.Initialize()  # Initialize the robot
+
+# Define motor wheel IDs
+LEFT_DRIVE_WHEEL = 0
+RIGHT_DRIVE_WHEEL = 1
+
+# Create sensor manager
+sensor_manager = sens.ChSensorManager(system)
+
+# Create and add lidar sensor
+lidar_offset = chrono.ChFrameD(chrono.ChVector3d(0.2, 0, 0.1), chrono.ChQuaterniond(1, 0, 0, 0))
+lidar = sens.ChLidarSensor(
+    robot.GetChassisBody(),  # Parent body
+    5.0,  # Update rate (Hz)
+    lidar_offset,
+    400,  # Horizontal samples
+    300,  # Vertical samples
+    2 * math.pi,  # Horizontal FOV
+    math.pi / 2,  # Vertical FOV
+    10.0,  # Max distance
+    0.01  # Noise
+)
+lidar.SetName("Lidar Sensor")
+lidar.SetLag(0.0)
+lidar.SetCollectionWindow(1.0 / 5.0)
+
+# Add noise model
+noise_model = sens.ChNoiseModelNormal(0.0, 0.01)
+lidar.SetNoiseModel(noise_model)
+
+# Add filters
+lidar.PushFilter(sens.ChFilterPCfromDepth())
+lidar.PushFilter(sens.ChFilterVisualize(500))
+lidar.PushFilter(sens.ChFilterSaveData("lidar_data"))
+
+sensor_manager.AddSensor(lidar)
+
+# Add randomly placed boxes
+for _ in range(5):
+    # Generate random positions avoiding robot's initial position
+    while True:
+        x = np.random.uniform(-10, 10)
+        y = np.random.uniform(-10, 10)
+        z = np.random.uniform(-0.5, 0.5)
+        if (x**2 + (y - 0.2)**2 + z**2) > 1.0:
+            break
+    box = chrono.ChBodyEasyBox(0.5, 0.5, 0.5, 1000, True, True, ground_mat)
+    box.SetPos(chrono.ChVector3d(x, y, z))
+    system.Add(box)
+
+# Create run-time visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(system)
+vis.SetCameraVertical(chrono.CameraVerticalDir_Z)
+vis.SetWindowSize(1280, 720)
+vis.SetWindowTitle('Turtlebot Robot - Rigid terrain')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0, 1.5, 0.2), chrono.ChVector3d(0, 0, 0.2))
+vis.AddTypicalLights()
+vis.AddLightWithShadow(chrono.ChVector3d(1.5, -2.5, 5.5), chrono.ChVector3d(0, 0, 0.5), 3, 4, 10, 40, 512)
+
+# Set the simulation time step
+time_step = 2e-3
+
+# Motion control function
+def move(mode):
+    if mode == 'straight':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'left':
+        robot.SetMotorSpeed(0, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(math.pi, RIGHT_DRIVE_WHEEL)
+    elif mode == 'right':
+        robot.SetMotorSpeed(math.pi, LEFT_DRIVE_WHEEL)
+        robot.SetMotorSpeed(0, RIGHT_DRIVE_WHEEL)
+
+# Simulation loop
+time = 0
+while vis.Run():
+    # Control robot movement
+    move('straight')
+    
+    # Render the scene
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+
+    # Update sensor manager
+    sensor_manager.Update()
+
+    # Advance the simulation by one time step
+    system.DoStepDynamics(time_step)
+    
+    # Increment time counter
+    time += time_step

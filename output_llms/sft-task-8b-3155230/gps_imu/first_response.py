@@ -1,0 +1,81 @@
+import pychrono as chrono
+import numpy as np
+
+# Initialize PyChrono environment
+system = chrono.ChSystemNSC()
+system.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+# Create terrain
+terrain = chrono.ChBodyEasyBox(100, 0.1, 100, 1000, True, False)
+terrain.SetFixed(True)
+terrain.SetPos(chrono.ChVector3d(0, -0.5, 0))
+system.AddBody(terrain)
+
+# Create HMMWV vehicle
+vehicle = chrono.ChVehicleHMMWV()
+vehicle.SetChassisFixed(False)
+vehicle.SetChassisBody(chrono.ChBodyEasyBox(2.5, 1.5, 0.8, 1000, True, False))
+vehicle.SetChassisBodyPos(chrono.ChVector3d(0, 0.75, 0))
+vehicle.SetChassisBodyRot(chrono.QuatFromAngleX(0.1))
+system.Add(vehicle.GetVehicleBody())
+
+# Add IMU sensor
+imu = chrono.ChBody()
+imu.SetName("IMU Sensor")
+imu.SetFixed(True)
+imu.SetPos(vehicle.GetChassisBody().GetPos())
+imu.SetRot(vehicle.GetChassisBody().GetRot())
+system.AddBody(imu)
+
+# Add GPS sensor
+gps = chrono.ChBody()
+gps.SetName("GPS Sensor")
+gps.SetFixed(True)
+gps.SetPos(vehicle.GetChassisBody().GetPos())
+gps.SetRot(vehicle.GetChassisBody().GetRot())
+system.AddBody(gps)
+
+# Create driver inputs
+driver = chrono.ChDriverHMMWV()
+driver.SetThrottle(0.5)
+driver.SetSteering(0.0)
+driver.SetBraking(0.0)
+vehicle.SetDriver(driver)
+
+# Create visualization system
+visual = chrono.ChVisualSystemIrrlicht()
+visual.SetWindowSize(1024, 768)
+visual.SetWindowTitle("HMMWV Simulation")
+visual.Initialize()
+visual.AddSkyBox()
+visual.AddCamera(chrono.ChVector3d(0, 2, 5), chrono.ChVector3d(0, 0, 0))
+
+# Simulation loop
+step = 0
+while step < 1000:
+    # Update sensors
+    imu.SetPos(vehicle.GetChassisBody().GetPos())
+    imu.SetRot(vehicle.GetChassisBody().GetRot())
+    gps.SetPos(vehicle.GetChassisBody().GetPos())
+    gps.SetRot(vehicle.GetChassisBody().GetRot())
+    
+    # Update vehicle and driver
+    vehicle.Advance(step * 0.01)
+    driver.Advance(step * 0.01)
+    
+    # Update visualization
+    visual.BeginScene()
+    visual.RenderSkyBox()
+    visual.RenderCamera()
+    visual.RenderVehicle(vehicle)
+    visual.RenderTerrain(terrain)
+    visual.RenderBody(imu, chrono.ChColor(1, 0, 0))
+    visual.RenderBody(gps, chrono.ChColor(0, 1, 0))
+    visual.EndScene()
+    
+    # Output vehicle mass
+    print(f"Vehicle mass: {vehicle.GetVehicleBody().GetMass()} kg")
+    
+    step += 1
+
+visual.Close()

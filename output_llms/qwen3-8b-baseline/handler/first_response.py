@@ -1,0 +1,53 @@
+import pychrono as chrono
+import rospy
+from std_msgs.msg import Int32
+
+class CustomROSHandler(chrono.ros.ChronoROSHandler):
+    def __init__(self, topic_name):
+        super().__init__()
+        rospy.init_node('custom_handler_node', anonymous=True)
+        self.pub = rospy.Publisher(topic_name, Int32, queue_size=10)
+        self.count = 0
+
+    def on_clock_tick(self, time, step):
+        msg = Int32()
+        msg.data = self.count
+        self.pub.publish(msg)
+        self.count += 1
+
+# Initialize PyChrono system
+system = chrono.ChSystemNSC()
+system.SetGravity(chrono.ChVectorD(0, 0, -9.81))
+
+# Add fixed floor
+floor = chrono.ChBody()
+floor.SetBodyFixed(True)
+floor.GetCollisionModel().Clear()
+floor.GetCollisionModel().AddBox(chrono.ChVectorD(10, 10, 0.1), chrono.ChVectorD(0, 0, 0))
+floor.GetMaterialSurface().SetFriction(0.5)
+floor.GetMaterialSurface().SetRestitution(0.3)
+floor.SetPos(chrono.ChVectorD(0, 0, 0))
+system.Add(floor)
+
+# Add movable box
+box = chrono.ChBody()
+box.GetCollisionModel().Clear()
+box.GetCollisionModel().AddBox(chrono.ChVectorD(1, 1, 1), chrono.ChVectorD(0, 0, 0))
+box.GetMaterialSurface().SetFriction(0.5)
+box.GetMaterialSurface().SetRestitution(0.3)
+box.SetDensity(1000)
+box.SetPos(chrono.ChVectorD(0, 0, 1))
+system.Add(box)
+
+# Configure ROS manager
+ros_handler = CustomROSHandler('/custom_int')
+ros_manager = chrono.ros.ChronoROSManager()
+ros_manager.SetClockHandler(ros_handler)
+ros_manager.SetBodyHandler(chrono.ros.ChronoBodyHandler())
+ros_manager.SetTransformHandler(chrono.ros.ChronoTransformHandler())
+ros_manager.RegisterHandler(ros_handler)
+
+# Simulation loop
+while True:
+    system.DoStepDynamics(0.01)
+    ros_manager.Update()

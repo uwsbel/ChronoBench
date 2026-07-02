@@ -1,0 +1,122 @@
+import pychrono as chrono
+import numpy as np
+
+
+def create_ground_system():
+    sys = chrono.ChSystemNSC()
+    sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -9.81, 0))
+
+    ground = chrono.ChBodyEasyBox(20, 20, 0.5, 1000, True, True)
+    ground.SetName("Rigid terrain")
+    ground.SetFixed(True)
+    ground.GetVisualShape(0).SetColor(chrono.ChColor(0.8, 0.8, 0.8))
+    ground.SetPos(chrono.ChVector3d(0, -0.25, 0))
+    sys.Add(ground)
+
+    return sys, ground
+
+
+def create_rover_system(sys):
+    rover = chrono.ChBodyEasyBox(1.5, 0.8, 0.4, 1000, True, True)
+    rover.SetName("Curiosity rover")
+    rover.SetMass(1000)
+    rover.SetInertiaXX(chrono.ChVector3d(100, 50, 50))
+    rover.SetPos(chrono.ChVector3d(0, 0.1, 0))
+    rover.GetVisualShape(0).SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+    sys.Add(rover)
+
+    wheel_radius = 0.35
+    wheel_mass = 50
+    wheel_inertia = 0.5 * wheel_mass * wheel_radius**2
+
+    wheels = []
+    for i in range(4):
+        wheel = chrono.ChBodyEasySphere(wheel_radius, 1000, True, True)
+        wheel.SetName(f"Rover wheel {i}")
+        wheel.SetMass(wheel_mass)
+        wheel.SetInertiaXX(chrono.ChVector3d(wheel_inertia, wheel_inertia, wheel_inertia))
+        wheel.SetPos(chrono.ChVector3d(0.75 if i % 2 == 0 else -0.75, 0.25 if i < 2 else -0.25, 0))
+        wheel.GetVisualShape(0).SetColor(chrono.ChColor(0.1, 0.1, 0.1))
+        sys.Add(wheel)
+        wheels.append(wheel)
+
+    joints = []
+    for i, wheel in enumerate(wheels):
+        joint = chrono.ChLinkRevolute()
+        joint.SetName(f"Wheel joint {i}")
+        joint.Initialize(rover, wheel, chrono.ChFramed(chrono.ChVector3d(0.75 if i % 2 == 0 else -0.75, 0.25 if i < 2 else -0.25, 0)))
+        joint.SetSphericalLimit(True, -0.1, 0.1)
+        sys.Add(joint)
+        joints.append(joint)
+
+    motor = chrono.ChLinkMotorRotationSpeed()
+    motor.SetName("Wheel motor")
+    motor.Initialize(rover, wheels[0], chrono.ChFramed(chrono.ChVector3d(0, 0, 0)))
+    motor.SetSpeedFunction(chrono.ChFunctionConst(0))
+    sys.Add(motor)
+
+    return rover, wheels, joints, motor
+
+
+def add_visual_elements(sys):
+    logo = chrono.ChVisualShapeBox(0.1, 0.05, 0.02)
+    logo.SetColor(chrono.ChColor(0.1, 0.1, 0.1))
+    logo.SetOpacity(0.5)
+    sys.GetBodyList().next().AddVisualShape(logo, chrono.ChFramed(chrono.ChVector3d(0.5, 0.5, 0.2)))
+
+    ground_texture = chrono.ChVisualShapeBox(20, 20, 0.5)
+    ground_texture.SetColor(chrono.ChColor(0.6, 0.7, 0.8))
+    ground_texture.SetOpacity(0.6)
+    sys.GetBodyList().next().AddVisualShape(ground_texture, chrono.ChFramed(chrono.ChVector3d(0, -0.25, 0)))
+
+    rover_texture = chrono.ChVisualShapeBox(1.5, 0.8, 0.4)
+    rover_texture.SetColor(chrono.ChColor(0.6, 0.4, 0.2))
+    rover_texture.SetOpacity(0.8)
+    sys.GetBodyList().next().AddVisualShape(rover_texture, chrono.ChFramed(chrono.ChVector3d(0, 0.1, 0)))
+
+
+def setup_visualization(sys, ground):
+    vis = chrono.ChVisualSystemIrrlicht()
+    vis.AttachSystem(sys)
+    vis.SetWindowSize(1024, 720)
+    vis.SetWindowTitle("PyChrono Curiosity Rover Simulation")
+    vis.Initialize()
+    vis.AddSkyBox()
+    vis.AddCamera(chrono.ChFramed(chrono.ChVector3d(1.5, 0.8, 2.5), chrono.QuatFromAngleZ(chrono.CH_PI / 4)))
+    vis.AddLightPoint(chrono.ChVector3d(2, 2, 4), 3.0, chrono.ChColor(0.8, 0.8, 0.8))
+    vis.AddLightPoint(chrono.ChVector3d(-1, -1, 4), 2.0, chrono.ChColor(0.6, 0.6, 0.6))
+    return vis
+
+
+def run_simulation(sys, rover, wheels, joints, motor):
+    time_step = 0.005
+    max_time = 10.0
+    steering = 0.0
+    motor_speed = 0.0
+
+    while sys.GetChTime() < max_time:
+        steering = np.sin(2 * np.pi * sys.GetChTime() / 5.0)
+        motor_speed = 10.0 * (0.5 + 0.5 * np.sin(2 * np.pi * sys.GetChTime() / 3.0))
+        motor.GetMotorFunction().SetSpeed(motor_speed)
+
+        for i, wheel in enumerate(wheels):
+            joint = joints[i]
+            joint.SetAngle(0.05 * steering * (i % 2))
+
+        sys.DoStepDynamics(time_step)
+        vis.Render()
+        vis.SwitchCamera(0, True)
+
+
+def main():
+    sys, ground = create_ground_system()
+    rover, wheels, joints, motor = create_rover_system(sys)
+    add_visual_elements(sys)
+    vis = setup_visualization(sys, ground)
+    run_simulation(sys, rover, wheels, joints, motor)
+    vis.Render()
+    vis.SwitchCamera(0, True)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,83 @@
+import pychrono as chrono
+import pychrono.fea as fea
+import pychrono.pardisomkl as mkl
+import pychrono.irrlicht as chronoirr
+
+print("Example: PyChrono using Euler-Bernoulli beam finite elements")
+
+# Create the physical system
+sys = chrono.ChSystemSMC()
+
+# Create a mesh for FEA elements
+mesh = fea.ChMesh()
+
+# Create a beam section with corrected properties
+msection = fea.ChBeamSectionEulerAdvanced()
+beam_wy = 0.012
+beam_wz = 0.025
+msection.SetAsRectangularSection(beam_wy, beam_wz)
+msection.SetYoungModulus(0.01e9)
+msection.SetShearModulus(0.01e9 * 0.3)
+msection.SetRayleighDamping(0.000)
+msection.SetCentroid(0, beam_wz / 2)  # Corrected centroid position
+msection.SetShearCenter(0, beam_wz / 2)  # Corrected shear center position
+msection.SetSectionRotation(45 * chrono.CH_DEG_TO_RAD)  # Corrected rotation angle
+
+# Use ChBuilderBeamEuler to create the beam section
+builder = fea.ChBuilderBeamEuler()
+builder.BuildBeam(
+    mesh, 
+    msection, 
+    5,  # 5 elements
+    chrono.ChVector3d(0.2, 0, 0),  # Length vector from start to end
+    chrono.ChVector3d(0, 1, 0),  # Y-up direction
+    chrono.ChVector3d(0, 0, -0.1)  # Start point
+)
+
+# Fix the last node of the beam section
+last_node = builder.GetLastBeamNodes().back()
+last_node.SetFixed(True)
+
+# Apply force to the first node of the beam section
+first_node = builder.GetLastBeamNodes().front()
+first_node.SetForce(chrono.ChVector3d(0, -1, 0))
+
+# Add the mesh to the system
+sys.Add(mesh)
+
+# Visualization settings for beams and nodes
+visualizebeamA = chrono.ChVisualShapeFEA(mesh)
+visualizebeamA.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_ELEM_BEAM_MZ)
+visualizebeamA.SetColorscaleMinMax(-0.4, 0.4)
+visualizebeamA.SetSmoothFaces(True)
+visualizebeamA.SetWireframe(False)
+mesh.AddVisualShapeFEA(visualizebeamA)
+
+visualizebeamC = chrono.ChVisualShapeFEA(mesh)
+visualizebeamC.SetFEMglyphType(chrono.ChVisualShapeFEA.GlyphType_NODE_CSYS)
+visualizebeamC.SetFEMdataType(chrono.ChVisualShapeFEA.DataType_NONE)
+visualizebeamC.SetSymbolsThickness(0.006)
+visualizebeamC.SetSymbolsScale(0.01)
+visualizebeamC.SetZbufferHide(False)
+mesh.AddVisualShapeFEA(visualizebeamC)
+
+# Set up the MKL Pardiso solver
+sys.SetSolver(mkl.ChSolverPardisoMKL())
+
+# Create Irrlicht visualization
+vis = chronoirr.ChVisualSystemIrrlicht()
+vis.AttachSystem(sys)
+vis.SetWindowSize(1024, 768)
+vis.SetWindowTitle('FEA Euler-Bernoulli Beams')
+vis.Initialize()
+vis.AddLogo(chrono.GetChronoDataFile('logo_pychrono_alpha.png'))
+vis.AddSkyBox()
+vis.AddCamera(chrono.ChVector3d(0.1, 0.1, 0.2))
+vis.AddTypicalLights()
+
+# Simulation loop
+while vis.Run():
+    vis.BeginScene()
+    vis.Render()
+    vis.EndScene()
+    sys.DoStepDynamics(0.001)

@@ -1,0 +1,69 @@
+import pychrono as chrono
+from pychrono import irrlicht
+from pychrono.irrlicht import ChVisualSystemIrrlicht
+from pychrono import ChTriangleMeshShape
+from pychrono import ChBody
+from pychrono import ChSensorManager
+from pychrono import ChCameraSensor
+from pychrono import ChVector
+import numpy as np
+
+# Initialize the PyChrono system
+system = chrono.ChSystemNSC()
+
+# Create and add the visualization system
+visual_system = irrlicht.ChVisualSystemIrrlicht()
+system.AddVisualSystem(visual_system)
+
+# Load the triangular mesh from a Wavefront .obj file
+mesh_file = 'mesh.obj'  # Replace with the actual path to your .obj file
+mesh_shape = chrono.ChTriangleMeshShape()
+mesh_shape.LoadWavefront(mesh_file)
+mesh_body = chrono.ChBody()
+mesh_body.SetBodyFixed(True)
+mesh_body.AddShape(mesh_shape)
+system.Add(mesh_body)
+
+# Create a camera body to hold the camera sensor
+camera_body = chrono.ChBody()
+camera_body.SetBodyFixed(False)
+camera_body.SetMass(0.0)  # Mass set to zero to avoid dynamics
+system.Add(camera_body)
+
+# Create the camera sensor
+camera_sensor = chrono.ChCameraSensor()
+camera_sensor.SetResolution(640, 480)
+camera_sensor.SetFOV(60.0 * chrono.CH_RAD)
+camera_sensor.SetPosition(ChVector(0, 0, 0))
+camera_sensor.SetDirection(ChVector(0, 0, 1))
+camera_sensor.SetUp(ChVector(0, 1, 0))
+camera_sensor.SetUpdateRate(60)
+camera_sensor.AttachToBody(camera_body)
+
+# Create and configure the sensor manager
+sensor_manager = chrono.ChSensorManager()
+sensor_manager.AddSensor(camera_sensor)
+system.AddSensorManager(sensor_manager)
+
+# Simulation parameters
+time_step = 1e-3
+time_end = 10.0
+angular_velocity = 2 * np.pi / 5  # 5 seconds per full rotation
+orbit_radius = 5.0
+orbit_height = 2.0
+
+# Simulation loop
+time = 0.0
+while time < time_end:
+    system.DoStepDynamics(time_step)
+    time += time_step
+
+    # Update camera body position to orbit the mesh
+    mesh_pos = mesh_body.GetPos()
+    theta = time * angular_velocity
+    camera_pos = mesh_pos + ChVector(orbit_radius * np.cos(theta), orbit_radius * np.sin(theta), orbit_height)
+    camera_body.SetPos(camera_pos)
+
+    # Retrieve and print camera buffer data
+    image_data = camera_sensor.GetImage()
+    print(f"Camera buffer data at time {time}: {image_data}")
