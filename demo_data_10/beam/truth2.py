@@ -1,12 +1,9 @@
-"""Cantilever beam, turn 1 (CREATE): static tip deflection under a tip point load -- PyChrono 10.0 FEA, headless.
+"""Cantilever beam, turn 2 (MODIFY): static deflection under SELF-WEIGHT -- PyChrono 10.0 FEA, headless.
 
-A slender square-section Euler-Bernoulli beam of length L, clamped at one end, with a transverse tip load
-F. Linear static solve (Pardiso). The tip deflection for a cantilever is the textbook delta = F*L^3/(3*E*I),
-I = b^4/12 for a square b x b section; numbers chosen so the deflection is ~0.5% of L (linear regime):
-L=1, b=0.05, E=2e10, F=150 -> delta ~= 4.8e-3 m (independent-oracle value).
-
-Logs the deflected centerline (x, y for every node) to out.csv, so the judge MEASURES the tip deflection
-from the shape (max |y|) instead of trusting a self-reported scalar. Also prints tip deflection + analytic.
+Same clamped cantilever as turn 1, but the tip point load is replaced by the beam's OWN WEIGHT: enable
+automatic gravity on the FEA mesh and set g = 9.81 m/s^2 along -Y. This is a uniform distributed load
+q = rho*A*g, for which the cantilever tip deflection is delta = q*L^4/(8*E*I) ~= 2.30e-3 m
+(independent-oracle value). Logs the deflected centerline (x, y per node) to out.csv.
 """
 import csv
 import json
@@ -20,12 +17,15 @@ N = 10
 b = 0.05
 E = 2.0e10
 nu = 0.3
-F = 150.0
 rho = 7800.0
-I = b * b ** 3 / 12.0
-delta_analytic = F * L ** 3 / (3.0 * E * I)
+g = 9.81
+A = b * b
+I = b ** 4 / 12.0
+q = rho * A * g
+delta_analytic = q * L ** 4 / (8.0 * E * I)
 
 sys = chrono.ChSystemSMC()
+sys.SetGravitationalAcceleration(chrono.ChVector3d(0, -g, 0))
 mesh = fea.ChMesh()
 
 sec = fea.ChBeamSectionEulerAdvanced()
@@ -49,8 +49,7 @@ clamp.Initialize(node0, truss, False, node0.Frame(), node0.Frame())
 clamp.SetConstrainedCoords(True, True, True, True, True, True)
 sys.Add(clamp)
 
-tip.SetForce(chrono.ChVector3d(0, -F, 0))
-mesh.SetAutomaticGravity(False)
+mesh.SetAutomaticGravity(True)      # turn-2 change: self-weight instead of a tip point load
 sys.Add(mesh)
 
 sys.SetSolver(mkl.ChSolverPardisoMKL())

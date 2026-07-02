@@ -2,21 +2,78 @@
   "task": "beam",
   "axis": "fea-structural",
   "simulator": "pychrono",
-  "source": "Chrono demo_FEA_beams idiom (clean cantilever) + analytic Euler-Bernoulli deflection",
-  "probe_vector": ["fea-mesh+beam-elements", "section/material-setup", "static-solve", "BC-constraint", "instrumented-observable"],
-  "turn": 1,
-  "run": {
-    "entry": "truth1.py",
-    "timeout": 180,
-    "expect_json_keys": ["tip_deflection", "analytic"]
+  "source": "Chrono demo_FEA_beams idiom (clean cantilever); targets from independent oracle.py (Euler-Bernoulli FE + closed forms), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
   },
-  "L2_caps": {
-    "fea_mesh": "ChMesh",
-    "beam_element": "ChElementBeamEuler|ChBuilderBeamEuler",
-    "static_solve": "DoStaticLinear|DoStatic"
-  },
-  "L3": [
-    {"kind": "rel_tol", "key": "tip_deflection", "target": 0.0048, "tol": 0.12,
-     "desc": "cantilever tip deflection F*L^3/(3*E*I), I=b^4/12; L=1,b=0.05,E=2e10,F=150"}
+  "turns": [
+    {
+      "turn": 1,
+      "probe_vector": ["fea-mesh+beam-elements", "section/material-setup", "static-solve", "BC-constraint", "instrumented-shape"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["tip_deflection", "analytic"]
+      },
+      "L2_caps": {
+        "fea_mesh": "ChMesh",
+        "beam_element": "ChElementBeamEuler|ChBuilderBeamEuler",
+        "static_solve": "DoStaticLinear|DoStatic"
+      },
+      "derive": [
+        {"name": "tip_defl_meas", "kind": "max_abs", "csv": "out.csv", "column": "y"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "tip_defl_meas", "target": 0.0048, "tol": 0.08,
+         "desc": "cantilever tip deflection F*L^3/(3*E*I), I=b^4/12; L=1,b=0.05,E=2e10,F=150 (independent oracle); MEASURED as max|y| of the logged deflected shape"}
+      ]
+    },
+    {
+      "turn": 2,
+      "probe_vector": ["distributed-load", "automatic-gravity", "static-solve", "instrumented-shape"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["tip_deflection", "analytic"]
+      },
+      "L2_caps": {
+        "fea_mesh": "ChMesh",
+        "beam_element": "ChElementBeamEuler|ChBuilderBeamEuler",
+        "gravity": "SetAutomaticGravity|SetGravitationalAcceleration",
+        "static_solve": "DoStaticLinear|DoStatic"
+      },
+      "derive": [
+        {"name": "tip_defl_meas", "kind": "max_abs", "csv": "out.csv", "column": "y"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "tip_defl_meas", "target": 0.00229554, "tol": 0.08,
+         "desc": "self-weight tip deflection q*L^4/(8*E*I), q=rho*A*g (independent oracle); MEASURED as max|y| of the shape (catches 'load type not changed')"}
+      ]
+    },
+    {
+      "turn": 3,
+      "probe_vector": ["interior-node-load", "superposition", "static-solve", "instrumented-shape"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["tip_deflection", "analytic"]
+      },
+      "L2_caps": {
+        "fea_mesh": "ChMesh",
+        "beam_element": "ChElementBeamEuler|ChBuilderBeamEuler",
+        "static_solve": "DoStaticLinear|DoStatic"
+      },
+      "derive": [
+        {"name": "tip_defl_meas", "kind": "max_abs", "csv": "out.csv", "column": "y"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "tip_defl_meas", "target": 0.0063, "tol": 0.08,
+         "desc": "tip + mid-span load by superposition F*L^3/(3EI)+5*P*L^3/(48EI) (independent oracle); MEASURED as max|y| of the shape"}
+      ]
+    }
   ]
 }

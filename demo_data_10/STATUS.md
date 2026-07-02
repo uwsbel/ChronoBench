@@ -45,8 +45,26 @@ and the judge/methodology gained three things (also applied to `pendulum`):
 bad sample (k=400 typo) 40. `pendulum` re-aligned: turn-2 target set to the oracle's elliptic-integral
 period 2.153 (was the Chrono value 2.122), tolerance widened to cover Chrono's numerical damping.
 
-The remaining verified tasks (`slider_crank`, `swig_contact_reporter`, `beam`) have `input1.txt` but are
-NOT yet multi-turn / oracle-grounded. Applying the full template to them is the breadth step.
+## Third task done fully (2026-07-02): `beam` (FEA/static, oracle = independent FE solver)
+
+`beam` is now a full 3-turn, oracle-grounded FEA task, the static/FEA stress-test of the template:
+1. **Oracle is an independent FE SOLVER, not just a formula**: `beam/oracle.py` (numpy, NO Chrono) is an
+   Euler-Bernoulli Hermite-beam cantilever solver refined to N=50, cross-checked against the textbook
+   closed forms; the Chrono reference agrees with it (two-way: tip load exact, self-weight +0.33%).
+2. **Un-gameable static scalar**: each turn logs the full deflected shape (`x,y` per node) to out.csv and
+   the judge derives the tip deflection as `max_abs(y)`, so a model must produce a consistent deflected
+   curve, not just print a number.
+3. Turns: 1 tip point load (0.0048) / 2 self-weight via automatic gravity (0.0023) / 3 tip + mid-span
+   superposition (0.0063). All gate-verify 100; good sample (N=8) 100, bad sample (E=2e11 units slip) 40.
+4. **FEA-dynamics finding (documented, deferred)**: a first-natural-frequency turn was dropped because
+   PyChrono's `modal` module is not built here and a free-vibration transient is timestepper-biased (HHT
+   damping shifts f1 ~9% low; Newmark/Trapezoidal go unstable and segfault). Static superposition keeps
+   turn 3 oracle-exact. See `beam/CONTRACT.md`.
+
+Three tasks (`pendulum`, `mass_spring_damper`, `beam`) are now fully template-complete across mechanism,
+damped/forced oscillator, and FEA/static axes. The remaining verified tasks (`slider_crank`,
+`swig_contact_reporter`) have `input1.txt` but are NOT yet multi-turn / oracle-grounded, that is the
+breadth step.
 
 ## Tasks
 
@@ -56,7 +74,7 @@ NOT yet multi-turn / oracle-grounded. Applying the full template to them is the 
 | slider_crank | mechanism | pychrono | verified | 100 | closed loop; piston stroke 0.8 = 2*crank_rad |
 | gear | mechanism | pychrono | pending | | KEEP-port |
 | mass_spring_damper | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns; oracle-grounded (oracle.py); derived period_d/zeta/ss_amp; good 100 / bad 40 |
-| beam | FEA | pychrono | verified | 100 | clean cantilever; tip deflection 0.0048 = FL^3/3EI (static solve) |
+| beam | FEA | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (tip load/self-weight/superposition); numpy-FE oracle; tip DERIVED from logged shape; good 100 / bad 40 |
 | cable | FEA | pychrono | pending | | KEEP-port; ANCF cable |
 | buckling | FEA | pychrono | pending | | KEEP-port |
 | rotor | FEA | pychrono | pending | | KEEP-port; IGA rotor |
