@@ -75,7 +75,11 @@ pattern, so all five verified tasks are done:
   callback logs each contact's force to out.csv and the judge derives count + sum + per-contact max.
   Added judge derive kinds `count` and `sum`.
 All five tasks: references gate-verify 100 across their turns; good sample ~100, bad sample capped at 40.
-Remaining: the ~12 pending tasks (breadth), and wiring `judge_v2` into a main-package CLI (in progress).
+
+The v2 suite is now runnable through ONE main-package command (wraps `judge_v2` over every task x turn):
+`conda run -n pychrono10 python -m chronobench.score_v2` self-checks the references (currently 15/15
+turns pass); `--candidates DIR` scores an agent's `DIR/<task>/turn{N}.py` outputs; `--task NAME` limits to
+one task; `--json FILE` dumps full results. Remaining: the ~12 pending tasks (breadth).
 
 ## Tasks
 
