@@ -99,6 +99,27 @@ gotcha). Added judge derive kind `monotonic` (a stability check; not used in the
 settled plate jitters at equilibrium under SMC contact, so within-run monotonicity is ~0.5 and invalid;
 the min/max band + cross-turn shifts do the work). Full suite now 18/18 turns pass.
 
+## Breadth batch 1 (2026-07-03): gear + fea_ancf_beam + solver_nsc_smc done fully
+
+Three more artificial keepers to the full template (suite 6 -> 9 tasks; self-check 27/27), driven
+by the paper_plan.md sequencing (authoring precedes the E1 ranking run):
+- `gear`: closed-form rigid-transmission kinematics oracle (external mesh reverses sense; two-way
+  agreement ~13 digits); turns 2:1 / 3:1 / two-stage where the POSITIVE w3 sign discriminates.
+  TWO verified API findings: `ChLinkLockPulley` enforces w_out/w_in = tau + 2 (NOT the textbook
+  rp1/rp2; the belt turn was redesigned to a second gear mesh), and `ChLinkLockGear` phase capture
+  can take ~1 s (measure a t >= 2 s tail; the 0.5 s window mis-graded a correct mirror-mounted
+  control at 40). Both in `docs/DELTAS_10.md`.
+- `fea_ancf_beam`: ANCF gradient-deficient cable element (nonlinear static solve) vs the
+  independent Euler-Bernoulli Hermite-FE oracle; references agree 0.002%/0.03%/0.003% across
+  tip-load / self-weight / tip+mid-span turns. Complements `beam` (same physics discipline,
+  different element technology). `DoStaticNonlinear(100)` + Pardiso converged; no fallback needed.
+- `solver_nsc_smc`: solver/contact-method axis; exact impact-kinematics oracle (apex = e^2*h0);
+  turns NSC e=0.7 / NSC e=0.9 / switch-to-SMC. TWO verified solver findings: NSC restitution has
+  an isolated bad dt pocket (1e-4 rebounds at 54% of ideal while 1e-3...2e-4 and 2e-5 are exact;
+  the task pins dt=2e-4), and the SMC default contact stiffness lets the ball sink ~9 cm (the
+  reference sets E_contact=1e8; a penetration invariant catches the soft default). The bad control
+  calls SetRestitution on an UNUSED material: passes the L2 text check, only measured L3 catches it.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -106,15 +127,15 @@ the min/max band + cross-turn shifts do the work). Full suite now 18/18 turns pa
 | pendulum | mechanism | pychrono | verified+3turn | 100 | PILOT COMPLETE; 3 turns; input1-3.txt; CSV-derived invariants; end-to-end generate->judge proven |
 | plate_sinkage_scm (new) | terramechanics | pychrono | verified+3turn | 100 | FIRST REALISTIC; SCM deformable soil (CPU); Bekker-Wong coarse-band oracle; turns baseline/softer/heavier; param-first; good 100 / bad 40 |
 | slider_crank | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (stroke/stroke/speed); analytic-kinematics oracle; stroke+peak_speed derived; good 100 / bad 40 |
-| gear | mechanism | pychrono | pending | | KEEP-port |
+| gear | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (2:1/3:1/two-stage); closed-form kinematics oracle; SIGN of w3 discriminates; good 100 / bad 40; pulley + phase-capture findings |
 | mass_spring_damper | mechanism | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns; oracle-grounded (oracle.py); derived period_d/zeta/ss_amp; good 100 / bad 40 |
 | beam | FEA | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (tip load/self-weight/superposition); numpy-FE oracle; tip DERIVED from logged shape; good 100 / bad 40 |
 | cable | FEA | pychrono | pending | | KEEP-port; ANCF cable |
 | buckling | FEA | pychrono | pending | | KEEP-port |
 | rotor | FEA | pychrono | pending | | KEEP-port; IGA rotor |
 | tablecloth | FEA | pychrono | pending | | KEEP-port; BST shells |
-| fea_ancf_beam (new) | FEA | pychrono | pending | | ADD; ANCF cantilever, analytic static deflection |
-| solver_nsc_smc (new) | solver/contact | pychrono | pending | | ADD; NSC vs SMC restitution invariant |
+| fea_ancf_beam (new) | FEA | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (tip/self-weight/superposition); ANCF cable + nonlinear static; numpy-EB oracle agrees <=0.03%; good 100 / bad 40 |
+| solver_nsc_smc (new) | solver/contact | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (NSC e=0.7/e=0.9/SMC switch); impact-kinematics oracle; dt-pocket + soft-SMC findings; good 100 / bad 40 |
 | coupling_rigid_flex (new) | coupling | pychrono | pending | | ADD; rigid body on flexible beam |
 | swig_contact_reporter (new) | swig-extension | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (N=4/N=6/heavier+per-contact); equilibrium oracle; count+sum+per-contact derived; good 100 / bad 40 |
 | import_urdf (new) | data-import | pychrono | pending | | ADD; URDF load + named-joint actuation |
