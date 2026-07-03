@@ -83,7 +83,7 @@ one task; `--json FILE` dumps full results. Remaining: the ~12 pending tasks (br
 
 ## Realistic-task phase started (2026-07-02): sbel-reproducibility sourcing + contamination insurance + first terramechanics task
 
-Shift from artificial tasks to REAL, paper-backed scenarios (see `docs/REPRO_SCAN.md`, the classified scan
+Shift from artificial tasks to REAL, paper-backed scenarios (see `.agent-related/REPRO_SCAN.md`, the classified scan
 of `uwsbel/sbel-reproducibility`). Contamination insurance in place (cheap-now posture): `CANARY.md` (fixed
 GUID) + a README curator marker; tasks authored PARAMETER-FIRST (each turn's `params` block is the single
 declared source; the oracle is a pure function of them, so eval-time randomization stays free); a
@@ -129,12 +129,12 @@ the min/max band + cross-turn shifts do the work). Full suite now 18/18 turns pa
 Ground-locomotion cap (<=3-4 total): hmmwv + m113 + one car + at most one rover. `scm`/`rigid_multipatches`/
 `curiosity` are candidates to drop or re-tag under the tightened cap; decide with the task-list approval.
 
-## DEFERRED (infra-gated) -- NOT authored, need infra (see SUITE_DESIGN.md + PANEL_REDTEAM.md)
+## DEFERRED (infra-gated) -- NOT authored, need infra (see `.agent-related/SUITE_DESIGN.md` + `.agent-related/PANEL_REDTEAM.md`)
 
 OptiX sensors (camera/lidar/radar), ROS (vehros/sensros/multi-agent), FSI/SPH, PyDEME/DEM
 (pile/cone-penetration/mixer). Designed; await GPU/ROS/PyDEME env.
 
-## Gates awaiting Dan (see HANDOFF.md)
+## Gates awaiting Dan (see `.agent-related/HANDOFF.md`)
 
 1. Approve/adjust the finalized task list (which car; final ground-locomotion set; CAD include/defer).
 2. Expert sign-off on a per-axis sample of references.

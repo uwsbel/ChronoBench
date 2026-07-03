@@ -18,7 +18,7 @@ chrono10-redesign` to back up). Nothing on `main` changed; v1.0/paper is safe at
 3. **Real 10.0 idioms discovered + recorded** in `docs/DELTAS_10.md` (notably: collision system must
    be set explicitly, and `OnReportContact` has 10 args). This is the seed delta table for porting.
 4. **Ledger + design docs current:** `demo_data_10/STATUS.md` (resumable per-task state), and the
-   de-scoped judge decision is reflected in `docs/SUITE_DESIGN.md` + `docs/PANEL_REDTEAM.md`.
+   de-scoped judge decision is reflected in `.agent-related/SUITE_DESIGN.md` + `.agent-related/PANEL_REDTEAM.md`.
 
 ## How to resume (any fresh session)
 Read `demo_data_10/STATUS.md` (the ledger). Each `pending` task = author `truth1.py` + `contract.json`
