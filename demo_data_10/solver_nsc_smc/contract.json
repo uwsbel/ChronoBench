@@ -1,0 +1,93 @@
+{
+  "task": "solver_nsc_smc",
+  "axis": "solver-contact-method",
+  "simulator": "pychrono",
+  "source": "Solver/contact-method probe (panel: solvers as first-class axis); targets from independent oracle.py (exact impact kinematics: apex1 = e^2*h0), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"method": "NSC", "e": 0.7, "h0": 1.0, "R": 0.1, "dt": 2.0e-4, "apex1_ideal": 0.49},
+      "probe_vector": ["nsc-contact", "restitution-material", "collision-system-setup", "impact-resolution", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["apex1", "restitution", "method"]
+      },
+      "L2_caps": {
+        "nsc_system": "ChSystemNSC",
+        "contact_material": "ChContactMaterialNSC",
+        "restitution": "SetRestitution",
+        "collision_system": "SetCollisionSystemType"
+      },
+      "derive": [
+        {"name": "apex1_meas", "kind": "max", "csv": "out.csv", "column": "y_bot", "time_column": "t", "t_min": 0.5},
+        {"name": "pen_meas", "kind": "min", "csv": "out.csv", "column": "y_bot"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "apex1_meas", "target": 0.49, "tol": 0.12,
+         "desc": "first-bounce apex = e^2*h0 = 0.49 m (independent oracle; NSC reference at dt=2e-4 gives 0.4902); MEASURED as max ball-bottom height after t=0.5 s; catches missing/wrong restitution and the NSC dt=1e-4 energy-loss pocket (0.266 fails at 46%)"},
+        {"kind": "min", "key": "pen_meas", "bound": -0.02,
+         "desc": "ball never materially penetrates the floor (catches missing collision system / fell-through)"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"method": "NSC", "e": 0.9, "h0": 1.0, "R": 0.1, "dt": 2.0e-4, "apex1_ideal": 0.81},
+      "probe_vector": ["parameter-modification", "restitution-material", "impact-resolution", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["apex1", "restitution", "method"]
+      },
+      "L2_caps": {
+        "nsc_system": "ChSystemNSC",
+        "contact_material": "ChContactMaterialNSC",
+        "restitution": "SetRestitution",
+        "collision_system": "SetCollisionSystemType"
+      },
+      "derive": [
+        {"name": "apex1_meas", "kind": "max", "csv": "out.csv", "column": "y_bot", "time_column": "t", "t_min": 0.5},
+        {"name": "pen_meas", "kind": "min", "csv": "out.csv", "column": "y_bot"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "apex1_meas", "target": 0.81, "tol": 0.12,
+         "desc": "higher restitution rebounds higher: apex = 0.81 m (independent oracle; NSC reference gives 0.8101); an 'e not changed' candidate sits at 0.49 and fails at 40%"},
+        {"kind": "min", "key": "pen_meas", "bound": -0.02,
+         "desc": "no material floor penetration"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"method": "SMC", "e": 0.9, "h0": 1.0, "R": 0.1, "dt": 2.0e-4, "E_contact": 1.0e8, "apex1_ideal": 0.81},
+      "probe_vector": ["contact-method-switch", "smc-compliant-contact", "contact-stiffness-setup", "restitution-via-damping", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["apex1", "restitution", "method"]
+      },
+      "L2_caps": {
+        "smc_system": "ChSystemSMC",
+        "contact_material": "ChContactMaterialSMC",
+        "restitution": "SetRestitution",
+        "collision_system": "SetCollisionSystemType"
+      },
+      "derive": [
+        {"name": "apex1_meas", "kind": "max", "csv": "out.csv", "column": "y_bot", "time_column": "t", "t_min": 0.5},
+        {"name": "pen_meas", "kind": "min", "csv": "out.csv", "column": "y_bot"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "apex1_meas", "target": 0.81, "tol": 0.12,
+         "desc": "switching the contact formulation must NOT change the physics: apex = 0.81 m (independent oracle; SMC reference with E_contact=1e8 gives 0.8155, restitution enforced via calibrated contact damping)"},
+        {"kind": "min", "key": "pen_meas", "bound": -0.02,
+         "desc": "no material floor penetration; catches the too-soft-SMC-default trap (default Young's modulus lets the ball sink ~9 cm; E_contact=1e8 keeps compliant overlap ~7 mm)"}
+      ]
+    }
+  ]
+}

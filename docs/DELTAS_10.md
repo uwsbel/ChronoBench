@@ -50,3 +50,11 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   capture (driven wheel near-stationary, then snaps to the exact ratio). Measure steady-state
   observables from a late tail window (the gear task uses t >= 2.0 s); an early window mis-grades
   legitimately-built candidates. [verified]
+- **NSC restitution has an isolated bad time-step pocket.** A 1 m ball-drop with e=0.7 rebounds to
+  e^2*h0 within 0.2% at dt = 1e-3, 5e-4, 2e-4, and 2e-5, but only 54% of ideal at dt = 1e-4 (and
+  95% at 5e-5). Not monotonic in dt; pin the step and calibrate at it (solver_nsc_smc uses
+  dt = 2e-4). [verified]
+- **SMC default contact stiffness is far too soft for rigid-body impact.** With the default
+  `ChContactMaterialSMC` Young's modulus, a 0.1 m sphere hitting at 4.4 m/s sinks ~9 cm into the
+  floor (restitution apex still lands near ideal, but the contact is mush). Set
+  `SetYoungModulus(~1e8)` for hard contacts; compliant overlap drops to ~7 mm. [verified]
