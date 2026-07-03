@@ -39,3 +39,14 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   objB:ChContactable, contact_id:int)`, return `True`. `react_forces.x` is the normal component.
   A wrong arity raises a "SWIG director method error". Keep the reporter object alive on the Python
   side; report via `sys.GetContactContainer().ReportAllContacts(reporter)`. [verified]
+- **`ChLinkLockGear` works as documented; `ChLinkLockPulley` does NOT.** The gear link (demo-style
+  shaft frames `ChFramed(VNULL, QuatFromAngleX(-pi/2))` on Z-axis wheels, `SetTransmissionRatio(r1/r2)`)
+  enforces `w2 = -(r1/r2) w1` exactly (~13 digits). The pulley link in the SAME configuration
+  enforces `w_out/w_in = tau + 2`, not the textbook `tau = rp1/rp2` (measured with tau=2 -> 4 and
+  tau=3 -> 5; independent of shaft distance). Do not use `ChLinkLockPulley` as a grading target or
+  in a reference until understood. [verified]
+- **Gear-constraint engagement transient.** With `SetEnforcePhase(True)`, a train whose initial
+  phase differs from the constraint's preferred phase can take up to ~1 s of simulated time to
+  capture (driven wheel near-stationary, then snaps to the exact ratio). Measure steady-state
+  observables from a late tail window (the gear task uses t >= 2.0 s); an early window mis-grades
+  legitimately-built candidates. [verified]
