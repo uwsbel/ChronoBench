@@ -58,3 +58,15 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   `ChContactMaterialSMC` Young's modulus, a 0.1 m sphere hitting at 4.4 m/s sinks ~9 cm into the
   floor (restitution apex still lands near ideal, but the contact is mush). Set
   `SetYoungModulus(~1e8)` for hard contacts; compliant overlap drops to ~7 mm. [verified]
+- **`pychrono.vehicle` needs the ACTIVATED conda env.** Importing it under a direct call of the
+  env's `python.exe` fails with "DLL load failed while importing _vehicle: A dynamic link library
+  (DLL) initialization routine failed"; the same import works under `conda run -n pychrono10`
+  (activation sets the DLL search paths). Core/fea/parsers import fine either way. Any harness
+  that spawns the judge must go through `conda run`. [verified]
+- **`ChParserMbsYAML` wrapper differs from the shipped Python demo.** The demo
+  (`demo_YAML_mbs.py`) constructs with (model_yaml, sim_yaml, verbose), but the 10.0 wrapper only
+  accepts (sim_yaml[, verbose]) or (); the simulation YAML references the model and solver files
+  by path (see `Library/data/yaml/mbs/mbs.yaml`), and relative references resolve against the
+  Chrono data dir, so use ABSOLUTE paths for local files. The demo's data filenames
+  (`yaml/mbs/slider_crank.yaml`, `simulation_mbs.yaml`) do not exist in the shipped data either
+  (`model_slider_crank.yaml`, `mbs.yaml`). [verified]
