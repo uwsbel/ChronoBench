@@ -120,6 +120,63 @@ by the paper_plan.md sequencing (authoring precedes the E1 ranking run):
   reference sets E_contact=1e8; a penetration invariant catches the soft default). The bad control
   calls SetRestitution on an UNUSED material: passes the L2 text check, only measured L3 catches it.
 
+## Pilot A/B (2026-07-04): chrono-rag retrieval A/B x 3 emitters, with timing (dev-set dry run)
+
+First end-to-end run of the full generate -> extract -> judge loop at suite scale, following the
+A/B brief (same agent scored twice, base vs chrono-rag-augmented prompt; ONLY the RAG variable
+changes; 10.0 suite + judge_v2 only; k = 3 reps; turn 1 x 9 tasks; dev-set caveat per CANARY.md).
+Driver: `scoring/generate_suite.py` (arms x agents x reps, cached per-task retrieval, per-call
+timing manifest, parallel gen + judge). Artifacts: `runs/pilot-2026-07-04/` (untracked;
+`report.md`, `manifest.jsonl`, all candidates + verdicts).
+
+| agent | arm | mean score | pass | dead-9.0-API hits |
+|---|---|---|---|---|
+| gpt-5.5 | base | 41.5 | 10/27 | 3 |
+| gpt-5.5 | rag | 75.6 | 18/27 | 3 |
+| gpt-4o | base | 0.0 | 0/27 | 27 |
+| gpt-4o | rag | 0.0 | 0/27 | 25 |
+| claude-opus-4-8 (subscription CLI) | base | 74.8 | 19/27 | 1 |
+| claude-opus-4-8 (subscription CLI) | rag | 74.8 | 19/27 | 0 |
+
+Findings:
+1. **RAG value is strongly model-dependent.** gpt-5.5 gains +34.1 points (run-failures 14 -> 3:
+   retrieval fixes its API errors). Opus 4.8 is RAG-neutral on score (already writes ~correct 10.0
+   API; its one dead-API slip disappears with RAG). gpt-4o is NOT rescued: 0.0 both arms, dead
+   9.0 API in 25-27/27 candidates EVEN WITH the correct 10.0 excerpts in context; a strong stale
+   prior beats reference material.
+2. **Multi-turn shakeout (rider):** gpt-5.5 base on turns 2-3 (given the correct prior-turn
+   script): 16/18 pass vs 10/27 on de-novo turn 1: modify/extend from working 10.0 code largely
+   neutralizes version drift. The full 3-turn machinery (pyinput chaining, --turn judging) works.
+3. **Harness lessons (fixed in this commit):** candidates ignore "headless" and trigger GUI/DLL
+   error DIALOGS that block judging: judge_v2 now suppresses Windows loader/crash dialogs, spawns
+   candidates with no window, and sets SDL's dummy video driver. `pychrono.vehicle` imports only
+   under the ACTIVATED conda env, so judging must go through `conda run` (see docs/DELTAS_10.md).
+4. **Timing (planning info):** generation mean/call: gpt-5.5 27 s, gpt-4o 9 s, Opus-via-CLI 287 s
+   (the subscription path is the wall-clock bottleneck; 54 calls ~ 4.3 h at 2-way concurrency).
+   Judging: 5.3 s/candidate mean, 14.3 min compute for 162 candidates (4 workers).
+5. Decoding: temperature 0 for gpt-4o; gpt-5.5 (reasoning API) and the Opus CLI expose no
+   temperature control, so those arms rely on the 3 reps (documented protocol deviation).
+
+## Breadth batch 2 (2026-07-04): import_urdf + yaml_mbs + hmmwv_scm done fully
+
+Dan's picks (URDF, YAML, HMMWV-on-SCM; the vehicle gate is settled: HMMWV). Suite 9 -> 12 tasks:
+- `import_urdf`: ships its own parameter-first asset (`assets/pendulum.urdf`); judge upgrade:
+  `judge_v2` stages a task's `assets/` into the run dir (generic). Turns: named-joint POSITION
+  sine actuation (closed-form amplitude/period) / actuation change / free swing whose period
+  tests the IMPORTED inertials (1.638 s vs oracle 1.6420). The shipped `demo_PARSER_URDF.py`
+  uses a stale 3-arg ChFunctionSine signature (noted); the bad control swaps the two args.
+- `yaml_mbs`: the candidate script AUTHORS the model/simulation/solver YAML inline and drives it
+  through `ChParserMbsYAML`; physics = inline slider-crank identities (stroke 2r; peak speed).
+  Schema findings in `docs/DELTAS_10.md`: wrapper takes (sim_yaml[, verbose]), refs resolve
+  against the sim file's dir, DISTANCE points are GLOBAL assembly coordinates (the body-local
+  misreading = frozen slider = the shipped bad control).
+- `hmmwv_scm`: vehicle-terramechanics coupling; turns rigid baseline / SCM firm / SCM soft.
+  Rut bands Bekker-anchored (static cylinder solve 0.043/0.103 m; measured 0.116/0.242, i.e.
+  2.3-2.7x static, slip-sinkage + multi-pass); speed carries the motion-resistance law (6.58 /
+  4.54 / 4.05 m/s; DISTANCE does not discriminate rigid-vs-firm, 11.39 vs 11.79 m, less
+  wheelspin on SCM). Monotonic-progress derive is windowed past the launch transient (settle
+  jitter gave 0.933; a full-window check mis-graded correct runs).
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -138,10 +195,10 @@ by the paper_plan.md sequencing (authoring precedes the E1 ranking run):
 | solver_nsc_smc (new) | solver/contact | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (NSC e=0.7/e=0.9/SMC switch); impact-kinematics oracle; dt-pocket + soft-SMC findings; good 100 / bad 40 |
 | coupling_rigid_flex (new) | coupling | pychrono | pending | | ADD; rigid body on flexible beam |
 | swig_contact_reporter (new) | swig-extension | pychrono | verified+3turn | 100 | DONE FULLY; 3 turns (N=4/N=6/heavier+per-contact); equilibrium oracle; count+sum+per-contact derived; good 100 / bad 40 |
-| import_urdf (new) | data-import | pychrono | pending | | ADD; URDF load + named-joint actuation |
-| yaml_mbs (new) | data-import | pychrono | pending | | ADD; YAML declarative model |
+| import_urdf (new) | data-import | pychrono | verified+3turn | 100 | DONE FULLY; ships assets/pendulum.urdf (judge stages assets/); sine actuation + free-swing inertial test; good 100 / bad 40 |
+| yaml_mbs (new) | data-import | pychrono | verified+3turn | 100 | DONE FULLY; script authors MBS-YAML + ChParserMbsYAML; stroke/peak-speed oracle; world-frame constraint-point gotcha; good 100 / bad 40 |
 | checkpoint (new) | state-mgmt | pychrono | pending | | ADD; checkpoint/restart determinism |
-| hmmwv | vehicle | pychrono | pending | | KEEP-port; driver+datapath+VSG deltas |
+| hmmwv_scm | vehicle-terramech | pychrono | verified+3turn | 100 | DONE FULLY (vehicle pick SETTLED); rigid/SCM-firm/SCM-soft; Bekker-anchored rut bands + calibrated speed bands; good 100 / bad 40 |
 | m113 | vehicle(tracked) | pychrono | pending | | KEEP-port |
 | (1 car: sedan or citybus) | vehicle | pychrono | pending | | KEEP-port; Dan picks which |
 | gps_imu | sensor | pychrono | pending | | KEEP-port; GPS/IMU (no OptiX) |

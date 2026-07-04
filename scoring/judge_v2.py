@@ -222,9 +222,19 @@ def judge(task_dir, candidate_path=None, turn=None):
             s = os.path.join(assets, name)
             d = os.path.join(work, name)
             shutil.copytree(s, d) if os.path.isdir(s) else shutil.copyfile(s, d)
+    # Candidates must never block judging with GUI popups: suppress Windows loader/crash error
+    # dialogs (SetErrorMode is inherited by the child), give the child no console window, and point
+    # SDL at its dummy video driver (models sometimes ignore "headless" and import visualization).
+    popen_kwargs = {}
+    child_env = dict(os.environ, SDL_VIDEODRIVER="dummy")
+    if os.name == "nt":
+        import ctypes
+        ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002 | 0x8000)
+        popen_kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
     try:
         r = subprocess.run([sys.executable, "cand.py"], cwd=work, capture_output=True,
-                           text=True, timeout=run.get("timeout", 120))
+                           text=True, timeout=run.get("timeout", 120), env=child_env,
+                           **popen_kwargs)
     except subprocess.TimeoutExpired:
         v["triage"] = "run:timeout"; return v
     if r.returncode != 0:

@@ -54,7 +54,10 @@ DEFAULT_TASKS = ["pendulum", "mass_spring_damper", "beam", "slider_crank",
 KEYS_FILE = Path(r"C:\Users\dn\.claude\.dan-api-keys.env")
 CHRONO_RAG_REPO = Path(r"C:\Users\dn\Documents\WinRepos\chrono-rag")
 CHRONO_RAG_PY = Path(r"C:\Users\dn\.conda\envs\chrono-rag\python.exe")
-PYCHRONO10_PY = Path(r"C:\Users\dn\.conda\envs\pychrono10\python.exe")
+# NOTE: pychrono.vehicle's DLLs only initialize under the ACTIVATED env (conda run), not under a
+# direct call of the env's python.exe; judging must therefore go through conda run.
+CONDA_EXE = Path(r"C:\ProgramData\miniforge3\Scripts\conda.exe")
+PYCHRONO10_CMD = [str(CONDA_EXE), "run", "-n", "pychrono10", "python"]
 CLAUDE_EXE = Path(r"C:\Users\dn\.local\bin\claude.exe")
 
 RAG_K = 8
@@ -215,8 +218,8 @@ def judge_one(pilot: Path, agent: str, arm: str, rep: int, task: str, turn: int)
         return {**base, "score": 0.0, "triage": "gen-error"}
     t0 = time.perf_counter()
     r = subprocess.run(
-        [str(PYCHRONO10_PY), str(SCRIPT_DIR / "judge_v2.py"),
-         str(SUITE_DIR / task), "--turn", str(turn), str(cand)],
+        PYCHRONO10_CMD + [str(SCRIPT_DIR / "judge_v2.py"),
+                          str(SUITE_DIR / task), "--turn", str(turn), str(cand)],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
         cwd=str(PROJECT_ROOT), timeout=900)
     secs = time.perf_counter() - t0
