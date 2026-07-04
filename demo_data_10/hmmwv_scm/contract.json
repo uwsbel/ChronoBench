@@ -1,0 +1,107 @@
+{
+  "task": "hmmwv_scm",
+  "axis": "vehicle-terramechanics-coupling",
+  "simulator": "pychrono",
+  "source": "HMMWV on SCM (demo_VEH_HMMWV_DefSoil idiom); rut bands anchored to the independent Bekker-Wong oracle.py (static cylinder-contact solve; multipliers absorb slip-sinkage and multi-pass), drive bands calibrated on the pinned build and frozen (documented in CONTRACT.md), NOT re-derived from a Chrono run at grade time",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"terrain": "rigid", "throttle_max": 0.7, "t_end": 4.0, "dist_ref": 11.39, "speed_ref": 6.58},
+      "probe_vector": ["vehicle-assembly", "powertrain-driveline", "rigid-terrain", "driver-inputs", "sync-advance-loop", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 300,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["dist", "final_speed", "rut_max", "terrain"]
+      },
+      "L2_caps": {
+        "vehicle_module": "pychrono.vehicle",
+        "hmmwv": "HMMWV_Full|HMMWV_Reduced",
+        "rigid_terrain": "RigidTerrain",
+        "driver": "SetThrottle",
+        "collision_system": "SetCollisionSystemType"
+      },
+      "derive": [
+        {"name": "dist_final", "kind": "final", "csv": "out.csv", "column": "dist"},
+        {"name": "speed_final", "kind": "final", "csv": "out.csv", "column": "speed"},
+        {"name": "fwd_monotonic", "kind": "monotonic", "csv": "out.csv", "column": "dist", "time_column": "t", "t_min": 0.5}
+      ],
+      "L3": [
+        {"kind": "range", "key": "dist_final", "lo": 8.5, "hi": 14.5,
+         "desc": "straight-line distance in 4 s on rigid ground (calibrated reference 11.39 m, +-27%); catches missing/weak throttle and a wrong drive setup"},
+        {"kind": "range", "key": "speed_final", "lo": 5.2, "hi": 8.0,
+         "desc": "final speed (calibrated reference 6.58 m/s); a deformable-terrain candidate (~4.5) fails low, a runaway fails high"},
+        {"kind": "min", "key": "fwd_monotonic", "bound": 0.95,
+         "desc": "forward progress is monotonic under constant throttle (catches oscillating/stuck vehicles)"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"terrain": "scm", "Kphi": 2.0e6, "Kc": 0.0, "n": 1.1, "bekker_static_z": 0.043, "rut_ref": 0.116, "speed_ref": 4.54},
+      "probe_vector": ["terrain-swap-to-scm", "bekker-soil-params", "active-domain", "motion-resistance", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 600,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["dist", "final_speed", "rut_max", "terrain"]
+      },
+      "L2_caps": {
+        "vehicle_module": "pychrono.vehicle",
+        "hmmwv": "HMMWV_Full|HMMWV_Reduced",
+        "scm_terrain": "SCMTerrain",
+        "soil_params": "SetSoilParameters",
+        "driver": "SetThrottle"
+      },
+      "derive": [
+        {"name": "rut_meas", "kind": "max", "csv": "out.csv", "column": "rut"},
+        {"name": "speed_final", "kind": "final", "csv": "out.csv", "column": "speed"},
+        {"name": "fwd_monotonic", "kind": "monotonic", "csv": "out.csv", "column": "dist", "time_column": "t", "t_min": 0.5},
+        {"name": "dist_final", "kind": "final", "csv": "out.csv", "column": "dist"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "rut_meas", "lo": 0.0215, "hi": 0.172,
+         "desc": "rut depth under the rear wheel in [0.5x, 4x] the static Bekker sinkage (0.043 m at Kphi=2e6; independent oracle); reference measures 0.116 (slip-sinkage + multi-pass deepen vs static); a SOFT-soil candidate (0.242) fails high, no-rut fails low"},
+        {"kind": "range", "key": "speed_final", "lo": 3.4, "hi": 5.2,
+         "desc": "motion resistance slows the vehicle vs rigid (calibrated 4.54 m/s; a still-rigid candidate at 6.58 fails high)"},
+        {"kind": "min", "key": "fwd_monotonic", "bound": 0.95, "desc": "forward progress stays monotonic"},
+        {"kind": "min", "key": "dist_final", "bound": 6.0, "desc": "the vehicle actually drives (not dug in / stuck)"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"terrain": "scm", "Kphi": 5.0e5, "Kc": 0.0, "n": 1.1, "bekker_static_z": 0.103, "rut_ref": 0.242, "speed_ref": 4.05},
+      "probe_vector": ["soil-softening", "bekker-soil-params", "sinkage-deepens", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 600,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["dist", "final_speed", "rut_max", "terrain"]
+      },
+      "L2_caps": {
+        "vehicle_module": "pychrono.vehicle",
+        "hmmwv": "HMMWV_Full|HMMWV_Reduced",
+        "scm_terrain": "SCMTerrain",
+        "soil_params": "SetSoilParameters",
+        "driver": "SetThrottle"
+      },
+      "derive": [
+        {"name": "rut_meas", "kind": "max", "csv": "out.csv", "column": "rut"},
+        {"name": "speed_final", "kind": "final", "csv": "out.csv", "column": "speed"},
+        {"name": "fwd_monotonic", "kind": "monotonic", "csv": "out.csv", "column": "dist", "time_column": "t", "t_min": 0.5},
+        {"name": "dist_final", "kind": "final", "csv": "out.csv", "column": "dist"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "rut_meas", "lo": 0.13, "hi": 0.41,
+         "desc": "softer soil (Kphi 2e6 -> 5e5) must cut a deeper rut: band [1.26x, 4x] the static Bekker sinkage (0.103 m; independent oracle), lower edge raised ABOVE the firm-soil reference (0.116), so 'soil not softened' fails; reference measures 0.242"},
+        {"kind": "range", "key": "speed_final", "lo": 3.0, "hi": 5.0,
+         "desc": "still slower than rigid (calibrated 4.05 m/s)"},
+        {"kind": "min", "key": "fwd_monotonic", "bound": 0.95, "desc": "forward progress stays monotonic"},
+        {"kind": "min", "key": "dist_final", "bound": 6.0, "desc": "the vehicle still makes progress on soft soil"}
+      ]
+    }
+  ]
+}
