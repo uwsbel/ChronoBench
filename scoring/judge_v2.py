@@ -214,6 +214,14 @@ def judge(task_dir, candidate_path=None, turn=None):
     # L1 (execution gate)
     work = tempfile.mkdtemp(prefix="cb_judge_")
     shutil.copyfile(candidate_path, os.path.join(work, "cand.py"))
+    # Stage task assets (data files a task ships, e.g. a URDF): contents of <task_dir>/assets/
+    # are copied into the run dir, so candidates load them from the current working directory.
+    assets = os.path.join(task_dir, "assets")
+    if os.path.isdir(assets):
+        for name in os.listdir(assets):
+            s = os.path.join(assets, name)
+            d = os.path.join(work, name)
+            shutil.copytree(s, d) if os.path.isdir(s) else shutil.copyfile(s, d)
     try:
         r = subprocess.run([sys.executable, "cand.py"], cwd=work, capture_output=True,
                            text=True, timeout=run.get("timeout", 120))

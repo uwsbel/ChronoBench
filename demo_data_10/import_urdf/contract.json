@@ -1,0 +1,93 @@
+{
+  "task": "import_urdf",
+  "axis": "data-import-urdf",
+  "simulator": "pychrono",
+  "source": "URDF import via chrono::parsers (demo_PARSER_URDF idiom); asset assets/pendulum.urdf authored parameter-first; targets from independent oracle.py (imposed-kinematics closed forms; compound-pendulum period), NOT a Chrono run",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"A": 0.5, "f": 1.0, "amp_oracle": 0.5, "period_oracle": 1.0},
+      "probe_vector": ["urdf-parse", "populate-system", "named-joint-actuation", "position-motor-sine", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["amplitude", "A", "f"]
+      },
+      "L2_caps": {
+        "urdf_parser": "ChParserURDF",
+        "populate": "PopulateSystem",
+        "actuation": "ActuationType_POSITION|SetAllJointsActuationType",
+        "motor_function": "SetMotorFunction",
+        "sine": "ChFunctionSine"
+      },
+      "derive": [
+        {"name": "amp_meas", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "period_meas", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "amp_meas", "target": 0.5, "tol": 0.05,
+         "desc": "POSITION-actuated joint tracks theta = A sin(2 pi f t): amplitude = A = 0.5 rad (independent oracle: imposed kinematics); MEASURED from the logged joint angle"},
+        {"kind": "rel_tol", "key": "period_meas", "target": 1.0, "tol": 0.05,
+         "desc": "period = 1/f = 1.0 s (imposed kinematics); catches wrong frequency or swapped sine arguments"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"A": 0.8, "f": 0.5, "amp_oracle": 0.8, "period_oracle": 2.0},
+      "probe_vector": ["parameter-modification", "named-joint-actuation", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["amplitude", "A", "f"]
+      },
+      "L2_caps": {
+        "urdf_parser": "ChParserURDF",
+        "populate": "PopulateSystem",
+        "actuation": "ActuationType_POSITION|SetAllJointsActuationType",
+        "motor_function": "SetMotorFunction",
+        "sine": "ChFunctionSine"
+      },
+      "derive": [
+        {"name": "amp_meas", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "period_meas", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "amp_meas", "target": 0.8, "tol": 0.05,
+         "desc": "amplitude changed to 0.8 rad (an unmodified candidate sits at 0.5 and fails at 37%)"},
+        {"kind": "rel_tol", "key": "period_meas", "target": 2.0, "tol": 0.05,
+         "desc": "frequency halved to 0.5 Hz -> period 2.0 s (an unmodified candidate sits at 1.0 and fails at 50%)"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"theta0": 0.2, "m": 2.0, "d": 0.5, "Izz_com": 0.1666667, "period_oracle": 1.642042},
+      "probe_vector": ["urdf-inertial-import", "passive-joint", "free-swing-dynamics", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 180,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["amplitude", "theta0"]
+      },
+      "L2_caps": {
+        "urdf_parser": "ChParserURDF",
+        "populate": "PopulateSystem"
+      },
+      "derive": [
+        {"name": "amp_meas", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "period_meas", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t"}
+      ],
+      "L3": [
+        {"kind": "rel_tol", "key": "amp_meas", "target": 0.2, "tol": 0.08,
+         "desc": "released from rest at 0.2 rad: undriven, near-undamped swing keeps amplitude ~theta0 (catches actuation left on: an imposed 0.5-amplitude sine fails at 150%)"},
+        {"kind": "rel_tol", "key": "period_meas", "target": 1.642042, "tol": 0.05,
+         "desc": "free compound-pendulum period from the URDF-declared inertials: T = 2 pi sqrt(I_pivot/(m g d)) with amplitude correction = 1.6420 s (independent oracle); catches a parser/import that drops or mangles the URDF inertia"}
+      ]
+    }
+  ]
+}
