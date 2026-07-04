@@ -127,7 +127,9 @@ A/B brief (same agent scored twice, base vs chrono-rag-augmented prompt; ONLY th
 changes; 10.0 suite + judge_v2 only; k = 3 reps; turn 1 x 9 tasks; dev-set caveat per CANARY.md).
 Driver: `scoring/generate_suite.py` (arms x agents x reps, cached per-task retrieval, per-call
 timing manifest, parallel gen + judge). Artifacts: `runs/pilot-2026-07-04/` (untracked;
-`report.md`, `manifest.jsonl`, all candidates + verdicts).
+`report.md`, `manifest.jsonl`, all candidates + verdicts); ARCHIVED wholesale to Box:
+`Box\ChronoBench\runs\pilot-2026-07-04.zip` (0.6 MB, SHA256-verified copy via the Box Drive
+mount; the lab convention for benchmark-run archives going forward).
 
 | agent | arm | mean score | pass | dead-9.0-API hits |
 |---|---|---|---|---|
@@ -176,6 +178,27 @@ Dan's picks (URDF, YAML, HMMWV-on-SCM; the vehicle gate is settled: HMMWV). Suit
   4.54 / 4.05 m/s; DISTANCE does not discriminate rigid-vs-firm, 11.39 vs 11.79 m, less
   wheelspin on SCM). Monotonic-progress derive is windowed past the launch transient (settle
   jitter gave 0.933; a full-window check mis-graded correct runs).
+
+## AMD GPU unblock (2026-07-04): FSI + CRM now run from Python on this machine; ROS investigated
+
+Upstream PRs #759 (HIP backend on native Windows; Dan's) and #760 (VSG+HIP fix) merged today; no
+conda package carries them yet, so PyChrono was SOURCE-BUILT here (recipe: `docs/BUILD_HIP.md`):
+`WinRepos/chrono` main @ 178fb99f61, ROCm clang toolchain (HIP SDK 7.1, gfx1151 Strix Halo),
+existing `build_hip` tree + `CH_ENABLE_MODULE_PYTHON=ON` (SWIG 4.4.1 from the new `chrono-build`
+conda env). One portability fix was needed and committed locally in the chrono clone as an
+upstream-PR candidate (`/DWNT` -> `WNT` in the SWIG targets, 5623ad893b). VALIDATED headless from
+Python on the GPU: FSI-SPH ObjectDrop (1 s sim / 76.6 s wall, 8,003 steps) and Viper-on-CRM
+(3 s sim / 50.6 s wall; needed a one-line demo fix, the stale `EnableCudaErrorCheck` name, see
+DELTAS). Consequences:
+1. The fsi_*/crm_* task family is UNBLOCKED (next authoring batch); those tasks will pin the NEW
+   environment (chrono-build + build_hip), while the 12 existing tasks stay on `pychrono10`
+   (36/36 unaffected).
+2. Chrono::Sensor remains the only gated module on this machine.
+3. ROS on Windows investigated (`docs/ROS_WINDOWS.md`): no ROS on this box; Windows conda
+   packages ship ROS demos without the pychrono.ros module (upstream packaging note); recommend
+   keeping ROS tasks deferred to the Linux/NVIDIA machine (RoboStack is the Windows fallback).
+4. Pilot archive: `runs/pilot-2026-07-04/` zipped to `Box\ChronoBench\runs\pilot-2026-07-04.zip`
+   (the standing home for benchmark-run archives).
 
 ## Tasks
 

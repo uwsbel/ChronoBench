@@ -63,6 +63,11 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   (DLL) initialization routine failed"; the same import works under `conda run -n pychrono10`
   (activation sets the DLL search paths). Core/fea/parsers import fine either way. Any harness
   that spawns the judge must go through `conda run`. [verified]
+- **CUDA-named FSI/SPH methods are being generalized to GPU names.** With the HIP backend,
+  `ChFsiFluidSystemSPH.EnableCudaErrorCheck` is now `EnableGPUErrorCheck`; the shipped
+  `demo_ROBOT_Viper_CRM.py` still calls the old name and crashes (one-line upstream fix needed).
+  Expect more `Cuda`->`GPU` renames in FSI/CRM-facing API; candidates written from older examples
+  will hit them. [verified]
 - **`ChParserMbsYAML` wrapper differs from the shipped Python demo.** The demo
   (`demo_YAML_mbs.py`) constructs with (model_yaml, sim_yaml, verbose), but the 10.0 wrapper only
   accepts (sim_yaml[, verbose]) or (); the simulation YAML references the model and solver files
