@@ -1,0 +1,100 @@
+{
+  "task": "fsi_object_drop",
+  "axis": "fluid-solid-interaction-sph",
+  "simulator": "pychrono",
+  "source": "Rigid sphere dropped into a water tank (demo_FSI_ObjectDrop idiom, ChFsiProblemCartesian on the HIP build); settled-center bands anchored to the independent Archimedes oracle.py (spherical-cap draft equation) and calibrated-and-frozen around the pinned-build truth values because the SPH BCE skin adds ~half a spacing of effective radius (~+0.04 m float bias at spacing 0.025; documented in CONTRACT.md), NOT re-derived from a Chrono run at grade time",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"R": 0.12, "rho_sphere": 500.0, "rho_water": 1000.0, "spacing": 0.025, "tank": [0.8, 0.8, 0.5], "t_end": 3.0, "archimedes_center_rel_surface": 0.0, "measured_ref": 0.0425},
+      "probe_vector": ["fsi-problem-cartesian", "sph-parameter-block", "rigid-body-bce-coupling", "depth-pressure-init", "meta-step-loop", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "env_id": "hip",
+        "timeout": 600,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_settled_rel_surface", "density", "behavior"]
+      },
+      "L2_caps": {
+        "fsi_module": "pychrono.fsi",
+        "fsi_problem": "ChFsiProblemCartesian",
+        "sph_params": "SPHParameters",
+        "rigid_coupling": "AddRigidBody",
+        "depth_pressure": "DepthPressurePropertiesCallback"
+      },
+      "derive": [
+        {"name": "z_settled", "kind": "mean", "csv": "out.csv", "column": "zrel", "time_column": "t", "t_min": 2.0},
+        {"name": "drop_start", "kind": "max", "csv": "out.csv", "column": "zrel"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "z_settled", "lo": 0.018, "hi": 0.075,
+         "desc": "half-density sphere floats with its center AT the surface (Archimedes 0.0); measured +0.0425 on the pinned build (BCE-skin float bias), tail osc 0.012; a density-not-500 candidate (900 -> -0.0096, 1000 -> ~-0.02) fails low, a never-dropped/stuck sphere fails high"},
+        {"kind": "min", "key": "drop_start", "bound": 0.10,
+         "desc": "the sphere is RELEASED ABOVE the water (initial center +0.145 above the surface): catches spawning it at equilibrium instead of dropping it"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"R": 0.12, "rho_sphere": 900.0, "rho_water": 1000.0, "spacing": 0.025, "tank": [0.8, 0.8, 0.5], "t_end": 3.0, "archimedes_center_rel_surface": -0.0730, "measured_ref": -0.0096},
+      "probe_vector": ["density-change-mass-inertia", "archimedes-draft-deepens", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "env_id": "hip",
+        "timeout": 600,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_settled_rel_surface", "density", "behavior"]
+      },
+      "L2_caps": {
+        "fsi_module": "pychrono.fsi",
+        "fsi_problem": "ChFsiProblemCartesian",
+        "sph_params": "SPHParameters",
+        "rigid_coupling": "AddRigidBody",
+        "depth_pressure": "DepthPressurePropertiesCallback"
+      },
+      "derive": [
+        {"name": "z_settled", "kind": "mean", "csv": "out.csv", "column": "zrel", "time_column": "t", "t_min": 2.0},
+        {"name": "drop_start", "kind": "max", "csv": "out.csv", "column": "zrel"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "z_settled", "lo": -0.045, "hi": 0.012,
+         "desc": "density 900 rides LOWER (Archimedes -0.073; measured -0.0096 with the same float bias, tail osc 0.016); an unmodified density-500 candidate (+0.0425) fails high, a sinking one fails low"},
+        {"kind": "min", "key": "drop_start", "bound": 0.10,
+         "desc": "still released above the water"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"R": 0.12, "rho_sphere": 2500.0, "rho_water": 1000.0, "spacing": 0.025, "tank": [0.8, 0.8, 0.5], "t_end": 5.0, "floor_rest_center_rel_surface": -0.38, "measured_ref": -0.38},
+      "probe_vector": ["density-beyond-flotation", "collision-shapes-from-geometry", "rigid-floor-contact", "sinks-to-rest", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "env_id": "hip",
+        "timeout": 600,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_settled_rel_surface", "density", "behavior"]
+      },
+      "L2_caps": {
+        "fsi_module": "pychrono.fsi",
+        "fsi_problem": "ChFsiProblemCartesian",
+        "sph_params": "SPHParameters",
+        "rigid_coupling": "AddRigidBody",
+        "collision_shapes": "CreateCollisionShapes",
+        "floor_body": "ChBodyEasyBox"
+      },
+      "derive": [
+        {"name": "z_settled", "kind": "mean", "csv": "out.csv", "column": "zrel", "time_column": "t", "t_min": 4.0},
+        {"name": "drop_start", "kind": "max", "csv": "out.csv", "column": "zrel"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "z_settled", "lo": -0.42, "hi": -0.30,
+         "desc": "denser than water: NO Archimedes flotation solution; the sphere rests on the tank floor with its center R = 0.12 above it (-0.38 vs surface); a still-floating candidate fails high, one that fell through the floor (no collision shapes) fails low at z ~ -99"},
+        {"kind": "min", "key": "drop_start", "bound": 0.10,
+         "desc": "still released above the water"}
+      ]
+    }
+  ]
+}

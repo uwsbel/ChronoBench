@@ -75,3 +75,24 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   Chrono data dir, so use ABSOLUTE paths for local files. The demo's data filenames
   (`yaml/mbs/slider_crank.yaml`, `simulation_mbs.yaml`) do not exist in the shipped data either
   (`model_slider_crank.yaml`, `mbs.yaml`). [verified]
+- **FSI `ChBodyGeometry` is BCE-coupling geometry, NOT contact geometry.** The `coll_spheres` /
+  `coll_boxes` lists drive SPH BCE marker generation via `AddRigidBody`, but they do not create
+  Bullet collision shapes; with `EnableCollision(True)` and no shapes, a denser-than-water sphere
+  falls straight THROUGH a rigid floor (probe measured z = -99 after 5 s). Call
+  `geometry.CreateCollisionShapes(body, family, contact_method)` when an FSI body must also make
+  rigid contact. [verified]
+- **SPH BCE skin inflates a floating body's effective radius.** At initial spacing 0.025, a
+  R = 0.12 sphere floats ~0.04-0.05 m HIGH of Archimedes (~+35% effective buoyant volume, about
+  half a spacing of extra radius), and a 1.2x-water-density sphere still floats. Anchor
+  float/sink task designs to the oracle for ORDERING but calibrate absolute bands on the pinned
+  build (fsi_object_drop uses densities 500/900/2500 for unambiguous separation). [verified]
+- **`ChTireTestRig` self-sequences and gates its measurements.** Drop phase ends at t = 2 s,
+  motor activation and "enable measurements" happen at t = 3 s (with SetTimeDelay(1)); before
+  that, force reports read 0. `rig.GetPos()` is not the spindle height (reads 0); use
+  `rig.GetSpindle().GetPos().z`. `rig.GetDBP()` is live after measurement enable, but
+  `rig.ReportTireForce()` stayed identically 0 in this CRM rig mode even after enable; grade from
+  spindle height, DBP, and slip. [verified]
+- **`GetLongitudinalSlip` on the rig is omega*R/v - 1 (can exceed 1).** Both rig speeds are
+  imposed in Mode_TEST, so slip is pure kinematics and load-independent: with the Polaris tire
+  (R = 0.330 m), 10 RPM vs 0.2 m/s reads 0.7291 and 30 RPM reads 4.1873 (matched to 4 decimals
+  at two loads). It is a wheel-speed pin, not a traction observable. [verified]

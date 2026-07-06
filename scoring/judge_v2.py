@@ -227,12 +227,31 @@ def judge(task_dir, candidate_path=None, turn=None):
     # SDL at its dummy video driver (models sometimes ignore "headless" and import visualization).
     popen_kwargs = {}
     child_env = dict(os.environ, SDL_VIDEODRIVER="dummy")
+    # Per-task execution environment: a contract's run block may name an "env_id" resolved through
+    # the machine-local registry scoring/envs.local.json (git-ignored; see envs.template.json).
+    # Registry entry: {"python": "<abs exe>", "pythonpath": [..], "path_prepend": [..]}. Tasks
+    # without env_id run under the judge's own interpreter (the pinned suite env), unchanged.
+    python_exe = sys.executable
+    env_id = run.get("env_id")
+    if env_id:
+        reg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "envs.local.json")
+        if not os.path.isfile(reg_path):
+            v["triage"] = f"env:registry-missing({env_id})"; return v
+        reg = json.load(open(reg_path, encoding="utf-8"))
+        spec = reg.get(env_id)
+        if not spec:
+            v["triage"] = f"env:unknown-id({env_id})"; return v
+        python_exe = spec["python"]
+        if spec.get("pythonpath"):
+            child_env["PYTHONPATH"] = os.pathsep.join(spec["pythonpath"])
+        if spec.get("path_prepend"):
+            child_env["PATH"] = os.pathsep.join(spec["path_prepend"]) + os.pathsep + child_env.get("PATH", "")
     if os.name == "nt":
         import ctypes
         ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002 | 0x8000)
         popen_kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
     try:
-        r = subprocess.run([sys.executable, "cand.py"], cwd=work, capture_output=True,
+        r = subprocess.run([python_exe, "cand.py"], cwd=work, capture_output=True,
                            text=True, timeout=run.get("timeout", 120), env=child_env,
                            **popen_kwargs)
     except subprocess.TimeoutExpired:

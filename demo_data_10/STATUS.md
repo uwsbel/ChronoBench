@@ -200,6 +200,34 @@ DELTAS). Consequences:
 4. Pilot archive: `runs/pilot-2026-07-04/` zipped to `Box\ChronoBench\runs\pilot-2026-07-04.zip`
    (the standing home for benchmark-run archives).
 
+## First GPU tasks (2026-07-06): `fsi_object_drop` + `crm_tire_rig` through the env registry
+
+The suite now spans TWO execution environments in one gate: the pinned `pychrono10` conda env
+(12 tasks, unchanged) and the HIP source build (docs/BUILD_HIP.md) selected per task by
+`run.env_id = "hip"` in the contract, resolved through the machine-local
+`scoring/envs.local.json` (git-ignored; committed template `scoring/envs.template.json`).
+
+1. **Harness: per-task env registry in `judge_v2`.** Contracts stay portable (only the id is
+   committed); triage codes `env:registry-missing(id)` / `env:unknown-id(id)`; tasks without
+   `env_id` run exactly as before (pendulum regression re-verified at 100).
+2. **`fsi_object_drop` (FSI-SPH axis).** Sphere into a water tank (ChFsiProblemCartesian,
+   spacing 0.025); Archimedes spherical-cap oracle; turns density 500 (center at surface) /
+   900 (0.073 m draft) / 2500 (sinks, rests on floor). Calibration exposed and the contract
+   documents the SPH BCE-skin float bias (~+0.04 m, ~+35% effective buoyant volume; a 1.2
+   density ratio still floats, hence 2500 for the sink turn) and the
+   `CreateCollisionShapes` requirement (without it the sinking sphere falls THROUGH the floor
+   to z = -99). Truths 100/100/100; the settled sink case re-measures -0.3800 exactly.
+3. **`crm_tire_rig` (CRM terramechanics axis).** Polaris tire on CRM soil in a ChTireTestRig;
+   turns load 2500 N / 5000 N (4.3 cm deeper) / 30 RPM at 5000 N (slip-sinkage, deeper still).
+   The slip observable is KINEMATIC (both rig speeds imposed; omega*R/v - 1 = 0.7291 / 4.1873,
+   matched to 4 decimals), so it pins the wheel-speed change exactly; z and drawbar bands
+   calibrated-and-frozen. Reproducibility split: z repeats to <1 mm, drawbar swings tens of
+   percent (bands sized accordingly). Truths 100/100/100.
+4. Runtimes on gfx1151: FSI ~70 s (3 s turns) / ~152 s (5 s sink turn); CRM ~113-134 s per
+   turn. New DELTAS entries: BCE-vs-contact geometry, BCE-skin buoyancy bias, rig
+   self-sequencing (measurements enable at t = 3; `GetPos` vs `GetSpindle`), slip definition,
+   `ReportTireForce` reads 0 in this rig mode.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -222,6 +250,8 @@ DELTAS). Consequences:
 | yaml_mbs (new) | data-import | pychrono | verified+3turn | 100 | DONE FULLY; script authors MBS-YAML + ChParserMbsYAML; stroke/peak-speed oracle; world-frame constraint-point gotcha; good 100 / bad 40 |
 | checkpoint (new) | state-mgmt | pychrono | pending | | ADD; checkpoint/restart determinism |
 | hmmwv_scm | vehicle-terramech | pychrono | verified+3turn | 100 | DONE FULLY (vehicle pick SETTLED); rigid/SCM-firm/SCM-soft; Bekker-anchored rut bands + calibrated speed bands; good 100 / bad 40 |
+| fsi_object_drop (new) | FSI-SPH | pychrono (hip env) | verified+3turn | 100 | DONE FULLY; FIRST GPU TASK (env registry); Archimedes oracle + documented BCE-skin bias; float/deeper-draft/sinks-to-floor; good 100 / bad 40 |
+| crm_tire_rig (new) | tire-terramech-CRM | pychrono (hip env) | verified+3turn | 100 | DONE FULLY; CRM counterpart to the SCM tasks; kinematic-slip anchor + load/slip-sinkage laws; good 100 / bad 40 |
 | m113 | vehicle(tracked) | pychrono | pending | | KEEP-port |
 | (1 car: sedan or citybus) | vehicle | pychrono | pending | | KEEP-port; Dan picks which |
 | gps_imu | sensor | pychrono | pending | | KEEP-port; GPS/IMU (no OptiX) |
@@ -232,8 +262,9 @@ Ground-locomotion cap (<=3-4 total): hmmwv + m113 + one car + at most one rover.
 
 ## DEFERRED (infra-gated) -- NOT authored, need infra (see `.agent-related/SUITE_DESIGN.md` + `.agent-related/PANEL_REDTEAM.md`)
 
-OptiX sensors (camera/lidar/radar), ROS (vehros/sensros/multi-agent), FSI/SPH, PyDEME/DEM
-(pile/cone-penetration/mixer). Designed; await GPU/ROS/PyDEME env.
+OptiX sensors (camera/lidar/radar), ROS (vehros/sensros/multi-agent), PyDEME/DEM
+(pile/cone-penetration/mixer). Designed; await GPU/ROS/PyDEME env. (FSI/SPH and CRM came OFF
+this list 2026-07-06: covered on the AMD HIP build via the env registry.)
 
 ## Gates awaiting Dan (see `.agent-related/HANDOFF.md`)
 
