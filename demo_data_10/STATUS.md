@@ -266,6 +266,33 @@ the skill under test; verbatim sources kept per task in `source/` for provenance
    proved to spread 2.6x across identical runs (105.9-277.5 N; sinkage, <1 mm repeatable,
    carries the load law). Sweep-level flakes are themselves calibration data.
 
+## Isaac Sim / USD batch (2026-07-08): the robotics heavy-hitter triad is complete (+2 tasks, suite 23 / 69 turns)
+
+The conversion shape now spans Isaac Sim, MuJoCo, and PyBullet. Both tasks source compact
+hand-authored USDA stages in Isaac's exact idiom (UsdPhysics joints with per-body localPos
+frames, MassAPI inertials, PhysX DriveAPI; world-anchored joints; explicit stage metadata),
+structurally validated with usd-core (PyPI, in the disposable `usd-src` env; all five stages
+LINT PASS with intended metadata). Isaac itself cannot run on this AMD machine: the Isaac-side
+replay of the stages is the explicitly recorded PENDING provenance leg for the NVIDIA machine.
+
+1. **isaac_crank_pendulum, the MATCHED TRIPLE**: the pyb_arm_motor physics, constant for
+   constant, expressed declaratively in USD: the same system now exists as an imperative
+   PyBullet program, a declarative Isaac/USD stage, and the Chrono references, so score
+   differences between the two conversion tasks isolate pure REPRESENTATION effects (the
+   controlled instrument for the pre-registered C15 prediction). USD semantics graded: angular
+   drives in the schema's DEGREE units (85.9437 = 1.5 rad/s; reading degrees as radians builds
+   a 57x crank); stiffness-0 + damping-only DriveAPI = a NATIVE declarative viscous damper
+   (-> ChLinkRSDA); controller timelines live outside the stage. Bad control = damper converted
+   onto the wrong joint (undamped tail 0.3551, oracle-predicted, vs required 0.2015).
+2. **isaac_robot_arm, the unit-semantics practical**: a 3-DOF arm authored in CENTIMETERS
+   (metersPerUnit 0.01; gravityMagnitude reads 981) with position drives and a decreed
+   reach-out pick arc; FK oracle exact (home 1.3/1.5 to 1e-12). Turn 3 re-exports the SAME arm
+   at meters, Y-up: the graded truth is INVARIANCE (turn-2 values reproduced to 12 digits by
+   the Y-up truth). Authoring finding: the first trajectory draft folded the arm onto itself
+   and collapsed the yaw-sweep observable to ~1 cm; redesigned so the yaw peak rides full
+   extension. Bad control = metersPerUnit ignored (a happily simulating 130 m robot).
+3. Both tasks: truths 100/100/100, good ~100, bad capped 40; suite self-check 69/69.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -297,6 +324,8 @@ the skill under test; verbatim sources kept per task in `source/` for provenance
 | mjcf_double_pendulum (new) | conversion (MJCF) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; RK4 oracle 4-5 decimals; nested-body-pos trap; energy instrumentation; good 100 / bad 40 |
 | mjcf_robot_arm (new) | conversion (MJCF, practical) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; 3-DOF position-actuated arm; FK oracle, home return 1e-13; hinge-axis trap; good 100 / bad 40 |
 | pyb_arm_motor (new) | conversion (PyBullet) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT (3rd ecosystem, imperative source); TRIPLE-validated to 4 decimals; impulsive-start + linkPositions findings; good 100 / bad 40 |
+| isaac_crank_pendulum (new) | conversion (Isaac/USD) | pychrono | verified+3turn | 100 | DONE FULLY; MATCHED TRIPLE with pyb_arm_motor (same physics, declarative USD); degree-units + native-damper-drive semantics; usd-core linted, Isaac replay PENDING (NVIDIA); good 100 / bad 40 |
+| isaac_robot_arm (new) | conversion (Isaac/USD, practical) | pychrono | verified+3turn | 100 | DONE FULLY; metersPerUnit (cm!) + upAxis re-export invariance turns; FK exact, turn-3 invariance to 12 digits; usd-core linted, Isaac replay PENDING (NVIDIA); good 100 / bad 40 |
 | m113 | vehicle(tracked) | pychrono | pending | | KEEP-port |
 | (1 car: sedan or citybus) | vehicle | pychrono | pending | | KEEP-port; Dan picks which |
 | gps_imu | sensor | pychrono | pending | | KEEP-port; GPS/IMU (no OptiX) |

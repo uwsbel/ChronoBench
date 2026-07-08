@@ -1,0 +1,138 @@
+You are given a working PyChrono 10.0 script (below), a hand conversion of an Isaac Sim USD arm authored in centimeters (metersPerUnit = 0.01): base yaw about Z, shoulder/elbow pitch about Y, links 0.30 / 0.40 / 0.60 m in SI, joints driven through imposed angle motors along a stated pick trajectory, logging the end-effector position as (hx, hy, h, r) with h the up-axis coordinate.
+
+The USD stage has been UPDATED (full new file below): the forearm grew from 60 to 80 in the STAGE'S CENTIMETER units (0.80 m), with its MassAPI scaled to match (mass 1.2, COM offset 40, diagonalInertia 640 in the stage's kg cm^2). Modify your script to match: the forearm's SI length, mass, inertia, COM placement, and the end-effector tip offset. Keep the same trajectory, 1e-3 s step, and 10.0 s duration, headless.
+
+Physics to expect (pure FK with the longer forearm): home rises to (0, 0, 1.5), the yaw sweep widens to about |hy| = 0.43, the deepest reach stays near 0.53. If your home is still 1.3 the stage edit did not propagate; if it lands at 150 you forgot the stage is in centimeters.
+
+Keep the same outputs so the experiment can be graded:
+- out.csv with header "t,hx,hy,h,r", one row every 5 steps.
+- One JSON line at the end: {"h_final": <last h>, "r_final": <last r>, "L3": 0.8, "frame": "z-up"}
+
+The script must run to completion on its own and exit (headless, no display). Output only the Python script.
+
+--- BEGIN UPDATED USD SOURCE (arm3dof_cm_v2.usda) ---
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 0.01
+    kilogramsPerUnit = 1.0
+    upAxis = "Z"
+    doc = """Isaac Sim articulation: a 3-DOF serial arm (base yaw about Z, shoulder and elbow
+    pitch about Y), authored in CENTIMETERS (metersPerUnit = 0.01): column 30, upper arm 40,
+    forearm 80; the end effector is the forearm tip, 80 beyond the elbow. High-stiffness
+    position DriveAPIs on all three joints track a controller reference (stated in the task
+    text). Joints with no body0 are anchored to the world."""
+)
+
+def Xform "World"
+{
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 981
+    }
+
+    def Xform "Arm" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
+    )
+    {
+        def Xform "Column" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float physics:mass = 2.0
+            point3f physics:centerOfMass = (0, 0, 15)
+            float3 physics:diagonalInertia = (150, 150, 2)
+
+            def Capsule "Geom"
+            {
+                double height = 26
+                double radius = 4
+                double3 xformOp:translate = (0, 0, 15)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def PhysicsRevoluteJoint "Yaw" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            rel physics:body1 = </World/Arm/Column>
+            uniform token physics:axis = "Z"
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            float drive:angular:physics:stiffness = 10000
+            float drive:angular:physics:damping = 100
+            float drive:angular:physics:targetPosition = 0
+        }
+
+        def Xform "UpperArm" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 30)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float physics:mass = 1.2
+            point3f physics:centerOfMass = (0, 0, 20)
+            float3 physics:diagonalInertia = (160, 160, 1.5)
+
+            def Capsule "Geom"
+            {
+                double height = 34
+                double radius = 3
+                double3 xformOp:translate = (0, 0, 20)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def PhysicsRevoluteJoint "Shoulder" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            rel physics:body0 = </World/Arm/Column>
+            rel physics:body1 = </World/Arm/UpperArm>
+            uniform token physics:axis = "Y"
+            point3f physics:localPos0 = (0, 0, 30)
+            point3f physics:localPos1 = (0, 0, 0)
+            float drive:angular:physics:stiffness = 10000
+            float drive:angular:physics:damping = 100
+            float drive:angular:physics:targetPosition = 0
+        }
+
+        def Xform "Forearm" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 70)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float physics:mass = 1.2
+            point3f physics:centerOfMass = (0, 0, 40)
+            float3 physics:diagonalInertia = (640, 640, 1.6)
+
+            def Capsule "Geom"
+            {
+                double height = 74
+                double radius = 2.5
+                double3 xformOp:translate = (0, 0, 40)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def PhysicsRevoluteJoint "Elbow" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            rel physics:body0 = </World/Arm/UpperArm>
+            rel physics:body1 = </World/Arm/Forearm>
+            uniform token physics:axis = "Y"
+            point3f physics:localPos0 = (0, 0, 40)
+            point3f physics:localPos1 = (0, 0, 0)
+            float drive:angular:physics:stiffness = 10000
+            float drive:angular:physics:damping = 100
+            float drive:angular:physics:targetPosition = 0
+        }
+    }
+}
+--- END USD SOURCE ---

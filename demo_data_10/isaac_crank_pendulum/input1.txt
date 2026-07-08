@@ -1,0 +1,128 @@
+Convert the Isaac Sim USD stage below into a PyChrono (version 10.0) Python script that runs the equivalent virtual experiment, headless (no visualization window, no rendering). PyChrono has no USD importer, so translate the stage's SEMANTICS by hand into PyChrono bodies and joints.
+
+Conversion notes:
+- The stage is Z-up with metersPerUnit = 1 and kilogramsPerUnit = 1; gravity is (0, 0, -9.81).
+- The articulation: a fixed Mount at (0, 0, 1.5) (a rigid body pinned to the world by the PhysicsFixedJoint); a Crank rod hinged to the Mount by a Y-axis PhysicsRevoluteJoint at the mount origin; a Pendulum rod hinged to the Crank by a Y-axis PhysicsRevoluteJoint whose localPos0 = (0, 0, -0.4) is expressed IN THE CRANK BODY'S FRAME (per-body joint frames), i.e. at the crank TIP.
+- Map each PhysicsMassAPI exactly: mass, centerOfMass (the body origin sits at the joint; the COM hangs mid-rod below it), and diagonalInertia go to SetMass / body placement at the COM / SetInertiaXX, as usual.
+- The CrankDrive DriveAPI has stiffness 0 and a targetVelocity: that is a VELOCITY drive. Its target is authored in the USD Physics schema's DEGREE units: 85.9437 deg/s means 1.5 rad/s. In Chrono use a ChLinkMotorRotationSpeed (pass the crank first to Initialize so the imposed speed spins the crank), and reproduce the controller timeline stated here: the target ramps linearly from 0 to 1.5 rad/s over the first 0.5 s, then holds (subclass chrono.ChFunction; a velocity step would kick the free pendulum impulsively).
+- The Elbow DriveAPI has stiffness 0, targetVelocity 0, and ONLY damping: that is a pure viscous rotary damper of 0.05 N m s/rad (the stage authors the coefficient in per-degree units). In Chrono: a free ChLinkLockRevolute plus a ChLinkRSDA with SetDampingCoefficient(0.05) on the same pair and frame.
+- The Capsule prims are visual only (no collision APIs are applied); no contact anywhere.
+- Integrate at 1e-3 s until t = 10.0 s.
+- Physics to expect: the whirling crank pumps the pendulum; the startup transient decays through the damper, leaving a steady driven swing whose absolute angle from vertical peaks at about 0.20 rad in the tail (run maximum about 0.31), while the crank cruises at 1.5 rad/s.
+
+Required outputs (the script must produce these so the experiment can be graded):
+- Write a file named out.csv with a header row "t,w,theta" and one row per step, where w is the crank body's local y angular velocity and theta is the pendulum's ABSOLUTE angle from vertical taken from its quaternion (2*atan2(e2, e0)).
+- At the very end, print exactly one JSON line to stdout:
+  {"theta_max": <max of |theta| over the run>, "omega_drive": 1.5}
+
+The script must run to completion on its own and exit (headless, no display). Output only the Python script.
+
+--- BEGIN USD SOURCE (crank_pendulum_v1.usda) ---
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1.0
+    kilogramsPerUnit = 1.0
+    upAxis = "Z"
+    doc = """Isaac Sim articulation: a velocity-driven crank carrying a damped free pendulum.
+    Authored in Isaac's idiom: UsdPhysics rigid bodies + MassAPI inertials + PhysX DriveAPI.
+    Angular drive targets follow the USD Physics schema convention (DEGREES, degrees/second);
+    the intended crank rate is 1.5 rad/s = 85.9437 deg/s. The elbow drive has zero stiffness,
+    zero target velocity, and only damping: a pure viscous rotary damper (0.05 N m s/rad,
+    expressed below in the schema's per-degree units)."""
+)
+
+def Xform "World"
+{
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+    }
+
+    def Xform "CrankPendulum" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
+    )
+    {
+        def Xform "Mount" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 1.5)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def PhysicsFixedJoint "WorldAnchor"
+        {
+            rel physics:body1 = </World/CrankPendulum/Mount>
+        }
+
+        def Xform "Crank" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 1.5)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float physics:mass = 0.5
+            point3f physics:centerOfMass = (0, 0, -0.2)
+            float3 physics:diagonalInertia = (0.0066667, 0.0066667, 0.0001)
+
+            def Capsule "Geom"
+            {
+                double height = 0.36
+                double radius = 0.02
+                double3 xformOp:translate = (0, 0, -0.2)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def PhysicsRevoluteJoint "CrankDrive" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            rel physics:body0 = </World/CrankPendulum/Mount>
+            rel physics:body1 = </World/CrankPendulum/Crank>
+            uniform token physics:axis = "Y"
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            float drive:angular:physics:stiffness = 0
+            float drive:angular:physics:damping = 50
+            float drive:angular:physics:targetVelocity = 85.9437
+            float drive:angular:physics:maxForce = 500
+        }
+
+        def Xform "Pendulum" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            double3 xformOp:translate = (0, 0, 1.1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float physics:mass = 0.3
+            point3f physics:centerOfMass = (0, 0, -0.25)
+            float3 physics:diagonalInertia = (0.00625, 0.00625, 0.0001)
+
+            def Capsule "Geom"
+            {
+                double height = 0.46
+                double radius = 0.02
+                double3 xformOp:translate = (0, 0, -0.25)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+
+        def PhysicsRevoluteJoint "Elbow" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+        )
+        {
+            rel physics:body0 = </World/CrankPendulum/Crank>
+            rel physics:body1 = </World/CrankPendulum/Pendulum>
+            uniform token physics:axis = "Y"
+            point3f physics:localPos0 = (0, 0, -0.4)
+            point3f physics:localPos1 = (0, 0, 0)
+            float drive:angular:physics:stiffness = 0
+            float drive:angular:physics:damping = 0.000873
+            float drive:angular:physics:targetVelocity = 0
+        }
+    }
+}
+--- END USD SOURCE ---

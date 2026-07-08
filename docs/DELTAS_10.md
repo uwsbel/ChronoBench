@@ -117,3 +117,13 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   built-in `jointDamping` is NOT a plain viscous torque (25% lower response than an explicit
   -b*qdot TORQUE_CONTROL at the same coefficient). Both verified against an independent RK4
   oracle in the pyb-src validation env. [verified]
+- **USD / Isaac Sim cross-ecosystem semantics (for conversion-task authoring):** stage
+  METADATA carries silent hazards: generic USD defaults to metersPerUnit = 0.01 (centimeters)
+  and upAxis = Y, while Isaac convention is 1.0 and Z: a cm-authored stage read as meters is a
+  100x model that simulates happily. Angular DriveAPI values are in the schema's DEGREE units
+  (targetVelocity 85.9437 means 1.5 rad/s); a DriveAPI with stiffness 0 + velocity target is a
+  velocity drive (-> Chrono speed motor) and one with stiffness 0, target 0, damping only is a
+  NATIVE declarative viscous damper (-> ChLinkRSDA); joint localPos0/localPos1 are per-body
+  frames; a joint with no body0 anchors to the world; time-varying retargeting lives in the
+  controller, not the stage. Stages usd-core-linted here (structure only); PhysX-side replay
+  pending the NVIDIA machine. [authored + linted; replay pending]

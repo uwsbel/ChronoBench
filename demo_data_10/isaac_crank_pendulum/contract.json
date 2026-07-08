@@ -1,0 +1,102 @@
+{
+  "task": "isaac_crank_pendulum",
+  "axis": "cross-simulator-conversion-usd-isaac",
+  "simulator": "pychrono",
+  "source": "CONVERSION shape, Isaac Sim / USD (declarative): the prompt embeds a compact hand-authored USDA stage in Isaac's exact idiom (UsdPhysics revolute joints with per-body localPos frames, MassAPI mass/COM/diagonalInertia, PhysX DriveAPI; Z-up, metersPerUnit 1; angular drive targets in the schema's DEGREE units). MATCHED TRIPLE: the physics, constants, and bands are identical to pyb_arm_motor, so score differences between the imperative PyBullet task and this declarative USD task isolate pure representation effects (the pre-registered C15 instrument). Bands anchored to the same RK4 oracle (three-way validated on the PyBullet side to 4 decimals); the USDA is usd-core linted; its Isaac Sim replay is PENDING (NVIDIA machine), stated in CONTRACT.md",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"L1": 0.4, "L2": 0.5, "m1": 0.5, "m2": 0.3, "omega": 1.5, "target_deg_s": 85.9437, "b_elbow": 0.05, "t_ramp": 0.5, "theta_tail_oracle": 0.2015, "theta_max_oracle": 0.3057},
+      "probe_vector": ["usd-declarative-conversion", "usdphysics-joint-frames", "massapi-inertials", "driveapi-velocity-mode", "degree-unit-convention", "native-damper-drive", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "w_mean", "kind": "mean", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 1.0}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_tail", "lo": 0.17, "hi": 0.23,
+         "desc": "steady driven swing after the transient decays through the elbow's damping-only DriveAPI: 0.2015 rad (RK4 oracle, matched to the PyBullet task); a damper converted onto the wrong joint leaves the pendulum undamped (0.3551, oracle-predicted) and fails high"},
+        {"kind": "range", "key": "theta_max", "lo": 0.27, "hi": 0.34,
+         "desc": "startup overshoot 0.3057"},
+        {"kind": "range", "key": "w_mean", "lo": 1.44, "hi": 1.56,
+         "desc": "the crank cruises at 1.5 rad/s: the stage authors the target as 85.9437 in the USD schema's degrees-per-second; reading it as rad/s builds a 57x-faster crank and fails everything"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"omega": 2.0, "target_deg_s": 114.5916, "theta_tail_oracle": 0.3267, "theta_max_oracle": 0.4778},
+      "probe_vector": ["drive-retarget-in-stage", "degree-unit-convention", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "w_mean", "kind": "mean", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 1.0}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_tail", "lo": 0.29, "hi": 0.37,
+         "desc": "the stage's retargeted drive (114.5916 deg/s = 2.0 rad/s) pumps the steady swing to 0.3267; an unmodified candidate (0.2015) fails low"},
+        {"kind": "range", "key": "theta_max", "lo": 0.43, "hi": 0.53,
+         "desc": "overshoot 0.4778"},
+        {"kind": "range", "key": "w_mean", "lo": 1.92, "hi": 2.08,
+         "desc": "the drive actually retargeted to 2.0 rad/s"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"omega": 2.0, "t_brake": 5.0, "theta_tail_oracle": 0.0434, "ring_period_oracle": 1.1785, "free_period_closed_form": 1.1582},
+      "probe_vector": ["controller-timeline-outside-stage", "brake-and-hold", "damped-free-ringdown", "closed-form-period", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "w_tail", "kind": "max_abs", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "ring_period", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 6.5, "about": 0.0}
+      ],
+      "L3": [
+        {"kind": "max", "key": "theta_tail", "bound": 0.08,
+         "desc": "after the controller ramps the drive target to zero at t = 5 s the pendulum rings down through the declarative damper: tail 0.0434; an un-braked candidate (0.3267) fails 4x over"},
+        {"kind": "max", "key": "w_tail", "bound": 0.05,
+         "desc": "the braked velocity drive HOLDS the crank: tail rate 0"},
+        {"kind": "range", "key": "ring_period", "lo": 1.12, "hi": 1.24,
+         "desc": "ring-down at the closed-form damped compound-pendulum period 1.1582/sqrt(1 - zeta^2) = 1.1785 s; a still-driven candidate measures the drive-locked 3.26 s"},
+        {"kind": "range", "key": "theta_max", "lo": 0.43, "hi": 0.53,
+         "desc": "the pre-brake drive still happened (overshoot 0.4778)"}
+      ]
+    }
+  ]
+}
