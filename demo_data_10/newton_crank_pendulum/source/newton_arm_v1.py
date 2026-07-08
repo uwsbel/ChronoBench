@@ -1,0 +1,109 @@
+"""Newton source experiment (the artifact to be converted): a two-link planar arm built with
+newton.ModelBuilder (Newton 1.3, Warp 1.15). Link "crank" (0.4 m rod, 0.5 kg) hangs from a
+world-anchored revolute about y whose actuator runs in VELOCITY mode (target_kd is the velocity
+gain); its target is retargeted every control step with a 0.5 s soft-start ramp to 1.5 rad/s (a
+velocity step would kick the free pendulum impulsively through the joint). Link "pendulum"
+(0.5 m rod, 0.3 kg) hangs FREE from the crank tip through the joint's native viscous damping
+(0.05 N m s/rad). No collision shapes: pure articulated dynamics on the Featherstone solver.
+Logs the crank joint rate (eval_ik) and the pendulum's ABSOLUTE angle from vertical taken from
+its body quaternion (note: eval_ik joint coordinates wrap at +-2 pi as the crank whirls, so the
+chain-coordinate sum is NOT a safe absolute angle; the body orientation is).
+"""
+import json
+import math
+
+import warp as wp
+
+import newton
+
+L1, L2 = 0.4, 0.5
+M1, M2 = 0.5, 0.3
+OMEGA = 1.5
+B_ELBOW = 0.05
+T_RAMP = 0.5
+DT = 1.0 / 1000.0
+SUBSTEPS = 50
+T_END = 10.0
+
+wp.set_device("cpu")
+
+builder = newton.ModelBuilder()          # Z-up, gravity -9.81 by default
+
+crank = builder.add_link(
+    xform=wp.transform(p=wp.vec3(0.0, 0.0, 1.5)),
+    mass=M1,
+    com=wp.vec3(0.0, 0.0, -L1 / 2),
+    inertia=wp.mat33(M1 * L1**2 / 12, 0.0, 0.0,
+                     0.0, M1 * L1**2 / 12, 0.0,
+                     0.0, 0.0, 1e-4),
+    label="crank",
+)
+j_drive = builder.add_joint_revolute(
+    parent=-1,
+    child=crank,
+    axis=wp.vec3(0.0, 1.0, 0.0),
+    parent_xform=wp.transform(p=wp.vec3(0.0, 0.0, 1.5)),
+    child_xform=wp.transform(),
+    target_kd=1000.0,
+    actuator_mode=newton.JointTargetMode.VELOCITY,
+    label="crank_drive",
+)
+
+pend = builder.add_link(
+    xform=wp.transform(p=wp.vec3(0.0, 0.0, 1.1)),
+    mass=M2,
+    com=wp.vec3(0.0, 0.0, -L2 / 2),
+    inertia=wp.mat33(M2 * L2**2 / 12, 0.0, 0.0,
+                     0.0, M2 * L2**2 / 12, 0.0,
+                     0.0, 0.0, 1e-4),
+    label="pendulum",
+)
+j_elbow = builder.add_joint_revolute(
+    parent=crank,
+    child=pend,
+    axis=wp.vec3(0.0, 1.0, 0.0),
+    parent_xform=wp.transform(p=wp.vec3(0.0, 0.0, -L1)),
+    child_xform=wp.transform(),
+    damping=B_ELBOW,
+    label="elbow",
+)
+
+builder.add_articulation([j_drive, j_elbow], label="crank_pendulum")
+model = builder.finalize()
+
+solver = newton.solvers.SolverFeatherstone(model)
+state_0 = model.state()
+state_1 = model.state()
+control = model.control()
+contacts = model.contacts()
+newton.eval_fk(model, model.joint_q, model.joint_qd, state_0)
+
+joint_q = wp.zeros_like(model.joint_q)
+joint_qd = wp.zeros_like(model.joint_qd)
+
+rows = []
+sim_dt = DT / SUBSTEPS
+n = int(round(T_END / DT))
+for k in range(n):
+    t = k * DT
+    target = OMEGA * min(t / T_RAMP, 1.0)
+    control.joint_target_qd.assign([target, 0.0])
+    for _ in range(SUBSTEPS):
+        state_0.clear_forces()
+        solver.step(state_0, state_1, control, contacts, sim_dt)
+        state_0, state_1 = state_1, state_0
+    newton.eval_ik(model, state_0, joint_q, joint_qd)
+    qd = joint_qd.numpy()
+    tf = state_0.body_q.numpy()[1]           # pendulum pose: (px, py, pz, qx, qy, qz, qw)
+    theta = 2.0 * math.atan2(tf[4], tf[6])   # absolute angle about y, wrap-free
+    rows.append(((k + 1) * DT, float(qd[0]), float(theta)))
+
+with open("out_newton.csv", "w") as fh:
+    fh.write("t,w,theta\n")
+    for r in rows:
+        fh.write(f"{r[0]:.6f},{r[1]:.6e},{r[2]:.6e}\n")
+
+print(json.dumps({"theta_max": max(abs(r[2]) for r in rows),
+                  "w_mean_tail": sum(r[1] for r in rows if r[0] >= 1.0) /
+                                 len([1 for r in rows if r[0] >= 1.0]),
+                  "omega_drive": OMEGA}))

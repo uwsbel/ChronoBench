@@ -293,6 +293,30 @@ replay of the stages is the explicitly recorded PENDING provenance leg for the N
    extension. Bad control = metersPerUnit ignored (a happily simulating 130 m robot).
 3. Both tasks: truths 100/100/100, good ~100, bad capped 40; suite self-check 69/69.
 
+## Newton batch (2026-07-08): the matched set becomes a QUADRUPLE (+1 task, suite 24 / 72 turns)
+
+`newton_crank_pendulum` sources a complete program in Newton (the NVIDIA + Google DeepMind +
+Disney Research engine, Linux Foundation, v1.3.0 on warp 1.15.0, GTC 2026's centerpiece): the
+same crank-and-pendulum system as pyb_arm_motor and isaac_crank_pendulum, now from a PRIOR-POOR
+ecosystem (public for about a year, barely present in training corpora). Design intent:
+PyBullet-vs-Newton isolates ecosystem PRIOR STRENGTH at fixed representation style (the newly
+pre-registered claim C16); PyBullet-vs-USD isolates representation (C15); constants, oracle,
+and bands identical across all four legs.
+
+1. **Validation is the strongest in the suite**: the Newton sources EXECUTE on this machine
+   (Warp CPU device, no GPU needed) and match the shared RK4 oracle to sub-percent on every
+   graded value (tails 0.1999/0.3250/0.0431 vs 0.2015/0.3267/0.0434); the residual is the
+   finite drive gain vs the oracle's ideally prescribed pivot. No pending replay leg.
+2. **Authoring findings (all in DELTAS)**: eval_ik joint coordinates wrap at +-2 pi (a
+   spurious 4-pi jump masqueraded as a blow-up until the body-quaternion observable replaced
+   the chain-coordinate sum); explicit velocity drives have a gain-times-step stability limit
+   on Featherstone (kd 1000: NaN at dt 1e-4, clean at 2e-5); Newton's native joint `damping`
+   IS plain viscous (unlike PyBullet's); add_link separates body frame from COM (the
+   imperative twin of the declarative inertial-offset trap: the bad control drops it and the
+   pendulum winds to the 2-pi wrap boundary, gate-measured 6.283).
+3. Truths 100/100/100, good 100, bad 40; suite self-check 72/72; disposable newton-src env
+   (conda + pip newton, recipe in CONTRACT.md) removed after validation.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -326,6 +350,7 @@ replay of the stages is the explicitly recorded PENDING provenance leg for the N
 | pyb_arm_motor (new) | conversion (PyBullet) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT (3rd ecosystem, imperative source); TRIPLE-validated to 4 decimals; impulsive-start + linkPositions findings; good 100 / bad 40 |
 | isaac_crank_pendulum (new) | conversion (Isaac/USD) | pychrono | verified+3turn | 100 | DONE FULLY; MATCHED TRIPLE with pyb_arm_motor (same physics, declarative USD); degree-units + native-damper-drive semantics; usd-core linted, Isaac replay PENDING (NVIDIA); good 100 / bad 40 |
 | isaac_robot_arm (new) | conversion (Isaac/USD, practical) | pychrono | verified+3turn | 100 | DONE FULLY; metersPerUnit (cm!) + upAxis re-export invariance turns; FK exact, turn-3 invariance to 12 digits; usd-core linted, Isaac replay PENDING (NVIDIA); good 100 / bad 40 |
+| newton_crank_pendulum (new) | conversion (Newton, prior-poor) | pychrono | verified+3turn | 100 | DONE FULLY; 4th leg of the matched set (C16 prior-strength instrument); sources EXECUTED on Warp CPU, sub-percent vs oracle, no pending leg; eval_ik wrap + drive-stability findings; good 100 / bad 40 |
 | m113 | vehicle(tracked) | pychrono | pending | | KEEP-port |
 | (1 car: sedan or citybus) | vehicle | pychrono | pending | | KEEP-port; Dan picks which |
 | gps_imu | sensor | pychrono | pending | | KEEP-port; GPS/IMU (no OptiX) |

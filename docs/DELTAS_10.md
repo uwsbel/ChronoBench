@@ -117,6 +117,16 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   built-in `jointDamping` is NOT a plain viscous torque (25% lower response than an explicit
   -b*qdot TORQUE_CONTROL at the same coefficient). Both verified against an independent RK4
   oracle in the pyb-src validation env. [verified]
+- **Newton / Warp cross-ecosystem semantics (for conversion-task authoring; newton 1.3.0,
+  warp 1.15.0, executed on the Warp CPU device on this Windows box):** `add_link` separates the
+  body frame (xform) from the COM (`com`, an in-frame offset): the imperative twin of the
+  MJCF/USD inertial-offset trap. A `JointTargetMode.VELOCITY` actuator uses `target_kd` as its
+  tracking gain with per-step retargeting via `Control.joint_target_qd`. The joint's native
+  `damping` IS a plain viscous torque (validated to sub-percent vs an independent RK4 oracle:
+  contrast PyBullet's jointDamping). `eval_ik` joint coordinates WRAP at +-2 pi (a whirling
+  chain's coordinate sum jumps by 4 pi; use body quaternions for absolute angles). Explicit
+  velocity drives on SolverFeatherstone hit a gain-times-step stability limit (kd 1000: NaN at
+  dt 1e-4, clean at 2e-5). [verified by execution]
 - **USD / Isaac Sim cross-ecosystem semantics (for conversion-task authoring):** stage
   METADATA carries silent hazards: generic USD defaults to metersPerUnit = 0.01 (centimeters)
   and upAxis = Y, while Isaac convention is 1.0 and Z: a cm-authored stage read as meters is a
