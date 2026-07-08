@@ -1,0 +1,37 @@
+Convert the MuJoCo MJCF model below into a PyChrono (version 10.0) Python script that runs the equivalent virtual experiment, headless (no visualization window, no rendering). PyChrono has no MJCF importer, so translate the model's SEMANTICS by hand into PyChrono bodies and joints.
+
+Conversion notes:
+- MuJoCo world: z is up, gravity (0, 0, -9.81); keep the same frame in Chrono.
+- NESTED bodies: rod1 hangs from a fixed pivot at (0, 0, 2) on a hinge about y; rod2 is a CHILD of rod1 whose body pos "0 0 -1" places its own hinge at the TIP of rod1. That nesting is what couples the two rods into a double pendulum: build a fixed ground body, rod1 on a revolute joint at the pivot, and rod2 on a revolute joint at rod1's tip (ChLinkLockRevolute rotates about its frame's local z, so rotate each joint frame to put z along global y).
+- Map each inertial block exactly: mass 1.0 and diaginertia (0.0833333, 0.0833333, 0.0001) per rod, with the COM offset "0 0 -0.5" below each hinge: place each Chrono body's position AT its COM, oriented with its rod.
+- Initial condition: release at rest with rod1 tilted 0.1 rad about +y and rod2 straight down (0 rad). Place rod2's hinge at rod1's TILTED tip position.
+- No contacts; geoms are cosmetic. Integrate at 1e-3 s until t = 10.0 s.
+- Physics to expect: quasi-periodic small-angle motion; energy exchange between the arms pumps the SECOND arm to about 0.17 rad even though only the first was released at 0.1, and total mechanical energy stays constant.
+
+Required outputs (the script must produce these so the experiment can be graded):
+- Write a file named out.csv with a header row "t,th1,th2,rel,e" and one row per step, where th1 and th2 are the rods' rotation angles about y from their quaternions (2*atan2(e2, e0)), rel = th2 - th1, and e is the TOTAL mechanical energy computed from the body states (translational 0.5*m*v^2 + rotational 0.5*omega_local . I . omega_local + potential m*g*z of each rod's COM).
+- At the very end, print exactly one JSON line to stdout:
+  {"theta1_max": <max of |th1| over the run>, "theta2_max": <max of |th2| over the run>, "config": "equal-rods-straight-release"}
+
+The script must run to completion on its own and exit (headless, no display). Output only the Python script.
+
+--- BEGIN MJCF SOURCE (double_pendulum_v1.xml) ---
+<mujoco model="double_pendulum">
+  <!-- Two uniform rods on hinges: rod 1 hangs from a fixed pivot at (0,0,2), rod 2 hangs from
+       the TIP of rod 1 (note the nested body pos). Explicit inertial blocks make the
+       conversion unambiguous. Units: m, kg, s; z is up. -->
+  <option gravity="0 0 -9.81" timestep="0.001"/>
+  <worldbody>
+    <body name="rod1" pos="0 0 2">
+      <joint name="hinge1" type="hinge" axis="0 1 0" pos="0 0 0"/>
+      <inertial pos="0 0 -0.5" mass="1.0" diaginertia="0.0833333 0.0833333 0.0001"/>
+      <geom name="rod1_geom" type="capsule" fromto="0 0 0  0 0 -1" size="0.02"/>
+      <body name="rod2" pos="0 0 -1">
+        <joint name="hinge2" type="hinge" axis="0 1 0" pos="0 0 0"/>
+        <inertial pos="0 0 -0.5" mass="1.0" diaginertia="0.0833333 0.0833333 0.0001"/>
+        <geom name="rod2_geom" type="capsule" fromto="0 0 0  0 0 -1" size="0.02"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+--- END MJCF SOURCE ---

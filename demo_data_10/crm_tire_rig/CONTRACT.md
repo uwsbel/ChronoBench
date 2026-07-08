@@ -46,9 +46,12 @@ No closed form exists for CRM soil, so three things carry the physics:
    same speed change gave -0.5882 -> -0.6193 with drawbar 831 N. Drawbar is NOT monotone in
    load at fixed slip (367 -> 147 N when the load doubles) but rises steeply with slip.
 4. Run-to-run (GPU SPH) reproducibility is very different per observable: settled spindle height
-   repeats to <1 mm and slip to ~1e-4 across independent runs, but drawbar pull swings by tens of
-   percent (turn-2 config measured 147 N in calibration, 225 N at gate time). Hence tight z/slip
-   bands and deliberately generous dbp bands.
+   repeats to <1 mm and slip to ~1e-4 across independent runs, but drawbar pull swings WILDLY
+   (turn-2 config measured 105.9 / 147.2 / 225.3 / 277.5 N across four runs, a 2.6x spread, and
+   a full-suite sweep landed one run outside an earlier [60, 300] band). Consequence: the turn-2
+   drawbar CHECK was removed (sinkage carries the load law there), and the turn-1/turn-3 drawbar
+   bands are wide sanity ranges ([100, 700] and [250, 1600]) that only separate the low-slip and
+   high-slip regimes, which stay ~4x apart even at this variance.
 5. Runtime on gfx1151: ~113-134 s per 5 s turn at spacing 0.02 (~91k SPH particles); timeout 900.
 
 ## Gate (de-scoped judge)

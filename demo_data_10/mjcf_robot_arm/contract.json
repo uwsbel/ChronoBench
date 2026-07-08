@@ -1,0 +1,108 @@
+{
+  "task": "mjcf_robot_arm",
+  "axis": "cross-simulator-conversion-mjcf",
+  "simulator": "pychrono",
+  "source": "CONVERSION shape, the practical MJCF task: a 3-DOF serial arm (base yaw + shoulder/elbow pitch, MuJoCo's home turf) with position actuators whose time-varying reference lives in the controller, as in every real MuJoCo setup; the prompt states the joint-space trajectory and the sanctioned mapping (impose the angles with rotation motors). Under imposed motion the end effector follows closed-form forward kinematics: oracle.py sweeps it and the pinned build reproduces every extremum to 4 decimals (home return exact to 1e-13)",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"H": 0.4, "L2": 0.5, "L3": 0.5, "rate_scale": 1.0, "z_min_fk": 1.2601, "y_max_fk": 0.0836, "z_home": 1.4},
+      "probe_vector": ["mjcf-actuated-arm", "kinematic-chain-3dof", "imposed-trajectory-motors", "custom-angle-functions", "forward-kinematics-observable", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_final", "r_final", "L2", "rate_scale"]
+      },
+      "L2_caps": {
+        "angle_motors": "ChLinkMotorRotationAngle",
+        "gravity": "SetGravitationalAcceleration",
+        "custom_function": "ChFunction"
+      },
+      "derive": [
+        {"name": "z_min", "kind": "min", "csv": "out.csv", "column": "z"},
+        {"name": "y_maxabs", "kind": "max_abs", "csv": "out.csv", "column": "y"},
+        {"name": "z_final", "kind": "final", "csv": "out.csv", "column": "z"},
+        {"name": "r_final", "kind": "final", "csv": "out.csv", "column": "r"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "z_min", "lo": 1.235, "hi": 1.285,
+         "desc": "deepest reach of the pick arc: FK 1.2601 at (q2, q3) = (0.7, -1.0); wrong link lengths, wrong pitch axes, or a missed COM offset all move it"},
+        {"kind": "range", "key": "y_maxabs", "lo": 0.075, "hi": 0.092,
+         "desc": "the yaw sweep carries the EE to |y| = 0.0836; catches a dead or mis-axed base joint"},
+        {"kind": "range", "key": "z_final", "lo": 1.39, "hi": 1.41,
+         "desc": "the trajectory returns HOME at t = 10: EE back at z = 1.4 (measured exact to 1e-13)"},
+        {"kind": "max", "key": "r_final", "bound": 0.02,
+         "desc": "home is on the axis: final EE radius ~ 0"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"H": 0.4, "L2": 0.7, "L3": 0.5, "rate_scale": 1.0, "z_min_fk": 1.4131, "y_max_fk": 0.1454, "z_home": 1.6},
+      "probe_vector": ["link-length-edit", "fk-rescaling", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_final", "r_final", "L2", "rate_scale"]
+      },
+      "L2_caps": {
+        "angle_motors": "ChLinkMotorRotationAngle",
+        "gravity": "SetGravitationalAcceleration",
+        "custom_function": "ChFunction"
+      },
+      "derive": [
+        {"name": "z_min", "kind": "min", "csv": "out.csv", "column": "z"},
+        {"name": "y_maxabs", "kind": "max_abs", "csv": "out.csv", "column": "y"},
+        {"name": "z_final", "kind": "final", "csv": "out.csv", "column": "z"},
+        {"name": "r_final", "kind": "final", "csv": "out.csv", "column": "r"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "z_min", "lo": 1.385, "hi": 1.440,
+         "desc": "the 0.7 m upper arm lifts the whole arc: FK z_min 1.4131; an unmodified candidate (1.2601) fails low"},
+        {"kind": "range", "key": "y_maxabs", "lo": 0.131, "hi": 0.160,
+         "desc": "longer arm, wider yaw sweep: FK 0.1454"},
+        {"kind": "range", "key": "z_final", "lo": 1.59, "hi": 1.61,
+         "desc": "home is now 0.4 + 0.7 + 0.5 = 1.6"},
+        {"kind": "max", "key": "r_final", "bound": 0.02,
+         "desc": "still returns onto the axis"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"H": 0.4, "L2": 0.7, "L3": 0.5, "rate_scale": 2.0, "dz_rate_fk": 0.3039, "z_min_fk": 1.4131, "z_home": 1.6},
+      "probe_vector": ["trajectory-retiming", "kinematic-invariance-of-geometry", "ee-speed-observable", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["z_final", "r_final", "L2", "rate_scale"]
+      },
+      "L2_caps": {
+        "angle_motors": "ChLinkMotorRotationAngle",
+        "gravity": "SetGravitationalAcceleration",
+        "custom_function": "ChFunction"
+      },
+      "derive": [
+        {"name": "dz_rate_max", "kind": "max_speed", "csv": "out.csv", "column": "z", "time_column": "t"},
+        {"name": "z_min", "kind": "min", "csv": "out.csv", "column": "z"},
+        {"name": "z_final", "kind": "final", "csv": "out.csv", "column": "z"},
+        {"name": "r_final", "kind": "final", "csv": "out.csv", "column": "r"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "dz_rate_max", "lo": 0.27, "hi": 0.34,
+         "desc": "retiming 2x doubles the peak vertical EE rate: FK 0.3039 (measured 0.304); an un-retimed candidate (0.152) fails low"},
+        {"kind": "range", "key": "z_min", "lo": 1.385, "hi": 1.440,
+         "desc": "the geometric extremes are speed-invariant (pure kinematics): z_min unchanged at 1.4131"},
+        {"kind": "range", "key": "z_final", "lo": 1.59, "hi": 1.61,
+         "desc": "two full cycles still end home"},
+        {"kind": "max", "key": "r_final", "bound": 0.02,
+         "desc": "still returns onto the axis"}
+      ]
+    }
+  ]
+}

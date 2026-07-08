@@ -1,0 +1,99 @@
+{
+  "task": "mjcf_cartpole",
+  "axis": "cross-simulator-conversion-mjcf",
+  "simulator": "pychrono",
+  "source": "CONVERSION shape (MuJoCo MJCF -> PyChrono): the prompt embeds a compact authored MJCF (source/cartpole_v*.xml, explicit inertial blocks, no contacts) and the candidate must translate its SEMANTICS by hand: PyChrono 10 has no MJCF importer (verified: no parser class in the wrapper, no MJCF support in the Chrono source tree). Bands anchored to the closed-form coupled cart-pole oscillation in oracle.py (recoil mass-ratio term); Chrono agrees to 0.14-0.5% on the pinned build; system-COM conservation is exact to machine precision",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"cart_mass": 2.0, "pole_mass": 0.5, "d": 0.5, "I_hinge": 0.1667, "theta0": 0.15, "period_oracle": 1.5101, "period_ref": 1.5138},
+      "probe_vector": ["mjcf-semantics-translation", "z-up-gravity", "slide-to-prismatic", "hinge-to-revolute", "inertial-block-mapping", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_amp", "cart_mass", "mode"]
+      },
+      "L2_caps": {
+        "prismatic": "ChLinkLockPrismatic|ChLinkMatePrismatic",
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration"
+      },
+      "derive": [
+        {"name": "theta_period", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0, "about": 0.0},
+        {"name": "theta_amp", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0},
+        {"name": "xcom_range", "kind": "range", "csv": "out.csv", "column": "xcom"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_period", "lo": 1.46, "hi": 1.56,
+         "desc": "coupled cart-pole period with the free-cart recoil term: oracle 1.5101, measured 1.5138; a locked or infinitely heavy cart (1.64) fails high, a lighter cart fails low"},
+        {"kind": "range", "key": "theta_amp", "lo": 0.135, "hi": 0.165,
+         "desc": "undamped release from 0.15 rad keeps its amplitude (catches wrong initial angle or spurious damping)"},
+        {"kind": "max", "key": "xcom_range", "bound": 0.001,
+         "desc": "zero initial horizontal momentum: the SYSTEM center of mass x never moves while cart and pole counter-oscillate (measured 0.0 exactly); catches a wrong cart mass or a cart pinned instead of free"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"cart_mass": 0.5, "pole_mass": 0.5, "d": 0.5, "theta0": 0.15, "period_oracle": 1.2949, "period_ref": 1.3010},
+      "probe_vector": ["inertial-mass-edit", "recoil-mass-ratio-law", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_amp", "cart_mass", "mode"]
+      },
+      "L2_caps": {
+        "prismatic": "ChLinkLockPrismatic|ChLinkMatePrismatic",
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration"
+      },
+      "derive": [
+        {"name": "theta_period", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0, "about": 0.0},
+        {"name": "theta_amp", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0},
+        {"name": "xcom_range", "kind": "range", "csv": "out.csv", "column": "xcom"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_period", "lo": 1.25, "hi": 1.35,
+         "desc": "a 4x lighter cart recoils harder and the pendulum oscillates FASTER: oracle 1.2949, measured 1.3010; an unmodified candidate (1.5138) fails high"},
+        {"kind": "range", "key": "theta_amp", "lo": 0.135, "hi": 0.165,
+         "desc": "amplitude unchanged"},
+        {"kind": "max", "key": "xcom_range", "bound": 0.001,
+         "desc": "COM conservation still exact (the cart now travels 4x farther, the COM not at all)"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"cart_mass": "locked", "pole_mass": 0.5, "d": 0.5, "theta0": 0.15, "period_oracle": 1.6379, "period_ref": 1.6402},
+      "probe_vector": ["jointless-body-is-welded", "recoil-term-vanishes", "compound-pendulum-limit", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_amp", "cart_mass", "mode"]
+      },
+      "L2_caps": {
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration",
+        "cart_locked": "SetFixed|ChLinkLockLock|ChLinkMateFix"
+      },
+      "derive": [
+        {"name": "theta_period", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0, "about": 0.0},
+        {"name": "theta_amp", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 1.0},
+        {"name": "x_lock", "kind": "range", "csv": "out.csv", "column": "x"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_period", "lo": 1.59, "hi": 1.69,
+         "desc": "cart welded (an MJCF body with no joint is fixed to its parent): the recoil term vanishes and the plain compound-pendulum period m g d / I_h appears: oracle 1.6379, measured 1.6402; a still-sliding cart (1.51) fails low"},
+        {"kind": "range", "key": "theta_amp", "lo": 0.135, "hi": 0.165,
+         "desc": "amplitude unchanged"},
+        {"kind": "max", "key": "x_lock", "bound": 1e-4,
+         "desc": "the cart x coordinate never moves: pins the slide-joint removal"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+Convert the MuJoCo MJCF model below, together with its controller trajectory (stated here), into a PyChrono (version 10.0) Python script that runs the equivalent virtual experiment, headless (no visualization window, no rendering). PyChrono has no MJCF importer, so translate the model's SEMANTICS by hand.
+
+The model is a 3-DOF serial arm standing at the origin (z up, gravity (0, 0, -9.81)): a 0.4 m column on a base YAW hinge about z, a 0.5 m upper arm on a SHOULDER pitch hinge about y at the column top (0, 0, 0.4), and a 0.5 m forearm on an ELBOW pitch hinge about y at (0, 0, 0.9); the end effector is the forearm tip (site "ee", 0.5 m past the elbow). All links start pointing straight up (EE at (0, 0, 1.4)); map each inertial block exactly (mass, diaginertia, COM offset along each link).
+
+The MJCF's position actuators track a controller reference; the sanctioned conversion is to IMPOSE the joint angles exactly with ChLinkMotorRotationAngle joints (one per hinge; remember a motor's frame z is its rotation axis, so rotate the shoulder/elbow frames to put z along global y; pass the moving link as the FIRST body in Initialize so the imposed angle rotates the link, not its parent) driven by custom angle functions (subclass chrono.ChFunction and override GetVal):
+
+  yaw:      q1(t) = 0.5 * sin(0.2*pi*t)
+  shoulder: q2(t) = 0.35 * (1 - cos(0.4*pi*t))
+  elbow:    q3(t) = -0.5 * (1 - cos(0.4*pi*t))
+
+Integrate at 1e-3 s until t = 10.0 s.
+
+Physics to expect: under imposed motion the EE follows pure forward kinematics: z = 0.4 + 0.5*cos(q2) + 0.5*cos(q2+q3) dips to about 1.26 at the deepest reach, the yaw sweep carries |y| to about 0.084, and at t = 10 every joint reference is back at zero, so the arm returns HOME: EE at (0, 0, 1.4).
+
+Required outputs (the script must produce these so the experiment can be graded):
+- Write a file named out.csv with a header row "t,x,y,z,r" and one row every 5 steps (every 5e-3 s), where (x, y, z) is the end-effector position (transform the tip point from the forearm body) and r = hypot(x, y).
+- At the very end, print exactly one JSON line to stdout:
+  {"z_final": <last z>, "r_final": <last r>, "L2": 0.5, "rate_scale": 1.0}
+
+The script must run to completion on its own and exit (headless, no display). Output only the Python script.
+
+--- BEGIN MJCF SOURCE (arm3dof_v1.xml) ---
+<mujoco model="arm3dof">
+  <!-- A 3-DOF serial arm standing on the ground: base yaw about z, shoulder and elbow pitch
+       about y. Explicit inertial blocks; position actuators (the reference trajectory comes
+       from the controller, stated in the task text). Units: m, kg, s; z is up. -->
+  <option gravity="0 0 -9.81" timestep="0.001"/>
+  <worldbody>
+    <body name="column" pos="0 0 0">
+      <joint name="yaw" type="hinge" axis="0 0 1" pos="0 0 0"/>
+      <inertial pos="0 0 0.2" mass="2.0" diaginertia="0.0266667 0.0266667 0.002"/>
+      <geom name="column_geom" type="capsule" fromto="0 0 0  0 0 0.4" size="0.04"/>
+      <body name="upper_arm" pos="0 0 0.4">
+        <joint name="shoulder" type="hinge" axis="0 1 0" pos="0 0 0"/>
+        <inertial pos="0 0 0.25" mass="1.0" diaginertia="0.0208333 0.0208333 0.0005"/>
+        <geom name="upper_geom" type="capsule" fromto="0 0 0  0 0 0.5" size="0.03"/>
+        <body name="forearm" pos="0 0 0.5">
+          <joint name="elbow" type="hinge" axis="0 1 0" pos="0 0 0"/>
+          <inertial pos="0 0 0.25" mass="1.0" diaginertia="0.0208333 0.0208333 0.0005"/>
+          <geom name="fore_geom" type="capsule" fromto="0 0 0  0 0 0.5" size="0.025"/>
+          <site name="ee" pos="0 0 0.5"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="yaw_servo" joint="yaw" kp="800"/>
+    <position name="shoulder_servo" joint="shoulder" kp="800"/>
+    <position name="elbow_servo" joint="elbow" kp="800"/>
+  </actuator>
+</mujoco>
+--- END MJCF SOURCE ---

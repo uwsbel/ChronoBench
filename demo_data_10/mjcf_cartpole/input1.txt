@@ -1,0 +1,38 @@
+Convert the MuJoCo MJCF model below into a PyChrono (version 10.0) Python script that runs the equivalent virtual experiment, headless (no visualization window, no rendering). PyChrono has no MJCF importer, so translate the model's SEMANTICS by hand into PyChrono bodies and joints.
+
+Conversion notes:
+- MuJoCo world: z is up, gravity (0, 0, -9.81); keep the same frame in Chrono (SetGravitationalAcceleration).
+- The cart body has a slide joint along x against the world: build a fixed ground body and a prismatic joint (note that ChLinkLockPrismatic slides along its frame's LOCAL Z axis, so rotate the joint frame to point z along global x).
+- The pole is a child body with a hinge about y at the cart origin: a revolute joint (ChLinkLockRevolute rotates about its frame's local z, so rotate the frame accordingly).
+- Map each MJCF inertial block exactly: mass and diaginertia go to SetMass / SetInertiaXX in the body frame, and the inertial pos (the COM offset, "0 0 -0.5" for the pole) means the Chrono body's origin/COM sits at that offset from the hinge: place the pole body's position at the COM location, not at the hinge.
+- Initial condition: release the pole tilted 0.15 rad about +y (rotate the pole body and place its COM consistently); everything starts at rest.
+- The geoms are visualization/collision only; there are no contacts in this experiment, so no collision shapes are needed.
+- Integrate at 1e-3 s until t = 10.0 s.
+- Physics to expect: the pole (uniform 1 m rod, m = 0.5, hinge at its top end) swings under a FREE 2 kg cart; the coupled oscillation with cart recoil has a period near 1.51 s (faster than the same pendulum on a locked base), and, because horizontal momentum starts at zero, the SYSTEM center of mass x stays exactly constant while the cart and pole counter-oscillate.
+
+Required outputs (the script must produce these so the experiment can be graded):
+- Write a file named out.csv with a header row "t,x,theta,xcom" and one row per step, where x is the cart x position, theta is the pole's rotation angle about y extracted from its quaternion (2*atan2(e2, e0)), and xcom = (M_cart*x_cart + m_pole*x_poleCOM) / (M_cart + m_pole).
+- At the very end, print exactly one JSON line to stdout:
+  {"theta_amp": <max of |theta| over t >= 1>, "cart_mass": 2.0, "mode": "free-cart"}
+
+The script must run to completion on its own and exit (headless, no display). Output only the Python script.
+
+--- BEGIN MJCF SOURCE (cartpole_v1.xml) ---
+<mujoco model="cartpole_hanging">
+  <!-- A cart free to slide along x, with a uniform-rod pole hanging BELOW it on a hinge.
+       Explicit inertial blocks make the conversion unambiguous. Units: m, kg, s; z is up. -->
+  <option gravity="0 0 -9.81" timestep="0.001"/>
+  <worldbody>
+    <body name="cart" pos="0 0 1">
+      <joint name="slide_x" type="slide" axis="1 0 0"/>
+      <inertial pos="0 0 0" mass="2.0" diaginertia="0.05 0.05 0.05"/>
+      <geom name="cart_box" type="box" size="0.15 0.10 0.05"/>
+      <body name="pole" pos="0 0 0">
+        <joint name="hinge_y" type="hinge" axis="0 1 0" pos="0 0 0"/>
+        <inertial pos="0 0 -0.5" mass="0.5" diaginertia="0.0416667 0.0416667 0.0001"/>
+        <geom name="pole_rod" type="capsule" fromto="0 0 0  0 0 -1" size="0.02"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+--- END MJCF SOURCE ---

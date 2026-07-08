@@ -1,0 +1,102 @@
+{
+  "task": "pyb_arm_motor",
+  "axis": "cross-simulator-conversion-pybullet",
+  "simulator": "pychrono",
+  "source": "CONVERSION shape, third ecosystem (PyBullet -> PyChrono, IMPERATIVE source): the prompt embeds a complete PyBullet script (source/pyb_arm_v*.py: createMultiBody link arrays, changeDynamics inertias, setJointMotorControl2 velocity control, an explicitly applied viscous elbow torque) and the candidate emits an equivalent PyChrono script. Triple-validated: the RK4 oracle (pendulum with prescribed moving pivot), the PyBullet SOURCE run in a disposable pybullet conda env, and the PyChrono reference agree on every graded value to 4 decimals. The drive uses a 0.5 s soft-start ramp BY DESIGN: a velocity-step motor start is an impulsive constraint that kicks the free pendulum (3.6x amplitude vs the smooth oracle, measured during calibration)",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"L1": 0.4, "L2": 0.5, "m1": 0.5, "m2": 0.3, "omega": 1.5, "b_elbow": 0.05, "t_ramp": 0.5, "theta_tail_oracle": 0.2015, "theta_max_oracle": 0.3057},
+      "probe_vector": ["pybullet-imperative-conversion", "createmultibody-link-arrays", "velocity-motor-soft-start", "free-joint-idiom", "viscous-joint-damper", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "w_mean", "kind": "mean", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 1.0}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_tail", "lo": 0.17, "hi": 0.23,
+         "desc": "steady driven swing after the transient decays through the elbow damper: 0.2015 rad (RK4 oracle; PyBullet source and Chrono reference both measure 0.2015); wrong crank length (e.g. misreading linkPositions as COM-relative -> 0.1518) fails low"},
+        {"kind": "range", "key": "theta_max", "lo": 0.27, "hi": 0.34,
+         "desc": "startup overshoot 0.3057 (all three implementations agree to 4 decimals)"},
+        {"kind": "range", "key": "w_mean", "lo": 1.44, "hi": 1.56,
+         "desc": "the crank cruises at the 1.5 rad/s velocity target after its 0.5 s soft start (positive sense with the moving link passed first to Initialize)"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"omega": 2.0, "theta_tail_oracle": 0.3267, "theta_max_oracle": 0.4778},
+      "probe_vector": ["velocity-retarget-faster", "centripetal-pumping-grows", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "w_mean", "kind": "mean", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 1.0}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta_tail", "lo": 0.29, "hi": 0.37,
+         "desc": "faster whirl, stronger pumping: steady swing 0.3267 (an unmodified 1.5 rad/s candidate at 0.2015 fails low)"},
+        {"kind": "range", "key": "theta_max", "lo": 0.43, "hi": 0.53,
+         "desc": "overshoot 0.4778"},
+        {"kind": "range", "key": "w_mean", "lo": 1.92, "hi": 2.08,
+         "desc": "the drive actually retargeted to 2.0 rad/s"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"omega": 2.0, "t_brake": 5.0, "theta_tail_oracle": 0.0434, "ring_period_oracle": 1.1785, "free_period_closed_form": 1.1582},
+      "probe_vector": ["motor-retarget-to-zero", "brake-and-hold", "damped-free-ringdown", "closed-form-period", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta_max", "omega_drive"]
+      },
+      "L2_caps": {
+        "speed_motor": "ChLinkMotorRotationSpeed|ChLinkMotorRotationAngle",
+        "free_revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "damper": "ChLinkRSDA"
+      },
+      "derive": [
+        {"name": "theta_tail", "kind": "max_abs", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 7.0},
+        {"name": "w_tail", "kind": "max_abs", "csv": "out.csv", "column": "w", "time_column": "t", "t_min": 7.0},
+        {"name": "theta_max", "kind": "max_abs", "csv": "out.csv", "column": "theta"},
+        {"name": "ring_period", "kind": "period", "csv": "out.csv", "column": "theta", "time_column": "t", "t_min": 6.5, "about": 0.0}
+      ],
+      "L3": [
+        {"kind": "max", "key": "theta_tail", "bound": 0.08,
+         "desc": "after the t = 5 s brake the pendulum rings down through its damper: tail amplitude 0.0434; an un-braked candidate (0.3267) fails by 4x"},
+        {"kind": "max", "key": "w_tail", "bound": 0.05,
+         "desc": "the braked velocity motor HOLDS the crank: tail rate 0"},
+        {"kind": "range", "key": "ring_period", "lo": 1.12, "hi": 1.24,
+         "desc": "the ring-down period is the closed-form damped compound-pendulum value 1.1582/sqrt(1 - zeta^2) = 1.1785 s; a still-driven candidate measures the drive-locked 3.26 s and fails"},
+        {"kind": "range", "key": "theta_max", "lo": 0.43, "hi": 0.53,
+         "desc": "the pre-brake drive still happened (overshoot 0.4778)"}
+      ]
+    }
+  ]
+}

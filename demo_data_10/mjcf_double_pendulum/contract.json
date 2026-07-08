@@ -1,0 +1,97 @@
+{
+  "task": "mjcf_double_pendulum",
+  "axis": "cross-simulator-conversion-mjcf",
+  "simulator": "pychrono",
+  "source": "CONVERSION shape (MuJoCo MJCF -> PyChrono): the prompt embeds an authored two-rod MJCF with NESTED bodies (source/double_pendulum_v*.xml), whose child-body pos attribute is the coupling that makes it a double pendulum; PyChrono has no MJCF importer, so the nesting semantics must be translated by hand. Bands anchored to the independent RK4 integration of the exact Lagrangian equations in oracle.py; Chrono agrees to 4-5 decimals on the pinned build and conserves the logged energy to ~2e-5 relative",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"m1": 1.0, "L1": 1.0, "m2": 1.0, "L2": 1.0, "release": [0.1, 0.0], "theta2_max_oracle": 0.1702, "theta2_max_ref": 0.17016},
+      "probe_vector": ["mjcf-nested-body-semantics", "hinge-chain", "inertial-block-mapping", "energy-instrumentation", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta1_max", "theta2_max", "config"]
+      },
+      "L2_caps": {
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration",
+        "two_hinges": "(ChLinkLockRevolute|ChLinkMateRevolute)[\\s\\S]*(ChLinkLockRevolute|ChLinkMateRevolute)"
+      },
+      "derive": [
+        {"name": "theta1_max", "kind": "max_abs", "csv": "out.csv", "column": "th1"},
+        {"name": "theta2_max", "kind": "max_abs", "csv": "out.csv", "column": "th2"},
+        {"name": "e_drift", "kind": "drift_rel", "csv": "out.csv", "column": "e"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta2_max", "lo": 0.155, "hi": 0.185,
+         "desc": "energy exchange pumps the second arm to 0.1702 rad from a 0.1 release of the first (RK4 oracle; measured 0.17016); a decoupled or mis-anchored second hinge collapses this"},
+        {"kind": "range", "key": "theta1_max", "lo": 0.09, "hi": 0.112,
+         "desc": "the first arm stays bounded by its 0.1 release (quasi-periodic small-angle motion)"},
+        {"kind": "max", "key": "e_drift", "bound": 0.001,
+         "desc": "total mechanical energy computed from the body states is conserved (measured drift 1.7e-5); catches wrong inertias, damping, or a broken energy formula"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"m1": 1.0, "L1": 1.0, "m2": 1.5, "L2": 1.5, "release": [0.1, 0.0], "theta2_max_oracle": 0.1332, "theta2_max_ref": 0.13318},
+      "probe_vector": ["scaled-inertial-block", "mode-structure-shift", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta1_max", "theta2_max", "config"]
+      },
+      "L2_caps": {
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration"
+      },
+      "derive": [
+        {"name": "theta1_max", "kind": "max_abs", "csv": "out.csv", "column": "th1"},
+        {"name": "theta2_max", "kind": "max_abs", "csv": "out.csv", "column": "th2"},
+        {"name": "e_drift", "kind": "drift_rel", "csv": "out.csv", "column": "e"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "theta2_max", "lo": 0.120, "hi": 0.147,
+         "desc": "the longer, heavier second rod (L2 = 1.5, m2 = 1.5, I2 = 0.28125 about its COM at -0.75) swings less: 0.1332 (RK4); an unmodified candidate (0.1702) fails high"},
+        {"kind": "range", "key": "theta1_max", "lo": 0.09, "hi": 0.112,
+         "desc": "first arm still bounded by its release"},
+        {"kind": "max", "key": "e_drift", "bound": 0.001,
+         "desc": "energy still conserved with the scaled inertials"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"m1": 1.0, "L1": 1.0, "m2": 1.5, "L2": 1.5, "release": [0.1, -0.1], "rel_max_oracle": 0.208, "rel_max_ref": 0.208},
+      "probe_vector": ["bent-release-configuration", "counter-phase-mode", "relative-angle-observable", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 120,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["theta1_max", "theta2_max", "config"]
+      },
+      "L2_caps": {
+        "revolute": "ChLinkLockRevolute|ChLinkMateRevolute",
+        "gravity": "SetGravitationalAcceleration"
+      },
+      "derive": [
+        {"name": "rel_max", "kind": "max_abs", "csv": "out.csv", "column": "rel"},
+        {"name": "theta2_max", "kind": "max_abs", "csv": "out.csv", "column": "th2"},
+        {"name": "e_drift", "kind": "drift_rel", "csv": "out.csv", "column": "e"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "rel_max", "lo": 0.19, "hi": 0.23,
+         "desc": "the opposite bend (theta2 = -0.1) excites the counter-phase mode: the relative angle peaks at 0.208 (RK4); a straight-release candidate (0.1385) fails low. Placing rod 2 consistently with ITS OWN release angle from rod 1's tip is the conversion skill probed"},
+        {"kind": "range", "key": "theta2_max", "lo": 0.115, "hi": 0.142,
+         "desc": "second-arm swing 0.1274 (RK4; measured 0.12741)"},
+        {"kind": "max", "key": "e_drift", "bound": 0.001,
+         "desc": "energy still conserved from the bent release"}
+      ]
+    }
+  ]
+}

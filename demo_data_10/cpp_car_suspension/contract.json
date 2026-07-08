@@ -1,0 +1,108 @@
+{
+  "task": "cpp_car_suspension",
+  "axis": "source-translation-cpp",
+  "simulator": "pychrono",
+  "source": "TRANSLATION shape, the practical stress test: the prompt embeds the complete 718-line demo_MBS_suspension.cpp (projectchrono/chrono src/demos/mbs, copy in source/), a full 9-body car (chassis + 4 double-wishbone-as-ChLinkDistance corners + TSDA spring-dampers + rear torque motors with a throttle/differential/DC-motor drivetrain law) of which roughly half is Irrlicht GUI to be recognized and dropped, plus two elements the prompt explicitly excludes for determinism (randomly placed obstacles; an asymmetric-friction contact callback). Spring compression anchored to the independent linearized force balance in oracle.py (motion ratio 0.4/0.85; agrees 2-3% at both stiffnesses); ride-height and drive bands calibrated on the pinned build and frozen",
+  "scoring": {
+    "weights": {"L1": 0.30, "L2": 0.20, "L3": 0.50},
+    "invariant_fail_cap": 40
+  },
+  "turns": [
+    {
+      "turn": 1,
+      "params": {"spring_k": 28300.0, "spring_c": 80.0, "throttle": 0.0, "step": 5e-3, "t_end": 4.0, "cy_ref": 0.4205, "slen_ref": 0.8224, "slen_pred_force_balance": 0.8224},
+      "probe_vector": ["cpp-to-python-translation", "multi-body-assembly-9-bodies", "distance-rod-wishbones", "tsda-spring-damper", "nsc-ground-contact", "gui-and-nondeterminism-stripped", "instrumented-observable"],
+      "run": {
+        "entry": "truth1.py",
+        "timeout": 300,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["chassis_y_settled", "spring_len_settled", "throttle"]
+      },
+      "L2_caps": {
+        "distance_rods": "ChLinkDistance",
+        "spring": "ChLinkTSDA",
+        "torque_motor": "ChLinkMotorRotationTorque",
+        "solver": "PSOR",
+        "revolute": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "cy_settled", "kind": "mean", "csv": "out.csv", "column": "cy", "time_column": "t", "t_min": 3.0},
+        {"name": "slen_settled", "kind": "mean", "csv": "out.csv", "column": "slen", "time_column": "t", "t_min": 3.0},
+        {"name": "drop_start", "kind": "max", "csv": "out.csv", "column": "cy"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "slen_settled", "lo": 0.810, "hi": 0.833,
+         "desc": "spring settles 0.0276 below its 0.85 rest length (force balance predicts 0.0276: corner load 368 N against k times the 0.4/0.85 motion ratio); a wrong k, mass, or anchor geometry moves it"},
+        {"kind": "range", "key": "cy_settled", "lo": 0.405, "hi": 0.432,
+         "desc": "chassis ride height after the 0.55 m drop (calibrated 0.4205); the stiff-spring case (0.4422) fails high, a car that fell through or bottomed out fails low"},
+        {"kind": "min", "key": "drop_start", "bound": 0.9,
+         "desc": "the car is SPAWNED at y = 1 and dropped (catches pre-settled spawns)"}
+      ]
+    },
+    {
+      "turn": 2,
+      "params": {"spring_k": 113200.0, "spring_c": 80.0, "throttle": 0.0, "cy_ref": 0.4422, "slen_ref": 0.8429, "slen_pred_force_balance": 0.8431},
+      "probe_vector": ["stiffness-parameter-sweep", "suspension-law-stiffer-rides-higher", "instrumented-observable"],
+      "run": {
+        "entry": "truth2.py",
+        "timeout": 300,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["chassis_y_settled", "spring_len_settled", "throttle"]
+      },
+      "L2_caps": {
+        "distance_rods": "ChLinkDistance",
+        "spring": "ChLinkTSDA",
+        "torque_motor": "ChLinkMotorRotationTorque",
+        "solver": "PSOR",
+        "revolute": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "cy_settled", "kind": "mean", "csv": "out.csv", "column": "cy", "time_column": "t", "t_min": 3.0},
+        {"name": "slen_settled", "kind": "mean", "csv": "out.csv", "column": "slen", "time_column": "t", "t_min": 3.0},
+        {"name": "drop_start", "kind": "max", "csv": "out.csv", "column": "cy"}
+      ],
+      "L3": [
+        {"kind": "range", "key": "slen_settled", "lo": 0.838, "hi": 0.848,
+         "desc": "4x stiffer springs carry the same corner load at ~1/4 the compression: settle 0.0071 below rest (force balance 0.0069); an unmodified candidate (0.8224) fails low"},
+        {"kind": "range", "key": "cy_settled", "lo": 0.436, "hi": 0.452,
+         "desc": "the stiffer car rides HIGHER (calibrated 0.4422); the soft-spring ride (0.4205) fails low"},
+        {"kind": "min", "key": "drop_start", "bound": 0.9,
+         "desc": "still spawned high and dropped"}
+      ]
+    },
+    {
+      "turn": 3,
+      "params": {"spring_k": 113200.0, "throttle": 0.3, "t_end": 8.0, "ground_size": 400.0, "cy_ref": 0.4369, "dist_ref": 81.13, "speed_ref": 17.01, "terminal_speed": 21.6},
+      "probe_vector": ["drivetrain-law-translation", "throttle-torque-differential", "dc-motor-speed-curve", "forward-progress", "instrumented-observable"],
+      "run": {
+        "entry": "truth3.py",
+        "timeout": 300,
+        "expect_csv": "out.csv",
+        "expect_json_keys": ["chassis_y_settled", "spring_len_settled", "dist_final", "speed_final", "throttle"]
+      },
+      "L2_caps": {
+        "distance_rods": "ChLinkDistance",
+        "spring": "ChLinkTSDA",
+        "torque_motor": "ChLinkMotorRotationTorque",
+        "solver": "PSOR",
+        "revolute": "ChLinkLockRevolute"
+      },
+      "derive": [
+        {"name": "cy_settled", "kind": "mean", "csv": "out.csv", "column": "cy", "time_column": "t", "t_min": 7.0},
+        {"name": "dist_final", "kind": "final", "csv": "out.csv", "column": "dist"},
+        {"name": "speed_final", "kind": "final", "csv": "out.csv", "column": "speed"},
+        {"name": "fwd_monotonic", "kind": "monotonic", "csv": "out.csv", "column": "dist", "time_column": "t", "t_min": 2.0}
+      ],
+      "L3": [
+        {"kind": "range", "key": "speed_final", "lo": 14.0, "hi": 20.0,
+         "desc": "throttle 0.3 through the translated drivetrain law reaches 17.01 m/s in 8 s, approaching the 21.6 m/s DC-motor terminal; a mis-translated torque chain (dropped differential 0.5, wrong gear ratio) lands outside"},
+        {"kind": "min", "key": "dist_final", "bound": 60.0,
+         "desc": "the car actually drives (calibrated 81.13 m; a no-drive or feeble-torque candidate fails)"},
+        {"kind": "min", "key": "fwd_monotonic", "bound": 0.95,
+         "desc": "forward progress is monotonic under constant throttle"},
+        {"kind": "range", "key": "cy_settled", "lo": 0.415, "hi": 0.465,
+         "desc": "the car still rides at the stiff-suspension height while driving (calibrated 0.4369; band sized to the contention-level variance of the threaded contact solver, see CONTRACT.md): catches bottoming out or leaving the ground"}
+      ]
+    }
+  ]
+}

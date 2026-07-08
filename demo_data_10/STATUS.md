@@ -228,6 +228,44 @@ The suite now spans TWO execution environments in one gate: the pinned `pychrono
    self-sequencing (measurements enable at t = 3; `GetPos` vs `GetSpindle`), slip definition,
    `ReportTireForce` reads 0 in this rig mode.
 
+## Shape pilots, solo half (2026-07-08): three task SHAPES land in one batch (+7 tasks, suite 21 / 63 turns)
+
+The suite now covers all three conversion/translation shapes that were previously only designed
+(the interactive modernize-broken pair with Dan still pending). Every prompt embeds the COMPLETE
+source artifact (C++ file, MJCF XML, or PyBullet script), since generation-time translation is
+the skill under test; verbatim sources kept per task in `source/` for provenance.
+
+1. **C++ -> PyChrono translation** (`cpp_ujoint`, `cpp_fourbar`, `cpp_car_suspension`): Cardan
+   closed form (signed bands: the motor body-order finding); Freudenstein loop-closure oracle
+   (4-5 decimal agreement; the demo starts AT the extended collinear extreme); and the
+   PRACTICAL 718-line MySimpleCar (9 bodies, distance-rod wishbones, TSDA springs, a
+   throttle/differential/DC-motor drivetrain law to translate; force-balance anchor closes to
+   2-3% at two stiffnesses). Authoring findings: a rod-anchor mirroring bug in MY OWN draft
+   reference (caught and fixed against the C++ coordinates); a designed side-drift invariant
+   REMOVED after it proved to grade OpenMP contact-ordering noise (free-rolling creep 0.1-1.2 m
+   across identical runs) rather than physics; the 60 m demo ground plate is a run-length trap
+   for driven scenarios (the car drives off the edge at ~73 m and falls; turn 3 enlarges it,
+   stated in the prompt).
+2. **MJCF -> PyChrono conversion** (`mjcf_cartpole`, `mjcf_double_pendulum`,
+   `mjcf_robot_arm`): no MJCF importer exists in PyChrono (verified), so semantics are
+   hand-translated. Closed-form coupled cart-pole oscillation (recoil mass-ratio; COM-x
+   conserved to machine zero), RK4 double pendulum (4-5 decimal agreement; nested-body pos is
+   the graded trap), and the PRACTICAL 3-DOF position-actuated arm (FK oracle; home return
+   exact to 1e-13; bad control = dropped hinge axes).
+3. **PyBullet -> PyChrono conversion** (`pyb_arm_motor`): the IMPERATIVE-source counterpart,
+   TRIPLE-validated (RK4 oracle / PyBullet source run in a disposable `pyb-src` conda env /
+   Chrono reference agree to 4 decimals). Findings: velocity-motor step starts are impulsive
+   (3.6x amplitude; soft-start ramp is part of the spec); PyBullet `linkPositions` are
+   parent-JOINT-frame relative (the author's own slip became the bad control); PyBullet
+   `jointDamping` is not a plain viscous torque (source applies -b*qdot explicitly).
+4. All seven: truths 100/100/100, good ~100, bad capped 40. Suite self-check 63/63 after two
+   variance-driven hardening passes that full-suite sweeps exposed: cpp_car_suspension turn 3
+   flaked once under concurrent system load (threaded-contact nondeterminism is LOAD-conditioned;
+   quiet runs are bit-identical: ride band widened to contention variance, monotonic window moved
+   past the bounce), and crm_tire_rig turn 2's drawbar check was REMOVED after the GPU drawbar
+   proved to spread 2.6x across identical runs (105.9-277.5 N; sinkage, <1 mm repeatable,
+   carries the load law). Sweep-level flakes are themselves calibration data.
+
 ## Tasks
 
 | Task | Axis | Sim | State | Self-score | Notes |
@@ -252,6 +290,13 @@ The suite now spans TWO execution environments in one gate: the pinned `pychrono
 | hmmwv_scm | vehicle-terramech | pychrono | verified+3turn | 100 | DONE FULLY (vehicle pick SETTLED); rigid/SCM-firm/SCM-soft; Bekker-anchored rut bands + calibrated speed bands; good 100 / bad 40 |
 | fsi_object_drop (new) | FSI-SPH | pychrono (hip env) | verified+3turn | 100 | DONE FULLY; FIRST GPU TASK (env registry); Archimedes oracle + documented BCE-skin bias; float/deeper-draft/sinks-to-floor; good 100 / bad 40 |
 | crm_tire_rig (new) | tire-terramech-CRM | pychrono (hip env) | verified+3turn | 100 | DONE FULLY; CRM counterpart to the SCM tasks; kinematic-slip anchor + load/slip-sinkage laws; good 100 / bad 40 |
+| cpp_ujoint (new) | translation (C++) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; embeds demo_MBS_ujoint.cpp; signed Cardan bands (motor body-order finding); good 100 / bad 40 |
+| cpp_fourbar (new) | translation (C++) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; embeds demo_MBS_fourbar.cpp (GUI class to strip); loop-closure oracle 4-5 decimals; good 100 / bad 40 |
+| cpp_car_suspension (new) | translation (C++, practical) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; 718-line MySimpleCar incl. drivetrain law; force-balance anchor 2-3%; drift-check-removed finding; good 100 / bad 40 |
+| mjcf_cartpole (new) | conversion (MJCF) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; recoil mass-ratio closed form + exact COM conservation; COM-offset trap; good 100 / bad 40 |
+| mjcf_double_pendulum (new) | conversion (MJCF) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; RK4 oracle 4-5 decimals; nested-body-pos trap; energy instrumentation; good 100 / bad 40 |
+| mjcf_robot_arm (new) | conversion (MJCF, practical) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT; 3-DOF position-actuated arm; FK oracle, home return 1e-13; hinge-axis trap; good 100 / bad 40 |
+| pyb_arm_motor (new) | conversion (PyBullet) | pychrono | verified+3turn | 100 | DONE FULLY; SHAPE PILOT (3rd ecosystem, imperative source); TRIPLE-validated to 4 decimals; impulsive-start + linkPositions findings; good 100 / bad 40 |
 | m113 | vehicle(tracked) | pychrono | pending | | KEEP-port |
 | (1 car: sedan or citybus) | vehicle | pychrono | pending | | KEEP-port; Dan picks which |
 | gps_imu | sensor | pychrono | pending | | KEEP-port; GPS/IMU (no OptiX) |

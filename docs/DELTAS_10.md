@@ -96,3 +96,24 @@ marked [survey] are from the authoritative `projectchrono/chrono@10.0.0` CHANGEL
   imposed in Mode_TEST, so slip is pure kinematics and load-independent: with the Polaris tire
   (R = 0.330 m), 10 RPM vs 0.2 m/s reads 0.7291 and 30 RPM reads 4.1873 (matched to 4 decimals
   at two loads). It is a wheel-speed pin, not a traction observable. [verified]
+- **Rotation motors apply their function to body1 RELATIVE to body2.** `Initialize(ground,
+  shaft)` with a +1 rad/s function spins the SHAFT at -1 (the demo_MBS_ujoint C++ prints the
+  same negative rates); pass the moving body first to get the intuitive sign. Verified across
+  ChLinkMotorRotationAngle and ChLinkMotorRotationSpeed on four tasks. [verified]
+- **A velocity-motor STEP start is an impulsive constraint.** Switching a
+  ChLinkMotorRotationSpeed from rest to a constant target in one step kicks any FREE body
+  hanging downstream of the driven link (measured 3.6x the smooth-start swing amplitude on a
+  crank-pendulum). Ramp the speed function when free DOFs ride on the driven chain; the same
+  applies to PyBullet velocity motors. [verified]
+- **Contact-rich NSC runs are only conditionally reproducible on the OpenMP build.** The same
+  suspension-car script is bit-identical across back-to-back runs on a QUIET machine, but under
+  concurrent system load (other sims, a LaTeX build) thread contention changes contact ordering:
+  settled heights then vary by a few mm and free-rolling lateral positions random-walk 0.1-1.2 m.
+  Grade settle/steady observables with bands sized to the CONTENTION-level variance (a quiet
+  calibration run understates it), never the free-rolling pose; joint-only (no-contact) tasks
+  reproduce to 13+ digits regardless. [verified]
+- **PyBullet cross-ecosystem traps (for conversion-task authoring):** `linkPositions` in
+  createMultiBody are relative to the parent's JOINT frame, not its COM/inertial frame; and
+  built-in `jointDamping` is NOT a plain viscous torque (25% lower response than an explicit
+  -b*qdot TORQUE_CONTROL at the same coefficient). Both verified against an independent RK4
+  oracle in the pyb-src validation env. [verified]

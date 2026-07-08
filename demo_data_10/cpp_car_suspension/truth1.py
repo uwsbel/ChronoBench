@@ -1,0 +1,150 @@
+"""Suspension-car C++ demo translated to PyChrono, turn 1 (TRANSLATE) -- PyChrono 10.0,
+headless -- contracted reference.
+
+Faithful translation of the physics core of source/demo_MBS_suspension.cpp (projectchrono/
+chrono, src/demos/mbs): the MySimpleCar, a chassis (150 kg) on four double-wishbone corners
+built the demo's way (four ChLinkDistance rods + a steer/lateral rod per corner, a ChLinkTSDA
+spring-damper k = 28300 / c = 80, wheel on a revolute; rear wheels carry ChLinkMotorRotationTorque
+drives), on a flat NSC ground (friction 1.0), PSOR solver with 20 iterations, dt = 5e-3.
+Dropped relative to the C++: all Irrlicht/GUI code, the six RANDOMLY placed obstacles, and the
+asymmetric-friction contact callback (determinism). Turn 1 is the passive drop-and-settle:
+throttle 0, the car falls 0.55 m onto the ground and settles on its springs. The judge derives
+the settled chassis height and spring length from the candidate's own log; bands are anchored
+to rigid-geometry + spring force balance and calibrated (CONTRACT.md).
+"""
+import csv
+import json
+
+import pychrono as chrono
+
+STEP = 5e-3
+T_END = 4.0
+THROTTLE = 0.0
+SPRING_K = 28300.0
+SPRING_C = 80.0
+CONIC_TAU = 0.2
+GEAR_TAU = 0.3
+MAX_MOTOR_TORQUE = 80.0
+MAX_MOTOR_SPEED = 800.0
+
+sysNSC = chrono.ChSystemNSC()
+sysNSC.SetGravityY()
+sysNSC.SetCollisionSystemType(chrono.ChCollisionSystem.Type_BULLET)
+
+ground_mat = chrono.ChContactMaterialNSC()
+ground_mat.SetStaticFriction(1.0)
+ground_mat.SetSlidingFriction(1.0)
+
+ground = chrono.ChBodyEasyBox(60, 2, 60, 1.0, False, True, ground_mat)
+ground.SetPos(chrono.ChVector3d(0, -1, 0))
+ground.SetFixed(True)
+sysNSC.AddBody(ground)
+
+chassis_mat = chrono.ChContactMaterialNSC()
+wheel_mat = chrono.ChContactMaterialNSC()
+wheel_mat.SetFriction(1.0)
+
+chassis = chrono.ChBodyEasyBox(1, 0.5, 3, 1.0, False, True, chassis_mat)
+chassis.SetPos(chrono.ChVector3d(0, 1, 0))
+chassis.SetMass(150)
+chassis.SetInertiaXX(chrono.ChVector3d(4.8, 4.5, 1))
+chassis.SetFixed(False)
+sysNSC.AddBody(chassis)
+
+springs = []
+motors = []
+
+
+def build_corner(sx, sz, front):
+    """One suspension corner the demo's way; sx = +-1 (right/left), sz = +-1 (front/back)."""
+    spindle = chrono.ChBodyEasyBox(0.1, 0.4, 0.4, 1.0, False, False)
+    spindle.SetPos(chrono.ChVector3d(1.3 * sx, 1, 1 * sz))
+    spindle.SetMass(8)
+    spindle.SetInertiaXX(chrono.ChVector3d(0.2, 0.2, 0.2))
+    sysNSC.AddBody(spindle)
+
+    wheel = chrono.ChBodyEasyCylinder(chrono.ChAxis_Y, 0.45, 0.3, 1.0, False, True, wheel_mat)
+    wheel.SetPos(chrono.ChVector3d(1.5 * sx, 1, 1 * sz))
+    wheel.SetRot(chrono.QuatFromAngleZ(chrono.CH_PI_2))
+    wheel.SetMass(3)
+    wheel.SetInertiaXX(chrono.ChVector3d(0.2, 0.2, 0.2))
+    sysNSC.AddBody(wheel)
+
+    rev = chrono.ChLinkLockRevolute()
+    rev.Initialize(wheel, spindle, chrono.ChFramed(chrono.ChVector3d(1.5 * sx, 1, 1 * sz),
+                                                   chrono.QuatFromAngleY(chrono.CH_PI_2)))
+    sysNSC.AddLink(rev)
+
+    # the four wishbone rods (upper 1/2, lower 1/2), demo coordinates mirrored by sx, sz
+    for cy, cz in ((1.2, 0.2), (1.2, -0.2), (0.8, 0.2), (0.8, -0.2)):
+        rod = chrono.ChLinkDistance()
+        rod.Initialize(chassis, spindle, False,
+                       chrono.ChVector3d(0.5 * sx, cy, (1 + cz) * sz),
+                       chrono.ChVector3d(1.25 * sx, cy, 1 * sz))
+        sysNSC.AddLink(rod)
+
+    spring = chrono.ChLinkTSDA()
+    spring.Initialize(chassis, spindle, False,
+                      chrono.ChVector3d(0.5 * sx, 1.2, 1.0 * sz),
+                      chrono.ChVector3d(1.25 * sx, 0.8, 1 * sz))
+    spring.SetSpringCoefficient(SPRING_K)
+    spring.SetDampingCoefficient(SPRING_C)
+    sysNSC.AddLink(spring)
+    springs.append(spring)
+
+    # steer rod (front) / lateral rod (back)
+    steer = chrono.ChLinkDistance()
+    steer.Initialize(chassis, spindle, False,
+                     chrono.ChVector3d(0.5 * sx, 1.21, 1.4 * sz),
+                     chrono.ChVector3d(1.25 * sx, 1.21, 1.3 * sz))
+    sysNSC.AddLink(steer)
+
+    if not front:                     # rear wheels carry the drive torque motors
+        motor = chrono.ChLinkMotorRotationTorque()
+        motor.Initialize(wheel, chassis, chrono.ChFramed(chrono.ChVector3d(1.5 * sx, 1, 1 * sz),
+                                                         chrono.QuatFromAngleY(chrono.CH_PI_2)))
+        sysNSC.AddLink(motor)
+        motors.append(motor)
+
+    return spindle, wheel
+
+
+build_corner(+1, +1, True)    # right front
+build_corner(-1, +1, True)    # left front
+build_corner(+1, -1, False)   # right back
+build_corner(-1, -1, False)   # left back
+
+
+def compute_wheel_torque():
+    """The demo's simplified throttle -> wheel-torque law (differential + gear + DC-like motor)."""
+    shaftspeed = (1.0 / CONIC_TAU) * 0.5 * (motors[0].GetMotorAngleDt() + motors[1].GetMotorAngleDt())
+    motorspeed = (1.0 / GEAR_TAU) * shaftspeed
+    motortorque = (MAX_MOTOR_TORQUE - motorspeed * (MAX_MOTOR_TORQUE / MAX_MOTOR_SPEED)) * THROTTLE
+    shafttorque = motortorque * (1.0 / GEAR_TAU)
+    single = 0.5 * shafttorque * (1.0 / CONIC_TAU)
+    for m in motors:
+        m.SetTorqueFunction(chrono.ChFunctionConst(single))
+
+
+sysNSC.SetSolverType(chrono.ChSolver.Type_PSOR)
+sysNSC.GetSolver().AsIterative().SetMaxIterations(20)
+
+rows = []
+t = 0.0
+while t < T_END:
+    t = sysNSC.GetChTime()
+    compute_wheel_torque()
+    sysNSC.DoStepDynamics(STEP)
+    p = chassis.GetPos()
+    rows.append((t, p.y, springs[0].GetLength(), p.z))
+
+with open("out.csv", "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["t", "cy", "slen", "cz"])
+    for r in rows:
+        w.writerow([f"{r[0]:.6f}", f"{r[1]:.6e}", f"{r[2]:.6e}", f"{r[3]:.6e}"])
+
+tail = [r for r in rows if r[0] >= T_END - 1.0]
+print(json.dumps({"chassis_y_settled": sum(r[1] for r in tail) / len(tail),
+                  "spring_len_settled": sum(r[2] for r in tail) / len(tail),
+                  "throttle": THROTTLE}))
